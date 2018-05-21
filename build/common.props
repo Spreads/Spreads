@@ -19,8 +19,13 @@
         <DelaySign>false</DelaySign>
     </PropertyGroup>
 
+    <PropertyGroup>
+        <DefineConstants>$(DefineConstants);NETSTANDARD;NETSTANDARD20</DefineConstants>
+    </PropertyGroup>
+
     <PropertyGroup Condition="'$(Configuration)'=='Debug'">
         <CheckForOverflowUnderflow>True</CheckForOverflowUnderflow>
+        <DefineConstants>$(DefineConstants);TRACE;DEBUG</DefineConstants>
     </PropertyGroup>
 
     <PropertyGroup>

@@ -7,6 +7,7 @@ using NUnit.Framework;
 using Spreads.Collections;
 using Spreads.Utils;
 using System.Collections.Generic;
+using System.Security.Cryptography;
 
 namespace Spreads.Core.Tests.Collections
 {
@@ -14,14 +15,62 @@ namespace Spreads.Core.Tests.Collections
     [TestFixture]
     public class SMTests
     {
-        [Test, Ignore("long running")]
-        public void EnumerateScmSpeed()
+        [Test, Explicit("long running")]
+        public void AddSpeed()
         {
             const int count = 10_000_000;
+            for (int r = 0; r < 2; r++)
+            {
+                var sl = new SortedList<int, int>();
+                var sm = new SortedMap<int, int>();
+                var scm = new SortedChunkedMap<int, int>();
+
+
+                //using (Benchmark.Run("SL", count))
+                //{
+                //    for (int i = 0; i < count; i++)
+                //    {
+                //        if (i != 2)
+                //        {
+                //            sl.Add(i, i);
+                //        }
+                //    }
+                //}
+
+                //using (Benchmark.Run("SM", count))
+                //{
+                //    for (int i = 0; i < count; i++)
+                //    {
+                //        if (i != 2)
+                //        {
+                //            sm.Add(i, i);
+                //        }
+                //    }
+                //}
+
+                using (Benchmark.Run("SCM", count))
+                {
+                    for (int i = 0; i < count; i++)
+                    {
+                        if (i != 2)
+                        {
+                            scm.Add(i, i);
+                        }
+                    }
+                }
+            }
+
+            Benchmark.Dump();
+        }
+
+        [Test, Explicit("long running")]
+        public void EnumerateScmSpeed()
+        {
+            const int count = 50_000_000;
 
             var sl = new SortedList<int, int>();
             var sm = new SortedMap<int, int>();
-            // var scm = new SortedMap<int, int>();
+            var scm = new SortedChunkedMap<int, int>();
 
             for (int i = 0; i < count; i++)
             {
@@ -29,11 +78,12 @@ namespace Spreads.Core.Tests.Collections
                 {
                     sl.Add(i, i);
                     sm.Add(i, i);
-                    // scm.Add(i, i);
+                    scm.Add(i, i);
                 }
             }
 
-            //var ism = new ImmutableSortedMap<int, int>(sm);
+            sm.Complete();
+            scm.Complete();
 
             long sum;
 
@@ -65,15 +115,15 @@ namespace Spreads.Core.Tests.Collections
                 }
                 Assert.True(sum > 0);
 
-                sum = 0L;
-                using (Benchmark.Run("ISM", count))
-                {
-                    foreach (var item in sm)
-                    {
-                        sum += item.Value;
-                    }
-                }
-                Assert.True(sum > 0);
+                //sum = 0L;
+                //using (Benchmark.Run("Foreach SM", count))
+                //{
+                //    foreach (var item in sm)
+                //    {
+                //        sum += item.Value;
+                //    }
+                //}
+                //Assert.True(sum > 0);
 
                 //sum = 0L;
                 //using (Benchmark.Run("SCM", count))
@@ -96,12 +146,13 @@ namespace Spreads.Core.Tests.Collections
         [Test, Explicit("long running")]
         public void TGVSpeed()
         {
-            for (int size = 0; size < 5; size++)
+            for (int size = 0; size < 3; size++)
             {
                 var count = (int)(1024 * Math.Pow(2, size));
-                const int mult = 1000;
+                const int mult = 100;
                 var sl = new SortedList<DateTime, int>();
                 var sm = new SortedMap<DateTime, int>();
+                var scm = new SortedChunkedMap<DateTime, int>();
 
                 var start = DateTime.Today.ToUniversalTime();
                 for (int i = 0; i < count; i++)
@@ -110,6 +161,7 @@ namespace Spreads.Core.Tests.Collections
                     {
                         sl.Add(start.AddTicks(i), i);
                         sm.Add(start.AddTicks(i), i);
+                        scm.Add(start.AddTicks(i), i);
                     }
                 }
 
@@ -120,8 +172,9 @@ namespace Spreads.Core.Tests.Collections
                 Assert.IsTrue(sm.isReadOnly);
                 Assert.IsTrue(sm.IsCompleted);
                 Assert.IsFalse(sm.IsSynchronized);
+                scm.Complete();
 
-                for (int r = 0; r < 30; r++)
+                for (int r = 0; r < 20; r++)
                 {
                     var sum1 = 0L;
                     using (Benchmark.Run("SL", count * mult, true))
@@ -155,8 +208,27 @@ namespace Spreads.Core.Tests.Collections
                         }
                     }
                     Assert.True(sum2 > 0);
-
                     Assert.AreEqual(sum1, sum2);
+
+                    var sum3 = 0L;
+                    using (Benchmark.Run("SCM", count * mult, true))
+                    {
+                        for (int j = 0; j < mult; j++)
+                        {
+                            for (int i = 0; i < count; i++)
+                            {
+                                if (scm.TryGetValue(start.AddTicks(i), out var v))
+                                {
+                                    sum3 += v;
+                                }
+                            }
+                        }
+                    }
+                    Assert.True(sum3 > 0);
+                    Assert.AreEqual(sum1, sum3);
+
+
+
                 }
 
                 Benchmark.Dump($"Size = {Math.Pow(2, size)}k elements");
@@ -189,7 +261,7 @@ namespace Spreads.Core.Tests.Collections
                         {
                             for (int i = 0; i < count; i++)
                             {
-                                sum1 +=  Array.BinarySearch(arr, 0, arr.Length, start.AddTicks(i), cmp1);
+                                sum1 += Array.BinarySearch(arr, 0, arr.Length, start.AddTicks(i), cmp1);
                             }
                         }
 

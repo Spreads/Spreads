@@ -72,23 +72,26 @@ type SortedMap<'K,'V>
   val mutable internal comparer : KeyComparer<'K>
 
   do
-    this.isSynchronized = true
     if comparerOpt.IsNone || KeyComparer<'K>.Default.Equals(comparerOpt.Value) then
       this.comparer <- KeyComparer<'K>.Default
     else 
       this.comparer <- comparerOpt.Value // do not try to replace with KeyComparer if a this.comparer was given
 
-  let mutable couldHaveRegularKeys : bool = this.comparer.IsDiffable
+  [<DefaultValueAttribute>] 
+  val mutable couldHaveRegularKeys : bool
   
-  let mutable rkStep_ : int64 = 0L
-  let mutable rkLast = Unchecked.defaultof<'K>
+  [<DefaultValueAttribute>] 
+  val mutable  rkStep_ : int64
+  [<DefaultValueAttribute>] 
+  val mutable  rkLast: 'K
 
   [<DefaultValueAttribute>] 
   val mutable isReadOnly : bool
   [<DefaultValueAttribute>] 
   val mutable isSynchronized : bool
 
-  let mutable mapKey = String.Empty
+  [<DefaultValueAttribute>] 
+  val mutable mapKey: string
 
   // TODO buffer management similar to OwnedArray
   [<DefaultValueAttribute>] 
@@ -97,9 +100,11 @@ type SortedMap<'K,'V>
   val mutable internal isReadyToDispose : int
 
   do
+    this.isSynchronized <- true
+    this.couldHaveRegularKeys <- this.comparer.IsDiffable
     let tempCap = if capacity.IsSome && capacity.Value > 0 then capacity.Value else 2
     this.keys <- 
-      if couldHaveRegularKeys then 
+      if this.couldHaveRegularKeys then 
         // regular keys are the first and the second value, their diff is the step
         // NB: Buffer pools could return a buffer greater than the requested length,
         // but for regular keys we always need a fixed-length array of size 2, so we allocate a new one.
@@ -117,7 +122,7 @@ type SortedMap<'K,'V>
         let mutable entered = false
         try
           entered <- enterWriteLockIf &map.Locker true
-          couldHaveRegularKeys <- map.IsRegular
+          this.couldHaveRegularKeys <- map.IsRegular
           this.SetCapacity(map.size)
           this.size <- map.size
           Array.Copy(map.keys, 0, this.keys, 0, map.size)
@@ -141,13 +146,13 @@ type SortedMap<'K,'V>
           Array.Sort(tempKeys, this.values, 0, dictionary.Value.Keys.Count, this.comparer)
           this.size <- dictionary.Value.Count
 
-          if couldHaveRegularKeys && this.size > 1 then // if could be regular based on initial check of this.comparer type
+          if this.couldHaveRegularKeys && this.size > 1 then // if could be regular based on initial check of this.comparer type
             let isReg, step, regularKeys = this.rkCheckArray tempKeys this.size (this.comparer)
-            couldHaveRegularKeys <- isReg
-            if couldHaveRegularKeys then 
+            this.couldHaveRegularKeys <- isReg
+            if this.couldHaveRegularKeys then 
               this.keys <- regularKeys
               BufferPool<_>.Return(tempKeys, true) |> ignore
-              rkLast <- this.rkKeyAtIndex (this.size - 1)
+              this.rkLast <- this.rkKeyAtIndex (this.size - 1)
             else
               this.keys <- tempKeys
           else
@@ -212,10 +217,10 @@ type SortedMap<'K,'V>
     #if DEBUG
     Trace.Assert(this.size > 1)
     #endif
-    if rkStep_ > 0L then rkStep_
+    if this.rkStep_ > 0L then this.rkStep_
     elif this.size > 1 then
-      rkStep_ <- this.comparer.Diff(this.keys.[1], this.keys.[0])
-      rkStep_
+      this.rkStep_ <- this.comparer.Diff(this.keys.[1], this.keys.[0])
+      this.rkStep_
     else
       ThrowHelper.ThrowInvalidOperationException("Cannot calculate regular keys step for a single element in a map or an empty map")
       0L
@@ -292,7 +297,7 @@ type SortedMap<'K,'V>
         false, 0, Unchecked.defaultof<'K[]>
 
   // need this for the SortedMapCursor
-  member inline private this.SetRkLast(rkl) = rkLast <- rkl
+  member inline private this.SetRkLast(rkl) = this.rkLast <- rkl
   
   member private this.Clone() = new SortedMap<'K,'V>(Some(this :> IDictionary<'K,'V>), None, Some(this.comparer))
 
@@ -303,7 +308,7 @@ type SortedMap<'K,'V>
     
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
   member inline internal this.GetKeyByIndexUnchecked(index) =
-    if couldHaveRegularKeys && this.size > 1 then this.rkKeyAtIndex index
+    if this.couldHaveRegularKeys && this.size > 1 then this.rkKeyAtIndex index
     else this.keys.[index]
 
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
@@ -313,7 +318,7 @@ type SortedMap<'K,'V>
   
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
   member inline internal this.GetPairByIndexUnchecked(index) =
-    if couldHaveRegularKeys && this.size > 1 then
+    if this.couldHaveRegularKeys && this.size > 1 then
       Debug.Assert(uint32 index < uint32 this.size, "Index must be checked before calling GetPairByIndexUnchecked")
       KeyValuePair(this.rkKeyAtIndex index, this.values.[index])
     else KeyValuePair(this.keys.[index], this.values.[index]) 
@@ -325,9 +330,9 @@ type SortedMap<'K,'V>
   
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
   member inline internal this.CompareToLast (k:'K) =
-    if couldHaveRegularKeys && this.size > 1 then
-      Debug.Assert(not <| Unchecked.equals rkLast Unchecked.defaultof<'K>)
-      this.comparer.Compare(k, rkLast)
+    if this.couldHaveRegularKeys && this.size > 1 then
+      Debug.Assert(not <| Unchecked.equals this.rkLast Unchecked.defaultof<'K>)
+      this.comparer.Compare(k, this.rkLast)
     else
       Debug.Assert(this.size > 0)
       this.comparer.Compare(k, this.keys.[this.size-1])
@@ -348,18 +353,18 @@ type SortedMap<'K,'V>
    
     if this.size = this.values.Length then this.EnsureCapacity(this.size + 1)
     Debug.Assert(index <= this.size, "index must be <= this.size")
-    Debug.Assert(couldHaveRegularKeys || (this.values.Length = this.keys.Length), "keys and values must have equal length for non-regular case")
+    Debug.Assert(this.couldHaveRegularKeys || (this.values.Length = this.keys.Length), "keys and values must have equal length for non-regular case")
     // for values it is alway the same operation
     if index < this.size then Array.Copy(this.values, index, this.values, index + 1, this.size - index);
     this.values.[index] <- v
     // for regular keys must do some math to check if they will remain regular after the insertion
     // treat sizes 1,2(after insertion) as non-regular because they are always both regular and not 
-    if couldHaveRegularKeys then
+    if this.couldHaveRegularKeys then
       if this.size > 1 then
         let step = this.rkGetStep()
-        if this.comparer.Compare(this.comparer.Add(rkLast, step), k) = 0 then
+        if this.comparer.Compare(this.comparer.Add(this.rkLast, step), k) = 0 then
           // adding next regular, only rkLast changes
-          rkLast <- k
+          this.rkLast <- k
         elif this.comparer.Compare(this.comparer.Add(this.keys.[0], -step), k) = 0 then
           this.keys.[1] <- this.keys.[0]
           this.keys.[0] <- k // change first key and size++ at the bottom
@@ -376,16 +381,16 @@ type SortedMap<'K,'V>
           else
             // insertting more than 1 away from end or before start, with a hole
             this.keys <- this.rkMaterialize() 
-            couldHaveRegularKeys <- false
+            this.couldHaveRegularKeys <- false
       else
         if index < this.size then
           Array.Copy(this.keys, index, this.keys, index + 1, this.size - index);
         else 
-          rkLast <- k
+          this.rkLast <- k
         this.keys.[index] <- k
         
-    // couldHaveRegularKeys could be set to false inside the previous block even if it was true before
-    if not couldHaveRegularKeys then
+    // this.couldHaveRegularKeys could be set to false inside the previous block even if it was true before
+    if not this.couldHaveRegularKeys then
       if index < this.size then
         Array.Copy(this.keys, index, this.keys, index + 1, this.size - index);
       this.keys.[index] <- k
@@ -407,26 +412,26 @@ type SortedMap<'K,'V>
     finally
       exitWriteLockIf &this.Locker entered
 
-  // override this.IsCompleted with get() = readLockIf &this.nextVersion &this.version (not this.isReadOnly) (fun _ -> this.isReadOnly)
-  override this.IsCompleted with get() = readLockIf &this.nextVersion &this.version (not this.isReadOnly) (fun _ -> this.isReadOnly)
+  // override this.IsCompleted with get() = readLockIf &this.nextVersion &this.version this.isSynchronized (fun _ -> this.isReadOnly)
+  override this.IsCompleted with get() = readLockIf &this.nextVersion &this.version this.isSynchronized (fun _ -> this.isReadOnly)
   
   override this.IsIndexed with get() = false
 
   member this.IsSynchronized with get() = this.isSynchronized
     
 
-  member internal this.MapKey with get() = mapKey and set(key:string) = mapKey <- key
+  member internal this.MapKey with get() = this.mapKey and set(key:string) = this.mapKey <- key
 
   member this.IsRegular 
-    with get() = readLockIf &this.nextVersion &this.version (not this.isReadOnly) (fun _ -> couldHaveRegularKeys) 
-    and private set (v) = couldHaveRegularKeys <- v
+    with get() = readLockIf &this.nextVersion &this.version this.isSynchronized (fun _ -> this.couldHaveRegularKeys) 
+    and private set (v) = this.couldHaveRegularKeys <- v
 
   member this.RegularStep 
     with get() = 
-      readLockIf &this.nextVersion &this.version (not this.isReadOnly) (fun _ -> try this.rkGetStep() with | _ -> 0L)
+      readLockIf &this.nextVersion &this.version this.isSynchronized (fun _ -> try this.rkGetStep() with | _ -> 0L)
 
   member this.Version 
-    with get() = readLockIf &this.nextVersion &this.version (not this.isReadOnly) (fun _ -> this.version)
+    with get() = readLockIf &this.nextVersion &this.version this.isSynchronized (fun _ -> this.version)
     and internal set v = 
       let mutable entered = false
       try
@@ -450,7 +455,7 @@ type SortedMap<'K,'V>
       
       // first, take new buffers. this could cause out-of-memory
       let kArr : 'K array = 
-        if couldHaveRegularKeys then
+        if this.couldHaveRegularKeys then
           Trace.Assert(this.keys.Length = 2)
           Unchecked.defaultof<_>
         else
@@ -458,7 +463,7 @@ type SortedMap<'K,'V>
       let vArr : 'V array = BufferPool<_>.Rent(c)
 
       try
-        if not couldHaveRegularKeys then
+        if not this.couldHaveRegularKeys then
           Array.Copy(this.keys, 0, kArr, 0, this.size)
           let toReturn = this.keys
           this.keys <- kArr
@@ -476,7 +481,7 @@ type SortedMap<'K,'V>
 
   member this.Capacity
     with get() = 
-      readLockIf &this.nextVersion &this.version (not this.isReadOnly) (fun _ ->
+      readLockIf &this.nextVersion &this.version this.isSynchronized (fun _ ->
         this.values.Length
       )
     and set(value) =
@@ -493,7 +498,7 @@ type SortedMap<'K,'V>
     let entered = this.EnterWriteLock()
     if entered then Interlocked.Increment(&this.nextVersion) |> ignore
     try
-      if couldHaveRegularKeys then
+      if this.couldHaveRegularKeys then
         Trace.Assert(this.keys.Length = 2)
         Array.Clear(this.keys, 0, 2)
       else
@@ -511,10 +516,10 @@ type SortedMap<'K,'V>
   override this.Keys 
     with get() =
       {new IList<'K> with
-        member x.Count with get() = readLockIf &this.nextVersion &this.version (not this.isReadOnly) (fun _ -> this.size)
+        member x.Count with get() = readLockIf &this.nextVersion &this.version this.isSynchronized (fun _ -> this.size)
         member x.IsReadOnly with get() = true
         member x.Item 
-          with get index : 'K = readLockIf &this.nextVersion &this.version (not this.isReadOnly) (fun _ -> this.GetKeyByIndex(index))
+          with get index : 'K = readLockIf &this.nextVersion &this.version this.isSynchronized (fun _ -> this.GetKeyByIndex(index))
           and set index value = raise (NotSupportedException("Keys collection is read-only"))
         member x.Add(k) = raise (NotSupportedException("Keys collection is read-only"))
         member x.Clear() = raise (NotSupportedException("Keys collection is read-only"))
@@ -523,7 +528,7 @@ type SortedMap<'K,'V>
           let mutable entered = false
           try
             entered <- this.EnterWriteLock()
-            if couldHaveRegularKeys && this.size > 2 then
+            if this.couldHaveRegularKeys && this.size > 2 then
               Array.Copy(this.rkMaterialize(), 0, array, arrayIndex, this.size)
             else
               Array.Copy(this.keys, 0, array, arrayIndex, this.size)
@@ -544,12 +549,12 @@ type SortedMap<'K,'V>
             member e.Current with get() = box e.Current
             member e.MoveNext() =
               let nextIndex = index.Value + 1
-              readLockIf &this.nextVersion &this.version (not this.isReadOnly) (fun _ ->
+              readLockIf &this.nextVersion &this.version this.isSynchronized (fun _ ->
                 if eVersion.Value <> this.version then
                   raise (InvalidOperationException("Collection changed during enumeration"))
                 if index.Value < this.size then
                   currentKey := 
-                    if couldHaveRegularKeys && this.size > 1 then this.comparer.Add(this.keys.[0], (int64 !index)*this.rkGetStep()) 
+                    if this.couldHaveRegularKeys && this.size > 1 then this.comparer.Add(this.keys.[0], (int64 !index)*this.rkGetStep()) 
                     else this.keys.[!index]
                   index := nextIndex
                   true
@@ -559,7 +564,7 @@ type SortedMap<'K,'V>
                   false
               )
             member e.Reset() =
-              readLockIf &this.nextVersion &this.version (not this.isReadOnly) (fun _ ->
+              readLockIf &this.nextVersion &this.version this.isSynchronized (fun _ ->
                 if eVersion.Value <> this.version then
                   raise (InvalidOperationException("Collection changed during enumeration"))
                 index := 0
@@ -574,10 +579,10 @@ type SortedMap<'K,'V>
   override this.Values
     with get() =
       { new IList<'V> with
-        member x.Count with get() = readLockIf &this.nextVersion &this.version (not this.isReadOnly) (fun _ -> this.size)
+        member x.Count with get() = readLockIf &this.nextVersion &this.version this.isSynchronized (fun _ -> this.size)
         member x.IsReadOnly with get() = true
         member x.Item 
-          with get index : 'V = readLockIf &this.nextVersion &this.version (not this.isReadOnly) (fun _ -> this.values.[index])
+          with get index : 'V = readLockIf &this.nextVersion &this.version this.isSynchronized (fun _ -> this.values.[index])
           and set index value = raise (NotSupportedException("Values collection is read-only"))
         member x.Add(k) = raise (NotSupportedException("Values colelction is read-only"))
         member x.Clear() = raise (NotSupportedException("Values colelction is read-only"))
@@ -604,7 +609,7 @@ type SortedMap<'K,'V>
             member e.Current with get() = box e.Current
             member e.MoveNext() =
               let nextIndex = index.Value + 1
-              readLockIf &this.nextVersion &this.version (not this.isReadOnly) (fun _ ->
+              readLockIf &this.nextVersion &this.version this.isSynchronized (fun _ ->
                 if eVersion.Value <> this.version then
                   raise (InvalidOperationException("Collection changed during enumeration"))
                 if index.Value < this.size then
@@ -617,7 +622,7 @@ type SortedMap<'K,'V>
                   false
               )
             member e.Reset() =
-              readLockIf &this.nextVersion &this.version (not this.isReadOnly) (fun _ ->
+              readLockIf &this.nextVersion &this.version this.isSynchronized (fun _ ->
                 if eVersion.Value <> this.version then
                   raise (InvalidOperationException("Collection changed during enumeration"))
                 index := 0
@@ -636,19 +641,19 @@ type SortedMap<'K,'V>
 
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
   member internal this.IndexOfKeyUnchecked(key:'K) : int =
-    if couldHaveRegularKeys && this.size > 1 then this.rkIndexOfKey key
+    if this.couldHaveRegularKeys && this.size > 1 then this.rkIndexOfKey key
     else this.comparer.BinarySearch(this.keys, 0, this.size, key)
 
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
   member this.IndexOfKey(key:'K) : int =
     this.CheckNull(key)
-    readLockIf &this.nextVersion &this.version (not this.isReadOnly) (fun _ ->
+    readLockIf &this.nextVersion &this.version this.isSynchronized (fun _ ->
       this.IndexOfKeyUnchecked(key)
     )
 
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
   member this.IndexOfValue(value:'V) : int =
-    readLockIf &this.nextVersion &this.version (not this.isReadOnly) (fun _ ->
+    readLockIf &this.nextVersion &this.version this.isSynchronized (fun _ ->
       let mutable res = 0
       let mutable found = false
       let valueComparer = Comparer<'V>.Default;
@@ -662,7 +667,7 @@ type SortedMap<'K,'V>
 
   override this.First
     with [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>] get() =
-      readLockIf &this.nextVersion &this.version (not this.isReadOnly) (fun _ ->
+      readLockIf &this.nextVersion &this.version this.isSynchronized (fun _ ->
         this.FirstUnchecked
       )
 
@@ -674,15 +679,15 @@ type SortedMap<'K,'V>
       
   override this.Last
     with [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>] get() =
-      readLockIf &this.nextVersion &this.version (not this.isReadOnly) (fun _ ->
+      readLockIf &this.nextVersion &this.version this.isSynchronized (fun _ ->
         this.LastUnchecked
       )
 
   member internal this.LastUnchecked
     with [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>] get() =
-      if couldHaveRegularKeys && this.size > 1 then
-        Trace.Assert(this.comparer.Compare(rkLast, this.comparer.Add(this.keys.[0], (int64 (this.size-1))*this.rkGetStep())) = 0)
-        Opt.Present(KeyValuePair(rkLast, this.values.[this.size - 1]))
+      if this.couldHaveRegularKeys && this.size > 1 then
+        Trace.Assert(this.comparer.Compare(this.rkLast, this.comparer.Add(this.keys.[0], (int64 (this.size-1))*this.rkGetStep())) = 0)
+        Opt.Present(KeyValuePair(this.rkLast, this.values.[this.size - 1]))
       elif this.size > 0 then Opt.Present(KeyValuePair(this.keys.[this.size - 1], this.values.[this.size - 1]))
       else Opt.Missing
 
@@ -699,7 +704,7 @@ type SortedMap<'K,'V>
     this.CheckNull(key)
     let mutable value' = Unchecked.defaultof<_>
     let inline res() = this.TryGetValueUnchecked(key, &value')
-    if readLockIf &this.nextVersion &this.version (not this.isReadOnly) res then
+    if readLockIf &this.nextVersion &this.version this.isSynchronized res then
       value <- value'; true
     else false
       
@@ -828,7 +833,7 @@ type SortedMap<'K,'V>
 //      else
 //        let mutable entered = false
 //        try
-//          entered <- enterWriteLockIf &this.Locker (not this.isReadOnly)
+//          entered <- enterWriteLockIf &this.Locker this.isSynchronized
 //          match option with
 //          | AppendOption.RejectOnOverlap ->
 //            if this.size = 0 || this.comparer.Compare(appendMap.First.Present.Key, this.LastUnchecked.Present.Key) > 0 then
@@ -938,25 +943,25 @@ type SortedMap<'K,'V>
     let newSize = this.size - 1
     // TODO review, check for off by 1 bugs, could had lost focus at 3 AM
     // keys
-    if couldHaveRegularKeys && this.size > 2 then // will have >= 2 after removal
+    if this.couldHaveRegularKeys && this.size > 2 then // will have >= 2 after removal
       if index = 0 then
         this.keys.[0] <- (this.comparer.Add(this.keys.[0], this.rkGetStep())) // change first key to next and size--
         this.keys.[1] <- (this.comparer.Add(this.keys.[0], this.rkGetStep())) // add step to the new first value
       elif index = newSize then 
-        rkLast <- this.comparer.Add(this.keys.[0], (int64 (newSize-1))*this.rkGetStep()) // removing last, only size--
+        this.rkLast <- this.comparer.Add(this.keys.[0], (int64 (newSize-1))*this.rkGetStep()) // removing last, only size--
       else
         // removing within range,  creating a hole
         this.keys <- this.rkMaterialize()
-        couldHaveRegularKeys <- false
-    elif couldHaveRegularKeys && this.size = 2 then // will have single value with undefined step
+        this.couldHaveRegularKeys <- false
+    elif this.couldHaveRegularKeys && this.size = 2 then // will have single value with undefined step
       if index = 0 then
         this.keys.[0] <- this.keys.[1]
         this.keys.[1] <- Unchecked.defaultof<'K>
       elif index = 1 then
-        rkLast <- this.keys.[0]
-      rkStep_ <- 0L
+        this.rkLast <- this.keys.[0]
+      this.rkStep_ <- 0L
 
-    if not couldHaveRegularKeys || this.size = 1 then
+    if not this.couldHaveRegularKeys || this.size = 1 then
       if index < this.size then
         Array.Copy(this.keys, index + 1, this.keys, index, newSize - index) // this.size
       this.keys.[newSize] <- Unchecked.defaultof<'K>
@@ -1073,13 +1078,13 @@ type SortedMap<'K,'V>
           elif pivotIndex >=0 then // remove elements below pivot and pivot
             this.size <- this.size - (pivotIndex + 1)
             
-            if couldHaveRegularKeys then
+            if this.couldHaveRegularKeys then
               this.keys.[0] <- (this.comparer.Add(this.keys.[0], int64 (pivotIndex+1)))
               if this.size > 1 then 
                 this.keys.[1] <- (this.comparer.Add(this.keys.[0], this.rkGetStep())) 
               else
                 this.keys.[1] <- Unchecked.defaultof<'K>
-                rkStep_ <- 0L
+                this.rkStep_ <- 0L
             else
               Array.Copy(this.keys, pivotIndex + 1, this.keys, 0, this.size) // move this.values to 
               Array.fill this.keys this.size (this.values.Length - this.size) Unchecked.defaultof<'K>
@@ -1097,15 +1102,15 @@ type SortedMap<'K,'V>
             ValueTask<_>(Opt<_>.Missing)
           elif pivotIndex >= 0 then // remove elements above and including pivot
             this.size <- pivotIndex
-            if couldHaveRegularKeys then
+            if this.couldHaveRegularKeys then
               if this.size > 1 then
-                rkLast <- this.comparer.Add(this.keys.[0], (int64 (this.size-1))*this.rkGetStep()) // -1 is correct, the size is updated on the previous line
+                this.rkLast <- this.comparer.Add(this.keys.[0], (int64 (this.size-1))*this.rkGetStep()) // -1 is correct, the size is updated on the previous line
               else
                 this.keys.[1] <- Unchecked.defaultof<'K>
-                rkStep_ <- 0L
-                if this.size = 1 then rkLast <- this.keys.[0] 
-                else rkLast <- Unchecked.defaultof<_>
-            if not couldHaveRegularKeys then
+                this.rkStep_ <- 0L
+                if this.size = 1 then this.rkLast <- this.keys.[0] 
+                else this.rkLast <- Unchecked.defaultof<_>
+            if not this.couldHaveRegularKeys then
               Array.fill this.keys pivotIndex (this.values.Length - pivotIndex) Unchecked.defaultof<'K>
             Array.fill this.values pivotIndex (this.values.Length - pivotIndex) Unchecked.defaultof<'V>
             this.SetCapacity(this.size)
@@ -1125,135 +1130,6 @@ type SortedMap<'K,'V>
       if entered && this.version <> this.nextVersion then Environment.FailFast("this.version <> this.nextVersion")
       #endif
     
-  /// Returns the index of found KeyValuePair or a negative value:
-  /// -1 if the non-found key is smaller than the first key
-  /// -2 if the non-found key is larger than the last key
-  /// -3 if the non-found key is within the key range (for EQ direction only)
-  /// -4 empty
-  /// Example: (-1) [...current...(-3)...map ...] (-2)
-  [<Obsolete("Use FindIndexAt")>]
-  member internal this.TryFindWithIndexXXX(key:'K, direction:Lookup, [<Out>]result: byref<KeyValuePair<'K, 'V>>) : int =
-    if this.size = 0 then -4
-    else
-      match direction with
-      | Lookup.EQ ->
-        let lastIdx = this.size-1
-        if this.size > 0 && this.CompareToLast(key) = 0 then // key = last key
-          result <- 
-            if couldHaveRegularKeys && this.size > 1 then
-              #if DEBUG
-              Trace.Assert(this.comparer.Compare(rkLast, this.comparer.Add(this.keys.[0], (int64 (this.size-1))*this.rkGetStep())) = 0)
-              #endif
-              KeyValuePair(rkLast, this.values.[this.size - 1])
-            else KeyValuePair(this.keys.[this.size - 1], this.values.[this.size - 1])
-          lastIdx
-        else
-          let index = this.IndexOfKeyUnchecked(key)
-          if index >= 0 then
-            result <- this.GetPairByIndexUnchecked(index)
-            index
-          else
-            let index2 = ~~~index
-            if index2 >= this.Count then // there are no elements larger than key, all this.keys are smaller
-              -2 // the key could be in the next bucket
-            elif index2 = 0 then // it is the index of the first element that is larger than value
-              -1 // all this.keys in the map are larger than the desired key
-            else
-              -3
-      | Lookup.LT ->
-        let lastIdx = this.size-1
-        let lc = if this.size > 0 then this.CompareToLast(key) else -2
-        if lc = 0 then // key = last key
-          if this.size > 1 then
-            result <- this.GetPairByIndexUnchecked(lastIdx - 1) // return item beforelast
-            lastIdx - 1
-          else -1
-        elif lc > 0 then // key greater than the last
-          result <- this.GetPairByIndexUnchecked(lastIdx) // return the last item 
-          lastIdx
-        else
-          let index = this.IndexOfKeyUnchecked(key)
-          if index > 0 then
-            result <- this.GetPairByIndexUnchecked(index - 1)
-            index - 1
-          elif index = 0 then
-              -1 // 
-          else
-            let index2 = ~~~index
-            if index2 >= this.Count then // there are no elements larger than key
-              result <- this.GetPairByIndexUnchecked(this.Count - 1) // last element is the one that LT key
-              this.Count - 1
-            elif index2 = 0 then
-              -1
-            else //  it is the index of the first element that is larger than value
-              result <- this.GetPairByIndexUnchecked(index2 - 1)
-              index2 - 1
-      | Lookup.LE ->
-        let lastIdx = this.size-1
-        let lc = if this.size > 0 then this.CompareToLast(key) else -2
-        if lc >= 0 then // key = last key or greater than the last key
-          result <- this.GetPairByIndexUnchecked(lastIdx)
-          lastIdx
-        else
-          let index = this.IndexOfKeyUnchecked(key)
-          if index >= 0 then
-            result <- this.GetPairByIndexUnchecked(index) // equal
-            index
-          else
-            let index2 = ~~~index
-            if index2 >= this.size then // there are no elements larger than key
-              result <- this.GetPairByIndexUnchecked(this.size - 1)
-              this.size - 1
-            elif index2 = 0 then
-              -1
-            else //  it is the index of the first element that is larger than value
-              result <- this.GetPairByIndexUnchecked(index2 - 1)
-              index2 - 1
-      | Lookup.GT ->
-        let lc = if this.size > 0 then this.comparer.Compare(key, this.keys.[0]) else 2
-        if lc = 0 then // key = first key
-          if this.size > 1 then
-            result <- this.GetPairByIndexUnchecked(1) // return item after first
-            1
-          else -2 // cannot get greater than a single value when k equals to it
-        elif lc < 0 then
-          result <- this.GetPairByIndexUnchecked(0) // return first
-          0
-        else
-          let index = this.IndexOfKeyUnchecked(key)
-          if index >= 0 && index < this.Count - 1 then
-            result <- this.GetPairByIndexUnchecked(index + 1)
-            index + 1
-          elif index >= this.Count - 1 then
-            -2
-          else
-            let index2 = ~~~index
-            if index2 >= this.Count then // there are no elements larger than key
-              -2
-            else //  it is the index of the first element that is larger than value
-              result <- this.GetPairByIndexUnchecked(index2)
-              index2
-      | Lookup.GE ->
-        let lc = if this.size > 0 then this.comparer.Compare(key, this.keys.[0]) else 2
-        if lc <= 0 then // key = first key or smaller than the first key
-          result <- this.GetPairByIndexUnchecked(0)
-          0
-        else
-          let index = this.IndexOfKeyUnchecked(key)
-          if index >= 0 && index < this.Count then
-            result <- this.GetPairByIndexUnchecked(index) // equal
-            index
-          else
-            let index2 = ~~~index
-            if index2 >= this.Count then // there are no elements larger than key
-              -2
-            else //  it is the index of the first element that is larger than value
-              result <- this.GetPairByIndexUnchecked(index2)
-              index2
-      | _ -> ThrowHelper.ThrowInvalidOperationException(); 0
-
-
-  // TODO Review, this is (likely) more efficient rewrite of the TFWI
   /// Returns the index of found KeyValuePair or a negative value:
   /// -1 if the non-found key is smaller than the first key
   /// -2 if the non-found key is larger than the last key
@@ -1293,7 +1169,7 @@ type SortedMap<'K,'V>
       if idx >= 0 && idx < this.size then
         (struct(true, this.GetPairByIndexUnchecked(idx)))
       else struct (false, Unchecked.defaultof<_>)
-    let tupleResult = readLockIf &this.nextVersion &this.version (not this.isReadOnly) res
+    let tupleResult = readLockIf &this.nextVersion &this.version this.isSynchronized res
     let struct (ret0,res0) = tupleResult
     value <- res0
     ret0
@@ -1326,7 +1202,7 @@ type SortedMap<'K,'V>
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
   override this.TryGetAt(idx:int64, [<Out>]value: byref<KeyValuePair<'K, 'V>>) : bool =
     let mutable kvp: KeyValuePair<'K, 'V> = Unchecked.defaultof<_>
-    let result = readLockIf &this.nextVersion &this.version (not this.isReadOnly) (fun _ ->
+    let result = readLockIf &this.nextVersion &this.version this.isSynchronized (fun _ ->
       if idx >= 0L && idx < int64(this.size) then 
        kvp <- KVP( this.GetKeyByIndexUnchecked(int32(idx)), this.values.[int32(idx)])
        true 
@@ -1341,7 +1217,7 @@ type SortedMap<'K,'V>
   member private this.Dispose(disposing:bool) =
     if BufferPoolRetainedMemoryHelper<'V>.IsRetainedMemory then BufferPoolRetainedMemoryHelper<'V>.DisposeRetainedMemory(this.values, 0, this.size)
 
-    if not couldHaveRegularKeys then BufferPool<_>.Return(this.keys, true) |> ignore
+    if not this.couldHaveRegularKeys then BufferPool<_>.Return(this.keys, true) |> ignore
     BufferPool<_>.Return(this.values, true) |> ignore
     if disposing then GC.SuppressFinalize(this)
   
@@ -1385,7 +1261,7 @@ type SortedMap<'K,'V>
       finally
         exitWriteLockIf &this.Locker entered
     member this.Count = this.Count
-    member this.IsSynchronized with get() =  (not this.isReadOnly)
+    member this.IsSynchronized with get() =  this.isSynchronized
 
   interface IDictionary<'K,'V> with
     member this.Count = this.Count
@@ -1532,12 +1408,13 @@ type SortedMap<'K,'V>
 
 type public SortedMapCursor<'K,'V> =
     struct
-      val mutable internal source : SortedMap<'K,'V>
+      val internal source : SortedMap<'K,'V>
       val mutable internal index : int
       val mutable internal currentKey : 'K
       val mutable internal currentValue: 'V
       val mutable internal cursorVersion : int64
       val mutable internal isBatch : bool
+      val mutable internal doSpin : bool
       new(source:SortedMap<'K,'V>) = 
         { source = source;
           index = -1;
@@ -1545,6 +1422,7 @@ type public SortedMapCursor<'K,'V> =
           currentValue = Unchecked.defaultof<_>;
           cursorVersion = source.orderVersion;
           isBatch = false;
+          doSpin = source.isSynchronized
         }
     end
 
@@ -1570,40 +1448,40 @@ type public SortedMapCursor<'K,'V> =
         
     [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
     member this.MoveNext() =
-      let mutable newIndex = this.index
-      let mutable newKey = this.currentKey
-      let mutable newValue = this.currentValue
+      let mutable newIndex = this.index + 1
+      let mutable newKey = Unchecked.defaultof<_>
+      let mutable newValue = Unchecked.defaultof<_>
+      let mutable doSpin = this.doSpin;
+      let source = this.source
+      let mutable version = if doSpin then Volatile.Read(&source.version) else 0L
+      
 
-      let mutable result = Unchecked.defaultof<_>
-      let mutable doSpin = true
-      let sw = new SpinWait()
-      while doSpin do
-        doSpin <- not this.source.isReadOnly
-        let version = if doSpin then Volatile.Read(&this.source.version) else 0L
-        result <-
-        /////////// Start read-locked code /////////////
-          if this.cursorVersion = this.source.orderVersion then
-            newIndex <- this.index + 1
-            if newIndex < this.source.size then
-              newKey <- this.source.GetKeyByIndexUnchecked(newIndex)
-              newValue <- this.source.values.[newIndex]
-              true
-            else
-              false
-          else // source order change
-            // NB: we no longer recover on order change, some cursor require special logic to recover
-            ThrowHelper.ThrowOutOfOrderKeyException(this.currentKey, "SortedMap order was changed since last move. Catch OutOfOrderKeyException and use its CurrentKey property together with MoveAt(key, Lookup.GT) to recover.")
-            false
-        /////////// End read-locked code /////////////
-        if doSpin then
-          let nextVersion = Volatile.Read(&this.source.nextVersion)
-          if version = nextVersion then doSpin <- false
-          else sw.SpinOnce()
-      if result then       
+      if newIndex < source.size then
+        newKey <- source.GetKeyByIndexUnchecked(newIndex)
+        newValue <- source.values.[newIndex]
+      
+        while doSpin do
+          let nextVersion = Volatile.Read(&source.nextVersion)
+          if version = nextVersion then 
+            doSpin <- false
+          else 
+            let sw = new SpinWait()
+            sw.SpinOnce()
+            version <- Volatile.Read(&source.version)
+            if newIndex < source.size then
+              newKey <- source.GetKeyByIndexUnchecked(newIndex)
+              newValue <- source.values.[newIndex]
+            else doSpin <- false // NB this is only possible if size decreased but that changes this.source.orderVersion and operation will throw on the next line
+
+        if this.cursorVersion <> source.orderVersion then
+          // source order change
+          ThrowHelper.ThrowOutOfOrderKeyException(this.currentKey, "SortedMap order was changed since last move. Catch OutOfOrderKeyException and use its CurrentKey property together with MoveAt(key, Lookup.GT) to recover.")
         this.index <- newIndex
         this.currentKey <- newKey
         this.currentValue <- newValue
-      result
+        true
+      else
+        false
 
 
     member this.CurrentBatch: ISeries<'K,'V> = 
@@ -1611,7 +1489,7 @@ type public SortedMapCursor<'K,'V> =
       let mutable doSpin = true
       let sw = new SpinWait()
       while doSpin do
-        doSpin <- not this.source.isReadOnly
+        doSpin <- this.source.isSynchronized
         let version = if doSpin then Volatile.Read(&this.source.version) else 0L
         result <-
         /////////// Start read-locked code /////////////
@@ -1639,7 +1517,7 @@ type public SortedMapCursor<'K,'V> =
       let mutable doSpin = true
       let sw = new SpinWait()
       while doSpin do
-        doSpin <- not this.source.isReadOnly
+        doSpin <- this.source.isSynchronized
         let version = if doSpin then Volatile.Read(&this.source.version) else 0L
         result <-
         /////////// Start read-locked code /////////////
@@ -1675,7 +1553,7 @@ type public SortedMapCursor<'K,'V> =
       let mutable doSpin = true
       let sw = new SpinWait()
       while doSpin do
-        doSpin <- not this.source.isReadOnly
+        doSpin <- this.source.isSynchronized
         let version = if doSpin then Volatile.Read(&this.source.version) else 0L
         result <-
         /////////// Start read-locked code /////////////
@@ -1719,7 +1597,7 @@ type public SortedMapCursor<'K,'V> =
       let mutable doSpin = true
       let sw = new SpinWait()
       while doSpin do
-        doSpin <- not this.source.isReadOnly
+        doSpin <- this.source.isSynchronized
         let version = if doSpin then Volatile.Read(&this.source.version) else 0L
         result <-
         /////////// Start read-locked code /////////////
@@ -1754,7 +1632,7 @@ type public SortedMapCursor<'K,'V> =
       let mutable doSpin = true
       let sw = new SpinWait()
       while doSpin do
-        doSpin <- not this.source.isReadOnly
+        doSpin <- this.source.isSynchronized
         let version = if doSpin then Volatile.Read(&this.source.version) else 0L
         result <-
         /////////// Start read-locked code /////////////
@@ -1786,7 +1664,7 @@ type public SortedMapCursor<'K,'V> =
       let mutable doSpin = true
       let sw = new SpinWait()
       while doSpin do
-        doSpin <- not this.source.isReadOnly
+        doSpin <- this.source.isSynchronized
         let version = if doSpin then Volatile.Read(&this.source.version) else 0L
         result <-
         /////////// Start read-locked code /////////////

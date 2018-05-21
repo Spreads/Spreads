@@ -159,7 +159,7 @@ namespace Spreads.Tests.Cursors.Online
                     var cursor = sm.GetEnumerator();
                     while (cursor.MoveNext())
                     {
-                        sum += cursor.currentValue;
+                        sum += cursor.CurrentValue;
                     }
                 }
                 Assert.True(sum != 0);
