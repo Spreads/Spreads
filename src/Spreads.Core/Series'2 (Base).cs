@@ -966,10 +966,9 @@ namespace Spreads
 
         // ReSharper disable InconsistentNaming
         internal long _version;
-
         internal long _nextVersion;
-
         // ReSharper restore InconsistentNaming
+        internal bool _isSynchronized;
         internal int Locker;
 
         private TaskCompletionSource<bool> _tcs;
@@ -1023,34 +1022,36 @@ namespace Spreads
         /// </summary>
         /// <returns></returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        protected long BeforeWrite(bool takeLock = true)
+        protected void BeforeWrite()
         {
+#if DEBUG
             var spinwait = new SpinWait();
-            long version = -1L;
+#endif
             // NB try{} finally{ .. code here .. } prevents method inlining, therefore should be used at the caller place, not here
             // ReSharper disable once LoopVariableIsNeverChangedInsideLoop
-            while (takeLock)
+            while (_isSynchronized)
             {
                 if (Interlocked.CompareExchange(ref Locker, 1, 0) == 0)
                 {
                     // Interlocked.CompareExchange generated implicit memory barrier
-                    var nextVersion = _nextVersion + 1L;
-                    // Volatile.Write prevents the read above to move below
-                    Volatile.Write(ref _nextVersion, nextVersion);
-                    // Volatile.Read prevents any read/write after to to move above it
-                    // see CoreClr 6121, esp. comment by CarolEidt
-                    version = Volatile.Read(ref _version);
+                    // TODO (perf) could do cheaper than interlocked, review
+                    //_nextVersion = _nextVersion + 1L;
+                    //Volatile.Read(ref _nextVersion);
+                    Interlocked.Increment(ref _nextVersion);
                     // do not return from a loop, see CoreClr #9692
                     break;
                 }
+#if DEBUG
                 if (spinwait.Count == 10000) // 10 000 is c.700 msec
                 {
                     TryUnlock();
                 }
-                // NB Spinwait significantly increases performance probably due to PAUSE instruction
+
+#else
+                var spinwait = new SpinWait();
+#endif
                 spinwait.SpinOnce();
             }
-            return version;
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
@@ -1062,17 +1063,17 @@ namespace Spreads
         /// <summary>
         /// Release write lock and increment _version field or decrement _nextVersion field if no updates were made
         /// </summary>
-        /// <param name="version"></param>
         /// <param name="doIncrement"></param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        protected void AfterWrite(long version, bool doIncrement = true)
+        protected void AfterWrite(bool doIncrement)
         {
-            if (version < 0L) return;
-
+            if (!_isSynchronized) return;
             // Volatile.Write will prevent any read/write to move below it
             if (doIncrement)
             {
-                Volatile.Write(ref _version, version + 1L);
+                // TODO (perf) could do cheaper than interlocked, review
+                // Volatile.Write(ref _version, _version + 1L);
+                Interlocked.Increment(ref _version);
 
                 // NB no Interlocked inside write lock, readers must follow pattern to retry MN after getting `Updated` Task, and MN has it's own read lock. For other cases the behavior in undefined.
                 var tcs = _tcs;
@@ -1082,12 +1083,15 @@ namespace Spreads
             else
             {
                 // set nextVersion back to original version, no changes were made
-                Volatile.Write(ref _nextVersion, version);
+                // TODO (perf) could do cheaper than interlocked, review
+                // Volatile.Write(ref _nextVersion, _version);
+                Interlocked.Exchange(ref _nextVersion, _version);
             }
+
             // release write lock
-            //Interlocked.Exchange(ref _writeLocker, 0);
+            Interlocked.Exchange(ref Locker, 0);
             // TODO review if this is enough. Iterlocked is right for sure, but is more expensive (slower by more than 25% on field increment test)
-            Volatile.Write(ref Locker, 0);
+            // Volatile.Write(ref Locker, 0);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -1096,6 +1100,24 @@ namespace Spreads
             // NB in some cases (inside write lock) interlocked is not needed, but we then use this same logic manually without Interlocked
             var tcs = Interlocked.Exchange(ref _tcs, null);
             tcs?.SetResult(result);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        protected T ReadLock<T>(Func<T> f)
+        {
+            T value;
+            var doSpin = _isSynchronized;
+            SpinWait sw = default;
+            do
+            {
+                var version = doSpin ? Volatile.Read(ref _version) : 0L;
+                value = f.Invoke();
+                if (!doSpin) { break; }
+                var nextVersion = Volatile.Read(ref _nextVersion);
+                if (version == nextVersion) { break; }
+                sw.SpinOnce();
+            } while (true);
+            return value;
         }
 
         public override ICursor<TKey, TValue> GetCursor()
@@ -1452,9 +1474,9 @@ namespace Spreads
     /// Base class for collections (containers) with <see cref="ISeries{TKey,TValue}"/> members implemented via a cursor.
     /// </summary>
     public abstract class CursorContainerSeries<TKey, TValue, TCursor> : ContainerSeries<TKey, TValue, TCursor>, IDisposable
-#pragma warning restore 660,661
+#pragma warning restore 660, 661
         where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
-#pragma warning restore 660,661
+#pragma warning restore 660, 661
     {
         private bool _cursorIsSet;
         private TCursor _c;

@@ -6,7 +6,6 @@
 namespace Spreads.Collections
 
 open System
-open System.Collections
 open System.Collections.Generic
 open System.Linq
 open System.Runtime.InteropServices
@@ -20,14 +19,14 @@ open Spreads
 open Spreads.Collections
 open Spreads.Utils
 
-// NB outer map version must be synced with SCM.version
+// NB outer map version must be synced with SCM._version
 
 // NB Outer map operations usually have some IO, so no need for nano-optimization here
 // One should use just SortedMap<,> if working with in-memory data (especially when SM will be backed by mmaped Memory<>
 
 [<AllowNullLiteral>]
 [<AbstractClass>]
-type SortedChunkedMapGeneric<'K,'V> 
+type SortedChunkedMapBase<'K,'V> 
   internal 
   (
     outerFactory:KeyComparer<'K>->IMutableSeries<'K, SortedMap<'K,'V>>,
@@ -35,12 +34,9 @@ type SortedChunkedMapGeneric<'K,'V>
     comparer:KeyComparer<'K>,
     hasher:IKeyHasher<'K> option, 
     chunkMaxSize:int option) as this=
-  inherit ContainerSeries<'K,'V, SortedChunkedMapCursor<'K,'V>>()
+  inherit ContainerSeries<'K,'V, SortedChunkedMapBaseCursor<'K,'V>>()
 
   let outerMap = outerFactory(comparer)
-
-  [<DefaultValueAttribute>]
-  val mutable internal version : int64
 
   let mutable prevRHash = Unchecked.defaultof<'K>
   let mutable prevRBucket: SortedMap<'K,'V> = null  
@@ -48,15 +44,11 @@ type SortedChunkedMapGeneric<'K,'V>
   let mutable prevWHash = Unchecked.defaultof<'K>
   let mutable prevWBucket: SortedMap<'K,'V> = null 
 
-  [<DefaultValueAttribute>] 
-  val mutable isReadOnly : bool
-  [<DefaultValueAttribute>] 
-  val mutable isSynchronized : bool
+  [<DefaultValueAttribute>]
+  val mutable internal isReadOnly : bool
 
   [<DefaultValueAttribute>] 
   val mutable internal orderVersion : int64
-  [<DefaultValueAttribute>] 
-  val mutable internal nextVersion : int64
 
   /// Non-zero only for the defaul slicing logic. When zero, we do not check for chunk size
   let chunkUpperLimit : int = 
@@ -74,13 +66,13 @@ type SortedChunkedMapGeneric<'K,'V>
     | None -> Unchecked.defaultof<_>
 
   do
-    this.isSynchronized <- true
-    this.version <- outerMap.Version
-    this.nextVersion <- outerMap.Version
+    this._isSynchronized <- true
+    this._version <- outerMap.Version
+    this._nextVersion <- outerMap.Version
 
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
   member inline private this.EnterWriteLock() : bool =
-    enterWriteLockIf &this.Locker this.isSynchronized
+    enterWriteLockIf &this.Locker this._isSynchronized
 
   // hash for locating existing value
   member inline private this.ExistingHashBucket(key) =
@@ -124,30 +116,29 @@ type SortedChunkedMapGeneric<'K,'V>
   member internal this.Hasher with get() = hasher
 
   member this.Version 
-    with get() = readLockIf &this.nextVersion &this.version (not this.isReadOnly) (fun _ -> this.version)
+    with get() = readLockIf &this._nextVersion &this._version (not this.isReadOnly) (fun _ -> this._version)
     and internal set v = 
       enterWriteLockIf &this.Locker true |> ignore
       try
-        this.version <- v // NB setter only for deserializer
-        this.nextVersion <- v
+        this._version <- v // NB setter only for deserializer
+        this._nextVersion <- v
       finally
         exitWriteLockIf &this.Locker true
-
 
   member this.Complete() =
     enterWriteLockIf &this.Locker true |> ignore
     try
-      //if entered then Interlocked.Increment(&this.nextVersion) |> ignore
+      //if entered then Interlocked.Increment(&this._nextVersion) |> ignore
       if not this.isReadOnly then 
           this.isReadOnly <- true
-          this.isSynchronized <- false
+          this._isSynchronized <- false
           this.NotifyUpdate(false)
       Task.CompletedTask
     finally
-      //Interlocked.Increment(&this.version) |> ignore
+      //Interlocked.Increment(&this._version) |> ignore
       exitWriteLockIf &this.Locker true
 
-  override this.IsCompleted with get() = readLockIf &this.nextVersion &this.version (not this.isReadOnly) (fun _ -> this.isReadOnly)
+  override this.IsCompleted with get() = readLockIf &this._nextVersion &this._version (not this.isReadOnly) (fun _ -> this.isReadOnly)
 
   override this.IsIndexed with get() = false
 
@@ -161,7 +152,7 @@ type SortedChunkedMapGeneric<'K,'V>
       
   override this.First
     with [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>] get() = 
-      readLockIf &this.nextVersion &this.version (not this.isReadOnly) (fun _ -> this.FirstUnchecked)
+      readLockIf &this._nextVersion &this._version (not this.isReadOnly) (fun _ -> this.FirstUnchecked)
 
   member inline private __.LastUnchecked
     with [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>] get() : Opt<KeyValuePair<'K,'V>> = 
@@ -172,8 +163,8 @@ type SortedChunkedMapGeneric<'K,'V>
         outerLast.Present.Value.Last
       
   override this.Last
-    with [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>] get() = 
-      readLockIf &this.nextVersion &this.version (not this.isReadOnly) (fun _ -> this.LastUnchecked )
+    with [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>] get() : Opt<KeyValuePair<'K,'V>> = 
+      readLockIf &this._nextVersion &this._version (not this.isReadOnly) (fun _ -> this.LastUnchecked )
 
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
   member private this.TryUpdateRBucket(key) : unit =
@@ -205,20 +196,20 @@ type SortedChunkedMapGeneric<'K,'V>
   override this.TryGetValue(key, [<Out>]value: byref<'V>) : bool =
     let mutable value' = Unchecked.defaultof<_>
     let inline res() = this.TryGetValueUnchecked(key, &value')
-    if readLockIf &this.nextVersion &this.version (not this.isReadOnly) res then
+    if readLockIf &this._nextVersion &this._version (not this.isReadOnly) res then
       value <- value'; true
     else false
 
 
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
-  member this.SetWithHasher(key: 'K, value: 'V, overwrite: bool) : unit =
+  member internal this.SetWithHasher(key: 'K, value: 'V, overwrite: bool) : unit =
     // TODO
     //let hash = hasher.Hash(key)
     //let c = comparer.Compare(hash, prevHash)
     //let mutable prevBucket' = Unchecked.defaultof<_>
     //let bucketIsSet = this.PrevBucketIsSet(&prevBucket')
     //if c = 0 && bucketIsSet then
-    //  Debug.Assert(prevBucket'.version = this.version)
+    //  Debug.Assert(prevBucket'._version = this._version)
     //  prevBucket'.Set(key, value)
     //  this.NotifyUpdate(true)
     //else
@@ -232,12 +223,12 @@ type SortedChunkedMapGeneric<'K,'V>
     //    else
     //      let newSm = innerFactory(0, comparer)
     //      true, newSm
-    //  bucket.version <- this.version // NB old bucket could have stale version, update for both cases
-    //  bucket.nextVersion <- this.version
+    //  bucket._version <- this._version // NB old bucket could have stale version, update for both cases
+    //  bucket._nextVersion <- this._version
     //  bucket.Set(key, value)
     //  if isNew then
     //    outerMap.Set(hash, bucket)
-    //    Debug.Assert(bucket.version = outerMap.Version, "Outer setter must update its version")
+    //    Debug.Assert(bucket._version = outerMap.Version, "Outer setter must update its version")
     //  this.NotifyUpdate(true)
     //  prevHash <- hash
     //  prevBucket.SetTarget(bucket)
@@ -245,6 +236,7 @@ type SortedChunkedMapGeneric<'K,'V>
 
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
   member this.SetOrAddUnchecked(key: 'K, value: 'V, overwrite: bool) : Task<bool> =
+    
     if chunkUpperLimit = 0 then // deterministic hash
       this.SetWithHasher(key, value, overwrite)
       ThrowHelper.ThrowNotImplementedException()
@@ -254,35 +246,37 @@ type SortedChunkedMapGeneric<'K,'V>
         && prevWBucket.CompareToLast(key) <= 0 then
         // we are inside previous bucket, setter has no choice but to set to this 
         // bucket regardless of its size
-        Debug.Assert(prevWBucket.version = this.version)
+        Debug.Assert(prevWBucket._version = this._version)
         let res = prevWBucket.SetOrAdd(key, value, overwrite)
         this.NotifyUpdate(true)
         res
       else
-        task { 
           let mutable kvp = Unchecked.defaultof<_>
           let foundLeBucket = outerMap.TryFindAt(key, Lookup.LE, &kvp)
           if foundLeBucket &&
             // the second condition here is for the case when we add inside existing bucket, overflow above chunkUpperLimit is inevitable without a separate split logic (TODO?)
             (kvp.Value.size < chunkUpperLimit || kvp.Value.CompareToLast(key) <= 0) then
-            if comparer.Compare(prevWHash, kvp.Key) <> 0 then 
-              // switched active bucket
-              do! this.FlushUnchecked()
-              // if add fails later, it is ok to update the stale version to this.version (TODO WTF this comment says?)
-              kvp.Value.version <- this.version
-              kvp.Value.nextVersion <- this.version
-              prevWHash <- kvp.Key
-              prevWBucket <- kvp.Value
-            Debug.Assert(kvp.Value.version = this.version)
-            let res = kvp.Value.SetOrAdd(key, value, overwrite)
-            this.NotifyUpdate(true)
-            return! res
+            task { 
+              if comparer.Compare(prevWHash, kvp.Key) <> 0 then 
+                // switched active bucket
+                do! this.FlushUnchecked()
+                // if add fails later, it is ok to update the stale version to this._version (TODO WTF this comment says?)
+                kvp.Value._version <- this._version
+                kvp.Value._nextVersion <- this._version
+                prevWHash <- kvp.Key
+                prevWBucket <- kvp.Value
+              Debug.Assert(kvp.Value._version = this._version)
+              let res = kvp.Value.SetOrAdd(key, value, overwrite)
+              this.NotifyUpdate(true)
+              return! res
+            }
           else
+            task { 
             if prevWBucket <> null then do! this.FlushUnchecked()
             // create a new bucket at key
             let newSm = innerFactory(0, comparer)
-            newSm.version <- this.version
-            newSm.nextVersion <- this.version
+            newSm._version <- this._version
+            newSm._nextVersion <- this._version
             // Set and Add are the same here, we use new SM
             newSm.SetOrAdd(key, value, overwrite) |> ignore // we know that SM is syncronous
             #if DEBUG
@@ -300,19 +294,27 @@ type SortedChunkedMapGeneric<'K,'V>
 
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
   member this.SetOrAdd(key: 'K, value: 'V, overwrite: bool) : Task<bool> =
-    let entered = this.EnterWriteLock()
-    if entered then Interlocked.Increment(&this.nextVersion) |> ignore
-
-    let result = this.SetOrAddUnchecked(key, value, overwrite)
+    
+      let entered = this.EnterWriteLock()
+      if entered then Interlocked.Increment(&this._nextVersion) |> ignore
+      let t = this.SetOrAddUnchecked(key, value, overwrite)
+      task {
+        let! added = t
       
-    Interlocked.Increment(&this.version) |> ignore
-    exitWriteLockIf &this.Locker entered
-    #if DEBUG
-    if entered && this.version <> this.nextVersion then raise (ApplicationException("this.orderVersion <> this.nextVersion"))
-    #else
-    if entered && this.version <> this.nextVersion then ThrowHelper.FailFast("this.orderVersion <> this.nextVersion")
-    #endif
-    result
+        if entered && not overwrite && not added then 
+          // did not added a value, decrement next and do not increment version
+          Interlocked.Decrement(&this._nextVersion) |> ignore
+        else 
+          Interlocked.Increment(&this._version) |> ignore
+
+        exitWriteLockIf &this.Locker entered
+        #if DEBUG
+        if entered && this._version <> this._nextVersion then raise (ApplicationException("this.orderVersion <> this._nextVersion"))
+        #else
+        if entered && this._version <> this._nextVersion then ThrowHelper.FailFast("this.orderVersion <> this._nextVersion")
+        #endif
+        return added
+      }
 
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
   member this.Set(key: 'K, value: 'V) : Task<bool> = this.SetOrAdd(key, value, true)
@@ -329,77 +331,83 @@ type SortedChunkedMapGeneric<'K,'V>
   // TODO add last to empty fails
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
   member this.TryAddLast(key, value) : Task<bool> =
-    let entered = this.EnterWriteLock()
-    if entered then Interlocked.Increment(&this.nextVersion) |> ignore
+    task {
+      let entered = this.EnterWriteLock()
+      if entered then Interlocked.Increment(&this._nextVersion) |> ignore
 
-    let mutable added = false
-    try
-      let c =
-        if outerMap.Last.IsMissing then 1
-        else comparer.Compare(key, this.LastUnchecked.Present.Key)
-      if c > 0 then
-        this.SetOrAddUnchecked(key, value, false)
-      else TaskUtil.FalseTask
-    finally
-      if added then Interlocked.Increment(&this.version) |> ignore elif entered then Interlocked.Decrement(&this.nextVersion) |> ignore
-      exitWriteLockIf &this.Locker entered
-      #if DEBUG
-      // TODO in debug this will make any storage unusable, add tests instead
-      //this.FlushUnchecked() 
-      //Debug.Assert(outerMap.Version = this.version)
-      if entered && this.version <> this.nextVersion then raise (ApplicationException("this.version <> this.nextVersion"))
-      #else
-      if entered && this.version <> this.nextVersion then ThrowHelper.FailFast("this.version <> this.nextVersion")
-      #endif
+      let mutable added = false
+      try
+        let c =
+          if outerMap.Last.IsMissing then 1
+          else comparer.Compare(key, this.LastUnchecked.Present.Key)
+        if c > 0 then
+          return! this.SetOrAddUnchecked(key, value, false)
+        else return! TaskUtil.FalseTask
+      finally
+        if added then Interlocked.Increment(&this._version) |> ignore elif entered then Interlocked.Decrement(&this._nextVersion) |> ignore
+        exitWriteLockIf &this.Locker entered
+        #if DEBUG
+        // TODO in debug this will make any storage unusable, add tests instead
+        //this.FlushUnchecked() 
+        //Debug.Assert(outerMap.Version = this._version)
+        if entered && this._version <> this._nextVersion then raise (ApplicationException("this._version <> this._nextVersion"))
+        #else
+        if entered && this._version <> this._nextVersion then ThrowHelper.FailFast("this._version <> this._nextVersion")
+        #endif
+    }
 
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
   member this.TryAddFirst(key, value) : Task<bool> =
-    let entered = this.EnterWriteLock()
-    if entered then Interlocked.Increment(&this.nextVersion) |> ignore
-    let mutable added = false
-    try
-      let c = 
-        if outerMap.First.IsMissing then -1
-        else comparer.Compare(key, this.FirstUnchecked.Present.Key)
-      if c < 0 then 
-        this.SetOrAddUnchecked(key, value, false)
-      else TaskUtil.FalseTask
-    finally
-      if added then Interlocked.Increment(&this.version) |> ignore elif entered then Interlocked.Decrement(&this.nextVersion) |> ignore
-      exitWriteLockIf &this.Locker entered
-      #if DEBUG
-      //Debug.Assert(outerMap.Version = this.version)
-      if entered && this.version <> this.nextVersion then raise (ApplicationException("this.version <> this.nextVersion"))
-      #else
-      if entered && this.version <> this.nextVersion then ThrowHelper.FailFast("this.version <> this.nextVersion")
-      #endif
+    task {
+      let entered = this.EnterWriteLock()
+      if entered then Interlocked.Increment(&this._nextVersion) |> ignore
+      let mutable added = false
+      try
+        let c = 
+          if outerMap.First.IsMissing then -1
+          else comparer.Compare(key, this.FirstUnchecked.Present.Key)
+        if c < 0 then 
+          return! this.SetOrAddUnchecked(key, value, false)
+        else return! TaskUtil.FalseTask
+      finally
+        if added then Interlocked.Increment(&this._version) |> ignore elif entered then Interlocked.Decrement(&this._nextVersion) |> ignore
+        exitWriteLockIf &this.Locker entered
+        #if DEBUG
+        //Debug.Assert(outerMap.Version = this._version)
+        if entered && this._version <> this._nextVersion then raise (ApplicationException("this._version <> this._nextVersion"))
+        #else
+        if entered && this._version <> this._nextVersion then ThrowHelper.FailFast("this._version <> this._nextVersion")
+        #endif
+    }
 
   member private this.FlushUnchecked() : Task =
     prevRBucket <- null
     prevRHash <- Unchecked.defaultof<_>
     task {
-      if prevWBucket <> null && prevWBucket.version <> outerMap.Version then
+      if prevWBucket <> null && prevWBucket._version <> outerMap.Version then
         // ensure the version of current bucket is saved in outer
-        Debug.Assert(prevWBucket.version = this.version, "TODO review/test, this must be true? RemoveMany doesn't use prev bucket, review logic there")
-        prevWBucket.version <- this.version
-        prevWBucket.nextVersion <- this.version
+        Debug.Assert(prevWBucket._version = this._version, "TODO review/test, this must be true? RemoveMany doesn't use prev bucket, review logic there")
+        prevWBucket._version <- this._version
+        prevWBucket._nextVersion <- this._version
         let! outerSet = outerMap.Set(prevWHash, prevWBucket)
         match outerMap with 
         | :? IPersistentObject as x -> do! x.Flush() 
         | _ -> ()
       else
-        Debug.Assert(outerMap.Version = this.version)
+        Debug.Assert(outerMap.Version = this._version)
         () // nothing to flush
       prevWBucket <- null // release active bucket so it can be GCed
     } :> Task
 
   // Ensure than current inner map is saved (set) to the outer map
   member this.Flush() : Task =
-    enterWriteLockIf &this.Locker true |> ignore
-    try
-      this.FlushUnchecked()
-    finally
-      exitWriteLockIf &this.Locker true
+    task {
+      enterWriteLockIf &this.Locker true |> ignore
+      try
+        do! this.FlushUnchecked()
+      finally
+        exitWriteLockIf &this.Locker true
+    } :> Task
 
   member private this.DisposeAsync(disposing) : Task =
     if disposing then GC.SuppressFinalize(this)
@@ -408,20 +416,22 @@ type SortedChunkedMapGeneric<'K,'V>
   override this.Finalize() = this.DisposeAsync(false) |> ignore
 
   override this.GetCursor() =
-    let mutable entered = false
+    let entered = this.EnterWriteLock()
     try
-      entered <- this.EnterWriteLock()
       // if source is already read-only, MNA will always return false
-      if this.isReadOnly then new SortedChunkedMapGenericCursor<_,_>(this) :> ICursor<'K,'V>
+      if this.isReadOnly then new SortedChunkedMapBaseCursor<_,_>(this) :> ICursor<'K,'V>
       else
-        raise (NotImplementedException()) // implemented below for non-generic SCM
+        let c = new BaseCursorAsync<_,_,_>(Func<_>(this.GetEnumerator))
+        c :> ICursor<'K,'V>    
     finally
       exitWriteLockIf &this.Locker entered
 
+  override this.GetContainerCursor() = this.GetEnumerator()
+
   // .NETs foreach optimization
   member this.GetEnumerator() =
-    readLockIf &this.nextVersion &this.version (not this.isReadOnly) (fun _ ->
-      new SortedChunkedMapGenericCursor<_,_>(this)
+    readLockIf &this._nextVersion &this._version (not this.isReadOnly) (fun _ ->
+      new SortedChunkedMapBaseCursor<_,_>(this)
     )
   
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
@@ -489,7 +499,7 @@ type SortedChunkedMapGeneric<'K,'V>
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
   override this.TryFindAt(key:'K, direction:Lookup, [<Out>] result: byref<KeyValuePair<'K, 'V>>) = 
     let res() = this.TryFindTuple(key, direction)
-    let tupleResult = readLockIf &this.nextVersion &this.version (not this.isReadOnly) res
+    let tupleResult = readLockIf &this._nextVersion &this._version (not this.isReadOnly) res
     let struct (ret0,res0) = tupleResult
     result <- res0
     ret0
@@ -510,9 +520,9 @@ type SortedChunkedMapGeneric<'K,'V>
     if c = 0 && prevWBucket <> null then
       let res = prevWBucket.TryRemove(key).Result
       if res.IsPresent then
-        Debug.Assert(prevWBucket.version = this.version + 1L, "Verion of the active bucket must much SCM version")
-        prevWBucket.version <- this.version + 1L
-        prevWBucket.nextVersion <- this.version + 1L
+        Debug.Assert(prevWBucket._version = this._version + 1L, "Verion of the active bucket must much SCM version")
+        prevWBucket._version <- this._version + 1L
+        prevWBucket._nextVersion <- this._version + 1L
         // NB no outer set here, it must happen on prev bucket switch
         if prevWBucket.Count = 0 then
           let t = task {
@@ -545,8 +555,8 @@ type SortedChunkedMapGeneric<'K,'V>
           prevWBucket <- bucket
           let res = bucket.TryRemove(key).Result
           if res.IsPresent then
-            bucket.version <- this.version + 1L
-            bucket.nextVersion <- this.version + 1L
+            bucket._version <- this._version + 1L
+            bucket._nextVersion <- this._version + 1L
             // NB empty will be removed, see comment above
             let! outerSet = outerMap.Set(prevWHash, bucket)
             if bucket.Count = 0 then
@@ -561,7 +571,7 @@ type SortedChunkedMapGeneric<'K,'V>
   member this.TryRemove(key) : ValueTask<Opt<'V>>  =
     let t = task {
       let entered = this.EnterWriteLock()
-      if entered then Interlocked.Increment(&this.nextVersion) |> ignore
+      if entered then Interlocked.Increment(&this._nextVersion) |> ignore
       let mutable removed = false
       try
         let! res = this.TryRemoveUnchecked(key)
@@ -569,15 +579,15 @@ type SortedChunkedMapGeneric<'K,'V>
         return if res.IsPresent then Opt.Present(res.Present.Value) else Opt<_>.Missing
       finally
         this.NotifyUpdate(true)
-        if removed then Interlocked.Increment(&this.version) |> ignore
-        elif entered then Interlocked.Decrement(&this.nextVersion) |> ignore
+        if removed then Interlocked.Increment(&this._version) |> ignore
+        elif entered then Interlocked.Decrement(&this._nextVersion) |> ignore
         exitWriteLockIf &this.Locker entered
         #if DEBUG
         this.FlushUnchecked()
-        Debug.Assert((outerMap.Version = this.version))
-        if entered && this.version <> this.nextVersion then raise (ApplicationException("this.version <> this.nextVersion"))
+        Debug.Assert((outerMap.Version = this._version))
+        if entered && this._version <> this._nextVersion then raise (ApplicationException("this._version <> this._nextVersion"))
         #else
-        if entered && this.version <> this.nextVersion then Environment.FailFast("this.version <> this.nextVersion")
+        if entered && this._version <> this._nextVersion then Environment.FailFast("this._version <> this._nextVersion")
         #endif
     }
     ValueTask<Opt<'V>>(t)
@@ -587,7 +597,7 @@ type SortedChunkedMapGeneric<'K,'V>
   member this.TryRemoveFirst() : ValueTask<Opt<KVP<'K,'V>>> =
     let t = task {
       let entered = this.EnterWriteLock()
-      if entered then Interlocked.Increment(&this.nextVersion) |> ignore
+      if entered then Interlocked.Increment(&this._nextVersion) |> ignore
       let mutable removed = false
       try
           let f = this.FirstUnchecked
@@ -598,15 +608,15 @@ type SortedChunkedMapGeneric<'K,'V>
           else return Opt<_>.Missing
       finally
         this.NotifyUpdate(true)
-        if removed then Interlocked.Increment(&this.version) |> ignore
-        elif entered then Interlocked.Decrement(&this.nextVersion) |> ignore
+        if removed then Interlocked.Increment(&this._version) |> ignore
+        elif entered then Interlocked.Decrement(&this._nextVersion) |> ignore
         exitWriteLockIf &this.Locker entered
         #if DEBUG
         this.FlushUnchecked()
-        Debug.Assert((outerMap.Version = this.version))
-        if entered && this.version <> this.nextVersion then raise (ApplicationException("this.version <> this.nextVersion"))
+        Debug.Assert((outerMap.Version = this._version))
+        if entered && this._version <> this._nextVersion then raise (ApplicationException("this._version <> this._nextVersion"))
         #else
-        if entered && this.version <> this.nextVersion then Environment.FailFast("this.version <> this.nextVersion")
+        if entered && this._version <> this._nextVersion then Environment.FailFast("this._version <> this._nextVersion")
         #endif
     }
     ValueTask<Opt<_>>(t)
@@ -615,7 +625,7 @@ type SortedChunkedMapGeneric<'K,'V>
   member this.TryRemoveLast() : ValueTask<Opt<KVP<'K,'V>>> =
     let t = task {
       let entered = this.EnterWriteLock()
-      if entered then Interlocked.Increment(&this.nextVersion) |> ignore
+      if entered then Interlocked.Increment(&this._nextVersion) |> ignore
       let mutable removed = false
       try
           let l = this.LastUnchecked
@@ -626,15 +636,15 @@ type SortedChunkedMapGeneric<'K,'V>
           else return Opt<_>.Missing
       finally
         this.NotifyUpdate(true)
-        if removed then Interlocked.Increment(&this.version) |> ignore
-        elif entered then Interlocked.Decrement(&this.nextVersion) |> ignore
+        if removed then Interlocked.Increment(&this._version) |> ignore
+        elif entered then Interlocked.Decrement(&this._nextVersion) |> ignore
         exitWriteLockIf &this.Locker entered
         #if DEBUG
         this.FlushUnchecked()
-        Debug.Assert((outerMap.Version = this.version))
-        if entered && this.version <> this.nextVersion then raise (ApplicationException("this.version <> this.nextVersion"))
+        Debug.Assert((outerMap.Version = this._version))
+        if entered && this._version <> this._nextVersion then raise (ApplicationException("this._version <> this._nextVersion"))
         #else
-        if entered && this.version <> this.nextVersion then Environment.FailFast("this.version <> this.nextVersion")
+        if entered && this._version <> this._nextVersion then Environment.FailFast("this._version <> this._nextVersion")
         #endif
     }
     ValueTask<Opt<_>>(t)
@@ -658,8 +668,8 @@ type SortedChunkedMapGeneric<'K,'V>
               let mutable tmp = Unchecked.defaultof<_>
               if outerMap.TryFindAt(key, Lookup.LE, &tmp) then
                 let! r1 = tmp.Value.TryRemoveMany(key, direction)
-                tmp.Value.version <- this.version + 1L
-                tmp.Value.nextVersion <- this.version + 1L
+                tmp.Value._version <- this._version + 1L
+                tmp.Value._nextVersion <- this._version + 1L
                 let! r2 = outerMap.TryRemoveMany(key, tmp.Value, direction)  // NB order matters
                 if r1.IsPresent || r2.IsPresent then increment &this.orderVersion
                 return if r1.IsPresent then r1 else (if r2.IsPresent then r2.Present.Value.Last else Opt<_>.Missing)
@@ -673,8 +683,8 @@ type SortedChunkedMapGeneric<'K,'V>
               if outerMap.TryFindAt(key, Lookup.LE, &tmp) then // NB for deterministic hash LE still works
                 let chunk = tmp.Value;
                 let! r1 = chunk.TryRemoveMany(key, direction)
-                chunk.version <- this.version + 1L
-                chunk.nextVersion <- this.version + 1L
+                chunk._version <- this._version + 1L
+                chunk._nextVersion <- this._version + 1L
                 let! r2 = outerMap.TryRemoveMany(key, chunk, direction)
                 if r1.IsPresent || r2.IsPresent then increment &this.orderVersion
                 return if r1.IsPresent then r1 else (if r2.IsPresent then r2.Present.Value.Last else Opt<_>.Missing)
@@ -683,8 +693,8 @@ type SortedChunkedMapGeneric<'K,'V>
                 let firstChunk = outerMap.First.Present.Value
                 let! r1 = firstChunk.TryRemoveMany(key, direction) // this will remove all items in the chunk
                 Debug.Assert(firstChunk.Count = 0, "The first chunk must have been completely cleared")
-                firstChunk.version <- this.version + 1L
-                firstChunk.nextVersion <- this.version + 1L
+                firstChunk._version <- this._version + 1L
+                firstChunk._nextVersion <- this._version + 1L
                 let! r2 = outerMap.TryRemoveMany(key, firstChunk, direction)
                 if r1.IsPresent || r2.IsPresent then increment &this.orderVersion
                 return if r1.IsPresent then r1 else (if r2.IsPresent then r2.Present.Value.Last else Opt<_>.Missing)
@@ -700,20 +710,20 @@ type SortedChunkedMapGeneric<'K,'V>
     // then in its impl it could be done in a transaction. However, this nethod is not used frequently
     let t = task {
       let entered = this.EnterWriteLock()
-      if entered then Interlocked.Increment(&this.nextVersion) |> ignore
+      if entered then Interlocked.Increment(&this._nextVersion) |> ignore
       let mutable removed = false
       try      
         return! this.TryRemoveManyUnchecked(key, direction)
       finally
         this.NotifyUpdate(true)
-        if removed then Interlocked.Increment(&this.version) |> ignore 
-        elif entered then Interlocked.Decrement(&this.nextVersion) |> ignore
+        if removed then Interlocked.Increment(&this._version) |> ignore 
+        elif entered then Interlocked.Decrement(&this._nextVersion) |> ignore
         exitWriteLockIf &this.Locker entered
         #if DEBUG
-        Debug.Assert(outerMap.Version = this.version)
-        if entered && this.version <> this.nextVersion then raise (ApplicationException("this.version <> this.nextVersion"))
+        Debug.Assert(outerMap.Version = this._version)
+        if entered && this._version <> this._nextVersion then raise (ApplicationException("this._version <> this._nextVersion"))
         #else
-        if entered && this.version <> this.nextVersion then Environment.FailFast("this.version <> this.nextVersion")
+        if entered && this._version <> this._nextVersion then Environment.FailFast("this._version <> this._nextVersion")
         #endif
     }
     ValueTask<Opt<_>>(t)
@@ -723,10 +733,10 @@ type SortedChunkedMapGeneric<'K,'V>
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
   member this.Append(appendMap:ISeries<'K,'V>, option:AppendOption) : int =
     raise (NotImplementedException())
-    //let hasEqOverlap (old:SortedChunkedMapGeneric<_,_>) (append:ISeries<'K,'V>) : bool =
+    //let hasEqOverlap (old:SortedChunkedMapBaseGeneric<_,_>) (append:ISeries<'K,'V>) : bool =
     //  if comparer.Compare(append.First.Key, old.LastUnchecked.Key) > 0 then false
     //  else
-    //    let oldC = new SortedChunkedMapGenericCursor<_,_>(old, false) :> ICursor<'K,'V>
+    //    let oldC = new SortedChunkedMapBaseGenericCursor<_,_>(old, false) :> ICursor<'K,'V>
     //    let appC = append.GetCursor();
     //    let mutable cont = true
     //    let mutable overlapOk = 
@@ -751,7 +761,7 @@ type SortedChunkedMapGeneric<'K,'V>
     //    try ()
     //    finally
     //      entered <- this.EnterWriteLock()
-    //      if entered then Interlocked.Increment(&this.nextVersion) |> ignore
+    //      if entered then Interlocked.Increment(&this._nextVersion) |> ignore
     //    let result =
     //      match option with
     //      | AppendOption.ThrowOnOverlap ->
@@ -831,17 +841,96 @@ type SortedChunkedMapGeneric<'K,'V>
     //    result
     //  finally
     //    if not finished then Environment.FailFast("SCM.Append must always succeed")
-    //    Interlocked.Increment(&this.version) |> ignore
+    //    Interlocked.Increment(&this._version) |> ignore
     //    this.FlushUnchecked()
     //    exitWriteLockIf &this.Locker entered
     //    #if DEBUG
-    //    Debug.Assert(outerMap.Version = this.version)
-    //    if entered && this.version <> this.nextVersion then raise (ApplicationException("this.version <> this.nextVersion"))
+    //    Debug.Assert(outerMap.Version = this._version)
+    //    if entered && this._version <> this._nextVersion then raise (ApplicationException("this._version <> this._nextVersion"))
     //    #else
-    //    if entered && this.version <> this.nextVersion then Environment.FailFast("this.version <> this.nextVersion")
+    //    if entered && this._version <> this._nextVersion then Environment.FailFast("this._version <> this._nextVersion")
     //    #endif
     
   member this.Id with get() = id and set(newid) = id <- newid
+
+  // x0
+  
+  new() = 
+    let comparer:KeyComparer<'K> = KeyComparer<'K>.Default
+    let factory = (fun (c:KeyComparer<'K>) -> new SortedMap<'K,SortedMap<'K,'V>>(c) :> IMutableSeries<'K,SortedMap<'K,'V>>)
+    new SortedChunkedMapBase<_,_>(factory, (fun (capacity, comparer) -> let sm = new SortedMap<'K,'V>(capacity, comparer) in sm._isSynchronized <- false;sm), comparer, None, None)
+  
+  // x1
+
+  /// In-memory sorted chunked map
+  new(comparer:IComparer<'K>) = 
+    let factory = (fun (c:KeyComparer<'K>) -> new SortedMap<'K,SortedMap<'K,'V>>(c) :> IMutableSeries<'K,SortedMap<'K,'V>>)
+    new SortedChunkedMapBase<_,_>(factory, (fun (capacity, comparer) -> let sm = new SortedMap<'K,'V>(capacity, comparer) in sm._isSynchronized <- false;sm), KeyComparer<'K>.Create(comparer), None, None)
+  
+  new(comparer:KeyComparer<'K>) = 
+    let factory = (fun (c:KeyComparer<'K>) -> new SortedMap<'K,SortedMap<'K,'V>>(c) :> IMutableSeries<'K,SortedMap<'K,'V>>)
+    new SortedChunkedMapBase<_,_>(factory, (fun (capacity, comparer) -> let sm = new SortedMap<'K,'V>(capacity, comparer) in sm._isSynchronized <- false;sm), comparer, None, None)
+  
+
+  /// In-memory sorted chunked map
+  new(hasher:Func<'K,'K>) = 
+    let factory = (fun (c:KeyComparer<'K>) -> new SortedMap<'K,SortedMap<'K,'V>>(c) :> IMutableSeries<'K,SortedMap<'K,'V>>)
+    let comparer:KeyComparer<'K> = KeyComparer<'K>.Default
+    let hasher = { new IKeyHasher<'K> with
+          member x.Hash(k) = hasher.Invoke k
+        }
+    new SortedChunkedMapBase<_,_>(factory, (fun (capacity, comparer) -> let sm = new SortedMap<'K,'V>(capacity, comparer) in sm._isSynchronized <- false;sm), comparer, Some(hasher), None)
+  
+  new(chunkMaxSize:int) = 
+    let factory = (fun (c:IComparer<'K>) -> new SortedMap<'K,SortedMap<'K,'V>>(c) :> IMutableSeries<'K,SortedMap<'K,'V>>)
+    let comparer = KeyComparer<'K>.Default
+    new SortedChunkedMapBase<_,_>(factory, (fun (capacity, comparer) -> let sm = new SortedMap<'K,'V>(capacity, comparer) in sm._isSynchronized <- false;sm), comparer, None, Some(chunkMaxSize))
+
+  internal new(outerFactory:Func<IComparer<'K>,IMutableSeries<'K, SortedMap<'K,'V>>>) = 
+    let comparer = KeyComparer<'K>.Default
+    new SortedChunkedMapBase<_,_>(outerFactory.Invoke, (fun (capacity, comparer) ->let sm = new SortedMap<'K,'V>(capacity, comparer) in sm._isSynchronized <- false;sm), comparer, None, None)
+  
+  // x2
+
+  /// In-memory sorted chunked map
+  new(comparer:KeyComparer<'K>,hasher:Func<'K,'K>) = 
+    let factory = (fun (c:KeyComparer<'K>) -> new SortedMap<'K,SortedMap<'K,'V>>(c) :> IMutableSeries<'K,SortedMap<'K,'V>>)
+    let hasher = { new IKeyHasher<'K> with
+          member x.Hash(k) = hasher.Invoke k
+        }
+    new SortedChunkedMapBase<_,_>(factory, (fun (capacity, comparer) -> let sm = new SortedMap<'K,'V>(capacity, comparer) in sm._isSynchronized <- false;sm), comparer, Some(hasher), None)
+
+  new(comparer:KeyComparer<'K>,chunkMaxSize:int) = 
+    let factory = (fun (c:KeyComparer<'K>) -> new SortedMap<'K,SortedMap<'K,'V>>(c) :> IMutableSeries<'K,SortedMap<'K,'V>>)
+    new SortedChunkedMapBase<_,_>(factory, (fun (capacity, comparer) -> let sm = new SortedMap<'K,'V>(capacity, comparer) in sm._isSynchronized <- false;sm), comparer, None, Some(chunkMaxSize))
+
+  internal new(outerFactory:Func<KeyComparer<'K>,IMutableSeries<'K,SortedMap<'K,'V>>>,comparer:IComparer<'K>) = 
+    new SortedChunkedMapBase<_,_>(outerFactory.Invoke, (fun (capacity, comparer) -> let sm = new SortedMap<'K,'V>(capacity, comparer) in sm._isSynchronized <- false;sm), KeyComparer<'K>.Create(comparer), None, None)
+
+  internal new(outerFactory:Func<KeyComparer<'K>,IMutableSeries<'K,SortedMap<'K,'V>>>,comparer:KeyComparer<'K>) = 
+    new SortedChunkedMapBase<_,_>(outerFactory.Invoke, (fun (capacity, comparer) -> let sm = new SortedMap<'K,'V>(capacity, comparer) in sm._isSynchronized <- false;sm), comparer, None, None)
+
+  internal new(outerFactory:Func<IComparer<'K>,IMutableSeries<'K,SortedMap<'K,'V>>>,hasher:Func<'K,'K>) = 
+    let comparer = KeyComparer<'K>.Default
+    let hasher = { new IKeyHasher<'K> with
+          member x.Hash(k) = hasher.Invoke k
+        }
+    new SortedChunkedMapBase<_,_>(outerFactory.Invoke, (fun (capacity, comparer) -> let sm = new SortedMap<'K,'V>(capacity, comparer) in sm._isSynchronized <- false;sm), comparer, Some(hasher), None)
+  
+  internal new(outerFactory:Func<IComparer<'K>,IMutableSeries<'K,SortedMap<'K,'V>>>,chunkMaxSize:int) = 
+    let comparer = KeyComparer<'K>.Default
+    new SortedChunkedMapBase<_,_>(outerFactory.Invoke, (fun (capacity, comparer) -> let sm = new SortedMap<'K,'V>(capacity, comparer) in sm._isSynchronized <- false;sm), comparer, None, Some(chunkMaxSize))
+
+  // x3
+
+  internal new(outerFactory:Func<KeyComparer<'K>,IMutableSeries<'K,SortedMap<'K,'V>>>,comparer:KeyComparer<'K>,hasher:Func<'K,'K>) =
+    let hasher = { new IKeyHasher<'K> with
+          member x.Hash(k) = hasher.Invoke k
+        }
+    new SortedChunkedMapBase<_,_>(outerFactory.Invoke, (fun (capacity, comparer) -> let sm = new SortedMap<'K,'V>(capacity, comparer) in sm._isSynchronized <- false;sm), comparer, Some(hasher), None)
+  
+  new(outerFactory:Func<KeyComparer<'K>,IMutableSeries<'K,SortedMap<'K,'V>>>,comparer:KeyComparer<'K>,chunkMaxSize:int) = 
+    new SortedChunkedMapBase<_,_>(outerFactory.Invoke, (fun (capacity, comparer) -> let sm = new SortedMap<'K,'V>(capacity, comparer) in sm._isSynchronized <- false;sm), comparer, None, Some(chunkMaxSize))
 
   //#region Interfaces
     
@@ -873,496 +962,13 @@ type SortedChunkedMapGeneric<'K,'V>
   //#endregion
 
 and
-  public SortedChunkedMapGenericCursor<'K,'V> =
+  public SortedChunkedMapBaseCursor<'K,'V> =
     struct
-      val mutable internal source : SortedChunkedMapGeneric<'K,'V>
-      val mutable internal outerCursor : ICursor<'K,SortedMap<'K,'V>>
-      val mutable internal innerCursor : ICursor<'K,'V>
-      val mutable internal isBatch : bool
-      val mutable internal synced : bool
-      internal new(source:SortedChunkedMapGeneric<'K,'V>, synced) = 
-        { source = source; 
-          outerCursor = source.OuterMap.GetCursor();
-          innerCursor = Unchecked.defaultof<_>;
-          isBatch = false;
-          synced = synced;
-        }
-      internal new(source:SortedChunkedMapGeneric<'K,'V>) = 
-        { source = source; 
-          outerCursor = source.OuterMap.GetCursor();
-          innerCursor = Unchecked.defaultof<_>;
-          isBatch = false;
-          synced = true;
-        }
-    end
-
-    member inline private this.HasValidInner with get() = not (obj.ReferenceEquals(this.innerCursor, null))
-    
-    member this.CurrentKey with get() = this.innerCursor.CurrentKey
-    member this.CurrentValue with get() = this.innerCursor.CurrentValue
-    member this.Current with get() : KVP<'K,'V> = KeyValuePair(this.innerCursor.CurrentKey, this.innerCursor.CurrentValue)
-
-    member this.Comparer: KeyComparer<'K> = this.source.Comparer
-    member this.TryGetValue(key: 'K, value: byref<'V>): bool = this.source.TryGetValue(key, &value)
-
-    [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
-    member this.MoveNext() =
-      let mutable newInner = this.innerCursor
-      let mutable result = Unchecked.defaultof<_>
-      let mutable doSpin = true
-      let sw = new SpinWait()
-      while doSpin do
-        doSpin <- this.source.isSynchronized
-        let version = if doSpin then Volatile.Read(&this.source.version) else 0L
-        result <-
-        /////////// Start read-locked code /////////////
-          try
-            if (not this.HasValidInner) && (not this.isBatch) then
-              if this.outerCursor.MoveFirst() then
-                newInner <- this.outerCursor.CurrentValue.GetCursor()
-                newInner.MoveFirst()
-              else false
-            else
-              if this.HasValidInner && newInner.MoveNext() then true
-              else
-                if this.outerCursor.MoveNext() then
-                  this.isBatch <- false // if was batch, moved to the first element of the new batch
-                  newInner <- this.outerCursor.CurrentValue.GetCursor()
-                  newInner.MoveNext()
-                else false
-          with
-          | :? OutOfOrderKeyException<'K> as ooex ->
-              ThrowHelper.ThrowOutOfOrderKeyException((if this.isBatch then this.outerCursor.CurrentValue.Last.Present.Key else this.innerCursor.CurrentKey), "SortedMap order was changed since last move. Catch OutOfOrderKeyException and use its CurrentKey property together with MoveAt(key, Lookup.GT) to recover.")
-              false
-            
-        /////////// End read-locked code /////////////
-        if doSpin then
-          let nextVersion = Volatile.Read(&this.source.nextVersion)
-          if version = nextVersion || not this.synced then doSpin <- false
-          else sw.SpinOnce()
-      if result then
-        //if this.HasValidInner then this.innerCursor.Dispose()
-        this.innerCursor <- newInner
-      result
-
-    member this.Source: ISeries<'K,'V> = this.source :> ISeries<'K,'V>      
-    member this.IsContinuous with get() = false
-    member this.CurrentBatch: ISeries<'K,'V> = 
-      let mutable result = Unchecked.defaultof<_>
-      let mutable doSpin = true
-      let sw = new SpinWait()
-      while doSpin do
-        doSpin <- this.source.isSynchronized
-        let version = if doSpin then Volatile.Read(&this.source.version) else 0L
-        result <-
-        /////////// Start read-locked code /////////////
-
-          if this.isBatch then this.outerCursor.CurrentValue :> ISeries<'K,'V>
-          else raise (InvalidOperationException("SortedChunkedMapGenericCursor cursor is not at a batch position"))
-
-        /////////// End read-locked code /////////////
-        if doSpin then
-          let nextVersion = Volatile.Read(&this.source.nextVersion)
-          if version = nextVersion then doSpin <- false
-          else sw.SpinOnce()
-      result
-
-    member this.MoveNextBatch(cancellationToken: CancellationToken): Task<bool> =
-      let mutable newIsBatch = this.isBatch
-
-      let mutable result = Unchecked.defaultof<_>
-      let mutable doSpin = true
-      let sw = new SpinWait()
-      while doSpin do
-        doSpin <- this.source.isSynchronized
-        let version = if doSpin then Volatile.Read(&this.source.version) else 0L
-        result <-
-        /////////// Start read-locked code /////////////
-          // TODO test & review
-          raise (NotImplementedException("TODO test & review"))
-          try
-            // TODO should await outer MNA after false MN
-            if (not this.HasValidInner || this.isBatch) && this.outerCursor.MoveNext() then
-                newIsBatch <- true
-                TaskUtil.TrueTask
-            else TaskUtil.FalseTask
-          with
-          | :? OutOfOrderKeyException<'K> as ooex ->
-            Trace.Assert(this.isBatch)
-            ThrowHelper.ThrowOutOfOrderKeyException(this.outerCursor.CurrentValue.Last.Present.Key, "SortedMap order was changed since last move. Catch OutOfOrderKeyException and use its CurrentKey property together with MoveAt(key, Lookup.GT) to recover.")
-            Unchecked.defaultof<_>
-            
-        /////////// End read-locked code /////////////
-        if doSpin then
-          let nextVersion = Volatile.Read(&this.source.nextVersion)
-          if version = nextVersion || not this.synced then doSpin <- false
-          else sw.SpinOnce()
-      if result.Result then
-        this.isBatch <- newIsBatch
-      result
-
-    [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
-    member this.MovePrevious() = 
-      let mutable newInner = this.innerCursor
-
-      let mutable result = Unchecked.defaultof<_>
-      let mutable doSpin = true
-      let sw = new SpinWait()
-      while doSpin do
-        doSpin <- this.source.isSynchronized
-        let version = if doSpin then Volatile.Read(&this.source.version) else 0L
-        result <-
-        /////////// Start read-locked code /////////////
-          try
-            if this.isBatch then
-              raise (NotImplementedException("TODO test & review"))
-              this.isBatch <- false
-              newInner <- this.outerCursor.CurrentValue.GetCursor()
-              newInner.MoveLast() |> ignore
-
-            if not this.HasValidInner then
-              if this.outerCursor.MoveLast() then
-                newInner <- this.outerCursor.CurrentValue.GetCursor()
-                newInner.MoveLast()
-              else false
-            else
-              if this.HasValidInner && newInner.MovePrevious() then true
-              else
-                if this.outerCursor.MovePrevious() then
-                  this.isBatch <- false
-                  newInner <- this.outerCursor.CurrentValue.GetCursor()
-                  newInner.MovePrevious()
-                else false
-          with
-          | :? OutOfOrderKeyException<'K> as ooex ->
-             ThrowHelper.ThrowOutOfOrderKeyException((if this.isBatch then this.outerCursor.CurrentValue.Last.Present.Key else this.innerCursor.CurrentKey), "SortedMap order was changed since last move. Catch OutOfOrderKeyException and use its CurrentKey property together with MoveAt(key, Lookup.GT) to recover.")
-             Unchecked.defaultof<_>
-            
-        /////////// End read-locked code /////////////
-        if doSpin then
-          let nextVersion = Volatile.Read(&this.source.nextVersion)
-          if version = nextVersion || not this.synced then doSpin <- false
-          else sw.SpinOnce()
-      if result then
-        //if this.HasValidInner then this.innerCursor.Dispose()
-        this.innerCursor <- newInner
-      result
-
-    [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
-    member this.MoveFirst() =
-      let mutable newInner = this.innerCursor
-      let mutable result = Unchecked.defaultof<_>
-      let mutable doSpin = true
-      let sw = new SpinWait()
-      while doSpin do
-        doSpin <- this.source.isSynchronized
-        let version = if doSpin then Volatile.Read(&this.source.version) else 0L
-        result <-
-        /////////// Start read-locked code /////////////
-          if this.outerCursor.MoveFirst() then
-            newInner <- this.outerCursor.CurrentValue.GetCursor()
-            if newInner.MoveFirst() then
-              this.isBatch <- false
-              true
-            else 
-              Trace.Fail("If outer moved first then inned must be non-empty")
-              false
-          else false
-            
-        /////////// End read-locked code /////////////
-        if doSpin then
-          let nextVersion = Volatile.Read(&this.source.nextVersion)
-          if version = nextVersion || not this.synced then doSpin <- false
-          else sw.SpinOnce()
-      if result then
-        //if this.HasValidInner then this.innerCursor.Dispose()
-        this.innerCursor <- newInner
-      result
-
-    [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
-    member this.MoveLast() =
-      let mutable newInner = this.innerCursor
-      let mutable result = Unchecked.defaultof<_>
-      let mutable doSpin = true
-      let sw = new SpinWait()
-      while doSpin do
-        doSpin <- this.source.isSynchronized
-        let version = if doSpin then Volatile.Read(&this.source.version) else 0L
-        result <-
-        /////////// Start read-locked code /////////////
-          if this.outerCursor.MoveLast() then
-            newInner <- this.outerCursor.CurrentValue.GetCursor()
-            if newInner.MoveLast() then
-              this.isBatch <- false
-              true
-            else
-              Trace.Fail("If outer moved last then inned must be non-empty")
-              false
-          else false
-            
-        /////////// End read-locked code /////////////
-        if doSpin then
-          let nextVersion = Volatile.Read(&this.source.nextVersion)
-          if version = nextVersion || not this.synced then doSpin <- false
-          else sw.SpinOnce()
-      if result then
-        //if this.HasValidInner then this.innerCursor.Dispose()
-        this.innerCursor <- newInner
-      result
-
-    [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
-    member this.MoveAt(key:'K, direction:Lookup) =
-      let mutable newInner = this.innerCursor
-      let mutable result = Unchecked.defaultof<_>
-      let mutable doSpin = true
-      let sw = new SpinWait()
-      while doSpin do
-        doSpin <- this.source.isSynchronized
-        let version = if doSpin then Volatile.Read(&this.source.version) else 0L
-        result <-
-        /////////// Start read-locked code /////////////
-          let res =
-            if this.source.ChunkUpperLimit = 0 then
-              let hash = this.source.Hasher.Hash(key)
-              let c = 
-                if not this.HasValidInner then 2 // <> 0 below
-                else this.source.Comparer.Compare(hash, this.outerCursor.CurrentKey)
-              
-              if c <> 0 then // not in the current bucket, switch bucket
-                if this.outerCursor.MoveAt(hash, Lookup.EQ) then // Equal!
-                  newInner <- this.outerCursor.CurrentValue.GetCursor()
-                  newInner.MoveAt(key, direction)
-                else
-                  false
-              else
-                newInner.MoveAt(key, direction)
-            else
-              if this.outerCursor.MoveAt(key, Lookup.LE) then // LE!
-                newInner <- this.outerCursor.CurrentValue.GetCursor()
-                newInner.MoveAt(key, direction)
-              else
-                false
-
-          if res then
-            this.isBatch <- false
-            true
-          else
-              match direction with
-              | Lookup.LT | Lookup.LE ->
-                // look into previous bucket
-                if this.outerCursor.MovePrevious() then
-                  newInner <- this.outerCursor.CurrentValue.GetCursor()
-                  let res = newInner.MoveAt(key, direction)
-                  if res then
-                    this.isBatch <- false
-                    true
-                  else
-                    false
-                else
-                  false
-              | Lookup.GT | Lookup.GE ->
-                // look into next bucket
-                let moved = this.outerCursor.MoveNext() 
-                if moved then
-                  newInner <- this.outerCursor.CurrentValue.GetCursor()
-                  let res = newInner.MoveAt(key, direction)
-                  if res then
-                    this.isBatch <- false
-                    true
-                  else
-                    false 
-                else
-                  false
-              | _ -> false // LookupDirection.EQ
-      /////////// End read-locked code /////////////
-        if doSpin then
-          let nextVersion = Volatile.Read(&this.source.nextVersion)
-          if version = nextVersion || not this.synced then doSpin <- false
-          else sw.SpinOnce()
-      if result then
-        //if this.HasValidInner then this.innerCursor.Dispose()
-        this.innerCursor <- newInner
-      result
-
-    member this.MoveNextAsync(cancellationToken:CancellationToken): Task<bool> = 
-      if this.source.isReadOnly then
-        if this.MoveNext() then TaskUtil.TrueTask else TaskUtil.FalseTask
-      else ThrowHelper.ThrowNotSupportedException("Use SortedChunkedMapGenericCursorAsync instead");Unchecked.defaultof<_>
-
-    member this.Clone() =
-      let mutable entered = false
-      try
-        entered <- enterWriteLockIf &this.source.Locker this.source.isSynchronized
-        let clone = new SortedChunkedMapGenericCursor<_,_>(this.source)
-        clone.MoveAt(this.CurrentKey, Lookup.EQ) |> ignore
-        clone
-      finally
-        exitWriteLockIf &this.source.Locker entered  
-      
-    member this.Reset() = 
-      if this.HasValidInner then this.innerCursor.Dispose()
-      this.innerCursor <- Unchecked.defaultof<_>
-      this.outerCursor.Reset()
-
-    member this.Dispose() = this.Reset()
-
-    interface IDisposable with
-      member this.Dispose() = this.Dispose()
-
-    interface IEnumerator<KVP<'K,'V>> with    
-      member this.Reset() = this.Reset()
-      member this.MoveNext():bool = this.MoveNext()
-      member this.Current with get(): KVP<'K, 'V> = this.Current
-      member this.Current with get(): obj = this.Current :> obj
-
-    interface IAsyncEnumerator<KVP<'K,'V>> with
-      member this.MoveNextAsync(cancellationToken:CancellationToken): Task<bool> = this.MoveNextAsync(cancellationToken)
-      member this.MoveNextAsync(): Task<bool> = this.MoveNextAsync(CancellationToken.None)
-      member this.DisposeAsync() = this.Dispose();Task.CompletedTask
-
-    interface ICursor<'K,'V> with
-      member this.Comparer with get() = this.source.Comparer
-      member this.CurrentBatch = this.CurrentBatch
-      member this.MoveNextBatch(cancellationToken: CancellationToken): Task<bool> = this.MoveNextBatch(cancellationToken)
-      member this.MoveAt(index:'K, lookup:Lookup) = this.MoveAt(index, lookup)
-      member this.MoveFirst():bool = this.MoveFirst()
-      member this.MoveLast():bool =  this.MoveLast()
-      member this.MovePrevious():bool = this.MovePrevious()
-      member this.CurrentKey with get():'K = this.CurrentKey
-      member this.CurrentValue with get():'V = this.CurrentValue
-      member this.Source with get() = this.source :> ISeries<'K,'V>
-      member this.Clone() = this.Clone() :> ICursor<'K,'V>
-      member this.IsContinuous with get() = false
-      member this.TryGetValue(key, [<Out>]value: byref<'V>) : bool = this.source.TryGetValue(key, &value)
-      // TODO
-      member this.State with get() = raise (NotImplementedException())
-      member this.MoveNext(stride, allowPartial) = raise (NotImplementedException())
-      member this.MovePrevious(stride, allowPartial) = raise (NotImplementedException())
-
-and
-  [<AllowNullLiteral>]
-  SortedChunkedMap<'K,'V>
-    internal 
-    (
-      outerFactory:KeyComparer<'K>->IMutableSeries<'K, SortedMap<'K,'V>>,
-      innerFactory:int * KeyComparer<'K>->SortedMap<'K,'V>, 
-      comparer:KeyComparer<'K>,
-      hasher:IKeyHasher<'K> option, 
-      chunkMaxSize:int option) =
-    inherit SortedChunkedMapGeneric<'K,'V>(outerFactory, innerFactory, comparer, hasher, chunkMaxSize)
-
-    override this.GetCursor() =
-      //if Thread.CurrentThread.ManagedThreadId <> ownerThreadId then (not this.isReadOnly) <- true // NB: via property with locks
-      let mutable entered = false
-      try
-        entered <- enterWriteLockIf &this.Locker (not this.isReadOnly)
-        // if source is already read-only, MNA will always return false
-        if this.isReadOnly then new SortedChunkedMapCursor<_,_>(this) :> ICursor<'K,'V>
-        else
-          let c = new BaseCursorAsync<_,_,_>(Func<_>(this.GetEnumerator))
-          c :> ICursor<'K,'V>
-      finally
-        exitWriteLockIf &this.Locker entered
-
-    override this.GetContainerCursor() = this.GetEnumerator()
-
-    // .NETs foreach optimization - return a struct
-    member this.GetEnumerator() =
-  //    if Thread.CurrentThread.ManagedThreadId <> ownerThreadId then 
-  //      // NB: via property with locks
-  //      (not this.isReadOnly) <- true
-      readLockIf &this.nextVersion &this.version (not this.isReadOnly) (fun _ ->
-        new SortedChunkedMapCursor<_,_>(this)
-      )
-
-    // x0
-  
-    new() = 
-      let comparer:KeyComparer<'K> = KeyComparer<'K>.Default
-      let factory = (fun (c:KeyComparer<'K>) -> new SortedMap<'K,SortedMap<'K,'V>>(c) :> IMutableSeries<'K,SortedMap<'K,'V>>)
-      new SortedChunkedMap<_,_>(factory, (fun (capacity, comparer) -> let sm = new SortedMap<'K,'V>(capacity, comparer) in sm.isSynchronized <- false;sm), comparer, None, None)
-  
-    // x1
-
-    /// In-memory sorted chunked map
-    new(comparer:IComparer<'K>) = 
-      let factory = (fun (c:KeyComparer<'K>) -> new SortedMap<'K,SortedMap<'K,'V>>(c) :> IMutableSeries<'K,SortedMap<'K,'V>>)
-      new SortedChunkedMap<_,_>(factory, (fun (capacity, comparer) -> let sm = new SortedMap<'K,'V>(capacity, comparer) in sm.isSynchronized <- false;sm), KeyComparer<'K>.Create(comparer), None, None)
-  
-    new(comparer:KeyComparer<'K>) = 
-      let factory = (fun (c:KeyComparer<'K>) -> new SortedMap<'K,SortedMap<'K,'V>>(c) :> IMutableSeries<'K,SortedMap<'K,'V>>)
-      new SortedChunkedMap<_,_>(factory, (fun (capacity, comparer) -> let sm = new SortedMap<'K,'V>(capacity, comparer) in sm.isSynchronized <- false;sm), comparer, None, None)
-  
-
-    /// In-memory sorted chunked map
-    new(hasher:Func<'K,'K>) = 
-      let factory = (fun (c:KeyComparer<'K>) -> new SortedMap<'K,SortedMap<'K,'V>>(c) :> IMutableSeries<'K,SortedMap<'K,'V>>)
-      let comparer:KeyComparer<'K> = KeyComparer<'K>.Default
-      let hasher = { new IKeyHasher<'K> with
-            member x.Hash(k) = hasher.Invoke k
-          }
-      new SortedChunkedMap<_,_>(factory, (fun (capacity, comparer) -> let sm = new SortedMap<'K,'V>(capacity, comparer) in sm.isSynchronized <- false;sm), comparer, Some(hasher), None)
-  
-    new(chunkMaxSize:int) = 
-      let factory = (fun (c:IComparer<'K>) -> new SortedMap<'K,SortedMap<'K,'V>>(c) :> IMutableSeries<'K,SortedMap<'K,'V>>)
-      let comparer = KeyComparer<'K>.Default
-      new SortedChunkedMap<_,_>(factory, (fun (capacity, comparer) -> let sm = new SortedMap<'K,'V>(capacity, comparer) in sm.isSynchronized <- false;sm), comparer, None, Some(chunkMaxSize))
-
-    internal new(outerFactory:Func<IComparer<'K>,IMutableSeries<'K, SortedMap<'K,'V>>>) = 
-      let comparer = KeyComparer<'K>.Default
-      new SortedChunkedMap<_,_>(outerFactory.Invoke, (fun (capacity, comparer) ->let sm = new SortedMap<'K,'V>(capacity, comparer) in sm.isSynchronized <- false;sm), comparer, None, None)
-  
-    // x2
-
-    /// In-memory sorted chunked map
-    new(comparer:KeyComparer<'K>,hasher:Func<'K,'K>) = 
-      let factory = (fun (c:KeyComparer<'K>) -> new SortedMap<'K,SortedMap<'K,'V>>(c) :> IMutableSeries<'K,SortedMap<'K,'V>>)
-      let hasher = { new IKeyHasher<'K> with
-            member x.Hash(k) = hasher.Invoke k
-          }
-      new SortedChunkedMap<_,_>(factory, (fun (capacity, comparer) -> let sm = new SortedMap<'K,'V>(capacity, comparer) in sm.isSynchronized <- false;sm), comparer, Some(hasher), None)
-
-    new(comparer:KeyComparer<'K>,chunkMaxSize:int) = 
-      let factory = (fun (c:KeyComparer<'K>) -> new SortedMap<'K,SortedMap<'K,'V>>(c) :> IMutableSeries<'K,SortedMap<'K,'V>>)
-      new SortedChunkedMap<_,_>(factory, (fun (capacity, comparer) -> let sm = new SortedMap<'K,'V>(capacity, comparer) in sm.isSynchronized <- false;sm), comparer, None, Some(chunkMaxSize))
-
-    internal new(outerFactory:Func<KeyComparer<'K>,IMutableSeries<'K,SortedMap<'K,'V>>>,comparer:IComparer<'K>) = 
-      new SortedChunkedMap<_,_>(outerFactory.Invoke, (fun (capacity, comparer) -> let sm = new SortedMap<'K,'V>(capacity, comparer) in sm.isSynchronized <- false;sm), KeyComparer<'K>.Create(comparer), None, None)
-
-    internal new(outerFactory:Func<KeyComparer<'K>,IMutableSeries<'K,SortedMap<'K,'V>>>,comparer:KeyComparer<'K>) = 
-      new SortedChunkedMap<_,_>(outerFactory.Invoke, (fun (capacity, comparer) -> let sm = new SortedMap<'K,'V>(capacity, comparer) in sm.isSynchronized <- false;sm), comparer, None, None)
-
-    internal new(outerFactory:Func<IComparer<'K>,IMutableSeries<'K,SortedMap<'K,'V>>>,hasher:Func<'K,'K>) = 
-      let comparer = KeyComparer<'K>.Default
-      let hasher = { new IKeyHasher<'K> with
-            member x.Hash(k) = hasher.Invoke k
-          }
-      new SortedChunkedMap<_,_>(outerFactory.Invoke, (fun (capacity, comparer) -> let sm = new SortedMap<'K,'V>(capacity, comparer) in sm.isSynchronized <- false;sm), comparer, Some(hasher), None)
-  
-    internal new(outerFactory:Func<IComparer<'K>,IMutableSeries<'K,SortedMap<'K,'V>>>,chunkMaxSize:int) = 
-      let comparer = KeyComparer<'K>.Default
-      new SortedChunkedMap<_,_>(outerFactory.Invoke, (fun (capacity, comparer) -> let sm = new SortedMap<'K,'V>(capacity, comparer) in sm.isSynchronized <- false;sm), comparer, None, Some(chunkMaxSize))
-
-    // x3
-
-    internal new(outerFactory:Func<KeyComparer<'K>,IMutableSeries<'K,SortedMap<'K,'V>>>,comparer:KeyComparer<'K>,hasher:Func<'K,'K>) =
-      let hasher = { new IKeyHasher<'K> with
-            member x.Hash(k) = hasher.Invoke k
-          }
-      new SortedChunkedMap<_,_>(outerFactory.Invoke, (fun (capacity, comparer) -> let sm = new SortedMap<'K,'V>(capacity, comparer) in sm.isSynchronized <- false;sm), comparer, Some(hasher), None)
-  
-    new(outerFactory:Func<KeyComparer<'K>,IMutableSeries<'K,SortedMap<'K,'V>>>,comparer:KeyComparer<'K>,chunkMaxSize:int) = 
-      new SortedChunkedMap<_,_>(outerFactory.Invoke, (fun (capacity, comparer) -> let sm = new SortedMap<'K,'V>(capacity, comparer) in sm.isSynchronized <- false;sm), comparer, None, Some(chunkMaxSize))
-
-
-and
-  public SortedChunkedMapCursor<'K,'V> =
-    struct
-      val mutable internal source : SortedChunkedMap<'K,'V>
+      val mutable internal source : SortedChunkedMapBase<'K,'V>
       val mutable internal outerCursor : ICursor<'K,SortedMap<'K,'V>>
       val mutable internal innerCursor : SortedMapCursor<'K,'V>
       val mutable internal isBatch : bool
-      new(source:SortedChunkedMap<'K,'V>) = 
+      new(source:SortedChunkedMapBase<'K,'V>) = 
         { source = if source <> Unchecked.defaultof<_> then source else failwith "source is null"; 
           outerCursor = source.OuterMap.GetCursor();
           innerCursor = Unchecked.defaultof<_>;
@@ -1396,8 +1002,8 @@ and
       let mutable outerMoved = false
       let sw = new SpinWait()
       while doSpin do
-        doSpin <- this.source.isSynchronized
-        let version = if doSpin then Volatile.Read(&this.source.version) else 0L
+        doSpin <- this.source._isSynchronized
+        let version = if doSpin then Volatile.Read(&this.source._version) else 0L
         /////////// Start read-locked code /////////////
       //try
         // here we use copy-by-value of structs
@@ -1439,7 +1045,7 @@ and
             
         /////////// End read-locked code /////////////
         if doSpin then
-          let nextVersion = Volatile.Read(&this.source.nextVersion)
+          let nextVersion = Volatile.Read(&this.source._nextVersion)
           if version = nextVersion then doSpin <- false
           else sw.SpinOnce()
       if result then
@@ -1454,17 +1060,17 @@ and
       let mutable doSpin = true
       let sw = new SpinWait()
       while doSpin do
-        doSpin <- this.source.isSynchronized
-        let version = if doSpin then Volatile.Read(&this.source.version) else 0L
+        doSpin <- this.source._isSynchronized
+        let version = if doSpin then Volatile.Read(&this.source._version) else 0L
         result <-
         /////////// Start read-locked code /////////////
 
           if this.isBatch then this.outerCursor.CurrentValue :> ISeries<'K,'V>
-          else raise (InvalidOperationException("SortedChunkedMapGenericCursor cursor is not at a batch position"))
+          else raise (InvalidOperationException("SortedChunkedMapBaseGenericCursor cursor is not at a batch position"))
 
         /////////// End read-locked code /////////////
         if doSpin then
-          let nextVersion = Volatile.Read(&this.source.nextVersion)
+          let nextVersion = Volatile.Read(&this.source._nextVersion)
           if version = nextVersion then doSpin <- false
           else sw.SpinOnce()
       result
@@ -1476,8 +1082,8 @@ and
       let mutable doSpin = true
       let sw = new SpinWait()
       while doSpin do
-        doSpin <- this.source.isSynchronized
-        let version = if doSpin then Volatile.Read(&this.source.version) else 0L
+        doSpin <- this.source._isSynchronized
+        let version = if doSpin then Volatile.Read(&this.source._version) else 0L
         result <-
         /////////// Start read-locked code /////////////
           // TODO test & review
@@ -1494,7 +1100,7 @@ and
             
         /////////// End read-locked code /////////////
         if doSpin then
-          let nextVersion = Volatile.Read(&this.source.nextVersion)
+          let nextVersion = Volatile.Read(&this.source._nextVersion)
           if version = nextVersion then doSpin <- false
           else sw.SpinOnce()
       if result.Result then
@@ -1510,8 +1116,8 @@ and
       let mutable outerMoved = false
       let sw = new SpinWait()
       while doSpin do
-        doSpin <- this.source.isSynchronized
-        let version = if doSpin then Volatile.Read(&this.source.version) else 0L
+        doSpin <- this.source._isSynchronized
+        let version = if doSpin then Volatile.Read(&this.source._version) else 0L
         result <-
         /////////// Start read-locked code /////////////
           try
@@ -1526,7 +1132,7 @@ and
             else
               let mutable entered = false
               try
-                entered <- enterWriteLockIf &this.source.Locker this.source.isSynchronized
+                entered <- enterWriteLockIf &this.source.Locker this.source._isSynchronized
                 if this.HasValidInner && newInner.MovePrevious() then 
                   doSwitchInner <- true
                   true
@@ -1549,7 +1155,7 @@ and
             
         /////////// End read-locked code /////////////
         if doSpin then
-          let nextVersion = Volatile.Read(&this.source.nextVersion)
+          let nextVersion = Volatile.Read(&this.source._nextVersion)
           if version = nextVersion then doSpin <- false
           else sw.SpinOnce()
       if result then
@@ -1564,8 +1170,8 @@ and
       let mutable doSpin = true
       let sw = new SpinWait()
       while doSpin do
-        doSpin <- this.source.isSynchronized
-        let version = if doSpin then Volatile.Read(&this.source.version) else 0L
+        doSpin <- this.source._isSynchronized
+        let version = if doSpin then Volatile.Read(&this.source._version) else 0L
         result <-
         /////////// Start read-locked code /////////////
           if this.outerCursor.MoveFirst() then
@@ -1580,7 +1186,7 @@ and
             
         /////////// End read-locked code /////////////
         if doSpin then
-          let nextVersion = Volatile.Read(&this.source.nextVersion)
+          let nextVersion = Volatile.Read(&this.source._nextVersion)
           if version = nextVersion then doSpin <- false
           else sw.SpinOnce()
       if result then
@@ -1595,8 +1201,8 @@ and
       let mutable doSpin = true
       let sw = new SpinWait()
       while doSpin do
-        doSpin <- this.source.isSynchronized
-        let version = if doSpin then Volatile.Read(&this.source.version) else 0L
+        doSpin <- this.source._isSynchronized
+        let version = if doSpin then Volatile.Read(&this.source._version) else 0L
         result <-
         /////////// Start read-locked code /////////////
           if this.outerCursor.MoveLast() then
@@ -1611,7 +1217,7 @@ and
             
         /////////// End read-locked code /////////////
         if doSpin then
-          let nextVersion = Volatile.Read(&this.source.nextVersion)
+          let nextVersion = Volatile.Read(&this.source._nextVersion)
           if version = nextVersion then doSpin <- false
           else sw.SpinOnce()
       if result then
@@ -1626,13 +1232,13 @@ and
       let mutable doSpin = true
       let sw = new SpinWait()
       while doSpin do
-        doSpin <- this.source.isSynchronized
-        let version = if doSpin then Volatile.Read(&this.source.version) else 0L
+        doSpin <- this.source._isSynchronized
+        let version = if doSpin then Volatile.Read(&this.source._version) else 0L
         result <-
         /////////// Start read-locked code /////////////
           let mutable entered = false
           try
-            entered <- enterWriteLockIf &this.source.Locker this.source.isSynchronized
+            entered <- enterWriteLockIf &this.source.Locker this.source._isSynchronized
             newInner <- this.innerCursor
             let res =
               if this.source.ChunkUpperLimit = 0 then
@@ -1691,7 +1297,7 @@ and
             exitWriteLockIf &this.source.Locker entered
       /////////// End read-locked code /////////////
         if doSpin then
-          let nextVersion = Volatile.Read(&this.source.nextVersion)
+          let nextVersion = Volatile.Read(&this.source._nextVersion)
           if version = nextVersion then doSpin <- false
           else sw.SpinOnce()
       if result then
@@ -1703,12 +1309,12 @@ and
     member this.MoveNextAsync(cancellationToken:CancellationToken): Task<bool> = 
       if this.source.isReadOnly then
         if this.MoveNext() then TaskUtil.TrueTask else TaskUtil.FalseTask
-      else raise (NotSupportedException("Use SortedChunkedMapGenericCursorAsync instead"))
+      else raise (NotSupportedException("Use SortedChunkedMapBaseGenericCursorAsync instead"))
 
     member this.Clone() =
       let mutable entered = false
       try
-        entered <- enterWriteLockIf &this.source.Locker this.source.isSynchronized
+        entered <- enterWriteLockIf &this.source.Locker this.source._isSynchronized
         let mutable clone = this
         clone.source <- this.source
         clone.outerCursor <- this.outerCursor.Clone()
@@ -1762,7 +1368,7 @@ and
       member this.MoveNext(stride, allowPartial) = raise (NotImplementedException())
       member this.MovePrevious(stride, allowPartial) = raise (NotImplementedException())
 
-    interface ISpecializedCursor<'K,'V, SortedChunkedMapCursor<'K,'V>> with
+    interface ISpecializedCursor<'K,'V, SortedChunkedMapBaseCursor<'K,'V>> with
       member this.Initialize() = 
         let c = this.Clone()
         c.Reset()

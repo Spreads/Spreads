@@ -18,8 +18,8 @@ namespace Spreads.Core.Tests.Collections
         [Test, Explicit("long running")]
         public void AddSpeed()
         {
-            const int count = 10_000_000;
-            for (int r = 0; r < 2; r++)
+            const int count = 1_000_000;
+            for (int r = 0; r < 10; r++)
             {
                 var sl = new SortedList<int, int>();
                 var sm = new SortedMap<int, int>();
@@ -66,7 +66,7 @@ namespace Spreads.Core.Tests.Collections
         [Test, Explicit("long running")]
         public void EnumerateScmSpeed()
         {
-            const int count = 20_000_000;
+            const int count = 10_000_000;
 
             var sl = new SortedList<int, int>();
             var sm = new SortedMap<int, int>();
@@ -83,7 +83,7 @@ namespace Spreads.Core.Tests.Collections
             }
 
             sm.Complete();
-            scm.Complete();
+            // scm.Complete();
 
 
             for (int r = 0; r < 20; r++)
@@ -127,18 +127,18 @@ namespace Spreads.Core.Tests.Collections
                 }
                 Assert.AreEqual(sum1, sum3);
 
-                var sum4 = 0L;
-                using (Benchmark.Run("SCM Current.Value", count))
-                {
-                    using (var c = scm.GetEnumerator())
-                    {
-                        while (c.MoveNext())
-                        {
-                            sum4 += c.Current.Value;
-                        }
-                    }
-                }
-                Assert.AreEqual(sum1, sum4);
+                //var sum4 = 0L;
+                //using (Benchmark.Run("SCM Current.Value", count))
+                //{
+                //    using (var c = scm.GetEnumerator())
+                //    {
+                //        while (c.MoveNext())
+                //        {
+                //            sum4 += c.Current.Value;
+                //        }
+                //    }
+                //}
+                //Assert.AreEqual(sum1, sum4);
 
                 var sum5 = 0L;
                 using (Benchmark.Run("SCM CurrentValue", count))
@@ -147,7 +147,7 @@ namespace Spreads.Core.Tests.Collections
                     {
                         while (c.MoveNext())
                         {
-                            sum5+= c.CurrentValue;
+                            sum5 += c.CurrentValue;
                         }
                     }
                 }
@@ -164,7 +164,7 @@ namespace Spreads.Core.Tests.Collections
             for (int size = 0; size < 3; size++)
             {
                 var count = (int)(1024 * Math.Pow(2, size));
-                const int mult = 100;
+                const int mult = 1000;
                 var sl = new SortedList<DateTime, int>();
                 var sm = new SortedMap<DateTime, int>();
                 var scm = new SortedChunkedMap<DateTime, int>();
@@ -191,31 +191,31 @@ namespace Spreads.Core.Tests.Collections
 
                 for (int r = 0; r < 20; r++)
                 {
-                    var sum1 = 0L;
-                    using (Benchmark.Run("SL", count * mult, true))
-                    {
-                        for (int j = 0; j < mult; j++)
-                        {
-                            for (int i = 0; i < count; i++)
-                            {
-                                if (sl.TryGetValue(start.AddTicks(i), out var v))
-                                {
-                                    sum1 += v;
-                                }
-                            }
-                        }
+                    //var sum1 = 0L;
+                    //using (Benchmark.Run("SL", count * mult, true))
+                    //{
+                    //    for (int j = 0; j < mult; j++)
+                    //    {
+                    //        for (int i = 0; i < count; i++)
+                    //        {
+                    //            if (sl.TryGetValue(start.AddTicks(i), out var v))
+                    //            {
+                    //                sum1 += v;
+                    //            }
+                    //        }
+                    //    }
 
-                    }
-                    Assert.True(sum1 > 0);
+                    //}
+                    //Assert.True(sum1 > 0);
 
                     var sum2 = 0L;
-                    using (Benchmark.Run("SM", count * mult, true))
+                    using (Benchmark.Run("SM", count * mult, false))
                     {
                         for (int j = 0; j < mult; j++)
                         {
                             for (int i = 0; i < count; i++)
                             {
-                                if (sm.TryGetValue(start.AddTicks(i), out var v))
+                                if (sm.TryGetValueUnchecked(start.AddTicks(i), out var v))
                                 {
                                     sum2 += v;
                                 }
@@ -223,24 +223,24 @@ namespace Spreads.Core.Tests.Collections
                         }
                     }
                     Assert.True(sum2 > 0);
-                    Assert.AreEqual(sum1, sum2);
+                    //Assert.AreEqual(sum1, sum2);
 
-                    var sum3 = 0L;
-                    using (Benchmark.Run("SCM", count * mult, true))
-                    {
-                        for (int j = 0; j < mult; j++)
-                        {
-                            for (int i = 0; i < count; i++)
-                            {
-                                if (scm.TryGetValue(start.AddTicks(i), out var v))
-                                {
-                                    sum3 += v;
-                                }
-                            }
-                        }
-                    }
-                    Assert.True(sum3 > 0);
-                    Assert.AreEqual(sum1, sum3);
+                    //var sum3 = 0L;
+                    //using (Benchmark.Run("SCM", count * mult, true))
+                    //{
+                    //    for (int j = 0; j < mult; j++)
+                    //    {
+                    //        for (int i = 0; i < count; i++)
+                    //        {
+                    //            if (scm.TryGetValue(start.AddTicks(i), out var v))
+                    //            {
+                    //                sum3 += v;
+                    //            }
+                    //        }
+                    //    }
+                    //}
+                    //Assert.True(sum3 > 0);
+                    //Assert.AreEqual(sum1, sum3);
 
 
 
@@ -257,7 +257,7 @@ namespace Spreads.Core.Tests.Collections
             for (int size = 0; size < 3; size++)
             {
                 var count = (int)(1024 * Math.Pow(2, size));
-                const int mult = 10000;
+                const int mult = 1000;
                 var arr = new DateTime[count];
 
                 var start = DateTime.Today.ToUniversalTime();

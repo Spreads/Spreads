@@ -136,3 +136,130 @@ module internal Utils =
 
   let inline decrement (value:byref<_>) = value <- value - LanguagePrimitives.GenericOne
 
+
+//[<AutoOpenAttribute>]
+//module TaskModule =
+//  let trueTask = Task.FromResult(true)
+//  let falseTask = Task.FromResult(false)
+//  let cancelledBoolTask = 
+//    let tcs = new TaskCompletionSource<bool>()
+//    tcs.SetCanceled()
+//    tcs.Task
+
+
+//  let inline bind (f: 'T -> Task<'U>) (m: Task<'T>) =
+//    if m.Status = TaskStatus.RanToCompletion then f m.Result
+//    elif m.IsCanceled then Utils.TaskUtil.FromCanceled<'U>(CancellationToken.None)
+//    elif m.IsFaulted then Utils.TaskUtil.FromException<'U>(m.Exception)
+//    else
+//      let tcs = (Runtime.CompilerServices.AsyncTaskMethodBuilder<_>.Create()) // new TaskCompletionSource<_>() // NB do not allocate objects
+//      let t = tcs.Task
+//      let awaiter = m.GetAwaiter() // NB this is faster than ContinueWith
+//      awaiter.OnCompleted(fun _ -> 
+//        if m.IsCanceled then tcs.SetException(OperationCanceledException())
+//        elif m.IsCompleted then tcs.SetResult(f m.Result)
+//        else tcs.SetException(m.Exception)
+//        )
+//      t.Unwrap()
+
+//  let inline bindVT (f: 'T -> Task<'U>) (m: ValueTask<'T>) =
+//    if m.IsCompleted then f m.Result
+//    elif m.IsCanceled then Utils.TaskUtil.FromCanceled<'U>(CancellationToken.None)
+//    // elif m.IsFaulted then Utils.TaskUtil.FromException<'U>(m.Exception)
+//    else
+//      let tcs = (Runtime.CompilerServices.AsyncTaskMethodBuilder<_>.Create()) // new TaskCompletionSource<_>() // NB do not allocate objects
+//      let t = tcs.Task
+//      let awaiter = m.GetAwaiter() // NB this is faster than ContinueWith
+//      awaiter.OnCompleted(fun _ -> 
+//        if m.IsCanceled then tcs.SetException(OperationCanceledException())
+//        elif m.IsCompleted then tcs.SetResult(f m.Result)
+//        else () // tcs.SetException(m.Exception)
+//        )
+//      t.Unwrap()
+
+//  let inline returnM a = Task.FromResult(a)
+
+
+//  let inline bindBool (f: bool -> Task<bool>) (m: Task<bool>) =
+//    if m.Status = TaskStatus.RanToCompletion then f m.Result
+//    elif m.IsCanceled || m.IsFaulted then m
+//    else
+//      let tcs = (Runtime.CompilerServices.AsyncTaskMethodBuilder<_>.Create()) // new TaskCompletionSource<_>() // NB do not allocate objects
+//      let t = tcs.Task
+//      let awaiter = m.GetAwaiter() // NB this is faster than ContinueWith
+//      awaiter.OnCompleted(fun _ -> 
+//        if m.IsCanceled then tcs.SetResult(m)
+//        elif m.IsCompleted then tcs.SetResult(f m.Result)
+//        else tcs.SetResult(Utils.TaskUtil.FromException<bool>(m.Exception))
+//      )
+//      t.Unwrap()
+
+ 
+
+//  let inline returnMBool (a:bool) = if a then trueTask else falseTask
+
+//  type TaskBuilder(?continuationOptions, ?scheduler, ?cancellationToken) =
+//      let contOptions = defaultArg continuationOptions TaskContinuationOptions.None
+//      let scheduler = defaultArg scheduler TaskScheduler.Default
+//      let cancellationToken = defaultArg cancellationToken CancellationToken.None
+
+//      member inline this.Return x = returnM x
+
+//      member inline this.Zero() = returnM()
+
+//      member inline this.ReturnFrom (a: Task<'T>) = a
+
+//      member inline this.Bind(m: Task<'a>, f) = bind f m
+
+//      member inline this.Bind(m: ValueTask<'a>, f) = bindVT f m
+
+//      // member inline this.Bind(m, f) = bindBool f m // bindWithOptions cancellationToken contOptions scheduler f m
+
+//      member this.Combine(comp1: ValueTask<'a>, comp2) =
+//          this.Bind(comp1, comp2)
+      
+//      member this.Combine(comp1: Task<'a>, comp2) =
+//          this.Bind(comp1, comp2)
+
+//      //member this.While(guard, m) =
+//      //    let rec whileRec(guard, m) = 
+//      //      if not(guard()) then this.Zero() else
+//      //          this.Bind(m(), fun () -> whileRec(guard, m))
+//      //    whileRec(guard, m)
+
+//      //member this.While(guardTask:unit->Task<bool>, body) =
+//      //  let m = guardTask()
+//      //  let onCompleted() =
+//      //    this.Bind(body(), fun () -> this.While(guardTask, body))
+//      //  if m.Status = TaskStatus.RanToCompletion then 
+//      //    onCompleted()
+//      //  else
+//      //    let tcs =  new TaskCompletionSource<_>() // (Runtime.CompilerServices.AsyncTaskMethodBuilder<_>.Create())
+//      //    let t = tcs.Task
+//      //    let awaiter = m.GetAwaiter()
+//      //    awaiter.OnCompleted(fun _ -> 
+//      //      if m.IsFaulted then
+//      //        tcs.SetException(m.Exception)
+//      //      elif m.IsCanceled then
+//      //        tcs.SetCanceled()
+//      //      else
+//      //        tcs.SetResult(onCompleted())
+//      //      )
+//      //    t.Unwrap()
+
+//      member this.TryFinally(m, compensation) =
+//          try this.ReturnFrom m
+//          finally compensation()
+
+//      member this.Using(res: #IDisposable, body: #IDisposable -> Task<_>) =
+//          this.TryFinally(body res, fun () -> match res with null -> () | disp -> disp.Dispose())
+
+//      //member this.For(sequence: seq<_>, body) =
+//      //    this.Using(sequence.GetEnumerator(),
+//      //                          fun enum -> this.While(enum.MoveNext, fun () -> body enum.Current))
+
+//      member this.Delay (f: unit -> Task<'T>) = f
+
+//      member this.Run (f: unit -> Task<'T>) = f()
+
+//  let task = TaskBuilder(scheduler = TaskScheduler.Current)

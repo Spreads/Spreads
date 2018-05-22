@@ -46,13 +46,13 @@ namespace Spreads.Tests
                     try { }
                     finally
                     {
-                        v2 = this.BeforeWrite();
+                        this.BeforeWrite();
                     }
                     DoIncrement();
                 }
                 finally
                 {
-                    AfterWrite(v2, true);
+                    AfterWrite(true);
                 }
             }
 

@@ -8,11 +8,11 @@
 //
 // You should have received a copy of the CC0 Public Domain Dedication along with this software.
 // If not, see <http://creativecommons.org/publicdomain/zero/1.0/>.
-
 namespace FSharp.Control.Tasks
 open System
 open System.Threading.Tasks
 open System.Runtime.CompilerServices
+open Spreads.Utils
 
 // This module is not really obsolete, but it's not intended to be referenced directly from user code.
 // However, it can't be private because it is used within inline functions that *are* user-visible.
@@ -22,11 +22,12 @@ module TaskBuilder =
     /// Represents the state of a computation:
     /// either awaiting something with a continuation,
     /// or completed with a return value.
+    // [<Struct>]
     type Step<'a> =
-        | Await of ICriticalNotifyCompletion * (unit -> Step<'a>)
-        | Return of 'a
+        | Await of step1: ICriticalNotifyCompletion * (unit -> Step<'a>)
+        | Return of step2: 'a
         /// We model tail calls explicitly, but still can't run them without O(n) memory usage.
-        | ReturnFrom of 'a Task
+        | ReturnFrom of step3: 'a Task
     /// Implements the machinery of running a `Step<'m, 'm>` as a task returning a continuation task.
     and StepStateMachine<'a>(firstStep) as this =
         let methodBuilder = AsyncTaskMethodBuilder<'a Task>()
@@ -37,7 +38,14 @@ module TaskBuilder =
             try
                 match continuation() with
                 | Return r ->
-                    methodBuilder.SetResult(Task.FromResult(r))
+                    if typedefof<'a> = typedefof<bool> then
+                      let rb : bool = unbox(box(r))
+                      if rb then
+                        methodBuilder.SetResult(unbox(box(TaskUtil.TrueTask)))
+                      else
+                        methodBuilder.SetResult(unbox(box(TaskUtil.FalseTask)))
+                    else
+                      methodBuilder.SetResult(Task.FromResult(r))
                     null
                 | ReturnFrom t ->
                     methodBuilder.SetResult(t)
@@ -64,7 +72,8 @@ module TaskBuilder =
                 if not (isNull await) then
                     // Tell the builder to call us again when this thing is done.
                     methodBuilder.AwaitUnsafeOnCompleted(&await, &self)    
-            member __.SetStateMachine(_) = () // Doesn't really apply since we're a reference type.
+            member __.SetStateMachine(_) = 
+              methodBuilder.SetStateMachine(this) // Doesn't really apply since we're a reference type.
 
     let unwrapException (agg : AggregateException) =
         let inners = agg.InnerExceptions
@@ -113,6 +122,7 @@ module TaskBuilder =
 
     /// Special case of the above for `Task<'a>`. Have to write this out by hand to avoid confusing the compiler
     /// trying to decide between satisfying the constraints with `Task` or `Task<'a>`.
+    [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
     let bindTask (task : 'a Task) (continuation : 'a -> Step<'b>) =
         let awt = task.GetAwaiter()
         if awt.IsCompleted then // Proceed to the next step based on the result we already have.
@@ -123,6 +133,7 @@ module TaskBuilder =
     /// Special case of the above for `Task<'a>`, for the context-insensitive builder.
     /// Have to write this out by hand to avoid confusing the compiler thinking our built-in bind method
     /// defined on the builder has fancy generic constraints on inp and out parameters.
+    [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
     let bindTaskConfigureFalse (task : 'a Task) (continuation : 'a -> Step<'b>) =
         let awt = task.ConfigureAwait(false).GetAwaiter()
         if awt.IsCompleted then // Proceed to the next step based on the result we already have.
@@ -133,6 +144,7 @@ module TaskBuilder =
     /// Chains together a step with its following step.
     /// Note that this requires that the first step has no result.
     /// This prevents constructs like `task { return 1; return 2; }`.
+    [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
     let rec combine (step : Step<unit>) (continuation : unit -> Step<'b>) =
         match step with
         | Return _ -> continuation()
@@ -221,20 +233,29 @@ module TaskBuilder =
             (fun e -> whileLoop e.MoveNext (fun () -> body e.Current))
 
     /// Runs a step as a task -- with a short-circuit for immediately completed steps.
+    [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
     let run (firstStep : unit -> Step<'a>) =
-        try
+        // try
             match firstStep() with
-            | Return x -> Task.FromResult(x)
+            | Return x -> 
+              if typedefof<'a> = typedefof<bool> then
+                let rb : bool = unbox(box(x))
+                if rb then
+                  unbox(box(TaskUtil.TrueTask))
+                else
+                  unbox(box(TaskUtil.FalseTask))
+              else
+                Task.FromResult(x)
             | ReturnFrom t -> t
             | Await _ as step -> StepStateMachine<'a>(step).Run().Unwrap() // sadly can't do tail recursion
         // Any exceptions should go on the task, rather than being thrown from this call.
         // This matches C# behavior where you won't see an exception until awaiting the task,
         // even if it failed before reaching the first "await".
-        with
-        | exn ->
-            let src = new TaskCompletionSource<_>()
-            src.SetException(exn)
-            src.Task
+        //with
+        //| exn ->
+        //    let src = new TaskCompletionSource<_>()
+        //    src.SetException(exn)
+        //    src.Task
 
     // We have to have a dedicated overload for Task<'a> so the compiler doesn't get confused with Convenience overloads for Asyncs
     // Everything else can use bindGenericAwaitable via an extension member
@@ -261,7 +282,6 @@ module TaskBuilder =
         static member inline ($) (_:Priority2, taskLike            ) = Binder<_>.GenericAwait(taskLike, ret)
         static member inline ($) (  Priority1, configurableTaskLike) = Binder<_>.GenericAwaitConfigureFalse(configurableTaskLike, ret)
         static member        ($) (  Priority1, a   : 'a Async      ) = bindTaskConfigureFalse (Async.StartAsTask a) ret
-
 
     type TaskBuilder() =
         // These methods are consistent between the two builders.
