@@ -287,7 +287,7 @@ type SortedChunkedMapGeneric<'K,'V>
             newSm.SetOrAdd(key, value, overwrite) |> ignore // we know that SM is syncronous
             #if DEBUG
             let v = outerMap.Version
-            outerMap.[key] <- newSm // outerMap.Version is incremented here, set non-empty bucket only
+            let! outerSet = outerMap.Set(key, newSm) // outerMap.Version is incremented here, set non-empty bucket only
             Debug.Assert(v + 1L = outerMap.Version, "Outer setter must increment its version")
             #else
             let! outerSet = outerMap.Set(key, newSm) // outerMap.Version is incremented here, set non-empty bucket only
@@ -644,10 +644,7 @@ type SortedChunkedMapGeneric<'K,'V>
     let version = outerMap.Version
     let result = 
       if outerMap.Last.IsMissing then
-        #if DEBUG
-        let mutable temp = Unchecked.defaultof<_>
-        Debug.Assert(not <| this.PrevBucketIsSet(&temp), "there must be no active bucket for empty outer")
-        #endif
+        Debug.Assert((prevWBucket = null))
         prevWBucket <- null
         ValueTask<_>(Opt<_>.Missing)
       else
@@ -1382,7 +1379,7 @@ and
       with [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>] get() = this.innerCursor.CurrentValue
 
     member this.Current 
-      with [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>] get() : KVP<'K,'V> = KeyValuePair(this.innerCursor.CurrentKey, this.innerCursor.CurrentValue)
+      with [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>] get() : KVP<'K,'V> = this.innerCursor.current // KeyValuePair(this.innerCursor.CurrentKey, this.innerCursor.CurrentValue)
 
     member this.Comparer 
       with [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>] get(): KeyComparer<'K> = this.source.Comparer
@@ -1401,39 +1398,41 @@ and
       while doSpin do
         doSpin <- this.source.isSynchronized
         let version = if doSpin then Volatile.Read(&this.source.version) else 0L
-        result <-
         /////////// Start read-locked code /////////////
-          //try
-            // here we use copy-by-value of structs
-            newInner <- this.innerCursor
-            if (not this.HasValidInner) && (not this.isBatch) then
-              if this.outerCursor.MoveFirst() then
-                newInner <- new SortedMapCursor<'K,'V>(this.outerCursor.CurrentValue)
-                doSwitchInner <- true
-                newInner.MoveFirst()
-              else false
+      //try
+        // here we use copy-by-value of structs
+        // newInner <- this.innerCursor
+        if (not this.HasValidInner) && (not this.isBatch) then
+          if this.outerCursor.MoveFirst() then
+            newInner <- new SortedMapCursor<'K,'V>(this.outerCursor.CurrentValue)
+            doSwitchInner <- true
+            result <- newInner.MoveFirst()
+          else result <- false
+        else
+          
+        // try
+          if this.HasValidInner && this.innerCursor.MoveNext() then 
+            // doSwitchInner <- true
+            result <- true
+          else
+            // let entered = enterWriteLockIf &this.source.Locker doSpin
+            if outerMoved || this.outerCursor.MoveNext() then
+              outerMoved <- true
+              this.isBatch <- false // if was batch, moved to the first element of the new batch
+              newInner <- new SortedMapCursor<'K,'V>(this.outerCursor.CurrentValue)
+              doSwitchInner <- true
+              let moved = newInner.MoveNext()
+              // if newInner.source.size > 0 && not moved then ThrowHelper.ThrowInvalidOperationException("must move here")
+              if moved then 
+                result <- true
+              else 
+                outerMoved <- false; // need to try to move outer again
+                result <- false 
             else
-              let mutable entered = false
-              try
-                entered <- enterWriteLockIf &this.source.Locker this.source.isSynchronized
-                if this.HasValidInner && newInner.MoveNext() then 
-                  doSwitchInner <- true
-                  true
-                else
-                  if outerMoved || this.outerCursor.MoveNext() then
-                    outerMoved <- true
-                    this.isBatch <- false // if was batch, moved to the first element of the new batch
-                    newInner <- new SortedMapCursor<'K,'V>(this.outerCursor.CurrentValue)
-                    doSwitchInner <- true
-                    let moved = newInner.MoveNext()
-                    if newInner.source.size > 0 && not moved then ThrowHelper.ThrowInvalidOperationException("must move here")
-                    if moved then true
-                    else outerMoved <- false; false // need to try to move outer again
-                  else
-                    outerMoved <- false
-                    false
-              finally
-                exitWriteLockIf &this.source.Locker entered
+              outerMoved <- false
+              result <- false
+        //finally
+            // exitWriteLockIf &this.source.Locker entered
           //with
           //| :? OutOfOrderKeyException<'K> as ooex ->
           //   raise (new OutOfOrderKeyException<'K>((if this.isBatch then this.outerCursor.CurrentValue.Last.Key else this.innerCursor.CurrentKey), "SortedMap order was changed since last move. Catch OutOfOrderKeyException and use its CurrentKey property together with MoveAt(key, Lookup.GT) to recover."))

@@ -1410,16 +1410,19 @@ type public SortedMapCursor<'K,'V> =
     struct
       val internal source : SortedMap<'K,'V>
       val mutable internal index : int
-      val mutable internal currentKey : 'K
-      val mutable internal currentValue: 'V
+      val mutable internal current : KVP<'K,'V>
+      //val mutable internal currentKey : 'K
+      //val mutable internal currentValue: 'V
       val mutable internal cursorVersion : int64
       val mutable internal isBatch : bool
       val mutable internal doSpin : bool
+      [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
       new(source:SortedMap<'K,'V>) = 
         { source = source;
           index = -1;
-          currentKey = Unchecked.defaultof<_>;
-          currentValue = Unchecked.defaultof<_>;
+          current = Unchecked.defaultof<_>;
+          //currentKey = Unchecked.defaultof<_>;
+          //currentValue = Unchecked.defaultof<_>;
           cursorVersion = source.orderVersion;
           isBatch = false;
           doSpin = source.isSynchronized
@@ -1427,13 +1430,13 @@ type public SortedMapCursor<'K,'V> =
     end
 
     member this.CurrentKey 
-      with [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>] get() = this.currentKey
+      with [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>] get() = this.current.Key
 
     member this.CurrentValue 
-      with [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>] get() = this.currentValue
+      with [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>] get() = this.current.Value
 
     member this.Current 
-      with [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>] get() : KVP<'K,'V> = KeyValuePair(this.currentKey, this.currentValue)
+      with [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>] get() : KVP<'K,'V> = this.current // KeyValuePair(this.currentKey, this.currentValue)
 
     member this.Source 
       with [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>] get(): ISeries<'K,'V> = this.source :> ISeries<'K,'V>    
@@ -1448,39 +1451,42 @@ type public SortedMapCursor<'K,'V> =
         
     [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
     member this.MoveNext() =
-      let mutable newIndex = this.index + 1
-      let mutable newKey = Unchecked.defaultof<_>
-      let mutable newValue = Unchecked.defaultof<_>
+      this.index <- this.index + 1
       let mutable doSpin = this.doSpin;
       let source = this.source
       let mutable version = if doSpin then Volatile.Read(&source.version) else 0L
       
-
-      if newIndex < source.size then
-        newKey <- source.GetKeyByIndexUnchecked(newIndex)
-        newValue <- source.values.[newIndex]
+      if this.index < source.size then
+        let mutable newC = source.GetPairByIndexUnchecked(this.index)
       
         while doSpin do
           let nextVersion = Volatile.Read(&source.nextVersion)
           if version = nextVersion then 
             doSpin <- false
-          else 
-            let sw = new SpinWait()
+          else
+            let mutable sw = new SpinWait()
             sw.SpinOnce()
             version <- Volatile.Read(&source.version)
-            if newIndex < source.size then
-              newKey <- source.GetKeyByIndexUnchecked(newIndex)
-              newValue <- source.values.[newIndex]
-            else doSpin <- false // NB this is only possible if size decreased but that changes this.source.orderVersion and operation will throw on the next line
+            if this.index < source.size then
+              newC <- source.GetPairByIndexUnchecked(this.index)
+            else
+              // NB this is only possible if size decreased but that changes 
+              // this.source.orderVersion and operation will throw on the next section below
+              doSpin <- false 
 
         if this.cursorVersion <> source.orderVersion then
           // source order change
-          ThrowHelper.ThrowOutOfOrderKeyException(this.currentKey, "SortedMap order was changed since last move. Catch OutOfOrderKeyException and use its CurrentKey property together with MoveAt(key, Lookup.GT) to recover.")
-        this.index <- newIndex
-        this.currentKey <- newKey
-        this.currentValue <- newValue
+          this.index <- -1
+          let key = this.current.Key
+          this.current <- Unchecked.defaultof<_>
+          ThrowHelper.ThrowOutOfOrderKeyException(key, "SortedMap order was changed since last move. Catch OutOfOrderKeyException and use its CurrentKey property together with MoveAt(key, Lookup.GT) to recover.")
+        this.current <- newC
         true
       else
+        // NB It's slightly chaper to set index on the happy path and recover here
+        // If happy path throws than the cursor is in invalid state (calling Current/Key/Value is undefined)
+        // but we have CurrentKey stored inside the exception and could recover with MoveAt
+        this.index <- this.index - 1
         false
 
 
@@ -1509,8 +1515,9 @@ type public SortedMapCursor<'K,'V> =
 
     member this.MoveNextBatch(cancellationToken: CancellationToken): Task<bool> =
       let mutable newIndex = this.index
-      let mutable newKey = this.currentKey
-      let mutable newValue = this.currentValue
+      let mutable newC = Unchecked.defaultof<_>
+      //let mutable newKey = this.currentKey
+      //let mutable newValue = this.currentValue
       let mutable newIsBatch = this.isBatch
 
       let mutable result = Unchecked.defaultof<_>
@@ -1525,8 +1532,9 @@ type public SortedMapCursor<'K,'V> =
           if (this.source.isReadOnly) && (this.index = -1) && this.source.size > 0 then
             this.cursorVersion <- this.source.orderVersion
             newIndex <- this.source.size - 1 // at the last element of the batch
-            newKey <- this.source.GetKeyByIndexUnchecked(newIndex)
-            newValue <- this.source.values.[newIndex]
+            newC <- this.source.GetPairByIndexUnchecked(newIndex)
+            //newKey <- this.source.GetKeyByIndexUnchecked(newIndex)
+            //newValue <- this.source.values.[newIndex]
             newIsBatch <- true
             TaskUtil.TrueTask
           else TaskUtil.FalseTask
@@ -1538,16 +1546,18 @@ type public SortedMapCursor<'K,'V> =
           else sw.SpinOnce()
       if result.Result then
         this.index <- newIndex
-        this.currentKey <- newKey
-        this.currentValue <- newValue
+        this.current <- newC
+        //this.currentKey <- newKey
+        //this.currentValue <- newValue
         this.isBatch <- newIsBatch
       result
 
     [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
     member this.MovePrevious() = 
       let mutable newIndex = this.index
-      let mutable newKey = this.currentKey
-      let mutable newValue = this.currentValue
+      let mutable newC = Unchecked.defaultof<_>
+      //let mutable newKey = this.currentKey
+      //let mutable newValue = this.currentValue
 
       let mutable result = Unchecked.defaultof<_>
       let mutable doSpin = true
@@ -1561,21 +1571,23 @@ type public SortedMapCursor<'K,'V> =
             if this.source.size > 0 then
               this.cursorVersion <- this.source.orderVersion
               newIndex <- this.source.size - 1
-              newKey <- this.source.GetKeyByIndexUnchecked(newIndex)
-              newValue <- this.source.values.[newIndex]
+              newC <- this.source.GetPairByIndexUnchecked(newIndex)
+              //newKey <- this.source.GetKeyByIndexUnchecked(newIndex)
+              //newValue <- this.source.values.[newIndex]
               true
             else
               false
           elif this.cursorVersion = this.source.orderVersion then
             if this.index > 0 && this.index < this.source.size then
               newIndex <- this.index - 1
-              newKey <- this.source.GetKeyByIndexUnchecked(newIndex)
-              newValue <- this.source.values.[newIndex]
+              newC <- this.source.GetPairByIndexUnchecked(newIndex)
+              //newKey <- this.source.GetKeyByIndexUnchecked(newIndex)
+              //newValue <- this.source.values.[newIndex]
               true
             else
               false
           else
-            ThrowHelper.ThrowOutOfOrderKeyException(this.currentKey, "SortedMap order was changed since last move. Catch OutOfOrderKeyException and use its CurrentKey property together with MoveAt(key, Lookup.LT) to recover.")
+            ThrowHelper.ThrowOutOfOrderKeyException(this.current.Key, "SortedMap order was changed since last move. Catch OutOfOrderKeyException and use its CurrentKey property together with MoveAt(key, Lookup.LT) to recover.")
             false
         /////////// End read-locked code /////////////
         if doSpin then
@@ -1584,15 +1596,17 @@ type public SortedMapCursor<'K,'V> =
           else sw.SpinOnce()
       if result then
         this.index <- newIndex
-        this.currentKey <- newKey
-        this.currentValue <- newValue
+        this.current <- newC
+        //this.currentKey <- newKey
+        //this.currentValue <- newValue
       result
 
     [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
     member this.MoveAt(key:'K, lookup:Lookup) =
       let mutable newIndex = this.index
-      let mutable newKey = this.currentKey
-      let mutable newValue = this.currentValue
+      let mutable newC = Unchecked.defaultof<_>
+      //let mutable newKey = this.currentKey
+      //let mutable newValue = this.currentValue
       let mutable result = Unchecked.defaultof<_>
       let mutable doSpin = true
       let sw = new SpinWait()
@@ -1604,11 +1618,11 @@ type public SortedMapCursor<'K,'V> =
           // leave it for mutations, optimize TryFindAt
           let position = this.source.FindIndexAt(key, lookup)
           if position >= 0 then
-            let kvp = this.source.GetPairByIndexUnchecked(position)
+            newC <- this.source.GetPairByIndexUnchecked(position)
             this.cursorVersion <- this.source.orderVersion
             newIndex <- position
-            newKey <- kvp.Key
-            newValue <- kvp.Value
+            //newKey <- kvp.Key
+            //newValue <- kvp.Value
             true
           else
             false
@@ -1619,15 +1633,17 @@ type public SortedMapCursor<'K,'V> =
           else sw.SpinOnce()
       if result then
         this.index <- newIndex
-        this.currentKey <- newKey
-        this.currentValue <- newValue
+        this.current <- newC
+        //this.currentKey <- newKey
+        //this.currentValue <- newValue
       result
 
     [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
     member this.MoveFirst() =
       let mutable newIndex = this.index
-      let mutable newKey = this.currentKey
-      let mutable newValue = this.currentValue
+      let mutable newC = Unchecked.defaultof<_>
+      //let mutable newKey = this.currentKey
+      //let mutable newValue = this.currentValue
       let mutable result = Unchecked.defaultof<_>
       let mutable doSpin = true
       let sw = new SpinWait()
@@ -1639,8 +1655,9 @@ type public SortedMapCursor<'K,'V> =
           if this.source.size > 0 then
             this.cursorVersion <- this.source.orderVersion
             newIndex <- 0
-            newKey <- this.source.GetKeyByIndexUnchecked(newIndex)
-            newValue <- this.source.values.[newIndex]
+            newC <- this.source.GetPairByIndexUnchecked(newIndex)
+            //newKey <- this.source.GetKeyByIndexUnchecked(newIndex)
+            //newValue <- this.source.values.[newIndex]
             true
           else
             false
@@ -1651,15 +1668,17 @@ type public SortedMapCursor<'K,'V> =
           else sw.SpinOnce()
       if result then
         this.index <- newIndex
-        this.currentKey <- newKey
-        this.currentValue <- newValue
+        this.current <- newC
+        //this.currentKey <- newKey
+        //this.currentValue <- newValue
       result
 
     [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
     member this.MoveLast() =
       let mutable newIndex = this.index
-      let mutable newKey = this.currentKey
-      let mutable newValue = this.currentValue
+      let mutable newC = Unchecked.defaultof<_>
+      //let mutable newKey = this.currentKey
+      //let mutable newValue = this.currentValue
       let mutable result = Unchecked.defaultof<_>
       let mutable doSpin = true
       let sw = new SpinWait()
@@ -1671,8 +1690,9 @@ type public SortedMapCursor<'K,'V> =
           if this.source.size > 0 then
             this.cursorVersion <- this.source.orderVersion
             newIndex <- this.source.size - 1
-            newKey <- this.source.GetKeyByIndexUnchecked(newIndex)
-            newValue <- this.source.values.[newIndex]
+            newC <- this.source.GetPairByIndexUnchecked(newIndex)
+            //newKey <- this.source.GetKeyByIndexUnchecked(newIndex)
+            //newValue <- this.source.values.[newIndex]
             true
           else
             false
@@ -1683,8 +1703,9 @@ type public SortedMapCursor<'K,'V> =
           else sw.SpinOnce()
       if result then
         this.index <- newIndex
-        this.currentKey <- newKey
-        this.currentValue <- newValue
+        this.current <- newC
+        //this.currentKey <- newKey
+        //this.currentValue <- newValue
       result
 
     member this.MoveNextAsync(cancellationToken:CancellationToken): Task<bool> =
@@ -1698,8 +1719,9 @@ type public SortedMapCursor<'K,'V> =
 
     member this.Reset() = 
       this.cursorVersion <- this.source.orderVersion
-      this.currentKey <- Unchecked.defaultof<'K>
-      this.currentValue <- Unchecked.defaultof<'V>
+      this.current <- Unchecked.defaultof<_>
+      //this.currentKey <- Unchecked.defaultof<'K>
+      //this.currentValue <- Unchecked.defaultof<'V>
       this.index <- -1
 
     member this.Dispose() = this.Reset()

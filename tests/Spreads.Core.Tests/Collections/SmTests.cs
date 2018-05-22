@@ -66,7 +66,7 @@ namespace Spreads.Core.Tests.Collections
         [Test, Explicit("long running")]
         public void EnumerateScmSpeed()
         {
-            const int count = 50_000_000;
+            const int count = 20_000_000;
 
             var sl = new SortedList<int, int>();
             var sm = new SortedMap<int, int>();
@@ -85,58 +85,73 @@ namespace Spreads.Core.Tests.Collections
             sm.Complete();
             scm.Complete();
 
-            long sum;
 
             for (int r = 0; r < 20; r++)
             {
-                sum = 0L;
+                var sum1 = 0L;
                 using (Benchmark.Run("SL", count))
                 {
                     using (var c = sl.GetEnumerator())
                     {
                         while (c.MoveNext())
                         {
-                            sum += c.Current.Value;
+                            sum1 += c.Current.Value;
                         }
                     }
                 }
-                Assert.True(sum > 0);
+                Assert.True(sum1 > 0);
 
-                sum = 0L;
-                using (Benchmark.Run("SM", count))
+                var sum2 = 0L;
+                using (Benchmark.Run("SM Current.Value", count))
                 {
                     using (var c = sm.GetEnumerator())
                     {
                         while (c.MoveNext())
                         {
-                            sum += c.Current.Value;
+                            sum2 += c.Current.Value;
                         }
                     }
                 }
-                Assert.True(sum > 0);
+                Assert.AreEqual(sum1, sum2);
 
-                //sum = 0L;
-                //using (Benchmark.Run("Foreach SM", count))
-                //{
-                //    foreach (var item in sm)
-                //    {
-                //        sum += item.Value;
-                //    }
-                //}
-                //Assert.True(sum > 0);
+                var sum3 = 0L;
+                using (Benchmark.Run("SM CurrentValue", count))
+                {
+                    using (var c = sm.GetEnumerator())
+                    {
+                        while (c.MoveNext())
+                        {
+                            sum3 += c.CurrentValue;
+                        }
+                    }
+                }
+                Assert.AreEqual(sum1, sum3);
 
-                //sum = 0L;
-                //using (Benchmark.Run("SCM", count))
-                //{
-                //    using (var c = scm.GetEnumerator())
-                //    {
-                //        while (c.MoveNext())
-                //        {
-                //            sum += c.Current.Value;
-                //        }
-                //    }
-                //}
-                //Assert.True(sum > 0);
+                var sum4 = 0L;
+                using (Benchmark.Run("SCM Current.Value", count))
+                {
+                    using (var c = scm.GetEnumerator())
+                    {
+                        while (c.MoveNext())
+                        {
+                            sum4 += c.Current.Value;
+                        }
+                    }
+                }
+                Assert.AreEqual(sum1, sum4);
+
+                var sum5 = 0L;
+                using (Benchmark.Run("SCM CurrentValue", count))
+                {
+                    using (var c = scm.GetEnumerator())
+                    {
+                        while (c.MoveNext())
+                        {
+                            sum5+= c.CurrentValue;
+                        }
+                    }
+                }
+                Assert.AreEqual(sum1, sum5);
             }
 
             Benchmark.Dump();
