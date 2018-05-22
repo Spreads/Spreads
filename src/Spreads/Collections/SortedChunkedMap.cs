@@ -1,15 +1,75 @@
 ﻿using Spreads.Utils;
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 
 namespace Spreads.Collections
 {
-    public class SortedChunkedMap<K, V> : SortedChunkedMapBase<K, V>, IMutableSeries<K, V>
+    // TODO Clear extension method
+
+    public class SortedChunkedMap<K, V> : SortedChunkedMapBase<K, V>, IPersistentSeries<K, V>
     {
+        internal SortedChunkedMap(Func<KeyComparer<K>, IMutableSeries<K, SortedMap<K, V>>> outerFactory,
+            Func<int, KeyComparer<K>, SortedMap<K, V>> innerFactory,
+            KeyComparer<K> comparer,
+            Opt<IKeyHasher<K>> hasher,
+            Opt<int> chunkMaxSize) : base(outerFactory, innerFactory, comparer, hasher, chunkMaxSize)
+        { }
+
+        private static Func<int, KeyComparer<K>, SortedMap<K, V>> smInnerFactory = (capacity, keyComparer) =>
+        {
+            var sm = new SortedMap<K, V>(capacity, keyComparer)
+            {
+                _isSynchronized = false
+            };
+            return sm;
+        };
+
+        public SortedChunkedMap() : base((KeyComparer<K> c) =>
+            new SortedMap<K, SortedMap<K, V>>(c), smInnerFactory, KeyComparer<K>.Default, Opt<IKeyHasher<K>>.Missing, Opt<int>.Missing)
+        {
+            Func<KeyComparer<K>, IMutableSeries<K, SortedMap<K, V>>> factory = (KeyComparer<K> c) =>
+                new SortedMap<K, SortedMap<K, V>>(c);
+            //  new SortedChunkedMapBase<_,_>(factory, (fun (capacity, comparer) -> let sm = new SortedMap<'K,'V>(capacity, comparer) in sm._isSynchronized <- false;sm), comparer, None, None)
+        }
+
+        //[<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
+        //member internal this.SetWithHasher(key: 'K, value: 'V, overwrite: bool) : unit =
+        // TODO
+        //let hash = hasher.Hash(key)
+        //let c = comparer.Compare(hash, prevHash)
+        //let mutable prevBucket' = Unchecked.defaultof<_>
+        //let bucketIsSet = this.PrevBucketIsSet(&prevBucket')
+        //if c = 0 && bucketIsSet then
+        //  Debug.Assert(prevBucket'._version = this._version)
+        //  prevBucket'.Set(key, value)
+        //  this.NotifyUpdate(true)
+        //else
+        //  // bucket switch
+        //  if bucketIsSet then this.FlushUnchecked()
+        //  let isNew, bucket =
+        //    let mutable bucketKvp = Unchecked.defaultof<_>
+        //    let ok = outerMap.TryFindAt(hash, Lookup.EQ, &bucketKvp)
+        //    if ok then
+        //      false, bucketKvp.Value
+        //    else
+        //      let newSm = innerFactory(0, comparer)
+        //      true, newSm
+        //  bucket._version <- this._version // NB old bucket could have stale version, update for both cases
+        //  bucket._nextVersion <- this._version
+        //  bucket.Set(key, value)
+        //  if isNew then
+        //    outerMap.Set(hash, bucket)
+        //    Debug.Assert(bucket._version = outerMap.Version, "Outer setter must update its version")
+        //  this.NotifyUpdate(true)
+        //  prevHash <- hash
+        //  prevBucket.SetTarget(bucket)
+        // ()
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public new async Task<bool> SetOrAddUnchecked(K key, V value, bool overwrite)
+        internal async Task<bool> SetOrAddUnchecked(K key, V value, bool overwrite)
         {
             if (chunkUpperLimit == 0)
             {
@@ -18,14 +78,15 @@ namespace Spreads.Collections
             }
             else
             {
-                if (!(prevWBucket is null) && comparer.Compare(key, prevWHash) >= 0
-                                           && prevWBucket.CompareToLast(key) <= 0)
+                if (!(prevWBucket is null) 
+                    && prevWBucket.CompareToLast(key) <= 0  
+                    && comparer.Compare(key, prevWHash) >= 0 )
                 {
                     // we are inside previous bucket, setter has no choice but to set to this
                     // bucket regardless of its size
-                    var res = prevWBucket.SetOrAdd(key, value, overwrite);
-                    this.NotifyUpdate(true);
-                    return await res;
+                    var res = prevWBucket.SetOrAdd(key, value, overwrite).Result;
+                    NotifyUpdate(true);
+                    return res;
                 }
                 else
                 {
@@ -37,29 +98,29 @@ namespace Spreads.Collections
                         if (comparer.Compare(prevWHash, kvp.Key) != 0)
                         {
                             // switched active bucket
-                            await this.FlushUnchecked();
+                            await FlushUnchecked();
                             // if add fails later, it is ok to update the stale version to this._version (TODO WTF this comment says?)
-                            kvp.Value._version = this._version;
-                            kvp.Value._nextVersion = this._version;
+                            kvp.Value._version = _version;
+                            kvp.Value._nextVersion = _version;
                             prevWHash = kvp.Key;
                             prevWBucket = kvp.Value;
                         }
 
                         Debug.Assert(kvp.Value._version == _version);
-                        var res = kvp.Value.SetOrAdd(key, value, overwrite);
-                        this.NotifyUpdate(true);
-                        return await res;
+                        var res = kvp.Value.SetOrAdd(key, value, overwrite).Result;
+                        NotifyUpdate(true);
+                        return res;
                     }
                     else
                     {
                         if (!(prevWBucket is null))
                         {
-                            await this.FlushUnchecked();
+                            await FlushUnchecked();
                         }
                         // create a new bucket at key
-                        var newSm = innerFactory.Invoke(Tuple.Create(0, comparer));
-                        newSm._version = this._version;
-                        newSm._nextVersion = this._version;
+                        var newSm = innerFactory.Invoke(0, comparer);
+                        newSm._version = _version;
+                        newSm._nextVersion = _version;
                         // Set and Add are the same here, we use new SM
                         newSm.SetOrAdd(key, value, overwrite); // we know that SM is syncronous
 
@@ -69,7 +130,7 @@ namespace Spreads.Collections
 
                         prevWHash = key;
                         prevWBucket = newSm;
-                        this.NotifyUpdate(true);
+                        NotifyUpdate(true);
                         return outerSet;
                     }
                 }
@@ -77,22 +138,169 @@ namespace Spreads.Collections
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public new async Task<bool> SetOrAdd(K key, V value, bool overwrite)
+        [Obsolete]
+        internal async Task<bool> SetOrAdd(K key, V value, bool overwrite)
         {
             BeforeWrite();
-            var result = await this.SetOrAddUnchecked(key, value, overwrite);
+            var result = await SetOrAddUnchecked(key, value, overwrite);
+            AfterWrite(result);
+            return result;
+        }
+
+        public bool IsAppendOnly => false;
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public async Task<bool> Set(K key, V value)
+        {
+            BeforeWrite();
+            var result = await SetOrAddUnchecked(key, value, true);
             AfterWrite(result);
             return result;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public new void Add(K key, V value)
+        public async Task<bool> TryAdd(K key, V value)
         {
-            var result = this.SetOrAdd(key, value, false).Result;
+            BeforeWrite();
+            var result = await SetOrAddUnchecked(key, value, false);
+            AfterWrite(result);
+            return result;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [Obsolete("This method is mainly for ctor pattern with IEnumerable and tests")]
+        public void Add(K key, V value)
+        {
+            BeforeWrite();
+            var result = SetOrAddUnchecked(key, value, false).Result;
+            AfterWrite(result);
             if (!result)
             {
                 ThrowHelper.ThrowArgumentException("Key already exists");
             }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public async Task<bool> TryAddFirst(K key, V value)
+        {
+            BeforeWrite();
+            var o = FirstUnchecked;
+            var c = o.IsMissing
+                ? -1
+                : comparer.Compare(key, o.Present.Key);
+            var added = c < 0
+                ? await SetOrAddUnchecked(key, value, false)
+                : false;
+
+            AfterWrite(added);
+            return added;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public async Task<bool> TryAddLast(K key, V value)
+        {
+            BeforeWrite();
+            var o = LastUnchecked;
+            var c = o.IsMissing
+                    ? 1
+                    : comparer.Compare(key, o.Present.Key);
+            var added = c > 0
+                ? await SetOrAddUnchecked(key, value, false)
+                : false;
+
+            AfterWrite(added);
+            return added;
+        }
+
+        public ValueTask<Opt<V>> TryRemove(K key)
+        {
+            ThrowHelper.ThrowNotImplementedException();
+            return default;
+        }
+
+        public ValueTask<Opt<KeyValuePair<K, V>>> TryRemoveFirst()
+        {
+            ThrowHelper.ThrowNotImplementedException();
+            return default;
+        }
+
+        public ValueTask<Opt<KeyValuePair<K, V>>> TryRemoveLast()
+        {
+            ThrowHelper.ThrowNotImplementedException();
+            return default;
+        }
+
+        public ValueTask<Opt<KeyValuePair<K, V>>> TryRemoveMany(K key, Lookup direction)
+        {
+            ThrowHelper.ThrowNotImplementedException();
+            return default;
+        }
+
+        public Task<bool> TryRemoveMany(K key, V updatedAtKey, Lookup direction)
+        {
+            ThrowHelper.ThrowNotImplementedException();
+            return default;
+        }
+
+        public ValueTask<long> TryAppend(ISeries<K, V> appendMap, AppendOption option = AppendOption.RejectOnOverlap)
+        {
+            ThrowHelper.ThrowNotImplementedException();
+            return default;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public async Task FlushUnchecked()
+        {
+            prevRBucket = null;
+            prevRHash = default;
+            if (!(prevWBucket is null) && prevWBucket._version != outerMap.Version)
+            {
+                // ensure the version of current bucket is saved in outer
+                Debug.Assert(prevWBucket._version == _version,
+                    "TODO review/test, this must be true? RemoveMany doesn't use prev bucket, review logic there");
+
+                prevWBucket._version = _version;
+                prevWBucket._nextVersion = this._version;
+                var outerSet = await outerMap.Set(prevWHash, prevWBucket);
+                if (outerMap is IPersistentObject x)
+                {
+                    await x.Flush();
+                }
+            }
+            else
+            {
+                // nothing to flush
+                Debug.Assert(outerMap.Version == this._version);
+            }
+            prevWBucket = null;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public async Task Flush()
+        {
+            BeforeWrite();
+            await FlushUnchecked();
+            AfterWrite(false);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public Task DisposeAsync(bool disposing)
+        {
+            if (disposing)
+            {
+                GC.SuppressFinalize(this);
+            }
+            return Flush();
+        }
+
+        public void Dispose()
+        {
+            DisposeAsync(true);
+        }
+
+        ~SortedChunkedMap()
+        {
+            DisposeAsync(false);
         }
     }
 

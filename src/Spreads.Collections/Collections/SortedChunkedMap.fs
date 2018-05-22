@@ -29,20 +29,23 @@ open Spreads.Utils
 type SortedChunkedMapBase<'K,'V> 
   internal 
   (
-    outerFactory:KeyComparer<'K>->IMutableSeries<'K, SortedMap<'K,'V>>,
-    innerFactory:int * KeyComparer<'K>->SortedMap<'K,'V>, 
+    outerFactory:Func<KeyComparer<'K>,IMutableSeries<'K, SortedMap<'K,'V>>>,
+    innerFactory:Func<int, KeyComparer<'K>,SortedMap<'K,'V>>, 
     comparer:KeyComparer<'K>,
-    hasher:IKeyHasher<'K> option, 
-    chunkMaxSize:int option) as this=
-  inherit ContainerSeries<'K,'V, SortedChunkedMapBaseCursor<'K,'V>>()
+    hasher:Opt<IKeyHasher<'K>>, 
+    chunkMaxSize:Opt<int>) as this=
+  inherit ContainerSeries<'K,'V, SortedChunkedMapCursor<'K,'V>>()
 
-  let outerMap = outerFactory(comparer)
+  let outerMap = outerFactory.Invoke(comparer)
 
   let mutable prevRHash = Unchecked.defaultof<'K>
   let mutable prevRBucket: SortedMap<'K,'V> = null  
 
   let mutable prevWHash = Unchecked.defaultof<'K>
   let mutable prevWBucket: SortedMap<'K,'V> = null 
+
+  [<DefaultValueAttribute>]
+  val mutable internal innerFactory : Func<int, KeyComparer<'K>,SortedMap<'K,'V>>
 
   [<DefaultValueAttribute>]
   val mutable internal isReadOnly : bool
@@ -52,23 +55,21 @@ type SortedChunkedMapBase<'K,'V>
 
   /// Non-zero only for the defaul slicing logic. When zero, we do not check for chunk size
   let chunkUpperLimit : int = 
-    if hasher.IsSome then 0
+    if hasher.IsPresent then 0
     else
-      if chunkMaxSize.IsSome && chunkMaxSize.Value > 0 then chunkMaxSize.Value
+      if chunkMaxSize.IsPresent && chunkMaxSize.Present > 0 then chunkMaxSize.Present
       else Settings.SCMDefaultChunkLength
   
   let mutable id = String.Empty
 
   // used only when chunkUpperLimit = 0
-  let hasher : IKeyHasher<'K> =
-    match hasher with
-    | Some h -> h
-    | None -> Unchecked.defaultof<_>
+  let hasher : IKeyHasher<'K> = if hasher.IsPresent then hasher.Present else Unchecked.defaultof<_>
 
   do
     this._isSynchronized <- true
     this._version <- outerMap.Version
     this._nextVersion <- outerMap.Version
+    this.innerFactory <- innerFactory
 
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
   member inline private this.EnterWriteLock() : bool =
@@ -84,14 +85,14 @@ type SortedChunkedMapBase<'K,'V>
       outerMap.TryFindAt(key, Lookup.LE, &h) |> ignore
       h
 
-  member this.Clear() : Task = 
-    let first = this.First
-    if first.IsPresent then
-      task {
-        let! removed = this.TryRemoveMany(first.Present.Key, Lookup.GE)
-        return ()
-      } :> Task
-    else TaskUtil.CompletedTask
+  //member this.Clear() : Task = 
+  //  let first = this.First
+  //  if first.IsPresent then
+  //    task {
+  //      let! removed = this.TryRemoveMany(first.Present.Key, Lookup.GE)
+  //      return ()
+  //    } :> Task
+  //  else TaskUtil.CompletedTask
 
   override this.Comparer with [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>] get() = comparer
 
@@ -109,11 +110,11 @@ type SortedChunkedMapBase<'K,'V>
 
   // TODO remove Obsolete, just make sure these methods are not used inside SCM
   [<Obsolete>]
-  member internal this.OuterMap with get() = outerMap
+  member internal __.OuterMap with get() = outerMap
   [<Obsolete>]
-  member internal this.ChunkUpperLimit with get() = chunkUpperLimit
+  member internal __.ChunkUpperLimit with get() = chunkUpperLimit
   [<Obsolete>]
-  member internal this.Hasher with get() = hasher
+  member internal __.Hasher with get() = hasher
 
   member this.Version 
     with get() = readLockIf &this._nextVersion &this._version (not this.isReadOnly) (fun _ -> this._version)
@@ -200,226 +201,11 @@ type SortedChunkedMapBase<'K,'V>
       value <- value'; true
     else false
 
-
-  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
-  member internal this.SetWithHasher(key: 'K, value: 'V, overwrite: bool) : unit =
-    // TODO
-    //let hash = hasher.Hash(key)
-    //let c = comparer.Compare(hash, prevHash)
-    //let mutable prevBucket' = Unchecked.defaultof<_>
-    //let bucketIsSet = this.PrevBucketIsSet(&prevBucket')
-    //if c = 0 && bucketIsSet then
-    //  Debug.Assert(prevBucket'._version = this._version)
-    //  prevBucket'.Set(key, value)
-    //  this.NotifyUpdate(true)
-    //else
-    //  // bucket switch
-    //  if bucketIsSet then this.FlushUnchecked()
-    //  let isNew, bucket = 
-    //    let mutable bucketKvp = Unchecked.defaultof<_>
-    //    let ok = outerMap.TryFindAt(hash, Lookup.EQ, &bucketKvp)
-    //    if ok then
-    //      false, bucketKvp.Value
-    //    else
-    //      let newSm = innerFactory(0, comparer)
-    //      true, newSm
-    //  bucket._version <- this._version // NB old bucket could have stale version, update for both cases
-    //  bucket._nextVersion <- this._version
-    //  bucket.Set(key, value)
-    //  if isNew then
-    //    outerMap.Set(hash, bucket)
-    //    Debug.Assert(bucket._version = outerMap.Version, "Outer setter must update its version")
-    //  this.NotifyUpdate(true)
-    //  prevHash <- hash
-    //  prevBucket.SetTarget(bucket)
-    ()
-
-  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
-  member this.SetOrAddUnchecked(key: 'K, value: 'V, overwrite: bool) : Task<bool> =
-    
-    if chunkUpperLimit = 0 then // deterministic hash
-      this.SetWithHasher(key, value, overwrite)
-      ThrowHelper.ThrowNotImplementedException()
-      TaskUtil.FalseTask
-    else
-      if prevWBucket <> null && comparer.Compare(key, prevWHash) >= 0 
-        && prevWBucket.CompareToLast(key) <= 0 then
-        // we are inside previous bucket, setter has no choice but to set to this 
-        // bucket regardless of its size
-        Debug.Assert(prevWBucket._version = this._version)
-        let res = prevWBucket.SetOrAdd(key, value, overwrite)
-        this.NotifyUpdate(true)
-        res
-      else
-          let mutable kvp = Unchecked.defaultof<_>
-          let foundLeBucket = outerMap.TryFindAt(key, Lookup.LE, &kvp)
-          if foundLeBucket &&
-            // the second condition here is for the case when we add inside existing bucket, overflow above chunkUpperLimit is inevitable without a separate split logic (TODO?)
-            (kvp.Value.size < chunkUpperLimit || kvp.Value.CompareToLast(key) <= 0) then
-            task { 
-              if comparer.Compare(prevWHash, kvp.Key) <> 0 then 
-                // switched active bucket
-                do! this.FlushUnchecked()
-                // if add fails later, it is ok to update the stale version to this._version (TODO WTF this comment says?)
-                kvp.Value._version <- this._version
-                kvp.Value._nextVersion <- this._version
-                prevWHash <- kvp.Key
-                prevWBucket <- kvp.Value
-              Debug.Assert(kvp.Value._version = this._version)
-              let res = kvp.Value.SetOrAdd(key, value, overwrite)
-              this.NotifyUpdate(true)
-              return! res
-            }
-          else
-            task { 
-            if prevWBucket <> null then do! this.FlushUnchecked()
-            // create a new bucket at key
-            let newSm = innerFactory(0, comparer)
-            newSm._version <- this._version
-            newSm._nextVersion <- this._version
-            // Set and Add are the same here, we use new SM
-            newSm.SetOrAdd(key, value, overwrite) |> ignore // we know that SM is syncronous
-            #if DEBUG
-            let v = outerMap.Version
-            let! outerSet = outerMap.Set(key, newSm) // outerMap.Version is incremented here, set non-empty bucket only
-            Debug.Assert(v + 1L = outerMap.Version, "Outer setter must increment its version")
-            #else
-            let! outerSet = outerMap.Set(key, newSm) // outerMap.Version is incremented here, set non-empty bucket only
-            #endif
-            prevWHash <- key
-            prevWBucket <- newSm
-            this.NotifyUpdate(true)
-            return outerSet
-        }
-
-  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
-  member this.SetOrAdd(key: 'K, value: 'V, overwrite: bool) : Task<bool> =
-    
-      let entered = this.EnterWriteLock()
-      if entered then Interlocked.Increment(&this._nextVersion) |> ignore
-      let t = this.SetOrAddUnchecked(key, value, overwrite)
-      task {
-        let! added = t
-      
-        if entered && not overwrite && not added then 
-          // did not added a value, decrement next and do not increment version
-          Interlocked.Decrement(&this._nextVersion) |> ignore
-        else 
-          Interlocked.Increment(&this._version) |> ignore
-
-        exitWriteLockIf &this.Locker entered
-        #if DEBUG
-        if entered && this._version <> this._nextVersion then raise (ApplicationException("this.orderVersion <> this._nextVersion"))
-        #else
-        if entered && this._version <> this._nextVersion then ThrowHelper.FailFast("this.orderVersion <> this._nextVersion")
-        #endif
-        return added
-      }
-
-  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
-  member this.Set(key: 'K, value: 'V) : Task<bool> = this.SetOrAdd(key, value, true)
-
-  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
-  member this.TryAdd(key: 'K, value: 'V) : Task<bool> = this.SetOrAdd(key, value, false)
-  
-  // NB this is for ctor pattern with IEnumerable
-  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
-  member this.Add(key, value) : unit =
-    let added = this.TryAdd(key, value).Result
-    if not added then ThrowHelper.ThrowArgumentException("Key already exists");
-
-  // TODO add last to empty fails
-  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
-  member this.TryAddLast(key, value) : Task<bool> =
-    task {
-      let entered = this.EnterWriteLock()
-      if entered then Interlocked.Increment(&this._nextVersion) |> ignore
-
-      let mutable added = false
-      try
-        let c =
-          if outerMap.Last.IsMissing then 1
-          else comparer.Compare(key, this.LastUnchecked.Present.Key)
-        if c > 0 then
-          return! this.SetOrAddUnchecked(key, value, false)
-        else return! TaskUtil.FalseTask
-      finally
-        if added then Interlocked.Increment(&this._version) |> ignore elif entered then Interlocked.Decrement(&this._nextVersion) |> ignore
-        exitWriteLockIf &this.Locker entered
-        #if DEBUG
-        // TODO in debug this will make any storage unusable, add tests instead
-        //this.FlushUnchecked() 
-        //Debug.Assert(outerMap.Version = this._version)
-        if entered && this._version <> this._nextVersion then raise (ApplicationException("this._version <> this._nextVersion"))
-        #else
-        if entered && this._version <> this._nextVersion then ThrowHelper.FailFast("this._version <> this._nextVersion")
-        #endif
-    }
-
-  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
-  member this.TryAddFirst(key, value) : Task<bool> =
-    task {
-      let entered = this.EnterWriteLock()
-      if entered then Interlocked.Increment(&this._nextVersion) |> ignore
-      let mutable added = false
-      try
-        let c = 
-          if outerMap.First.IsMissing then -1
-          else comparer.Compare(key, this.FirstUnchecked.Present.Key)
-        if c < 0 then 
-          return! this.SetOrAddUnchecked(key, value, false)
-        else return! TaskUtil.FalseTask
-      finally
-        if added then Interlocked.Increment(&this._version) |> ignore elif entered then Interlocked.Decrement(&this._nextVersion) |> ignore
-        exitWriteLockIf &this.Locker entered
-        #if DEBUG
-        //Debug.Assert(outerMap.Version = this._version)
-        if entered && this._version <> this._nextVersion then raise (ApplicationException("this._version <> this._nextVersion"))
-        #else
-        if entered && this._version <> this._nextVersion then ThrowHelper.FailFast("this._version <> this._nextVersion")
-        #endif
-    }
-
-  member private this.FlushUnchecked() : Task =
-    prevRBucket <- null
-    prevRHash <- Unchecked.defaultof<_>
-    task {
-      if prevWBucket <> null && prevWBucket._version <> outerMap.Version then
-        // ensure the version of current bucket is saved in outer
-        Debug.Assert(prevWBucket._version = this._version, "TODO review/test, this must be true? RemoveMany doesn't use prev bucket, review logic there")
-        prevWBucket._version <- this._version
-        prevWBucket._nextVersion <- this._version
-        let! outerSet = outerMap.Set(prevWHash, prevWBucket)
-        match outerMap with 
-        | :? IPersistentObject as x -> do! x.Flush() 
-        | _ -> ()
-      else
-        Debug.Assert(outerMap.Version = this._version)
-        () // nothing to flush
-      prevWBucket <- null // release active bucket so it can be GCed
-    } :> Task
-
-  // Ensure than current inner map is saved (set) to the outer map
-  member this.Flush() : Task =
-    task {
-      enterWriteLockIf &this.Locker true |> ignore
-      try
-        do! this.FlushUnchecked()
-      finally
-        exitWriteLockIf &this.Locker true
-    } :> Task
-
-  member private this.DisposeAsync(disposing) : Task =
-    if disposing then GC.SuppressFinalize(this)
-    this.Flush()
-
-  override this.Finalize() = this.DisposeAsync(false) |> ignore
-
   override this.GetCursor() =
     let entered = this.EnterWriteLock()
     try
       // if source is already read-only, MNA will always return false
-      if this.isReadOnly then new SortedChunkedMapBaseCursor<_,_>(this) :> ICursor<'K,'V>
+      if this.isReadOnly then new SortedChunkedMapCursor<_,_>(this) :> ICursor<'K,'V>
       else
         let c = new BaseCursorAsync<_,_,_>(Func<_>(this.GetEnumerator))
         c :> ICursor<'K,'V>    
@@ -431,7 +217,7 @@ type SortedChunkedMapBase<'K,'V>
   // .NETs foreach optimization
   member this.GetEnumerator() =
     readLockIf &this._nextVersion &this._version (not this.isReadOnly) (fun _ ->
-      new SortedChunkedMapBaseCursor<_,_>(this)
+      new SortedChunkedMapCursor<_,_>(this)
     )
   
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
@@ -510,229 +296,229 @@ type SortedChunkedMapBase<'K,'V>
   //[<ObsoleteAttribute("Naive impl, optimize if used often")>]
   override this.Values with get() = (this :> IEnumerable<KVP<'K,'V>>).Select(fun kvp -> kvp.Value)
 
-  // NB first/last optimization is possible, but removes are rare in the primary use case
-  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
-  member private this.TryRemoveUnchecked(key) : ValueTask<Opt<KVP<'K,'V>>>  =
-    let hashBucket = this.ExistingHashBucket key
-    let hash = hashBucket.Key
-    let c = comparer.Compare(hash, prevWHash)
+  //// NB first/last optimization is possible, but removes are rare in the primary use case
+  //[<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
+  //member private this.TryRemoveUnchecked(key) : ValueTask<Opt<KVP<'K,'V>>>  =
+  //  let hashBucket = this.ExistingHashBucket key
+  //  let hash = hashBucket.Key
+  //  let c = comparer.Compare(hash, prevWHash)
     
-    if c = 0 && prevWBucket <> null then
-      let res = prevWBucket.TryRemove(key).Result
-      if res.IsPresent then
-        Debug.Assert(prevWBucket._version = this._version + 1L, "Verion of the active bucket must much SCM version")
-        prevWBucket._version <- this._version + 1L
-        prevWBucket._nextVersion <- this._version + 1L
-        // NB no outer set here, it must happen on prev bucket switch
-        if prevWBucket.Count = 0 then
-          let t = task {
-            // but here we must notify outer that version has changed
-            // setting empty bucket will remove it in the outer map
-            // (implementation detail, but this is internal) 
-            let! outerSet = outerMap.Set(prevWHash, prevWBucket)
-            prevWBucket <- null
-            return Opt.Present(KVP(key,res.Present))
-          }
-          ValueTask<Opt<KVP<'K,'V>>>(t)
-        else
-          ValueTask<_>(Opt.Present(KVP(key,res.Present)))
-      else
-        ValueTask<_>(Opt<_>.Missing)
-    else
-      let t = task {
-        if prevWBucket <> null then 
-          // store potentially modified active bucket in the outer, including version
-          do! this.FlushUnchecked()
-        let mutable innerMapKvp = Unchecked.defaultof<_>
-        let ok = 
-          if hashBucket.Value <> Unchecked.defaultof<_> then
-            innerMapKvp <- hashBucket
-            true
-          else outerMap.TryFindAt(hash, Lookup.EQ, &innerMapKvp)
-        if ok then
-          let bucket = (innerMapKvp.Value)
-          prevWHash <- hash
-          prevWBucket <- bucket
-          let res = bucket.TryRemove(key).Result
-          if res.IsPresent then
-            bucket._version <- this._version + 1L
-            bucket._nextVersion <- this._version + 1L
-            // NB empty will be removed, see comment above
-            let! outerSet = outerMap.Set(prevWHash, bucket)
-            if bucket.Count = 0 then
-              prevWBucket <- null
-          return Opt.Present(KVP(key,res.Present))
-        else
-          return Opt<_>.Missing
-      }
-      ValueTask<Opt<KVP<'K,'V>>>(t)
+  //  if c = 0 && prevWBucket <> null then
+  //    let res = prevWBucket.TryRemove(key).Result
+  //    if res.IsPresent then
+  //      Debug.Assert(prevWBucket._version = this._version + 1L, "Verion of the active bucket must much SCM version")
+  //      prevWBucket._version <- this._version + 1L
+  //      prevWBucket._nextVersion <- this._version + 1L
+  //      // NB no outer set here, it must happen on prev bucket switch
+  //      if prevWBucket.Count = 0 then
+  //        let t = task {
+  //          // but here we must notify outer that version has changed
+  //          // setting empty bucket will remove it in the outer map
+  //          // (implementation detail, but this is internal) 
+  //          let! outerSet = outerMap.Set(prevWHash, prevWBucket)
+  //          prevWBucket <- null
+  //          return Opt.Present(KVP(key,res.Present))
+  //        }
+  //        ValueTask<Opt<KVP<'K,'V>>>(t)
+  //      else
+  //        ValueTask<_>(Opt.Present(KVP(key,res.Present)))
+  //    else
+  //      ValueTask<_>(Opt<_>.Missing)
+  //  else
+  //    let t = task {
+  //      if prevWBucket <> null then 
+  //        // store potentially modified active bucket in the outer, including version
+  //        do! this.FlushUnchecked()
+  //      let mutable innerMapKvp = Unchecked.defaultof<_>
+  //      let ok = 
+  //        if hashBucket.Value <> Unchecked.defaultof<_> then
+  //          innerMapKvp <- hashBucket
+  //          true
+  //        else outerMap.TryFindAt(hash, Lookup.EQ, &innerMapKvp)
+  //      if ok then
+  //        let bucket = (innerMapKvp.Value)
+  //        prevWHash <- hash
+  //        prevWBucket <- bucket
+  //        let res = bucket.TryRemove(key).Result
+  //        if res.IsPresent then
+  //          bucket._version <- this._version + 1L
+  //          bucket._nextVersion <- this._version + 1L
+  //          // NB empty will be removed, see comment above
+  //          let! outerSet = outerMap.Set(prevWHash, bucket)
+  //          if bucket.Count = 0 then
+  //            prevWBucket <- null
+  //        return Opt.Present(KVP(key,res.Present))
+  //      else
+  //        return Opt<_>.Missing
+  //    }
+  //    ValueTask<Opt<KVP<'K,'V>>>(t)
      
-  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
-  member this.TryRemove(key) : ValueTask<Opt<'V>>  =
-    let t = task {
-      let entered = this.EnterWriteLock()
-      if entered then Interlocked.Increment(&this._nextVersion) |> ignore
-      let mutable removed = false
-      try
-        let! res = this.TryRemoveUnchecked(key)
-        if res.IsPresent then removed <- true
-        return if res.IsPresent then Opt.Present(res.Present.Value) else Opt<_>.Missing
-      finally
-        this.NotifyUpdate(true)
-        if removed then Interlocked.Increment(&this._version) |> ignore
-        elif entered then Interlocked.Decrement(&this._nextVersion) |> ignore
-        exitWriteLockIf &this.Locker entered
-        #if DEBUG
-        this.FlushUnchecked()
-        Debug.Assert((outerMap.Version = this._version))
-        if entered && this._version <> this._nextVersion then raise (ApplicationException("this._version <> this._nextVersion"))
-        #else
-        if entered && this._version <> this._nextVersion then Environment.FailFast("this._version <> this._nextVersion")
-        #endif
-    }
-    ValueTask<Opt<'V>>(t)
+  //[<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
+  //member this.TryRemove(key) : ValueTask<Opt<'V>>  =
+  //  let t = task {
+  //    let entered = this.EnterWriteLock()
+  //    if entered then Interlocked.Increment(&this._nextVersion) |> ignore
+  //    let mutable removed = false
+  //    try
+  //      let! res = this.TryRemoveUnchecked(key)
+  //      if res.IsPresent then removed <- true
+  //      return if res.IsPresent then Opt.Present(res.Present.Value) else Opt<_>.Missing
+  //    finally
+  //      this.NotifyUpdate(true)
+  //      if removed then Interlocked.Increment(&this._version) |> ignore
+  //      elif entered then Interlocked.Decrement(&this._nextVersion) |> ignore
+  //      exitWriteLockIf &this.Locker entered
+  //      #if DEBUG
+  //      this.FlushUnchecked()
+  //      Debug.Assert((outerMap.Version = this._version))
+  //      if entered && this._version <> this._nextVersion then raise (ApplicationException("this._version <> this._nextVersion"))
+  //      #else
+  //      if entered && this._version <> this._nextVersion then Environment.FailFast("this._version <> this._nextVersion")
+  //      #endif
+  //  }
+  //  ValueTask<Opt<'V>>(t)
 
 
-  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
-  member this.TryRemoveFirst() : ValueTask<Opt<KVP<'K,'V>>> =
-    let t = task {
-      let entered = this.EnterWriteLock()
-      if entered then Interlocked.Increment(&this._nextVersion) |> ignore
-      let mutable removed = false
-      try
-          let f = this.FirstUnchecked
-          if f.IsPresent then
-            let! res = this.TryRemoveUnchecked(f.Present.Key)
-            if res.IsPresent then removed <- true
-            return res
-          else return Opt<_>.Missing
-      finally
-        this.NotifyUpdate(true)
-        if removed then Interlocked.Increment(&this._version) |> ignore
-        elif entered then Interlocked.Decrement(&this._nextVersion) |> ignore
-        exitWriteLockIf &this.Locker entered
-        #if DEBUG
-        this.FlushUnchecked()
-        Debug.Assert((outerMap.Version = this._version))
-        if entered && this._version <> this._nextVersion then raise (ApplicationException("this._version <> this._nextVersion"))
-        #else
-        if entered && this._version <> this._nextVersion then Environment.FailFast("this._version <> this._nextVersion")
-        #endif
-    }
-    ValueTask<Opt<_>>(t)
+  //[<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
+  //member this.TryRemoveFirst() : ValueTask<Opt<KVP<'K,'V>>> =
+  //  let t = task {
+  //    let entered = this.EnterWriteLock()
+  //    if entered then Interlocked.Increment(&this._nextVersion) |> ignore
+  //    let mutable removed = false
+  //    try
+  //        let f = this.FirstUnchecked
+  //        if f.IsPresent then
+  //          let! res = this.TryRemoveUnchecked(f.Present.Key)
+  //          if res.IsPresent then removed <- true
+  //          return res
+  //        else return Opt<_>.Missing
+  //    finally
+  //      this.NotifyUpdate(true)
+  //      if removed then Interlocked.Increment(&this._version) |> ignore
+  //      elif entered then Interlocked.Decrement(&this._nextVersion) |> ignore
+  //      exitWriteLockIf &this.Locker entered
+  //      #if DEBUG
+  //      this.FlushUnchecked()
+  //      Debug.Assert((outerMap.Version = this._version))
+  //      if entered && this._version <> this._nextVersion then raise (ApplicationException("this._version <> this._nextVersion"))
+  //      #else
+  //      if entered && this._version <> this._nextVersion then Environment.FailFast("this._version <> this._nextVersion")
+  //      #endif
+  //  }
+  //  ValueTask<Opt<_>>(t)
 
-  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
-  member this.TryRemoveLast() : ValueTask<Opt<KVP<'K,'V>>> =
-    let t = task {
-      let entered = this.EnterWriteLock()
-      if entered then Interlocked.Increment(&this._nextVersion) |> ignore
-      let mutable removed = false
-      try
-          let l = this.LastUnchecked
-          if l.IsPresent then
-            let! res = this.TryRemoveUnchecked(l.Present.Key)
-            if res.IsPresent then removed <- true
-            return res
-          else return Opt<_>.Missing
-      finally
-        this.NotifyUpdate(true)
-        if removed then Interlocked.Increment(&this._version) |> ignore
-        elif entered then Interlocked.Decrement(&this._nextVersion) |> ignore
-        exitWriteLockIf &this.Locker entered
-        #if DEBUG
-        this.FlushUnchecked()
-        Debug.Assert((outerMap.Version = this._version))
-        if entered && this._version <> this._nextVersion then raise (ApplicationException("this._version <> this._nextVersion"))
-        #else
-        if entered && this._version <> this._nextVersion then Environment.FailFast("this._version <> this._nextVersion")
-        #endif
-    }
-    ValueTask<Opt<_>>(t)
+  //[<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
+  //member this.TryRemoveLast() : ValueTask<Opt<KVP<'K,'V>>> =
+  //  let t = task {
+  //    let entered = this.EnterWriteLock()
+  //    if entered then Interlocked.Increment(&this._nextVersion) |> ignore
+  //    let mutable removed = false
+  //    try
+  //        let l = this.LastUnchecked
+  //        if l.IsPresent then
+  //          let! res = this.TryRemoveUnchecked(l.Present.Key)
+  //          if res.IsPresent then removed <- true
+  //          return res
+  //        else return Opt<_>.Missing
+  //    finally
+  //      this.NotifyUpdate(true)
+  //      if removed then Interlocked.Increment(&this._version) |> ignore
+  //      elif entered then Interlocked.Decrement(&this._nextVersion) |> ignore
+  //      exitWriteLockIf &this.Locker entered
+  //      #if DEBUG
+  //      this.FlushUnchecked()
+  //      Debug.Assert((outerMap.Version = this._version))
+  //      if entered && this._version <> this._nextVersion then raise (ApplicationException("this._version <> this._nextVersion"))
+  //      #else
+  //      if entered && this._version <> this._nextVersion then Environment.FailFast("this._version <> this._nextVersion")
+  //      #endif
+  //  }
+  //  ValueTask<Opt<_>>(t)
   
 
-  member private this.TryRemoveManyUnchecked(key:'K, direction:Lookup) : ValueTask<Opt<KVP<'K,'V>>> =
-    let version = outerMap.Version
-    let result = 
-      if outerMap.Last.IsMissing then
-        Debug.Assert((prevWBucket = null))
-        prevWBucket <- null
-        ValueTask<_>(Opt<_>.Missing)
-      else
-        let removed =
-          match direction with
-          | Lookup.EQ -> 
-            this.TryRemoveUnchecked(key)
-          | Lookup.LT | Lookup.LE ->
-            let t = task {
-              do! this.FlushUnchecked() // ensure current version is set in the outer map from the active chunk
-              let mutable tmp = Unchecked.defaultof<_>
-              if outerMap.TryFindAt(key, Lookup.LE, &tmp) then
-                let! r1 = tmp.Value.TryRemoveMany(key, direction)
-                tmp.Value._version <- this._version + 1L
-                tmp.Value._nextVersion <- this._version + 1L
-                let! r2 = outerMap.TryRemoveMany(key, tmp.Value, direction)  // NB order matters
-                if r1.IsPresent || r2.IsPresent then increment &this.orderVersion
-                return if r1.IsPresent then r1 else (if r2.IsPresent then r2.Present.Value.Last else Opt<_>.Missing)
-              else return Opt<_>.Missing // no key below the requested key, notjing to delete
-            }
-            ValueTask<Opt<KVP<'K,'V>>>(t)
-          | Lookup.GT | Lookup.GE ->
-            let t: Task<Opt<KVP<'K,'V>>> = task {
-              do! this.FlushUnchecked() // ensure current version is set in the outer map from the active chunk
-              let mutable tmp = Unchecked.defaultof<_>
-              if outerMap.TryFindAt(key, Lookup.LE, &tmp) then // NB for deterministic hash LE still works
-                let chunk = tmp.Value;
-                let! r1 = chunk.TryRemoveMany(key, direction)
-                chunk._version <- this._version + 1L
-                chunk._nextVersion <- this._version + 1L
-                let! r2 = outerMap.TryRemoveMany(key, chunk, direction)
-                if r1.IsPresent || r2.IsPresent then increment &this.orderVersion
-                return if r1.IsPresent then r1 else (if r2.IsPresent then r2.Present.Value.Last else Opt<_>.Missing)
-              else
-                // TODO the next line is not needed, we remove all items in SCM here and use the chunk to set the version
-                let firstChunk = outerMap.First.Present.Value
-                let! r1 = firstChunk.TryRemoveMany(key, direction) // this will remove all items in the chunk
-                Debug.Assert(firstChunk.Count = 0, "The first chunk must have been completely cleared")
-                firstChunk._version <- this._version + 1L
-                firstChunk._nextVersion <- this._version + 1L
-                let! r2 = outerMap.TryRemoveMany(key, firstChunk, direction)
-                if r1.IsPresent || r2.IsPresent then increment &this.orderVersion
-                return if r1.IsPresent then r1 else (if r2.IsPresent then r2.Present.Value.Last else Opt<_>.Missing)
-            }
-            ValueTask<Opt<KVP<'K,'V>>>(t)
-          | _ -> failwith "wrong direction"          
-        removed
-    result
+  //member private this.TryRemoveManyUnchecked(key:'K, direction:Lookup) : ValueTask<Opt<KVP<'K,'V>>> =
+  //  let version = outerMap.Version
+  //  let result = 
+  //    if outerMap.Last.IsMissing then
+  //      Debug.Assert((prevWBucket = null))
+  //      prevWBucket <- null
+  //      ValueTask<_>(Opt<_>.Missing)
+  //    else
+  //      let removed =
+  //        match direction with
+  //        | Lookup.EQ -> 
+  //          this.TryRemoveUnchecked(key)
+  //        | Lookup.LT | Lookup.LE ->
+  //          let t = task {
+  //            do! this.FlushUnchecked() // ensure current version is set in the outer map from the active chunk
+  //            let mutable tmp = Unchecked.defaultof<_>
+  //            if outerMap.TryFindAt(key, Lookup.LE, &tmp) then
+  //              let! r1 = tmp.Value.TryRemoveMany(key, direction)
+  //              tmp.Value._version <- this._version + 1L
+  //              tmp.Value._nextVersion <- this._version + 1L
+  //              let! r2 = outerMap.TryRemoveMany(key, tmp.Value, direction)  // NB order matters
+  //              if r1.IsPresent || r2 then increment &this.orderVersion
+  //              return if r1.IsPresent then r1 else (if r2 then tmp.Value.Last else Opt<_>.Missing)
+  //            else return Opt<_>.Missing // no key below the requested key, notjing to delete
+  //          }
+  //          ValueTask<Opt<KVP<'K,'V>>>(t)
+  //        | Lookup.GT | Lookup.GE ->
+  //          let t: Task<Opt<KVP<'K,'V>>> = task {
+  //            do! this.FlushUnchecked() // ensure current version is set in the outer map from the active chunk
+  //            let mutable tmp = Unchecked.defaultof<_>
+  //            if outerMap.TryFindAt(key, Lookup.LE, &tmp) then // NB for deterministic hash LE still works
+  //              let chunk = tmp.Value;
+  //              let! r1 = chunk.TryRemoveMany(key, direction)
+  //              chunk._version <- this._version + 1L
+  //              chunk._nextVersion <- this._version + 1L
+  //              let! r2 = outerMap.TryRemoveMany(key, chunk, direction)
+  //              if r1.IsPresent || r2 then increment &this.orderVersion
+  //              return if r1.IsPresent then r1 else (if r2 then chunk.Last else Opt<_>.Missing)
+  //            else
+  //              // TODO the next line is not needed, we remove all items in SCM here and use the chunk to set the version
+  //              let firstChunk = outerMap.First.Present.Value
+  //              let! r1 = firstChunk.TryRemoveMany(key, direction) // this will remove all items in the chunk
+  //              Debug.Assert(firstChunk.Count = 0, "The first chunk must have been completely cleared")
+  //              firstChunk._version <- this._version + 1L
+  //              firstChunk._nextVersion <- this._version + 1L
+  //              let! r2 = outerMap.TryRemoveMany(key, firstChunk, direction)
+  //              if r1.IsPresent || r2 then increment &this.orderVersion
+  //              return if r1.IsPresent then r1 else (if r2 then firstChunk.Last else Opt<_>.Missing)
+  //          }
+  //          ValueTask<Opt<KVP<'K,'V>>>(t)
+  //        | _ -> failwith "wrong direction"          
+  //      removed
+  //  result
 
-  /// Removes all elements that are to `direction` from `key`
-  member this.TryRemoveMany(key:'K, direction:Lookup) : ValueTask<Opt<KVP<'K,'V>>> =
-    // TODO(low) for non-EQ this is not atomic now, could add a special method for removed in IMutableChunksSeries
-    // then in its impl it could be done in a transaction. However, this nethod is not used frequently
-    let t = task {
-      let entered = this.EnterWriteLock()
-      if entered then Interlocked.Increment(&this._nextVersion) |> ignore
-      let mutable removed = false
-      try      
-        return! this.TryRemoveManyUnchecked(key, direction)
-      finally
-        this.NotifyUpdate(true)
-        if removed then Interlocked.Increment(&this._version) |> ignore 
-        elif entered then Interlocked.Decrement(&this._nextVersion) |> ignore
-        exitWriteLockIf &this.Locker entered
-        #if DEBUG
-        Debug.Assert(outerMap.Version = this._version)
-        if entered && this._version <> this._nextVersion then raise (ApplicationException("this._version <> this._nextVersion"))
-        #else
-        if entered && this._version <> this._nextVersion then Environment.FailFast("this._version <> this._nextVersion")
-        #endif
-    }
-    ValueTask<Opt<_>>(t)
+  ///// Removes all elements that are to `direction` from `key`
+  //member this.TryRemoveMany(key:'K, direction:Lookup) : ValueTask<Opt<KVP<'K,'V>>> =
+  //  // TODO(low) for non-EQ this is not atomic now, could add a special method for removed in IMutableChunksSeries
+  //  // then in its impl it could be done in a transaction. However, this nethod is not used frequently
+  //  let t = task {
+  //    let entered = this.EnterWriteLock()
+  //    if entered then Interlocked.Increment(&this._nextVersion) |> ignore
+  //    let mutable removed = false
+  //    try      
+  //      return! this.TryRemoveManyUnchecked(key, direction)
+  //    finally
+  //      this.NotifyUpdate(true)
+  //      if removed then Interlocked.Increment(&this._version) |> ignore 
+  //      elif entered then Interlocked.Decrement(&this._nextVersion) |> ignore
+  //      exitWriteLockIf &this.Locker entered
+  //      #if DEBUG
+  //      Debug.Assert(outerMap.Version = this._version)
+  //      if entered && this._version <> this._nextVersion then raise (ApplicationException("this._version <> this._nextVersion"))
+  //      #else
+  //      if entered && this._version <> this._nextVersion then Environment.FailFast("this._version <> this._nextVersion")
+  //      #endif
+  //  }
+  //  ValueTask<Opt<_>>(t)
 
   // TODO after checks, should form changed new chunks and use outer append method with rewrite
   // TODO atomic append with single version increase, now it is a sequence of remove/add mutations
-  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
-  member this.Append(appendMap:ISeries<'K,'V>, option:AppendOption) : int =
-    raise (NotImplementedException())
+  //[<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
+  //member this.Append(appendMap:ISeries<'K,'V>, option:AppendOption) : int =
+  //  raise (NotImplementedException())
     //let hasEqOverlap (old:SortedChunkedMapBaseGeneric<_,_>) (append:ISeries<'K,'V>) : bool =
     //  if comparer.Compare(append.First.Key, old.LastUnchecked.Key) > 0 then false
     //  else
@@ -855,82 +641,82 @@ type SortedChunkedMapBase<'K,'V>
 
   // x0
   
-  new() = 
-    let comparer:KeyComparer<'K> = KeyComparer<'K>.Default
-    let factory = (fun (c:KeyComparer<'K>) -> new SortedMap<'K,SortedMap<'K,'V>>(c) :> IMutableSeries<'K,SortedMap<'K,'V>>)
-    new SortedChunkedMapBase<_,_>(factory, (fun (capacity, comparer) -> let sm = new SortedMap<'K,'V>(capacity, comparer) in sm._isSynchronized <- false;sm), comparer, None, None)
+  //new() = 
+  //  let comparer:KeyComparer<'K> = KeyComparer<'K>.Default
+  //  let factory = (fun (c:KeyComparer<'K>) -> new SortedMap<'K,SortedMap<'K,'V>>(c) :> IMutableSeries<'K,SortedMap<'K,'V>>)
+  //  new SortedChunkedMapBase<_,_>(factory, (fun (capacity, comparer) -> let sm = new SortedMap<'K,'V>(capacity, comparer) in sm._isSynchronized <- false;sm), comparer, None, None)
   
-  // x1
+  //// x1
 
-  /// In-memory sorted chunked map
-  new(comparer:IComparer<'K>) = 
-    let factory = (fun (c:KeyComparer<'K>) -> new SortedMap<'K,SortedMap<'K,'V>>(c) :> IMutableSeries<'K,SortedMap<'K,'V>>)
-    new SortedChunkedMapBase<_,_>(factory, (fun (capacity, comparer) -> let sm = new SortedMap<'K,'V>(capacity, comparer) in sm._isSynchronized <- false;sm), KeyComparer<'K>.Create(comparer), None, None)
+  ///// In-memory sorted chunked map
+  //new(comparer:IComparer<'K>) = 
+  //  let factory = (fun (c:KeyComparer<'K>) -> new SortedMap<'K,SortedMap<'K,'V>>(c) :> IMutableSeries<'K,SortedMap<'K,'V>>)
+  //  new SortedChunkedMapBase<_,_>(factory, (fun (capacity, comparer) -> let sm = new SortedMap<'K,'V>(capacity, comparer) in sm._isSynchronized <- false;sm), KeyComparer<'K>.Create(comparer), None, None)
   
-  new(comparer:KeyComparer<'K>) = 
-    let factory = (fun (c:KeyComparer<'K>) -> new SortedMap<'K,SortedMap<'K,'V>>(c) :> IMutableSeries<'K,SortedMap<'K,'V>>)
-    new SortedChunkedMapBase<_,_>(factory, (fun (capacity, comparer) -> let sm = new SortedMap<'K,'V>(capacity, comparer) in sm._isSynchronized <- false;sm), comparer, None, None)
+  //new(comparer:KeyComparer<'K>) = 
+  //  let factory = (fun (c:KeyComparer<'K>) -> new SortedMap<'K,SortedMap<'K,'V>>(c) :> IMutableSeries<'K,SortedMap<'K,'V>>)
+  //  new SortedChunkedMapBase<_,_>(factory, (fun (capacity, comparer) -> let sm = new SortedMap<'K,'V>(capacity, comparer) in sm._isSynchronized <- false;sm), comparer, None, None)
   
 
-  /// In-memory sorted chunked map
-  new(hasher:Func<'K,'K>) = 
-    let factory = (fun (c:KeyComparer<'K>) -> new SortedMap<'K,SortedMap<'K,'V>>(c) :> IMutableSeries<'K,SortedMap<'K,'V>>)
-    let comparer:KeyComparer<'K> = KeyComparer<'K>.Default
-    let hasher = { new IKeyHasher<'K> with
-          member x.Hash(k) = hasher.Invoke k
-        }
-    new SortedChunkedMapBase<_,_>(factory, (fun (capacity, comparer) -> let sm = new SortedMap<'K,'V>(capacity, comparer) in sm._isSynchronized <- false;sm), comparer, Some(hasher), None)
+  ///// In-memory sorted chunked map
+  //new(hasher:Func<'K,'K>) = 
+  //  let factory = (fun (c:KeyComparer<'K>) -> new SortedMap<'K,SortedMap<'K,'V>>(c) :> IMutableSeries<'K,SortedMap<'K,'V>>)
+  //  let comparer:KeyComparer<'K> = KeyComparer<'K>.Default
+  //  let hasher = { new IKeyHasher<'K> with
+  //        member x.Hash(k) = hasher.Invoke k
+  //      }
+  //  new SortedChunkedMapBase<_,_>(factory, (fun (capacity, comparer) -> let sm = new SortedMap<'K,'V>(capacity, comparer) in sm._isSynchronized <- false;sm), comparer, Some(hasher), None)
   
-  new(chunkMaxSize:int) = 
-    let factory = (fun (c:IComparer<'K>) -> new SortedMap<'K,SortedMap<'K,'V>>(c) :> IMutableSeries<'K,SortedMap<'K,'V>>)
-    let comparer = KeyComparer<'K>.Default
-    new SortedChunkedMapBase<_,_>(factory, (fun (capacity, comparer) -> let sm = new SortedMap<'K,'V>(capacity, comparer) in sm._isSynchronized <- false;sm), comparer, None, Some(chunkMaxSize))
+  //new(chunkMaxSize:int) = 
+  //  let factory = (fun (c:IComparer<'K>) -> new SortedMap<'K,SortedMap<'K,'V>>(c) :> IMutableSeries<'K,SortedMap<'K,'V>>)
+  //  let comparer = KeyComparer<'K>.Default
+  //  new SortedChunkedMapBase<_,_>(factory, (fun (capacity, comparer) -> let sm = new SortedMap<'K,'V>(capacity, comparer) in sm._isSynchronized <- false;sm), comparer, None, Some(chunkMaxSize))
 
-  internal new(outerFactory:Func<IComparer<'K>,IMutableSeries<'K, SortedMap<'K,'V>>>) = 
-    let comparer = KeyComparer<'K>.Default
-    new SortedChunkedMapBase<_,_>(outerFactory.Invoke, (fun (capacity, comparer) ->let sm = new SortedMap<'K,'V>(capacity, comparer) in sm._isSynchronized <- false;sm), comparer, None, None)
+  //internal new(outerFactory:Func<IComparer<'K>,IMutableSeries<'K, SortedMap<'K,'V>>>) = 
+  //  let comparer = KeyComparer<'K>.Default
+  //  new SortedChunkedMapBase<_,_>(outerFactory.Invoke, (fun (capacity, comparer) ->let sm = new SortedMap<'K,'V>(capacity, comparer) in sm._isSynchronized <- false;sm), comparer, None, None)
   
-  // x2
+  //// x2
 
-  /// In-memory sorted chunked map
-  new(comparer:KeyComparer<'K>,hasher:Func<'K,'K>) = 
-    let factory = (fun (c:KeyComparer<'K>) -> new SortedMap<'K,SortedMap<'K,'V>>(c) :> IMutableSeries<'K,SortedMap<'K,'V>>)
-    let hasher = { new IKeyHasher<'K> with
-          member x.Hash(k) = hasher.Invoke k
-        }
-    new SortedChunkedMapBase<_,_>(factory, (fun (capacity, comparer) -> let sm = new SortedMap<'K,'V>(capacity, comparer) in sm._isSynchronized <- false;sm), comparer, Some(hasher), None)
+  ///// In-memory sorted chunked map
+  //new(comparer:KeyComparer<'K>,hasher:Func<'K,'K>) = 
+  //  let factory = (fun (c:KeyComparer<'K>) -> new SortedMap<'K,SortedMap<'K,'V>>(c) :> IMutableSeries<'K,SortedMap<'K,'V>>)
+  //  let hasher = { new IKeyHasher<'K> with
+  //        member x.Hash(k) = hasher.Invoke k
+  //      }
+  //  new SortedChunkedMapBase<_,_>(factory, (fun (capacity, comparer) -> let sm = new SortedMap<'K,'V>(capacity, comparer) in sm._isSynchronized <- false;sm), comparer, Some(hasher), None)
 
-  new(comparer:KeyComparer<'K>,chunkMaxSize:int) = 
-    let factory = (fun (c:KeyComparer<'K>) -> new SortedMap<'K,SortedMap<'K,'V>>(c) :> IMutableSeries<'K,SortedMap<'K,'V>>)
-    new SortedChunkedMapBase<_,_>(factory, (fun (capacity, comparer) -> let sm = new SortedMap<'K,'V>(capacity, comparer) in sm._isSynchronized <- false;sm), comparer, None, Some(chunkMaxSize))
+  //new(comparer:KeyComparer<'K>,chunkMaxSize:int) = 
+  //  let factory = (fun (c:KeyComparer<'K>) -> new SortedMap<'K,SortedMap<'K,'V>>(c) :> IMutableSeries<'K,SortedMap<'K,'V>>)
+  //  new SortedChunkedMapBase<_,_>(factory, (fun (capacity, comparer) -> let sm = new SortedMap<'K,'V>(capacity, comparer) in sm._isSynchronized <- false;sm), comparer, None, Some(chunkMaxSize))
 
-  internal new(outerFactory:Func<KeyComparer<'K>,IMutableSeries<'K,SortedMap<'K,'V>>>,comparer:IComparer<'K>) = 
-    new SortedChunkedMapBase<_,_>(outerFactory.Invoke, (fun (capacity, comparer) -> let sm = new SortedMap<'K,'V>(capacity, comparer) in sm._isSynchronized <- false;sm), KeyComparer<'K>.Create(comparer), None, None)
+  //internal new(outerFactory:Func<KeyComparer<'K>,IMutableSeries<'K,SortedMap<'K,'V>>>,comparer:IComparer<'K>) = 
+  //  new SortedChunkedMapBase<_,_>(outerFactory.Invoke, (fun (capacity, comparer) -> let sm = new SortedMap<'K,'V>(capacity, comparer) in sm._isSynchronized <- false;sm), KeyComparer<'K>.Create(comparer), None, None)
 
-  internal new(outerFactory:Func<KeyComparer<'K>,IMutableSeries<'K,SortedMap<'K,'V>>>,comparer:KeyComparer<'K>) = 
-    new SortedChunkedMapBase<_,_>(outerFactory.Invoke, (fun (capacity, comparer) -> let sm = new SortedMap<'K,'V>(capacity, comparer) in sm._isSynchronized <- false;sm), comparer, None, None)
+  //internal new(outerFactory:Func<KeyComparer<'K>,IMutableSeries<'K,SortedMap<'K,'V>>>,comparer:KeyComparer<'K>) = 
+  //  new SortedChunkedMapBase<_,_>(outerFactory.Invoke, (fun (capacity, comparer) -> let sm = new SortedMap<'K,'V>(capacity, comparer) in sm._isSynchronized <- false;sm), comparer, None, None)
 
-  internal new(outerFactory:Func<IComparer<'K>,IMutableSeries<'K,SortedMap<'K,'V>>>,hasher:Func<'K,'K>) = 
-    let comparer = KeyComparer<'K>.Default
-    let hasher = { new IKeyHasher<'K> with
-          member x.Hash(k) = hasher.Invoke k
-        }
-    new SortedChunkedMapBase<_,_>(outerFactory.Invoke, (fun (capacity, comparer) -> let sm = new SortedMap<'K,'V>(capacity, comparer) in sm._isSynchronized <- false;sm), comparer, Some(hasher), None)
+  //internal new(outerFactory:Func<IComparer<'K>,IMutableSeries<'K,SortedMap<'K,'V>>>,hasher:Func<'K,'K>) = 
+  //  let comparer = KeyComparer<'K>.Default
+  //  let hasher = { new IKeyHasher<'K> with
+  //        member x.Hash(k) = hasher.Invoke k
+  //      }
+  //  new SortedChunkedMapBase<_,_>(outerFactory.Invoke, (fun (capacity, comparer) -> let sm = new SortedMap<'K,'V>(capacity, comparer) in sm._isSynchronized <- false;sm), comparer, Some(hasher), None)
   
-  internal new(outerFactory:Func<IComparer<'K>,IMutableSeries<'K,SortedMap<'K,'V>>>,chunkMaxSize:int) = 
-    let comparer = KeyComparer<'K>.Default
-    new SortedChunkedMapBase<_,_>(outerFactory.Invoke, (fun (capacity, comparer) -> let sm = new SortedMap<'K,'V>(capacity, comparer) in sm._isSynchronized <- false;sm), comparer, None, Some(chunkMaxSize))
+  //internal new(outerFactory:Func<IComparer<'K>,IMutableSeries<'K,SortedMap<'K,'V>>>,chunkMaxSize:int) = 
+  //  let comparer = KeyComparer<'K>.Default
+  //  new SortedChunkedMapBase<_,_>(outerFactory.Invoke, (fun (capacity, comparer) -> let sm = new SortedMap<'K,'V>(capacity, comparer) in sm._isSynchronized <- false;sm), comparer, None, Some(chunkMaxSize))
 
-  // x3
+  //// x3
 
-  internal new(outerFactory:Func<KeyComparer<'K>,IMutableSeries<'K,SortedMap<'K,'V>>>,comparer:KeyComparer<'K>,hasher:Func<'K,'K>) =
-    let hasher = { new IKeyHasher<'K> with
-          member x.Hash(k) = hasher.Invoke k
-        }
-    new SortedChunkedMapBase<_,_>(outerFactory.Invoke, (fun (capacity, comparer) -> let sm = new SortedMap<'K,'V>(capacity, comparer) in sm._isSynchronized <- false;sm), comparer, Some(hasher), None)
+  //internal new(outerFactory:Func<KeyComparer<'K>,IMutableSeries<'K,SortedMap<'K,'V>>>,comparer:KeyComparer<'K>,hasher:Func<'K,'K>) =
+  //  let hasher = { new IKeyHasher<'K> with
+  //        member x.Hash(k) = hasher.Invoke k
+  //      }
+  //  new SortedChunkedMapBase<_,_>(outerFactory.Invoke, (fun (capacity, comparer) -> let sm = new SortedMap<'K,'V>(capacity, comparer) in sm._isSynchronized <- false;sm), comparer, Some(hasher), None)
   
-  new(outerFactory:Func<KeyComparer<'K>,IMutableSeries<'K,SortedMap<'K,'V>>>,comparer:KeyComparer<'K>,chunkMaxSize:int) = 
-    new SortedChunkedMapBase<_,_>(outerFactory.Invoke, (fun (capacity, comparer) -> let sm = new SortedMap<'K,'V>(capacity, comparer) in sm._isSynchronized <- false;sm), comparer, None, Some(chunkMaxSize))
+  //new(outerFactory:Func<KeyComparer<'K>,IMutableSeries<'K,SortedMap<'K,'V>>>,comparer:KeyComparer<'K>,chunkMaxSize:int) = 
+  //  new SortedChunkedMapBase<_,_>(outerFactory.Invoke, (fun (capacity, comparer) -> let sm = new SortedMap<'K,'V>(capacity, comparer) in sm._isSynchronized <- false;sm), comparer, None, Some(chunkMaxSize))
 
   //#region Interfaces
     
@@ -938,31 +724,31 @@ type SortedChunkedMapBase<'K,'V>
     // the rest is in BaseSeries
     member this.Item with get k = this.Item(k)
 
-  interface IMutableSeries<'K,'V> with
-    member this.IsAppendOnly with get() = false
-    member this.Complete() = this.Complete()
-    member this.Version with get() = this.Version
-    member this.Count with get() = this.Count
-    member this.Set(k, v) = this.Set(k,v)
-    member this.TryAdd(k, v) = this.TryAdd(k,v)
-    member this.TryAddLast(k, v) = this.TryAddLast(k, v)
-    member this.TryAddFirst(k, v) = this.TryAddFirst(k, v)
-    member this.TryRemove(k) = this.TryRemove(k)
-    member this.TryRemoveFirst() = this.TryRemoveFirst()
-    member this.TryRemoveLast() = this.TryRemoveLast()
-    member this.TryRemoveMany(key:'K,direction:Lookup) = this.TryRemoveMany(key, direction) 
-    member this.TryRemoveMany(key:'K,value:'V, direction:Lookup) = raise (NotSupportedException())
-    member this.TryAppend(appendMap:ISeries<'K,'V>, option:AppendOption) =
-      raise (NotImplementedException())
+  //interface IMutableSeries<'K,'V> with
+  //  member this.IsAppendOnly with get() = false
+  //  member this.Complete() = this.Complete()
+  //  member this.Version with get() = this.Version
+  //  member this.Count with get() = this.Count
+  //  member this.Set(k, v) = this.Set(k,v)
+  //  member this.TryAdd(k, v) = this.TryAdd(k,v)
+  //  member this.TryAddLast(k, v) = this.TryAddLast(k, v)
+  //  member this.TryAddFirst(k, v) = this.TryAddFirst(k, v)
+  //  member this.TryRemove(k) = this.TryRemove(k)
+  //  member this.TryRemoveFirst() = this.TryRemoveFirst()
+  //  member this.TryRemoveLast() = this.TryRemoveLast()
+  //  member this.TryRemoveMany(key:'K,direction:Lookup) = this.TryRemoveMany(key, direction) 
+  //  member this.TryRemoveMany(key:'K,value:'V, direction:Lookup) = raise (NotSupportedException())
+  //  member this.TryAppend(appendMap:ISeries<'K,'V>, option:AppendOption) =
+  //    raise (NotImplementedException())
 
-  interface IPersistentSeries<'K,'V> with
-    member this.Flush() = this.Flush()
-    member this.Dispose() = this.DisposeAsync(true) |> ignore // TODO review
-    member this.Id with get() = this.Id
+  //interface IPersistentSeries<'K,'V> with
+  //  member this.Flush() = this.Flush()
+  //  member this.Dispose() = this.DisposeAsync(true) |> ignore // TODO review
+  //  member this.Id with get() = this.Id
   //#endregion
 
 and
-  public SortedChunkedMapBaseCursor<'K,'V> =
+  public SortedChunkedMapCursor<'K,'V> =
     struct
       val mutable internal source : SortedChunkedMapBase<'K,'V>
       val mutable internal outerCursor : ICursor<'K,SortedMap<'K,'V>>
@@ -1325,7 +1111,6 @@ and
         exitWriteLockIf &this.source.Locker entered
       
     member this.Reset() =
-      this.source.Flush() // 
       if this.HasValidInner then this.innerCursor.Dispose()
       this.innerCursor <- Unchecked.defaultof<_>
       this.outerCursor.Reset()
@@ -1368,7 +1153,7 @@ and
       member this.MoveNext(stride, allowPartial) = raise (NotImplementedException())
       member this.MovePrevious(stride, allowPartial) = raise (NotImplementedException())
 
-    interface ISpecializedCursor<'K,'V, SortedChunkedMapBaseCursor<'K,'V>> with
+    interface ISpecializedCursor<'K,'V, SortedChunkedMapCursor<'K,'V>> with
       member this.Initialize() = 
         let c = this.Clone()
         c.Reset()

@@ -376,7 +376,7 @@ namespace Spreads
             }
         }
 
-        public ValueTask<Opt<KeyValuePair<Variant, Variant>>> TryRemoveMany(Variant key, Variant value, Lookup direction)
+        public Task<bool> TryRemoveMany(Variant key, Variant updatedAtKey, Lookup direction)
         {
             throw new NotSupportedException();
         }

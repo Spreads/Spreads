@@ -1075,10 +1075,7 @@ namespace Spreads
                 // Volatile.Write(ref _version, _version + 1L);
                 Interlocked.Increment(ref _version);
 
-                // NB no Interlocked inside write lock, readers must follow pattern to retry MN after getting `Updated` Task, and MN has it's own read lock. For other cases the behavior in undefined.
-                var tcs = _tcs;
-                _tcs = null;
-                tcs?.SetResult(true);
+                NotifyUpdate(true);
             }
             else
             {
@@ -1097,8 +1094,8 @@ namespace Spreads
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal void NotifyUpdate(bool result)
         {
-            // NB in some cases (inside write lock) interlocked is not needed, but we then use this same logic manually without Interlocked
-            var tcs = Interlocked.Exchange(ref _tcs, null);
+            var tcs = Volatile.Read(ref _tcs);
+            Volatile.Write(ref _tcs, null);
             tcs?.SetResult(result);
         }
 

@@ -403,7 +403,13 @@ namespace Spreads
         /// </summary>
         ValueTask<Opt<KeyValuePair<TKey, TValue>>> TryRemoveMany(TKey key, Lookup direction);
 
-        ValueTask<Opt<KeyValuePair<TKey, TValue>>> TryRemoveMany(TKey key, TValue value, Lookup direction);
+        /// <summary>
+        /// Update value at key and remove other elements according to direction.
+        /// Value of updatedAtKey could be invalid (e.g. null for reference types) and ignored,
+        /// i.e. there is no guarantee that the given key is present after calling this method.
+        /// This method is only used for atomic RemoveMany operation in SCM and could n
+        /// </summary>
+        Task<bool> TryRemoveMany(TKey key, TValue updatedAtKey, Lookup direction);
 
         /// <summary>
         /// And values from appendMap to the end of this map.

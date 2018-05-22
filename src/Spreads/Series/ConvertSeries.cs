@@ -346,7 +346,7 @@ namespace Spreads
             throw new NotImplementedException();
         }
 
-        public ValueTask<Opt<KeyValuePair<TKey2, TValue2>>> TryRemoveMany(TKey2 key, TValue2 value, Lookup direction)
+        public Task<bool> TryRemoveMany(TKey2 key, TValue2 updatedAtKey, Lookup direction)
         {
             throw new NotSupportedException();
         }

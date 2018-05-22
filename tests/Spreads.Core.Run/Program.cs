@@ -12,7 +12,7 @@ namespace Spreads.Core.Run
         static void Main(string[] args)
         {
             var test = new Spreads.Core.Tests.Collections.SMTests();
-            test.TGVSpeed();
+            test.AddSpeed();
             //LZ4();
             //Zstd();
             Console.ReadLine();
