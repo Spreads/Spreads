@@ -2,12 +2,11 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-using System;
 using NUnit.Framework;
 using Spreads.Collections;
 using Spreads.Utils;
+using System;
 using System.Collections.Generic;
-using System.Security.Cryptography;
 
 namespace Spreads.Core.Tests.Collections
 {
@@ -25,6 +24,7 @@ namespace Spreads.Core.Tests.Collections
                 var sm = new SortedMap<int, int>();
                 var scm = new SortedChunkedMap<int, int>();
 
+                sm._isSynchronized = false;
                 scm._isSynchronized = false;
 
                 using (Benchmark.Run("SL", count))
@@ -87,7 +87,6 @@ namespace Spreads.Core.Tests.Collections
             sm.Complete();
             // scm.Complete();
 
-
             for (int r = 0; r < 20; r++)
             {
                 var sum1 = 0L;
@@ -142,23 +141,22 @@ namespace Spreads.Core.Tests.Collections
                 //}
                 //Assert.AreEqual(sum1, sum4);
 
-                var sum5 = 0L;
-                using (Benchmark.Run("SCM CurrentValue", count))
-                {
-                    using (var c = scm.GetEnumerator())
-                    {
-                        while (c.MoveNext())
-                        {
-                            sum5 += c.CurrentValue;
-                        }
-                    }
-                }
-                Assert.AreEqual(sum1, sum5);
+                //var sum5 = 0L;
+                //using (Benchmark.Run("SCM CurrentValue", count))
+                //{
+                //    using (var c = scm.GetEnumerator())
+                //    {
+                //        while (c.MoveNext())
+                //        {
+                //            sum5 += c.CurrentValue;
+                //        }
+                //    }
+                //}
+                //Assert.AreEqual(sum1, sum5);
             }
 
             Benchmark.Dump();
         }
-
 
         [Test, Explicit("long running")]
         public void TGVSpeed()
@@ -168,7 +166,7 @@ namespace Spreads.Core.Tests.Collections
                 var count = (int)(1024 * Math.Pow(2, size));
                 const int mult = 1000;
                 var sl = new SortedList<DateTime, int>();
-                var sm = new SortedMap<DateTime, int>();
+                var sm = new SortedMap<DateTime, int>(count);
                 var scm = new SortedChunkedMap<DateTime, int>();
 
                 var start = DateTime.Today.ToUniversalTime();
@@ -193,25 +191,25 @@ namespace Spreads.Core.Tests.Collections
 
                 for (int r = 0; r < 20; r++)
                 {
-                    var sum1 = 0L;
-                    using (Benchmark.Run("SL", count * mult, true))
-                    {
-                        for (int j = 0; j < mult; j++)
-                        {
-                            for (int i = 0; i < count; i++)
-                            {
-                                if (sl.TryGetValue(start.AddTicks(i), out var v))
-                                {
-                                    sum1 += v;
-                                }
-                            }
-                        }
+                    //var sum1 = 0L;
+                    //using (Benchmark.Run("SL", count * mult, true))
+                    //{
+                    //    for (int j = 0; j < mult; j++)
+                    //    {
+                    //        for (int i = 0; i < count; i++)
+                    //        {
+                    //            if (sl.TryGetValue(start.AddTicks(i), out var v))
+                    //            {
+                    //                sum1 += v;
+                    //            }
+                    //        }
+                    //    }
 
-                    }
-                    Assert.True(sum1 > 0);
+                    //}
+                    //Assert.True(sum1 > 0);
 
                     var sum2 = 0L;
-                    using (Benchmark.Run("SM", count * mult, false))
+                    using (Benchmark.Run("SM", count * mult, true))
                     {
                         for (int j = 0; j < mult; j++)
                         {
@@ -224,34 +222,30 @@ namespace Spreads.Core.Tests.Collections
                             }
                         }
                     }
-                    Assert.True(sum2 > 0);
-                    Assert.AreEqual(sum1, sum2);
+                    //Assert.True(sum2 > 0);
+                    //Assert.AreEqual(sum1, sum2);
 
-                    var sum3 = 0L;
-                    using (Benchmark.Run("SCM", count * mult, true))
-                    {
-                        for (int j = 0; j < mult; j++)
-                        {
-                            for (int i = 0; i < count; i++)
-                            {
-                                if (scm.TryGetValue(start.AddTicks(i), out var v))
-                                {
-                                    sum3 += v;
-                                }
-                            }
-                        }
-                    }
-                    Assert.True(sum3 > 0);
-                    Assert.AreEqual(sum1, sum3);
-
-
-
+                    //var sum3 = 0L;
+                    //using (Benchmark.Run("SCM", count * mult, true))
+                    //{
+                    //    for (int j = 0; j < mult; j++)
+                    //    {
+                    //        for (int i = 0; i < count; i++)
+                    //        {
+                    //            if (scm.TryGetValue(start.AddTicks(i), out var v))
+                    //            {
+                    //                sum3 += v;
+                    //            }
+                    //        }
+                    //    }
+                    //}
+                    //Assert.True(sum3 > 0);
+                    //Assert.AreEqual(sum2, sum3);
                 }
 
                 Benchmark.Dump($"Size = {Math.Pow(2, size)}k elements");
             }
         }
-
 
         [Test, Explicit("long running")]
         public void BinarySearchSpeed()
@@ -281,7 +275,6 @@ namespace Spreads.Core.Tests.Collections
                                 sum1 += Array.BinarySearch(arr, 0, arr.Length, start.AddTicks(i), cmp1);
                             }
                         }
-
                     }
                     Assert.True(sum1 > 0);
 

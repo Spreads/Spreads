@@ -968,7 +968,7 @@ namespace Spreads
         internal long _version;
         internal long _nextVersion;
         // ReSharper restore InconsistentNaming
-        internal bool _isSynchronized;
+        internal bool _isSynchronized = true;
         internal int Locker;
 
         private TaskCompletionSource<bool> _tcs;
