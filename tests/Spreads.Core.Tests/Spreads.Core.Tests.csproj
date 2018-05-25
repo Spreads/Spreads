@@ -4,6 +4,7 @@
         <TargetFrameworks>netcoreapp2.1</TargetFrameworks>
         <AssemblyName>Spreads.Core.Tests</AssemblyName>
         <RootNamespace>Spreads.Core.Tests</RootNamespace>
+        <LangVersion>7.2</LangVersion>
     </PropertyGroup>
 
     <PropertyGroup>

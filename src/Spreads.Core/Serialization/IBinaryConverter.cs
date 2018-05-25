@@ -56,22 +56,22 @@ namespace Spreads.Serialization
         /// possible to calculate serialized bytes length without actually performing serialization.
         /// The stream temporaryStream contains a header and its length is equal to the returned value.
         /// </summary>
-        /// <param name="value">A value to serialize.</param>
+        /// <param name="map">A value to serialize.</param>
         /// <param name="temporaryStream">A stream a value is serialized into if it is not possible to calculate serialized buffer size
         /// without actually performing serialization.</param>
         /// <param name="format">Preferred serialization format.</param>
         /// <returns></returns>
-        int SizeOf(in T value, out MemoryStream temporaryStream, SerializationFormat format = SerializationFormat.Binary);
+        int SizeOf(in T map, out MemoryStream temporaryStream, SerializationFormat format = SerializationFormat.Binary);
 
         /// <summary>
         /// Write serialized value to the buffer at offset if there is enough capacity.
         /// </summary>
         /// <param name="value">A value to serialize.</param>
-        /// <param name="destination">A pointer to a buffer to serialize the value into.</param>
+        /// <param name="pinnedDestination">A pinned pointer to a buffer to serialize the value into.</param>
         /// <param name="temporaryStream">A stream that was returned by SizeOf method. If it is not null then its content is written to the buffer.</param>
         /// <param name="format">Compression method.</param>
         /// <returns>Returns the number of bytes written to the destination buffer or a negative error code that corresponds to <see cref="BinaryConverterErrorCode"/>.</returns>
-        int Write(in T value, IntPtr destination, MemoryStream temporaryStream = null, SerializationFormat format = SerializationFormat.Binary);
+        int Write(in T value, IntPtr pinnedDestination, MemoryStream temporaryStream = null, SerializationFormat format = SerializationFormat.Binary);
 
         /// <summary>
         /// Reads new value or fill existing value with data from the pointer,

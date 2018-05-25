@@ -161,7 +161,7 @@ namespace Spreads.Serialization
         /// This is more relaxed than Marshal.SizeOf, but still doesn't cover cases such as
         /// an array of KVP[DateTime,double], which has contiguous layout in memory.
         /// </summary>
-        public static int Size = InitChecked();
+        public static readonly int Size = InitChecked();
 
         /// <summary>
         /// Cache call to typeof(T).GetTypeInfo().IsValueType so it is JIT-time constant.
@@ -371,12 +371,12 @@ namespace Spreads.Serialization
                 var elementSize = GetSize(elementType);
                 if (elementSize > 0)
                 { // only for blittable types
-                    var converter = (IBinaryConverter<T>)BlittableArrayConverterFactory.Create(elementType);
+                    var converter = (IBinaryConverter<T>)ArrayConverterFactory.Create(elementType);
                     if (converter == null) return -1;
                     _converterInstance = converter;
                     _hasBinaryConverter = true;
                     Trace.Assert(!_converterInstance.IsFixedSize);
-                    Trace.Assert(_converterInstance.Size == 0);
+                    Trace.Assert(_converterInstance.Size == -1);
 
                 }
             }
@@ -386,11 +386,11 @@ namespace Spreads.Serialization
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int Read(IntPtr ptr, out T value)
         {
-            if (IsPinnable || typeof(T) == typeof(DateTime))
+            if (Size >= 0)
             {
                 Debug.Assert(Size > 0);
-                value = System.Runtime.CompilerServices.Unsafe.ReadUnaligned<T>((void*)ptr);
-                return Size;
+                value = ReadUnaligned<T>((void*)(ptr + 8));
+                return Size + 8;
             }
             if (_hasBinaryConverter)
             {
@@ -406,14 +406,13 @@ namespace Spreads.Serialization
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int Write(in T value, IntPtr destination, MemoryStream ms = null, SerializationFormat format = SerializationFormat.Binary)
         {
-            if ((IsPinnable || typeof(T) == typeof(DateTime)))
+            if (Size >= 0)
             {
                 Debug.Assert(Size > 0);
                 var len = 8 + Size;
                 WriteUnaligned((void*)(destination), len);
                 WriteUnaligned((void*)(destination + 4), _defaultHeader);
                 WriteUnaligned((void*)(destination + 8), value);
-
                 return len;
             }
             if (_hasBinaryConverter)
@@ -437,13 +436,13 @@ namespace Spreads.Serialization
         internal static int SizeOf(T value, out MemoryStream memoryStream, SerializationFormat compression)
         {
             memoryStream = null;
-            if (IsPinnable || typeof(T) == typeof(DateTime))
+            if (Size >= 0)
             {
                 return Size;
             }
             if (_hasBinaryConverter)
             {
-                Debug.Assert(Size == 0);
+                Debug.Assert(Size == -1);
                 return _converterInstance.SizeOf(value, out memoryStream, compression);
             }
 
@@ -457,7 +456,7 @@ namespace Spreads.Serialization
         internal static void RegisterConverter(IBinaryConverter<T> converter, bool overrideExisting = false)
         {
             if (converter == null) throw new ArgumentNullException(nameof(converter));
-            if (Size > 0) throw new InvalidOperationException("Cannot register a custom converter for pinnable types");
+            if (Size >= 0) throw new InvalidOperationException("Cannot register a custom converter for pinnable types");
 
             // NB TypeHelper is internal, we could provide some hooks later e.g. for char or bool
             if (converter.Version == 0)
@@ -474,7 +473,6 @@ namespace Spreads.Serialization
                 Environment.FailFast($"Blittable types must not have IBinaryConverter<T>.");
             }
             _hasBinaryConverter = true;
-            Size = 0;
             _converterInstance = converter;
         }
     }

@@ -13,16 +13,16 @@ namespace Spreads.Serialization
     internal class MemoryStreamBinaryConverter : IBinaryConverter<MemoryStream>
     {
         public bool IsFixedSize => false;
-        public int Size => 0;
+        public int Size => -1;
 
-        public int SizeOf(in MemoryStream value, out MemoryStream temporaryStream, SerializationFormat format = SerializationFormat.Binary)
+        public int SizeOf(in MemoryStream map, out MemoryStream temporaryStream, SerializationFormat format = SerializationFormat.Binary)
         {
-            if (value.Length > int.MaxValue) throw new ArgumentOutOfRangeException(nameof(temporaryStream), "Memory stream is too large");
+            if (map.Length > int.MaxValue) throw new ArgumentOutOfRangeException(nameof(temporaryStream), "Memory stream is too large");
             temporaryStream = null;
-            return checked((int)value.Length + 8);
+            return checked((int)map.Length + 8);
         }
 
-        public unsafe int Write(in MemoryStream value, IntPtr destination, MemoryStream temporaryStream = null, SerializationFormat format = SerializationFormat.Binary)
+        public unsafe int Write(in MemoryStream value, IntPtr pinnedDestination, MemoryStream temporaryStream = null, SerializationFormat format = SerializationFormat.Binary)
         {
             if (temporaryStream != null) throw new NotSupportedException("MemoryStreamBinaryConverter does not work with temp streams.");
 
@@ -31,7 +31,7 @@ namespace Spreads.Serialization
             var totalLength = checked((int)value.Length + 8);
 
             // size
-            Marshal.WriteInt32(destination, totalLength);
+            Marshal.WriteInt32(pinnedDestination, totalLength);
             // version
             var header = new DataTypeHeader
             {
@@ -42,10 +42,10 @@ namespace Spreads.Serialization
                     IsCompressed = false },
                 TypeEnum = TypeEnum.Binary
             };
-            WriteUnaligned((void*)(destination + 4), header);
+            WriteUnaligned((void*)(pinnedDestination + 4), header);
 
             // payload
-            value.WriteToRef(ref AsRef<byte>((void*)(destination + 8)));
+            value.WriteToRef(ref AsRef<byte>((void*)(pinnedDestination + 8)));
 
             return totalLength;
         }

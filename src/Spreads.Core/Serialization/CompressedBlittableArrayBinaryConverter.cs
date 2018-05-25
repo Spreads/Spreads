@@ -16,27 +16,11 @@ using static System.Runtime.CompilerServices.Unsafe;
 
 namespace Spreads.Serialization
 {
-    internal interface ICompressedArrayBinaryConverter<TArray>
-    {
-        bool IsFixedSize { get; }
-        int Size { get; }
-        byte Version { get; }
-
-        int SizeOf(in TArray value, int valueOffset, int valueCount, out MemoryStream temporaryStream,
-            SerializationFormat compression = SerializationFormat.Binary);
-
-        int Write(in TArray value, int valueOffset, int valueCount, IntPtr destination,
-            MemoryStream temporaryStream = null,
-            SerializationFormat format = SerializationFormat.Binary);
-
-        int Read(IntPtr ptr, out TArray array, out int count, bool exactSize = false);
-    }
-
     /// <summary>
     /// Used for IArrayBasedMap serialization and for arrays serialization with forced format
     /// </summary>
     /// <typeparam name="TElement"></typeparam>
-    internal class CompressedBlittableArrayBinaryConverter<TElement> : ICompressedArrayBinaryConverter<TElement[]>
+    internal class CompressedBlittableArrayBinaryConverter<TElement> : IArrayBinaryConverter<TElement>
     {
         private static readonly bool IsIDelta = typeof(IDelta<TElement>).GetTypeInfo().IsAssignableFrom(typeof(TElement));
 
@@ -48,7 +32,7 @@ namespace Spreads.Serialization
         }
 
         public bool IsFixedSize => false;
-        public int Size => 0;
+        public int Size => -1;
 #pragma warning disable 618
         public byte Version => 0;
 
@@ -56,8 +40,8 @@ namespace Spreads.Serialization
 #pragma warning restore 618
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public unsafe int SizeOf(in TElement[] value, int valueOffset, int valueCount, out MemoryStream temporaryStream,
-            SerializationFormat compression = SerializationFormat.Binary)
+        public unsafe int SizeOf(in TElement[] map, int valueOffset, int valueCount, out MemoryStream temporaryStream,
+            SerializationFormat format = SerializationFormat.Binary)
         {
             if (ItemSize > 0)
             {
@@ -66,7 +50,7 @@ namespace Spreads.Serialization
                 int totalSize;
                 fixed (byte* ptr = &buffer[0])
                 {
-                    totalSize = Write(value, valueOffset, valueCount, (IntPtr)ptr, null, compression);
+                    totalSize = Write(map, valueOffset, valueCount, (IntPtr)ptr, null, format);
                 }
                 temporaryStream = RecyclableMemoryStream.Create(RecyclableMemoryStreamManager.Default,
                     null,
@@ -90,7 +74,7 @@ namespace Spreads.Serialization
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public unsafe int Write(in TElement[] value, int valueOffset, int valueCount, IntPtr destination,
+        public unsafe int Write(in TElement[] value, int valueOffset, int valueCount, IntPtr pinnedDestination,
             MemoryStream temporaryStream = null,
             SerializationFormat format = SerializationFormat.Binary)
         {
@@ -104,7 +88,7 @@ namespace Spreads.Serialization
             if (temporaryStream != null)
             {
                 var len = temporaryStream.Length;
-                temporaryStream.WriteToRef(ref AsRef<byte>((void*)destination));
+                temporaryStream.WriteToRef(ref AsRef<byte>((void*)pinnedDestination));
                 temporaryStream.Dispose();
                 return checked((int)len);
             }
@@ -171,7 +155,7 @@ namespace Spreads.Serialization
                                 new UIntPtr((uint)ItemSize), // type size
                                 new UIntPtr((uint)inputSize), // number of input bytes
                                 (IntPtr)srcPtr,
-                                destination + position, // destination
+                                pinnedDestination + position, // destination
                                 new UIntPtr((uint)maxSize), // destination length
                                 compressionMethod,
                                 new UIntPtr(0), // default block size
@@ -205,7 +189,7 @@ namespace Spreads.Serialization
                                 new UIntPtr((uint)ItemSize), // type size
                                 new UIntPtr((uint)(valueCount * ItemSize)), // number of input bytes
                                 (IntPtr)srcPtr,
-                                destination + position, // destination
+                                pinnedDestination + position, // destination
                                 new UIntPtr((uint)maxSize), // destination length
                                 compressionMethod,
                                 new UIntPtr(0), // default block size
@@ -227,7 +211,7 @@ namespace Spreads.Serialization
                             new UIntPtr((uint)ItemSize), // type size
                             new UIntPtr((uint)(valueCount * ItemSize)), // number of input bytes
                             srcPtr,
-                            destination + position, // destination
+                            pinnedDestination + position, // destination
                             new UIntPtr((uint)maxSize), // destination length
                             compressionMethod,
                             new UIntPtr(0), // default block size
@@ -278,7 +262,7 @@ namespace Spreads.Serialization
             }
 
             // length
-            WriteUnaligned((void*)(destination + 4), position);
+            WriteUnaligned((void*)(pinnedDestination), position);
             // version & flags
             var header = new DataTypeHeader
             {
@@ -291,7 +275,7 @@ namespace Spreads.Serialization
                 TypeSize = (byte)ItemSize,
                 ElementTypeEnum = VariantHelper<TElement>.TypeEnum
             };
-            WriteUnaligned((void*)(destination + 4), header);
+            WriteUnaligned((void*)(pinnedDestination + 4), header);
             return position;
         }
 
@@ -381,13 +365,13 @@ namespace Spreads.Serialization
                     if (header.VersionAndFlags.IsDelta)
                     {
                         var previousLong = longArray[0];
-                        var first = *(DateTime*)&previousLong;
+                        var first = As<long, DateTime>(ref previousLong);
                         dtArray[0] = first;
                         for (var i = 1; i < arraySize; i++)
                         {
-                            var deltaLong = *(long*)(longArray[i * 8]);
+                            var deltaLong = longArray[i];
                             var currentLong = previousLong + deltaLong;
-                            dtArray[i] = *(DateTime*)&currentLong;
+                            dtArray[i] = As<long, DateTime>(ref currentLong);
                             previousLong = currentLong;
                         }
                     }
@@ -395,8 +379,7 @@ namespace Spreads.Serialization
                     {
                         for (var i = 0; i < arraySize; i++)
                         {
-                            var currentLong = longArray[i * 8];
-                            dtArray[i] = *(DateTime*)&currentLong;
+                            dtArray[i] = As<long, DateTime>(ref longArray[i]);
                         }
                     }
 

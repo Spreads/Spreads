@@ -8,6 +8,7 @@ using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Concurrent;
 using System.Reflection;
+using Newtonsoft.Json.Serialization;
 
 namespace Spreads.Serialization
 {
@@ -243,4 +244,5 @@ namespace Spreads.Serialization
             throw new NotSupportedException();
         }
     }
+
 }

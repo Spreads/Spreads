@@ -47,8 +47,7 @@ namespace Spreads
         private static bool _doAdditionalCorrectnessChecks = true;
 
         /// <summary>
-        /// When this property is set to true at the very beginning of 
-        /// a program execution that 
+        /// 
         /// </summary>
         public static bool DoAdditionalCorrectnessChecks
         {
@@ -58,7 +57,8 @@ namespace Spreads
 
         internal static int SCMDefaultChunkLength = 4096;
 
-        internal static int _lz4CompressionLevel = 5;
+        // See e.g. https://gregoryszorc.com/blog/2017/03/07/better-compression-with-zstandard/
+        internal static int _lz4CompressionLevel = 4;
         internal static int _zstdCompressionLevel = 5;
 
         public static int LZ4CompressionLevel

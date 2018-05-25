@@ -1046,12 +1046,12 @@ namespace Spreads.Tests
             Console.WriteLine(sw.ElapsedMilliseconds);
         }
 
-        [Test, Ignore("long running")]
+        [Test, Ignore("Unsafe.Copy is the winner (faster and simpler), Spreads methods just use it")]
         public void VectorizedCopy()
         {
             // https://github.com/dotnet/coreclr/issues/2430
 
-            var sizes = new[] { 32, 64, 128, 256, 512, 1024, 2048, 4096 };
+            var sizes = new[] { 33, 65, 129, 257, 513, 1025, 2049, 4097, 8193 };
 
             Console.WriteLine(Vector<byte>.Count);
 
@@ -1061,67 +1061,80 @@ namespace Spreads.Tests
                 var dst = (byte*)Marshal.AllocHGlobal(size);
                 var srcArr = new byte[size];
                 var dstArr = new byte[size];
-                var count = (int)(10_000_000 / Math.Log(size, 2));
+                for (int i = 0; i < size; i++)
+                {
+                    var val = (byte) (i % 255);
+                    *(src + i) = val;
+                }
+                var count = (int)(1_000_000_000 / size);
                 var srcSpan = new Span<byte>(srcArr);
-                var dstSpan = new Span<byte>(srcArr);
+                var dstSpan = new Span<byte>(dstArr);
 
                 for (int r = 0; r < 10; r++)
                 {
-                    using (Benchmark.Run("Vectorized", count, true))
-                    {
-                        for (int i = 0; i < count; i++)
-                        {
-                            ByteUtil.VectorizedCopy(dst, src, (uint)size);
-                        }
-                    }
+                    //using (Benchmark.Run("Vectorized", count, true))
+                    //{
+                    //    for (int i = 0; i < count; i++)
+                    //    {
+                    //        ByteUtil.VectorizedCopy(dst, src, (uint)size);
+                    //    }
+                    //}
 
-                    using (Benchmark.Run("Vectorized Array", count, true))
-                    {
-                        for (int i = 0; i < count; i++)
-                        {
-                            ByteUtil.VectorizedCopy(srcArr, 0, dstArr, 0, size);
-                        }
-                    }
+                    //using (Benchmark.Run("Vectorized Array", count, true))
+                    //{
+                    //    for (int i = 0; i < count; i++)
+                    //    {
+                    //        ByteUtil.VectorizedCopy(ref srcArr[0], ref dstArr[0], (ulong)size);
+                    //    }
+                    //}
 
-                    using (Benchmark.Run("Simple", count, true))
-                    {
-                        for (int i = 0; i < count; i++)
-                        {
-                            ByteUtil.MemoryCopy(dst, src, (uint)size);
-                        }
-                    }
+                    //using (Benchmark.Run("Simple", count, true))
+                    //{
+                    //    for (int i = 0; i < count; i++)
+                    //    {
+                    //        ByteUtil.MemoryCopy(dst, src, (uint)size);
+                    //    }
+                    //}
 
                     using (Benchmark.Run("Unsafe", count, true))
                     {
                         for (int i = 0; i < count; i++)
                         {
-                            Unsafe.CopyBlock(dst, src, (uint)size);
+                            System.Runtime.CompilerServices.Unsafe.CopyBlockUnaligned(dst, src, (uint)size);
                         }
                     }
 
-                    using (Benchmark.Run("Marshal.Copy", count, true))
+                    using (Benchmark.Run("Unsafe Ref", count, true))
                     {
                         for (int i = 0; i < count; i++)
                         {
-                            Marshal.Copy((IntPtr)src, dstArr, 0, size);
+                            System.Runtime.CompilerServices.Unsafe.CopyBlockUnaligned(ref dstArr[0], ref srcArr[0], (uint)size);
                         }
                     }
 
-                    using (Benchmark.Run("Array.Copy", count, true))
-                    {
-                        for (int i = 0; i < count; i++)
-                        {
-                            Array.Copy(srcArr, dstArr, size);
-                        }
-                    }
+                    //using (Benchmark.Run("Marshal.Copy", count, true))
+                    //{
+                    //    for (int i = 0; i < count; i++)
+                    //    {
+                    //        Marshal.Copy((IntPtr)src, dstArr, 0, size);
+                    //    }
+                    //}
 
-                    using (Benchmark.Run("Memory.BlockCopy", count, true))
-                    {
-                        for (int i = 0; i < count; i++)
-                        {
-                            Buffer.BlockCopy(srcArr, 0, dstArr, 0, size);
-                        }
-                    }
+                    //using (Benchmark.Run("Array.Copy", count, true))
+                    //{
+                    //    for (int i = 0; i < count; i++)
+                    //    {
+                    //        Array.Copy(srcArr, dstArr, size);
+                    //    }
+                    //}
+
+                    //using (Benchmark.Run("Memory.BlockCopy", count, true))
+                    //{
+                    //    for (int i = 0; i < count; i++)
+                    //    {
+                    //        Buffer.BlockCopy(srcArr, 0, dstArr, 0, size);
+                    //    }
+                    //}
 
                     using (Benchmark.Run("Span.CopyTo", count, true))
                     {

@@ -85,7 +85,7 @@ namespace Spreads.Buffers
         /// </summary>
         public void Copy(IntPtr destination, long srcOffset, long length)
         {
-            ByteUtil.VectorizedCopy((byte*)destination, (byte*)(_data.ToInt64() + srcOffset), (uint)length);
+            System.Runtime.CompilerServices.Unsafe.CopyBlockUnaligned((byte*)destination, (byte*)(_data.ToInt64() + srcOffset), checked((uint)length));
         }
 
         /// <summary>
@@ -101,7 +101,7 @@ namespace Spreads.Buffers
         /// </summary>
         public IDirectBuffer Move(IntPtr destination, long srcOffset, long length)
         {
-            ByteUtil.VectorizedCopy((byte*)destination, (byte*)(_data.ToInt64() + srcOffset), (uint)length);
+            System.Runtime.CompilerServices.Unsafe.CopyBlockUnaligned((byte*)destination, (byte*)(_data.ToInt64() + srcOffset), checked((uint)length));
             return new DirectBuffer(length, destination);
         }
 
@@ -598,7 +598,7 @@ namespace Spreads.Buffers
 
             var source = new IntPtr(src.Data.ToInt64() + srcOffset);
             var destination = _data.ToInt64() + index;
-            ByteUtil.VectorizedCopy((byte*)destination, (byte*)source, checked((uint)length));
+            System.Runtime.CompilerServices.Unsafe.CopyBlockUnaligned((byte*)destination, (byte*)_data.ToInt64(), checked((uint)length));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

@@ -3,9 +3,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 using Spreads.Buffers;
-using Spreads.Utils;
 using System;
-using System.Diagnostics;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -37,11 +35,9 @@ namespace Spreads.Serialization
             //var ownedBuffer = Buffers.BufferPool.StaticBuffer.pi;
             //var buffer = ownedBuffer.Memory;
 
-            var size2 = TypeHelper<T>.Write(value, (IntPtr)rm.Pointer);
+            WriteUnaligned(rm.Pointer, value);
 
-            Debug.Assert(size == size2);
-
-            if (Buffers.BufferPool.StaticBuffer.TryGetArray(out var segment))
+            if (BufferPool.StaticBuffer.TryGetArray(out var segment))
             {
                 // TODO typecheck stream and use faster methods
                 stream.Write(segment.Array, segment.Offset, size);
@@ -91,8 +87,8 @@ namespace Spreads.Serialization
                 var position = 0;
                 foreach (var segment in rms.Chunks)
                 {
-                    ByteUtil.VectorizedCopy(ref AddByteOffset(ref destination, (IntPtr)position),
-                        ref segment.Array[segment.Offset], (ulong)segment.Count);
+                    CopyBlockUnaligned(ref AddByteOffset(ref destination, (IntPtr)position),
+                        ref segment.Array[segment.Offset], checked((uint)segment.Count));
                     position += segment.Count;
                 }
             }
@@ -107,9 +103,14 @@ namespace Spreads.Serialization
                 int length;
                 while ((length = stream.Read(buffer, 0, buffer.Length)) > 0)
                 {
-                    ByteUtil.VectorizedCopy(ref AddByteOffset(ref destination, (IntPtr)position),
-                        ref buffer[0], (ulong)length);
+                    CopyBlockUnaligned(ref AddByteOffset(ref destination, (IntPtr)position),
+                        ref buffer[0], checked((uint)length));
                     position += length;
+                }
+
+                if (BufferPool.StaticBuffer.Array.Length < stream.Length)
+                {
+                    BufferPool<byte>.Return(buffer);
                 }
             }
         }

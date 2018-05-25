@@ -25,7 +25,6 @@
 // ---------------------------------------------------------------------
 
 using Spreads.Collections.Concurrent;
-using Spreads.Utils;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -152,6 +151,7 @@ namespace Spreads.Buffers
         /// <param name="tag">A string identifying this stream for logging and debugging purposes</param>
         /// <param name="requestedSize">The initial requested size to prevent future allocations</param>
         /// <param name="initialLargeBuffer">An initial buffer to use. This buffer will be owned by the stream and returned to the memory manager upon Dispose.</param>
+        /// <param name="length">Set length if initialLargeBuffer has data.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static RecyclableMemoryStream Create(RecyclableMemoryStreamManager memoryManager, string tag, int requestedSize,
             byte[] initialLargeBuffer, int length = 0)
@@ -246,7 +246,6 @@ namespace Spreads.Buffers
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA1816:CallGCSuppressFinalizeCorrectly", Justification = "We have different disposal semantics, so SuppressFinalize is in a different spot.")]
         protected override void Dispose(bool disposing)
         {
-
             if (Interlocked.CompareExchange(ref _disposedState, 1, 0) != 0)
             {
                 string doubleDisposeStack = null;
@@ -278,7 +277,8 @@ namespace Spreads.Buffers
             {
                 // We're being finalized.
                 Events.Write.MemoryStreamFinalized(_id, _tag, AllocationStack);
-                if (AppDomain.CurrentDomain.IsFinalizingForUnload()) {
+                if (AppDomain.CurrentDomain.IsFinalizingForUnload())
+                {
                     // If we're being finalized because of a shutdown, don't go any further.
                     // We have no idea what's already been cleaned up. Triggering events may cause
                     // a crash.
@@ -321,13 +321,13 @@ namespace Spreads.Buffers
 
             // last operation, prevent race condition (had it with _memoryManager = null when buffer was reused before Dispose finished)
             Pool.Free(this);
-
         }
 
         /// <summary>
         /// Equivalent to Dispose
         /// </summary>
-        public override void Close() {
+        public override void Close()
+        {
             Dispose(true);
         }
 
@@ -506,7 +506,6 @@ namespace Spreads.Buffers
             return newBuffer;
         }
 
-
         /// <summary>
         /// Reads from the current position into the provided buffer
         /// </summary>
@@ -643,8 +642,8 @@ namespace Spreads.Buffers
                     var currentBlock = _blocks[blockAndOffset.Block];
                     var remainingInBlock = blockSize - blockAndOffset.Offset;
                     var amountToWriteInBlock = Math.Min(remainingInBlock, bytesRemaining);
-
-                    ByteUtil.VectorizedCopy(buffer, offset + bytesWritten, currentBlock, blockAndOffset.Offset, amountToWriteInBlock);
+                    System.Runtime.CompilerServices.Unsafe
+                        .CopyBlockUnaligned(ref currentBlock[blockAndOffset.Offset], ref buffer[offset + bytesWritten], (uint)amountToWriteInBlock);
 
                     bytesRemaining -= amountToWriteInBlock;
                     bytesWritten += amountToWriteInBlock;
@@ -655,7 +654,8 @@ namespace Spreads.Buffers
             }
             else
             {
-                ByteUtil.VectorizedCopy(buffer, offset, _largeBuffer, _position, count);
+                System.Runtime.CompilerServices.Unsafe
+                    .CopyBlockUnaligned(ref _largeBuffer[_position], ref buffer[offset], (uint)count);
             }
             _position = (int)end;
             _length = Math.Max(_position, _length);
@@ -873,12 +873,14 @@ namespace Spreads.Buffers
                 {
                     for (var i = 0; i < _blocks.Count; i++)
                     {
-                        var len = (i == _blocks.Count - 1)
+                        var remainingLength = _length - i * _memoryManager.BlockSize;
+                        if (remainingLength <= 0) break;
+                        var len = remainingLength < _memoryManager.BlockSize
                             // last chunk
-                            ? _length - (_blocks.Count - 1) * _memoryManager.BlockSize
+                            ? remainingLength
                             // full chunk
                             : _memoryManager.BlockSize;
-                        yield return new ArraySegment<byte>(_blocks[i], 0, checked((int)len)); // Chuncks should never be > Int32.Max
+                        yield return new ArraySegment<byte>(_blocks[i], 0, checked((int)len));
                     }
                 }
             }
@@ -911,7 +913,9 @@ namespace Spreads.Buffers
                 while (bytesRemaining > 0)
                 {
                     var amountToCopy = Math.Min(_blocks[blockAndOffset.Block].Length - blockAndOffset.Offset, bytesRemaining);
-                    ByteUtil.VectorizedCopy(_blocks[blockAndOffset.Block], blockAndOffset.Offset, buffer, bytesWritten + offset, amountToCopy);
+
+                    System.Runtime.CompilerServices.Unsafe
+                        .CopyBlockUnaligned(ref buffer[bytesWritten + offset], ref _blocks[blockAndOffset.Block][blockAndOffset.Offset], (uint)amountToCopy);
 
                     bytesWritten += amountToCopy;
                     bytesRemaining -= amountToCopy;
@@ -924,7 +928,8 @@ namespace Spreads.Buffers
             else
             {
                 var amountToCopy = Math.Min(count, _length - fromPosition);
-                ByteUtil.VectorizedCopy(_largeBuffer, fromPosition, buffer, offset, amountToCopy);
+                System.Runtime.CompilerServices.Unsafe
+                    .CopyBlockUnaligned(ref buffer[offset], ref _largeBuffer[fromPosition], (uint)amountToCopy);
                 return amountToCopy;
             }
         }

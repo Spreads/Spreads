@@ -7,26 +7,30 @@ namespace Spreads.Serialization
     /// Diffable wrapper for decimal type
     /// </summary>
     [StructLayout(LayoutKind.Sequential, Size = 16)]
-    internal struct DecimalDelta : IDelta<DecimalDelta>
+    [Serialization(BlittableSize = 16)]
+    internal unsafe struct DecimalDelta : IDelta<DecimalDelta>
     {
-        public decimal Value;
+        public long v1;
+        public long v2;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public DecimalDelta(decimal value)
         {
-            Value = value;
+            this = default;
+            var ptr = Unsafe.AsPointer(ref this);
+            *(decimal*)ptr = value;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public DecimalDelta AddDelta(DecimalDelta delta)
         {
-            return new DecimalDelta(Value + delta.Value);
+            return new DecimalDelta(this + delta);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public DecimalDelta GetDelta(DecimalDelta next)
         {
-            return new DecimalDelta(next.Value - Value);
+            return new DecimalDelta(next - this);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -38,7 +42,7 @@ namespace Spreads.Serialization
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static implicit operator decimal(DecimalDelta value)
         {
-            return value.Value;
+            return *(decimal*)Unsafe.AsPointer(ref value);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

@@ -12,22 +12,23 @@ namespace Spreads.Tests.Serialization
     [TestFixture]
     public class VariableLengthValuesTests
     {
-        [Test, Ignore("long running")]
-        public void CouldCreateBinaryConverter()
-        {
-            var converter = GetConverter<RetainedMemory<byte>[]>();
+        // TODO
+        //[Test, Ignore("long running")]
+        //public void CouldCreateBinaryConverter()
+        //{
+        //    var converter = GetConverter<RetainedMemory<byte>[]>();
 
-            Assert.AreEqual(0, converter.Size);
-            var buffers = new[] { BufferPool.Retain(10) };
-            //Assert.Throws<NotImplementedException>(() =>
-            //{
-            converter.SizeOf(buffers, 0, 10, out var temp);
-            //});
-        }
+        //    Assert.AreEqual(0, converter.Size);
+        //    var buffers = new[] { BufferPool.Retain(10) };
+        //    //Assert.Throws<NotImplementedException>(() =>
+        //    //{
+        //    converter.SizeOf(buffers, 0, 10, out var temp);
+        //    //});
+        //}
 
-        private static ICompressedArrayBinaryConverter<T> GetConverter<T>()
-        {
-            return PreservedBufferArrayBinaryConverterFactory<T>.Instance;
-        }
+        //private static IArrayBinaryConverter<T> GetConverter<T>()
+        //{
+        //    return PreservedBufferArrayBinaryConverterFactory<T>.Instance;
+        //}
     }
 }

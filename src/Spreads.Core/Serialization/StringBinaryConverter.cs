@@ -18,17 +18,17 @@ namespace Spreads.Serialization
         public bool IsFixedSize => false;
         public int Size => 0;
 
-        public unsafe int SizeOf(in string value, out MemoryStream temporaryStream, SerializationFormat format = SerializationFormat.Binary)
+        public unsafe int SizeOf(in string map, out MemoryStream temporaryStream, SerializationFormat format = SerializationFormat.Binary)
         {
-            fixed (char* charPtr = value)
+            fixed (char* charPtr = map)
             {
-                var totalLength = 8 + Encoding.UTF8.GetByteCount(charPtr, value.Length);
+                var totalLength = 8 + Encoding.UTF8.GetByteCount(charPtr, map.Length);
                 temporaryStream = null;
                 return totalLength;
             }
         }
 
-        public unsafe int Write(in string value, IntPtr destination, MemoryStream temporaryStream = null, SerializationFormat format = SerializationFormat.Binary)
+        public unsafe int Write(in string value, IntPtr pinnedDestination, MemoryStream temporaryStream = null, SerializationFormat format = SerializationFormat.Binary)
         {
             if (temporaryStream == null)
             {
@@ -37,7 +37,7 @@ namespace Spreads.Serialization
                     var totalLength = 8 + Encoding.UTF8.GetByteCount(charPtr, value.Length);
 
                     // size
-                    Marshal.WriteInt32(destination, totalLength);
+                    Marshal.WriteInt32(pinnedDestination, totalLength);
                     // version
                     var header = new DataTypeHeader
                     {
@@ -48,24 +48,24 @@ namespace Spreads.Serialization
                                 IsCompressed = false },
                         TypeEnum = TypeEnum.String
                     };
-                    WriteUnaligned((void*)(destination + 4), header);                        // payload
-                    var len = Encoding.UTF8.GetBytes(charPtr, value.Length, (byte*)destination + 8, totalLength);
+                    WriteUnaligned((void*)(pinnedDestination + 4), header);                        // payload
+                    var len = Encoding.UTF8.GetBytes(charPtr, value.Length, (byte*)pinnedDestination + 8, totalLength);
                     Debug.Assert(totalLength == len + 8);
 
                     return len + 8;
                 }
             }
 
-            temporaryStream.WriteToRef(ref AsRef<byte>((void*)destination));
+            temporaryStream.WriteToRef(ref AsRef<byte>((void*)pinnedDestination));
             return checked((int)temporaryStream.Length);
         }
 
-        public int Read(IntPtr ptr, out string value)
+        public unsafe int Read(IntPtr ptr, out string value)
         {
-            var version = Marshal.ReadInt32(ptr + 4);
-            if (version != 0) throw new NotSupportedException();
-            var length = Marshal.ReadInt32(ptr);
-            OwnedPooledArray<byte> ownedPooledBuffer = Buffers.BufferPool.UseTempBuffer(length);
+            var totalSize = ReadUnaligned<int>((void*)ptr);
+            var header = ReadUnaligned<DataTypeHeader>((void*)(ptr + 4));
+            if (header.VersionAndFlags.Version != 0) throw new NotSupportedException();
+            OwnedPooledArray<byte> ownedPooledBuffer = Buffers.BufferPool.UseTempBuffer(totalSize);
             var buffer = ownedPooledBuffer.Memory;
             var handle = buffer.Pin();
 
@@ -73,15 +73,15 @@ namespace Spreads.Serialization
             {
                 if (ownedPooledBuffer.TryGetArray(out var segment))
                 {
-                    Marshal.Copy(ptr + 8, segment.Array, 0, length);
+                    Marshal.Copy(ptr + 8, segment.Array, 0, totalSize);
 
-                    value = Encoding.UTF8.GetString(segment.Array, segment.Offset, length - 8);
+                    value = Encoding.UTF8.GetString(segment.Array, segment.Offset, totalSize - 8);
                 }
                 else
                 {
                     throw new ApplicationException();
                 }
-                return length;
+                return totalSize;
             }
             finally
             {

@@ -87,7 +87,7 @@ namespace Spreads.Buffers
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
-                if (_threadStaticBuffer != null)
+                if (_threadStaticBuffer == null)
                 {
                     var x = StaticBuffer; // access getter
                 }

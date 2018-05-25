@@ -57,7 +57,7 @@ namespace Spreads.Tests.Serialization
             var dta = new DateTime[2];
             dta[0] = DateTime.Today;
             dta[1] = DateTime.Today.AddDays(1);
-            var len = BinarySerializer.Write(dta, bytes);
+            var len = BinarySerializer.Write(dta, ref bytes);
             Assert.AreEqual(8 + 8 * 2, len);
             DateTime[] dta2 = null;
             var len2 = BinarySerializer.Read(bytes, out dta2);
@@ -72,7 +72,7 @@ namespace Spreads.Tests.Serialization
             var ints = new int[2];
             ints[0] = 123;
             ints[1] = 456;
-            var len = BinarySerializer.Write(ints, bytes);
+            var len = BinarySerializer.Write(ints, ref bytes);
             Assert.AreEqual(8 + 4 * 2, len);
             int[] ints2 = null;
             var len2 = BinarySerializer.Read(bytes, out ints2);
@@ -88,7 +88,7 @@ namespace Spreads.Tests.Serialization
             var decimals = new decimal[2];
             decimals[0] = 123;
             decimals[1] = 456;
-            var len = BinarySerializer.Write(decimals, bytes);
+            var len = BinarySerializer.Write(decimals, ref bytes);
             Assert.AreEqual(8 + 16 * 2, len);
             decimal[] decimals2 = null;
             var len2 = BinarySerializer.Read(bytes, out decimals2);
@@ -103,7 +103,7 @@ namespace Spreads.Tests.Serialization
             var arr = new string[2];
             arr[0] = "123";
             arr[1] = "456";
-            var len = BinarySerializer.Write(arr, bytes);
+            var len = BinarySerializer.Write(arr, ref bytes);
 
             string[] arr2 = null;
             var len2 = BinarySerializer.Read(bytes, out arr2);
@@ -126,7 +126,7 @@ namespace Spreads.Tests.Serialization
                 Value1 = 456,
                 Value2 = 4560
             };
-            var len = BinarySerializer.Write(arr, bytes);
+            var len = BinarySerializer.Write(arr, ref bytes);
             Assert.AreEqual(8 + 12 * 2, len);
             BlittableStruct[] arr2 = null;
             var len2 = BinarySerializer.Read(bytes, out arr2);
@@ -149,7 +149,7 @@ namespace Spreads.Tests.Serialization
                 Value1 = 456,
                 Value2 = "4560"
             };
-            var len = BinarySerializer.Write(arr, bytes);
+            var len = BinarySerializer.Write(arr, ref bytes);
             SimplePoco[] arr2 = null;
             var len2 = BinarySerializer.Read(bytes, out arr2);
             Assert.IsTrue(arr.SequenceEqual(arr2), "Items are not equal");
@@ -161,7 +161,7 @@ namespace Spreads.Tests.Serialization
         {
             var bytes = new byte[1000];
             var str = "This is string";
-            var len = BinarySerializer.Write(str, bytes);
+            var len = BinarySerializer.Write(str, ref bytes);
             string str2 = null;
             var len2 = BinarySerializer.Read(bytes, out str2);
             Assert.AreEqual(len, len2);
@@ -200,16 +200,19 @@ namespace Spreads.Tests.Serialization
             var sm = new SortedMap<DateTime, decimal>();
             for (var i = 0; i < 10000; i++)
             {
-                sm.Add(DateTime.Today.AddHours(i), (decimal)Math.Round(i + rng.NextDouble(), 2));
+                if (i != 2)
+                {
+                    sm.Add(DateTime.Today.AddHours(i), (decimal) Math.Round(i + rng.NextDouble(), 2));
+                }
             }
-            var len = BinarySerializer.Write(sm, ref buffer, compression: SerializationFormat.BinaryZstd);
+            var len = BinarySerializer.Write(sm, ref buffer, format: SerializationFormat.BinaryZstd);
             Console.WriteLine($"Useful: {sm.Count * 24.0}");
             Console.WriteLine($"Total: {len}");
             // NB interesting that with converting double to decimal savings go from 65% to 85%,
             // even calculated from (8+8) base size not decimal's 16 size
             Console.WriteLine($"Savings: {1.0 - ((len * 1.0) / (sm.Count * 24.0))}");
             SortedMap<DateTime, decimal> sm2 = null;
-            var len2 = BinarySerializer.Read(buffer, 0, out sm2);
+            var len2 = BinarySerializer.Read(buffer, out sm2);
 
             Assert.AreEqual(len, len2);
 
@@ -229,21 +232,21 @@ namespace Spreads.Tests.Serialization
             var ptr = (IntPtr)handle.Pointer;
 
             var sm = new SortedMap<DateTime, decimal>();
-            for (var i = 0; i < 1; i++)
+            for (var i = 0; i < 1000; i++)
             {
                 sm.Add(DateTime.Today.AddSeconds(i), (decimal)Math.Round(i + rng.NextDouble(), 2));
             }
 
             MemoryStream tmp;
             var size = BinarySerializer.SizeOf(sm, out tmp);
-            var len = BinarySerializer.Write(sm, ref buffer, 0, tmp);
+            var len = BinarySerializer.Write(sm, ref dest, tmp);
             Console.WriteLine($"Useful: {sm.Count * 24}");
             Console.WriteLine($"Total: {len}");
             // NB interesting that with converting double to decimal savings go from 65% to 85%,
             // even calculated from (8+8) base size not decimal's 16 size
             Console.WriteLine($"Savings: {1.0 - ((len * 1.0) / (sm.Count * 24.0))}");
             SortedMap<DateTime, decimal> sm2 = null;
-            var len2 = BinarySerializer.Read(buffer, 0, out sm2);
+            var len2 = BinarySerializer.Read(buffer, out sm2);
 
             Assert.AreEqual(len, len2);
 
@@ -268,7 +271,7 @@ namespace Spreads.Tests.Serialization
             }
             MemoryStream temp;
             var len = BinarySerializer.SizeOf(sm, out temp);
-            var len2 = BinarySerializer.Write(sm, ref buffer, 0, temp);
+            var len2 = BinarySerializer.Write(sm, ref buffer, temp);
             Assert.AreEqual(len, len2);
             Console.WriteLine($"Useful: {sm.Count * 8}");
             Console.WriteLine($"Total: {len}");
@@ -276,7 +279,45 @@ namespace Spreads.Tests.Serialization
             // even calculated from (8+8) base size not decimal's 16 size
             Console.WriteLine($"Savings: {1.0 - ((len * 1.0) / (sm.Count * 8.0))}");
             SortedMap<int, int> sm2 = null;
-            var len3 = BinarySerializer.Read(buffer, 0, out sm2);
+            var len3 = BinarySerializer.Read(buffer, out sm2);
+
+            Assert.AreEqual(len, len3);
+
+            Assert.IsTrue(sm2.Keys.SequenceEqual(sm.Keys));
+            Assert.IsTrue(sm2.Values.SequenceEqual(sm.Values));
+        }
+
+
+        [Test]
+        public unsafe void CouldSerializeSortedMapWithStrings()
+        {
+            var rng = new Random();
+
+            var dest = (Memory<byte>)new byte[10000000];
+            var buffer = dest;
+            var handle = buffer.Pin();
+            var ptr = (IntPtr)handle.Pointer;
+
+            var valueLens = 0;
+            var sm = new SortedMap<int, string>();
+            for (var i = 0; i < 100000; i++)
+            {
+                var str = i.ToString();
+                valueLens += str.Length;
+                sm.Add(i, str);
+            }
+            MemoryStream temp;
+            var len = BinarySerializer.SizeOf(sm, out temp);
+            var len2 = BinarySerializer.Write(sm, ref buffer, temp);
+            Assert.AreEqual(len, len2);
+            var usefulLen = sm.Count * 4 + valueLens;
+            Console.WriteLine($"Useful: {usefulLen}");
+            Console.WriteLine($"Total: {len}");
+            // NB interesting that with converting double to decimal savings go from 65% to 85%,
+            // even calculated from (8+8) base size not decimal's 16 size
+            Console.WriteLine($"Savings: {1.0 - ((len * 1.0) / (usefulLen))}");
+            SortedMap<int, string> sm2 = null;
+            var len3 = BinarySerializer.Read(buffer, out sm2);
 
             Assert.AreEqual(len, len3);
 
@@ -297,18 +338,19 @@ namespace Spreads.Tests.Serialization
         }
 
         [Test]
-        public unsafe void CouldUseBloscCompression()
+        public void CouldUseBloscCompression()
         {
-            var count = 10;
-            var rng = new Random();
+            var count = 1000;
+            var rng = new Random(42);
             Memory<byte> bytes = new byte[count * 16 + 20];
             var source = new decimal[count];
-            for (var i = 0; i < count; i++)
+            source[0] = 123.4567M;
+            for (var i = 1; i < count; i++)
             {
-                source[i] = i;
+                source[i] = source[i-1] + Math.Round((decimal)rng.NextDouble()*10, 4);
             }
 
-            var len = BinarySerializer.Write(source, ref bytes, 0, null,
+            var len = BinarySerializer.Write(source, ref bytes, null,
                 SerializationFormat.BinaryLz4);
 
             Console.WriteLine($"Useful: {source.Length * 16}");
@@ -320,10 +362,10 @@ namespace Spreads.Tests.Serialization
 
             Console.WriteLine("len2: " + len2);
             Console.WriteLine(destination.Length.ToString());
-            foreach (var val in destination)
-            {
-                Console.WriteLine(val.ToString());
-            }
+            //foreach (var val in destination)
+            //{
+            //    Console.WriteLine(val.ToString());
+            //}
 
             Assert.True(source.SequenceEqual(destination));
 
@@ -332,16 +374,17 @@ namespace Spreads.Tests.Serialization
         [Test]
         public void CouldUseBloscCompressionZstd()
         {
-            var count = 10;
+            var count = 1000;
             var rng = new Random();
             Memory<byte> bytes = new byte[count * 16 + 20];
             var source = new decimal[count];
-            for (var i = 0; i < count; i++)
+            source[0] = 123.4567M;
+            for (var i = 1; i < count; i++)
             {
-                source[i] = i;
+                source[i] = source[i - 1] + Math.Round((decimal)rng.NextDouble() * 10, 4);
             }
 
-            var len = BinarySerializer.Write(source, ref bytes, 0, null,
+            var len = BinarySerializer.Write(source, ref bytes, null,
                 SerializationFormat.BinaryZstd);
 
             Console.WriteLine($"Useful: {source.Length * 16}");

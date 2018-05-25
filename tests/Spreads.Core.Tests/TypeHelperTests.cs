@@ -52,12 +52,12 @@ namespace Spreads.Tests
             public int Size => 0;
             public byte Version => 1;
 
-            public int SizeOf(MyPocoWithConvertor value, out MemoryStream temporaryStream, SerializationFormat format = SerializationFormat.Binary)
+            public int SizeOf(in MyPocoWithConvertor map, out MemoryStream temporaryStream, SerializationFormat format = SerializationFormat.Binary)
             {
                 throw new NotImplementedException();
             }
 
-            public int Write(MyPocoWithConvertor value, ref Memory<byte> destination, uint offset = 0, MemoryStream temporaryStream = null, SerializationFormat format = SerializationFormat.Binary)
+            public int Write(in MyPocoWithConvertor value, IntPtr destination, MemoryStream temporaryStream = null, SerializationFormat format = SerializationFormat.Binary)
             {
                 throw new NotImplementedException();
             }
@@ -126,17 +126,16 @@ namespace Spreads.Tests
         public unsafe void CouldWriteBlittableStruct1()
         {
             var dest = (Memory<byte>)new byte[1024];
-            var buffer = dest;
+            var handle = dest.Pin();
             var myBlittableStruct1 = new BlittableStruct1
             {
                 Value1 = 12345
             };
-            TypeHelper<BlittableStruct1>.Write(myBlittableStruct1, ref buffer);
-
-            var handle = buffer.Pin();
+            TypeHelper<BlittableStruct1>.Write(myBlittableStruct1, (IntPtr)handle.Pointer);
 
             TypeHelper<BlittableStruct1>.Read((IntPtr)handle.Pointer, out var newBlittableStruct1);
             Assert.AreEqual(myBlittableStruct1.Value1, newBlittableStruct1.Value1);
+            handle.Dispose();
         }
 
         // TODO extension method for T
@@ -159,17 +158,16 @@ namespace Spreads.Tests
         public unsafe void CouldWriteArray()
         {
             var dest = (Memory<byte>)new byte[1024];
-            var buffer = dest;
+            var handle = dest.Pin();
             var myArray = new int[2];
             myArray[0] = 123;
             myArray[1] = 456;
 
-            TypeHelper<int[]>.Write(myArray, ref buffer);
-
-            var handle = buffer.Pin();
+            TypeHelper<int[]>.Write(myArray, (IntPtr)handle.Pointer);
 
             TypeHelper<int[]>.Read((IntPtr)handle.Pointer, out var newArray);
             Assert.IsTrue(myArray.SequenceEqual(newArray));
+            handle.Dispose();
         }
 
         // TODO Extension method for Write<T>
@@ -215,7 +213,7 @@ namespace Spreads.Tests
 
             var fromPtrInt = TypeHelper.GetFromPtrDelegate(typeof(int));
 
-            TypeHelper<int>.Write(12345, ref buffer);
+            TypeHelper<int>.Write(12345, (IntPtr)handle.Pointer);
 
             object res;
             fromPtrInt(ptr, out res);

@@ -46,7 +46,7 @@ namespace Spreads.Cursors.Internal
 
         /// <summary>
         /// True if only forward moves are supported. <see cref="MinWidth"/> must be positive if this property is true,
-        /// otherwise <see cref="ICursor{TKey,TValue}.MoveAt"/>, <see cref="ICursor{TKey,TValue}.MovePrevious"/> and
+        /// otherwise <see cref="ICursor{TKey,TValue}.MoveAt"/>, <see cref="ICursor{TKey,TValue}.MovePrevious()"/> and
         /// <see cref="ICursor{TKey,TValue}.MoveLast"/> methods cannot be implemented.
         /// </summary>
         bool IsForwardOnly { get; }
