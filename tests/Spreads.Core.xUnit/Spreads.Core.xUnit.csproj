@@ -16,7 +16,7 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.CSharp" Version="4.5.0-rc1" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="15.8.0-preview-20180510-03" />
-    <PackageReference Include="Spreads.Core" Version="1.0.0-build1805190028R" />
+    <PackageReference Include="Spreads.Core" Version="1.0.0-build1805251839R" />
     <PackageReference Include="System.Numerics.Vectors" Version="4.5.0-rc1" />
     <PackageReference Include="xunit" Version="2.4.0-beta.1.build3958" />
     <PackageReference Include="xunit.extensibility.execution" Version="2.4.0-beta.1.build3958" />

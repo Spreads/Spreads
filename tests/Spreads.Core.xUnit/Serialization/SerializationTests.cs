@@ -208,8 +208,8 @@ namespace Spreads.Core.Tests.Serialization
                 source[i] = i;
             }
 
-            var len = BinarySerializer.Write(source, ref bytes, 0, null,
-                CompressionMethod.LZ4);
+            var len = BinarySerializer.Write(source, ref bytes, null,
+                SerializationFormat.BinaryLz4);
 
             output.WriteLine($"Useful: {source.Length * 16}");
             output.WriteLine($"Total: {len}");
@@ -241,8 +241,8 @@ namespace Spreads.Core.Tests.Serialization
                 source[i] = i;
             }
 
-            var len = BinarySerializer.Write(source, ref bytes, 0, null,
-                CompressionMethod.Zstd);
+            var len = BinarySerializer.Write(source, ref bytes, null,
+                SerializationFormat.BinaryZstd);
 
             output.WriteLine($"Useful: {source.Length * 16}");
             output.WriteLine($"Total: {len}");
