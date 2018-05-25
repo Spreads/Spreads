@@ -65,7 +65,7 @@ namespace Spreads.Buffers
     /// are maintained in the stream until the stream is disposed (unless AggressiveBufferReturn is enabled in the stream manager).
     ///
     /// </remarks>
-    public sealed class RecyclableMemoryStream : MemoryStream
+    public class RecyclableMemoryStream : MemoryStream
     {
         private static readonly ObjectPool<RecyclableMemoryStream> Pool = new ObjectPool<RecyclableMemoryStream>(() => new RecyclableMemoryStream(), Environment.ProcessorCount * 16);
 
@@ -153,8 +153,8 @@ namespace Spreads.Buffers
         /// <param name="requestedSize">The initial requested size to prevent future allocations</param>
         /// <param name="initialLargeBuffer">An initial buffer to use. This buffer will be owned by the stream and returned to the memory manager upon Dispose.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static RecyclableMemoryStream Create(RecyclableMemoryStreamManager memoryManager, string tag, int requestedSize,
-            byte[] initialLargeBuffer)
+        internal static RecyclableMemoryStream Create(RecyclableMemoryStreamManager memoryManager, string tag, int requestedSize,
+            byte[] initialLargeBuffer, int length = 0)
         {
             var rms = Pool.Allocate();
             rms._disposedState = 0;
@@ -174,6 +174,14 @@ namespace Spreads.Buffers
             else
             {
                 rms._largeBuffer = initialLargeBuffer;
+                if (length > 0)
+                {
+                    if (length > initialLargeBuffer.Length)
+                    {
+                        ThrowHelper.ThrowArgumentException("length is larger than buffer size");
+                    }
+                    rms._length = length;
+                }
             }
 
             if (rms._memoryManager.GenerateCallStacks)

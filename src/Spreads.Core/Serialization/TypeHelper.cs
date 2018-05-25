@@ -10,14 +10,16 @@ using System.IO;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using Spreads.DataTypes;
+using static System.Runtime.CompilerServices.Unsafe;
 
 namespace Spreads.Serialization
 {
     internal delegate int FromPtrDelegate(IntPtr ptr, out object value);
 
-    internal delegate int ToPtrDelegate(object value, ref Memory<byte> destination, uint offset = 0u, MemoryStream ms = null, CompressionMethod compression = CompressionMethod.DefaultOrNone);
+    internal delegate int ToPtrDelegate(object value, ref Memory<byte> destination, uint offset = 0u, MemoryStream ms = null, SerializationFormat compression = SerializationFormat.Binary);
 
-    internal delegate int SizeOfDelegate(object value, out MemoryStream memoryStream, CompressionMethod compression = CompressionMethod.DefaultOrNone);
+    internal delegate int SizeOfDelegate(object value, out MemoryStream memoryStream, SerializationFormat compression = SerializationFormat.Binary);
 
     internal class TypeParams
     {
@@ -48,14 +50,14 @@ namespace Spreads.Serialization
         }
 
         [UsedImplicitly]
-        private static int WriteObject<T>(object value, ref Memory<byte> destination, uint offset = 0u, MemoryStream ms = null, CompressionMethod compression = CompressionMethod.DefaultOrNone)
+        private static int WriteObject<T>(object value, IntPtr destination, MemoryStream ms = null, SerializationFormat compression = SerializationFormat.Binary)
         {
             var temp = value == null ? default(T) : (T)value;
-            return TypeHelper<T>.Write(temp, ref destination, offset, ms, compression);
+            return TypeHelper<T>.Write(temp, destination, ms, compression);
         }
 
         [UsedImplicitly]
-        private static int SizeOfObject<T>(object value, out MemoryStream memoryStream, CompressionMethod compression = CompressionMethod.DefaultOrNone)
+        private static int SizeOfObject<T>(object value, out MemoryStream memoryStream, SerializationFormat compression = SerializationFormat.Binary)
         {
             var temp = value == null ? default(T) : (T)value;
             return TypeHelper<T>.SizeOf(temp, out memoryStream, compression);
@@ -143,9 +145,10 @@ namespace Spreads.Serialization
 
         public static bool HasBinaryConverter
         {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
-                Debug.Assert(_hasBinaryConverter ? Size == 0 : Size != 0);
+                Debug.Assert(_hasBinaryConverter ? Size == -1 : Size > -1);
                 return _hasBinaryConverter;
             }
         }
@@ -172,6 +175,18 @@ namespace Spreads.Serialization
 
         private static IBinaryConverter<T> _converterInstance;
         private static TypeParams _typeParams;
+
+        private static DataTypeHeader _defaultHeader = new DataTypeHeader
+        {
+            VersionAndFlags =
+            {
+                Version = 0,
+                IsBinary = true,
+                IsDelta = false,
+                IsCompressed = false
+            },
+            TypeEnum = VariantHelper<T>.TypeEnum
+        };
         // ReSharper restore StaticMemberInGenericType
 
         // Just in case, do not use static ctor in any critical paths: https://github.com/Spreads/Spreads/issues/66
@@ -190,8 +205,8 @@ namespace Spreads.Serialization
                 pinnedArrayHandle.Free();
                 // Type helper works only with types that could be pinned in arrays
                 // Here we just cross-check, happens only in static constructor
-                var unsafeSize = Unsafe.SizeOf<T>();
-                if (unsafeSize != size) Environment.FailFast("Pinned and unsafe sizes differ!");
+                var unsafeSize = System.Runtime.CompilerServices.Unsafe.SizeOf<T>();
+                if (unsafeSize != size) { Environment.FailFast("Pinned and unsafe sizes differ!"); }
                 return size;
             }
             catch
@@ -205,7 +220,9 @@ namespace Spreads.Serialization
         {
             try
             {
-                return Init();
+                var size = Init();
+                // NB do not support huge blittable type
+                return size < 256 ? size : -1;
             }
             catch
             {
@@ -331,23 +348,22 @@ namespace Spreads.Serialization
                 return _converterInstance.IsFixedSize ? _converterInstance.Size : 0;
             }
             //byte[] should work like any other primitive array
-            if (typeof(T) == typeof(byte[]))
-            {
-                _converterInstance = (IBinaryConverter<T>)(new ByteArrayBinaryConverter());
-                _hasBinaryConverter = true;
-                return 0;
-            }
-            if (typeof(T) == typeof(DateTime[]))
-            {
-                _converterInstance = (IBinaryConverter<T>)(new DateTimeArrayBinaryConverter());
-                _hasBinaryConverter = true;
-                return 0;
-            }
+            //if (typeof(T) == typeof(byte[]))
+            //{
+            //    _converterInstance = (IBinaryConverter<T>)(new ByteArrayBinaryConverter());
+            //    _hasBinaryConverter = true;
+            //    return -1;
+            //}
+            //if (typeof(T) == typeof(DateTime[]))
+            //{
+            //    _converterInstance = (IBinaryConverter<T>)(new DateTimeArrayBinaryConverter());
+            //    _hasBinaryConverter = true;
+            //    return -1;
+            //}
             if (typeof(T) == typeof(string))
             {
                 _converterInstance = (IBinaryConverter<T>)(new StringBinaryConverter());
                 _hasBinaryConverter = true;
-                return 0;
             }
             if (typeof(T).IsArray)
             {
@@ -361,7 +377,7 @@ namespace Spreads.Serialization
                     _hasBinaryConverter = true;
                     Trace.Assert(!_converterInstance.IsFixedSize);
                     Trace.Assert(_converterInstance.Size == 0);
-                    return 0;
+
                 }
             }
             return -1;
@@ -373,44 +389,37 @@ namespace Spreads.Serialization
             if (IsPinnable || typeof(T) == typeof(DateTime))
             {
                 Debug.Assert(Size > 0);
-                value = Unsafe.ReadUnaligned<T>((void*)ptr);
+                value = System.Runtime.CompilerServices.Unsafe.ReadUnaligned<T>((void*)ptr);
                 return Size;
             }
             if (_hasBinaryConverter)
             {
-                Debug.Assert(Size == 0);
+                Debug.Assert(Size == -1);
                 return _converterInstance.Read(ptr, out value);
             }
             Debug.Assert(Size < 0);
             ThrowHelper.ThrowInvalidOperationException("TypeHelper<T> doesn't support variable-size types");
-            value = default(T);
+            value = default;
             return -1;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int Write(T value, ref Memory<byte> destination, uint offset = 0u, MemoryStream ms = null, CompressionMethod compression = CompressionMethod.DefaultOrNone)
+        public static int Write(in T value, IntPtr destination, MemoryStream ms = null, SerializationFormat format = SerializationFormat.Binary)
         {
-            if (IsPinnable || typeof(T) == typeof(DateTime))
+            if ((IsPinnable || typeof(T) == typeof(DateTime)))
             {
                 Debug.Assert(Size > 0);
-                if (destination.Length < offset + Size)
-                {
-                    return (int)BinaryConverterErrorCode.NotEnoughCapacity;
-                }
-                var handle = destination.Pin();
+                var len = 8 + Size;
+                WriteUnaligned((void*)(destination), len);
+                WriteUnaligned((void*)(destination + 4), _defaultHeader);
+                WriteUnaligned((void*)(destination + 8), value);
 
-                var ptr = (IntPtr)handle.Pointer + (int)offset;
-
-                Unsafe.WriteUnaligned((void*)ptr, value);
-
-                handle.Dispose();
-
-                return Size;
+                return len;
             }
             if (_hasBinaryConverter)
             {
-                Debug.Assert(Size == 0);
-                return _converterInstance.Write(value, ref destination, offset, ms, compression);
+                Debug.Assert(Size == -1);
+                return _converterInstance.Write(value, destination, ms, format);
             }
             Debug.Assert(Size < 0);
             ThrowHelper.ThrowInvalidOperationException("TypeHelper<T> doesn't support variable-size types");
@@ -425,7 +434,7 @@ namespace Spreads.Serialization
         /// <param name="compression"></param>
         /// <returns></returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static int SizeOf(T value, out MemoryStream memoryStream, CompressionMethod compression)
+        internal static int SizeOf(T value, out MemoryStream memoryStream, SerializationFormat compression)
         {
             memoryStream = null;
             if (IsPinnable || typeof(T) == typeof(DateTime))

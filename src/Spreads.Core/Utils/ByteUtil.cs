@@ -10,6 +10,7 @@ using System;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using static System.Runtime.CompilerServices.Unsafe;
 // ReSharper disable InconsistentNaming
 
 namespace Spreads.Utils
@@ -32,14 +33,13 @@ namespace Spreads.Utils
 
         // Will be Jit'd to consts https://github.com/dotnet/coreclr/issues/1079
         private static readonly int _vectorSpan = Vector<byte>.Count;
-
-        private static readonly int _vectorSpan2 = Vector<byte>.Count + Vector<byte>.Count;
-        private static readonly int _vectorSpan3 = Vector<byte>.Count + Vector<byte>.Count + Vector<byte>.Count;
-        private static readonly int _vectorSpan4 = Vector<byte>.Count + Vector<byte>.Count + Vector<byte>.Count + Vector<byte>.Count;
+        private static readonly int _vectorSpan2 = Vector<byte>.Count * 2;
+        private static readonly int _vectorSpan3 = Vector<byte>.Count * 3;
+        private static readonly int _vectorSpan4 = Vector<byte>.Count * 4;
 
         private const int _longSpan = sizeof(long);
-        private const int _longSpan2 = sizeof(long) + sizeof(long);
-        private const int _longSpan3 = sizeof(long) + sizeof(long) + sizeof(long);
+        private const int _longSpan2 = sizeof(long) * 2;
+        private const int _longSpan3 = sizeof(long) * 3;
         private const int _intSpan = sizeof(int);
 
 
@@ -84,10 +84,10 @@ namespace Spreads.Utils
 
             while (count >= _vectorSpan4)
             {
-                Unsafe.Read<Vector<byte>>(src + srcOffset).CopyTo(dst + dstOffset);
-                Unsafe.Read<Vector<byte>>(src + srcOffset + _vectorSpan).CopyTo(dst + dstOffset + _vectorSpan);
-                Unsafe.Read<Vector<byte>>(src + srcOffset + _vectorSpan2).CopyTo(dst + dstOffset + _vectorSpan2);
-                Unsafe.Read<Vector<byte>>(src + srcOffset + _vectorSpan3).CopyTo(dst + dstOffset + _vectorSpan3);
+                ReadUnaligned<Vector<byte>>(src + srcOffset).CopyTo(dst + dstOffset);
+                ReadUnaligned<Vector<byte>>(src + srcOffset + _vectorSpan).CopyTo(dst + dstOffset + _vectorSpan);
+                ReadUnaligned<Vector<byte>>(src + srcOffset + _vectorSpan2).CopyTo(dst + dstOffset + _vectorSpan2);
+                ReadUnaligned<Vector<byte>>(src + srcOffset + _vectorSpan3).CopyTo(dst + dstOffset + _vectorSpan3);
                 if (count == _vectorSpan4) return;
                 count -= _vectorSpan4;
                 srcOffset += _vectorSpan4;
@@ -95,8 +95,8 @@ namespace Spreads.Utils
             }
             if (count >= _vectorSpan2)
             {
-                Unsafe.Read<Vector<byte>>(src + srcOffset).CopyTo(dst + dstOffset);
-                Unsafe.Read<Vector<byte>>(src + srcOffset + _vectorSpan).CopyTo(dst + dstOffset + _vectorSpan);
+                ReadUnaligned<Vector<byte>>(src + srcOffset).CopyTo(dst + dstOffset);
+                ReadUnaligned<Vector<byte>>(src + srcOffset + _vectorSpan).CopyTo(dst + dstOffset + _vectorSpan);
                 if (count == _vectorSpan2) return;
                 count -= _vectorSpan2;
                 srcOffset += _vectorSpan2;
@@ -104,7 +104,7 @@ namespace Spreads.Utils
             }
             if (count >= _vectorSpan)
             {
-                Unsafe.Read<Vector<byte>>(src + srcOffset).CopyTo(dst + dstOffset);
+                ReadUnaligned<Vector<byte>>(src + srcOffset).CopyTo(dst + dstOffset);
                 if (count == _vectorSpan) return;
                 count -= _vectorSpan;
                 srcOffset += _vectorSpan;
@@ -112,29 +112,27 @@ namespace Spreads.Utils
             }
             if (count > 0)
             {
-                byte* srcOrigin = src;
-                byte* dstOrigin = dst;
                 {
-                    var pSrc = srcOrigin + srcOffset;
-                    var dSrc = dstOrigin + dstOffset;
+                    var pSrc = src + srcOffset;
+                    var pDst = dst + dstOffset;
 
                     if (count >= _longSpan)
                     {
                         var lpSrc = (long*)pSrc;
-                        var ldSrc = (long*)dSrc;
+                        var ldSrc = (long*)pDst;
 
                         if (count < _longSpan2)
                         {
                             count -= _longSpan;
                             pSrc += _longSpan;
-                            dSrc += _longSpan;
+                            pDst += _longSpan;
                             *ldSrc = *lpSrc;
                         }
                         else if (count < _longSpan3)
                         {
                             count -= _longSpan2;
                             pSrc += _longSpan2;
-                            dSrc += _longSpan2;
+                            pDst += _longSpan2;
                             *ldSrc = *lpSrc;
                             *(ldSrc + 1) = *(lpSrc + 1);
                         }
@@ -142,7 +140,7 @@ namespace Spreads.Utils
                         {
                             count -= _longSpan3;
                             pSrc += _longSpan3;
-                            dSrc += _longSpan3;
+                            pDst += _longSpan3;
                             *ldSrc = *lpSrc;
                             *(ldSrc + 1) = *(lpSrc + 1);
                             *(ldSrc + 2) = *(lpSrc + 2);
@@ -151,18 +149,109 @@ namespace Spreads.Utils
                     if (count >= _intSpan)
                     {
                         var ipSrc = (int*)pSrc;
-                        var idSrc = (int*)dSrc;
+                        var idSrc = (int*)pDst;
                         count -= _intSpan;
                         pSrc += _intSpan;
-                        dSrc += _intSpan;
+                        pDst += _intSpan;
                         *idSrc = *ipSrc;
                     }
                     while (count > 0)
                     {
                         count--;
-                        *dSrc = *pSrc;
-                        dSrc += 1;
+                        *pDst = *pSrc;
+                        pDst += 1;
                         pSrc += 1;
+                    }
+                }
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static void VectorizedCopy(ref byte dst, ref byte src, ulong length)
+        {
+            var count = (int)length;
+            var srcOffset = (IntPtr)0;
+            var dstOffset = (IntPtr)0;
+
+            while (count >= _vectorSpan4)
+            {
+                ReadUnaligned<Vector<byte>>(ref AddByteOffset(ref src, srcOffset)).CopyTo(AsPointer(ref AddByteOffset(ref dst, dstOffset)));
+                ReadUnaligned<Vector<byte>>(ref AddByteOffset(ref src, srcOffset + _vectorSpan)).CopyTo(AsPointer(ref AddByteOffset(ref dst, dstOffset + _vectorSpan)));
+                ReadUnaligned<Vector<byte>>(ref AddByteOffset(ref src, srcOffset + _vectorSpan2)).CopyTo(AsPointer(ref AddByteOffset(ref dst, dstOffset + _vectorSpan2)));
+                ReadUnaligned<Vector<byte>>(ref AddByteOffset(ref src, srcOffset + _vectorSpan3)).CopyTo(AsPointer(ref AddByteOffset(ref dst, dstOffset + _vectorSpan3)));
+                if (count == _vectorSpan4) return;
+                count -= _vectorSpan4;
+                srcOffset += _vectorSpan4;
+                dstOffset += _vectorSpan4;
+            }
+            if (count >= _vectorSpan2)
+            {
+                ReadUnaligned<Vector<byte>>(ref AddByteOffset(ref src, srcOffset)).CopyTo(AsPointer(ref AddByteOffset(ref dst, dstOffset)));
+                ReadUnaligned<Vector<byte>>(ref AddByteOffset(ref src, srcOffset + _vectorSpan)).CopyTo(AsPointer(ref AddByteOffset(ref dst, dstOffset + _vectorSpan)));
+                if (count == _vectorSpan2) return;
+                count -= _vectorSpan2;
+                srcOffset += _vectorSpan2;
+                dstOffset += _vectorSpan2;
+            }
+            if (count >= _vectorSpan)
+            {
+                ReadUnaligned<Vector<byte>>(ref AddByteOffset(ref src, srcOffset)).CopyTo(AsPointer(ref AddByteOffset(ref dst, dstOffset)));
+                if (count == _vectorSpan) return;
+                count -= _vectorSpan;
+                srcOffset += _vectorSpan;
+                dstOffset += _vectorSpan;
+            }
+            if (count > 0)
+            {
+                {
+                    ref var refSrc = ref AddByteOffset(ref src, srcOffset);
+                    ref var refDst = ref AddByteOffset(ref dst, dstOffset);
+
+                    if (count >= _longSpan)
+                    {
+                        ref var longRefSrc = ref AsRef<long>(refSrc);
+                        ref var longRefDst = ref AsRef<long>(refDst);
+
+                        if (count < _longSpan2)
+                        {
+                            count -= _longSpan;
+                            refSrc += _longSpan;
+                            refDst += _longSpan;
+                            longRefDst = longRefSrc;
+                        }
+                        else if (count < _longSpan3)
+                        {
+                            count -= _longSpan2;
+                            refSrc += _longSpan2;
+                            refDst += _longSpan2;
+                            longRefDst = longRefSrc;
+                            Add(ref longRefDst, 1) = Add(ref longRefSrc, 1);
+                        }
+                        else
+                        {
+                            count -= _longSpan3;
+                            refSrc += _longSpan3;
+                            refDst += _longSpan3;
+                            longRefDst = longRefSrc;
+                            Add(ref longRefDst, 1) = Add(ref longRefSrc, 1);
+                            Add(ref longRefDst, 2) = Add(ref longRefSrc, 2);
+                        }
+                    }
+                    if (count >= _intSpan)
+                    {
+                        ref var intRefSrc = ref AsRef<int>(refSrc);
+                        ref var intRefDst = ref AsRef<int>(refDst);
+                        count -= _intSpan;
+                        refSrc += _intSpan;
+                        refDst += _intSpan;
+                        intRefDst = intRefSrc;
+                    }
+                    while (count > 0)
+                    {
+                        count--;
+                        refDst = refSrc;
+                        refDst += 1;
+                        refSrc += 1;
                     }
                 }
             }

@@ -9,6 +9,8 @@ using System.Diagnostics;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Text;
+using Spreads.DataTypes;
+using static System.Runtime.CompilerServices.Unsafe;
 
 #pragma warning disable 0618
 
@@ -37,7 +39,7 @@ namespace Spreads.Serialization
         /// Binary size of value T after serialization.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int SizeOf<T>(T value, out MemoryStream temporaryStream, CompressionMethod compression = CompressionMethod.DefaultOrNone)
+        public static int SizeOf<T>(T value, out MemoryStream temporaryStream, SerializationFormat compression = SerializationFormat.Binary)
         {
             var size = TypeHelper<T>.SizeOf(value, out temporaryStream, compression);
             if (size >= 0)
@@ -50,108 +52,89 @@ namespace Spreads.Serialization
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe int Write<T>(T value, ref Memory<byte> destination, uint offset = 0u,
-            MemoryStream temporaryStream = null, CompressionMethod compression = CompressionMethod.DefaultOrNone)
+        public static unsafe int Write<T>(in T value, IntPtr destination,
+            MemoryStream temporaryStream = null, 
+            SerializationFormat format = SerializationFormat.Binary)
         {
-            if (TypeHelper<T>.IsPinnable)
+            if (TypeHelper<T>.IsPinnable && (int)format < 100)
             {
-                var size = TypeHelper<T>.Size;
-                Debug.Assert(temporaryStream == null, "For primitive types MemoryStream should not be populated");
-                if (destination.Length < offset + size) throw new ArgumentException("Value size is too big for destination");
-                // TODO this simple thing could be probably done without pinning
-                var handle = destination.Pin();
-
-                var ptr = (void*)((IntPtr)handle.Pointer + (int)offset);
-
-                Unsafe.Write(ptr, value);
-
-                handle.Dispose();
-
-                return size;
+                Debug.Assert(temporaryStream == null, "For primitive types MemoryStream should not be used");
+                return TypeHelper<T>.Write(value, destination, null, format);
             }
-            return WriteSlow(value, ref destination, offset, temporaryStream, compression);
+            return WriteSlow(in value, destination, temporaryStream, format);
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
-        private static unsafe int WriteSlow<T>(T value, ref Memory<byte> destination, uint offset = 0u, MemoryStream temporaryStream = null, CompressionMethod compression = CompressionMethod.DefaultOrNone)
+        private static unsafe int WriteSlow<T>(in T value, IntPtr destination, 
+            MemoryStream temporaryStream = null, 
+            SerializationFormat format = SerializationFormat.Binary)
         {
-            if (value == null) throw new ArgumentNullException(nameof(value));
-            var handle = destination.Pin();
-            try
+            if (value == null)
             {
-                var ptr = (IntPtr)handle.Pointer + (int)offset;
+                ThrowHelper.ThrowArgumentNullException(nameof(value));
+            }
 
-                int size;
-                if (temporaryStream != null)
-                {
-                    Debug.Assert(temporaryStream.Position == 0);
+            int size;
+            if (temporaryStream != null)
+            {
+                Debug.Assert(temporaryStream.Position == 0);
 #if DEBUG
-                    var checkSize = SizeOf(value, out MemoryStream tmp, compression);
+                    var checkSize = SizeOf(value, out MemoryStream tmp, format);
                     Debug.Assert(checkSize == temporaryStream.Length, "Memory stream length must be equal to the SizeOf");
                     tmp?.Dispose();
 #endif
-                    size = checked((int)temporaryStream.Length);
-                    if (destination.Length < offset + size)
-                        throw new ArgumentException("Value size is too big for destination");
-                    temporaryStream.WriteToPtr(ptr);
-                    // NB temporaryStream is owned outside, do not dispose here
-                    return size;
-                }
+                size = checked((int)temporaryStream.Length);
+                temporaryStream.WriteToRef(ref AsRef<byte>((void*)destination));
+                temporaryStream.Dispose();
+                return size;
+            }
 
-                size = TypeHelper<T>.Size; //TypeHelper<T>.SizeOf(value, out tempStream);
+            size = TypeHelper<T>.Size; //TypeHelper<T>.SizeOf(value, out tempStream);
 
-                if (size == 0)
+            if ((int) format < 100)
+            {
+                if (size < 0)
                 {
-                    size = TypeHelper<T>.SizeOf(value, out MemoryStream tempStream, compression);
-                    if (destination.Length < offset + size)
-                    {
-                        throw new ArgumentException("Value size is too big for destination");
-                    }
+                    size = TypeHelper<T>.SizeOf(value, out var tempStream, format);
+
                     // SizeOf returned a temp memory stream, just call this method recursively
                     if (tempStream == null)
                     {
-                        return TypeHelper<T>.Write(value, ref destination, offset, null, compression);
+                        return TypeHelper<T>.Write(value, destination, null, format);
                     }
                     else
                     {
-                        Debug.Assert(size == checked((int)tempStream.Length));
-                        tempStream.WriteToPtr(ptr);
+                        Debug.Assert(size == checked((int) tempStream.Length));
+                        tempStream.WriteToRef(ref AsRef<byte>((void*) destination));
                         // NB tempStream is owned here, dispose it
                         tempStream.Dispose();
                         return size;
                     }
                 }
-
-                var jsonStream = Json.SerializeWithHeader(value, compression);
-                size = checked((int)jsonStream.Length);
-                if (destination.Length < offset + size)
-                {
-                    throw new ArgumentException("Value size is too big for destination");
-                }
-                jsonStream.WriteToPtr(ptr);
-                jsonStream.Dispose();
-                return size;
             }
-            finally
-            {
-                handle.Dispose();
-            }
+
+            var jsonStream = Json.SerializeWithHeader(value, format);
+            size = checked((int)jsonStream.Length);
+            jsonStream.WriteToRef(ref AsRef<byte>((void*)destination));
+            jsonStream.Dispose();
+            return size;
+
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int Write<T>(T value, byte[] destination, uint offset = 0u, MemoryStream temporaryStream = null, CompressionMethod compression = CompressionMethod.DefaultOrNone)
-        {
-            var buffer = new Memory<byte>(destination);
-            return Write(value, ref buffer, offset, temporaryStream);
-        }
+        //[MethodImpl(MethodImplOptions.AggressiveInlining)]
+        //public static int Write<T>(T value, byte[] destination, uint offset = 0u, MemoryStream temporaryStream = null, SerializationFormat format = SerializationFormat.Binary)
+        //{
+        //    var buffer = new Memory<byte>(destination);
+        //    return Write(value, ref buffer, offset, temporaryStream);
+        //}
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int Write<T>(T value, ref RetainedMemory<byte> destination, uint offset = 0u,
-            MemoryStream temporaryStream = null, CompressionMethod compression = CompressionMethod.DefaultOrNone)
-        {
-            var buffer = destination.Memory;
-            return Write(value, ref buffer, offset, temporaryStream);
-        }
+        //[MethodImpl(MethodImplOptions.AggressiveInlining)]
+        //public static int Write<T>(T value, ref RetainedMemory<byte> destination, uint offset = 0u,
+        //    MemoryStream temporaryStream = null, SerializationFormat format = SerializationFormat.Binary)
+        //{
+        //    var buffer = destination.Memory;
+        //    return Write(value, ref buffer, offset, temporaryStream);
+        //}
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static unsafe int Read<T>(IntPtr ptr, out T value)
@@ -182,64 +165,64 @@ namespace Spreads.Serialization
                 value = Json.Deserialize<T>(stream);
                 return size;
             }
-            ThrowHelper.ThrowNotImplementedException("TODO JSON compression");
+            ThrowHelper.ThrowNotImplementedException("TODO JSON format");
             value = default(T);
             return -1;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe int Read<T>(byte[] buffer, int offset, out T value)
-        {
-            fixed (byte* ptr = &buffer[offset])
-            {
-                var size = *(int*)ptr;
-                if ((uint)offset + size > buffer.Length) throw new ArgumentException("Memory is too small");
-                return Read((IntPtr)ptr, out value);
-            }
-        }
+        //[MethodImpl(MethodImplOptions.AggressiveInlining)]
+        //public static unsafe int Read<T>(byte[] buffer, int offset, out T value)
+        //{
+        //    fixed (byte* ptr = &buffer[offset])
+        //    {
+        //        var size = *(int*)ptr;
+        //        if ((uint)offset + size > buffer.Length) throw new ArgumentException("Memory is too small");
+        //        return Read((IntPtr)ptr, out value);
+        //    }
+        //}
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe int Read<T>(RetainedMemory<byte> source, uint offset, out T value)
-        {
-            var handle = source.Memory.Pin();
-            try
-            {
-                return Read((IntPtr)handle.Pointer, out value);
-            }
-            finally
-            {
-                handle.Dispose();
-            }
-        }
+        //[MethodImpl(MethodImplOptions.AggressiveInlining)]
+        //public static unsafe int Read<T>(RetainedMemory<byte> source, uint offset, out T value)
+        //{
+        //    var handle = source.Memory.Pin();
+        //    try
+        //    {
+        //        return Read((IntPtr)handle.Pointer, out value);
+        //    }
+        //    finally
+        //    {
+        //        handle.Dispose();
+        //    }
+        //}
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int Read<T>(byte[] buffer, out T value)
-        {
-            return Read(buffer, 0, out value);
-        }
+        //[MethodImpl(MethodImplOptions.AggressiveInlining)]
+        //public static int Read<T>(byte[] buffer, out T value)
+        //{
+        //    return Read(buffer, 0, out value);
+        //}
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe int Read<T>(Memory<byte> buffer, int offset, out T value)
-        {
-            var handle = buffer.Pin();
-            try
-            {
-                var ptr = (IntPtr)handle.Pointer + offset;
-                var len = *(int*)ptr;
-                if ((uint)offset + len > buffer.Length) throw new ArgumentException("Memory is too small");
-                return Read(ptr, out value);
-            }
-            finally
-            {
-                handle.Dispose();
-            }
-        }
+        //[MethodImpl(MethodImplOptions.AggressiveInlining)]
+        //public static unsafe int Read<T>(Memory<byte> buffer, int offset, out T value)
+        //{
+        //    var handle = buffer.Pin();
+        //    try
+        //    {
+        //        var ptr = (IntPtr)handle.Pointer + offset;
+        //        var len = *(int*)ptr;
+        //        if ((uint)offset + len > buffer.Length) throw new ArgumentException("Memory is too small");
+        //        return Read(ptr, out value);
+        //    }
+        //    finally
+        //    {
+        //        handle.Dispose();
+        //    }
+        //}
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int Read<T>(Memory<byte> buffer, out T value)
-        {
-            return Read(buffer, 0, out value);
-        }
+        //[MethodImpl(MethodImplOptions.AggressiveInlining)]
+        //public static int Read<T>(Memory<byte> buffer, out T value)
+        //{
+        //    return Read(buffer, 0, out value);
+        //}
 
         public static JsonSerializer Json => JsonSerializer.Instance;
 
@@ -283,14 +266,15 @@ namespace Spreads.Serialization
                     jsonwriter.ArrayPool = JsonNetArrayPool.Pool;
                     _serializer.Serialize(writer, value);
                 }
+                
                 // we created the stream with initial positoin 0, return to that position
                 ms.Position = 0;
                 return ms;
             }
 
-            internal MemoryStream SerializeWithHeader<T>(T value, CompressionMethod compression)
+            internal MemoryStream SerializeWithHeader<T>(T value, SerializationFormat format)
             {
-                RecyclableMemoryStream ms = (RecyclableMemoryStream)RecyclableMemoryStreamManager.Default.GetStream("JSON.SerializeWithHeader", 4096, true);
+                RecyclableMemoryStream ms = RecyclableMemoryStreamManager.Default.GetStream("JSON.SerializeWithHeader", 4096, true);
                 ms.WriteAsPtr(0L);
                 using (var writer = new StreamWriter(ms, Encoding.UTF8, 4096, true))
                 using (var jsonwriter = new JsonTextWriter(writer))
@@ -298,11 +282,23 @@ namespace Spreads.Serialization
                     jsonwriter.ArrayPool = JsonNetArrayPool.Pool;
                     _serializer.Serialize(writer, value);
                 }
+
                 // we created the stream with initial positoin 0, return to that position
-                if (compression == CompressionMethod.DefaultOrNone)
+                if (format == SerializationFormat.Binary)
                 {
                     ms.Position = 0;
                     ms.WriteAsPtr(checked((int)ms.Length));
+                    var header = new DataTypeHeader
+                    {
+                        VersionAndFlags = {
+                            Version = 0,
+                            IsBinary = false,
+                            IsDelta = false,
+                            IsCompressed = false },
+                        TypeEnum = VariantHelper<T>.TypeEnum,
+                        TypeSize = (byte)TypeHelper<T>.Size
+                    };
+                    ms.WriteAsPtr(header);
                     ms.Position = 0;
                     return ms;
                 }
@@ -312,17 +308,17 @@ namespace Spreads.Serialization
                     //{
                     //    if (chunk.Count != ms.Length)
                     //    {
-                    //        throw new NotImplementedException("TODO JSON compression");
+                    //        throw new NotImplementedException("TODO JSON format");
                     //    }
-                    //    CompressedArrayBinaryConverter<byte>.Instance.Write(chunk,)
+                    //    CompressedBlittableArrayBinaryConverter<byte>.Instance.Write(chunk,)
 
                     //}
-                    throw new NotImplementedException("TODO JSON compression");
+                    throw new NotImplementedException("TODO JSON format");
                     // max buffer
                     //var buffer = BufferPool<byte>.Rent(8 + 16 + (Environment.ProcessorCount * 4) + checked((int)ms.Length));
                     //var array = ms.ToArray();
                     //ms.Dispose();
-                    //CompressedArrayBinaryConverter<byte>.Instance.Write(array,)
+                    //CompressedBlittableArrayBinaryConverter<byte>.Instance.Write(array,)
                 }
             }
 

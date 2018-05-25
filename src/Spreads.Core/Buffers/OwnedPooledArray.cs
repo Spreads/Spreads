@@ -23,8 +23,7 @@ namespace Spreads.Buffers
         private OwnedPooledArray()
         { }
 
-        [Obsolete("Use TryGetArray")]
-        public T[] Array
+        internal T[] Array
         {
             [SRCS.MethodImpl(SRCS.MethodImplOptions.AggressiveInlining)]
             get { return _array; }

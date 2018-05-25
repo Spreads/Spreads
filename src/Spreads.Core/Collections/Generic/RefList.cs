@@ -398,16 +398,16 @@ namespace Spreads.Collections.Generic
 
         // Contains returns true if the specified element is in the RefList.
         // It does a linear, O(n) search.  Equality is determined by calling
-        // EqualityComparer<T>.Default.Equals().
+        // EqualityComparer<T>.Binary.Equals().
 
         public bool Contains(T item)
         {
             // PERF: IndexOf calls Array.IndexOf, which internally
-            // calls EqualityComparer<T>.Default.IndexOf, which
+            // calls EqualityComparer<T>.Binary.IndexOf, which
             // is specialized for different types. This
             // boosts performance since instead of making a
             // virtual method call each iteration of the loop,
-            // via EqualityComparer<T>.Default.Equals, we
+            // via EqualityComparer<T>.Binary.Equals, we
             // only make one virtual call to EqualityComparer.IndexOf.
 
             return _size != 0 && IndexOf(item) != -1;

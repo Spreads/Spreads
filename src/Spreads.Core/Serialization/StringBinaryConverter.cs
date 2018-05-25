@@ -2,13 +2,14 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+using Spreads.Buffers;
+using Spreads.DataTypes;
 using System;
-using System.Buffers;
 using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
-using Spreads.Buffers;
+using static System.Runtime.CompilerServices.Unsafe;
 
 namespace Spreads.Serialization
 {
@@ -17,62 +18,46 @@ namespace Spreads.Serialization
         public bool IsFixedSize => false;
         public int Size => 0;
 
-        public unsafe int SizeOf(string value, out MemoryStream temporaryStream, CompressionMethod compression = CompressionMethod.DefaultOrNone)
+        public unsafe int SizeOf(in string value, out MemoryStream temporaryStream, SerializationFormat format = SerializationFormat.Binary)
         {
-            if (compression == CompressionMethod.DefaultOrNone)
+            fixed (char* charPtr = value)
+            {
+                var totalLength = 8 + Encoding.UTF8.GetByteCount(charPtr, value.Length);
+                temporaryStream = null;
+                return totalLength;
+            }
+        }
+
+        public unsafe int Write(in string value, IntPtr destination, MemoryStream temporaryStream = null, SerializationFormat format = SerializationFormat.Binary)
+        {
+            if (temporaryStream == null)
             {
                 fixed (char* charPtr = value)
                 {
                     var totalLength = 8 + Encoding.UTF8.GetByteCount(charPtr, value.Length);
-                    temporaryStream = null;
-                    return totalLength;
-                }
-            }
-            else
-            {
-                throw new NotImplementedException("TODO string compression");
-            }
-        }
 
-        public unsafe int Write(string value, ref Memory<byte> destination, uint offset = 0u, MemoryStream temporaryStream = null, CompressionMethod compression = CompressionMethod.DefaultOrNone)
-        {
-            if (compression == CompressionMethod.DefaultOrNone)
-            {
-                if (temporaryStream == null)
-                {
-                    fixed (char* charPtr = value)
+                    // size
+                    Marshal.WriteInt32(destination, totalLength);
+                    // version
+                    var header = new DataTypeHeader
                     {
-                        var totalLength = 8 + Encoding.UTF8.GetByteCount(charPtr, value.Length);
-                        if (destination.Length < offset + totalLength) return (int)BinaryConverterErrorCode.NotEnoughCapacity;
+                        VersionAndFlags = {
+                                Version = 0,
+                                IsBinary = true,
+                                IsDelta = false,
+                                IsCompressed = false },
+                        TypeEnum = TypeEnum.String
+                    };
+                    WriteUnaligned((void*)(destination + 4), header);                        // payload
+                    var len = Encoding.UTF8.GetBytes(charPtr, value.Length, (byte*)destination + 8, totalLength);
+                    Debug.Assert(totalLength == len + 8);
 
-                        var handle = destination.Pin();
-                        var ptr = (IntPtr)handle.Pointer + (int)offset;
-
-                        // size
-                        Marshal.WriteInt32(ptr, totalLength);
-                        // version
-                        Marshal.WriteByte(ptr + 4, Version);
-                        // payload
-                        var len = Encoding.UTF8.GetBytes(charPtr, value.Length, (byte*)ptr + 8, totalLength);
-                        Debug.Assert(totalLength == len + 8);
-
-                        handle.Dispose();
-
-                        return len + 8;
-                    }
-                }
-                else
-                {
-                    throw new NotSupportedException("StringBinaryConverter does not work with temp streams.");
-                    //throw new NotImplementedException();
-                    //temporaryStream.WriteToPtr(ptr);
-                    //return checked((int)temporaryStream.Length);
+                    return len + 8;
                 }
             }
-            else
-            {
-                throw new NotImplementedException("TODO string compression");
-            }
+
+            temporaryStream.WriteToRef(ref AsRef<byte>((void*)destination));
+            return checked((int)temporaryStream.Length);
         }
 
         public int Read(IntPtr ptr, out string value)

@@ -39,9 +39,9 @@ namespace Spreads
         //public static bool ZipThrowOnOunOfOrderInputs { get; set; }
 
         /// <summary>
-        /// Get or set default compression method: LZ4 (default) or Zstd).
+        /// Get or set default compression method: BinaryLz4 (default) or BinaryZstd).
         /// </summary>
-        public static CompressionMethod DefaultCompressionMethod { get; set; } = CompressionMethod.DeflateJson;
+        public static SerializationFormat DefaultSerializationFormat { get; set; } = SerializationFormat.JsonDeflate;
 
         // TODO when/if used often benchmark its effect and if significant then set default to false
         private static bool _doAdditionalCorrectnessChecks = true;
@@ -57,5 +57,34 @@ namespace Spreads
         }
 
         internal static int SCMDefaultChunkLength = 4096;
+
+        internal static int _lz4CompressionLevel = 5;
+        internal static int _zstdCompressionLevel = 5;
+
+        public static int LZ4CompressionLevel
+        {
+            get => _lz4CompressionLevel;
+            set
+            {
+                if (value < 0 || value >= 10)
+                {
+                    ThrowHelper.ThrowArgumentOutOfRangeException();
+                }
+                _lz4CompressionLevel = value;
+            }
+        }
+
+        public static int ZstdCompressionLevel
+        {
+            get => _zstdCompressionLevel;
+            set
+            {
+                if (value < 0 || value >= 10)
+                {
+                    ThrowHelper.ThrowArgumentOutOfRangeException();
+                }
+                _zstdCompressionLevel = value;
+            }
+        }
     }
 }

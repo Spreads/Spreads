@@ -3,16 +3,15 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 using Spreads.Buffers;
+using Spreads.DataTypes;
 using System;
-using System.Buffers;
 using System.Diagnostics;
 using System.IO;
 using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
+using static System.Runtime.CompilerServices.Unsafe;
 
 namespace Spreads.Serialization
 {
-    // TODO Use KeyValueSpan
     internal interface IArrayBasedMap<TKey, TValue>
     {
         int Length { get; }
@@ -35,109 +34,77 @@ namespace Spreads.Serialization
         public byte Version => 1;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public int SizeOf(T value, out MemoryStream temporaryStream, CompressionMethod compression = CompressionMethod.DefaultOrNone)
+        public unsafe int SizeOf(in T value, out MemoryStream temporaryStream, SerializationFormat format = SerializationFormat.Binary)
         {
             // headers
             var size = 8 + 14;
-            MemoryStream keys;
-            MemoryStream values;
             // NB for regular keys, use keys array length
-            var keysSize = CompressedArrayBinaryConverter<TKey>.Instance.SizeOf(value.Keys, 0, value.IsRegular ? value.Keys.Length : value.Length, out keys, compression);
-            var valuesSize = CompressedArrayBinaryConverter<TValue>.Instance.SizeOf(value.Values, 0, value.Length, out values, compression);
+            var keysSize = CompressedBlittableArrayBinaryConverter<TKey>.Instance.SizeOf(value.Keys, 0, value.IsRegular ? value.Keys.Length : value.Length, out var keys, format);
+            var valuesSize = CompressedBlittableArrayBinaryConverter<TValue>.Instance.SizeOf(value.Values, 0, value.Length, out var values, format);
             Debug.Assert(keys != null && values != null);
             size += keysSize;
             size += valuesSize;
 
-            temporaryStream = RecyclableMemoryStreamManager.Default.GetStream("ArrayBasedMapConverter.SizeOf",
-                size);
-            // binary size
-            temporaryStream.WriteAsPtr<int>(size);
-            // binary version + flags
-            temporaryStream.WriteAsPtr<byte>(Version);
-            // flags + reserved
-            temporaryStream.WriteAsPtr<byte>(0);
-            temporaryStream.WriteAsPtr<short>(0);
-            // map size
-            temporaryStream.WriteAsPtr<int>(value.Length);
-            // map version
-            temporaryStream.WriteAsPtr<long>(value.Version);
-            temporaryStream.WriteAsPtr<byte>((byte)(value.IsRegular ? 1 : 0));
-            temporaryStream.WriteAsPtr<byte>((byte)(value.IsCompleted ? 1 : 0));
-            keys.CopyTo(temporaryStream);
-            values.CopyTo(temporaryStream);
-            keys.Dispose();
-            values.Dispose();
-            temporaryStream.Position = 0;
-            Debug.Assert(size == temporaryStream.Length);
-            return size;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public unsafe int Write(T value, ref Memory<byte> destination, uint offset = 0, MemoryStream temporaryStream = null, CompressionMethod compression = CompressionMethod.DefaultOrNone)
-        {
-            var handle = destination.Pin();
-            var ptr = (IntPtr)handle.Pointer + (int)offset;
-
-            if (temporaryStream != null)
+            if (value.Length == 0)
             {
-                var len = temporaryStream.Length;
-                if (destination.Length < offset + len) return (int)BinaryConverterErrorCode.NotEnoughCapacity;
-                temporaryStream.WriteToPtr(ptr);
-                temporaryStream.Dispose();
-                return checked((int)len);
+                temporaryStream = default;
+                return size; // empty map
             }
 
-            // all headers: serializer + map properties + 2 * Blosc
-            if (destination.Length < offset + 8 + 14) return (int)BinaryConverterErrorCode.NotEnoughCapacity;
+            var buffer = RecyclableMemoryStreamManager.Default.GetLargeBuffer(size, String.Empty);
 
+            ref var destination = ref buffer[0];
             // relative to ptr + offset
             var position = 8;
 
             // 14 - map header
-            Marshal.WriteInt32(ptr + position, value.Length);
-            Marshal.WriteInt64(ptr + position + 4, value.Version);
-            Marshal.WriteByte(ptr + position + 4 + 8, (byte)(value.IsRegular ? 1 : 0));
-            Marshal.WriteByte(ptr + position + 4 + 8 + 1, (byte)(value.IsCompleted ? 1 : 0));
+            WriteUnaligned(ref AddByteOffset(ref destination, (IntPtr)position), value.Length);
+            WriteUnaligned(ref AddByteOffset(ref destination, (IntPtr)position + 4), value.Version);
+            WriteUnaligned(ref AddByteOffset(ref destination, (IntPtr)position + 4 + 8), (byte)(value.IsRegular ? 1 : 0));
+            WriteUnaligned(ref AddByteOffset(ref destination, (IntPtr)position + 4 + 8 + 1), (byte)(value.IsCompleted ? 1 : 0));
 
             position = position + 14;
 
-            if (value.Length == 0) return position; // empty map
+            keys.WriteToRef(ref AddByteOffset(ref destination, (IntPtr)position));
+            position += keysSize;
 
-            // assume that we have enough capacity, the check (via SizeOf call) is done inside BinarySerializer
-            // TODO instead of special treatment of regular keys, think about skipping compression for small arrays
-            //if (value.IsRegular) {
-            //    keysSize = BinarySerializer.Write<TKey[]>(value.Keys, ref destination, (uint)position);
-            //}
-            var keysSize = CompressedArrayBinaryConverter<TKey>.Instance.Write(value.Keys, 0, value.Length,
-                ref destination, (uint)position, null, compression);
-            if (keysSize > 0)
-            {
-                position += keysSize;
-            }
-            else
-            {
-                return (int)BinaryConverterErrorCode.NotEnoughCapacity;
-            }
-
-            var valuesSize = CompressedArrayBinaryConverter<TValue>.Instance.Write(
-                    value.Values, 0, value.Length, ref destination, (uint)position, null, compression);
-            if (valuesSize > 0)
-            {
-                position += valuesSize;
-            }
-            else
-            {
-                return (int)BinaryConverterErrorCode.NotEnoughCapacity;
-            }
+            values.WriteToRef(ref AddByteOffset(ref destination, (IntPtr)position));
+            position += valuesSize;
 
             // length (include all headers)
-            Marshal.WriteInt32(ptr, position);
+            WriteUnaligned((void*)destination, position);
             // version
-            Marshal.WriteInt32(ptr + 4, Version);
-
-            handle.Dispose();
-
+            var header = new DataTypeHeader
+            {
+                VersionAndFlags = {
+                    Version = 0,
+                    IsBinary = true,
+                    IsDelta = false,
+                    IsCompressed = true },
+                TypeEnum = TypeEnum.ArrayBasedMap
+            };
+            WriteUnaligned((void*)(destination + 4), header);
+            temporaryStream = RecyclableMemoryStream.Create(RecyclableMemoryStreamManager.Default,
+                null,
+                position,
+                buffer,
+                position);
             return position;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public unsafe int Write(in T value, IntPtr destination, MemoryStream temporaryStream = null, SerializationFormat format = SerializationFormat.Binary)
+        {
+            if (temporaryStream == null)
+            {
+                SizeOf(in value, out temporaryStream, format);
+            }
+
+            var len = temporaryStream.Length;
+            temporaryStream.WriteToRef(ref AsRef<byte>((void*)destination));
+            temporaryStream.Dispose();
+            return checked((int)len);
+
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

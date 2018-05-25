@@ -142,7 +142,7 @@ namespace Spreads.Core.Tests
         {
             var par1 = new Parameter("par1", 0, 4, 1);
             var par2 = new Parameter("par2", 0, 4, 1);
-            var pars = new[] { par1, par2 };
+            var pars = new Parameters( par1, par2 );
             //var pars = new Parameters();
 
             pars[0].CurrentPosition = 1;

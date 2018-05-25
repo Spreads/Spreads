@@ -405,8 +405,8 @@ namespace Spreads.Core.Tests
 
             var ilist = list as IList<double>;
 
-            var vector = new Spreads.Experimental.Vector<double>(arr);
-            vector.IsSynchronized = true;
+            //var vector = new Spreads.Experimental.Vector<double>(arr);
+            //vector.IsSynchronized = true;
 
             var idxs = new int[len / 10];
             var rng = new System.Random();
@@ -453,20 +453,20 @@ namespace Spreads.Core.Tests
             Console.WriteLine($"Mops {(double)len * maxRounds / sw.ElapsedMilliseconds * 0.0001}");
             Console.WriteLine("---");
 
-            sw.Restart();
-            sum = 0.0;
-            for (int rounds = 0; rounds < maxRounds; rounds++)
-            {
-                foreach (var idx in idxs)
-                {
-                    sum += vector[idx];
-                }
-            }
-            sw.Stop();
-            Console.WriteLine($"Vector: {sum}");
-            Console.WriteLine($"Elapsed {sw.ElapsedMilliseconds}");
-            Console.WriteLine($"Mops {(double)len * maxRounds / sw.ElapsedMilliseconds * 0.0001}");
-            Console.WriteLine("---");
+            //sw.Restart();
+            //sum = 0.0;
+            //for (int rounds = 0; rounds < maxRounds; rounds++)
+            //{
+            //    foreach (var idx in idxs)
+            //    {
+            //        sum += vector[idx];
+            //    }
+            //}
+            //sw.Stop();
+            //Console.WriteLine($"Vector: {sum}");
+            //Console.WriteLine($"Elapsed {sw.ElapsedMilliseconds}");
+            //Console.WriteLine($"Mops {(double)len * maxRounds / sw.ElapsedMilliseconds * 0.0001}");
+            //Console.WriteLine("---");
 
             sw.Restart();
             sum = 0.0;

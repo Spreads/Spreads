@@ -76,7 +76,7 @@ namespace Spreads
     {
         /// <summary>
         /// When set to true, undefined (null) TZ value cannot be used with other time zones.
-        /// Default false values assumes that users know what they are doing and series with undefined
+        /// Binary false values assumes that users know what they are doing and series with undefined
         /// time zones could be used with series with any time zone.
         /// </summary>
         public static bool StrictUtc { get; set; }

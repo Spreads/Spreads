@@ -2,10 +2,11 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+using Spreads.DataTypes;
 using System;
-using System.Buffers;
 using System.IO;
 using System.Runtime.InteropServices;
+using static System.Runtime.CompilerServices.Unsafe;
 
 namespace Spreads.Serialization
 {
@@ -14,38 +15,37 @@ namespace Spreads.Serialization
         public bool IsFixedSize => false;
         public int Size => 0;
 
-        public int SizeOf(MemoryStream value, out MemoryStream temporaryStream, CompressionMethod compression = CompressionMethod.DefaultOrNone)
+        public int SizeOf(in MemoryStream value, out MemoryStream temporaryStream, SerializationFormat format = SerializationFormat.Binary)
         {
             if (value.Length > int.MaxValue) throw new ArgumentOutOfRangeException(nameof(temporaryStream), "Memory stream is too large");
             temporaryStream = null;
             return checked((int)value.Length + 8);
         }
 
-        public unsafe int Write(MemoryStream value, ref Memory<byte> destination, uint offset, MemoryStream temporaryStream = null, CompressionMethod compression = CompressionMethod.DefaultOrNone)
+        public unsafe int Write(in MemoryStream value, IntPtr destination, MemoryStream temporaryStream = null, SerializationFormat format = SerializationFormat.Binary)
         {
             if (temporaryStream != null) throw new NotSupportedException("MemoryStreamBinaryConverter does not work with temp streams.");
 
             if (value.Length > int.MaxValue) throw new ArgumentOutOfRangeException(nameof(temporaryStream), "Memory stream is too large");
 
             var totalLength = checked((int)value.Length + 8);
-            if (destination.Length < offset + totalLength)
-            {
-                return (int)BinaryConverterErrorCode.NotEnoughCapacity;
-            }
 
-            var handle = destination.Pin();
-
-            var ptr = (IntPtr)handle.Pointer + (int)offset;
             // size
-            Marshal.WriteInt32(ptr, totalLength);
+            Marshal.WriteInt32(destination, totalLength);
             // version
-            Marshal.WriteInt32(ptr + 4, Version);
+            var header = new DataTypeHeader
+            {
+                VersionAndFlags = {
+                    Version = 0,
+                    IsBinary = true,
+                    IsDelta = false,
+                    IsCompressed = false },
+                TypeEnum = TypeEnum.Binary
+            };
+            WriteUnaligned((void*)(destination + 4), header);
 
             // payload
-            ptr = ptr + 8;
-            value.WriteToPtr(ptr);
-
-            handle.Dispose();
+            value.WriteToRef(ref AsRef<byte>((void*)(destination + 8)));
 
             return totalLength;
         }
@@ -55,6 +55,7 @@ namespace Spreads.Serialization
             var length = Marshal.ReadInt32(ptr);
             var version = Marshal.ReadInt32(ptr + 4);
             if (version != 0) throw new NotSupportedException();
+            // TODO Use RMS large buffer
             var bytes = new byte[length - 8];
             Marshal.Copy(ptr + 8, bytes, 0, length);
             value = new MemoryStream(bytes);

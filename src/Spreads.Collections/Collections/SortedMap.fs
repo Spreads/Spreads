@@ -169,7 +169,7 @@ type SortedMap<'K,'V>
               let ptr = new IntPtr(ptr.ToInt64() + 8L + 14L)
               let mutable keysArray = Unchecked.defaultof<'K[]>
               let mutable keysCount = 0
-              let keysLen = CompressedArrayBinaryConverter<'K>.Instance.Read(ptr, &keysArray, &keysCount, false)
+              let keysLen = CompressedBlittableArrayBinaryConverter<'K>.Instance.Read(ptr, &keysArray, &keysCount, false)
               let keys = 
                 if isRegular then
                   let arr = Array.sub keysArray 0 2
@@ -181,7 +181,7 @@ type SortedMap<'K,'V>
               let ptr = new IntPtr(ptr.ToInt64() + (int64 keysLen))
               let mutable valuesArray = Unchecked.defaultof<'V[]>
               let mutable valuesCount = 0
-              let valuesLen = CompressedArrayBinaryConverter<'V>.Instance.Read(ptr, &valuesArray, &valuesCount, false)
+              let valuesLen = CompressedBlittableArrayBinaryConverter<'V>.Instance.Read(ptr, &valuesArray, &valuesCount, false)
               Debug.Assert((totalSize = 8 + 14 + keysLen + valuesLen))
               let sm : SortedMap<'K,'V> = SortedMap.OfSortedKeysAndValues(keys, valuesArray, mapSize, KeyComparer<'K>.Default, false, isRegular)
               sm._version <- mapVersion

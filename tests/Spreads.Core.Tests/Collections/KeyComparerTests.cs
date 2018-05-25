@@ -24,7 +24,7 @@ namespace Spreads.Tests.Collections
             {
                 var sum = 0L;
 
-                using (Benchmark.Run("Default", count))
+                using (Benchmark.Run("Binary", count))
                 {
                     for (int i = 0; i < count; i++)
                     {

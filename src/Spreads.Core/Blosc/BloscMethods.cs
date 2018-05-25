@@ -6,6 +6,7 @@ using Spreads.Serialization;
 using System;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
+
 // ReSharper disable InconsistentNaming
 
 namespace Spreads.Blosc
@@ -18,18 +19,18 @@ namespace Spreads.Blosc
         internal static string DefaultCompressionMethod = "lz4";
 
         /// <summary>
-        /// Get or set default compression method: LZ4 (default) or Zstd).
+        /// Get or set default compression method: BinaryLz4 (default) or BinaryZstd).
         /// </summary>
-        public static CompressionMethod CompressionMethod
+        public static SerializationFormat SerializationFormat
         {
-            get => DefaultCompressionMethod == "lz4" ? CompressionMethod.LZ4 : CompressionMethod.Zstd;
+            get => DefaultCompressionMethod == "lz4" ? SerializationFormat.BinaryLz4 : SerializationFormat.BinaryZstd;
             set
             {
-                if (value != CompressionMethod.Zstd || value != CompressionMethod.Zstd)
+                if (value != SerializationFormat.BinaryZstd || value != SerializationFormat.BinaryZstd)
                 {
                     ThrowHelper.ThrowNotSupportedException("Spreads.Blosc supports only lz4 or zstd");
                 }
-                DefaultCompressionMethod = value == CompressionMethod.Zstd ? "zstd" : "lz4";
+                DefaultCompressionMethod = value == SerializationFormat.BinaryZstd ? "zstd" : "lz4";
             }
         }
     }
@@ -98,43 +99,19 @@ namespace Spreads.Blosc
             UIntPtr destsize, [MarshalAs(UnmanagedType.LPStr)] string compressor,
             UIntPtr blocksize, int numinternalthreads)
         {
-            try
-            {
-                return native_blosc_compress_ctx(clevel, doshuffle, typesize, nbytes, src, dest,
-                    destsize, compressor, blocksize, numinternalthreads);
-            }
-            catch (Exception ex)
-            {
-                Trace.TraceError($"Error calling native delegate blosc_compress_ctx: {ex}");
-                throw;
-            }
+            return native_blosc_compress_ctx(clevel, doshuffle, typesize, nbytes, src, dest,
+                destsize, compressor, blocksize, numinternalthreads);
         }
 
         public static int blosc_decompress_ctx(IntPtr src, IntPtr dest, UIntPtr destsize, int numinternalthreads)
         {
-            try
-            {
-                return native_blosc_decompress_ctx(src, dest, destsize, numinternalthreads);
-            }
-            catch (Exception ex)
-            {
-                Trace.TraceError($"Error calling native delegate blosc_decompress_ctx: {ex}");
-                throw;
-            }
+            return native_blosc_decompress_ctx(src, dest, destsize, numinternalthreads);
         }
 
         public static int blosc_cbuffer_sizes(IntPtr cbuffer, ref UIntPtr nbytes,
             ref UIntPtr cbytes, ref UIntPtr blocksize)
         {
-            try
-            {
-                return native_blosc_cbuffer_sizes(cbuffer, ref nbytes, ref cbytes, ref blocksize);
-            }
-            catch (Exception ex)
-            {
-                Trace.TraceError($"Error calling native delegate blosc_cbuffer_sizes: {ex}");
-                throw;
-            }
+            return native_blosc_cbuffer_sizes(cbuffer, ref nbytes, ref cbytes, ref blocksize);
         }
 
         #endregion Blosc

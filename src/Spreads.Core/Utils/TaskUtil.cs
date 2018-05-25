@@ -28,7 +28,7 @@ namespace Spreads.Utils
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public static Task<T> GetCompleted(T result = default(T))
             {
-                if (EqualityComparer<T>.Default.Equals(result, default(T)))
+                if (EqualityComparer<T>.Binary.Equals(result, default(T)))
                 {
                     return _defaultCompleted ?? (_defaultCompleted = Task.FromResult(default(T)));
                 }

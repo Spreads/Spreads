@@ -75,7 +75,7 @@ namespace Spreads
         }
 
         /// <summary>
-        /// Default instance of a KeyComparer for type T.
+        /// Binary instance of a KeyComparer for type T.
         /// </summary>
         public static readonly KeyComparer<T> Default = new KeyComparer<T>();
 

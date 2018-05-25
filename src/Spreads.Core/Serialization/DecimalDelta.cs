@@ -4,31 +4,6 @@ using System.Runtime.InteropServices;
 namespace Spreads.Serialization
 {
     /// <summary>
-    /// IDiffable&lt;T&gt; interface is implemented by types T for which
-    /// difference could be represented as the type itself.
-    /// E.g. all signed numeric types have this property (but the built-in
-    /// one cannot implement this interface).
-    /// Floating-point values could loose precision.
-    /// </summary>
-    /// <typeparam name="T"></typeparam>
-    //[Obsolete("TODO Use IDelta interface from Spreads.Unsafe")]
-    //public interface IDiffable<T>
-    //{
-    //    /// <summary>
-    //    /// Get delta.
-    //    /// </summary>
-    //    T GetDelta(T next);
-
-    //    /// <summary>
-    //    /// Add delta.
-    //    /// </summary>
-    //    T AddDelta(T delta);
-    //}
-
-    // NB to force diffing primitive types, one could use a struct like this
-    // overheads are minimal
-
-    /// <summary>
     /// Diffable wrapper for decimal type
     /// </summary>
     [StructLayout(LayoutKind.Sequential, Size = 16)]

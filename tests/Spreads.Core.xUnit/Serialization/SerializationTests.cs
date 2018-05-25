@@ -17,7 +17,6 @@ namespace Spreads.Core.Tests.Serialization
 {
     public class SerializationTests
     {
-
         private readonly ITestOutputHelper output;
 
         public SerializationTests(ITestOutputHelper output)
@@ -65,14 +64,14 @@ namespace Spreads.Core.Tests.Serialization
         [Fact]
         public void CouldSerializeDateTimeArray()
         {
-            var bytes = new byte[1000];
+            Memory<byte> bytes = new byte[1000];
             var dta = new DateTime[2];
             dta[0] = DateTime.Today;
             dta[1] = DateTime.Today.AddDays(1);
-            var len = BinarySerializer.Write(dta, bytes);
+            var len = BinarySerializer.Write(dta, ref bytes);
             Assert.Equal(8 + 8 * 2, len);
             DateTime[] dta2 = null;
-            var len2 = BinarySerializer.Read(bytes, ref dta2);
+            var len2 = BinarySerializer.Read(bytes, out dta2);
             Assert.Equal(len, len2);
             Assert.True(dta.SequenceEqual(dta2));
         }
@@ -80,14 +79,14 @@ namespace Spreads.Core.Tests.Serialization
         [Fact]
         public void CouldSerializeIntArray()
         {
-            var bytes = new byte[1000];
+            Memory<byte> bytes = new byte[1000];
             var ints = new int[2];
             ints[0] = 123;
             ints[1] = 456;
-            var len = BinarySerializer.Write(ints, bytes);
+            var len = BinarySerializer.Write(ints, ref bytes);
             Assert.Equal(8 + 4 * 2, len);
             int[] ints2 = null;
-            var len2 = BinarySerializer.Read(bytes, ref ints2);
+            var len2 = BinarySerializer.Read(bytes, out ints2);
             Assert.Equal(len, len2);
             Assert.True(ints.SequenceEqual(ints2));
         }
@@ -95,14 +94,14 @@ namespace Spreads.Core.Tests.Serialization
         [Fact]
         public void CouldSerializeDecimalArray()
         {
-            var bytes = new byte[1000];
+            Memory<byte> bytes = new byte[1000];
             var decimals = new decimal[2];
             decimals[0] = 123;
             decimals[1] = 456;
-            var len = BinarySerializer.Write(decimals, bytes);
+            var len = BinarySerializer.Write(decimals, ref bytes);
             Assert.Equal(8 + 16 * 2, len);
             decimal[] decimals2 = null;
-            var len2 = BinarySerializer.Read(bytes, ref decimals2);
+            var len2 = BinarySerializer.Read(bytes, out decimals2);
             Assert.Equal(len, len2);
             Assert.True(decimals.SequenceEqual(decimals2));
         }
@@ -110,14 +109,14 @@ namespace Spreads.Core.Tests.Serialization
         [Fact]
         public void CouldSerializeStringArray()
         {
-            var bytes = new byte[1000];
+            Memory<byte> bytes = new byte[1000];
             var arr = new string[2];
             arr[0] = "123";
             arr[1] = "456";
-            var len = BinarySerializer.Write(arr, bytes);
+            var len = BinarySerializer.Write(arr, ref bytes);
 
             string[] arr2 = null;
-            var len2 = BinarySerializer.Read(bytes, ref arr2);
+            var len2 = BinarySerializer.Read(bytes, out  arr2);
             Assert.Equal(len, len2);
             Assert.True(arr.SequenceEqual(arr2));
         }
@@ -125,7 +124,7 @@ namespace Spreads.Core.Tests.Serialization
         [Fact]
         public void CouldSerializeBlittableStructArray()
         {
-            var bytes = new byte[1000];
+            Memory<byte> bytes = new byte[1000];
             var arr = new BlittableStruct[2];
             arr[0] = new BlittableStruct
             {
@@ -137,10 +136,10 @@ namespace Spreads.Core.Tests.Serialization
                 Value1 = 456,
                 Value2 = 4560
             };
-            var len = BinarySerializer.Write(arr, bytes);
+            var len = BinarySerializer.Write(arr, ref bytes);
             Assert.Equal(8 + 12 * 2, len);
             BlittableStruct[] arr2 = null;
-            var len2 = BinarySerializer.Read(bytes, ref arr2);
+            var len2 = BinarySerializer.Read(bytes, out arr2);
             Assert.Equal(len, len2);
             Assert.True(arr.SequenceEqual(arr2));
         }
@@ -148,7 +147,7 @@ namespace Spreads.Core.Tests.Serialization
         [Fact]
         public void CouldSerializePocoArray()
         {
-            var bytes = new byte[1000];
+            Memory<byte> bytes = new byte[1000];
             var arr = new SimplePoco[2];
             arr[0] = new SimplePoco
             {
@@ -160,9 +159,9 @@ namespace Spreads.Core.Tests.Serialization
                 Value1 = 456,
                 Value2 = "4560"
             };
-            var len = BinarySerializer.Write(arr, bytes);
+            var len = BinarySerializer.Write(arr, ref bytes);
             SimplePoco[] arr2 = null;
-            var len2 = BinarySerializer.Read(bytes, ref arr2);
+            var len2 = BinarySerializer.Read(bytes, out arr2);
             Assert.Equal(len, len2);
             Assert.True(arr.SequenceEqual(arr2));
         }
@@ -170,11 +169,11 @@ namespace Spreads.Core.Tests.Serialization
         [Fact]
         public void CouldSerializeString()
         {
-            var bytes = new byte[1000];
+            Memory<byte> bytes = new byte[1000];
             var str = "This is string";
-            var len = BinarySerializer.Write(str, bytes);
+            var len = BinarySerializer.Write(str, ref bytes);
             string str2 = null;
-            var len2 = BinarySerializer.Read(bytes, ref str2);
+            var len2 = BinarySerializer.Read(bytes, out str2);
             Assert.Equal(len, len2);
             Assert.Equal(str, str2);
         }
@@ -198,27 +197,33 @@ namespace Spreads.Core.Tests.Serialization
         }
 
         [Fact]
-        public void CouldUseBloscCompression()
+        public unsafe void CouldUseBloscCompression()
         {
-
+            var count = 10;
             var rng = new Random();
-            var ptr = Marshal.AllocHGlobal(1000000);
-            var db = new DirectBuffer(1000000, ptr);
-            var source = new decimal[10000];
-            for (var i = 0; i < 10000; i++)
+            Memory<byte> bytes = new byte[count * 16 + 20];
+            var source = new decimal[count];
+            for (var i = 0; i < count; i++)
             {
                 source[i] = i;
             }
 
-            var len = BinarySerializer.Write(source, ref db, 0, null,
+            var len = BinarySerializer.Write(source, ref bytes, 0, null,
                 CompressionMethod.LZ4);
 
             output.WriteLine($"Useful: {source.Length * 16}");
             output.WriteLine($"Total: {len}");
 
-            var destination = new decimal[10000];
+            decimal[] destination = null;
 
-            var len2 = BinarySerializer.Read(db, ref destination);
+            var len2 = BinarySerializer.Read(bytes, out destination);
+
+            output.WriteLine("len2: " + len2);
+            output.WriteLine(destination.Length.ToString());
+            foreach (var val in destination)
+            {
+                output.WriteLine(val.ToString());
+            }
 
             Assert.True(source.SequenceEqual(destination));
 
@@ -227,25 +232,31 @@ namespace Spreads.Core.Tests.Serialization
         [Fact]
         public void CouldUseBloscCompressionZstd()
         {
-
+            var count = 10;
             var rng = new Random();
-            var ptr = Marshal.AllocHGlobal(1000000);
-            var db = new DirectBuffer(1000000, ptr);
-            var source = new decimal[10000];
-            for (var i = 0; i < 10000; i++)
+            Memory<byte> bytes = new byte[count * 16 + 20];
+            var source = new decimal[count];
+            for (var i = 0; i < count; i++)
             {
                 source[i] = i;
             }
 
-            var len = BinarySerializer.Write(source, ref db, 0, null,
+            var len = BinarySerializer.Write(source, ref bytes, 0, null,
                 CompressionMethod.Zstd);
 
             output.WriteLine($"Useful: {source.Length * 16}");
             output.WriteLine($"Total: {len}");
 
-            var destination = new decimal[10000];
+            decimal[] destination = null;
 
-            var len2 = BinarySerializer.Read(db, ref destination);
+            var len2 = BinarySerializer.Read(bytes, out destination);
+
+            output.WriteLine("len2: " + len2);
+            output.WriteLine(destination.Length.ToString());
+            foreach (var val in destination)
+            {
+                output.WriteLine(val.ToString());
+            }
 
             Assert.True(source.SequenceEqual(destination));
 

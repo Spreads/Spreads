@@ -9,87 +9,83 @@ using System.Runtime.InteropServices;
 
 namespace Spreads.Serialization
 {
-    internal class DateTimeArrayBinaryConverter : IBinaryConverter<DateTime[]>
-    {
-        public bool IsFixedSize => false;
-        public int Size => 0;
-        public byte Version => 0;
+    //internal class DateTimeArrayBinaryConverter : IBinaryConverter<DateTime[]>
+    //{
+    //    public bool IsFixedSize => false;
+    //    public int Size => 0;
+    //    public byte Version => 0;
 
-        public int SizeOf(DateTime[] value, out MemoryStream temporaryStream,
-            CompressionMethod compression = CompressionMethod.DefaultOrNone)
-        {
-            if (compression == CompressionMethod.DefaultOrNone)
-            {
-                temporaryStream = null;
-                return (8 + value.Length * 8);
-            }
-            else
-            {
-                return CompressedArrayBinaryConverter<DateTime>.Instance.SizeOf(value, 0, value.Length, out temporaryStream, compression);
-            }
-        }
+    //    public int SizeOf(DateTime[] value, out MemoryStream temporaryStream,
+    //        SerializationFormat format = SerializationFormat.Binary)
+    //    {
+    //        if (format == SerializationFormat.Binary)
+    //        {
+    //            temporaryStream = null;
+    //            return (8 + value.Length * 8);
+    //        }
+    //        else
+    //        {
+    //            return CompressedBlittableArrayBinaryConverter<DateTime>.Instance.SizeOf(value, 0, value.Length, out temporaryStream, format);
+    //        }
+    //    }
 
-        public unsafe int Write(DateTime[] value, ref Memory<byte> destination, uint offset = 0, MemoryStream temporaryStream = null,
-            CompressionMethod compression = CompressionMethod.DefaultOrNone)
-        {
-            if (compression == CompressionMethod.DefaultOrNone)
-            {
-                Debug.Assert(temporaryStream == null);
-                var length = 8 + value.Length * 8;
-                if (destination.Length < offset + length)
-                {
-                    return (int)BinaryConverterErrorCode.NotEnoughCapacity;
-                }
+    //    public unsafe int Write(in DateTime[] value, IntPtr destination, MemoryStream temporaryStream = null,
+    //        SerializationFormat format = SerializationFormat.Binary)
+    //    {
+    //        if (format == SerializationFormat.Binary)
+    //        {
+    //            Debug.Assert(temporaryStream == null);
+    //            var length = 8 + value.Length * 8;
 
-                var handle = destination.Pin();
-                try
-                {
-                    var ptr = (IntPtr)handle.Pointer + (int)offset;
+    //            var handle = destination.Pin();
+    //            try
+    //            {
+    //                var ptr = (IntPtr)handle.Pointer + (int)offset;
 
-                    for (var i = 0; i < value.Length; i++)
-                    {
-                        *(DateTime*)(ptr + 8 + i * 8) = value[i];
-                    }
-                    // size
-                    Marshal.WriteInt32(ptr, length);
-                    // version
-                    Debug.Assert(Version == 0, "all flags and version are zero for default impl");
-                    Marshal.WriteByte(ptr + 4, Version);
+    //                for (var i = 0; i < value.Length; i++)
+    //                {
+    //                    *(DateTime*)(ptr + 8 + i * 8) = value[i];
+    //                }
+    //                // size
+    //                Marshal.WriteInt32(ptr, length);
+    //                // version
+    //                Debug.Assert(Version == 0, "all flags and version are zero for default impl");
+    //                Marshal.WriteByte(ptr + 4, Version);
 
-                    return length;
-                }
-                finally
-                {
-                    handle.Dispose();
-                }
-            }
-            else
-            {
-                return CompressedArrayBinaryConverter<DateTime>.Instance.Write(value, 0, value.Length, ref destination, offset, temporaryStream, compression);
-            }
-        }
+    //                return length;
+    //            }
+    //            finally
+    //            {
+    //                handle.Dispose();
+    //            }
+    //        }
+    //        else
+    //        {
+    //            return CompressedBlittableArrayBinaryConverter<DateTime>.Instance.Write(value, 0, value.Length, destination, temporaryStream, format);
+    //        }
+    //    }
 
-        public unsafe int Read(IntPtr ptr, out DateTime[] value)
-        {
-            var isCompressed = ((*(int*)(ptr + 4)) & 0b0000_0001) != 0;
-            if (!isCompressed)
-            {
-                var len = *(int*)ptr;
-                var arrLen = (len - 8) / 8;
-                value = new DateTime[arrLen];
+    //    public unsafe int Read(IntPtr ptr, out DateTime[] value)
+    //    {
+    //        var isCompressed = ((*(int*)(ptr + 4)) & 0b0000_0001) != 0;
+    //        if (!isCompressed)
+    //        {
+    //            var len = *(int*)ptr;
+    //            var arrLen = (len - 8) / 8;
+    //            value = new DateTime[arrLen];
 
-                for (int i = 0; i < arrLen; i++)
-                {
-                    value[i] = *(DateTime*)(ptr + 8 + i * 8);
-                }
-                return len;
-            }
-            else
-            {
-                var len = CompressedArrayBinaryConverter<DateTime>.Instance.Read(ptr, out var tmp, out int _, true);
-                value = tmp;
-                return len;
-            }
-        }
-    }
+    //            for (int i = 0; i < arrLen; i++)
+    //            {
+    //                value[i] = *(DateTime*)(ptr + 8 + i * 8);
+    //            }
+    //            return len;
+    //        }
+    //        else
+    //        {
+    //            var len = CompressedBlittableArrayBinaryConverter<DateTime>.Instance.Read(ptr, out var tmp, out int _, true);
+    //            value = tmp;
+    //            return len;
+    //        }
+    //    }
+    //}
 }

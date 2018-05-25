@@ -58,7 +58,10 @@ namespace Spreads.Buffers
         /// Temp storage e.g. for serialization
         /// </summary>
         [ThreadStatic]
-        internal static OwnedPooledArray<byte> ThreadStaticBuffer;
+        private static OwnedPooledArray<byte> _threadStaticBuffer;
+
+        [ThreadStatic]
+        private static RetainedMemory<byte> _threadStaticMemory;
 
         /// <summary>
         /// Thread-static <see cref="OwnedPooledArray{T}"/> with size of <see cref="StaticBufferSize"/>.
@@ -69,13 +72,27 @@ namespace Spreads.Buffers
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
-                if (ThreadStaticBuffer != null) { return ThreadStaticBuffer; }
+                if (_threadStaticBuffer != null) { return _threadStaticBuffer; }
 
-                ThreadStaticBuffer = OwnedPooledArray<byte>.Create(new byte[Settings.ThreadStaticPinnedBufferSize]); // BufferPool<byte>.RentOwnedPooledArray(StaticBufferSize);
-                ThreadStaticBuffer._referenceCount = int.MinValue;
+                _threadStaticBuffer = OwnedPooledArray<byte>.Create(new byte[Settings.ThreadStaticPinnedBufferSize]); // BufferPool<byte>.RentOwnedPooledArray(StaticBufferSize);
+                _threadStaticBuffer._referenceCount = int.MinValue;
                 // NB Pin in LOH if ThreadStaticPinnedBufferSize > 85k, limit impact on compaction (see Slab in Kestrel)
-                ThreadStaticBuffer.Pin();
-                return ThreadStaticBuffer;
+                _threadStaticMemory = new RetainedMemory<byte>(_threadStaticBuffer.Memory);
+                return _threadStaticBuffer;
+            }
+        }
+
+        internal static RetainedMemory<byte> StaticBufferMemory
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get
+            {
+                if (_threadStaticBuffer != null)
+                {
+                    var x = StaticBuffer; // access getter
+                }
+
+                return _threadStaticMemory;
             }
         }
 

@@ -13,8 +13,8 @@ namespace Spreads.Core.Run
         {
             var test = new Spreads.Core.Tests.Collections.SMTests();
             test.EnumerateScmSpeed();
-            //LZ4();
-            //Zstd();
+            //BinaryLz4();
+            //BinaryZstd();
             Console.ReadLine();
         }
 
@@ -34,7 +34,7 @@ namespace Spreads.Core.Run
             }
 
             var len = BinarySerializer.Write(source, ref buffer, 0, null,
-                CompressionMethod.LZ4);
+                SerializationFormat.BinaryLz4);
 
             Console.WriteLine($"Useful: {source.Length * 16}");
             Console.WriteLine($"Total: {len}");
@@ -45,7 +45,7 @@ namespace Spreads.Core.Run
 
             if (source.SequenceEqual(destination))
             {
-                Console.WriteLine("LZ4 OK");
+                Console.WriteLine("BinaryLz4 OK");
             }
             handle.Dispose();
 
@@ -67,7 +67,7 @@ namespace Spreads.Core.Run
             }
 
             var len = BinarySerializer.Write(source, ref buffer, 0, null,
-                CompressionMethod.Zstd);
+                SerializationFormat.BinaryZstd);
 
             Console.WriteLine($"Useful: {source.Length * 16}");
             Console.WriteLine($"Total: {len}");
@@ -78,7 +78,7 @@ namespace Spreads.Core.Run
 
             if (source.SequenceEqual(destination))
             {
-                Console.WriteLine("Zstd OK");
+                Console.WriteLine("BinaryZstd OK");
             }
             handle.Dispose();
         }

@@ -202,7 +202,7 @@ namespace Spreads.Tests.Serialization
             {
                 sm.Add(DateTime.Today.AddHours(i), (decimal)Math.Round(i + rng.NextDouble(), 2));
             }
-            var len = BinarySerializer.Write(sm, ref buffer, compression: CompressionMethod.Zstd);
+            var len = BinarySerializer.Write(sm, ref buffer, compression: SerializationFormat.BinaryZstd);
             Console.WriteLine($"Useful: {sm.Count * 24.0}");
             Console.WriteLine($"Total: {len}");
             // NB interesting that with converting double to decimal savings go from 65% to 85%,
@@ -220,7 +220,7 @@ namespace Spreads.Tests.Serialization
         [Test]
         public unsafe void CouldSerializeRegularSortedMapWithZstd()
         {
-            BloscSettings.CompressionMethod = CompressionMethod.Zstd;
+            BloscSettings.SerializationFormat = SerializationFormat.BinaryZstd;
             var rng = new Random();
 
             var dest = (Memory<byte>)new byte[1000000];
@@ -294,6 +294,72 @@ namespace Spreads.Tests.Serialization
 
             Assert.AreEqual("ping", ping2.Type);
             Assert.AreEqual(ping.Id, ping2.Id);
+        }
+
+        [Test]
+        public unsafe void CouldUseBloscCompression()
+        {
+            var count = 10;
+            var rng = new Random();
+            Memory<byte> bytes = new byte[count * 16 + 20];
+            var source = new decimal[count];
+            for (var i = 0; i < count; i++)
+            {
+                source[i] = i;
+            }
+
+            var len = BinarySerializer.Write(source, ref bytes, 0, null,
+                SerializationFormat.BinaryLz4);
+
+            Console.WriteLine($"Useful: {source.Length * 16}");
+            Console.WriteLine($"Total: {len}");
+
+            decimal[] destination = null;
+
+            var len2 = BinarySerializer.Read(bytes, out destination);
+
+            Console.WriteLine("len2: " + len2);
+            Console.WriteLine(destination.Length.ToString());
+            foreach (var val in destination)
+            {
+                Console.WriteLine(val.ToString());
+            }
+
+            Assert.True(source.SequenceEqual(destination));
+
+        }
+
+        [Test]
+        public void CouldUseBloscCompressionZstd()
+        {
+            var count = 10;
+            var rng = new Random();
+            Memory<byte> bytes = new byte[count * 16 + 20];
+            var source = new decimal[count];
+            for (var i = 0; i < count; i++)
+            {
+                source[i] = i;
+            }
+
+            var len = BinarySerializer.Write(source, ref bytes, 0, null,
+                SerializationFormat.BinaryZstd);
+
+            Console.WriteLine($"Useful: {source.Length * 16}");
+            Console.WriteLine($"Total: {len}");
+
+            decimal[] destination = null;
+
+            var len2 = BinarySerializer.Read(bytes, out destination);
+
+            Console.WriteLine("len2: " + len2);
+            Console.WriteLine(destination.Length.ToString());
+            foreach (var val in destination)
+            {
+                Console.WriteLine(val.ToString());
+            }
+
+            Assert.True(source.SequenceEqual(destination));
+
         }
     }
 }

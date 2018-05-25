@@ -63,17 +63,17 @@ namespace Spreads.Core.Tests
             Console.WriteLine($"Elapsed ID {sw.ElapsedMilliseconds}");
             Console.WriteLine($"Mops {2000000.0 / sw.ElapsedMilliseconds * 1.0}");
 
-            sw = new Stopwatch();
-            sw.Start();
-            sum = 0;
-            var f = CoreUtils.IdentityFunction<int>.Instance;
-            for (var i = 0; i < 2000000000; i++)
-            {
-                sum += f(i);
-            }
-            sw.Stop();
-            Console.WriteLine($"Elapsed IdentityFunction {sw.ElapsedMilliseconds}");
-            Console.WriteLine($"Mops {2000000.0 / sw.ElapsedMilliseconds * 1.0}");
+            //sw = new Stopwatch();
+            //sw.Start();
+            //sum = 0;
+            //var f = CoreUtils.IdentityFunction<int>.Instance;
+            //for (var i = 0; i < 2000000000; i++)
+            //{
+            //    sum += f(i);
+            //}
+            //sw.Stop();
+            //Console.WriteLine($"Elapsed IdentityFunction {sw.ElapsedMilliseconds}");
+            //Console.WriteLine($"Mops {2000000.0 / sw.ElapsedMilliseconds * 1.0}");
         }
     }
 }

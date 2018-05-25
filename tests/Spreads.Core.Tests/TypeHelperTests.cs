@@ -52,12 +52,12 @@ namespace Spreads.Tests
             public int Size => 0;
             public byte Version => 1;
 
-            public int SizeOf(MyPocoWithConvertor value, out MemoryStream temporaryStream, CompressionMethod compression = CompressionMethod.DefaultOrNone)
+            public int SizeOf(MyPocoWithConvertor value, out MemoryStream temporaryStream, SerializationFormat format = SerializationFormat.Binary)
             {
                 throw new NotImplementedException();
             }
 
-            public int Write(MyPocoWithConvertor value, ref Memory<byte> destination, uint offset = 0, MemoryStream temporaryStream = null, CompressionMethod compression = CompressionMethod.DefaultOrNone)
+            public int Write(MyPocoWithConvertor value, ref Memory<byte> destination, uint offset = 0, MemoryStream temporaryStream = null, SerializationFormat format = SerializationFormat.Binary)
             {
                 throw new NotImplementedException();
             }

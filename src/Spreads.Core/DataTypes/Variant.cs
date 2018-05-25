@@ -11,78 +11,6 @@ using System.Runtime.InteropServices;
 
 namespace Spreads.DataTypes
 {
-    /// <summary>
-    /// Version and flags
-    /// 0
-    /// 0 1 2 3 4 5 6 7 8
-    /// +-+-+-+-+-+-+-+-+
-    /// |  Ver  | Flg |C|
-    /// +---------------+
-    /// </summary>
-    [StructLayout(LayoutKind.Sequential, Pack = 1, Size = 1)]
-    public struct VersionAndFlags
-    {
-        internal const int VersionBitsOffset = 4;
-        internal const int CompressedBitOffset = 0;
-        // three more flags left
-
-        private byte _value;
-
-        public byte Version
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return (byte)(_value >> VersionBitsOffset); }
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            set { _value = (byte)(_value | (value << VersionBitsOffset)); }
-        }
-
-        public bool IsCompressed
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return (_value & (1 << CompressedBitOffset)) > 0; }
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            set { _value = (byte)(_value & ((value ? 1 : 0) << CompressedBitOffset)); }
-        }
-
-        // TODO IsDiff flag already used in Serializer
-    }
-
-    /// <summary>
-    /// Variant header
-    /// 0                   1                   2                   3
-    /// 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
-    /// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-    /// |  Ver  | Flg |C|    TypeEnum   |  TypeSize     | SubTypeEnum   |
-    /// +---------------------------------------------------------------+
-    /// </summary>
-    [StructLayout(LayoutKind.Explicit, Pack = 1, Size = 4)]
-    public struct VariantHeader
-    {
-        // First 4 bytes are always the same
-        internal const int VersionAndFlagsOffset = 0;
-
-        [FieldOffset(VersionAndFlagsOffset)]
-        public VersionAndFlags VersionAndFlags;
-
-        internal const int TypeEnumOffset = 1;
-
-        [FieldOffset(TypeEnumOffset)]
-        public TypeEnum TypeEnum;
-
-        internal const int TypeSizeOffset = 2;
-
-        /// <summary>
-        /// Size of fixed binary or array element type. If size if fixed then this should be positive.
-        /// </summary>
-        [FieldOffset(TypeSizeOffset)]
-        public byte TypeSize;
-
-        internal const int ElementTypeEnumOffset = 3;
-
-        [FieldOffset(ElementTypeEnumOffset)]
-        public TypeEnum ElementTypeEnum;
-    }
-
     // Runtime representation of Variant type
 
     [JsonConverter(typeof(VariantJsonConverter))]
@@ -129,7 +57,7 @@ namespace Spreads.DataTypes
 
         // Object and pointer layout
         [FieldOffset(0)]
-        private VariantHeader _header;        // int
+        private DataTypeHeader _header;        // int
 
         // Number of elements in array
         [FieldOffset(4)]
@@ -147,7 +75,7 @@ namespace Spreads.DataTypes
         internal UIntPtr _pointer;           // long
 
         // When this is BoxedTypeEnum, _data field contains value
-        // otherwise, _data contains VariantHeader at offset 0
+        // otherwise, _data contains DataTypeHeader at offset 0
         [FieldOffset(16)]
         internal object _object;
 
@@ -289,7 +217,7 @@ namespace Spreads.DataTypes
                 var v = new Variant
                 {
                     _object = value,
-                    _header = new VariantHeader
+                    _header = new DataTypeHeader
                     {
                         TypeEnum = TypeEnum.Matrix,
                         ElementTypeEnum = subTypeEnum
@@ -304,7 +232,7 @@ namespace Spreads.DataTypes
                 var v = new Variant
                 {
                     _object = value,
-                    _header = new VariantHeader
+                    _header = new DataTypeHeader
                     {
                         TypeEnum = TypeEnum.Matrix,
                         ElementTypeEnum = subTypeEnum
@@ -319,7 +247,7 @@ namespace Spreads.DataTypes
                 var v = new Variant
                 {
                     _object = value,
-                    _header = new VariantHeader
+                    _header = new DataTypeHeader
                     {
                         TypeEnum = TypeEnum.Object,
                         ElementTypeEnum = (TypeEnum)subTypeEnum
@@ -432,7 +360,7 @@ namespace Spreads.DataTypes
                 _object = array,
                 _count = length,
                 _offset = (ulong)offset,
-                _header = new VariantHeader
+                _header = new DataTypeHeader
                 {
                     TypeEnum = TypeEnum.Array,
                     ElementTypeEnum = VariantHelper<T>.TypeEnum,
@@ -451,7 +379,7 @@ namespace Spreads.DataTypes
             var v = new Variant
             {
                 _object = str,
-                _header = new VariantHeader { TypeEnum = TypeEnum.String }
+                _header = new DataTypeHeader { TypeEnum = TypeEnum.String }
             };
             return v;
         }

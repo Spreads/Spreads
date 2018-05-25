@@ -4,8 +4,8 @@
 
 using Xunit;
 using Spreads.Collections;
-using Spreads.Slices;
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Runtime.CompilerServices;
@@ -67,7 +67,7 @@ namespace Spreads.Core.Tests
                 for (int i = 0; i < indices.Length; i++)
                 {
                     var target = indices[i];
-                    var found = span.BinarySearch(0, span.Length, target, null);
+                    var found = span.BinarySearch(target);
                     if (found != target) Assert.True(false, $"Wrong binary search: expected {target}, found {found}");
                 }
             }

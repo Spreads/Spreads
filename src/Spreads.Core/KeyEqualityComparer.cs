@@ -25,7 +25,7 @@ namespace Spreads
         private static readonly bool IsIEquatable = typeof(IEquatable<T>).GetTypeInfo().IsAssignableFrom(typeof(T));
 
         /// <summary>
-        /// Default instance of a KeyEqualityComparer for type T.
+        /// Binary instance of a KeyEqualityComparer for type T.
         /// </summary>
         public static KeyEqualityComparer<T> Default { get; } = new KeyEqualityComparer<T>();
 
