@@ -13,7 +13,7 @@ namespace Spreads.Tests.Serialization
     public class VariableLengthValuesTests
     {
         // TODO
-        //[Test, Ignore("long running")]
+        //[Test, Explicit("long running")]
         //public void CouldCreateBinaryConverter()
         //{
         //    var converter = GetConverter<RetainedMemory<byte>[]>();

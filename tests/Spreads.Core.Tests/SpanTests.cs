@@ -16,7 +16,7 @@ namespace Spreads.Tests
     [TestFixture]
     public class SpanTests
     {
-        [Test, Ignore("long running")]
+        [Test, Explicit("long running")]
         public unsafe void CouldUseBinarySearchOverSpan()
         {
             var upper = 8 * 1024;
@@ -104,7 +104,7 @@ namespace Spreads.Tests
             Console.WriteLine($"Find {caseName}: \t\t {500 * indices.Length * 0.001 / sw.ElapsedMilliseconds} Mops");
         }
 
-        [Test, Ignore("long running")]
+        [Test, Explicit("long running")]
         public void OffsetTests()
         {
             var array = Enumerable.Range(0, 32 * 1024).ToArray();

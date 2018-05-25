@@ -25,7 +25,7 @@ namespace Spreads.Tests.Buffers
             public static T[] ThreadLocal => _threadLocal.Value;
         }
 
-        [Test, Ignore("long running")]
+        [Test, Explicit("long running")]
         public void ThreadStaticVsThreadLocal()
         {
             for (int r = 0; r < 10; r++)
@@ -176,7 +176,7 @@ namespace Spreads.Tests.Buffers
             Assert.AreEqual(255, firstByte);
         }
 
-        [Test, Ignore("long running")]
+        [Test, Explicit("long running")]
         public unsafe void InterlockedIncrVsAdd()
         {
             var ptr = (void*)Marshal.AllocHGlobal(8);

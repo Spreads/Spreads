@@ -63,7 +63,7 @@ namespace Spreads.Tests
             Console.WriteLine($"Delta length: {str2.Length} count: {delta.Cells.Count}");
         }
 
-        [Test, Ignore("long running")]
+        [Test, Explicit("long running")]
         public void CouldSerializeTableManyTimes()
         {
             for (int round = 0; round < 10; round++)

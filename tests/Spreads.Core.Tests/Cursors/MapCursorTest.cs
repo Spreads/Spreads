@@ -50,7 +50,7 @@
 //            Assert.True(map3.IsEmpty);
 //        }
 
-//        [Test, Ignore("long running")]
+//        [Test, Explicit("long running")]
 //        public void CouldMapValuesBenchmark()
 //        {
 //            var sm = new SortedMap<int, double>();
@@ -115,7 +115,7 @@
 //            Assert.AreEqual(8, map2.First.Present.Value);
 //        }
 
-//        [Test, Ignore("long running")]
+//        [Test, Explicit("long running")]
 //        public void CouldMapValuesViaExtensionMethodsBenchmark()
 //        {
 //            var sm = new SortedMap<int, int>();
@@ -182,7 +182,7 @@
 //        }
 
 
-//        [Test, Ignore("long running")]
+//        [Test, Explicit("long running")]
 //        public void CouldMapRangeSeriesViaExtensionMethodsBenchmark()
 //        {
 //            var sm = new SortedMap<int, int>();

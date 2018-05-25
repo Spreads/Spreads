@@ -22,7 +22,7 @@ namespace Spreads.Tests
     public class FunctionCombinationTests
     {
         [Test]
-        [Ignore("long running")]
+        [Explicit("long running")]
         public void IdentityFunctionTests()
         {
             var sw = new Stopwatch();

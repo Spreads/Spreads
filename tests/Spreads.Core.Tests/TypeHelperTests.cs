@@ -220,7 +220,7 @@ namespace Spreads.Tests
             Assert.AreEqual((int)res, 12345);
 
             var toPtrInt = TypeHelper.GetToPtrDelegate(typeof(int));
-            toPtrInt(42, ref buffer);
+            toPtrInt(42, (IntPtr)handle.Pointer);
 
             int temp;
             TypeHelper<int>.Read(ptr, out temp);
@@ -232,7 +232,7 @@ namespace Spreads.Tests
             Assert.IsNull(tmp);
 
             Assert.AreEqual(4, TypeHelper.GetSize(typeof(int)));
-            Assert.AreEqual(0, TypeHelper.GetSize(typeof(string)));
+            Assert.AreEqual(-1, TypeHelper.GetSize(typeof(string)));
             Assert.AreEqual(-1, TypeHelper.GetSize(typeof(LinkedList<int>)));
         }
 
@@ -243,9 +243,9 @@ namespace Spreads.Tests
             Assert.AreEqual(8, TypeHelper<DateTime>.Size);
             Assert.AreEqual(16, TypeHelper<decimal>.Size);
             Assert.AreEqual(-1, TypeHelper<char>.Size);
-            Assert.AreEqual(0, TypeHelper<MyPocoWithConvertor>.Size);
+            Assert.AreEqual(-1, TypeHelper<MyPocoWithConvertor>.Size);
             TypeHelper<MyPocoWithConvertor>.RegisterConverter(new MyPocoWithConvertor(), true);
-            Assert.AreEqual(0, TypeHelper<MyPocoWithConvertor>.Size);
+            Assert.AreEqual(-1, TypeHelper<MyPocoWithConvertor>.Size);
         }
 
         [Test]

@@ -13,7 +13,7 @@ namespace Spreads.Tests.Algorithms
     [TestFixture]
     public class MovingMedianTests
     {
-        [Test, Ignore("long running")]
+        [Test, Explicit("long running")]
         public void CouldCalculateMovingMedian()
         {
             var rng = new System.Random();
@@ -52,7 +52,7 @@ namespace Spreads.Tests.Algorithms
             Console.WriteLine($"{ligoMops / naiveMops:f2}");
         }
 
-        [Test, Ignore("long running")]
+        [Test, Explicit("long running")]
         public void CouldCalculateMovingMedianManyTimes()
         {
             for (int r = 0; r < 100; r++)
@@ -104,7 +104,7 @@ namespace Spreads.Tests.Algorithms
             }
         }
 
-        [Test, Ignore("long running")]
+        [Test, Explicit("long running")]
         public void MovingMedianIsCorrectManyTimes()
         {
             for (int r = 0; r < 50; r++)
@@ -114,7 +114,7 @@ namespace Spreads.Tests.Algorithms
         }
 
         // TODO restore
-        //[Test, Ignore("long running")]
+        //[Test, Explicit("long running")]
         //public void IncompleteMovingMedianIsCorrect()
         //{
         //    var rng = new System.Random();
@@ -188,7 +188,7 @@ namespace Spreads.Tests.Algorithms
         //    }
         //}
 
-        //[Test, Ignore("long running")]
+        //[Test, Explicit("long running")]
         //public void IncompleteMovingMedianIsCorrectManyTimes()
         //{
         //    for (int r = 0; r < 50; r++)

@@ -64,7 +64,7 @@ namespace Spreads.Tests.DataTypes
             Assert.AreEqual(-(decimal)first, (decimal)second);
         }
 
-        [Test, Ignore("long running")]
+        [Test, Explicit("long running")]
         public void CouldConvertToDoubleDynamic()
         {
             var count = 10_000_000;

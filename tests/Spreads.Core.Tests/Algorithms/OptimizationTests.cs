@@ -85,7 +85,7 @@ namespace Spreads.Tests.Algorithms
         /// <summary>
         /// This test should load CPU significantly above one core
         /// </summary>
-        [Test, Ignore("long running")]
+        [Test, Explicit("long running")]
         public async Task CouldFindMaximumWithSpinWait()
         {
             var par0 = new Parameter("par0", 0, 10, 1);

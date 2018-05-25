@@ -14,7 +14,7 @@ namespace Spreads.Tests.Algorithms
     [TestFixture]
     public class AlgoTests
     {
-        [Test, Ignore("long running")]
+        [Test, Explicit("long running")]
         public unsafe void PrintVectorSizes()
         {
             //Console.WriteLine(Vector<float>.Count);
@@ -62,7 +62,7 @@ namespace Spreads.Tests.Algorithms
         }
 
         //[Test]
-        //[Ignore("long running")]
+        //[Explicit("long running")]
         //public void SimdVsLoopAddition()
         //{
         //    var sw = new Stopwatch();
@@ -120,7 +120,7 @@ namespace Spreads.Tests.Algorithms
         //}
 
         //[Test]
-        //[Ignore("long running")]
+        //[Explicit("long running")]
         //public void SimdVsLoopExp()
         //{
         //    var sw = new Stopwatch();
@@ -155,7 +155,7 @@ namespace Spreads.Tests.Algorithms
         //    }
         //}
 
-        [Test, Ignore("long running")]
+        [Test, Explicit("long running")]
         public unsafe void SimdAddOfEnumerable()
         {
             var sw = new Stopwatch();
@@ -220,7 +220,7 @@ namespace Spreads.Tests.Algorithms
             }
         }
 
-        [Test, Ignore("long running")]
+        [Test, Explicit("long running")]
         public unsafe void SimdUnsafeVector()
         {
             float[] values = new float[1024 * 1024];

@@ -13,7 +13,7 @@ namespace Spreads.Tests.Collections
     [TestFixture]
     public class FastDictionaryTests
     {
-        [Test, Ignore("long running")]
+        [Test, Explicit("long running")]
         public void CompareSCGAndFastDictionaryWithInts()
         {
             var dictionary = new Dictionary<int, int>();
@@ -61,7 +61,7 @@ namespace Spreads.Tests.Collections
             Benchmark.Dump();
         }
 
-        [Test, Ignore("long running")]
+        [Test, Explicit("long running")]
         public void CompareSCGAndFastDictionaryWithSymbol()
         {
             var dictionary = new Dictionary<Symbol, int>();

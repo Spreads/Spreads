@@ -31,7 +31,7 @@ namespace Spreads.Tests
 
         // https://github.com/dotnet/corefx/pull/14126
         [Test]
-        [Ignore("long running")]
+        [Explicit("long running")]
         public void PoolPerformance()
         {
             int capacity = Environment.ProcessorCount * 2;

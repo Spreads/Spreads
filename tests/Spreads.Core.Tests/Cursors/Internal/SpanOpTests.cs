@@ -449,7 +449,7 @@
 //            }
 //        }
 
-//        [Test, Ignore("long running")]
+//        [Test, Explicit("long running")]
 //        public void SMADirectAndIndirectSpanOpBenchmark()
 //        {
 //            Settings.DoAdditionalCorrectnessChecks = false;
@@ -570,7 +570,7 @@
 //                           $"speed of raw iteration over SM without Windows overheads.");
 //        }
 
-//        [Test, Ignore("long running")]
+//        [Test, Explicit("long running")]
 //        public void WindowDirectAndIndirectSpanOpBenchmark()
 //        {
 //            Settings.DoAdditionalCorrectnessChecks = false;
@@ -679,7 +679,7 @@
 //            Benchmark.Dump($"The window width is {width}.");
 //        }
 
-//        [Test, Ignore("long running")]
+//        [Test, Explicit("long running")]
 //        public void TypeSystemSurvivesViolentAbuse()
 //        {
 //            var count = 1000;
@@ -743,7 +743,7 @@
 //            Benchmark.Dump("MOPS is scaled by x1M, so it is OPS");
 //        }
 
-//        [Test, Ignore("long running")]
+//        [Test, Explicit("long running")]
 //        public void NestedSMABenchmark()
 //        {
 //            var count = 100000;

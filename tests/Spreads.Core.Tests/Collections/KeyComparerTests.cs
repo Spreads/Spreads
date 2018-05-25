@@ -11,7 +11,7 @@ namespace Spreads.Tests.Collections
     [TestFixture]
     public class KeyComparerTests
     {
-        [Test, Ignore("long running")]
+        [Test, Explicit("long running")]
         public void ComparerInterfaceAndCachedConstrainedComparer()
         {
             var c = Comparer<long>.Default;

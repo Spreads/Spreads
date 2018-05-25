@@ -108,7 +108,7 @@ namespace Spreads.Tests.DataTypes
 
         #region Benchmarks
 
-        [Test, Ignore("long running")]
+        [Test, Explicit("long running")]
         public void CouldCreateAndReadInlinedVariantInALoop()
         {
             var count = 50000000;
@@ -184,7 +184,7 @@ namespace Spreads.Tests.DataTypes
             }
         }
 
-        [Test, Ignore("long running")]
+        [Test, Explicit("long running")]
         public void CouldCreateWriteReadInlinedVariantInALoop()
         {
             var count = 100000000;

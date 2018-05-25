@@ -12,7 +12,7 @@ namespace Spreads.Tests
     [TestFixture]
     public class DoubleUtilTests
     {
-        [Test, Ignore("long running")]
+        [Test, Explicit("long running")]
         public void CompareOppositeSignSpeed()
         {
             var doubles = new double[10000000];

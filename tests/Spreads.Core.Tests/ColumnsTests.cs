@@ -25,7 +25,7 @@ namespace Spreads.Tests
     [TestFixture]
     public class ColumnsTests
     {
-        [Test, Ignore("long running")]
+        [Test, Explicit("long running")]
         public void ColumnTest()
         {
             var count = 100000;

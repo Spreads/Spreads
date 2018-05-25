@@ -419,10 +419,10 @@ namespace Spreads.Tests.Cursors
             Assert.AreEqual(129, zipCursor1.CurrentValue);
         }
 
-        [Test, Ignore("long running")]
+        [Test, Explicit("long running")]
         public void DiscreteZipIsCorrectByRandomCheckBenchmark()
         {
-            for (int r = 0; r < 1000; r++)
+            for (int r = 0; r < 10; r++)
             {
                 var sm1 = new SortedMap<int, int>();
                 var sm2 = new SortedMap<int, int>();
@@ -585,10 +585,10 @@ namespace Spreads.Tests.Cursors
             //}
         }
 
-        [Test, Ignore("long running")]
+        [Test, Explicit("long running")]
         public void ContinuousZipIsCorrectByRandomCheckBenchmark()
         {
-            for (int r = 0; r < 1000; r++)
+            for (int r = 0; r < 10; r++)
             {
                 var sm1 = new SortedMap<int, int>();
                 var sm2 = new SortedMap<int, int>();
@@ -752,7 +752,7 @@ namespace Spreads.Tests.Cursors
             //}
         }
 
-        [Test, Ignore("long running")]
+        [Test, Explicit("long running")]
         public void CouldAddSeriesArrayWithSameKeys()
         {
             var sm1 = new SortedMap<int, double>();

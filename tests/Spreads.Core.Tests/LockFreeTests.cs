@@ -113,7 +113,7 @@ namespace Spreads.Tests
             }
         }
 
-        [Test, Ignore("long running")]
+        [Test, Explicit("long running")]
         public void CouldUseWriteLockManyTimes()
         {
             for (int r = 0; r < 10; r++)
@@ -122,7 +122,7 @@ namespace Spreads.Tests
             }
         }
 
-        [Test, Ignore("long running")]
+        [Test, Explicit("long running")]
         public void CouldUseWriteLock()
         {
             var count = 10000000;
@@ -166,7 +166,7 @@ namespace Spreads.Tests
             Assert.AreEqual(2 * count, lockTest.Counter);
         }
 
-        [Test, Ignore("long running")]
+        [Test, Explicit("long running")]
         public void CouldUseSimpleLockManyTimes()
         {
             for (int r = 0; r < 10; r++)
@@ -175,7 +175,7 @@ namespace Spreads.Tests
             }
         }
 
-        [Test, Ignore("long running")]
+        [Test, Explicit("long running")]
         public void CouldUseSimpleLock()
         {
             var count = 10000000;
@@ -220,7 +220,7 @@ namespace Spreads.Tests
             Assert.AreEqual(1 * count, lockTest.Counter);
         }
 
-        [Test, Ignore("long running")]
+        [Test, Explicit("long running")]
         public void CouldNotIncrementWithoutLock()
         {
             var count = 10000000;

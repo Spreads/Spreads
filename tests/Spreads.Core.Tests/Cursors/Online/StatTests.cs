@@ -57,8 +57,8 @@ namespace Spreads.Tests.Cursors.Online
                 }
             }
 
-            var statDt = new Stat2<DateTime>();
-            statDt.AnnualizedVolatility();
+            //var statDt = new Stat2<DateTime>();
+            //statDt.AnnualizedVolatility();
         }
 
         [Test]
@@ -78,7 +78,7 @@ namespace Spreads.Tests.Cursors.Online
             }
         }
 
-        [Test, Ignore("long running")]
+        [Test, Explicit("long running")]
         public void Stat2StDevBenchmark()
         {
             var comparer = KeyComparer<int>.Default;

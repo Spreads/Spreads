@@ -13,7 +13,7 @@ namespace Spreads.Tests.Buffers
     [TestFixture]
     public class RecyclableMemoryStreamTests
     {
-        [Test, Ignore("long running")]
+        [Test, Explicit("long running")]
         public void CouldUseSafeWriteReadByte()
         {
             var doChecks = true;
@@ -81,7 +81,7 @@ namespace Spreads.Tests.Buffers
         }
 
 
-        [Test, Ignore("long running")]
+        [Test, Explicit("long running")]
         public void CouldUseSafeWriteReadArray()
         {
             var doChecks = false;

@@ -17,7 +17,7 @@ namespace Spreads.Serialization
 {
     internal delegate int FromPtrDelegate(IntPtr ptr, out object value);
 
-    internal delegate int ToPtrDelegate(object value, ref Memory<byte> destination, uint offset = 0u, MemoryStream ms = null, SerializationFormat compression = SerializationFormat.Binary);
+    internal delegate int ToPtrDelegate(object value, IntPtr destination, MemoryStream ms = null, SerializationFormat compression = SerializationFormat.Binary);
 
     internal delegate int SizeOfDelegate(object value, out MemoryStream memoryStream, SerializationFormat compression = SerializationFormat.Binary);
 
@@ -345,7 +345,7 @@ namespace Spreads.Serialization
                 }
                 _converterInstance = converter;
                 _hasBinaryConverter = true;
-                return _converterInstance.IsFixedSize ? _converterInstance.Size : 0;
+                return _converterInstance.IsFixedSize ? _converterInstance.Size : -1;
             }
             //byte[] should work like any other primitive array
             //if (typeof(T) == typeof(byte[]))
