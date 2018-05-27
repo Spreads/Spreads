@@ -61,6 +61,19 @@ namespace Spreads.Tests.Buffers
             }
         }
 
+
+        [Test, Explicit("long running")]
+        public void CouldGetArrayFromRetainedBuffer()
+        {
+            var retained = BufferPool.Retain(3456, false);
+            var mem = (ReadOnlyMemory<byte>) retained.Memory;
+            if (!MemoryMarshal.TryGetArray(mem, out ArraySegment<byte> valuesSegment))
+            {
+                throw new NotSupportedException("Currently only arrays-backed OwnedMemory is supported");
+            }
+            Assert.IsTrue(valuesSegment.Count > 0);
+        }
+
         [Test, Explicit("long running")]
         public void ThreadStaticBufferVsSharedPool()
         {

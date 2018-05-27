@@ -98,7 +98,7 @@ namespace Spreads.Buffers
         }
 
         [SRCS.MethodImpl(SRCS.MethodImplOptions.AggressiveInlining)]
-        public new bool TryGetArray(out ArraySegment<T> buffer)
+        protected override bool TryGetArray(out ArraySegment<T> buffer)
         {
             if (IsDisposed) ThrowHelper.ThrowObjectDisposedException(nameof(OwnedPooledArray<T>));
             buffer = new ArraySegment<T>(_array);

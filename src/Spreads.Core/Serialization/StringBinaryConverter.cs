@@ -71,16 +71,10 @@ namespace Spreads.Serialization
 
             try
             {
-                if (ownedPooledBuffer.TryGetArray(out var segment))
-                {
-                    Marshal.Copy(ptr + 8, segment.Array, 0, totalSize);
+                Marshal.Copy(ptr + 8, ownedPooledBuffer.Array, 0, totalSize);
 
-                    value = Encoding.UTF8.GetString(segment.Array, segment.Offset, totalSize - 8);
-                }
-                else
-                {
-                    throw new ApplicationException();
-                }
+                value = Encoding.UTF8.GetString(ownedPooledBuffer.Array, 0, totalSize - 8);
+
                 return totalSize;
             }
             finally

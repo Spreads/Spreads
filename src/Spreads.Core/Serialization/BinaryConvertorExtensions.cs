@@ -37,15 +37,8 @@ namespace Spreads.Serialization
 
             WriteUnaligned(rm.Pointer, value);
 
-            if (BufferPool.StaticBuffer.TryGetArray(out var segment))
-            {
-                // TODO typecheck stream and use faster methods
-                stream.Write(segment.Array, segment.Offset, size);
-            }
-            else
-            {
-                ThrowHelper.ThrowInvalidOperationException("Memory must be array based here by design");
-            }
+            // TODO typecheck stream and use faster methods
+            stream.Write(BufferPool.StaticBuffer.Array, 0, size);
 
             // NB this is not needed as long as converter.Write guarantees overwriting all Size bytes.
             // //Array.Clear(_buffer, 0, size);
@@ -59,24 +52,18 @@ namespace Spreads.Serialization
         public static void WriteToPtr(this MemoryStream stream, IntPtr ptr)
         {
             stream.Position = 0;
-            var ownedBuffer = Buffers.BufferPool.StaticBuffer;
+            var ownedBuffer = BufferPool.StaticBuffer;
             var position = 0;
-            if (ownedBuffer.TryGetArray(out var segment))
+
+            // TODO Typecheck if RMS
+            // TODO Use stream.TryGetBuffer
+            // TODO Use VectorizedCopy
+            int length;
+            while ((length = stream.Read(BufferPool.StaticBuffer.Array, 0, BufferPool.StaticBuffer.Array.Length)) > 0)
             {
-                // TODO Typecheck if RMS
-                // TODO Use stream.TryGetBuffer
-                // TODO Use VectorizedCopy
-                int length;
-                while ((length = stream.Read(segment.Array, segment.Offset, segment.Count)) > 0)
-                {
-                    // ByteUtil.VectorizedCopy(segment.Array,);
-                    Marshal.Copy(segment.Array, segment.Offset, ptr + position, length);
-                    position += length;
-                }
-            }
-            else
-            {
-                ThrowHelper.ThrowInvalidOperationException("Memory must be array based here by design");
+                // ByteUtil.VectorizedCopy(segment.Array,);
+                Marshal.Copy(BufferPool.StaticBuffer.Array, 0, ptr + position, length);
+                position += length;
             }
         }
 
