@@ -21,6 +21,7 @@ namespace Spreads
             _comparer = comparer;
         }
 
+        [Pure]
         public int Compare(T x, T y)
         {
             return _comparer.Compare(x, y);
@@ -28,12 +29,14 @@ namespace Spreads
 
         public bool IsDiffable => false;
 
+        [Pure]
         public T Add(T value, long diff)
         {
             ThrowHelper.ThrowNotSupportedException();
             return default;
         }
 
+        [Pure]
         public long Diff(T x, T y)
         {
             ThrowHelper.ThrowNotSupportedException();

@@ -3,37 +3,34 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Spreads.Collections
 {
     // TODO Clear extension method
 
-    public class SortedChunkedMap<K, V> : SortedChunkedMapBase<K, V>, IPersistentSeries<K, V>
+    public class SortedChunkedMap<TKey, TValue> : SortedChunkedMapBase<TKey, TValue>, IPersistentSeries<TKey, TValue>
     {
-        internal SortedChunkedMap(Func<KeyComparer<K>, IMutableSeries<K, SortedMap<K, V>>> outerFactory,
-            Func<int, KeyComparer<K>, SortedMap<K, V>> innerFactory,
-            KeyComparer<K> comparer,
-            Opt<IKeyHasher<K>> hasher,
+        internal SortedChunkedMap(Func<KeyComparer<TKey>, IMutableSeries<TKey, SortedMap<TKey, TValue>>> outerFactory,
+            Func<int, KeyComparer<TKey>, SortedMap<TKey, TValue>> innerFactory,
+            KeyComparer<TKey> comparer,
+            Opt<IKeyHasher<TKey>> hasher,
             Opt<int> chunkMaxSize) : base(outerFactory, innerFactory, comparer, hasher, chunkMaxSize)
         { }
 
-        private static Func<int, KeyComparer<K>, SortedMap<K, V>> smInnerFactory = (capacity, keyComparer) =>
+        private static Func<int, KeyComparer<TKey>, SortedMap<TKey, TValue>> smInnerFactory = (capacity, keyComparer) =>
         {
-            var sm = new SortedMap<K, V>(capacity, keyComparer)
+            var sm = new SortedMap<TKey, TValue>(capacity, keyComparer)
             {
                 _isSynchronized = false
             };
             return sm;
         };
 
-        public SortedChunkedMap() : base((KeyComparer<K> c) =>
-            new SortedMap<K, SortedMap<K, V>>(c), smInnerFactory, KeyComparer<K>.Default, Opt<IKeyHasher<K>>.Missing, Opt<int>.Missing)
-        {
-            Func<KeyComparer<K>, IMutableSeries<K, SortedMap<K, V>>> factory = (KeyComparer<K> c) =>
-                new SortedMap<K, SortedMap<K, V>>(c);
-            //  new SortedChunkedMapBase<_,_>(factory, (fun (capacity, comparer) -> let sm = new SortedMap<'K,'V>(capacity, comparer) in sm._isSynchronized <- false;sm), comparer, None, None)
-        }
+        public SortedChunkedMap() : base(c =>
+            new SortedMap<TKey, SortedMap<TKey, TValue>>(c), smInnerFactory, KeyComparer<TKey>.Default, Opt<IKeyHasher<TKey>>.Missing, Opt<int>.Missing)
+        { }
 
         //[<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
         //member internal this.SetWithHasher(key: 'K, value: 'V, overwrite: bool) : unit =
@@ -69,7 +66,7 @@ namespace Spreads.Collections
         // ()
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal async Task<bool> SetOrAddUnchecked(K key, V value, bool overwrite)
+        internal async Task<bool> SetOrAddUnchecked(TKey key, TValue value, bool overwrite)
         {
             if (chunkUpperLimit == 0)
             {
@@ -78,9 +75,9 @@ namespace Spreads.Collections
             }
             else
             {
-                if (!(prevWBucket is null) 
-                    && prevWBucket.CompareToLast(key) <= 0  
-                    && comparer.Compare(key, prevWHash) >= 0 )
+                if (!(prevWBucket is null)
+                    && prevWBucket.CompareToLast(key) <= 0
+                    && comparer.Compare(key, prevWHash) >= 0)
                 {
                     // we are inside previous bucket, setter has no choice but to set to this
                     // bucket regardless of its size
@@ -122,7 +119,7 @@ namespace Spreads.Collections
                         newSm._version = _version;
                         newSm._nextVersion = _version;
                         // Set and Add are the same here, we use new SM
-                        newSm.SetOrAdd(key, value, overwrite); // we know that SM is syncronous
+                        var _ = await newSm.SetOrAdd(key, value, overwrite); // we know that SM is syncronous
 
                         var outerSet =
                             await outerMap.Set(key,
@@ -139,7 +136,7 @@ namespace Spreads.Collections
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         [Obsolete]
-        internal async Task<bool> SetOrAdd(K key, V value, bool overwrite)
+        internal async Task<bool> SetOrAdd(TKey key, TValue value, bool overwrite)
         {
             BeforeWrite();
             var result = await SetOrAddUnchecked(key, value, overwrite);
@@ -150,7 +147,7 @@ namespace Spreads.Collections
         public bool IsAppendOnly => false;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public async Task<bool> Set(K key, V value)
+        public async Task<bool> Set(TKey key, TValue value)
         {
             BeforeWrite();
             var result = await SetOrAddUnchecked(key, value, true);
@@ -159,7 +156,7 @@ namespace Spreads.Collections
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public async Task<bool> TryAdd(K key, V value)
+        public async Task<bool> TryAdd(TKey key, TValue value)
         {
             BeforeWrite();
             var result = await SetOrAddUnchecked(key, value, false);
@@ -169,7 +166,7 @@ namespace Spreads.Collections
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         [Obsolete("This method is mainly for ctor pattern with IEnumerable and tests")]
-        public void Add(K key, V value)
+        public void Add(TKey key, TValue value)
         {
             BeforeWrite();
             var result = SetOrAddUnchecked(key, value, false).Result;
@@ -181,72 +178,393 @@ namespace Spreads.Collections
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public async Task<bool> TryAddFirst(K key, V value)
+        public async Task<bool> TryAddFirst(TKey key, TValue value)
         {
             BeforeWrite();
             var o = FirstUnchecked;
             var c = o.IsMissing
                 ? -1
                 : comparer.Compare(key, o.Present.Key);
-            var added = c < 0
-                ? await SetOrAddUnchecked(key, value, false)
-                : false;
+            var added = c < 0 && await SetOrAddUnchecked(key, value, false);
 
             AfterWrite(added);
             return added;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public async Task<bool> TryAddLast(K key, V value)
+        public async Task<bool> TryAddLast(TKey key, TValue value)
         {
             BeforeWrite();
             var o = LastUnchecked;
             var c = o.IsMissing
                     ? 1
                     : comparer.Compare(key, o.Present.Key);
-            var added = c > 0
-                ? await SetOrAddUnchecked(key, value, false)
-                : false;
+            var added = c > 0 && await SetOrAddUnchecked(key, value, false);
 
             AfterWrite(added);
             return added;
         }
 
-        public ValueTask<Opt<V>> TryRemove(K key)
+        public Task<bool> TryRemoveMany(TKey key, TValue updatedAtKey, Lookup direction)
+        {
+            throw new NotSupportedException();
+        }
+
+        public ValueTask<long> TryAppend(ISeries<TKey, TValue> appendMap, AppendOption option = AppendOption.RejectOnOverlap)
         {
             ThrowHelper.ThrowNotImplementedException();
             return default;
         }
 
-        public ValueTask<Opt<KeyValuePair<K, V>>> TryRemoveFirst()
+        // NB first/last optimization is possible, but removes are rare in the primary use case
+        [MethodImplAttribute(MethodImplOptions.AggressiveInlining)]
+        private async ValueTask<Opt<KeyValuePair<TKey, TValue>>> TryRemoveUnchecked(TKey key)
         {
-            ThrowHelper.ThrowNotImplementedException();
-            return default;
+            var hashBucket = ExistingHashBucket(key);
+            var hash = hashBucket.Key;
+            var c = comparer.Compare(hash, prevWHash);
+
+            if (c == 0 && !(prevWBucket is null))
+            {
+                var res = prevWBucket.TryRemove(key).Result; // SM is sync
+                if (res.IsPresent)
+                {
+                    Debug.Assert(prevWBucket._version == _version + 1L,
+                        "Verion of the active bucket must much SCM version");
+                    prevWBucket._version = _version + 1L;
+                    prevWBucket._nextVersion = _version + 1L;
+                    // NB no outer set here, it must happen on prev bucket switch
+                    if (prevWBucket.Count == 0)
+                    {
+                        // but here we must notify outer that version has changed
+                        // setting empty bucket will remove it in the outer map
+                        // (implementation detail, but this is internal)
+                        var _ = await outerMap.Set(prevWHash, prevWBucket);
+                        prevWBucket = null;
+                        return Opt.Present(new KeyValuePair<TKey, TValue>(key, res.Present));
+                    }
+                    else
+                    {
+                        return Opt.Present(new KeyValuePair<TKey, TValue>(key, res.Present));
+                    }
+                }
+                else
+                {
+                    return Opt<KeyValuePair<TKey, TValue>>.Missing;
+                }
+            }
+            else
+            {
+                if (!(prevWBucket is null))
+                {
+                    // store potentially modified active bucket in the outer, including version
+                    await FlushUnchecked();
+                }
+
+                KeyValuePair<TKey, SortedMap<TKey, TValue>> innerMapKvp;
+                bool ok;
+                if (!(hashBucket.Value is null))
+                {
+                    innerMapKvp = hashBucket;
+                    ok = true;
+                }
+                else
+                {
+                    ok = outerMap.TryFindAt(hash, Lookup.EQ, out innerMapKvp);
+                }
+
+                if (ok)
+                {
+                    var bucket = innerMapKvp.Value;
+                    prevWHash = hash;
+                    prevWBucket = bucket;
+                    var res = bucket.TryRemove(key).Result;
+                    if (res.IsPresent)
+                    {
+                        bucket._version = _version + 1L;
+                        bucket._nextVersion = _version + 1L;
+                        // NB empty will be removed, see comment above
+                        var _ = await outerMap.Set(prevWHash, bucket);
+                        if (bucket.Count == 0)
+                        {
+                            prevWBucket = null;
+                        }
+                    }
+
+                    return Opt.Present(new KeyValuePair<TKey, TValue>(key, res.Present));
+                }
+                else
+                {
+                    return Opt<KeyValuePair<TKey, TValue>>.Missing;
+                }
+            }
         }
 
-        public ValueTask<Opt<KeyValuePair<K, V>>> TryRemoveLast()
+        [MethodImplAttribute(MethodImplOptions.AggressiveInlining)]
+        public async ValueTask<Opt<TValue>> TryRemove(TKey key)
         {
-            ThrowHelper.ThrowNotImplementedException();
-            return default;
+            BeforeWrite();
+            var result = await TryRemoveUnchecked(key);
+            var removed = result.IsPresent;
+            AfterWrite(removed);
+            if (removed)
+            {
+                Interlocked.Increment(ref orderVersion);
+            }
+            return removed ? Opt.Present(result.Present.Value) : Opt<TValue>.Missing;
         }
 
-        public ValueTask<Opt<KeyValuePair<K, V>>> TryRemoveMany(K key, Lookup direction)
+        public async ValueTask<Opt<KeyValuePair<TKey, TValue>>> TryRemoveFirst()
         {
-            ThrowHelper.ThrowNotImplementedException();
-            return default;
+            BeforeWrite();
+            var opt = FirstUnchecked;
+            var result = Opt<KeyValuePair<TKey, TValue>>.Missing;
+            if (opt.IsPresent)
+            {
+                result = await TryRemoveUnchecked(opt.Present.Key);
+            }
+            AfterWrite(result.IsPresent);
+            return result;
         }
 
-        public Task<bool> TryRemoveMany(K key, V updatedAtKey, Lookup direction)
+        public async ValueTask<Opt<KeyValuePair<TKey, TValue>>> TryRemoveLast()
         {
-            ThrowHelper.ThrowNotImplementedException();
-            return default;
+            BeforeWrite();
+            var opt = LastUnchecked;
+            var result = Opt<KeyValuePair<TKey, TValue>>.Missing;
+            if (opt.IsPresent)
+            {
+                result = await TryRemoveUnchecked(opt.Present.Key);
+            }
+            AfterWrite(result.IsPresent);
+            return result;
         }
 
-        public ValueTask<long> TryAppend(ISeries<K, V> appendMap, AppendOption option = AppendOption.RejectOnOverlap)
+        private async ValueTask<Opt<KeyValuePair<TKey, TValue>>> TryRemoveManyUnchecked(TKey key, Lookup direction)
         {
-            ThrowHelper.ThrowNotImplementedException();
-            return default;
+            // TODO review why this access was needed
+            var _ = outerMap.Version;
+            if (outerMap.Last.IsMissing)
+            {
+                Debug.Assert(prevWBucket is null);
+                prevWBucket = null;
+                return Opt<KeyValuePair<TKey, TValue>>.Missing;
+            }
+
+            switch (direction)
+            {
+                case Lookup.EQ:
+                    return await TryRemoveUnchecked(key);
+
+                case Lookup.LT:
+                case Lookup.LE:
+                    {
+                        await FlushUnchecked(); // ensure current version is set in the outer map from the active chunk
+                        if (outerMap.TryFindAt(key, Lookup.LE, out var tmp))
+                        {
+                            var r1 = await tmp.Value.TryRemoveMany(key, direction);
+                            tmp.Value._version = _version + 1L;
+                            tmp.Value._nextVersion = _version + 1L;
+                            var r2 = await outerMap.TryRemoveMany(key, tmp.Value, direction); // NB order matters
+                            if (r1.IsPresent || r2)
+                            {
+                                Interlocked.Increment(ref orderVersion);
+                            }
+
+                            return r1.IsPresent
+                                ? r1
+                                : r2
+                                    ? tmp.Value.Last
+                                    : Opt<KeyValuePair<TKey, TValue>>.Missing;
+                        }
+                        else
+                        {
+                            return Opt<KeyValuePair<TKey, TValue>>.Missing; // no key below the requested key, notjing to delete
+                        }
+                    }
+
+                case Lookup.GE:
+                case Lookup.GT:
+                    {
+                        await FlushUnchecked(); // ensure current version is set in the outer map from the active chunk
+
+                        if (outerMap.TryFindAt(key, Lookup.LE, out var tmp)) // NB for deterministic hash LE still works
+                        {
+                            var chunk = tmp.Value;
+                            var r1 = await chunk.TryRemoveMany(key, direction);
+                            chunk._version = _version + 1L;
+                            chunk._nextVersion = _version + 1L;
+                            var r2 = await outerMap.TryRemoveMany(key, chunk, direction);
+                            if (r1.IsPresent || r2)
+                            {
+                                Interlocked.Increment(ref orderVersion);
+                            }
+
+                            return r1.IsPresent
+                                ? r1
+                                : r2
+                                    ? chunk.Last
+                                    : Opt<KeyValuePair<TKey, TValue>>.Missing;
+                        }
+                        else
+                        {
+                            // TODO the next line is not needed, we remove all items in SCM here and use the chunk to set the version
+                            var firstChunk = outerMap.First.Present.Value;
+                            var r1 = await firstChunk.TryRemoveMany(key,
+                                direction); // this will remove all items in the chunk
+                            Debug.Assert(firstChunk.Count == 0, "The first chunk must have been completely cleared");
+                            firstChunk._version = _version + 1L;
+                            firstChunk._nextVersion = _version + 1L;
+                            var r2 = await outerMap.TryRemoveMany(key, firstChunk, direction);
+                            if (r1.IsPresent || r2)
+                            {
+                                Interlocked.Increment(ref orderVersion);
+                            }
+
+                            return r1.IsPresent
+                                ? r1
+                                : r2
+                                    ? firstChunk.Last
+                                    : Opt<KeyValuePair<TKey, TValue>>.Missing;
+                        }
+                    }
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(direction), direction, null);
+            }
         }
+
+        public async ValueTask<Opt<KeyValuePair<TKey, TValue>>> TryRemoveMany(TKey key, Lookup direction)
+        {
+            // TODO(low) for non-EQ this is not atomic now, could add a special method for removed in IMutableChunksSeries
+            // then in its impl it could be done in a transaction. However, this nethod is not used frequently
+            BeforeWrite();
+            var result = await TryRemoveManyUnchecked(key, direction);
+            AfterWrite(result.IsPresent);
+            return result;
+        }
+
+        // TODO after checks, should form changed new chunks and use outer append method with rewrite
+        // TODO atomic append with single version increase, now it is a sequence of remove/add mutations
+        //[<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
+        //member this.Append(appendMap:ISeries<'K,'V>, option:AppendOption) : int =
+        //  raise (NotImplementedException())
+        //let hasEqOverlap (old:SortedChunkedMapBaseGeneric<_,_>) (append:ISeries<'K,'V>) : bool =
+        //  if comparer.Compare(append.First.Key, old.LastUnchecked.Key) > 0 then false
+        //  else
+        //    let oldC = new SortedChunkedMapBaseGenericCursor<_,_>(old, false) :> ICursor<'K,'V>
+        //    let appC = append.GetCursor();
+        //    let mutable cont = true
+        //    let mutable overlapOk =
+        //      oldC.MoveAt(append.First.Key, Lookup.EQ)
+        //        && appC.MoveFirst()
+        //        && comparer.Compare(oldC.CurrentKey, appC.CurrentKey) = 0
+        //        && Unchecked.equals oldC.CurrentValue appC.CurrentValue
+        //    while overlapOk && cont do
+        //      if oldC.MoveNext() then
+        //        overlapOk <-
+        //          appC.MoveNext()
+        //          && comparer.Compare(oldC.CurrentKey, appC.CurrentKey) = 0
+        //          && Unchecked.equals oldC.CurrentValue appC.CurrentValue
+        //      else cont <- false
+        //    overlapOk
+        //if appendMap.IsEmpty then
+        //  0
+        //else
+        //  let mutable entered = false
+        //  let mutable finished = false
+        //  try
+        //    try ()
+        //    finally
+        //      entered <- this.EnterWriteLock()
+        //      if entered then Interlocked.Increment(&this._nextVersion) |> ignore
+        //    let result =
+        //      match option with
+        //      | AppendOption.ThrowOnOverlap ->
+        //        if outerMap.IsEmpty || comparer.Compare(appendMap.First.Key, this.LastUnsafe.Key) > 0 then
+        //          let mutable c = 0
+        //          for i in appendMap do
+        //            c <- c + 1
+        //            this.AddUnchecked(i.Key, i.Value) // TODO Add last when fixed flushing
+        //          c
+        //        else
+        //          let exn = SpreadsException("values overlap with existing")
+        //          raise exn
+        //      | AppendOption.DropOldOverlap ->
+        //        if outerMap.IsEmpty || comparer.Compare(appendMap.First.Key, this.LastUnsafe.Key) > 0 then
+        //          let mutable c = 0
+        //          for i in appendMap do
+        //            c <- c + 1
+        //            this.AddUnchecked(i.Key, i.Value) // TODO Add last when fixed flushing
+        //          c
+        //        else
+        //          let removed = this.RemoveMany(appendMap.First.Key, Lookup.GE)
+        //          Trace.Assert(removed)
+        //          let mutable c = 0
+        //          for i in appendMap do
+        //            c <- c + 1
+        //            this.AddUnchecked(i.Key, i.Value) // TODO Add last when fixed flushing
+        //          c
+        //      | AppendOption.IgnoreEqualOverlap ->
+        //        if outerMap.IsEmpty || comparer.Compare(appendMap.First.Key, this.LastUnsafe.Key) > 0 then
+        //          let mutable c = 0
+        //          for i in appendMap do
+        //            c <- c + 1
+        //            this.AddUnchecked(i.Key, i.Value) // TODO Add last when fixed flushing
+        //          c
+        //        else
+        //          let isEqOverlap = hasEqOverlap this appendMap
+        //          if isEqOverlap then
+        //            let appC = appendMap.GetCursor();
+        //            if appC.MoveAt(this.LastUnsafe.Key, Lookup.GT) then
+        //              this.AddUnchecked(appC.CurrentKey, appC.CurrentValue) // TODO Add last when fixed flushing
+        //              let mutable c = 1
+        //              while appC.MoveNext() do
+        //                this.AddUnchecked(appC.CurrentKey, appC.CurrentValue) // TODO Add last when fixed flushing
+        //                c <- c + 1
+        //              c
+        //            else 0
+        //          else
+        //            let exn = SpreadsException("overlapping values are not equal")
+        //            raise exn
+        //      | AppendOption.RequireEqualOverlap ->
+        //        if outerMap.IsEmpty then
+        //          let mutable c = 0
+        //          for i in appendMap do
+        //            c <- c + 1
+        //            this.AddUnchecked(i.Key, i.Value) // TODO Add last when fixed flushing
+        //          c
+        //        elif comparer.Compare(appendMap.First.Key, this.LastUnsafe.Key) > 0 then
+        //          let exn = SpreadsException("values do not overlap with existing")
+        //          raise exn
+        //        else
+        //          let isEqOverlap = hasEqOverlap this appendMap
+        //          if isEqOverlap then
+        //            let appC = appendMap.GetCursor();
+        //            if appC.MoveAt(this.LastUnsafe.Key, Lookup.GT) then
+        //              this.AddUnchecked(appC.CurrentKey, appC.CurrentValue) // TODO Add last when fixed flushing
+        //              let mutable c = 1
+        //              while appC.MoveNext() do
+        //                this.AddUnchecked(appC.CurrentKey, appC.CurrentValue) // TODO Add last when fixed flushing
+        //                c <- c + 1
+        //              c
+        //            else 0
+        //          else
+        //            let exn = SpreadsException("overlapping values are not equal")
+        //            raise exn
+        //      | _ -> failwith "Unknown AppendOption"
+        //    finished <- true
+        //    result
+        //  finally
+        //    if not finished then Environment.FailFast("SCM.Append must always succeed")
+        //    Interlocked.Increment(&this._version) |> ignore
+        //    this.FlushUnchecked()
+        //    exitWriteLockIf &this.Locker entered
+        //    #if DEBUG
+        //    Debug.Assert(outerMap.Version = this._version)
+        //    if entered && this._version <> this._nextVersion then raise (ApplicationException("this._version <> this._nextVersion"))
+        //    #else
+        //    if entered && this._version <> this._nextVersion then Environment.FailFast("this._version <> this._nextVersion")
+        //    #endif
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public async Task FlushUnchecked()
@@ -260,8 +578,8 @@ namespace Spreads.Collections
                     "TODO review/test, this must be true? RemoveMany doesn't use prev bucket, review logic there");
 
                 prevWBucket._version = _version;
-                prevWBucket._nextVersion = this._version;
-                var outerSet = await outerMap.Set(prevWHash, prevWBucket);
+                prevWBucket._nextVersion = _version;
+                var _ = await outerMap.Set(prevWHash, prevWBucket);
                 if (outerMap is IPersistentObject x)
                 {
                     await x.Flush();
@@ -270,7 +588,7 @@ namespace Spreads.Collections
             else
             {
                 // nothing to flush
-                Debug.Assert(outerMap.Version == this._version);
+                Debug.Assert(outerMap.Version == _version);
             }
             prevWBucket = null;
         }
@@ -303,272 +621,4 @@ namespace Spreads.Collections
             DisposeAsync(false);
         }
     }
-
-    //public class SortedChunkedMap<K, V> : ContainerSeries<K, V, SortedChunkedMapCursor<K, V>>, IMutableSeries<K, V>, IPersistentObject
-    //{
-    //    private readonly Func<int, KeyComparer<K>, SortedMap<K, V>> _innerFactory;
-    //    private readonly KeyComparer<K> _comparer;
-    //    private readonly IKeyHasher<K> _hasher;
-    //    private readonly int _chunkUpperLimit;
-    //    private IMutableSeries<K, SortedMap<K, V>> _outerMap;
-
-    //    internal bool _isReadOnly;
-    //    internal long _orderVersion;
-    //    internal string _id;
-
-    //    internal SortedChunkedMap(Func<KeyComparer<K>, IMutableSeries<K, SortedMap<K, V>>> outerFactory,
-    //    Func<int, KeyComparer<K>, SortedMap<K, V>> innerFactory,
-    //    KeyComparer<K> comparer,
-    //    Opt<IKeyHasher<K>> hasher,
-    //    Opt<int> chunkMaxSize)
-    //    {
-    //        _outerMap = outerFactory(comparer);
-    //        _innerFactory = innerFactory;
-    //        _comparer = comparer;
-    //        _hasher = hasher.IsPresent ? hasher.Present : default;
-    //        _chunkUpperLimit = hasher.IsPresent
-    //            ? 0
-    //            : chunkMaxSize.IsPresent & chunkMaxSize.Present > 0
-    //                ? chunkMaxSize.Present
-    //                : 0;
-    //        _isSynchronized = true;
-    //        _version = _outerMap.Version;
-    //        _nextVersion = _version;
-    //    }
-
-    //    #region Private members
-
-    //    internal KeyValuePair<K, SortedMap<K, V>> ExistingHashBucket(K key)
-    //    {
-    //        if (_chunkUpperLimit == 0)
-    //        {
-    //            return new KeyValuePair<K, SortedMap<K, V>>(_hasher.Hash(key), null);
-    //        }
-    //        _outerMap.TryFindAt(key, Lookup.LE, out var h);
-    //        return h;
-    //    }
-
-    //    #endregion
-
-    //    public override KeyComparer<K> Comparer
-    //    {
-    //        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    //        get { return _comparer; }
-    //    }
-
-    //    public override Opt<KeyValuePair<K, V>> First => TODO_IMPLEMENT_ME;
-
-    //    public override Opt<KeyValuePair<K, V>> Last => TODO_IMPLEMENT_ME;
-
-    //    public override bool TryGetValue(K key, out V value)
-    //    {
-    //        return TODO_IMPLEMENT_ME;
-    //    }
-
-    //    public override bool TryFindAt(K key, Lookup direction, out KeyValuePair<K, V> kvp)
-    //    {
-    //        return TODO_IMPLEMENT_ME;
-    //    }
-
-    //    public override IEnumerable<K> Keys => TODO_IMPLEMENT_ME;
-
-    //    public override IEnumerable<V> Values => TODO_IMPLEMENT_ME;
-
-    //    public override bool IsIndexed => TODO_IMPLEMENT_ME;
-
-    //    public override bool IsCompleted => TODO_IMPLEMENT_ME;
-
-    //    internal override Collections.SortedChunkedMapCursor<K, V> GetContainerCursor()
-    //    {
-    //        return TODO_IMPLEMENT_ME;
-    //    }
-
-    //    public virtual long Count
-    //    {
-    //        get
-    //        {
-    //            BeforeWrite();
-    //            var result = _outerMap.Select(kvp => kvp.Value.Count).Sum();
-    //            AfterWrite(false);
-    //            return result;
-    //        }
-    //    }
-
-    //    public long Version => TODO_IMPLEMENT_ME;
-
-    //    public bool IsAppendOnly => TODO_IMPLEMENT_ME;
-
-    //    public Task<bool> Set(K key, V value)
-    //    {
-    //        return TODO_IMPLEMENT_ME;
-    //    }
-
-    //    public Task<bool> TryAdd(K key, V value)
-    //    {
-    //        return TODO_IMPLEMENT_ME;
-    //    }
-
-    //    public Task<bool> TryAddLast(K key, V value)
-    //    {
-    //        return TODO_IMPLEMENT_ME;
-    //    }
-
-    //    public Task<bool> TryAddFirst(K key, V value)
-    //    {
-    //        return TODO_IMPLEMENT_ME;
-    //    }
-
-    //    public ValueTask<Opt<V>> TryRemove(K key)
-    //    {
-    //        return TODO_IMPLEMENT_ME;
-    //    }
-
-    //    public ValueTask<Opt<KeyValuePair<K, V>>> TryRemoveFirst()
-    //    {
-    //        return TODO_IMPLEMENT_ME;
-    //    }
-
-    //    public ValueTask<Opt<KeyValuePair<K, V>>> TryRemoveLast()
-    //    {
-    //        return TODO_IMPLEMENT_ME;
-    //    }
-
-    //    public ValueTask<Opt<KeyValuePair<K, V>>> TryRemoveMany(K key, Lookup direction)
-    //    {
-    //        return TODO_IMPLEMENT_ME;
-    //    }
-
-    //    public ValueTask<Opt<KeyValuePair<K, V>>> TryRemoveMany(K key, V value, Lookup direction)
-    //    {
-    //        return TODO_IMPLEMENT_ME;
-    //    }
-
-    //    public ValueTask<long> TryAppend(ISeries<K, V> appendMap, AppendOption option = AppendOption.RejectOnOverlap)
-    //    {
-    //        return TODO_IMPLEMENT_ME;
-    //    }
-
-    //    public Task Complete()
-    //    {
-    //        return TODO_IMPLEMENT_ME;
-    //    }
-
-    //    public void Dispose()
-    //    {
-    //        TODO_IMPLEMENT_ME();
-    //    }
-
-    //    public Task Flush()
-    //    {
-    //        return TODO_IMPLEMENT_ME;
-    //    }
-
-    //    public string Id => _id;
-
-    //    public struct SortedChunkedMapCursor<TKey, TValue> : ISpecializedCursor<TKey, TValue, SortedChunkedMapCursor<TKey, TValue>>
-    //    {
-    //        public bool MoveNext()
-    //        {
-    //            return TODO_IMPLEMENT_ME;
-    //        }
-
-    //        public void Reset()
-    //        {
-    //            TODO_IMPLEMENT_ME();
-    //        }
-
-    //        public KeyValuePair<TKey, TValue> Current => TODO_IMPLEMENT_ME;
-
-    //        object IEnumerator.Current => Current;
-
-    //        public void Dispose()
-    //        {
-    //            TODO_IMPLEMENT_ME();
-    //        }
-
-    //        public Task DisposeAsync()
-    //        {
-    //            return TODO_IMPLEMENT_ME;
-    //        }
-
-    //        public Task<bool> MoveNextAsync(CancellationToken cancellationToken)
-    //        {
-    //            return TODO_IMPLEMENT_ME;
-    //        }
-
-    //        public Task<bool> MoveNextAsync()
-    //        {
-    //            return TODO_IMPLEMENT_ME;
-    //        }
-
-    //        public CursorState State => TODO_IMPLEMENT_ME;
-
-    //        public KeyComparer<TKey> Comparer => TODO_IMPLEMENT_ME;
-
-    //        public bool MoveAt(TKey key, Lookup direction)
-    //        {
-    //            return TODO_IMPLEMENT_ME;
-    //        }
-
-    //        public bool MoveFirst()
-    //        {
-    //            return TODO_IMPLEMENT_ME;
-    //        }
-
-    //        public bool MoveLast()
-    //        {
-    //            return TODO_IMPLEMENT_ME;
-    //        }
-
-    //        public long MoveNext(long stride, bool allowPartial)
-    //        {
-    //            return TODO_IMPLEMENT_ME;
-    //        }
-
-    //        public bool MovePrevious()
-    //        {
-    //            return TODO_IMPLEMENT_ME;
-    //        }
-
-    //        public long MovePrevious(long stride, bool allowPartial)
-    //        {
-    //            return TODO_IMPLEMENT_ME;
-    //        }
-
-    //        public TKey CurrentKey => TODO_IMPLEMENT_ME;
-
-    //        public TValue CurrentValue => TODO_IMPLEMENT_ME;
-
-    //        public Task<bool> MoveNextBatch(CancellationToken cancellationToken)
-    //        {
-    //            return TODO_IMPLEMENT_ME;
-    //        }
-
-    //        public ISeries<TKey, TValue> CurrentBatch => TODO_IMPLEMENT_ME;
-
-    //        public ISeries<TKey, TValue> Source => TODO_IMPLEMENT_ME;
-
-    //        public bool IsContinuous => TODO_IMPLEMENT_ME;
-
-    //        public SortedChunkedMapCursor<TKey, TValue> Initialize()
-    //        {
-    //            return TODO_IMPLEMENT_ME;
-    //        }
-
-    //        SortedChunkedMapCursor<TKey, TValue> ISpecializedCursor<TKey, TValue, SortedChunkedMapCursor<TKey, TValue>>.Clone()
-    //        {
-    //            return TODO_IMPLEMENT_ME;
-    //        }
-
-    //        ICursor<TKey, TValue> ICursor<TKey, TValue>.Clone()
-    //        {
-    //            return TODO_IMPLEMENT_ME;
-    //        }
-
-    //        public bool TryGetValue(TKey key, out TValue value)
-    //        {
-    //            return TODO_IMPLEMENT_ME;
-    //        }
-    //    }
-    //}
 }

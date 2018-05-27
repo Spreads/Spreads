@@ -4,10 +4,10 @@ matrix:
   include:
     - dotnet: 2.1.4
       mono: none
-      env: CONFIGURATION=Debug FRAMEWORK=netcoreapp2.1
+      env: CONFIGURATION=Debug FRAMEWORK=netcoreapp2.0
     - dotnet: 2.1.4
       mono: none
-      env: CONFIGURATION=Release FRAMEWORK=netcoreapp2.1
+      env: CONFIGURATION=Release FRAMEWORK=netcoreapp2.0
 
 before_script:
   - dotnet --info

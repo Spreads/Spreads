@@ -122,7 +122,7 @@ namespace Spreads.DataTypes
 
             16, // Decimal
             8,  // Price
-            0, // TODO Money not implemented
+            0, // TODO Money not implemented, maybe just use Decimal or extend Price logic 
 
             // DateTime
             8,

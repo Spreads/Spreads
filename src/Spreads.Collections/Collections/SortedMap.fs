@@ -32,6 +32,7 @@ open Spreads.Collections
 open Spreads.Utils
 open Spreads
 open Spreads.Collections.Concurrent
+open System.Net.Http.Headers
 
 
 // NB: Why regular keys? Because we do not care about daily or hourly data, but there are 1440 (480) minutes in a day (trading hours)
@@ -164,6 +165,7 @@ type SortedMap<'K,'V>
           let mapVersion = Marshal.ReadInt64(new IntPtr(ptr.ToInt64() + 12L))
           let isRegular = Marshal.ReadByte(new IntPtr(ptr.ToInt64() + 12L + 8L)) > 0uy
           let isReadOnly = Marshal.ReadByte(new IntPtr(ptr.ToInt64() + 12L + 8L + 1L)) > 0uy
+          
           value <- 
             if mapSize > 0 then
               let ptr = new IntPtr(ptr.ToInt64() + 8L + 14L)
@@ -1243,9 +1245,12 @@ type SortedMap<'K,'V>
 
   member private this.Dispose(disposing:bool) =
     if BufferPoolRetainedMemoryHelper<'V>.IsRetainedMemory then BufferPoolRetainedMemoryHelper<'V>.DisposeRetainedMemory(values, 0, this.size)
-
-    if not couldHaveRegularKeys then BufferPool<_>.Return(keys, true) |> ignore
-    BufferPool<_>.Return(values, true) |> ignore
+    
+    // TODO control that we do not try to return wrong buffers
+    try
+      if not couldHaveRegularKeys then BufferPool<_>.Return(keys, true) |> ignore
+      BufferPool<_>.Return(values, true) |> ignore
+    with | _ -> ()
     if disposing then GC.SuppressFinalize(this)
   
   member this.Dispose() = this.Dispose(true)

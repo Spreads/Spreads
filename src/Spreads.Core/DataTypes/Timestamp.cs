@@ -4,12 +4,13 @@
 
 using Spreads.Serialization;
 using System;
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 
 namespace Spreads.DataTypes
 {
     /// <summary>
-    /// A Timestamp stored as nanoseconds since Unix epoch as Int64.
+    /// A Timestamp stored as nanoseconds since Unix epoch as Int64. Enough for 584 years.
     /// </summary>
     [StructLayout(LayoutKind.Sequential, Size = 8)]
     [Serialization(BlittableSize = 8)]
@@ -20,6 +21,7 @@ namespace Spreads.DataTypes
 
         private Timestamp(long value)
         {
+            Stopwatch.GetTimestamp();
             _value = value;
         }
 

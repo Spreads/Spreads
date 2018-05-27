@@ -1470,7 +1470,7 @@ namespace Spreads
     /// <summary>
     /// Base class for collections (containers) with <see cref="ISeries{TKey,TValue}"/> members implemented via a cursor.
     /// </summary>
-    public abstract class CursorContainerSeries<TKey, TValue, TCursor> : ContainerSeries<TKey, TValue, TCursor>, IDisposable
+    public abstract class CursorContainerSeries<TKey, TValue, TCursor> : ContainerSeries<TKey, TValue, TCursor>, IMutableSeries<TKey, TValue>, IDisposable
 #pragma warning restore 660, 661
         where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
 #pragma warning restore 660, 661
@@ -1483,12 +1483,16 @@ namespace Spreads
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
-                if (!_cursorIsSet)
+                lock (SyncRoot)
                 {
-                    _c = GetContainerCursor();
-                    _cursorIsSet = true;
+                    if (!_cursorIsSet)
+                    {
+                        _c = GetContainerCursor();
+                        _cursorIsSet = true;
+                    }
+
+                    return _c;
                 }
-                return _c;
             }
         }
 
@@ -1598,6 +1602,7 @@ namespace Spreads
 
         #endregion ISeries members
 
+
         public virtual void Dispose(bool disposing)
         {
             if (!_cursorIsSet) return;
@@ -1614,5 +1619,78 @@ namespace Spreads
         {
             Dispose(false);
         }
+
+        public abstract long Count { get; }
+
+        public abstract long Version { get; }
+
+        public abstract bool IsAppendOnly { get; }
+
+        public abstract Task<bool> Set(TKey key, TValue value);
+        public abstract Task<bool> TryAdd(TKey key, TValue value);
+
+        public virtual Task<bool> TryAddLast(TKey key, TValue value)
+        {
+            lock (SyncRoot)
+            {
+                if (Last.IsMissing || Comparer.Compare(key, Last.Present.Key) > 0)
+                {
+                    return TryAdd(key, value);
+                }
+
+                return TaskUtil.FalseTask;
+            }
+        }
+
+        public virtual Task<bool> TryAddFirst(TKey key, TValue value)
+        {
+            lock (SyncRoot)
+            {
+                if (First.IsMissing || Comparer.Compare(key, First.Present.Key) < 0)
+                {
+                    return TryAdd(key, value);
+                }
+
+                return TaskUtil.FalseTask;
+            }
+        }
+
+        public abstract ValueTask<Opt<KeyValuePair<TKey, TValue>>> TryRemoveMany(TKey key, Lookup direction);
+
+        public virtual async ValueTask<Opt<TValue>> TryRemove(TKey key)
+        {
+            var result = await TryRemoveMany(key, Lookup.EQ);
+            return result.IsMissing ? Opt<TValue>.Missing : result.Present.Value;
+        }
+
+        public virtual ValueTask<Opt<KeyValuePair<TKey, TValue>>> TryRemoveFirst()
+        {
+            lock (SyncRoot)
+            {
+                if (First.IsPresent)
+                {
+                    return TryRemoveMany(First.Present.Key, Lookup.LE);
+                }
+
+                return new ValueTask<Opt<KeyValuePair<TKey, TValue>>>(Opt<KeyValuePair<TKey, TValue>>.Missing);
+            }
+        }
+
+        public virtual ValueTask<Opt<KeyValuePair<TKey, TValue>>> TryRemoveLast()
+        {
+            lock (SyncRoot)
+            {
+                if (Last.IsPresent)
+                {
+                    return TryRemoveMany(Last.Present.Key, Lookup.GE);
+                }
+
+                return new ValueTask<Opt<KeyValuePair<TKey, TValue>>>(Opt<KeyValuePair<TKey, TValue>>.Missing);
+            }
+        }
+
+        public abstract Task<bool> TryRemoveMany(TKey key, TValue updatedAtKey, Lookup direction);
+        public abstract ValueTask<long> TryAppend(ISeries<TKey, TValue> appendMap, AppendOption option = AppendOption.RejectOnOverlap);
+        public abstract Task Complete();
     }
 }
