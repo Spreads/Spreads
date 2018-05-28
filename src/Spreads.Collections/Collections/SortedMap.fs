@@ -442,8 +442,6 @@ type SortedMap<'K,'V>
 
   //#endregion
 
-  //#region Public members
-
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
   member private this.SetCapacity(value) =
     match value with
@@ -452,21 +450,21 @@ type SortedMap<'K,'V>
     | c when c > 0 -> 
       if this.isReadOnly then ThrowHelper.ThrowInvalidOperationException("SortedMap is read-only")
       
-      // first, take new buffers. this could cause out-of-memory
-      let kArr : 'K array = 
-        if c > keys.Length then
-          if couldHaveRegularKeys then
-            // Trace.Assert(keys.Length = 2)
-            Unchecked.defaultof<_>
-          else
-            BufferPool<_>.Rent(c)
-         else keys
-      let vArr : 'V array = 
-        if c > values.Length then
-          BufferPool<_>.Rent(c)
-        else values
-
       try
+        // first, take new buffers. this could cause out-of-memory
+        let kArr : 'K array = 
+          if c > keys.Length then
+            if couldHaveRegularKeys then
+              // Trace.Assert(keys.Length = 2)
+              Unchecked.defaultof<_>
+            else
+              BufferPool<_>.Rent(c)
+           else keys
+        let vArr : 'V array = 
+          if c > values.Length then
+            BufferPool<_>.Rent(c)
+          else values
+      
         if not couldHaveRegularKeys && not (obj.ReferenceEquals(kArr, keys)) then
           Array.Copy(keys, 0, kArr, 0, this.size)
           let toReturn = keys
@@ -485,6 +483,8 @@ type SortedMap<'K,'V>
       | _ as ex -> Environment.FailFast(ex.Message, ex)
     | _ -> ()
 
+  //#region Public members
+
   member this.Capacity
     with get() = 
       readLockIf &this._nextVersion &this._version this._isSynchronized (fun _ ->
@@ -498,7 +498,7 @@ type SortedMap<'K,'V>
       finally
         exitWriteLockIf &this.Locker entered
 
-  override this.Comparer with get() = comparer
+  override __.Comparer with get() = comparer
 
   member inline internal this.ComparerInlined with [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>] get() = comparer
 

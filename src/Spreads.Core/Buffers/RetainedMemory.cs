@@ -26,7 +26,7 @@ namespace Spreads.Buffers
     /// The consuming method or collection must dispose the <see cref="MemoryHandle"/> reservation. If the caller
     /// needs to retain the memory and must call <see cref="Clone"/> and pass the cloned memory.
     /// </remarks>
-    public struct RetainedMemory<T> : IPreservedBuffer // IReadOnlyList<T>,
+    public struct RetainedMemory<T>
     {
         private MemoryHandle _memoryHandle;
 
@@ -38,12 +38,18 @@ namespace Spreads.Buffers
         {
             Memory = memory;
             _memoryHandle = memory.Pin();
+#if DEBUG
+            _finalizeChecker = new PanicOnFinalize();
+#endif
         }
 
         internal RetainedMemory(Memory<T> memory, MemoryHandle handle)
         {
             Memory = memory;
             _memoryHandle = handle;
+#if DEBUG
+            _finalizeChecker = new PanicOnFinalize();
+#endif
         }
 
         public bool IsPinned
@@ -116,6 +122,9 @@ namespace Spreads.Buffers
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Dispose()
         {
+#if DEBUG
+            _finalizeChecker.Dispose();
+#endif
             _memoryHandle.Dispose();
             Memory = default;
         }
@@ -128,11 +137,41 @@ namespace Spreads.Buffers
             return new RetainedMemory<T>(Memory);
         }
 
-        public Type ElementType => typeof(T);
-    }
+#if DEBUG
 
-    internal interface IPreservedBuffer : IDisposable
-    {
-        Type ElementType { get; }
+        internal class PanicOnFinalize : IDisposable
+        {
+            public bool Disposed;
+            public string Callstack = System.Environment.StackTrace;
+
+            ~PanicOnFinalize()
+            {
+                if (Disposed)
+                {
+                    // sanity check
+                    ThrowHelper.ThrowInvalidOperationException(
+                        $"Finalizer was called despite being disposd: {Callstack}");
+                }
+                else
+                {
+                    ThrowHelper.ThrowInvalidOperationException(
+                        $"Retained memory was not properly disposed and is being finalized: {Callstack}");
+                }
+            }
+
+            public void Dispose()
+            {
+                if (Disposed)
+                {
+                    ThrowHelper.ThrowInvalidOperationException(
+                        $"Retained memory was already disposed. Check your code that passes it by value without calling .Clone(): {Callstack}");
+                }
+                GC.SuppressFinalize(this);
+                Disposed = true;
+            }
+        }
+
+        internal readonly PanicOnFinalize _finalizeChecker;
+#endif
     }
 }

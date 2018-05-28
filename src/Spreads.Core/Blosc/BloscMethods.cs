@@ -90,7 +90,7 @@ namespace Spreads.Blosc
             }
         }
 
-        public static readonly int ProcessorCount = Environment.ProcessorCount;
+        public static readonly int ProcessorCount = 1; // Environment.ProcessorCount;
 
         #region Blosc
 
