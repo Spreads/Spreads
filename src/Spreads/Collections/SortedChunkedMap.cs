@@ -81,7 +81,7 @@ namespace Spreads.Collections
                 {
                     // we are inside previous bucket, setter has no choice but to set to this
                     // bucket regardless of its size
-                    var res = prevWBucket.SetOrAdd(key, value, overwrite).Result;
+                    var res = await prevWBucket.SetOrAdd(key, value, overwrite);
                     NotifyUpdate(true);
                     return res;
                 }
@@ -104,7 +104,7 @@ namespace Spreads.Collections
                         }
 
                         Debug.Assert(kvp.Value._version == _version);
-                        var res = kvp.Value.SetOrAdd(key, value, overwrite).Result;
+                        var res = await kvp.Value.SetOrAdd(key, value, overwrite);
                         NotifyUpdate(true);
                         return res;
                     }
@@ -226,7 +226,7 @@ namespace Spreads.Collections
 
             if (c == 0 && !(prevWBucket is null))
             {
-                var res = prevWBucket.TryRemove(key).Result; // SM is sync
+                var res = await prevWBucket.TryRemove(key); // SM is sync
                 if (res.IsPresent)
                 {
                     Debug.Assert(prevWBucket._version == _version + 1L,
@@ -278,7 +278,7 @@ namespace Spreads.Collections
                     var bucket = innerMapKvp.Value;
                     prevWHash = hash;
                     prevWBucket = bucket;
-                    var res = bucket.TryRemove(key).Result;
+                    var res = await bucket.TryRemove(key);
                     if (res.IsPresent)
                     {
                         bucket._version = _version + 1L;

@@ -344,11 +344,13 @@ type SortedMap<'K,'V>
   member private this.Insert(index:int, k, v) =
     if this.isReadOnly then ThrowHelper.ThrowInvalidOperationException("SortedMap is read-only")
     // key is always new, checks are before this method
+    Debug.Assert(index >= 0)
     // already inside a lock statement in a caller method if synchronized
    
-    if this.size = values.Length then this.EnsureCapacity(this.size + 1)
+    if this.size = values.Length || this.size = keys.Length then 
+      this.EnsureCapacity(this.size + 1)
     Debug.Assert(index <= this.size, "index must be <= this.size")
-    Debug.Assert(couldHaveRegularKeys || (values.Length = keys.Length), "keys and values must have equal length for non-regular case")
+    
     // for values it is alway the same operation
     if index < this.size then Array.Copy(values, index, values, index + 1, this.size - index);
     values.[index] <- v
@@ -372,7 +374,7 @@ type SortedMap<'K,'V>
           if modIsOk && idx > -1 && idx < this.size then
             // error for regular keys, this means we insert existing key
             let msg = "Existing key check must be done before insert. SortedMap code is wrong."
-            Environment.FailFast(msg, new ApplicationException(msg))            
+            ThrowHelper.FailFast(msg)
           else
             // insertting more than 1 away from end or before start, with a hole
             let toFree = keys
@@ -445,30 +447,37 @@ type SortedMap<'K,'V>
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
   member private this.SetCapacity(value) =
     match value with
-    | c when c = values.Length -> ()
+    | c when c = values.Length && c = keys.Length -> ()
     | c when c < this.size -> ThrowHelper.ThrowArgumentOutOfRangeException("capacity")
     | c when c > 0 -> 
       if this.isReadOnly then ThrowHelper.ThrowInvalidOperationException("SortedMap is read-only")
       
       // first, take new buffers. this could cause out-of-memory
       let kArr : 'K array = 
-        if couldHaveRegularKeys then
-          // Trace.Assert(keys.Length = 2)
-          Unchecked.defaultof<_>
-        else
+        if c > keys.Length then
+          if couldHaveRegularKeys then
+            // Trace.Assert(keys.Length = 2)
+            Unchecked.defaultof<_>
+          else
+            BufferPool<_>.Rent(c)
+         else keys
+      let vArr : 'V array = 
+        if c > values.Length then
           BufferPool<_>.Rent(c)
-      let vArr : 'V array = BufferPool<_>.Rent(c)
+        else values
 
       try
-        if not couldHaveRegularKeys then
+        if not couldHaveRegularKeys && not (obj.ReferenceEquals(kArr, keys)) then
           Array.Copy(keys, 0, kArr, 0, this.size)
           let toReturn = keys
           keys <- kArr
           BufferPool<_>.Return(toReturn, true) |> ignore
-        Array.Copy(values, 0, vArr, 0, this.size)
-        let toReturn = values
-        values <- vArr
-        BufferPool<_>.Return(toReturn, true) |> ignore
+
+        if not (obj.ReferenceEquals(vArr, values)) then
+          Array.Copy(values, 0, vArr, 0, this.size)
+          let toReturn = values
+          values <- vArr
+          BufferPool<_>.Return(toReturn, true) |> ignore
       with
       // NB see enterWriteLockIf comment and https://github.com/dotnet/corefx/issues/1345#issuecomment-147569967
       // If we were able to get new arrays without OOM but got some out-of-band exception during
@@ -734,9 +743,11 @@ type SortedMap<'K,'V>
           added <- true
         else
           let index = this.IndexOfKeyUnchecked(k)
-          if index >= 0 && overwrite then // contains key
-            values.[index] <- v
-            this.NotifyUpdate(true) // Insert has it in other branches
+          if index >= 0 then // contains key
+            Debug.Assert(index < this.size)
+            if overwrite then
+              values.[index] <- v
+              this.NotifyUpdate(true) // Insert has it in other branches
           else
             this.Insert(~~~index, k, v)
             added <- true
