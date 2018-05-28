@@ -50,6 +50,8 @@ namespace Spreads.Buffers
         /// </summary>
         [ThreadStatic]
         internal static OwnedPooledArray<byte> SharedBuffer;
+        [ThreadStatic]
+        internal static RetainedMemory<byte> SharedBufferMemory;
 
         [ThreadStatic]
         internal static int SharedBufferOffset;
@@ -117,7 +119,7 @@ namespace Spreads.Buffers
                     // dispose _sharedBuffer on RetainedMemory disposal.
 
                     // We are discarding RetainedMemory struct and will unpin below manually
-                    SharedBuffer.Retain();
+                    SharedBufferMemory = SharedBuffer.Retain();
 
                     SharedBufferOffset = 0;
                 }
@@ -127,11 +129,11 @@ namespace Spreads.Buffers
                 {
                     // replace shared buffer, the old one will be disposed
                     // when all ReservedMemory views on it are disposed
-                    var previous = SharedBuffer;
+                    var previous = SharedBufferMemory;
                     SharedBuffer = BufferPool<byte>.RentOwnedPooledArray(SharedBufferSize);
 
-                    SharedBuffer.Retain();
-                    previous.Unpin(); // unpinning manually, now the buffer is free and it's retainers determine when it goes back to the pool
+                    SharedBufferMemory = SharedBuffer.Retain();
+                    previous.Dispose(); // unpinning manually, now the buffer is free and it's retainers determine when it goes back to the pool
 
                     SharedBufferOffset = 0;
                     newOffset = length;

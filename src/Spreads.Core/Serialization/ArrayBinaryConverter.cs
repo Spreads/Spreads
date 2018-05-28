@@ -46,16 +46,22 @@ namespace Spreads.Serialization
             {
                 ThrowHelper.ThrowArgumentOutOfRangeException();
             }
-            if (ItemSize > 0)
+
+            if ((int)format < 100)
             {
-                if (format == SerializationFormat.Binary)
+                if (ItemSize > 0)
                 {
-                    temporaryStream = null;
-                    return 8 + ItemSize * valueCount;
-                }
-                if (format == SerializationFormat.BinaryLz4 || format == SerializationFormat.BinaryZstd)
-                {
-                    return CompressedBlittableArrayBinaryConverter<TElement>.Instance.SizeOf(map, valueOffset, valueCount, out temporaryStream, format);
+                    if (format == SerializationFormat.Binary)
+                    {
+                        temporaryStream = null;
+                        return 8 + ItemSize * valueCount;
+                    }
+
+                    if (format == SerializationFormat.BinaryLz4 || format == SerializationFormat.BinaryZstd)
+                    {
+                        return CompressedBlittableArrayBinaryConverter<TElement>.Instance.SizeOf(map, valueOffset,
+                            valueCount, out temporaryStream, format);
+                    }
                 }
             }
             temporaryStream = BinarySerializer.Json.SerializeWithHeader(map.Skip(valueOffset).Take(valueCount).ToArray(), format);
@@ -79,43 +85,50 @@ namespace Spreads.Serialization
                 return checked((int)len);
             }
 
-            if (ItemSize > 0)
+            if ((int)format < 100)
             {
-                if (format == SerializationFormat.Binary)
+                if (ItemSize > 0)
                 {
-                    // if (temporaryStream != null) throw new NotSupportedException("Uncompressed ArrayBinaryConverter does not work with temp streams.");
-
-                    var totalSize = 8 + ItemSize * valueCount;
-
-                    ref var srcRef = ref As<TElement, byte>(ref value[valueOffset]);
-                    // size
-                    WriteUnaligned((void*)pinnedDestination, totalSize);
-
-                    var header = new DataTypeHeader
+                    if (format == SerializationFormat.Binary)
                     {
-                        VersionAndFlags = { IsBinary = true },
-                        TypeEnum = TypeEnum.Array,
-                        TypeSize = (byte)ItemSize,
-                        ElementTypeEnum = VariantHelper<TElement>.TypeEnum
-                    };
-                    WriteUnaligned((void*)(pinnedDestination + 4), header);
+                        // if (temporaryStream != null) throw new NotSupportedException("Uncompressed ArrayBinaryConverter does not work with temp streams.");
 
-                    if (valueCount > 0)
-                    {
-                        ref var dstRef = ref AsRef<byte>((void*)(pinnedDestination + 8));
+                        var totalSize = 8 + ItemSize * valueCount;
 
-                        CopyBlockUnaligned(ref dstRef, ref srcRef, checked((uint)(ItemSize * valueCount)));
+                        ref var srcRef = ref As<TElement, byte>(ref value[valueOffset]);
+                        // size
+                        WriteUnaligned((void*)pinnedDestination, totalSize);
+
+                        var header = new DataTypeHeader
+                        {
+                            VersionAndFlags = { IsBinary = true },
+                            TypeEnum = TypeEnum.Array,
+                            TypeSize = (byte)ItemSize,
+                            ElementTypeEnum = VariantHelper<TElement>.TypeEnum
+                        };
+                        WriteUnaligned((void*)(pinnedDestination + 4), header);
+
+                        if (valueCount > 0)
+                        {
+                            ref var dstRef = ref AsRef<byte>((void*)(pinnedDestination + 8));
+
+                            CopyBlockUnaligned(ref dstRef, ref srcRef, checked((uint)(ItemSize * valueCount)));
+                        }
+
+                        return totalSize;
                     }
-                    return totalSize;
-                }
 
-                if (format == SerializationFormat.BinaryLz4 || format == SerializationFormat.BinaryZstd)
-                {
-                    return CompressedBlittableArrayBinaryConverter<TElement>.Instance.Write(in value, valueOffset, valueCount,
-                        pinnedDestination, null, format);
+                    if (format == SerializationFormat.BinaryLz4 || format == SerializationFormat.BinaryZstd)
+                    {
+                        return CompressedBlittableArrayBinaryConverter<TElement>.Instance.Write(in value, valueOffset,
+                            valueCount,
+                            pinnedDestination, null, format);
+                    }
+
+                    // ThrowHelper.ThrowInvalidOperationException("ArrayBinaryConverter must be called only with one of binary serialization format");
                 }
-                // ThrowHelper.ThrowInvalidOperationException("ArrayBinaryConverter must be called only with one of binary serialization format");
             }
+
             ThrowHelper.ThrowInvalidOperationException("SizeOf must have returned a temporary stream for cases when Size < 0 or JSON was requested");
             return default;
         }

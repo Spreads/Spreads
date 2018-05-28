@@ -40,7 +40,7 @@ namespace Spreads.Serialization
 #pragma warning restore 618
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public unsafe int SizeOf(in TElement[] map, int valueOffset, int valueCount, out MemoryStream temporaryStream,
+        public unsafe int SizeOf(in TElement[] value, int valueOffset, int valueCount, out MemoryStream temporaryStream,
             SerializationFormat format = SerializationFormat.Binary)
         {
             if (ItemSize > 0)
@@ -50,7 +50,7 @@ namespace Spreads.Serialization
                 int totalSize;
                 fixed (byte* ptr = &buffer[0])
                 {
-                    totalSize = Write(map, valueOffset, valueCount, (IntPtr)ptr, null, format);
+                    totalSize = Write(value, valueOffset, valueCount, (IntPtr)ptr, null, format);
                 }
                 temporaryStream = RecyclableMemoryStream.Create(RecyclableMemoryStreamManager.Default,
                     null,
