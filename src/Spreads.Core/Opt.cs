@@ -138,20 +138,17 @@ namespace Spreads
             return c <= 0 ? first : second;
         }
 
-//        /// <inheritdoc />
-//        public bool Equals(Opt<T> other)
-//        {
-//            return IsPresent == other.IsPresent
-//                   && (IsMissing || KeyEqualityComparer<T>.EqualsStatic(Present, other.Present));
-//        }
 
-        /// <summary>
-        /// Implicit cast from a value of type <typeparamref name="T"/> to <see cref="Opt{T}"/>.
-        /// </summary>
-        public static implicit operator Opt<T>(T value)
-        {
-            return new Opt<T>(value);
-        }
+        // NB Do not add implicit convertion to this direction, it's too easy to convert `default` to Present.
+        // Instead, Opt.Present(...) is short enough and infers types automatically. Had bugs with this already
+        // due to this implicit operator - do not add it back! Do not try to compare with default! Be explicit!
+        ///// <summary>
+        ///// Implicit cast from a value of type <typeparamref name="T"/> to <see cref="Opt{T}"/>.
+        ///// </summary>
+        //public static explicit operator Opt<T>(T value)
+        //{
+        //    return new Opt<T>(value);
+        //}
 
         /// <summary>
         /// Explicit cast from <see cref="Opt{T}"/> to a value of type <typeparamref name="T"/>.

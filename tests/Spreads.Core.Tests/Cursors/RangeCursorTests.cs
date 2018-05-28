@@ -96,12 +96,12 @@ namespace Spreads.Tests.Cursors
 
             Assert.Throws<NullReferenceException>(() =>
             {
-                var nullRange = new Range<int, double, SortedMapCursor<int, double>>(sm.GetEnumerator(), 0, Int32.MaxValue, true, true);
+                var nullRange = new Range<int, double, SortedMapCursor<int, double>>(sm.GetEnumerator(), Opt.Present(0), Opt.Present(Int32.MaxValue), true, true);
             });
 
             var empty = new SortedMap<int, double>();
 
-            var rangeCursor = new Range<int, double, SortedMapCursor<int, double>>(empty.GetEnumerator(), 0, Int32.MaxValue, true, true);
+            var rangeCursor = new Range<int, double, SortedMapCursor<int, double>>(empty.GetEnumerator(), Opt.Present(0), Opt.Present(Int32.MaxValue), true, true);
             // NB Source just wraps the cursor in a new struct,
             // same as new CursorSeries<int, double, RangeCursor<int, double, SortedMapCursor<int, double>>>(rangeCursor);
             var range = rangeCursor.Source;
@@ -113,7 +113,7 @@ namespace Spreads.Tests.Cursors
             {
                 {1, 1}
             };
-            var rangeCursor1 = new Range<int, double, SortedMapCursor<int, double>>(nonEmpty.GetEnumerator(), 0, Int32.MaxValue, true, true);
+            var rangeCursor1 = new Range<int, double, SortedMapCursor<int, double>>(nonEmpty.GetEnumerator(), Opt.Present(0), Opt.Present(Int32.MaxValue), true, true);
             var range1 = rangeCursor1.Source;
 
             Assert.True(range1.Any());

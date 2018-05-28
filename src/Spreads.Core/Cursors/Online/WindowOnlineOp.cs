@@ -14,7 +14,7 @@ namespace Spreads.Cursors.Online
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Range<TKey, TValue, TCursor> GetResult(ref TCursor left, ref TCursor right)
         {
-            return new Range<TKey, TValue, TCursor>(left.Clone(), left.CurrentKey, right.CurrentKey, true, true, true, checked((int)_count));
+            return new Range<TKey, TValue, TCursor>(left.Clone(), Opt.Present(left.CurrentKey), Opt.Present(right.CurrentKey), true, true, true, checked((int)_count));
         }
 
         public int Count

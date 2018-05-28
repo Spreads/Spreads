@@ -1007,6 +1007,7 @@ namespace Spreads
         /// </summary>
         public object SyncRoot
         {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
                 if (_syncRoot == null)
@@ -1505,7 +1506,7 @@ namespace Spreads
             {
                 lock (SyncRoot)
                 {
-                    return C.MoveFirst() ? C.Current : default;
+                    return C.MoveFirst() ? Opt.Present(C.Current) : Opt<KeyValuePair<TKey, TValue>>.Missing;
                 }
             }
         }
@@ -1517,7 +1518,7 @@ namespace Spreads
             {
                 lock (SyncRoot)
                 {
-                    return C.MoveLast() ? C.Current : default;
+                    return C.MoveLast() ? Opt.Present(C.Current) : Opt<KeyValuePair<TKey, TValue>>.Missing;
                 }
             }
         }
@@ -1660,7 +1661,7 @@ namespace Spreads
         public virtual async ValueTask<Opt<TValue>> TryRemove(TKey key)
         {
             var result = await TryRemoveMany(key, Lookup.EQ);
-            return result.IsMissing ? Opt<TValue>.Missing : result.Present.Value;
+            return result.IsMissing ? Opt<TValue>.Missing : Opt.Present(result.Present.Value);
         }
 
         public virtual ValueTask<Opt<KeyValuePair<TKey, TValue>>> TryRemoveFirst()

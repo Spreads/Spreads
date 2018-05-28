@@ -71,7 +71,7 @@ namespace Spreads
             {
                 var opt = Inner.First;
                 return opt.IsPresent
-                    ? new KeyValuePair<Variant, Variant>(ToKey2(opt.Present.Key), ToValue2(opt.Present.Value))
+                    ? Opt.Present(new KeyValuePair<Variant, Variant>(ToKey2(opt.Present.Key), ToValue2(opt.Present.Value)))
                     : Opt<KeyValuePair<Variant, Variant>>.Missing;
             }
         }
@@ -83,7 +83,7 @@ namespace Spreads
             {
                 var opt = Inner.Last;
                 return opt.IsPresent
-                    ? new KeyValuePair<Variant, Variant>(ToKey2(opt.Present.Key), ToValue2(opt.Present.Value))
+                    ? Opt.Present(new KeyValuePair<Variant, Variant>(ToKey2(opt.Present.Key), ToValue2(opt.Present.Value)))
                     : Opt<KeyValuePair<Variant, Variant>>.Missing;            }
         }
 
@@ -426,7 +426,7 @@ namespace Spreads
         {
             var opt = await MutableInner.TryRemove(ToKey(key));
             return opt.IsPresent
-                ? ToValue2(opt.Present)
+                ? Opt.Present(ToValue2(opt.Present))
                 : Opt<Variant>.Missing;
         }
 
@@ -435,7 +435,7 @@ namespace Spreads
         {
             var opt = await MutableInner.TryRemoveFirst();
             return opt.IsPresent
-                ? new KeyValuePair<Variant, Variant>(ToKey2(opt.Present.Key), ToValue2(opt.Present.Value))
+                ? Opt.Present(new KeyValuePair<Variant, Variant>(ToKey2(opt.Present.Key), ToValue2(opt.Present.Value)))
                 : Opt<KeyValuePair<Variant, Variant>>.Missing;
         }
 
@@ -444,7 +444,7 @@ namespace Spreads
         {
             var opt = await MutableInner.TryRemoveLast();
             return opt.IsPresent
-                ? new KeyValuePair<Variant, Variant>(ToKey2(opt.Present.Key), ToValue2(opt.Present.Value))
+                ? Opt.Present(new KeyValuePair<Variant, Variant>(ToKey2(opt.Present.Key), ToValue2(opt.Present.Value)))
                 : Opt<KeyValuePair<Variant, Variant>>.Missing;
         }
 
@@ -452,7 +452,7 @@ namespace Spreads
         {
             var opt = await MutableInner.TryRemoveMany(ToKey(key), direction);
             return opt.IsPresent
-                ? new KeyValuePair<Variant, Variant>(ToKey2(opt.Present.Key), ToValue2(opt.Present.Value))
+                ? Opt.Present(new KeyValuePair<Variant, Variant>(ToKey2(opt.Present.Key), ToValue2(opt.Present.Value)))
                 : Opt<KeyValuePair<Variant, Variant>>.Missing;
         }
 
