@@ -333,9 +333,17 @@ namespace Spreads.Buffers
 
             if (!IsLargeBufferMultiple(buffer.Length))
             {
-                ThrowHelper.ThrowArgumentException(
-                    "buffer did not originate from this memory manager. The size is not a multiple of " +
-                    LargeBufferMultiple);
+                // Ignore
+                try
+                {
+                    BufferPool<byte>.Return(buffer);
+                }
+                catch
+                {}
+                return;
+                //ThrowHelper.ThrowArgumentException(
+                //    "buffer did not originate from this memory manager. The size is not a multiple of " +
+                //    LargeBufferMultiple);
             }
 
             var poolIndex = buffer.Length / _largeBufferMultiple - 1;
