@@ -389,8 +389,12 @@ namespace Spreads.Serialization
             if (Size >= 0)
             {
                 Debug.Assert(Size > 0);
-                value = ReadUnaligned<T>((void*)(ptr + 8));
-                return Size + 8;
+#if DEBUG
+                var header = ReadUnaligned<DataTypeHeader>((void*) ptr);
+                Debug.Assert(header.Equals(_defaultHeader));
+#endif
+                value = ReadUnaligned<T>((void*)(ptr + DataTypeHeader.Size));
+                return Size + DataTypeHeader.Size;
             }
             if (_hasBinaryConverter)
             {
@@ -409,10 +413,9 @@ namespace Spreads.Serialization
             if (Size >= 0)
             {
                 Debug.Assert(Size > 0);
-                var len = 8 + Size;
-                WriteUnaligned((void*)(destination), len);
-                WriteUnaligned((void*)(destination + 4), _defaultHeader);
-                WriteUnaligned((void*)(destination + 8), value);
+                var len = DataTypeHeader.Size + Size;
+                WriteUnaligned((void*)(destination), _defaultHeader);
+                WriteUnaligned((void*)(destination + DataTypeHeader.Size), value);
                 return len;
             }
             if (_hasBinaryConverter)
@@ -438,7 +441,7 @@ namespace Spreads.Serialization
             memoryStream = null;
             if (Size >= 0)
             {
-                return Size;
+                return DataTypeHeader.Size + Size;
             }
             if (_hasBinaryConverter)
             {

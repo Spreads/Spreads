@@ -96,9 +96,8 @@ namespace Spreads.Serialization
                         var totalSize = 8 + ItemSize * valueCount;
 
                         ref var srcRef = ref As<TElement, byte>(ref value[valueOffset]);
-                        // size
-                        WriteUnaligned((void*)pinnedDestination, totalSize);
-
+                        
+                        // header
                         var header = new DataTypeHeader
                         {
                             VersionAndFlags = { IsBinary = true },
@@ -106,7 +105,10 @@ namespace Spreads.Serialization
                             TypeSize = (byte)ItemSize,
                             ElementTypeEnum = VariantHelper<TElement>.TypeEnum
                         };
-                        WriteUnaligned((void*)(pinnedDestination + 4), header);
+                        WriteUnaligned((void*)pinnedDestination, header);
+
+                        // size
+                        WriteUnaligned((void*)(pinnedDestination + DataTypeHeader.Size), totalSize - 8);
 
                         if (valueCount > 0)
                         {
@@ -135,8 +137,8 @@ namespace Spreads.Serialization
 
         public unsafe int Read(IntPtr ptr, out TElement[] value, out int count, bool exactSize = true)
         {
-            var totalSize = ReadUnaligned<int>((void*)ptr);
-            var header = ReadUnaligned<DataTypeHeader>((void*)(ptr + 4));
+            var header = ReadUnaligned<DataTypeHeader>((void*)ptr);
+            var payloadSize = ReadUnaligned<int>((void*)(ptr + 4));
             ////var version = (byte)(header >> 4);
             ////var isCompressed = (header & 0b0000_0001) != 0;
             //if (header.VersionAndFlags.Version != 0)
@@ -156,7 +158,7 @@ namespace Spreads.Serialization
                     {
                         if (header.VersionAndFlags.IsDelta) { ThrowHelper.ThrowNotSupportedException("Raw ByteArrayBinaryConverter does not support deltas"); }
 
-                        var arraySize = (totalSize - 8) / ItemSize;
+                        var arraySize = payloadSize  / ItemSize;
                         if (arraySize > 0)
                         {
                             if (header.TypeEnum != TypeEnum.Array) { ThrowHelper.ThrowInvalidOperationException("Wrong TypeEnum: expecting array"); }
@@ -181,7 +183,7 @@ namespace Spreads.Serialization
                             ref var dstRef = ref As<TElement, byte>(ref array[0]);
                             ref var srcRef = ref AsRef<byte>((void*)(ptr + 8));
 
-                            CopyBlockUnaligned(ref dstRef, ref srcRef, checked((uint)(totalSize - 8)));
+                            CopyBlockUnaligned(ref dstRef, ref srcRef, checked((uint)payloadSize));
 
                             value = array;
                         }
@@ -191,13 +193,13 @@ namespace Spreads.Serialization
                         }
 
                         count = arraySize;
-                        return totalSize;
+                        return payloadSize;
                     }
                     else
                     {
                         var len = CompressedBlittableArrayBinaryConverter<TElement>.Instance.Read(ptr, out var tmp,
                             out count, exactSize);
-                        Debug.Assert(len == totalSize);
+                        Debug.Assert(len == payloadSize);
                         value = tmp;
                         return len;
                     }
@@ -214,15 +216,15 @@ namespace Spreads.Serialization
                 if (!header.VersionAndFlags.IsCompressed)
                 {
                     // ReSharper disable once AssignNullToNotNullAttribute
-                    var stream = new UnmanagedMemoryStream((byte*)(ptr + 8), totalSize - 8);
+                    var stream = new UnmanagedMemoryStream((byte*)(ptr + 8), payloadSize - 8);
                     value = BinarySerializer.Json.Deserialize<TElement[]>(stream);
                     count = value.Length;
-                    return totalSize;
+                    return payloadSize;
                 }
                 else
                 {
                     // ReSharper disable once AssignNullToNotNullAttribute
-                    var comrpessedStream = new UnmanagedMemoryStream((byte*)(ptr + 8), totalSize - 8);
+                    var comrpessedStream = new UnmanagedMemoryStream((byte*)(ptr + 8), payloadSize - 8);
                     RecyclableMemoryStream decompressedStream =
                         RecyclableMemoryStreamManager.Default.GetStream();
 
@@ -235,7 +237,7 @@ namespace Spreads.Serialization
                     decompressedStream.Position = 0;
                     value = BinarySerializer.Json.Deserialize<TElement[]>(decompressedStream);
                     count = value.Length;
-                    return totalSize;
+                    return payloadSize;
                 }
             }
         }

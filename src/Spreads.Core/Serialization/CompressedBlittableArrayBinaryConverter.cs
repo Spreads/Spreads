@@ -261,8 +261,6 @@ namespace Spreads.Serialization
                 }
             }
 
-            // length
-            WriteUnaligned((void*)(pinnedDestination), position);
             // version & flags
             var header = new DataTypeHeader
             {
@@ -275,15 +273,17 @@ namespace Spreads.Serialization
                 TypeSize = (byte)ItemSize,
                 ElementTypeEnum = VariantHelper<TElement>.TypeEnum
             };
-            WriteUnaligned((void*)(pinnedDestination + 4), header);
+            WriteUnaligned((void*)(pinnedDestination), header);
+            // length
+            WriteUnaligned((void*)(pinnedDestination + 4), position - 8);
             return position;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public unsafe int Read(IntPtr ptr, out TElement[] value, out int length, bool exactSize = false)
         {
-            var totalSize = ReadUnaligned<int>((void*)ptr);
-            var header = ReadUnaligned<DataTypeHeader>((void*)(ptr + 4));
+            var header = ReadUnaligned<DataTypeHeader>((void*)ptr);
+            var payloadSize = ReadUnaligned<int>((void*)(ptr + 4));
 
             if (!header.VersionAndFlags.IsCompressed)
             {
@@ -299,11 +299,11 @@ namespace Spreads.Serialization
                 ThrowHelper.ThrowInvalidOperationException("ItemSize <= 0");
             }
 
-            if (totalSize <= 8 + 16)
+            if (payloadSize <= 16)
             {
                 value = EmptyArray<TElement>.Instance;
                 length = 0;
-                return totalSize;
+                return payloadSize + 8;
             }
 
             var source = ptr + 8;
@@ -456,7 +456,7 @@ namespace Spreads.Serialization
                     }
                 }
             }
-            return totalSize;
+            return payloadSize + 8;
         }
     }
 }

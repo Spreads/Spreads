@@ -180,8 +180,8 @@ namespace Spreads.Serialization
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static unsafe int Read<T>(IntPtr ptr, out T value)
         {
-            var size = ReadUnaligned<int>((void*)ptr);
-            var header = ReadUnaligned<DataTypeHeader>((void*)(ptr + 4));
+            var payloadSize = ReadUnaligned<int>((void*)(ptr + 4));
+            var header = ReadUnaligned<DataTypeHeader>((void*)ptr);
 
             if (header.VersionAndFlags.IsBinary)
             {
@@ -198,13 +198,13 @@ namespace Spreads.Serialization
 
             if (!header.VersionAndFlags.IsCompressed)
             {
-                var stream = new UnmanagedMemoryStream((byte*)(ptr + 8), size - 8);
+                var stream = new UnmanagedMemoryStream((byte*)(ptr + 8), payloadSize);
                 value = Json.Deserialize<T>(stream);
-                return size;
+                return payloadSize + 8;
             }
             else
             {
-                var comrpessedStream = new UnmanagedMemoryStream((byte*)(ptr + 8), size - 8);
+                var comrpessedStream = new UnmanagedMemoryStream((byte*)(ptr + 8), payloadSize);
                 RecyclableMemoryStream decompressedStream =
                     RecyclableMemoryStreamManager.Default.GetStream();
 
@@ -216,7 +216,7 @@ namespace Spreads.Serialization
                 comrpessedStream.Dispose();
                 decompressedStream.Position = 0;
                 value = Json.Deserialize<T>(decompressedStream);
-                return size;
+                return payloadSize + 8;
             }
         }
 
@@ -297,7 +297,6 @@ namespace Spreads.Serialization
 
                     ms.Position = 0;
 
-                    ms.WriteAsPtr(checked((int)ms.Length));
                     var header = new DataTypeHeader
                     {
                         VersionAndFlags = {
@@ -308,6 +307,9 @@ namespace Spreads.Serialization
                         TypeEnum = VariantHelper<T>.TypeEnum
                     };
                     ms.WriteAsPtr(header);
+
+                    ms.WriteAsPtr(checked((int)ms.Length - 8));
+                    
                     ms.Position = 0;
                     return ms;
                 }
@@ -334,7 +336,6 @@ namespace Spreads.Serialization
                     ms.Dispose();
 
                     compressedStream.Position = 0;
-                    compressedStream.WriteAsPtr(checked((int)compressedStream.Length));
                     var header = new DataTypeHeader
                     {
                         VersionAndFlags = {
@@ -345,6 +346,7 @@ namespace Spreads.Serialization
                         TypeEnum = VariantHelper<T>.TypeEnum
                     };
                     compressedStream.WriteAsPtr(header);
+                    compressedStream.WriteAsPtr(checked((int)compressedStream.Length - 8));
                     compressedStream.Position = 0;
                     return compressedStream;
                 }

@@ -81,7 +81,7 @@ namespace Spreads.DataTypes
         /// <summary>
         /// Used for blittable types (fixed-length type with fixed layout)
         /// </summary>
-        FixedBinary = 65,
+        FixedBinary = DataTypes.Variant.KnownSmallTypesLimit, // 64
 
         // Variable size types
 
@@ -103,7 +103,7 @@ namespace Spreads.DataTypes
         #region Known Type Sizes
 
         // ReSharper disable once RedundantExplicitArraySize
-        private static readonly byte[] KnownTypeSizes = new byte[KnownSmallTypesLimit]
+        internal static readonly byte[] KnownTypeSizes = new byte[KnownSmallTypesLimit]
         {
             // Unknown
             0, // None

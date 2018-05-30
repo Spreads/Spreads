@@ -9,8 +9,8 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="NodaTime" Version="2.2.6" />
-        <PackageReference Include="MathNet.Numerics.Signed" Version="4.4.1" />
+        <PackageReference Include="NodaTime" Version="2.3.0" />
+        <PackageReference Include="MathNet.Numerics.Signed" Version="4.5.0" />
     </ItemGroup>
 
     <ItemGroup>

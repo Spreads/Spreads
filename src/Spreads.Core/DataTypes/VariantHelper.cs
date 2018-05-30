@@ -66,7 +66,7 @@ namespace Spreads.DataTypes
             // TODO known types, otherwise will fallback to fixed binary
 
 #pragma warning disable 618
-            if (TypeHelper<T>.Size > 0) return TypeEnum.FixedBinary;
+            if (TypeHelper<T>.Size >= 0) return TypeEnum.FixedBinary;
 #pragma warning restore 618
 
             return TypeEnum.Object;

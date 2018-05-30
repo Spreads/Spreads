@@ -30,8 +30,7 @@ namespace Spreads.Serialization
 
             var totalLength = checked((int)value.Length + 8);
 
-            // size
-            Marshal.WriteInt32(pinnedDestination, totalLength);
+            
             // version
             var header = new DataTypeHeader
             {
@@ -42,7 +41,9 @@ namespace Spreads.Serialization
                     IsCompressed = false },
                 TypeEnum = TypeEnum.Binary
             };
-            WriteUnaligned((void*)(pinnedDestination + 4), header);
+            WriteUnaligned((void*)pinnedDestination, header);
+            // size
+            WriteUnaligned((void*)(pinnedDestination + 4), totalLength - 8);
 
             // payload
             value.WriteToRef(ref AsRef<byte>((void*)(pinnedDestination + 8)));
@@ -50,16 +51,17 @@ namespace Spreads.Serialization
             return totalLength;
         }
 
-        public int Read(IntPtr ptr, out MemoryStream value)
+        public unsafe int Read(IntPtr ptr, out MemoryStream value)
         {
-            var length = Marshal.ReadInt32(ptr);
-            var version = Marshal.ReadInt32(ptr + 4);
-            if (version != 0) throw new NotSupportedException();
+            var header = ReadUnaligned<DataTypeHeader>((void*)ptr);
+            var payloadLength = Marshal.ReadInt32(ptr + 4);
+            
+            if (header.VersionAndFlags.Version != 0) throw new NotSupportedException();
             // TODO Use RMS large buffer
-            var bytes = new byte[length - 8];
-            Marshal.Copy(ptr + 8, bytes, 0, length);
+            var bytes = new byte[payloadLength];
+            Marshal.Copy(ptr + 8, bytes, 0, payloadLength);
             value = new MemoryStream(bytes);
-            return length + 8;
+            return payloadLength + 8;
         }
 
         public byte Version => 0;

@@ -105,8 +105,7 @@ namespace Spreads.Serialization
             }
             position += valuesSize;
 
-            // length (include all headers)
-            WriteUnaligned(ref destination, position);
+            
             // version
             var header = new DataTypeHeader
             {
@@ -117,7 +116,11 @@ namespace Spreads.Serialization
                     IsCompressed = true },
                 TypeEnum = TypeEnum.ArrayBasedMap
             };
-            WriteUnaligned(ref AddByteOffset(ref destination, (IntPtr)4), header);
+            WriteUnaligned(ref destination, header);
+
+            // payload length 
+            WriteUnaligned(ref AddByteOffset(ref destination, (IntPtr)4), position);
+
             temporaryStream = RecyclableMemoryStream.Create(RecyclableMemoryStreamManager.Default,
                 null,
                 position,

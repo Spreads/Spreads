@@ -36,8 +36,7 @@ namespace Spreads.Serialization
                 {
                     var totalLength = 8 + Encoding.UTF8.GetByteCount(charPtr, value.Length);
 
-                    // size
-                    Marshal.WriteInt32(pinnedDestination, totalLength);
+                    
                     // version
                     var header = new DataTypeHeader
                     {
@@ -48,11 +47,14 @@ namespace Spreads.Serialization
                                 IsCompressed = false },
                         TypeEnum = TypeEnum.String
                     };
-                    WriteUnaligned((void*)(pinnedDestination + 4), header);                        // payload
+                    WriteUnaligned((void*)pinnedDestination, header);
+                    // payload length
+                    WriteUnaligned((void*)(pinnedDestination + 4), totalLength - 8);
+                    // payload
                     var len = Encoding.UTF8.GetBytes(charPtr, value.Length, (byte*)pinnedDestination + 8, totalLength);
                     Debug.Assert(totalLength == len + 8);
 
-                    return len + 8;
+                    return totalLength;
                 }
             }
 
@@ -62,25 +64,26 @@ namespace Spreads.Serialization
 
         public unsafe int Read(IntPtr ptr, out string value)
         {
-            var totalSize = ReadUnaligned<int>((void*)ptr);
-            var header = ReadUnaligned<DataTypeHeader>((void*)(ptr + 4));
+            var header = ReadUnaligned<DataTypeHeader>((void*)ptr);
+            var payloadLength = ReadUnaligned<int>((void*)(ptr + 4));
+            
             if (header.VersionAndFlags.Version != 0) throw new NotSupportedException();
-            OwnedPooledArray<byte> ownedPooledBuffer = Buffers.BufferPool.UseTempBuffer(totalSize);
+            OwnedPooledArray<byte> ownedPooledBuffer = BufferPool.UseTempBuffer(payloadLength);
             var buffer = ownedPooledBuffer.Memory;
             var handle = buffer.Pin();
 
             try
             {
-                Marshal.Copy(ptr + 8, ownedPooledBuffer.Array, 0, totalSize);
+                Marshal.Copy(ptr + 8, ownedPooledBuffer.Array, 0, payloadLength);
 
-                value = Encoding.UTF8.GetString(ownedPooledBuffer.Array, 0, totalSize - 8);
+                value = Encoding.UTF8.GetString(ownedPooledBuffer.Array, 0, payloadLength);
 
-                return totalSize;
+                return payloadLength + 8;
             }
             finally
             {
                 handle.Dispose();
-                if (ownedPooledBuffer != Buffers.BufferPool.StaticBuffer)
+                if (ownedPooledBuffer != BufferPool.StaticBuffer)
                 {
                     Debug.Assert(ownedPooledBuffer.IsDisposed);
                 }

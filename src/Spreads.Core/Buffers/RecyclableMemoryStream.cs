@@ -26,8 +26,10 @@
 
 using Spreads.Collections.Concurrent;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
 
@@ -857,32 +859,115 @@ namespace Spreads.Buffers
 
         #endregion MemoryStream overrides
 
+        public struct ChunksEnumerable : IEnumerable<ArraySegment<byte>>
+        {
+            public readonly bool IsSingleChunk;
+
+            private RecyclableMemoryStream _rms;
+
+            public ChunksEnumerable(RecyclableMemoryStream rms)
+            {
+                _rms = rms;
+                IsSingleChunk = (_rms._largeBuffer != null) || (_rms._blocks.Count == 1 && _rms._length > 0);
+            }
+
+            public struct ChunksEnumerator : IEnumerator<ArraySegment<byte>>
+            {
+                private int _idx;
+                private RecyclableMemoryStream _rms;
+
+                public ChunksEnumerator(RecyclableMemoryStream rms)
+                {
+                    if (rms._largeBuffer != null)
+                    {
+                        _idx = int.MinValue;
+                    }
+                    else
+                    {
+                        _idx = -1;
+                    }
+                    _rms = rms;
+                }
+
+                public bool MoveNext()
+                {
+                    if (_rms._largeBuffer != null)
+                    {
+                        if (_idx == Int32.MinValue)
+                        {
+                            Current = new ArraySegment<byte>(_rms._largeBuffer, 0,
+                                checked((int)_rms._length)); // AS doesn't support long, will throw
+                            return true;
+                        }
+                        _idx = Int32.MaxValue;
+                        return false;
+                    }
+
+                    _idx++;
+                    if (_idx < _rms._blocks.Count)
+                    {
+                        var remainingLength = _rms._length - _idx * _rms._memoryManager.BlockSize;
+                        if (remainingLength <= 0)
+                        {
+                            return false;
+                        }
+                        var len = remainingLength < _rms._memoryManager.BlockSize
+                            // last chunk
+                            ? remainingLength
+                            // full chunk
+                            : _rms._memoryManager.BlockSize;
+                        Current = new ArraySegment<byte>(_rms._blocks[_idx], 0, checked((int)len));
+                        return true;
+                    }
+                    return false;
+                }
+
+                public void Reset()
+                {
+                    if (_rms._largeBuffer != null)
+                    {
+                        _idx = int.MinValue;
+                    }
+                    else
+                    {
+                        _idx = -1;
+                    }
+                }
+
+                public ArraySegment<byte> Current { get; private set; }
+
+                object IEnumerator.Current => Current;
+
+                public void Dispose()
+                {
+                }
+            }
+
+            public ChunksEnumerator GetEnumerator()
+            {
+                return new ChunksEnumerator(_rms);
+            }
+
+            IEnumerator IEnumerable.GetEnumerator()
+            {
+                return GetEnumerator();
+            }
+
+            IEnumerator<ArraySegment<byte>> IEnumerable<ArraySegment<byte>>.GetEnumerator()
+            {
+                return GetEnumerator();
+            }
+        }
+
         /// <summary>
         /// Iterate over all internal chunks as ArraySegments without copying data
         /// </summary>
-        public IEnumerable<ArraySegment<byte>> Chunks
+        public ChunksEnumerable Chunks
         {
             get
             {
                 CheckDisposed();
-                if (_largeBuffer != null)
-                {
-                    yield return new ArraySegment<byte>(_largeBuffer, 0, checked((int)_length)); // AS doesn't support long, will throw
-                }
-                else
-                {
-                    for (var i = 0; i < _blocks.Count; i++)
-                    {
-                        var remainingLength = _length - i * _memoryManager.BlockSize;
-                        if (remainingLength <= 0) break;
-                        var len = remainingLength < _memoryManager.BlockSize
-                            // last chunk
-                            ? remainingLength
-                            // full chunk
-                            : _memoryManager.BlockSize;
-                        yield return new ArraySegment<byte>(_blocks[i], 0, checked((int)len));
-                    }
-                }
+                return new ChunksEnumerable(this);
             }
         }
 

@@ -1,4 +1,6 @@
-﻿using System.Runtime.InteropServices;
+﻿using System.Drawing;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 
 namespace Spreads.DataTypes
 {
@@ -13,6 +15,8 @@ namespace Spreads.DataTypes
     [StructLayout(LayoutKind.Explicit, Pack = 1, Size = 4)]
     public struct DataTypeHeader
     {
+        public const int Size = 4;
+
         // First 4 bytes are always the same
         internal const int VersionAndFlagsOffset = 0;
 
@@ -36,5 +40,15 @@ namespace Spreads.DataTypes
 
         [FieldOffset(ElementTypeEnumOffset)]
         public TypeEnum ElementTypeEnum;
+
+        public bool IsFixedSize
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get
+            {
+                // LE, if equal than this is unknown but fixed size
+                return (int)TypeEnum <= Variant.KnownSmallTypesLimit;
+            }
+        }
     }
 }
