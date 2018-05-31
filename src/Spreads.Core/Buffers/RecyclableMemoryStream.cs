@@ -871,6 +871,12 @@ namespace Spreads.Buffers
                 IsSingleChunk = (_rms._largeBuffer != null) || (_rms._blocks.Count == 1 && _rms._length > 0);
             }
 
+            [Obsolete("Hide from API")]
+            public byte[] LargeBuffer => _rms._largeBuffer;
+
+            [Obsolete("Hide from API")]
+            public List<byte[]> RawChunks => _rms._blocks;
+
             public struct ChunksEnumerator : IEnumerator<ArraySegment<byte>>
             {
                 private int _idx;
@@ -887,6 +893,7 @@ namespace Spreads.Buffers
                         _idx = -1;
                     }
                     _rms = rms;
+                    Current = default;
                 }
 
                 public bool MoveNext()

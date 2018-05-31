@@ -25,7 +25,7 @@ namespace Spreads.Tests.Collections
                 fastDictionary.Add(i, i);
             }
 
-            const int count = 50000;
+            const int count = 500000;
 
             for (int r = 0; r < 10; r++)
             {
@@ -75,7 +75,7 @@ namespace Spreads.Tests.Collections
                 fastDictionary.Add(s, i);
             }
 
-            const int count = 10000;
+            const int count = 100000;
 
             for (int r = 0; r < 10; r++)
             {

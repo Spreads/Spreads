@@ -50,6 +50,7 @@ namespace Spreads.Collections.Generic
     [DebuggerTypeProxy(typeof(IDictionaryDebugView<,>))]
     [DebuggerDisplay("Count = {Count}")]
     [Serializable]
+    [Obsolete("Not that fast anymore (relatively) on .NET Core 2.1. Do not use unless in special cases.")]
     public class FastDictionary<TKey, TValue> : IDictionary<TKey, TValue>, IDictionary, IReadOnlyDictionary<TKey, TValue>
     {
         private struct Entry

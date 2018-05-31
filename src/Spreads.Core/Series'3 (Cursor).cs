@@ -151,7 +151,8 @@ namespace Spreads
             {
                 if (!c.MoveFirst())
                 {
-                    return default;
+                    kvp = default;
+                    return false;
                 }
                 for (var i = 0; i < idx - 1; i++)
                 {

@@ -20,9 +20,9 @@
 
 
     <ItemGroup>
-        <PackageReference Include="Microsoft.CSharp" Version="4.5.0-rc1" />
+        <PackageReference Include="Microsoft.CSharp" Version="4.5.0" />
         <PackageReference Include="Microsoft.IO.RecyclableMemoryStream" Version="1.2.2" />
-        <PackageReference Include="System.Numerics.Vectors" Version="4.5.0-rc1" />
+        <PackageReference Include="System.Numerics.Vectors" Version="4.5.0" />
         <PackageReference Include="Microsoft.NET.Test.Sdk" Version="15.8.0-preview-20180510-03" />
         <PackageReference Include="NUnit" Version="3.10.1" />
         <PackageReference Include="NUnit3TestAdapter" Version="3.10.0" />

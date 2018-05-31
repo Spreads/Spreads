@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace Spreads.Collections
 {
-    // TODO Clear extension method
+    // TODO Clear() extension method
 
     public class SortedChunkedMap<TKey, TValue> : SortedChunkedMapBase<TKey, TValue>, IPersistentSeries<TKey, TValue>
     {

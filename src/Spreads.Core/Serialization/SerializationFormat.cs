@@ -49,5 +49,9 @@
         /// </summary>
         JsonDeflate = 101,
 
+#if NETCOREAPP2_1
+        JsonBrotli = 102
+#endif
+
     }
 }
