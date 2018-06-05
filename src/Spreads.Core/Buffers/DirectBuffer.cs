@@ -2,14 +2,12 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-using Spreads.Utils;
 using System;
 using System.Diagnostics;
-using System.IO;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using System.Text;
 using System.Threading;
+using static System.Runtime.CompilerServices.Unsafe;
 
 namespace Spreads.Buffers
 {
@@ -17,35 +15,17 @@ namespace Spreads.Buffers
     /// Provides unsafe read/write opertaions on a memory pointer.
     /// </summary>
     [StructLayout(LayoutKind.Sequential)]
-    public unsafe struct DirectBuffer : IDirectBuffer
+    public readonly unsafe struct DirectBuffer
     {
-        private readonly long _length;
-        internal readonly IntPtr _data;
-
-        /// <summary>
-        /// Create a DirectBuffer without argument checks.
-        /// </summary>
-        /// <param name="length"></param>
-        /// <param name="data"></param>
-        /// <returns></returns>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static DirectBuffer CreateWithoutChecks(long length, IntPtr data)
-        {
-            return new DirectBuffer(length, data, true);
-        }
-
-        // ReSharper disable once UnusedParameter.Local
-        private DirectBuffer(long length, IntPtr data, bool nochecks = true)
-        {
-            _data = data;
-            _length = length;
-        }
+        private readonly IntPtr _length;
+        internal readonly byte* _data;
 
         /// <summary>
         /// Attach a view to an unmanaged buffer owned by external code
         /// </summary>
         /// <param name="data">Unmanaged byte buffer</param>
         /// <param name="length">Length of the buffer</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public DirectBuffer(long length, IntPtr data)
         {
             if (data == IntPtr.Zero)
@@ -56,59 +36,17 @@ namespace Spreads.Buffers
             {
                 ThrowHelper.ThrowArgumentException("Memory size must be > 0");
             }
+            _length = (IntPtr)length;
+            _data = (byte*)data;
+        }
+
+        /// <summary>
+        /// Unsafe constructors performs no input checks.
+        /// </summary>
+        public DirectBuffer(IntPtr length, byte* data)
+        {
             _data = data;
             _length = length;
-        }
-
-        public DirectBuffer(long length, byte* data) : this(length, (IntPtr)(data))
-        {
-        }
-
-        public DirectBuffer(long length, void* data) : this(length, (IntPtr)(data))
-        {
-        }
-
-        //SafeBuffer
-        public DirectBuffer(long length, SafeBuffer buffer) : this(length, PtrFromSafeBuffer(buffer))
-        {
-        }
-
-        private static IntPtr PtrFromSafeBuffer(SafeBuffer buffer)
-        {
-            byte* bPtr = null;
-            buffer.AcquirePointer(ref bPtr);
-            return (IntPtr)bPtr;
-        }
-
-        /// <summary>
-        /// Copy this buffer to a pointer
-        /// </summary>
-        public void Copy(IntPtr destination, long srcOffset, long length)
-        {
-            System.Runtime.CompilerServices.Unsafe.CopyBlockUnaligned((byte*)destination, (byte*)(_data.ToInt64() + srcOffset), checked((uint)length));
-        }
-
-        /// <summary>
-        /// Copy this buffer to a byte array
-        /// </summary>
-        public void Copy(byte[] destination, int srcOffset, int destOffset, int length)
-        {
-            Marshal.Copy(_data + srcOffset, destination, destOffset, length);
-        }
-
-        /// <summary>
-        /// Copy data and move the fixed buffer to the new location
-        /// </summary>
-        public IDirectBuffer Move(IntPtr destination, long srcOffset, long length)
-        {
-            System.Runtime.CompilerServices.Unsafe.CopyBlockUnaligned((byte*)destination, (byte*)(_data.ToInt64() + srcOffset), checked((uint)length));
-            return new DirectBuffer(length, destination);
-        }
-
-        public IDirectBuffer Move(byte[] destination, int srcOffset, int destOffset, int length)
-        {
-            Marshal.Copy(_data + srcOffset, destination, destOffset, length);
-            return new FixedBuffer(destination);
         }
 
         /// <summary>
@@ -117,10 +55,14 @@ namespace Spreads.Buffers
         public long Length
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return _length; }
+            get { return (long)_length; }
         }
 
-        public IntPtr Data => _data;
+        public IntPtr Data
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return (IntPtr)_data; }
+        }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool HasCapacity(long offset, long length)
@@ -146,8 +88,8 @@ namespace Spreads.Buffers
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public char ReadChar(long index)
         {
-            Assert(index, 1);
-            return *((char*)new IntPtr(_data.ToInt64() + index));
+            Assert(index, 2);
+            return ReadUnaligned<char>(_data + index);
         }
 
         /// <summary>
@@ -158,8 +100,8 @@ namespace Spreads.Buffers
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void WriteChar(long index, char value)
         {
-            Assert(index, 1);
-            *((byte*)new IntPtr(_data.ToInt64() + index)) = (byte)value;
+            Assert(index, 2);
+            WriteUnaligned(_data + index, value);
         }
 
         /// <summary>
@@ -171,7 +113,7 @@ namespace Spreads.Buffers
         public sbyte ReadSByte(long index)
         {
             Assert(index, 1);
-            return *(sbyte*)(new IntPtr(_data.ToInt64() + index));
+            return ReadUnaligned<sbyte>(_data + index);
         }
 
         /// <summary>
@@ -182,7 +124,8 @@ namespace Spreads.Buffers
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void WriteSByte(long index, sbyte value)
         {
-            *(sbyte*)(new IntPtr(_data.ToInt64() + index)) = value;
+            Assert(index, 1);
+            WriteUnaligned(_data + index, value);
         }
 
         /// <summary>
@@ -194,7 +137,7 @@ namespace Spreads.Buffers
         public byte ReadByte(long index)
         {
             Assert(index, 1);
-            return *((byte*)new IntPtr(_data.ToInt64() + index));
+            return ReadUnaligned<byte>(_data + index);
         }
 
         /// <summary>
@@ -206,7 +149,7 @@ namespace Spreads.Buffers
         public void WriteByte(long index, byte value)
         {
             Assert(index, 1);
-            *((byte*)new IntPtr(_data.ToInt64() + index)) = value;
+            WriteUnaligned(_data + index, value);
         }
 
         public byte this[long index]
@@ -215,13 +158,13 @@ namespace Spreads.Buffers
             get
             {
                 Assert(index, 1);
-                return *((byte*)new IntPtr(_data.ToInt64() + index));
+                return ReadUnaligned<byte>(_data + index);
             }
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             set
             {
                 Assert(index, 1);
-                *((byte*)new IntPtr(_data.ToInt64() + index)) = value;
+                WriteUnaligned(_data + index, value);
             }
         }
 
@@ -234,7 +177,7 @@ namespace Spreads.Buffers
         public short ReadInt16(long index)
         {
             Assert(index, 2);
-            return *(short*)(new IntPtr(_data.ToInt64() + index));
+            return ReadUnaligned<short>(_data + index);
         }
 
         /// <summary>
@@ -246,7 +189,7 @@ namespace Spreads.Buffers
         public void WriteInt16(long index, short value)
         {
             Assert(index, 2);
-            *(short*)(new IntPtr(_data.ToInt64() + index)) = value;
+            WriteUnaligned(_data + index, value);
         }
 
         /// <summary>
@@ -258,7 +201,7 @@ namespace Spreads.Buffers
         public int ReadInt32(long index)
         {
             Assert(index, 4);
-            return *(int*)(new IntPtr(_data.ToInt64() + index));
+            return ReadUnaligned<int>(_data + index);
         }
 
         /// <summary>
@@ -270,105 +213,105 @@ namespace Spreads.Buffers
         public void WriteInt32(long index, int value)
         {
             Assert(index, 4);
-            *(int*)(new IntPtr(_data.ToInt64() + index)) = value;
+            WriteUnaligned(_data + index, value);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public int VolatileReadInt32(long index)
         {
             Assert(index, 4);
-            return Volatile.Read(ref *(int*)(new IntPtr(_data.ToInt64() + index)));
+            return Volatile.Read(ref *(int*)(new IntPtr(_data + index)));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void VolatileWriteInt32(long index, int value)
         {
             Assert(index, 4);
-            Volatile.Write(ref *(int*)(new IntPtr(_data.ToInt64() + index)), value);
+            Volatile.Write(ref *(int*)(new IntPtr(_data + index)), value);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public long VolatileReadInt64(long index)
         {
             Assert(index, 8);
-            return Volatile.Read(ref *(long*)(new IntPtr(_data.ToInt64() + index)));
+            return Volatile.Read(ref *(long*)(new IntPtr(_data + index)));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void VolatileWriteInt64(long index, long value)
         {
             Assert(index, 8);
-            Volatile.Write(ref *(long*)(new IntPtr(_data.ToInt64() + index)), value);
+            Volatile.Write(ref *(long*)(new IntPtr(_data + index)), value);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public int InterlockedIncrementInt32(long index)
         {
             Assert(index, 4);
-            return Interlocked.Increment(ref *(int*)(new IntPtr(_data.ToInt64() + index)));
+            return Interlocked.Increment(ref *(int*)(new IntPtr(_data + index)));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public int InterlockedDecrementInt32(long index)
         {
             Assert(index, 4);
-            return Interlocked.Decrement(ref *(int*)(new IntPtr(_data.ToInt64() + index)));
+            return Interlocked.Decrement(ref *(int*)(new IntPtr(_data + index)));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public int InterlockedAddInt32(long index, int value)
         {
             Assert(index, 4);
-            return Interlocked.Add(ref *(int*)(new IntPtr(_data.ToInt64() + index)), value);
+            return Interlocked.Add(ref *(int*)(new IntPtr(_data + index)), value);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public int InterlockedReadInt32(long index)
         {
             Assert(index, 4);
-            return Interlocked.Add(ref *(int*)(new IntPtr(_data.ToInt64() + index)), 0);
+            return Interlocked.Add(ref *(int*)(new IntPtr(_data + index)), 0);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public int InterlockedCompareExchangeInt32(long index, int value, int comparand)
         {
             Assert(index, 4);
-            return Interlocked.CompareExchange(ref *(int*)(new IntPtr(_data.ToInt64() + index)), value, comparand);
+            return Interlocked.CompareExchange(ref *(int*)(new IntPtr(_data + index)), value, comparand);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public long InterlockedIncrementInt64(long index)
         {
             Assert(index, 8);
-            return Interlocked.Increment(ref *(long*)(new IntPtr(_data.ToInt64() + index)));
+            return Interlocked.Increment(ref *(long*)(new IntPtr(_data + index)));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public long InterlockedDecrementInt64(long index)
         {
             Assert(index, 8);
-            return Interlocked.Decrement(ref *(long*)(new IntPtr(_data.ToInt64() + index)));
+            return Interlocked.Decrement(ref *(long*)(new IntPtr(_data + index)));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public long InterlockedAddInt64(long index, long value)
         {
             Assert(index, 8);
-            return Interlocked.Add(ref *(long*)(new IntPtr(_data.ToInt64() + index)), value);
+            return Interlocked.Add(ref *(long*)(new IntPtr(_data + index)), value);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public long InterlockedReadInt64(long index)
         {
             Assert(index, 8);
-            return Interlocked.Add(ref *(long*)(new IntPtr(_data.ToInt64() + index)), 0);
+            return Interlocked.Add(ref *(long*)(new IntPtr(_data + index)), 0);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public long InterlockedCompareExchangeInt64(long index, long value, long comparand)
         {
             Assert(index, 8);
-            return Interlocked.CompareExchange(ref *(long*)(new IntPtr(_data.ToInt64() + index)), value, comparand);
+            return Interlocked.CompareExchange(ref *(long*)(new IntPtr(_data + index)), value, comparand);
         }
 
         /// <summary>
@@ -379,7 +322,8 @@ namespace Spreads.Buffers
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public long ReadInt64(long index)
         {
-            return *(long*)(new IntPtr(_data.ToInt64() + index));
+            Assert(index, 8);
+            return ReadUnaligned<long>(_data + index);
         }
 
         /// <summary>
@@ -391,7 +335,7 @@ namespace Spreads.Buffers
         public void WriteInt64(long index, long value)
         {
             Assert(index, 8);
-            *(long*)(new IntPtr(_data.ToInt64() + index)) = value;
+            WriteUnaligned(_data + index, value);
         }
 
         /// <summary>
@@ -402,8 +346,8 @@ namespace Spreads.Buffers
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ushort ReadUint16(long index)
         {
-            Assert(index, 8);
-            return *(ushort*)(new IntPtr(_data.ToInt64() + index));
+            Assert(index, 2);
+            return ReadUnaligned<ushort>(_data + index);
         }
 
         /// <summary>
@@ -415,7 +359,7 @@ namespace Spreads.Buffers
         public void WriteUint16(long index, ushort value)
         {
             Assert(index, 2);
-            *(ushort*)(new IntPtr(_data.ToInt64() + index)) = value;
+            WriteUnaligned(_data + index, value);
         }
 
         /// <summary>
@@ -426,8 +370,8 @@ namespace Spreads.Buffers
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public uint ReadUint32(long index)
         {
-            Assert(index, 2);
-            return *(uint*)(new IntPtr(_data.ToInt64() + index));
+            Assert(index, 4);
+            return ReadUnaligned<uint>(_data + index);
         }
 
         /// <summary>
@@ -439,7 +383,7 @@ namespace Spreads.Buffers
         public void WriteUint32(long index, uint value)
         {
             Assert(index, 4);
-            *(uint*)(new IntPtr(_data.ToInt64() + index)) = value;
+            WriteUnaligned(_data + index, value);
         }
 
         /// <summary>
@@ -450,8 +394,8 @@ namespace Spreads.Buffers
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ulong ReadUint64(long index)
         {
-            Assert(index, 4);
-            return *(ulong*)(new IntPtr(_data.ToInt64() + index));
+            Assert(index, 8);
+            return ReadUnaligned<ulong>(_data + index);
         }
 
         /// <summary>
@@ -462,7 +406,7 @@ namespace Spreads.Buffers
         public void WriteUint64(long index, ulong value)
         {
             Assert(index, 8);
-            *(ulong*)(new IntPtr(_data.ToInt64() + index)) = value;
+            WriteUnaligned(_data + index, value);
         }
 
         /// <summary>
@@ -473,8 +417,8 @@ namespace Spreads.Buffers
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public float ReadFloat(long index)
         {
-            Assert(index, 8);
-            return *(float*)(new IntPtr(_data.ToInt64() + index));
+            Assert(index, 4);
+            return ReadUnaligned<float>(_data + index);
         }
 
         /// <summary>
@@ -486,7 +430,7 @@ namespace Spreads.Buffers
         public void WriteFloat(long index, float value)
         {
             Assert(index, 4);
-            *(float*)(new IntPtr(_data.ToInt64() + index)) = value;
+            WriteUnaligned(_data + index, value);
         }
 
         /// <summary>
@@ -498,7 +442,7 @@ namespace Spreads.Buffers
         public double ReadDouble(long index)
         {
             Assert(index, 8);
-            return *(double*)(new IntPtr(_data.ToInt64() + index));
+            return ReadUnaligned<double>(_data + index);
         }
 
         /// <summary>
@@ -510,102 +454,30 @@ namespace Spreads.Buffers
         public void WriteDouble(long index, double value)
         {
             Assert(index, 8);
-            *(double*)(new IntPtr(_data.ToInt64() + index)) = value;
+            WriteUnaligned(_data + index, value);
         }
-
-        /// <summary>
-        /// Copies a range of bytes from the underlying into a supplied byte array.
-        /// </summary>
-        /// <param name="index">index  in the underlying buffer to start from.</param>
-        /// <param name="destination">array into which the bytes will be copied.</param>
-        /// <param name="offsetDestination">offset in the supplied buffer to start the copy</param>
-        /// <param name="len">length of the supplied buffer to use.</param>
-        /// <returns>count of bytes copied.</returns>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public int ReadBytes(long index, byte[] destination, int offsetDestination, int len)
-        {
-            if (len > _length - index) throw new ArgumentException("length > _capacity - index");
-            Marshal.Copy(new IntPtr(_data.ToInt64() + index), destination, offsetDestination, len);
-            return len;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public int ReadAllBytes(byte[] destination)
-        {
-            if (_length > int.MaxValue)
-            {
-                // TODO (low) .NET already supports arrays larger than 2 Gb,
-                // but Marshal.Copy doesn't accept long as a parameter
-                // Use memcpy and fixed() over an empty large array
-                throw new NotImplementedException("Memory length is larger than the maximum size of a byte array.");
-            }
-            else
-            {
-                Marshal.Copy((_data), destination, 0, (int)_length);
-                return (int)_length;
-            }
-        }
-
-        /// <summary>
-        /// Writes a byte array into the underlying buffer.
-        /// </summary>
-        /// <param name="index">index  in the underlying buffer to start from.</param>
-        /// <param name="src">source byte array to be copied to the underlying buffer.</param>
-        /// <param name="srcOffset">offset in the supplied buffer to begin the copy.</param>
-        /// <param name="len">length of the supplied buffer to copy.</param>
-        /// <returns>count of bytes copied.</returns>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public int WriteBytes(long index, byte[] src, int srcOffset, int len)
-        {
-            Assert(index, len);
-            if (src.Length < srcOffset + len)
-            {
-                ThrowHelper.ThrowArgumentOutOfRangeException();
-            }
-            //int count = Math.Min(len, (int)(this._length - index));
-            Marshal.Copy(src, srcOffset, new IntPtr(_data.ToInt64() + index), len);
-
-            return len;
-        }
-
-        //[MethodImpl(MethodImplOptions.AggressiveInlining)]
-        //public int Write<T>(long index, T value, MemoryStream ms = null)
-        //{
-        //    return Serialization.BinarySerializer.Write<T>(value, ref this, checked((uint)index), ms);
-        //}
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public int Read<T>(long index, out T value)
         {
-            return Serialization.BinarySerializer.Read(new IntPtr(_data.ToInt64() + index), out value);
+            var size = SizeOf<T>();
+            Assert(index, size);
+            value = ReadUnaligned<T>(_data + index);
+            return size;
         }
 
-        /// <summary>
-        /// Writes len bytes from source to this buffer at index. Works as memcpy, not memmove (TODO)
-        /// </summary>
-        /// <param name="index"></param>
-        /// <param name="src"></param>
-        /// <param name="srcOffset"></param>
-        /// <param name="length"></param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void WriteBytes(long index, DirectBuffer src, long srcOffset, long length)
+        public void Write<T>(long index, T value)
         {
-            Assert(index, length);
-            if (src._length < srcOffset + length)
-            {
-                ThrowHelper.ThrowArgumentOutOfRangeException();
-            }
-
-            var source = new IntPtr(src.Data.ToInt64() + srcOffset);
-            var destination = _data.ToInt64() + index;
-            System.Runtime.CompilerServices.Unsafe.CopyBlockUnaligned((byte*)destination, (byte*)_data.ToInt64(), checked((uint)length));
+            Assert(index, SizeOf<T>());
+            WriteUnaligned(_data + index, value);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Clear(long index, int length)
         {
             Assert(index, length);
-            var destination = new IntPtr(_data.ToInt64() + index);
+            var destination = new IntPtr(_data + index);
             Unsafe.InitBlockUnaligned((void*)destination, 0, (uint)length);
         }
 
@@ -613,83 +485,184 @@ namespace Spreads.Buffers
         public UUID ReadUUID(long index)
         {
             Assert(index, 16);
-            return *(UUID*)(new IntPtr(_data.ToInt64() + index));
-            //return new UUID(*(ulong*)(_pBuffer + index), *(ulong*)(_pBuffer + index + 8));
+            return ReadUnaligned<UUID>(_data + index);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void WriteUUID(long index, UUID value)
         {
             Assert(index, 16);
-            *(UUID*)(new IntPtr(_data.ToInt64() + index)) = value;
+            WriteUnaligned(_data + index, value);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public int ReadAsciiDigit(long index)
         {
             Assert(index, 1);
-            return (*((byte*)new IntPtr(_data.ToInt64() + index))) - '0';
+            return ReadUnaligned<byte>(_data + index) - '0';
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void WriteAsciiDigit(long index, int value)
+        public void WriteAsciiDigit(long index, byte value)
         {
             Assert(index, 1);
-            *(byte*)(new IntPtr(_data.ToInt64() + index)) = (byte)(value + '0');
+            WriteUnaligned(_data + index, (byte)(value + '0'));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void VerifyAlignment(int alignment)
         {
-            if (0 != (_data.ToInt64() & (alignment - 1)))
+            if (0 != ((long)_data & (alignment - 1)))
             {
                 ThrowHelper.ThrowInvalidOperationException(
-                    $"DirectBuffer is not correctly aligned: addressOffset={_data.ToInt64():D} in not divisible by {alignment:D}");
+                    $"DirectBuffer is not correctly aligned: addressOffset={(long)_data:D} in not divisible by {alignment:D}");
             }
         }
 
-        // TODO add Ascii dates/ints/etc, could take fast implementation from Jil
-        // See TAQParse example for ulong and times manual parsing
-
-        /// <summary>
-        ///
-        /// </summary>
-        /// <returns></returns>
-        public SafeBuffer CreateSafeBuffer()
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void CopyTo(long index, Memory<byte> destination, int length)
         {
-            var buffer = this;
-            return new SafeDirectBuffer(ref buffer);
-        }
-
-        internal sealed class SafeDirectBuffer : SafeBuffer
-        {
-            public SafeDirectBuffer(ref DirectBuffer directBuffer) : base(false)
+            if ((ulong)destination.Length < (ulong)length)
             {
-                var directBuffer1 = directBuffer;
-                SetHandle(directBuffer1._data);
-                Initialize((uint)directBuffer1._length);
+                ThrowHelper.ThrowArgumentOutOfRangeException();
             }
 
-            protected override bool ReleaseHandle()
+            fixed (byte* destPtr = &MemoryMarshal.GetReference(destination.Span))
             {
-                return true;
+                CopyTo(index, (IntPtr)destPtr, length);
             }
         }
-    }
 
-    // TODO implement binary reader over a direct buffer
-    internal class DirectBinaryReader : BinaryReader
-    {
-        public DirectBinaryReader(Stream input) : base(input)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void CopyTo(long index, DirectBuffer destination, int destinationOffset, int length)
         {
+            destination.Assert(destinationOffset, length);
+            CopyTo(index, destination.Data + destinationOffset, length);
         }
 
-        public DirectBinaryReader(Stream input, Encoding encoding) : base(input, encoding)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void CopyTo(long index, IntPtr destination, int length)
         {
+            Assert(index, length);
+            CopyBlockUnaligned((byte*)destination, _data + index, checked((uint)length));
         }
 
-        public DirectBinaryReader(Stream input, Encoding encoding, bool leaveOpen) : base(input, encoding, leaveOpen)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void CopyFrom(long index, ReadOnlyMemory<byte> source, int length)
         {
+            if ((ulong)source.Length < (ulong)length)
+            {
+                ThrowHelper.ThrowArgumentOutOfRangeException();
+            }
+
+            fixed (byte* srcPtr = &MemoryMarshal.GetReference(source.Span))
+            {
+                CopyFrom(index, (IntPtr)srcPtr, length);
+            }
         }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void CopyFrom(long index, DirectBuffer source, int sourceOffset, int length)
+        {
+            source.Assert(sourceOffset, length);
+            CopyFrom(index, source.Data + sourceOffset, length);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void CopyFrom(long index, IntPtr source, int length)
+        {
+            Assert(index, length);
+            CopyBlockUnaligned(_data + index, (byte*)source, checked((uint)length));
+        }
+
+        ///// <summary>
+        ///// Copy this buffer to a pointer
+        ///// </summary>
+        //[MethodImpl(MethodImplOptions.AggressiveInlining)]
+        //public void Copy(IntPtr destination, long srcOffset, long length)
+        //{
+        //    Assert(srcOffset, length);
+        //    CopyBlockUnaligned((byte*)destination, _data + srcOffset, checked((uint)length));
+        //}
+
+        ///// <summary>
+        ///// Copy this buffer to a byte array
+        ///// </summary>
+        //[MethodImpl(MethodImplOptions.AggressiveInlining)]
+        //public void Copy(byte[] destination, int destOffset, int srcOffset, int length)
+        //{
+        //    if ((ulong)destOffset + (ulong)length > (ulong)destination.Length)
+        //    {
+        //        ThrowHelper.ThrowArgumentOutOfRangeException();
+        //    }
+        //    fixed (byte* dstPtr = &destination[destOffset])
+        //    {
+        //        Copy((IntPtr)dstPtr, srcOffset, length);
+        //    }
+        //}
+
+        ///// <summary>
+        ///// Copies a range of bytes from the underlying into a supplied byte array.
+        ///// </summary>
+        ///// <param name="index">index  in the underlying buffer to start from.</param>
+        ///// <param name="destination">array into which the bytes will be copied.</param>
+        ///// <param name="destinationOffset">offset in the supplied buffer to start the copy</param>
+        ///// <param name="length">length of the supplied buffer to use.</param>
+        ///// <returns>count of bytes copied.</returns>
+        //[MethodImpl(MethodImplOptions.AggressiveInlining)]
+        //public int CopyTo(long index, byte[] destination, int destinationOffset, int length)
+        //{
+        //    if (length > _length - index) throw new ArgumentException("length > _capacity - index");
+        //    Marshal.Copy(new IntPtr(_data.ToInt64() + index), destination, destinationOffset, length);
+        //    return length;
+        //}
+
+        ///// <summary>
+        ///// Writes a byte array into the underlying buffer.
+        ///// </summary>
+        ///// <param name="index">index  in the underlying buffer to start from.</param>
+        ///// <param name="source">source byte array to be copied to the underlying buffer.</param>
+        ///// <param name="srcOffset">offset in the supplied buffer to begin the copy.</param>
+        ///// <param name="length">length of the supplied buffer to copy.</param>
+        ///// <returns>count of bytes copied.</returns>
+        //[MethodImpl(MethodImplOptions.AggressiveInlining)]
+        //public int CopyFrom(long index, byte[] source, int srcOffset, int length)
+        //{
+        //    Assert(index, length);
+        //    if (source.Length < srcOffset + length)
+        //    {
+        //        ThrowHelper.ThrowArgumentOutOfRangeException();
+        //    }
+        //    //int count = Math.Min(len, (int)(this._length - index));
+        //    Marshal.Copy(source, srcOffset, new IntPtr(_data.ToInt64() + index), length);
+
+        //    return length;
+        //}
+
+        ////[MethodImpl(MethodImplOptions.AggressiveInlining)]
+        ////public int Write<T>(long index, T value, MemoryStream ms = null)
+        ////{
+        ////    return Serialization.BinarySerializer.Write<T>(value, ref this, checked((uint)index), ms);
+        ////}
+
+        ///// <summary>
+        ///// Writes len bytes from source to this buffer at index. Works as memcpy, not memmove.
+        ///// </summary>
+        ///// <param name="index"></param>
+        ///// <param name="src"></param>
+        ///// <param name="srcOffset"></param>
+        ///// <param name="length"></param>
+        //[MethodImpl(MethodImplOptions.AggressiveInlining)]
+        //public void WriteBytes(long index, DirectBuffer src, long srcOffset, long length)
+        //{
+        //    Assert(index, length);
+        //    if ((ulong)src._length < (ulong)srcOffset + (ulong)length)
+        //    {
+        //        ThrowHelper.ThrowArgumentOutOfRangeException();
+        //    }
+        //    var source = src._data + srcOffset;
+        //    var destination = _data + index;
+        //    CopyBlockUnaligned(destination, source, checked((uint)length));
+        //}
     }
 }

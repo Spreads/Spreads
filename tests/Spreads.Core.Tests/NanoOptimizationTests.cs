@@ -396,7 +396,6 @@ namespace Spreads.Tests
             var arr = new double[len];
 
             var buffer = new byte[len * 8];
-            var fixedBuffer = new FixedBuffer(buffer);
 
             var unmanagedMemory = Marshal.AllocHGlobal(len * 8);
             var directBuffer = new DirectBuffer(len * 8, unmanagedMemory);
@@ -404,7 +403,6 @@ namespace Spreads.Tests
             for (int i = 0; i < len; i++)
             {
                 arr[i] = i;
-                fixedBuffer.WriteDouble(i * 8, i);
                 directBuffer.WriteDouble(i * 8, i);
             }
             var list = new List<double>(arr);
@@ -512,31 +510,6 @@ namespace Spreads.Tests
                 }
             }
 
-            using (Benchmark.Run("FixedBuffer", len * maxRounds / 10))
-            {
-                sum = 0.0;
-                for (int rounds = 0; rounds < maxRounds; rounds++)
-                {
-                    foreach (var idx in idxs)
-                    {
-                        sum += fixedBuffer.ReadDouble(idx * 8);
-                    }
-                }
-            }
-
-            using (Benchmark.Run("IFixedBuffer", len * maxRounds / 10))
-            {
-                sum = 0.0;
-                var ifb = fixedBuffer as IDirectBuffer;
-                for (int rounds = 0; rounds < maxRounds; rounds++)
-                {
-                    foreach (var idx in idxs)
-                    {
-                        sum += ifb.ReadDouble(idx * 8);
-                    }
-                }
-            }
-
             using (Benchmark.Run("DirectBuffer", len * maxRounds / 10))
             {
                 sum = 0.0;
@@ -549,18 +522,6 @@ namespace Spreads.Tests
                 }
             }
 
-            using (Benchmark.Run("}", len * maxRounds / 10))
-            {
-                sum = 0.0;
-                var idb = directBuffer as IDirectBuffer;
-                for (int rounds = 0; rounds < maxRounds; rounds++)
-                {
-                    foreach (var idx in idxs)
-                    {
-                        sum += idb.ReadDouble(idx * 8);
-                    }
-                }
-            }
         }
 
         [Test, Explicit("long running")]
