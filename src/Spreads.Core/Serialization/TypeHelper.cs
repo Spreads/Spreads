@@ -121,6 +121,24 @@ namespace Spreads.Serialization
         /// </summary>
         public static readonly int Size = InitChecked();
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int EnsureFixedSize()
+        {
+            if (Size > 0)
+            {
+                return Size;
+            }
+
+            ThrowTypeIsNotFixedSize();
+            return -1;
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static void ThrowTypeIsNotFixedSize()
+        {
+            throw new ApplicationException($"Type {typeof(T).Name} is not fixed size. Either add Size parameter to StructLayout attribute or use Spreads.Serialization attribute to explicitly opt-in to treat non-primitive user-defined structs as fixed-size.");
+        }
+
         /// <summary>
         /// Cache call to typeof(T).GetTypeInfo().IsValueType so it is JIT-time constant.
         /// </summary>
@@ -220,7 +238,7 @@ namespace Spreads.Serialization
 
             if (pinnedSize > 0)
             {
-                if (typeof(T).GetTypeInfo().IsPrimitive && (typeof(T) != typeof(bool) && typeof(T) != typeof(char)))
+                if (typeof(T).GetTypeInfo().IsPrimitive && typeof(T) != typeof(bool))
                 {
                     _typeParams.IsBlittable = true;
                     _typeParams.IsFixedSize = true;
