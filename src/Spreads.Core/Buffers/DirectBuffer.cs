@@ -49,6 +49,18 @@ namespace Spreads.Buffers
             _length = length;
         }
 
+        public DirectBuffer(Span<byte> span)
+        {
+            _data = (byte*)AsPointer(ref MemoryMarshal.GetReference(span));
+            _length = (IntPtr)span.Length;
+        }
+
+        public ReadOnlySpan<byte> Span
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return new ReadOnlySpan<byte>(_data, (int)_length); }
+        }
+
         /// <summary>
         /// Capacity of the underlying buffer
         /// </summary>
