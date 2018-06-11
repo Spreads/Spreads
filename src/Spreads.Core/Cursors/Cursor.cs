@@ -48,13 +48,6 @@ namespace Spreads
 
         /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Task<bool> MoveNextAsync(CancellationToken cancellationToken)
-        {
-            return _cursor.MoveNextAsync(cancellationToken);
-        }
-
-        /// <inheritdoc />
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Task<bool> MoveNextAsync()
         {
             return _cursor.MoveNextAsync();
@@ -169,9 +162,9 @@ namespace Spreads
 
         /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Task<bool> MoveNextBatch(CancellationToken cancellationToken)
+        public Task<bool> MoveNextBatch()
         {
-            return _cursor.MoveNextBatch(cancellationToken);
+            return _cursor.MoveNextBatch();
         }
 
         /// <inheritdoc />
@@ -226,7 +219,7 @@ namespace Spreads
         }
 
         /// <inheritdoc />
-        public Task<bool> Updated
+        public ValueTask Updated
         {
             // NB this property is repeatedly called from MNA
             [MethodImpl(MethodImplOptions.AggressiveInlining)]

@@ -82,7 +82,7 @@ namespace Spreads.Collections
                     // we are inside previous bucket, setter has no choice but to set to this
                     // bucket regardless of its size
                     var res = await prevWBucket.SetOrAdd(key, value, overwrite);
-                    NotifyUpdate(true);
+                    NotifyUpdate();
                     return res;
                 }
                 else
@@ -105,7 +105,7 @@ namespace Spreads.Collections
 
                         Debug.Assert(kvp.Value._version == _version);
                         var res = await kvp.Value.SetOrAdd(key, value, overwrite);
-                        NotifyUpdate(true);
+                        NotifyUpdate();
                         return res;
                     }
                     else
@@ -127,7 +127,7 @@ namespace Spreads.Collections
 
                         prevWHash = key;
                         prevWBucket = newSm;
-                        NotifyUpdate(true);
+                        NotifyUpdate();
                         return outerSet;
                     }
                 }

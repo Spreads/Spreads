@@ -488,7 +488,7 @@ namespace Spreads.Tests.DataTypes
                 }
             });
             var c = rs.GetCursor();
-            while (await c.MoveNextAsync(CancellationToken.None))
+            while (await c.MoveNextAsync())
             {
                 sum += c.CurrentValue.Get<int>();
             }

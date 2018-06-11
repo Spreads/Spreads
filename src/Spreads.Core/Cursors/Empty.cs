@@ -3,10 +3,10 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 using Spreads.Utils;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
-using System.Threading;
 using System.Threading.Tasks;
 
 // ReSharper disable once CheckNamespace
@@ -145,7 +145,7 @@ namespace Spreads
 
         /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Task<bool> MoveNextBatch(CancellationToken cancellationToken)
+        public Task<bool> MoveNextBatch()
         {
             return TaskUtil.FalseTask;
         }
@@ -159,11 +159,6 @@ namespace Spreads
         public Series<TKey, TValue, Empty<TKey, TValue>> Source => new Series<TKey, TValue, Empty<TKey, TValue>>(this);
 
         /// <inheritdoc />
-        public Task<bool> MoveNextAsync(CancellationToken cancellationToken)
-        {
-            return TaskUtil.FalseTask;
-        }
-
         public Task<bool> MoveNextAsync()
         {
             return TaskUtil.FalseTask;
@@ -180,7 +175,7 @@ namespace Spreads
         public bool IsCompleted => true;
 
         /// <inheritdoc />
-        public Task<bool> Updated => TaskUtil.FalseTask;
+        public ValueTask Updated => new ValueTask(Task.FromException(new InvalidOperationException("IsCompleted must be checked before accessing Updated property.")));
 
         #endregion ICursorSeries members
 

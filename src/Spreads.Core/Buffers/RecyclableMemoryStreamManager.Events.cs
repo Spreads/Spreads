@@ -30,7 +30,7 @@ namespace Spreads.Buffers
 {
     public sealed partial class RecyclableMemoryStreamManager
     {
-        [EventSource(Name = "Microsoft-IO-RecyclableMemoryStream", Guid = "{B80CD4E4-890E-468D-9CBA-90EB7C82DFC7}")]
+        [EventSource(Name = "Spreads-Buffers-RecyclableMemoryStream", Guid = "{AE48A701-2840-48A5-B40F-8093160CADD5}")]
         public sealed class Events : EventSource
         {
             public new static readonly Events Write = new Events();

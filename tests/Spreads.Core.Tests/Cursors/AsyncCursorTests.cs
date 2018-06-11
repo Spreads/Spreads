@@ -14,27 +14,27 @@ namespace Spreads.Tests.Cursors
     [TestFixture]
     public class AsyncCursorTests
     {
-        [Test]
-        public void CouldCancelMNA()
-        {
-            var sm = new SortedMap<int, int>();
+        //[Test]
+        //public void CouldCancelMNA()
+        //{
+        //    var sm = new SortedMap<int, int>();
 
-            sm.Add(1, 1);
+        //    sm.Add(1, 1);
 
-            var cursor = sm.GetCursor();
-            Assert.True(cursor.MoveNext());
-            Assert.False(cursor.MoveNext());
+        //    var cursor = sm.GetCursor();
+        //    Assert.True(cursor.MoveNext());
+        //    Assert.False(cursor.MoveNext());
 
-            var cts = new CancellationTokenSource();
+        //    var cts = new CancellationTokenSource();
 
-            var t = Task.Run(() => cursor.MoveNextAsync(cts.Token));
+        //    var t = Task.Run(() => cursor.MoveNextAsync(cts.Token));
 
-            cts.Cancel();
+        //    cts.Cancel();
 
-            Thread.Sleep(100);
+        //    Thread.Sleep(100);
 
-            Assert.True(t.IsCanceled);
-        }
+        //    Assert.True(t.IsCanceled);
+        //}
 
         [Test]
         public void CouldCancelDoAfter()
@@ -72,9 +72,7 @@ namespace Spreads.Tests.Cursors
             Assert.True(cursor.MoveNext());
             Assert.False(cursor.MoveNext());
 
-            var cts = new CancellationTokenSource();
-
-            cursor.MoveNextAsync(cts.Token);
+            cursor.MoveNextAsync();
 
             cursor = null;
 
@@ -100,11 +98,7 @@ namespace Spreads.Tests.Cursors
             Assert.True(cursor.MoveNext());
             Assert.False(cursor.MoveNext());
 
-            var cts = new CancellationTokenSource();
-
-            cursor.MoveNextAsync(cts.Token);
-
-            cts.Cancel();
+            cursor.MoveNextAsync();
 
             sm.Add(2, 2);
             sm.Add(3, 3);
@@ -112,64 +106,64 @@ namespace Spreads.Tests.Cursors
             Assert.True(sm.Count == 3);
         }
 
-        [Test]
-        public void CancelledCursorThrowsOperationCancelledException()
-        {
-            var sm = new SortedMap<int, int>();
+        //[Test]
+        //public void CancelledCursorThrowsOperationCancelledException()
+        //{
+        //    var sm = new SortedMap<int, int>();
 
-            sm.Add(1, 1);
+        //    sm.Add(1, 1);
 
-            var cursor = sm.GetCursor();
-            Assert.True(cursor.MoveNext());
-            Assert.False(cursor.MoveNext());
+        //    var cursor = sm.GetCursor();
+        //    Assert.True(cursor.MoveNext());
+        //    Assert.False(cursor.MoveNext());
 
-            var cts = new CancellationTokenSource();
+        //    var cts = new CancellationTokenSource();
 
-            var t = Task.Run(() =>
-            {
-                Thread.Sleep(100);
-                var task = cursor.MoveNextAsync(cts.Token);
-                Assert.True(task.IsCanceled);
-                //task.Wait();
-            });
+        //    var t = Task.Run(() =>
+        //    {
+        //        Thread.Sleep(100);
+        //        var task = cursor.MoveNextAsync(cts.Token);
+        //        Assert.True(task.IsCanceled);
+        //        //task.Wait();
+        //    });
 
-            cts.Cancel();
-            t.Wait();
-        }
+        //    cts.Cancel();
+        //    t.Wait();
+        //}
 
-        [Test]
-        public void CouldCancelRangeCursor()
-        {
-            var sm = new SortedMap<int, int>();
+        //[Test]
+        //public void CouldCancelRangeCursor()
+        //{
+        //    var sm = new SortedMap<int, int>();
 
-            sm.Add(-1, -1);
-            sm.Add(1, 1);
-            sm.Add(2, 2);
+        //    sm.Add(-1, -1);
+        //    sm.Add(1, 1);
+        //    sm.Add(2, 2);
 
-            var range = sm.Range(0, 2, true, false);
+        //    var range = sm.Range(0, 2, true, false);
 
-            Assert.AreEqual(1, range.First.Present.Value);
+        //    Assert.AreEqual(1, range.First.Present.Value);
 
-            var cursor = range.GetCursor();
+        //    var cursor = range.GetCursor();
 
-            var source = cursor.Source;
-            Assert.AreEqual(1, source.Count());
+        //    var source = cursor.Source;
+        //    Assert.AreEqual(1, source.Count());
 
-            Assert.True(cursor.MoveNext());
-            Assert.False(cursor.MoveNext());
+        //    Assert.True(cursor.MoveNext());
+        //    Assert.False(cursor.MoveNext());
 
-            var cts = new CancellationTokenSource();
+        //    var cts = new CancellationTokenSource();
 
-            var t = Task.Run(() =>
-            {
-                Thread.Sleep(100);
-                var task = cursor.MoveNextAsync(cts.Token);
-                Assert.True(task.IsCanceled);
-            });
+        //    var t = Task.Run(() =>
+        //    {
+        //        Thread.Sleep(100);
+        //        var task = cursor.MoveNextAsync(cts.Token);
+        //        Assert.True(task.IsCanceled);
+        //    });
 
-            cts.Cancel();
-            t.Wait();
-        }
+        //    cts.Cancel();
+        //    t.Wait();
+        //}
 
         [Test]
         public void RangeCursorStopsBeforeEndKey()
@@ -191,11 +185,11 @@ namespace Spreads.Tests.Cursors
 
             var t = Task.Run(async () =>
             {
-                var moved = await cursor.MoveNextAsync(cts.Token);
+                var moved = await cursor.MoveNextAsync();
                 Assert.True(moved);
-                moved = await cursor.MoveNextAsync(cts.Token);
+                moved = await cursor.MoveNextAsync();
                 Assert.True(moved);
-                moved = await cursor.MoveNextAsync(cts.Token);
+                moved = await cursor.MoveNextAsync();
                 Assert.False(moved);
                 Assert.AreEqual(2, cursor.CurrentKey);
                 Assert.AreEqual(2, cursor.CurrentValue);
@@ -223,11 +217,11 @@ namespace Spreads.Tests.Cursors
 
             var t = Task.Run(async () =>
             {
-                var moved = await cursor.MoveNextAsync(cts.Token);
+                var moved = await cursor.MoveNextAsync();
                 Assert.True(moved);
-                moved = await cursor.MoveNextAsync(cts.Token);
+                moved = await cursor.MoveNextAsync();
                 Assert.True(moved);
-                moved = await cursor.MoveNextAsync(cts.Token);
+                moved = await cursor.MoveNextAsync();
                 Assert.False(moved);
                 Assert.AreEqual(2, cursor.CurrentKey);
                 Assert.AreEqual(2, cursor.CurrentValue);
@@ -256,7 +250,7 @@ namespace Spreads.Tests.Cursors
             var t = Task.Run(() =>
             {
                 Thread.Sleep(100);
-                var task = cursor.MoveNextAsync(cts.Token);
+                var task = cursor.MoveNextAsync();
                 Assert.True(task.IsCanceled);
                 //task.Wait();
             });

@@ -97,6 +97,8 @@ namespace Spreads.Serialization
         }
     }
 
+    // NB Fail: static RO are not JIT consts for generics!
+
     public sealed unsafe class TypeHelper<T> : TypeHelper
     {
         // ReSharper disable StaticMemberInGenericType

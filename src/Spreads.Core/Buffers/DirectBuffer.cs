@@ -14,9 +14,12 @@ namespace Spreads.Buffers
     /// <summary>
     /// Provides unsafe read/write opertaions on a memory pointer.
     /// </summary>
+    [DebuggerDisplay("Length={" + nameof(Length) + ("}"))]
     [StructLayout(LayoutKind.Sequential)]
     public readonly unsafe struct DirectBuffer
     {
+        public static DirectBuffer Invalid = new DirectBuffer((IntPtr)(-1), (byte*)IntPtr.Zero);
+
         private readonly IntPtr _length;
         internal readonly byte* _data;
 
@@ -43,16 +46,24 @@ namespace Spreads.Buffers
         /// <summary>
         /// Unsafe constructors performs no input checks.
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public DirectBuffer(IntPtr length, byte* data)
         {
             _data = data;
             _length = length;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public DirectBuffer(Span<byte> span)
         {
             _data = (byte*)AsPointer(ref MemoryMarshal.GetReference(span));
             _length = (IntPtr)span.Length;
+        }
+
+        public bool IsValid
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return _length != (IntPtr)(-1); }
         }
 
         public ReadOnlySpan<byte> Span

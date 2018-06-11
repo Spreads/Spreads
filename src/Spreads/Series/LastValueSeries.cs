@@ -42,7 +42,7 @@ namespace Spreads
             {
                 _lastValue = new KeyValuePair<TKey, TValue>(key, value);
                 _isSet = true;
-                NotifyUpdate(true);
+                NotifyUpdate();
             }
         }
 

@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <Import Project="..\..\build\common.props" />
   <PropertyGroup>
-    <TargetFrameworks>netstandard2.0</TargetFrameworks>
+    <TargetFrameworks>netstandard2.0;netcoreapp2.1</TargetFrameworks>
     <AssemblyName>Spreads.Core</AssemblyName>
     <RootNamespace>Spreads</RootNamespace>
     <Description />
@@ -154,5 +154,10 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="Cursors\Readme.md" />
+  </ItemGroup>
+  <ItemGroup>
+    <Reference Include="System.Data.SqlXml">
+      <HintPath>..\..\..\..\..\..\..\Program Files (x86)\Reference Assemblies\Microsoft\Framework\.NETFramework\v4.7.1\System.Data.SqlXml.dll</HintPath>
+    </Reference>
   </ItemGroup>
 </Project>

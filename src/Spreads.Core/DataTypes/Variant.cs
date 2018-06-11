@@ -614,8 +614,7 @@ namespace Spreads.DataTypes
             //span[index] = value;
 
             // Object
-            var arrayOfT = _object as T[];
-            if (arrayOfT != null)
+            if (_object is T[] arrayOfT)
             {
                 arrayOfT[index + (int)_offset] = value;
             }

@@ -123,14 +123,14 @@ namespace Spreads
         }
     }
 
-#if !NET451
-    // TODO Replace usages with SpreadsException
-    public class ApplicationException : Exception
-    {
-        public ApplicationException()
-        { }
-        public ApplicationException(string message) : base(message) { }
-    }
+//#if !NET451
+//    // TODO Replace usages with SpreadsException
+//    public class ApplicationException : Exception
+//    {
+//        public ApplicationException()
+//        { }
+//        public ApplicationException(string message) : base(message) { }
+//    }
 
-#endif
+//#endif
 }

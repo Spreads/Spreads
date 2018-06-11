@@ -2,6 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using NUnit.Framework;
 using Spreads.Collections.Generic;
@@ -16,25 +17,29 @@ namespace Spreads.Tests.Collections
         [Test, Explicit("long running")]
         public void CompareSCGAndFastDictionaryWithInts()
         {
-            var dictionary = new Dictionary<int, int>();
-            var fastDictionary = new FastDictionary<int, int>();
+            var dictionary = new Dictionary<long, long>();
+            var fastDictionary = new FastDictionary<long, long>();
+            var concurrentDictionary = new ConcurrentDictionary<long, long>();
 
-            for (int i = 0; i < 1000; i++)
+            var length = 10000;
+
+            for (int i = 0; i < length; i++)
             {
                 dictionary.Add(i, i);
                 fastDictionary.Add(i, i);
+                concurrentDictionary[i] = i;
             }
 
-            const int count = 500000;
+            const int count = 5000;
 
             for (int r = 0; r < 10; r++)
             {
                 var sum = 0L;
-                using (Benchmark.Run("Dictionary", count * 1000))
+                using (Benchmark.Run("Dictionary", count * length))
                 {
                     for (int i = 0; i < count; i++)
                     {
-                        for (int j = 0; j < 1000; j++)
+                        for (int j = 0; j < length; j++)
                         {
                             sum += dictionary[j];
                         }
@@ -43,18 +48,31 @@ namespace Spreads.Tests.Collections
                 Assert.True(sum > 0);
 
                 var sum1 = 0L;
-                using (Benchmark.Run("FastDictionary", count * 1000))
+                using (Benchmark.Run("FastDictionary", count * length))
                 {
                     for (int i = 0; i < count; i++)
                     {
-                        for (int j = 0; j < 1000; j++)
+                        for (int j = 0; j < length; j++)
                         {
                             sum1 += fastDictionary[j];
                         }
                     }
                 }
-                Assert.True(sum > 0);
-                Assert.AreEqual(sum, sum1);
+                Assert.True(sum1 > 0);
+                // Assert.AreEqual(sum, sum1);
+
+                var sum2 = 0L;
+                using (Benchmark.Run("ConcurrentDictionary", count * length))
+                {
+                    for (int i = 0; i < count; i++)
+                    {
+                        for (int j = 0; j < length; j++)
+                        {
+                            sum2 += concurrentDictionary[j];
+                        }
+                    }
+                }
+                Assert.True(sum2 > 0);
 
             }
 
@@ -75,7 +93,7 @@ namespace Spreads.Tests.Collections
                 fastDictionary.Add(s, i);
             }
 
-            const int count = 100000;
+            const int count = 10000;
 
             for (int r = 0; r < 10; r++)
             {

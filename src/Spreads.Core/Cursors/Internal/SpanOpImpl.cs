@@ -3,7 +3,6 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
-using System.Threading;
 using System.Threading.Tasks;
 
 namespace Spreads.Cursors.Internal
@@ -572,7 +571,7 @@ namespace Spreads.Cursors.Internal
 
         /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Task<bool> MoveNextBatch(CancellationToken cancellationToken)
+        public Task<bool> MoveNextBatch()
         {
             if (State == CursorState.None)
             {
@@ -688,15 +687,9 @@ namespace Spreads.Cursors.Internal
         public Series<TKey, TResult, SpanOpImpl<TKey, TValue, TResult, TSpanOp, TCursor>> Source => new Series<TKey, TResult, SpanOpImpl<TKey, TValue, TResult, TSpanOp, TCursor>>(this);
 
         /// <inheritdoc />
-        public Task<bool> MoveNextAsync(CancellationToken cancellationToken)
-        {
-            throw new NotSupportedException();
-        }
-
-        /// <inheritdoc />
         public Task<bool> MoveNextAsync()
         {
-            return MoveNextAsync(default);
+            throw new NotSupportedException();
         }
 
         #endregion ICursor members
@@ -715,7 +708,7 @@ namespace Spreads.Cursors.Internal
         }
 
         /// <inheritdoc />
-        public Task<bool> Updated
+        public ValueTask Updated
         {
             // NB this property is repeatedly called from MNA
             [MethodImpl(MethodImplOptions.AggressiveInlining)]

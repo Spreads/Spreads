@@ -35,7 +35,7 @@ namespace Spreads
     }
 
     /// <summary>
-    /// Extends <see cref="IEnumerator{T}"/> to support asynchronous MoveNextAsync with cancellation.
+    /// Extends <see cref="IEnumerator{T}"/> to support asynchronous MoveNextAsync.
     /// </summary>
     /// <remarks>
     /// Contract: when MoveNext() returns false it means that there are no more elements
@@ -55,10 +55,7 @@ namespace Spreads
         /// We often refer to this method as <c>MoveNextAsync</c> when it is used with <c>CancellationToken.None</c>
         /// or cancellation token doesn't matter in the context.
         /// </remarks>
-        /// <param name="cancellationToken">Use <c>CancellationToken.None</c> as default token</param>
-        /// <returns>true when there is a next element in the sequence, false if the sequence is complete and there will be no more elements ever</returns>
-        Task<bool> MoveNextAsync(CancellationToken cancellationToken);
-
+        /// <returns>true when there is a next element in the sequence, false if the sequence is complete and there will be no more elements ever.</returns>
         Task<bool> MoveNextAsync();
     }
 
@@ -96,24 +93,25 @@ namespace Spreads
         ICursor<TKey, TValue> GetCursor();
 
         //////////////////////// former IReadOnlySeries members below ///////////////////////
-        
+
         /// <summary>
-        /// A Task that is completed with True whenever underlying data is changed.
+        /// A ValueTask that is completed when underlying data is changed after the task is accessed.
         /// Internally used for signaling to async cursors.
-        /// After getting the Task one should check if any changes happened (version change or cursor move) before awaiting the task.
-        /// If the task is completed with false then the series is read-only, immutable or complete.
+        /// This is a signal to try MoveNext, which gives a definite answer, this task could complete
+        /// when data is not changed (false positive), consumers should not rely on this task
+        /// but spin on it. It means "likely updated or some condition where it is easier to retry moving on consumer side"
         /// </summary>
-        Task<bool> Updated { get; }
+        ValueTask Updated { get; }
 
         KeyComparer<TKey> Comparer { get; }
 
         /// <summary>
-        /// First element, throws InvalidOperationException if empty
+        /// First element option.
         /// </summary>
         Opt<KeyValuePair<TKey, TValue>> First { get; }
 
         /// <summary>
-        /// Last element, throws InvalidOperationException if empty
+        /// Last element option.
         /// </summary>
         Opt<KeyValuePair<TKey, TValue>> Last { get; }
 
@@ -141,6 +139,10 @@ namespace Spreads
         bool TryFindAt(TKey key, Lookup direction, out KeyValuePair<TKey, TValue> kvp);
 
         // NB: Not async ones. Sometimes it's useful for optimization when we check underlying type.
+
+        // TODO when default interfaces are implemented in C# 7.3/8 then Keys/Values should just redirect
+        // to cursor.CurrentKey/CurrentValue (important not to Current.Key/Current.Value - slower)
+        // Current SortedMap implementation of those members is overkill
 
         /// <summary>
         /// Keys enumerable.
@@ -240,7 +242,7 @@ namespace Spreads
         /// Returns true when a batch is available immediately (async for IO, not for waiting for new values),
         /// returns false when batching is not supported or there are no more immediate values and a consumer should switch to MoveNextAsync().
         /// </summary>
-        Task<bool> MoveNextBatch(CancellationToken cancellationToken);
+        Task<bool> MoveNextBatch();
 
         // NB Using KeyValueReadOnlySpan because batching is only profitable if
         // we could get spans from source or if reduce operation over span is so
@@ -308,18 +310,6 @@ namespace Spreads
     }
 
     /// <summary>
-    /// NB! 'Read-only' doesn't mean that the object is immutable or not changing. It only means
-    /// that there is no methods to change the map *from* this interface, without any assumptions about
-    /// the implementation. Underlying sequence could be mutable and rapidly changing; to prevent any
-    /// changes use lock (Monitor.Enter) on the SyncRoot property. Doing so will block any changes for
-    /// mutable implementations and won't affect immutable implementations.
-    /// </summary>
-    //public interface ISeries<TKey, TValue> : ISeries<TKey, TValue>
-    //{
-
-    //}
-
-    /// <summary>
     /// An untyped <see cref="ISeries{TKey, TValue}"/> interface with both keys and values as <see cref="Variant"/> types.
     /// </summary>
     public interface ISeries : ISeries<Variant, Variant>
@@ -334,6 +324,26 @@ namespace Spreads
         /// </summary>
         TypeEnum ValueType { get; }
     }
+
+    /// <summary>
+    /// DataStream has incrementing keys.
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
+    public interface IDataStream<T> : ISeries<ulong, T>
+    {
+        Task<bool> TryAddLast(T value);
+    }
+
+    public class DataStream
+    {
+        private DataStream() { }
+
+        /// <summary>
+        /// 2**48 ought to be enough for anybody. It's 8.9 years of microseconds.
+        /// </summary>
+        public static ulong MaxVersion = (1UL << 48) - 1UL;
+    }
+
 
     /// <summary>
     /// An untyped <see cref="ISeries{TKey, TValue}"/> interface with both keys and values as <see cref="Variant"/> types.

@@ -4,7 +4,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.Runtime.CompilerServices;
 
@@ -14,21 +13,9 @@ namespace Spreads
     internal static class ThrowHelper
     {
         [MethodImpl(MethodImplOptions.NoInlining)]
-        public static void ThrowArgumentNullException(ExceptionArgument argument)
-        {
-            throw GetArgumentNullException(argument);
-        }
-
-        [MethodImpl(MethodImplOptions.NoInlining)]
         public static void ThrowArgumentException()
         {
             throw GetArgumentException();
-        }
-
-        [MethodImpl(MethodImplOptions.NoInlining)]
-        public static void ThrowArgumentException(ExceptionArgument argument)
-        {
-            throw GetArgumentException(argument);
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
@@ -41,12 +28,6 @@ namespace Spreads
         public static void ThrowArgumentOutOfRangeException()
         {
             throw GetArgumentOutOfRangeException();
-        }
-
-        [MethodImpl(MethodImplOptions.NoInlining)]
-        public static void ThrowArgumentOutOfRangeException(ExceptionArgument argument)
-        {
-            throw GetArgumentOutOfRangeException(argument);
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
@@ -96,7 +77,7 @@ namespace Spreads
         {
             throw GetNotSupportedException();
         }
-        
+
         [MethodImpl(MethodImplOptions.NoInlining)]
         public static void ThrowNotSupportedException(string message)
         {
@@ -148,21 +129,9 @@ namespace Spreads
         /////////////////////////////////////////////////////////////////////////////
 
         [MethodImpl(MethodImplOptions.NoInlining)]
-        private static ArgumentNullException GetArgumentNullException(ExceptionArgument argument)
-        {
-            return new ArgumentNullException(GetArgumentName(argument));
-        }
-
-        [MethodImpl(MethodImplOptions.NoInlining)]
         private static ArgumentException GetArgumentException()
         {
             return new ArgumentException();
-        }
-
-        [MethodImpl(MethodImplOptions.NoInlining)]
-        private static ArgumentException GetArgumentException(ExceptionArgument argument)
-        {
-            return new ArgumentException(GetArgumentName(argument));
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
@@ -175,12 +144,6 @@ namespace Spreads
         private static ArgumentOutOfRangeException GetArgumentOutOfRangeException()
         {
             return new ArgumentOutOfRangeException();
-        }
-
-        [MethodImpl(MethodImplOptions.NoInlining)]
-        private static ArgumentOutOfRangeException GetArgumentOutOfRangeException(ExceptionArgument argument)
-        {
-            return new ArgumentOutOfRangeException(GetArgumentName(argument));
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
@@ -230,7 +193,7 @@ namespace Spreads
         {
             return new NotSupportedException();
         }
-        
+
         [MethodImpl(MethodImplOptions.NoInlining)]
         private static NotSupportedException GetNotSupportedException(string message)
         {
@@ -266,19 +229,5 @@ namespace Spreads
         {
             return new IOException(message);
         }
-
-        private static string GetArgumentName(ExceptionArgument argument)
-        {
-            Debug.Assert(Enum.IsDefined(typeof(ExceptionArgument), argument),
-                "The enum value is not defined, please check the ExceptionArgument Enum.");
-
-            return argument.ToString();
-        }
-    }
-
-    internal enum ExceptionArgument
-    {
-        pointer,
-        array
     }
 }

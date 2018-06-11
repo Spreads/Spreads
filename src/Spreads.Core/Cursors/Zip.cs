@@ -7,7 +7,6 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
-using System.Threading;
 using System.Threading.Tasks;
 
 // ReSharper disable once CheckNamespace
@@ -995,7 +994,7 @@ namespace Spreads
 
         /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Task<bool> MoveNextBatch(CancellationToken cancellationToken)
+        public Task<bool> MoveNextBatch()
         {
             if (State == CursorState.None)
             {
@@ -1294,16 +1293,9 @@ namespace Spreads
 
         /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Task<bool> MoveNextAsync(CancellationToken cancellationToken)
-        {
-            throw new NotSupportedException("Should use BaseCursorAsync");
-        }
-
-        /// <inheritdoc />
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Task<bool> MoveNextAsync()
         {
-            return MoveNextAsync(default);
+            throw new NotSupportedException("Should use BaseCursorAsync");
         }
 
         #endregion ICursor members
@@ -1323,7 +1315,7 @@ namespace Spreads
         }
 
         /// <inheritdoc />
-        public Task<bool> Updated
+        public ValueTask Updated
         {
             // NB this property is repeatedly called from MNA
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -1334,7 +1326,8 @@ namespace Spreads
 
                 if (lro && rro)
                 {
-                    return Utils.TaskUtil.FalseTask;
+                    // nothing to wait
+                    return new ValueTask();
                 }
 
                 if (lro)
@@ -1362,28 +1355,15 @@ namespace Spreads
                     }
                 }
 
-                // NB Calling Updated getters has side effects, do not replace them with lu/ru above
-                var lu = _leftCursor.Source.Updated;
-                var ru = _rightCursor.Source.Updated;
-                return Task.WhenAny(lu, ru).ContinueWith(t =>
+                var tl = _leftCursor.Source.Updated;
+                var tr = _rightCursor.Source.Updated;
+                if (tl.IsCompleted || tr.IsCompleted)
                 {
-                    var tu = t.Result;
-                    // if one of them became complete during waiting for WhenAny, return the other one.
-                    var result = tu.Result;
-                    if (!result)
-                    {
-                        if (tu == lu)
-                        {
-                            return ru;
-                        }
-                        if (tu == ru)
-                        {
-                            return lu;
-                        }
-                        ThrowHelper.ThrowInvalidOperationException("Unexpected inner task");
-                    }
-                    return tu;
-                }).Unwrap();
+                    return new ValueTask();
+                }
+
+                // TODO ValueTask.WhenAny
+                return new ValueTask(Task.WhenAny(tl.AsTask(), tr.AsTask()));
             }
         }
 

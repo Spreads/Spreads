@@ -96,7 +96,7 @@ namespace Spreads.Tests
 
             public override IEnumerable<int> Values => throw new NotImplementedException();
 
-            public override Task<bool> Updated => throw new NotImplementedException();
+            public override ValueTask Updated => throw new NotImplementedException();
 
             public long Counter => _counter;
 

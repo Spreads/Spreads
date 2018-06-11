@@ -109,7 +109,7 @@ namespace Spreads
             return new VariantCursor(Inner.GetCursor(), this);
         }
 
-        public sealed override Task<bool> Updated => Inner.Updated;
+        public sealed override ValueTask Updated => Inner.Updated;
 
         public override bool TryGetValue(Variant key, out Variant value)
         {
@@ -182,16 +182,11 @@ namespace Spreads
             }
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public Task<bool> MoveNextAsync(CancellationToken cancellationToken)
-            {
-                return _innerCursor.MoveNextAsync(cancellationToken);
-            }
-            
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public Task<bool> MoveNextAsync()
             {
-                return MoveNextAsync(default);
+                return _innerCursor.MoveNextAsync();
             }
+           
 
             public void Dispose()
             {
@@ -247,9 +242,9 @@ namespace Spreads
                 throw new NotImplementedException();
             }
 
-            public Task<bool> MoveNextBatch(CancellationToken cancellationToken)
+            public Task<bool> MoveNextBatch()
             {
-                return _innerCursor.MoveNextBatch(cancellationToken);
+                return _innerCursor.MoveNextBatch();
             }
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]

@@ -96,7 +96,7 @@ namespace Spreads
         }
 
         /// <inheritdoc />
-        public Task<bool> Updated
+        public ValueTask Updated
         {
             // NB this property is repeatedly called from MNA
             [MethodImpl(MethodImplOptions.AggressiveInlining)]

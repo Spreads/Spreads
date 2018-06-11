@@ -8,7 +8,6 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
-using System.Threading;
 using System.Threading.Tasks;
 
 // ReSharper disable once CheckNamespace
@@ -21,6 +20,7 @@ namespace Spreads
     {
         // TODO use ObjectPool
         private static BoundedConcurrentBag<TImpl> _pool;
+
         private KeyComparer<TKey2> _comparer;
 
         protected ISeries<TKey, TValue> Inner;
@@ -52,18 +52,18 @@ namespace Spreads
             get
             {
                 var f = Inner.First;
-                return f.IsMissing ? Opt<KeyValuePair<TKey2, TValue2>>.Missing 
+                return f.IsMissing ? Opt<KeyValuePair<TKey2, TValue2>>.Missing
                     : Opt.Present(new KeyValuePair<TKey2, TValue2>(ToKey2(f.Present.Key), ToValue2(f.Present.Value)));
             }
         }
-        
+
         public override Opt<KeyValuePair<TKey2, TValue2>> Last
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
                 var last = Inner.Last;
-                return last.IsMissing ? Opt<KeyValuePair<TKey2, TValue2>>.Missing 
+                return last.IsMissing ? Opt<KeyValuePair<TKey2, TValue2>>.Missing
                     : Opt.Present(new KeyValuePair<TKey2, TValue2>(ToKey2(last.Present.Key), ToValue2(last.Present.Value)));
             }
         }
@@ -82,7 +82,7 @@ namespace Spreads
             value = default;
             return false;
         }
-        
+
         public override bool TryFindAt(TKey2 key, Lookup direction, out KeyValuePair<TKey2, TValue2> value)
         {
             KeyValuePair<TKey, TValue> tmp;
@@ -103,10 +103,10 @@ namespace Spreads
             return new ConvertCursor(Inner.GetCursor(), this as TImpl);
         }
 
-        public override Task<bool> Updated => Inner.Updated;
+        public override ValueTask Updated => Inner.Updated;
 
         public override bool TryGetAt(long idx, out KeyValuePair<TKey2, TValue2> value)
-        {            
+        {
             KeyValuePair<TKey, TValue> tmp;
             if (Inner.TryGetAt(idx, out tmp))
             {
@@ -115,7 +115,6 @@ namespace Spreads
             }
             value = default(KeyValuePair<TKey2, TValue2>);
             return false;
-            
         }
 
         public static TImpl Create(ISeries<TKey, TValue> innerSeries)
@@ -147,7 +146,6 @@ namespace Spreads
                     GC.SuppressFinalize(this);
                 }
             }
-            
         }
 
         public void Dispose()
@@ -172,14 +170,9 @@ namespace Spreads
                 _source = source;
             }
 
-            public Task<bool> MoveNextAsync(CancellationToken cancellationToken)
-            {
-                return _innerCursor.MoveNextAsync(cancellationToken);
-            }
-
             public Task<bool> MoveNextAsync()
             {
-                return MoveNextAsync(default);
+                return _innerCursor.MoveNextAsync();
             }
 
             public void Dispose()
@@ -232,9 +225,9 @@ namespace Spreads
                 throw new NotImplementedException();
             }
 
-            public Task<bool> MoveNextBatch(CancellationToken cancellationToken)
+            public Task<bool> MoveNextBatch()
             {
-                return _innerCursor.MoveNextBatch(cancellationToken);
+                return _innerCursor.MoveNextBatch();
             }
 
             public ICursor<TKey2, TValue2> Clone()
@@ -254,11 +247,11 @@ namespace Spreads
             }
 
             public CursorState State => _innerCursor.State;
-            
+
             public KeyComparer<TKey2> Comparer => _source.Comparer;
-            
+
             public TKey2 CurrentKey => _source.ToKey2(_innerCursor.CurrentKey);
-            
+
             public TValue2 CurrentValue => _source.ToValue2(_innerCursor.CurrentValue);
 
             // TODO object pooling
@@ -266,6 +259,7 @@ namespace Spreads
 
             public ISeries<TKey2, TValue2> Source => _source; //Create(_innerCursor.Source);
             public bool IsContinuous => _innerCursor.IsContinuous;
+
             public Task DisposeAsync()
             {
                 return _innerCursor.DisposeAsync();
@@ -366,7 +360,7 @@ namespace Spreads
         public long Version => MutableInner.Version;
 
         public bool IsAppendOnly => MutableInner.IsAppendOnly;
-        
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Task<bool> Set(TKey2 key, TValue2 value)
         {
@@ -423,7 +417,6 @@ namespace Spreads
                 ? Opt.Present(new KeyValuePair<TKey2, TValue2>(ToKey2(opt.Present.Key), ToValue2(opt.Present.Value)))
                 : Opt<KeyValuePair<TKey2, TValue2>>.Missing;
         }
-
 
         public Task Flush()
         {

@@ -6,7 +6,6 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
-using System.Threading;
 using System.Threading.Tasks;
 
 // ReSharper disable once CheckNamespace
@@ -151,7 +150,8 @@ namespace Spreads
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool TryGetValue(TKey key, out bool value)
         {
-            if(_cursor.TryGetValue(key, out var v)) {
+            if (_cursor.TryGetValue(key, out var v))
+            {
                 value = _op.Apply(v, _value);
                 return true;
             }
@@ -201,7 +201,7 @@ namespace Spreads
 
         /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Task<bool> MoveNextBatch(CancellationToken cancellationToken)
+        public Task<bool> MoveNextBatch()
         {
             // TODO (?)
             return Utils.TaskUtil.FalseTask;
@@ -223,14 +223,9 @@ namespace Spreads
         public Series<TKey, bool, Comparison<TKey, TValue, TCursor>> Source => new Series<TKey, bool, Comparison<TKey, TValue, TCursor>>(this);
 
         /// <inheritdoc />
-        public Task<bool> MoveNextAsync(CancellationToken cancellationToken)
-        {
-            throw new NotSupportedException();
-        }
-
         public Task<bool> MoveNextAsync()
         {
-            return MoveNextAsync(default);
+            throw new NotSupportedException();
         }
 
         #endregion ICursor members
@@ -258,7 +253,7 @@ namespace Spreads
         }
 
         /// <inheritdoc />
-        public Task<bool> Updated
+        public ValueTask Updated
         {
             // NB this property is repeatedly called from MNA
             [MethodImpl(MethodImplOptions.AggressiveInlining)]

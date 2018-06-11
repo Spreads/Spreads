@@ -5,11 +5,13 @@
 using Spreads.Utils;
 using System;
 using System.Collections;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Threading.Tasks.Sources;
 
 namespace Spreads
 {
@@ -56,7 +58,7 @@ namespace Spreads
 
     public abstract class Series<TKey, TValue> : BaseSeries,
         ISpecializedSeries<TKey, TValue, Cursor<TKey, TValue>>
-#pragma warning restore 660,661
+#pragma warning restore 660, 661
     {
         /// <inheritdoc />
         public abstract ICursor<TKey, TValue> GetCursor();
@@ -91,7 +93,7 @@ namespace Spreads
         }
 
         /// <inheritdoc />
-        public abstract Task<bool> Updated { get; }
+        public abstract ValueTask Updated { get; }
 
         /// <inheritdoc />
         public abstract Opt<KeyValuePair<TKey, TValue>> First { get; }
@@ -958,23 +960,28 @@ namespace Spreads
 #pragma warning disable 660, 661
 
     public abstract class ContainerSeries<TKey, TValue, TCursor> : Series<TKey, TValue>,
-        ISpecializedSeries<TKey, TValue, TCursor>
-#pragma warning restore 660,661
+        ISpecializedSeries<TKey, TValue, TCursor>, IValueTaskSource
+#pragma warning restore 660, 661
         where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
     {
         private object _syncRoot;
 
         // ReSharper disable InconsistentNaming
         internal long _version;
+
         internal long _nextVersion;
+
         // ReSharper restore InconsistentNaming
         internal bool _isSynchronized = true;
+
         internal int Locker;
 
-        private TaskCompletionSource<bool> _tcs;
-        private TaskCompletionSource<bool> _unusedTcs;
-
         internal abstract TCursor GetContainerCursor();
+
+        public override ICursor<TKey, TValue> GetCursor()
+        {
+            return GetContainerCursor();
+        }
 
         TCursor ISpecializedSeries<TKey, TValue, TCursor>.GetCursor()
         {
@@ -1064,19 +1071,19 @@ namespace Spreads
         /// <summary>
         /// Release write lock and increment _version field or decrement _nextVersion field if no updates were made
         /// </summary>
-        /// <param name="doIncrement"></param>
+        /// <param name="doVersionIncrement"></param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        protected void AfterWrite(bool doIncrement)
+        protected void AfterWrite(bool doVersionIncrement)
         {
             if (!_isSynchronized) return;
             // Volatile.Write will prevent any read/write to move below it
-            if (doIncrement)
+            if (doVersionIncrement)
             {
                 // TODO (perf) could do cheaper than interlocked, review
                 // Volatile.Write(ref _version, _version + 1L);
                 Interlocked.Increment(ref _version);
 
-                NotifyUpdate(true);
+                NotifyUpdate();
             }
             else
             {
@@ -1090,14 +1097,6 @@ namespace Spreads
             Interlocked.Exchange(ref Locker, 0);
             // TODO review if this is enough. Iterlocked is right for sure, but is more expensive (slower by more than 25% on field increment test)
             // Volatile.Write(ref Locker, 0);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal void NotifyUpdate(bool result)
-        {
-            var tcs = Volatile.Read(ref _tcs);
-            Volatile.Write(ref _tcs, null);
-            tcs?.SetResult(result);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -1118,37 +1117,106 @@ namespace Spreads
             return value;
         }
 
-        public override ICursor<TKey, TValue> GetCursor()
-        {
-            return GetContainerCursor();
-        }
+        private ConcurrentQueue<(Action<object>, object, ValueTaskSourceOnCompletedFlags)> _queue;
 
-        /// <summary>
-        /// A Task that is completed with True whenever underlying data is changed.
-        /// Internally used for signaling to async cursors.
-        /// After getting the Task one should check if any changes happened (version change or cursor move) before awaiting the task.
-        /// If the task is completed with false then the series is read-only, immutable or complete.
-        /// </summary>
-        public override Task<bool> Updated
+        public override ValueTask Updated
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
-                // saving one allocation vs Interlocked.Exchange call
-                var unusedTcs = Interlocked.Exchange(ref _unusedTcs, null);
-                var newTcs = unusedTcs ?? new TaskCompletionSource<bool>();
-                var tcs = Interlocked.CompareExchange(ref _tcs, newTcs, null);
-                if (tcs == null)
-                {
-                    // newTcs was put to the _tcs field, use it
-                    tcs = newTcs;
-                }
-                else
-                {
-                    Volatile.Write(ref _unusedTcs, newTcs);
-                }
-                return tcs.Task;
+                // NB `Version mod short.Max` is used to simulate read-lock (similar to cursor reads)
+                // We store LSB of Version as VT token and then compare it to LSB of NextVersion
+                // in GetResult and OnCompleted. If versoins ar equal then there were no writes
+                // after the task creating and before awating. If versions are not equal then
+                // the task completes syncronously. We know that its concumers loop and will
+                // call MoveNext to get exact changes (new value or completed). The risk is
+                // not false positive but a missed change. In theory, there could be 65k updates
+                // after VT creation and before awating. But the chance of this is 1/65k even if
+                // we could update data with infinite speed. On benchmarks, VTS machinery could
+                // work with at least 1MOPS speed, so we need to update data 65k times during
+                // a single (even forgeting that each update triggers notification). Therefore,
+                // update speed must be 65k * VTS Mops = 65 Bops (GHz) vs 4.2 GHz of top CPUs.
+                // Or VTS should work at 4.2G/65k = 65Kops (both 65 is coincidence, 65^2 = 4225).
+                return new ValueTask(this, unchecked((short)Volatile.Read(ref _version)));
             }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public ValueTaskSourceStatus GetStatus(short token)
+        {
+            if (unchecked((short)Volatile.Read(ref _version)) != token)
+            {
+                // version changed from the task creating till await
+                return ValueTaskSourceStatus.Succeeded;
+            }
+            return ValueTaskSourceStatus.Pending;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void OnCompleted(Action<object> continuation, object state, short token, ValueTaskSourceOnCompletedFlags flags)
+        {
+            // Here we have continuationб which means that GetStatus returned Pending
+            // and the task is being awaited, there is no syncronous path (spin/retry)
+            // left for the task or cursor to detect version change without awaiting this task.
+
+            if (unchecked((short)Volatile.Read(ref _version)) != token)
+            {
+                // version changed between the task creation and await
+                RunContinuation((continuation, state, flags));
+            }
+
+            // atomically create queue if it does not exist yet
+            if (_queue == null)
+            {
+                BeforeWrite();                          // lock (SyncRoot) {
+                if (_queue == null)
+                {
+                    _queue = new ConcurrentQueue<(Action<object>, object, ValueTaskSourceOnCompletedFlags)>();
+                }
+                AfterWrite(doVersionIncrement: false);  // } // lock
+            }
+
+            // what if writer calls NotifyUpdate here? ...
+
+            _queue.Enqueue((continuation, state, flags));
+
+            // ... retrying inside cursors is cheap
+            if (unchecked((short)Volatile.Read(ref _version)) != token)
+            {
+                NotifyUpdate();
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void GetResult(short token)
+        {
+            // false positives are ok, we could just spin in cursors, no need to check something here
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void NotifyUpdate()
+        {
+            // TODO sync context
+            if (_queue != null)
+            {
+                while (_queue.TryDequeue(out var item))
+                {
+                    RunContinuation(item);
+                }
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void RunContinuation((Action<object>, object, ValueTaskSourceOnCompletedFlags) continuationEx)
+        {
+#if NETCOREAPP2_1
+            ThreadPool.QueueUserWorkItem(continuationEx.Item1, continuationEx.Item2, true);
+#else
+            // This now works but very hacky and fragile, see corefx's 27445 discussion
+            // var a = item.Item1;
+            // var wcb = Unsafe.As<Action<object>, WaitCallback>(ref a);
+            ThreadPool.QueueUserWorkItem(new WaitCallback(continuationEx.Item1), continuationEx.Item2);
+#endif
         }
 
         #endregion Synchronization
@@ -1603,10 +1671,12 @@ namespace Spreads
 
         #endregion ISeries members
 
-
         public virtual void Dispose(bool disposing)
         {
-            if (!_cursorIsSet) return;
+            lock (SyncRoot)
+            {
+                if (!_cursorIsSet) return;
+            }
             _c.Dispose();
             GC.SuppressFinalize(this);
         }
@@ -1628,6 +1698,7 @@ namespace Spreads
         public abstract bool IsAppendOnly { get; }
 
         public abstract Task<bool> Set(TKey key, TValue value);
+
         public abstract Task<bool> TryAdd(TKey key, TValue value);
 
         public virtual Task<bool> TryAddLast(TKey key, TValue value)
@@ -1691,7 +1762,9 @@ namespace Spreads
         }
 
         public abstract Task<bool> TryRemoveMany(TKey key, TValue updatedAtKey, Lookup direction);
+
         public abstract ValueTask<long> TryAppend(ISeries<TKey, TValue> appendMap, AppendOption option = AppendOption.RejectOnOverlap);
+
         public abstract Task Complete();
     }
 }

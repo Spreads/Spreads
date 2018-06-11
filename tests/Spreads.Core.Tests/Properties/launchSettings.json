@@ -1,0 +1,7 @@
+{
+  "profiles": {
+    "Spreads.Core.Tests": {
+      "commandName": "Project"
+    }
+  }
+}

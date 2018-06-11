@@ -398,7 +398,7 @@ type SortedMap<'K,'V>
       // bucket switch in SHM (TODO really? check) and before serialization
       // the 99% use case is when we load data from a sequential stream or deserialize a map with already regularized keys
     this.size <- this.size + 1
-    this.NotifyUpdate(true)
+    this.NotifyUpdate()
 
   member this.Complete() : Task =
     this.BeforeWrite()
@@ -406,7 +406,7 @@ type SortedMap<'K,'V>
       if not this.isReadOnly then 
           this.isReadOnly <- true
           this._isSynchronized <- false
-          this.NotifyUpdate(false)
+          this.NotifyUpdate()
       Task.CompletedTask
     finally
       this.AfterWrite(false)
@@ -747,7 +747,7 @@ type SortedMap<'K,'V>
             Debug.Assert(index < this.size)
             if overwrite then
               values.[index] <- v
-              this.NotifyUpdate(true) // Insert has it in other branches
+              this.NotifyUpdate() // Insert has it in other branches
           else
             this.Insert(~~~index, k, v)
             added <- true
@@ -994,7 +994,7 @@ type SortedMap<'K,'V>
       
     values.[newSize] <- Unchecked.defaultof<'V>
     this.size <- newSize
-    this.NotifyUpdate(true)
+    this.NotifyUpdate()
     result
     
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
@@ -1143,7 +1143,7 @@ type SortedMap<'K,'V>
             ThrowHelper.ThrowInvalidOperationException("Wrong result of TryFindWithIndex with GT/GE direction"); Unchecked.defaultof<_>
         | _ -> ThrowHelper.ThrowInvalidOperationException("Invalid direction"); Unchecked.defaultof<_> //
     finally
-      this.NotifyUpdate(true)
+      this.NotifyUpdate()
       if removed then Interlocked.Increment(&this._version) |> ignore elif entered then Interlocked.Decrement(&this._nextVersion) |> ignore
       exitWriteLockIf &this.Locker entered
       #if DEBUG
@@ -1556,7 +1556,7 @@ type public SortedMapCursor<'K,'V> =
           else sw.SpinOnce()
       result
 
-    member this.MoveNextBatch(cancellationToken: CancellationToken): Task<bool> =
+    member this.MoveNextBatch(): Task<bool> =
       let mutable newIndex = this.index
       let mutable newC = Unchecked.defaultof<_>
       //let mutable newKey = this.currentKey
@@ -1751,7 +1751,7 @@ type public SortedMapCursor<'K,'V> =
         //this.currentValue <- newValue
       result
 
-    member this.MoveNextAsync(cancellationToken:CancellationToken): Task<bool> =
+    member this.MoveNextAsync(): Task<bool> =
       if this.source.isReadOnly then
         if this.MoveNext() then TaskUtil.TrueTask else TaskUtil.FalseTask
       else ThrowHelper.ThrowNotSupportedException("Use an async cursor wrapper instead");TaskUtil.FalseTask
@@ -1779,14 +1779,13 @@ type public SortedMapCursor<'K,'V> =
       member this.Current with get(): obj = this.Current :> obj
     
     interface IAsyncEnumerator<KVP<'K,'V>> with
-      member this.MoveNextAsync(cancellationToken:CancellationToken): Task<bool> = this.MoveNextAsync(cancellationToken)
-      member this.MoveNextAsync(): Task<bool> = this.MoveNextAsync(CancellationToken.None)
+      member this.MoveNextAsync(): Task<bool> = this.MoveNextAsync()
       member this.DisposeAsync() = this.Dispose();Task.CompletedTask
       
     interface ICursor<'K,'V> with
       member this.Comparer with get() = this.Comparer
       member this.CurrentBatch = this.CurrentBatch
-      member this.MoveNextBatch(cancellationToken: CancellationToken): Task<bool> = this.MoveNextBatch(cancellationToken)
+      member this.MoveNextBatch(): Task<bool> = this.MoveNextBatch()
       member this.MoveAt(index:'K, lookup:Lookup) = this.MoveAt(index, lookup)
       member this.MoveFirst():bool = this.MoveFirst()
       member this.MoveLast():bool =  this.MoveLast()

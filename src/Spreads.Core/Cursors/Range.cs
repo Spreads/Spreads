@@ -8,7 +8,6 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using System.Threading;
 using System.Threading.Tasks;
 
 // ReSharper disable once CheckNamespace
@@ -97,7 +96,7 @@ namespace Spreads
             }
 
             _cursor = cursor;
-            
+
             _isWindow = isWindow;
 
             if (startKey.IsPresent)
@@ -424,7 +423,6 @@ namespace Spreads
 
             if (!moved) return false;
 
-
             var endIsOk =
                 // end is checked by count
                 _steps > 0
@@ -465,7 +463,7 @@ namespace Spreads
 
         /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Task<bool> MoveNextBatch(CancellationToken cancellationToken)
+        public Task<bool> MoveNextBatch()
         {
             if (State == CursorState.None)
             {
@@ -523,15 +521,9 @@ namespace Spreads
         ISeries<TKey, TValue> ICursor<TKey, TValue>.Source => Source;
 
         /// <inheritdoc />
-        public Task<bool> MoveNextAsync(CancellationToken cancellationToken)
-        {
-            throw new NotSupportedException();
-        }
-
-        /// <inheritdoc />
         public Task<bool> MoveNextAsync()
         {
-            return MoveNextAsync(default);
+            throw new NotSupportedException();
         }
 
         #endregion ICursor members
@@ -546,20 +538,38 @@ namespace Spreads
         {
             // NB this property is repeatedly called from MNA
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return _cursor.Source.IsCompleted; }
+            get
+            {
+                if ((_flags & Flags.AtEnd) != Flags.AtEnd // not at the end
+                    && (State != CursorState.Moving  // not moving
+                        || EndOk(_cursor.CurrentKey)  // or moving but not reached the range end
+                    )
+                )
+                {
+                    return _cursor.Source.IsCompleted;
+                }
+
+                return true;
+            }
         }
 
         /// <inheritdoc />
-        public Task<bool> Updated
+        public ValueTask Updated
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
-                if ((_flags & Flags.AtEnd) != Flags.AtEnd && (State != CursorState.Moving | EndOk(_cursor.CurrentKey)))
+                if ((_flags & Flags.AtEnd) != Flags.AtEnd // not at the end
+                    && (State != CursorState.Moving  // not moving
+                        || EndOk(_cursor.CurrentKey)  // or moving but not reached the range end
+                       )
+                    )
                 {
                     return _cursor.Source.Updated;
                 }
-                return Utils.TaskUtil.FalseTask;
+
+                // completed
+                return new ValueTask();
             }
         }
 

@@ -539,7 +539,7 @@ namespace Spreads.Tests.Cursors
                 Task.Run(async () =>
                     {
                         var prev = default(int);
-                        while (await cur.MoveNextAsync(CancellationToken.None))
+                        while (await cur.MoveNextAsync())
                         {
                             if (cur.CurrentKey == prev)
                             {
@@ -705,7 +705,7 @@ namespace Spreads.Tests.Cursors
                 Task.Run(async () =>
                     {
                         var prev = default(int);
-                        while (await cur.MoveNextAsync(CancellationToken.None))
+                        while (await cur.MoveNextAsync())
                         {
                             if (cur.CurrentKey == prev)
                             {

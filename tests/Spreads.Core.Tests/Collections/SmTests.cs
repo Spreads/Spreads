@@ -7,6 +7,7 @@ using Spreads.Collections;
 using Spreads.Utils;
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace Spreads.Core.Tests.Collections
 {
@@ -118,7 +119,7 @@ namespace Spreads.Core.Tests.Collections
                 var sum3 = 0L;
                 using (Benchmark.Run("SM CurrentValue", count))
                 {
-                    using (var c = sm.GetEnumerator())
+                    using (var c = sm.Map(x => x + 0).GetEnumerator())
                     {
                         while (c.MoveNext())
                         {
@@ -297,6 +298,34 @@ namespace Spreads.Core.Tests.Collections
 
                 Benchmark.Dump($"Size = {Math.Pow(2, size)}k elements");
             }
+        }
+
+        [Test, Explicit("long running")]
+        public async Task MNATest()
+        {
+            var sm = new SortedMap<int, int>();
+            var count = 1_0;
+            var sum = 0;
+            using (Benchmark.Run("MNA"))
+            {
+                var _ = Task.Run(() =>
+                {
+                    for (int i = 0; i < count; i++)
+                    {
+                        sm.TryAddLast(i, i);
+                    }
+                    sm.Complete();
+                });
+
+                var c = sm.GetCursor();
+                while (await c.MoveNextAsync())
+                {
+                    sum += c.CurrentValue;
+                }
+            }
+            Assert.IsTrue(sum > 0);
+
+            Benchmark.Dump();
         }
     }
 }

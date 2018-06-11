@@ -17,7 +17,7 @@ open System.Threading.Tasks
 [<Obsolete>]
 type SeriesExtensionsAux () =
     [<Extension>]
-    static member inline Do(source: ISeries<'K,'V>, action:Action<'K,'V>, maxIterations:int64, token:CancellationToken) : Task<bool> =
+    static member inline Do(source: ISeries<'K,'V>, action:Action<'K,'V>, maxIterations:int64) : Task<bool> =
       let tcs = Runtime.CompilerServices.AsyncTaskMethodBuilder<bool>.Create()
       let returnTask = tcs.Task
       let cursor = source.GetCursor()
@@ -28,7 +28,7 @@ type SeriesExtensionsAux () =
           action.Invoke(cursor.CurrentKey, cursor.CurrentValue)
           iterations <- iterations + 1L
         if iterations < maxIterations then
-          let moveTask = cursor.MoveNextAsync(token)
+          let moveTask = cursor.MoveNextAsync()
           let awaiter = moveTask.GetAwaiter()
           awaiter.UnsafeOnCompleted(fun _ ->
             match moveTask.Status with
@@ -51,11 +51,7 @@ type SeriesExtensionsAux () =
 
     [<Extension>]
     static member inline Do(source: ISeries<'K,'V>, action:Action<'K,'V>, token:CancellationToken) : Task<bool> =
-      SeriesExtensionsAux.Do(source, action, 0L, token)
-
-    [<Extension>]
-    static member inline Do(source: ISeries<'K,'V>, action:Action<'K,'V>) : Task<bool> =
-      SeriesExtensionsAux.Do(source, action, 0L, CancellationToken.None)
+      SeriesExtensionsAux.Do(source, action, 0L)
 
     [<Extension>]
     static member inline Fold(source: ISeries<'K,'V>, init:'R, folder:Func<'R,'K,'V,'R>) : 'R = 

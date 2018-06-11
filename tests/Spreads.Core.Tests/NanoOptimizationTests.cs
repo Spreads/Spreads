@@ -889,11 +889,6 @@ namespace Spreads.Tests
             }
         }
 
-        [Test, Explicit("long running")]
-        public void MeasureNodaTimeInstantSize()
-        {
-            Console.WriteLine(Unsafe.SizeOf<NodaTime.Instant>());
-        }
 
         [Test, Explicit("long running")]
         public void LargeLongsToDoubleKeepWeekOrder()

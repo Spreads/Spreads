@@ -2,13 +2,12 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+using Spreads.Utils;
 using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
-using System.Threading;
 using System.Threading.Tasks;
-using Spreads.Utils;
 
 namespace Spreads
 {
@@ -20,10 +19,6 @@ namespace Spreads
         // NB this is often a struct, should not be made readonly!
         // ReSharper disable once FieldCanBeMadeReadOnly.Local
         private TCursor _innerCursor;
-
-        private TaskCompletionSource<Task<bool>> _cancelledTcs;
-        private CancellationTokenRegistration _registration;
-        private CancellationToken _token;
 
         public BaseCursorAsync(Func<TCursor> cursorFactory)
         {
@@ -48,36 +43,11 @@ namespace Spreads
             // via Source.GetCursor(). This must be clearly mentioned in cursor specification
             // and be a part of contracts test suite
             // NB don't do this: _innerCursor = default(TCursor);
-
-            _cancelledTcs = null;
-            _registration.Dispose();
-            _registration = default;
-
-            _token = default;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Task<bool> MoveNextAsync()
         {
-            return MoveNextAsync(CancellationToken.None);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Task<bool> MoveNextAsync(CancellationToken cancellationToken)
-        {
-            // sync move, hot path
-            if (_innerCursor.MoveNext())
-            {
-                return TaskUtil.TrueTask;
-            }
-
-            return MoveNextSlow(cancellationToken);
-        }
-
-        private Task<bool> MoveNextSlow(CancellationToken cancellationToken)
-        {
-            // we took a task, but it could have been created after the previous update, need to try moving next
-            var task = _innerCursor.Source.Updated;
             if (_innerCursor.MoveNext())
             {
                 return TaskUtil.TrueTask;
@@ -94,39 +64,26 @@ namespace Spreads
                 return TaskUtil.FalseTask;
             }
 
-            // now task will always be completed by NotifyUpdate
+            return AwaitNotify();
 
-            Task<Task<bool>> returnTask = task.ContinueWith(continuationFunction: MoveNextContinuation,
-                continuationOptions: TaskContinuationOptions.DenyChildAttach);
-
-            if (!cancellationToken.CanBeCanceled)
+            async Task<bool> AwaitNotify()
             {
-                return returnTask.Unwrap();
-            }
-
-            if (_token != cancellationToken)
-            {
-                _registration.Dispose();
-                _token = cancellationToken;
-                _cancelledTcs = new TaskCompletionSource<Task<bool>>();
-                _registration = _token.Register(() =>
+                // account for (unlikely) false positive return from await,
+                // check MN/IsCompleted before returing
+                while (true)
                 {
-                    _cancelledTcs.SetResult(TaskUtil.FromCanceled<bool>(_token));
-                });
+                    var task = _innerCursor.Source.Updated;
+                    await task;
+                    if (_innerCursor.Source.IsCompleted)
+                    {
+                        if (_innerCursor.MoveNext())
+                        {
+                            return true;
+                        }
+                        return false;
+                    }
+                }
             }
-
-            var anyReturn = Task.WhenAny(returnTask, _cancelledTcs.Task);
-
-            return anyReturn.Unwrap().Unwrap();
-        }
-
-        // TODO check if caching for this delegate is needed
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private Task<bool> MoveNextContinuation(Task<bool> t)
-        {
-            if (!t.Result) return TaskUtil.FalseTask;
-            if (_token.IsCancellationRequested) return TaskUtil.FromCanceled<bool>(_token);
-            return _innerCursor.MoveNext() ? TaskUtil.TrueTask : MoveNextAsync(_token);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -180,7 +137,6 @@ namespace Spreads
             return _innerCursor.MoveNext(stride, allowPartial);
         }
 
-
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool MovePrevious()
         {
@@ -206,9 +162,9 @@ namespace Spreads
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Task<bool> MoveNextBatch(CancellationToken cancellationToken)
+        public Task<bool> MoveNextBatch()
         {
-            return _innerCursor.MoveNextBatch(cancellationToken);
+            return _innerCursor.MoveNextBatch();
         }
 
         public ISeries<TKey, TValue> CurrentBatch

@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Threading;
 using System.Threading.Tasks;
 
 namespace Spreads.Enumerators
@@ -87,34 +86,34 @@ namespace Spreads.Enumerators
                 switch (_source._unitPeriod)
                 {
                     case UnitPeriod.Tick:
-                    return tick;
+                        return tick;
 
                     case UnitPeriod.Millisecond:
-                    ticksPerPeriod = TimeSpan.TicksPerMillisecond;
-                    break;
+                        ticksPerPeriod = TimeSpan.TicksPerMillisecond;
+                        break;
 
                     case UnitPeriod.Second:
-                    ticksPerPeriod = TimeSpan.TicksPerSecond;
-                    break;
+                        ticksPerPeriod = TimeSpan.TicksPerSecond;
+                        break;
 
                     case UnitPeriod.Minute:
-                    ticksPerPeriod = TimeSpan.TicksPerMinute;
-                    break;
+                        ticksPerPeriod = TimeSpan.TicksPerMinute;
+                        break;
 
                     case UnitPeriod.Hour:
-                    ticksPerPeriod = TimeSpan.TicksPerHour;
-                    break;
+                        ticksPerPeriod = TimeSpan.TicksPerHour;
+                        break;
 
                     case UnitPeriod.Day:
-                    ticksPerPeriod = TimeSpan.TicksPerDay;
-                    break;
+                        ticksPerPeriod = TimeSpan.TicksPerDay;
+                        break;
 
                     case UnitPeriod.Month:
-                    throw new NotImplementedException();
+                        throw new NotImplementedException();
                     case UnitPeriod.Eternity:
-                    throw new NotImplementedException();
+                        throw new NotImplementedException();
                     default:
-                    throw new ArgumentOutOfRangeException();
+                        throw new ArgumentOutOfRangeException();
                 }
                 var ticksPerSlice = ticksPerPeriod * _source._periodLength;
                 var ticks = ((tick.Ticks / (ticksPerSlice)) + _source._offset) * ticksPerSlice;
@@ -131,50 +130,50 @@ namespace Spreads.Enumerators
                 switch (_position)
                 {
                     case TimeSlicePosition.NotStarted:
-                    if (_enumerator.MoveNext())
-                    {
-                        var slice = StartOfSlice(_enumerator.Current.Key);
-                        _current = new KeyValuePair<DateTime, TAggr>(slice, _source._initState(_enumerator.Current.Value));
-                        _position = TimeSlicePosition.Aggregating;
-                        goto case TimeSlicePosition.Aggregating;
-                    }
-                    _position = TimeSlicePosition.FinishedSync;
-                    return false;
+                        if (_enumerator.MoveNext())
+                        {
+                            var slice = StartOfSlice(_enumerator.Current.Key);
+                            _current = new KeyValuePair<DateTime, TAggr>(slice, _source._initState(_enumerator.Current.Value));
+                            _position = TimeSlicePosition.Aggregating;
+                            goto case TimeSlicePosition.Aggregating;
+                        }
+                        _position = TimeSlicePosition.FinishedSync;
+                        return false;
 
                     case TimeSlicePosition.Aggregating:
-                    var prev = _current;
-                    while (_enumerator.MoveNext())
-                    {
-                        var slice = StartOfSlice(_enumerator.Current.Key);
-                        if (slice == prev.Key)
+                        var prev = _current;
+                        while (_enumerator.MoveNext())
                         {
-                            _current = new KeyValuePair<DateTime, TAggr>(slice, _source._aggregator(prev.Value, _enumerator.Current.Value));
-                            prev = _current;
+                            var slice = StartOfSlice(_enumerator.Current.Key);
+                            if (slice == prev.Key)
+                            {
+                                _current = new KeyValuePair<DateTime, TAggr>(slice, _source._aggregator(prev.Value, _enumerator.Current.Value));
+                                prev = _current;
+                            }
+                            else
+                            {
+                                _position = TimeSlicePosition.PassedToNext;
+                                return true;
+                            }
                         }
-                        else
-                        {
-                            _position = TimeSlicePosition.PassedToNext;
-                            return true;
-                        }
-                    }
-                    _position = TimeSlicePosition.FinishedSync;
-                    // at least one move was OK, need to return true
-                    return true;
+                        _position = TimeSlicePosition.FinishedSync;
+                        // at least one move was OK, need to return true
+                        return true;
 
                     case TimeSlicePosition.PassedToNext:
-                    // here we have one unused value at the current position
-                    {
-                        var slice = StartOfSlice(_enumerator.Current.Key);
-                        _current = new KeyValuePair<DateTime, TAggr>(slice, _source._initState(_enumerator.Current.Value));
-                        _position = TimeSlicePosition.Aggregating;
-                        goto case TimeSlicePosition.Aggregating;
-                    }
+                        // here we have one unused value at the current position
+                        {
+                            var slice = StartOfSlice(_enumerator.Current.Key);
+                            _current = new KeyValuePair<DateTime, TAggr>(slice, _source._initState(_enumerator.Current.Value));
+                            _position = TimeSlicePosition.Aggregating;
+                            goto case TimeSlicePosition.Aggregating;
+                        }
 
                     case TimeSlicePosition.FinishedSync:
-                    return false;
+                        return false;
 
                     default:
-                    throw new ArgumentOutOfRangeException();
+                        throw new ArgumentOutOfRangeException();
                 }
             }
 
@@ -187,62 +186,57 @@ namespace Spreads.Enumerators
 
             public KeyValuePair<DateTime, TAggr> Current => _current;
 
-            public async Task<bool> MoveNextAsync(CancellationToken cancellationToken)
+            public async Task<bool> MoveNextAsync()
             {
                 var e = _enumerator as IAsyncEnumerator<KeyValuePair<DateTime, TValue>>;
                 if (e == null) return false;
                 switch (_position)
                 {
                     case TimeSlicePosition.NotStarted:
-                    if (await e.MoveNextAsync(cancellationToken))
-                    {
-                        var slice = StartOfSlice(_enumerator.Current.Key);
-                        _current = new KeyValuePair<DateTime, TAggr>(slice, _source._initState(_enumerator.Current.Value));
-                        _position = TimeSlicePosition.Aggregating;
-                        goto case TimeSlicePosition.Aggregating;
-                    }
-                    return false;
+                        if (await e.MoveNextAsync())
+                        {
+                            var slice = StartOfSlice(_enumerator.Current.Key);
+                            _current = new KeyValuePair<DateTime, TAggr>(slice, _source._initState(_enumerator.Current.Value));
+                            _position = TimeSlicePosition.Aggregating;
+                            goto case TimeSlicePosition.Aggregating;
+                        }
+                        return false;
 
                     case TimeSlicePosition.FinishedSync:
                     case TimeSlicePosition.Aggregating:
-                    var prev = _current;
-                    while (await e.MoveNextAsync(cancellationToken))
-                    {
-                        var slice = StartOfSlice(_enumerator.Current.Key);
-                        if (slice == prev.Key)
+                        var prev = _current;
+                        while (await e.MoveNextAsync())
                         {
-                            _current = new KeyValuePair<DateTime, TAggr>(slice, _source._aggregator(prev.Value, _enumerator.Current.Value));
-                            prev = _current;
+                            var slice = StartOfSlice(_enumerator.Current.Key);
+                            if (slice == prev.Key)
+                            {
+                                _current = new KeyValuePair<DateTime, TAggr>(slice, _source._aggregator(prev.Value, _enumerator.Current.Value));
+                                prev = _current;
+                            }
+                            else
+                            {
+                                _position = TimeSlicePosition.PassedToNext;
+                                return true;
+                            }
                         }
-                        else
-                        {
-                            _position = TimeSlicePosition.PassedToNext;
-                            return true;
-                        }
-                    }
-                    _position = TimeSlicePosition.FinishedAsync;
-                    return true;
+                        _position = TimeSlicePosition.FinishedAsync;
+                        return true;
 
                     case TimeSlicePosition.PassedToNext:
-                    // here we have one unused value at the current position
-                    {
-                        var slice = StartOfSlice(_enumerator.Current.Key);
-                        _current = new KeyValuePair<DateTime, TAggr>(slice, _source._initState(_enumerator.Current.Value));
-                        _position = TimeSlicePosition.Aggregating;
-                        goto case TimeSlicePosition.Aggregating;
-                    }
+                        // here we have one unused value at the current position
+                        {
+                            var slice = StartOfSlice(_enumerator.Current.Key);
+                            _current = new KeyValuePair<DateTime, TAggr>(slice, _source._initState(_enumerator.Current.Value));
+                            _position = TimeSlicePosition.Aggregating;
+                            goto case TimeSlicePosition.Aggregating;
+                        }
 
                     case TimeSlicePosition.FinishedAsync:
-                    return false;
+                        return false;
 
                     default:
-                    throw new ArgumentOutOfRangeException();
+                        throw new ArgumentOutOfRangeException();
                 }
-            }
-
-            public Task<bool> MoveNextAsync()
-            {
-                return MoveNextAsync(default);
             }
 
             public Task DisposeAsync()

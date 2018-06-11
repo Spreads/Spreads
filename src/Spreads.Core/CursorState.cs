@@ -9,13 +9,13 @@ namespace Spreads
     public enum CursorState : byte
     {
         /// <summary>
-        /// A cursor is not initialized or disposed. Some initialization work could be needed before moving.
+        /// A cursor is either not initialized or disposed. Some (re)initialization work may be needed before moving.
         /// </summary>
         None = 0,
 
         /// <summary>
-        /// A cursor is initialized via GetCursor() call of ISeries and is ready to move.
-        /// The cursor is nowhere with this state.
+        /// A cursor is initialized via GetCursor() call of ISeries and is READY TO MOVE.
+        /// The cursor is NOWHERE with this state.
         /// </summary>
         Initialized = 1,
 
@@ -25,11 +25,10 @@ namespace Spreads
         /// </summary>
         Moving = 2,
 
-        /// <summary>
-        /// A cursor was disposed.
-        /// </summary>
-        Disposed = 3,
-
+        // TODO simple MN after MB is possible. But MB must set state so that
+        // MN could move, not MN check every time - this is the hottest path.
+        // MB puts cursor at the end of the batch.
+        
         /// <summary>
         /// A cursor has started batch moving and is at a valid position.
         /// A false move from this state must restore the cursor to its position before the move.

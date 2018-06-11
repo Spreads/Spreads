@@ -133,7 +133,7 @@ type SortedChunkedMapBase<'K,'V>
       if not this.isReadOnly then 
           this.isReadOnly <- true
           this._isSynchronized <- false
-          this.NotifyUpdate(false)
+          this.NotifyUpdate()
       Task.CompletedTask
     finally
       //Interlocked.Increment(&this._version) |> ignore
@@ -520,7 +520,7 @@ and
           else sw.SpinOnce()
       result
 
-    member this.MoveNextBatch(cancellationToken: CancellationToken): Task<bool> =
+    member this.MoveNextBatch(): Task<bool> =
       let mutable newIsBatch = this.isBatch
 
       let mutable result = Unchecked.defaultof<_>
@@ -751,7 +751,7 @@ and
       result
 
 
-    member this.MoveNextAsync(cancellationToken:CancellationToken): Task<bool> = 
+    member this.MoveNextAsync(): Task<bool> = 
       if this.source.isReadOnly then
         if this.MoveNext() then TaskUtil.TrueTask else TaskUtil.FalseTask
       else raise (NotSupportedException("Use SortedChunkedMapBaseGenericCursorAsync instead"))
@@ -786,9 +786,7 @@ and
       member this.Current with get(): obj = this.Current :> obj
 
     interface IAsyncEnumerator<KVP<'K,'V>> with
-      member this.MoveNextAsync(cancellationToken:CancellationToken): Task<bool> = 
-        this.MoveNextAsync(cancellationToken)
-      member this.MoveNextAsync(): Task<bool> = this.MoveNextAsync(CancellationToken.None)
+      member this.MoveNextAsync(): Task<bool> = this.MoveNextAsync()
       member this.DisposeAsync() = this.Dispose();Task.CompletedTask
 
 
@@ -796,7 +794,7 @@ and
     interface ICursor<'K,'V> with
       member this.Comparer with get() = this.source.Comparer
       member this.CurrentBatch = this.CurrentBatch
-      member this.MoveNextBatch(cancellationToken: CancellationToken): Task<bool> = this.MoveNextBatch(cancellationToken)
+      member this.MoveNextBatch(): Task<bool> = this.MoveNextBatch()
       member this.MoveAt(index:'K, lookup:Lookup) = this.MoveAt(index, lookup)
       member this.MoveFirst():bool = this.MoveFirst()
       member this.MoveLast():bool =  this.MoveLast()
