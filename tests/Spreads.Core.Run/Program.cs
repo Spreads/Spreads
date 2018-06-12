@@ -8,7 +8,6 @@ using System.Threading.Tasks.Sources;
 
 namespace Spreads.Core.Run
 {
-
     public class XXX
     {
         private WaitCallback callback;
@@ -32,7 +31,7 @@ namespace Spreads.Core.Run
         private ConcurrentQueue<(Action<object>, object)> _queue = new ConcurrentQueue<(Action<object>, object)>();
         // private Queue<(Action<object>, object)> _queue2 = new Queue<(Action<object>, object)>();
 
-        public TestVTS()// 
+        public TestVTS()//
         {
             // _queue = new ConcurrentQueue<(Action<object>, object)>();
             //_continuation = null;
@@ -233,8 +232,6 @@ namespace Spreads.Core.Run
 
             Benchmark.Dump();
 
-
-
             async ValueTask AwaitVT(ValueTask vt)
             {
                 await vt;
@@ -245,8 +242,9 @@ namespace Spreads.Core.Run
 
         private static void Main(string[] args)
         {
-            // var test = new Spreads.Core.Tests.Collections.Experimental.ManualResetValueTaskSourceTests();
-            TestVTS().Wait();
+            // TestVTS().Wait();
+            var test = new Spreads.Core.Tests.ValueTaskTests();
+            test.SortedMapNotifierTest().Wait();
             //BinaryLz4();
             //BinaryZstd();
             Console.ReadLine();

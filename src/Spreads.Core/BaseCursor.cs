@@ -11,6 +11,37 @@ using System.Threading.Tasks;
 
 namespace Spreads
 {
+    // TODO Event tracing or conditional
+    internal static class AsyncCursorCounters
+    {
+        private static long _syncCount;
+        private static long _asyncCount;
+        private static long _awaitCount;
+
+        public static long SyncCount => _syncCount;
+
+        public static long AsyncCount => _asyncCount;
+        public static long AwaitCount => _awaitCount;
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static void LogSync()
+        {
+            _syncCount++;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static void LogAsync()
+        {
+            _asyncCount++;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static void LogAwait()
+        {
+            _awaitCount++;
+        }
+    }
+
     internal sealed class BaseCursorAsync<TKey, TValue, TCursor> : ISpecializedCursor<TKey, TValue, TCursor>
         where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
     {
@@ -19,6 +50,8 @@ namespace Spreads
         // NB this is often a struct, should not be made readonly!
         // ReSharper disable once FieldCanBeMadeReadOnly.Local
         private TCursor _innerCursor;
+
+        private TaskCompletionSource<Task<bool>> _cancelledTcs;
 
         public BaseCursorAsync(Func<TCursor> cursorFactory)
         {
@@ -43,6 +76,8 @@ namespace Spreads
             // via Source.GetCursor(). This must be clearly mentioned in cursor specification
             // and be a part of contracts test suite
             // NB don't do this: _innerCursor = default(TCursor);
+
+            _cancelledTcs = null;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -50,6 +85,7 @@ namespace Spreads
         {
             if (_innerCursor.MoveNext())
             {
+                AsyncCursorCounters.LogSync();
                 return TaskUtil.TrueTask;
             }
 
@@ -58,33 +94,94 @@ namespace Spreads
                 // false almost always
                 if (_innerCursor.MoveNext())
                 {
+                    AsyncCursorCounters.LogSync();
                     return TaskUtil.TrueTask;
                 }
 
+                AsyncCursorCounters.LogSync();
                 return TaskUtil.FalseTask;
             }
 
             return AwaitNotify();
+        }
 
-            async Task<bool> AwaitNotify()
+        private async Task<bool> AwaitNotify()
+        {
+            // account for (unlikely) false positive return from await,
+            // check MN/IsCompleted before returing
+            while (true)
             {
-                // account for (unlikely) false positive return from await,
-                // check MN/IsCompleted before returing
-                while (true)
+                var task = _innerCursor.Source.Updated;
+                await task;
+                AsyncCursorCounters.LogAsync();
+                if (_innerCursor.MoveNext())
                 {
-                    var task = _innerCursor.Source.Updated;
-                    await task;
-                    if (_innerCursor.Source.IsCompleted)
+                    return true;
+                }
+
+                if (_innerCursor.Source.IsCompleted)
+                {
+                    if (_innerCursor.MoveNext())
                     {
-                        if (_innerCursor.MoveNext())
-                        {
-                            return true;
-                        }
-                        return false;
+                        return true;
                     }
+
+                    return false;
                 }
             }
+
+            ThrowHelper.ThrowInvalidOperationException();
+            return false;
         }
+
+
+        //[MethodImpl(MethodImplOptions.AggressiveInlining)]
+        //public Task<bool> MoveNextAsync()
+        //{
+        //    // sync move, hot path
+        //    if (_innerCursor.MoveNext())
+        //    {
+        //        return TaskUtil.TrueTask;
+        //    }
+
+        //    return MoveNextSlow();
+        //}
+
+        //private Task<bool> MoveNextSlow()
+        //{
+        //    // we took a task, but it could have been created after the previous update, need to try moving next
+        //    var task = (_innerCursor.Source as ContainerSeries<TKey, TValue, TCursor>).Updated2;
+        //    if (_innerCursor.MoveNext())
+        //    {
+        //        return TaskUtil.TrueTask;
+        //    }
+
+        //    if (_innerCursor.Source.IsCompleted)
+        //    {
+        //        // false almost always
+        //        if (_innerCursor.MoveNext())
+        //        {
+        //            return TaskUtil.TrueTask;
+        //        }
+
+        //        return TaskUtil.FalseTask;
+        //    }
+
+        //    // now task will always be completed by NotifyUpdate
+
+        //    Task<Task<bool>> returnTask = task.ContinueWith(continuationFunction: MoveNextContinuation,
+        //        continuationOptions: TaskContinuationOptions.DenyChildAttach);
+
+        //        return returnTask.Unwrap();
+           
+        //}
+
+        //// TODO check if caching for this delegate is needed
+        //[MethodImpl(MethodImplOptions.AggressiveInlining)]
+        //private Task<bool> MoveNextContinuation(Task t)
+        //{
+        //    return _innerCursor.MoveNext() ? TaskUtil.TrueTask : MoveNextAsync();
+        //}
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool MoveNext()

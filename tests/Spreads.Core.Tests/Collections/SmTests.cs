@@ -81,7 +81,7 @@ namespace Spreads.Core.Tests.Collections
                 {
                     sl.Add(i, i);
                     sm.Add(i, i);
-                    scm.Add(i, i);
+                    //scm.Add(i, i);
                 }
             }
 
@@ -90,18 +90,18 @@ namespace Spreads.Core.Tests.Collections
 
             for (int r = 0; r < 20; r++)
             {
-                var sum1 = 0L;
-                using (Benchmark.Run("SL", count))
-                {
-                    using (var c = sl.GetEnumerator())
-                    {
-                        while (c.MoveNext())
-                        {
-                            sum1 += c.Current.Value;
-                        }
-                    }
-                }
-                Assert.True(sum1 > 0);
+                //var sum1 = 0L;
+                //using (Benchmark.Run("SL", count))
+                //{
+                //    using (var c = sl.GetEnumerator())
+                //    {
+                //        while (c.MoveNext())
+                //        {
+                //            sum1 += c.Current.Value;
+                //        }
+                //    }
+                //}
+                //Assert.True(sum1 > 0);
 
                 var sum2 = 0L;
                 using (Benchmark.Run("SM Current.Value", count))
@@ -114,12 +114,12 @@ namespace Spreads.Core.Tests.Collections
                         }
                     }
                 }
-                Assert.AreEqual(sum1, sum2);
+                //Assert.AreEqual(sum1, sum2);
 
                 var sum3 = 0L;
                 using (Benchmark.Run("SM CurrentValue", count))
                 {
-                    using (var c = sm.Map(x => x + 0).GetEnumerator())
+                    using (var c = sm.GetEnumerator())
                     {
                         while (c.MoveNext())
                         {
@@ -127,7 +127,7 @@ namespace Spreads.Core.Tests.Collections
                         }
                     }
                 }
-                Assert.AreEqual(sum1, sum3);
+                //Assert.AreEqual(sum1, sum3);
 
                 //var sum4 = 0L;
                 //using (Benchmark.Run("SCM Current.Value", count))
@@ -181,11 +181,11 @@ namespace Spreads.Core.Tests.Collections
                     }
                 }
 
-                Assert.IsFalse(sm.isReadOnly);
+                Assert.IsFalse(sm.IsCompleted);
                 Assert.IsFalse(sm.IsCompleted);
                 Assert.IsTrue(sm.IsSynchronized);
                 sm.Complete();
-                Assert.IsTrue(sm.isReadOnly);
+                Assert.IsTrue(sm.IsCompleted);
                 Assert.IsTrue(sm.IsCompleted);
                 Assert.IsFalse(sm.IsSynchronized);
                 scm.Complete();

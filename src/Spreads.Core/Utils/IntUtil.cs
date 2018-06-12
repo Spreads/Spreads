@@ -64,7 +64,7 @@ namespace Spreads.Utils
         /// of the specified {@code int} value.  Returns 32 if the
         /// specified value has no one-bits in its two's complement representation,
         /// in other words if it is equal to zero.
-        /// 
+        ///
         /// <para>Note that this method is closely related to the logarithm base 2.
         /// For all positive {@code int} values x:
         /// &lt;ul&gt;
@@ -83,34 +83,42 @@ namespace Spreads.Utils
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int NumberOfLeadingZeros(int i)
         {
-            // HD, Figure 5-6
-            if (i == 0)
+            unchecked
             {
-                return 32;
+                // HD, Figure 5-6
+                if (i == 0)
+                {
+                    return 32;
+                }
+
+                int n = 1;
+                if ((int)((uint)i >> 16) == 0)
+                {
+                    n += 16;
+                    i <<= 16;
+                }
+
+                if ((int)((uint)i >> 24) == 0)
+                {
+                    n += 8;
+                    i <<= 8;
+                }
+
+                if ((int)((uint)i >> 28) == 0)
+                {
+                    n += 4;
+                    i <<= 4;
+                }
+
+                if ((int)((uint)i >> 30) == 0)
+                {
+                    n += 2;
+                    i <<= 2;
+                }
+
+                n -= (int)((uint)i >> 31);
+                return n;
             }
-            int n = 1;
-            if ((int)((uint)i >> 16) == 0)
-            {
-                n += 16;
-                i <<= 16;
-            }
-            if ((int)((uint)i >> 24) == 0)
-            {
-                n += 8;
-                i <<= 8;
-            }
-            if ((int)((uint)i >> 28) == 0)
-            {
-                n += 4;
-                i <<= 4;
-            }
-            if ((int)((uint)i >> 30) == 0)
-            {
-                n += 2;
-                i <<= 2;
-            }
-            n -= (int)((uint)i >> 31);
-            return n;
         }
     }
 }

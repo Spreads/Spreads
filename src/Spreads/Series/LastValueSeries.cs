@@ -21,7 +21,6 @@ namespace Spreads
         private KeyValuePair<TKey, TValue> _lastValue;
         private bool _isSet = false;
 
-        public override bool IsCompleted => false;
         public override Opt<KeyValuePair<TKey, TValue>> First => _isSet ? Opt.Present(_lastValue) : Opt<KeyValuePair<TKey, TValue>>.Missing;
         public override Opt<KeyValuePair<TKey, TValue>> Last => _isSet  ? Opt.Present(_lastValue) : Opt<KeyValuePair<TKey, TValue>>.Missing;
         public override IEnumerable<TKey> Keys => new SingleSequence<TKey>(_lastValue.Key);

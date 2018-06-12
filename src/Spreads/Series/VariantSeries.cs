@@ -15,7 +15,7 @@ using System.Threading.Tasks;
 // ReSharper disable once CheckNamespace
 namespace Spreads
 {
-    public class VariantSeries<TKey, TValue> : Series<Variant, Variant>, ISeries, IDisposable
+    public class VariantSeries<TKey, TValue> : Series<Variant, Variant>, IVariantSeries, IDisposable
     {
         private static ObjectPool<VariantSeries<TKey, TValue>> _pool;
         private readonly KeyComparer<Variant> _comparer;

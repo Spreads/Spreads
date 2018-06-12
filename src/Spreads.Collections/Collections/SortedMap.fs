@@ -95,8 +95,8 @@ type SortedMap<'K,'V>
   [<DefaultValueAttribute>] 
   val mutable private rkLast: 'K
 
-  [<DefaultValueAttribute>] 
-  val mutable internal isReadOnly : bool
+  //[<DefaultValueAttribute>] 
+  //val mutable internal isReadOnly : bool
 
   [<DefaultValueAttribute>] 
   val mutable private mapKey: string
@@ -189,23 +189,19 @@ type SortedMap<'K,'V>
               sm._version <- mapVersion
               sm._nextVersion <- mapVersion
               sm.orderVersion <- mapVersion
-              sm.isReadOnly <- isReadOnly
+              sm._isReadOnly <- isReadOnly
               sm
             else 
               let sm = new SortedMap<'K,'V> ()
               sm._version <- mapVersion
               sm._nextVersion <- mapVersion
               sm.orderVersion <- mapVersion
-              sm.isReadOnly <- isReadOnly
+              sm._isReadOnly <- isReadOnly
               sm
           totalSize
     }
     TypeHelper<SortedMap<'K,'V>>.RegisterConverter(converter, true);
   //#region Private & Internal members
-
-  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
-  member inline private this.EnterWriteLock() : bool =
-    enterWriteLockIf &this.Locker this._isSynchronized
 
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
   member inline private this.rkGetStep() =
@@ -342,7 +338,7 @@ type SortedMap<'K,'V>
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
   //[<ReliabilityContractAttribute(Consistency.MayCorruptInstance, Cer.MayFail)>]
   member private this.Insert(index:int, k, v) =
-    if this.isReadOnly then ThrowHelper.ThrowInvalidOperationException("SortedMap is read-only")
+    if this._isReadOnly then ThrowHelper.ThrowInvalidOperationException("SortedMap is read-only")
     // key is always new, checks are before this method
     Debug.Assert(index >= 0)
     // already inside a lock statement in a caller method if synchronized
@@ -398,21 +394,8 @@ type SortedMap<'K,'V>
       // bucket switch in SHM (TODO really? check) and before serialization
       // the 99% use case is when we load data from a sequential stream or deserialize a map with already regularized keys
     this.size <- this.size + 1
-    this.NotifyUpdate()
 
-  member this.Complete() : Task =
-    this.BeforeWrite()
-    try
-      if not this.isReadOnly then 
-          this.isReadOnly <- true
-          this._isSynchronized <- false
-          this.NotifyUpdate()
-      Task.CompletedTask
-    finally
-      this.AfterWrite(false)
-
-  // override this.IsCompleted with get() = readLockIf &this._nextVersion &this._version this._isSynchronized (fun _ -> this.isReadOnly)
-  override this.IsCompleted with get() = readLockIf &this._nextVersion &this._version this._isSynchronized (fun _ -> this.isReadOnly)
+  member this.Complete() : Task = this.DoComplete()
   
   override this.IsIndexed with get() = false
 
@@ -432,13 +415,10 @@ type SortedMap<'K,'V>
   member this.Version 
     with get() = readLockIf &this._nextVersion &this._version this._isSynchronized (fun _ -> this._version)
     and internal set v = 
-      let mutable entered = false
-      try
-        entered <- this.EnterWriteLock()
-        this._version <- v // NB setter only for deserializer
-        this._nextVersion <- v
-      finally
-        exitWriteLockIf &this.Locker entered
+      this.BeforeWrite()
+      this._version <- v // NB setter only for deserializer
+      this._nextVersion <- v
+      this.AfterWrite(false)
 
   //#endregion
 
@@ -448,7 +428,7 @@ type SortedMap<'K,'V>
     | c when c = values.Length && c = keys.Length -> ()
     | c when c < this.size -> ThrowHelper.ThrowArgumentOutOfRangeException("capacity")
     | c when c > 0 -> 
-      if this.isReadOnly then ThrowHelper.ThrowInvalidOperationException("SortedMap is read-only")
+      if this._isReadOnly then ThrowHelper.ThrowInvalidOperationException("SortedMap is read-only")
       
       try
         // first, take new buffers. this could cause out-of-memory
@@ -492,11 +472,9 @@ type SortedMap<'K,'V>
       )
     and set(value) =
       let mutable entered = false
-      try
-        entered <- this.EnterWriteLock()
-        this.SetCapacity(value)
-      finally
-        exitWriteLockIf &this.Locker entered
+      this.BeforeWrite()
+      this.SetCapacity(value)
+      this.AfterWrite(false)
 
   override __.Comparer with get() = comparer
 
@@ -511,8 +489,7 @@ type SortedMap<'K,'V>
     and [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>] set arr = values <- arr
 
   member this.Clear() =
-    let entered = this.EnterWriteLock()
-    if entered then Interlocked.Increment(&this._nextVersion) |> ignore
+    this.BeforeWrite();
     try
       if couldHaveRegularKeys then
         // Trace.Assert(keys.Length = 2)
@@ -523,132 +500,40 @@ type SortedMap<'K,'V>
       this.size <- 0
       increment &this.orderVersion
     finally
-      Interlocked.Increment(&this._version) |> ignore
-      exitWriteLockIf &this.Locker entered
+      this.AfterWrite(true);
 
   member this.Count
     with [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>] get() = this.size
 
   override this.Keys 
     with get() =
-      {new IList<'K> with
-        member x.Count with get() = readLockIf &this._nextVersion &this._version this._isSynchronized (fun _ -> this.size)
-        member x.IsReadOnly with get() = true
-        member x.Item 
-          with get index : 'K = readLockIf &this._nextVersion &this._version this._isSynchronized (fun _ -> this.GetKeyByIndex(index))
-          and set index value = raise (NotSupportedException("Keys collection is read-only"))
-        member x.Add(k) = raise (NotSupportedException("Keys collection is read-only"))
-        member x.Clear() = raise (NotSupportedException("Keys collection is read-only"))
-        member x.Contains(key) = this.ContainsKey(key)
-        member x.CopyTo(array, arrayIndex) =
-          let mutable entered = false
-          try
-            entered <- this.EnterWriteLock()
-            if couldHaveRegularKeys && this.size > 2 then
-              Array.Copy(this.rkMaterialize(), 0, array, arrayIndex, this.size)
-            else
-              Array.Copy(keys, 0, array, arrayIndex, this.size)
-          finally
-            exitWriteLockIf &this.Locker entered
-
-        member x.IndexOf(key:'K) = this.IndexOfKey(key)
-        member x.Insert(index, value) = raise (NotSupportedException("Keys collection is read-only"))
-        member x.Remove(key:'K) = raise (NotSupportedException("Keys collection is read-only"))
-        member x.RemoveAt(index:int) = raise (NotSupportedException("Keys collection is read-only"))
-        member x.GetEnumerator() = x.GetEnumerator() :> IEnumerator
-        member x.GetEnumerator() : IEnumerator<'K> = 
-          let index = ref 0
-          let eVersion = ref this._version
-          let currentKey : 'K ref = ref Unchecked.defaultof<'K>
-          { new IEnumerator<'K> with
-            member e.Current with get() = currentKey.Value
-            member e.Current with get() = box e.Current
-            member e.MoveNext() =
-              let nextIndex = index.Value + 1
-              readLockIf &this._nextVersion &this._version this._isSynchronized (fun _ ->
-                if eVersion.Value <> this._version then
-                  raise (InvalidOperationException("Collection changed during enumeration"))
-                if index.Value < this.size then
-                  currentKey := 
-                    if couldHaveRegularKeys && this.size > 1 then comparer.Add(keys.[0], (int64 !index)*this.rkGetStep()) 
-                    else keys.[!index]
-                  index := nextIndex
-                  true
-                else
-                  index := this.size + 1
-                  currentKey := Unchecked.defaultof<'K>
-                  false
-              )
-            member e.Reset() =
-              readLockIf &this._nextVersion &this._version this._isSynchronized (fun _ ->
-                if eVersion.Value <> this._version then
-                  raise (InvalidOperationException("Collection changed during enumeration"))
-                index := 0
-                currentKey := Unchecked.defaultof<'K>
-              )
-            member e.Dispose() = 
-              index := 0
-              currentKey := Unchecked.defaultof<'K>
-          }
-      } :> IEnumerable<_>
+      { new IEnumerable<'K> with
+          member x.GetEnumerator() = x.GetEnumerator() :> IEnumerator
+          member x.GetEnumerator() : IEnumerator<'K> =
+            let mutable c : SortedMapCursor<'K,'V> = this.GetSMCursor();
+            { new IEnumerator<'K> with
+                member __.Current with get() = c.CurrentKey
+                member __.Current with get() : obj = c.CurrentKey :> obj
+                member __.MoveNext() = c.MoveNext()
+                member __.Reset() = c.Reset()
+                member __.Dispose() = c.Dispose()
+            }
+      }
 
   override this.Values
     with get() =
-      { new IList<'V> with
-        member x.Count with get() = readLockIf &this._nextVersion &this._version this._isSynchronized (fun _ -> this.size)
-        member x.IsReadOnly with get() = true
-        member x.Item 
-          with get index : 'V = readLockIf &this._nextVersion &this._version this._isSynchronized (fun _ -> values.[index])
-          and set index value = raise (NotSupportedException("Values collection is read-only"))
-        member x.Add(k) = raise (NotSupportedException("Values colelction is read-only"))
-        member x.Clear() = raise (NotSupportedException("Values colelction is read-only"))
-        member x.Contains(value) = this.ContainsValue(value)
-        member x.CopyTo(array, arrayIndex) =
-          let mutable entered = false
-          try
-            entered <- this.EnterWriteLock()
-            Array.Copy(values, 0, array, arrayIndex, this.size)
-          finally
-            exitWriteLockIf &this.Locker entered
-          
-        member x.IndexOf(value:'V) = this.IndexOfValue(value)
-        member x.Insert(index, value) = raise (NotSupportedException("Values collection is read-only"))
-        member x.Remove(value:'V) = raise (NotSupportedException("Values collection is read-only"))
-        member x.RemoveAt(index:int) = raise (NotSupportedException("Values collection is read-only"))
-        member x.GetEnumerator() = x.GetEnumerator() :> IEnumerator
-        member x.GetEnumerator() : IEnumerator<'V> = 
-          let index = ref 0
-          let eVersion = ref this._version
-          let currentValue : 'V ref = ref Unchecked.defaultof<'V>
-          { new IEnumerator<'V> with
-            member e.Current with get() = currentValue.Value
-            member e.Current with get() = box e.Current
-            member e.MoveNext() =
-              let nextIndex = index.Value + 1
-              readLockIf &this._nextVersion &this._version this._isSynchronized (fun _ ->
-                if eVersion.Value <> this._version then
-                  raise (InvalidOperationException("Collection changed during enumeration"))
-                if index.Value < this.size then
-                  currentValue := values.[index.Value]
-                  index := nextIndex
-                  true
-                else
-                  index := this.size + 1
-                  currentValue := Unchecked.defaultof<'V>
-                  false
-              )
-            member e.Reset() =
-              readLockIf &this._nextVersion &this._version this._isSynchronized (fun _ ->
-                if eVersion.Value <> this._version then
-                  raise (InvalidOperationException("Collection changed during enumeration"))
-                index := 0
-                currentValue := Unchecked.defaultof<'V>
-              )
-            member e.Dispose() = 
-              index := 0
-              currentValue := Unchecked.defaultof<'V>
-          }
-        }  :> IEnumerable<_>
+      { new IEnumerable<'V> with
+          member x.GetEnumerator() = x.GetEnumerator() :> IEnumerator
+          member x.GetEnumerator() : IEnumerator<'V> =
+            let mutable c : SortedMapCursor<'K,'V> = this.GetSMCursor();
+            { new IEnumerator<'V> with
+                member __.Current with get() = c.CurrentValue
+                member __.Current with get() : obj = c.CurrentValue :> obj
+                member __.MoveNext() = c.MoveNext()
+                member __.Reset() = c.Reset()
+                member __.Dispose() = c.Dispose()
+            }
+      }
 
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
   member this.ContainsKey(key) = this.IndexOfKey(key) >= 0
@@ -747,7 +632,6 @@ type SortedMap<'K,'V>
             Debug.Assert(index < this.size)
             if overwrite then
               values.[index] <- v
-              this.NotifyUpdate() // Insert has it in other branches
           else
             this.Insert(~~~index, k, v)
             added <- true
@@ -760,22 +644,17 @@ type SortedMap<'K,'V>
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
   member internal this.SetOrAdd(key, value, overwrite: bool) : Task<bool> =
     this.CheckNull(key)
-    if this.isReadOnly then ThrowHelper.ThrowInvalidOperationException("SortedMap is read-only")
+    if this._isReadOnly then ThrowHelper.ThrowInvalidOperationException("SortedMap is read-only")
     
-    let entered = this.EnterWriteLock()
-    if entered then Interlocked.Increment(&this._nextVersion) |> ignore
-    
-    let struct(added, keepOrderVersion) = this.SetOrAddUnchecked(key, value, overwrite)
-    
-    if entered && not overwrite && not added then 
-      // did not added a value, decrement next and do not increment version
-      Interlocked.Decrement(&this._nextVersion) |> ignore
-    else 
-      Interlocked.Increment(&this._version) |> ignore
+    this.BeforeWrite()
+
+    let struct(added, keepOrderVersion) = 
+      this.SetOrAddUnchecked(key, value, overwrite)
     if not keepOrderVersion then increment(&this.orderVersion)
-    exitWriteLockIf &this.Locker entered
+    this.AfterWrite(added)
+
     #if DEBUG
-    if entered && this._version <> this._nextVersion then raise (ApplicationException("this._version <> this._nextVersion"))
+    if this._version <> this._nextVersion then raise (ApplicationException("this._version <> this._nextVersion"))
     #endif
     if added then TaskUtil.TrueTask else TaskUtil.FalseTask
 
@@ -794,11 +673,10 @@ type SortedMap<'K,'V>
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
   member this.TryAddLast(key, value) : Task<bool> =
     this.CheckNull(key)
-    if this.isReadOnly then ThrowHelper.ThrowInvalidOperationException("SortedMap is read-only")
+    if this._isReadOnly then ThrowHelper.ThrowInvalidOperationException("SortedMap is read-only")
         
-    let entered = this.EnterWriteLock()
-    if entered then Interlocked.Increment(&this._nextVersion) |> ignore
-    
+    this.BeforeWrite()
+
     let mutable added = false
     
     if this.size = 0 then
@@ -810,11 +688,12 @@ type SortedMap<'K,'V>
         this.Insert(this.size, key, value)
         added <- true
       
-    exitWriteLockIf &this.Locker entered
-    if added then Interlocked.Increment(&this._version) |> ignore elif entered then Interlocked.Decrement(&this._nextVersion) |> ignore
+    this.AfterWrite(added)
+
     #if DEBUG
-    if entered && this._version <> this._nextVersion then raise (ApplicationException("this._version <> this._nextVersion"))
+    if this._version <> this._nextVersion then raise (ApplicationException("this._version <> this._nextVersion"))
     #endif
+
     if added then TaskUtil.TrueTask else TaskUtil.FalseTask
 
 //  // TODO lockless AddLast for temporary Append implementation
@@ -929,11 +808,10 @@ type SortedMap<'K,'V>
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
   member this.TryAddFirst(key, value) : Task<bool> =
     this.CheckNull(key)
-    if this.isReadOnly then ThrowHelper.ThrowInvalidOperationException("SortedMap is read-only")
+    if this._isReadOnly then ThrowHelper.ThrowInvalidOperationException("SortedMap is read-only")
       
-    let entered = this.EnterWriteLock()
-    if entered then Interlocked.Increment(&this._nextVersion) |> ignore
-    
+    this.BeforeWrite()
+
     let mutable added = false
     let mutable keepOrderVersion = false
     
@@ -949,13 +827,11 @@ type SortedMap<'K,'V>
             added <- true
       if added then TaskUtil.TrueTask else TaskUtil.FalseTask   
     finally
-      if added then Interlocked.Increment(&this._version) |> ignore elif entered then Interlocked.Decrement(&this._nextVersion) |> ignore
       if not keepOrderVersion then increment(&this.orderVersion)
-      exitWriteLockIf &this.Locker entered
+      this.AfterWrite(added)
+      
       #if DEBUG
-      if entered && this._version <> this._nextVersion then raise (ApplicationException("this._version <> this._nextVersion"))
-      #else
-      if entered && this._version <> this._nextVersion then Environment.FailFast("this._version <> this._nextVersion")
+      if this._version <> this._nextVersion then raise (ApplicationException("this._version <> this._nextVersion"))
       #endif
     
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
@@ -994,17 +870,15 @@ type SortedMap<'K,'V>
       
     values.[newSize] <- Unchecked.defaultof<'V>
     this.size <- newSize
-    this.NotifyUpdate()
     result
     
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
   member this.TryRemove(key) : ValueTask<Opt<'V>>  =
     this.CheckNull(key)
-    if this.isReadOnly then ThrowHelper.ThrowInvalidOperationException("SortedMap is read-only")
+    if this._isReadOnly then ThrowHelper.ThrowInvalidOperationException("SortedMap is read-only")
     
     let mutable removed = false
-    let entered = this.EnterWriteLock()
-    if entered then Interlocked.Increment(&this._nextVersion) |> ignore
+    this.BeforeWrite()
     
     try
       let index = this.IndexOfKeyUnchecked(key)
@@ -1015,20 +889,17 @@ type SortedMap<'K,'V>
         ValueTask<_>(Opt.Present(result))
       else ValueTask<_>(Opt<_>.Missing)
     finally
-      if removed then Interlocked.Increment(&this._version) |> ignore elif entered then Interlocked.Decrement(&this._nextVersion) |> ignore
-      exitWriteLockIf &this.Locker entered
+      this.AfterWrite(removed)
+      
       #if DEBUG
-      if entered && this._version <> this._nextVersion then raise (ApplicationException("this._version <> this._nextVersion"))
-      #else
-      if entered && this._version <> this._nextVersion then Environment.FailFast("this._version <> this._nextVersion")
+      if this._version <> this._nextVersion then raise (ApplicationException("this._version <> this._nextVersion"))
       #endif
 
 
   member this.TryRemoveFirst() : ValueTask<Opt<KVP<'K,'V>>>  =
-    if this.isReadOnly then ThrowHelper.ThrowInvalidOperationException("SortedMap is read-only")
+    if this._isReadOnly then ThrowHelper.ThrowInvalidOperationException("SortedMap is read-only")
     let mutable removed = false
-    let entered = this.EnterWriteLock()
-    if entered then Interlocked.Increment(&this._nextVersion) |> ignore
+    this.BeforeWrite()
     try
       if this.size > 0 then
         let result = this.RemoveAt(0)
@@ -1037,20 +908,16 @@ type SortedMap<'K,'V>
         ValueTask<_>(Opt.Present(result))
       else ValueTask<_>(Opt<_>.Missing)
     finally
-      if removed then Interlocked.Increment(&this._version) |> ignore elif entered then Interlocked.Decrement(&this._nextVersion) |> ignore
-      exitWriteLockIf &this.Locker entered
+      this.AfterWrite(removed)
       #if DEBUG
-      if entered && this._version <> this._nextVersion then raise (ApplicationException("this._version <> this._nextVersion"))
-      #else
-      if entered && this._version <> this._nextVersion then Environment.FailFast("this._version <> this._nextVersion")
+      if this._version <> this._nextVersion then raise (ApplicationException("this._version <> this._nextVersion"))
       #endif
 
 
   member this.TryRemoveLast() : ValueTask<Opt<KVP<'K,'V>>> =
-    if this.isReadOnly then ThrowHelper.ThrowInvalidOperationException("SortedMap is read-only")
+    if this._isReadOnly then ThrowHelper.ThrowInvalidOperationException("SortedMap is read-only")
     let mutable removed = false
-    let entered = this.EnterWriteLock()
-    if entered then Interlocked.Increment(&this._nextVersion) |> ignore
+    this.BeforeWrite()
     try
       if this.size > 0 then
         let result = this.RemoveAt(this.size - 1)
@@ -1059,23 +926,19 @@ type SortedMap<'K,'V>
         ValueTask<_>(Opt.Present(result))
       else ValueTask<_>(Opt<_>.Missing)
     finally
-      if removed then Interlocked.Increment(&this._version) |> ignore elif entered then Interlocked.Decrement(&this._nextVersion) |> ignore
-      exitWriteLockIf &this.Locker entered
+      this.AfterWrite(removed)
       #if DEBUG
-      if entered && this._version <> this._nextVersion then raise (ApplicationException("this._version <> this._nextVersion"))
-      #else
-      if entered && this._version <> this._nextVersion then Environment.FailFast("this._version <> this._nextVersion")
+      if this._version <> this._nextVersion then raise (ApplicationException("this._version <> this._nextVersion"))
       #endif
 
   /// Removes all elements that are to `direction` from `key`
   member this.TryRemoveMany(key:'K, direction:Lookup) : ValueTask<Opt<KVP<'K,'V>>> =
     this.CheckNull(key)
-    if this.isReadOnly then ThrowHelper.ThrowInvalidOperationException("SortedMap is read-only")
+    if this._isReadOnly then ThrowHelper.ThrowInvalidOperationException("SortedMap is read-only")
 
     let mutable removed = false
-    let entered = this.EnterWriteLock()
+    this.BeforeWrite()
     try
-      if entered then Interlocked.Increment(&this._nextVersion) |> ignore
       if this.size = 0 then ValueTask<_>(Opt<_>.Missing)
       else
         let mutable result = Unchecked.defaultof<_>
@@ -1143,13 +1006,9 @@ type SortedMap<'K,'V>
             ThrowHelper.ThrowInvalidOperationException("Wrong result of TryFindWithIndex with GT/GE direction"); Unchecked.defaultof<_>
         | _ -> ThrowHelper.ThrowInvalidOperationException("Invalid direction"); Unchecked.defaultof<_> //
     finally
-      this.NotifyUpdate()
-      if removed then Interlocked.Increment(&this._version) |> ignore elif entered then Interlocked.Decrement(&this._nextVersion) |> ignore
-      exitWriteLockIf &this.Locker entered
+      this.AfterWrite(removed)
       #if DEBUG
-      if entered && this._version <> this._nextVersion then raise (ApplicationException("this._version <> this._nextVersion"))
-      #else
-      if entered && this._version <> this._nextVersion then Environment.FailFast("this._version <> this._nextVersion")
+      if this._version <> this._nextVersion then raise (ApplicationException("this._version <> this._nextVersion"))
       #endif
     
   /// Returns the index of found KeyValuePair or a negative value:
@@ -1215,16 +1074,10 @@ type SortedMap<'K,'V>
     result
 
   override this.GetCursor() =
-    let entered = this.EnterWriteLock()
-    try
-      // if source is already read-only, MNA will always return false
-      if this.isReadOnly then new SortedMapCursor<'K,'V>(this) :> ICursor<'K,'V>
-      else 
-        let c = new BaseCursorAsync<'K,'V,_>(Func<_>(this.GetEnumerator))
-        //let c = new SortedMapCursor<'K,'V>(this)
-        c :> ICursor<'K,'V>
-    finally
-      exitWriteLockIf &this.Locker entered
+    if this.IsCompleted then new SortedMapCursor<'K,'V>(this) :> ICursor<'K,'V>
+    else 
+      let c = new BaseCursorAsync<'K,'V,_>(Func<_>(this.GetEnumerator))
+      c :> ICursor<'K,'V>
 
   override this.GetContainerCursor() = this.GetEnumerator()
 
@@ -1290,21 +1143,6 @@ type SortedMap<'K,'V>
     member this.GetEnumerator() : IEnumerator<KeyValuePair<'K,'V>> = 
       this.GetEnumerator() :> IEnumerator<KeyValuePair<'K,'V>>
 
-  interface ICollection  with
-    member this.SyncRoot = this.SyncRoot
-    member this.CopyTo(array, arrayIndex) =
-      let entered = this.EnterWriteLock()
-      try
-        if array = null then raise (ArgumentNullException("array"))
-        if arrayIndex < 0 || arrayIndex > array.Length then raise (ArgumentOutOfRangeException("arrayIndex"))
-        if array.Length - arrayIndex < this.Count then raise (ArgumentException("ArrayPlusOffTooSmall"))
-        for index in 0..this.size do
-          let kvp = KeyValuePair(this.GetKeyByIndexUnchecked(index), values.[index])
-          array.SetValue(kvp, arrayIndex + index)
-      finally
-        exitWriteLockIf &this.Locker entered
-    member this.Count = this.Count
-    member this.IsSynchronized with get() =  this._isSynchronized
 
   interface IDictionary<'K,'V> with
     member this.Count = this.Count
@@ -1318,16 +1156,16 @@ type SortedMap<'K,'V>
     member this.ContainsKey(key) = this.ContainsKey(key)
     member this.Contains(kvp:KeyValuePair<'K,'V>) = this.ContainsKey(kvp.Key)
     member this.CopyTo(array, arrayIndex) =
-      let entered = this.EnterWriteLock()
-      try
-        if array = null then raise (ArgumentNullException("array"))
-        if arrayIndex < 0 || arrayIndex > array.Length then raise (ArgumentOutOfRangeException("arrayIndex"))
-        if array.Length - arrayIndex < this.Count then raise (ArgumentException("ArrayPlusOffTooSmall"))
-        for index in 0..this.Count do
-          let kvp = KeyValuePair(keys.[index], values.[index])
-          array.[arrayIndex + index] <- kvp
-      finally
-        exitWriteLockIf &this.Locker entered
+      if array = null then raise (ArgumentNullException("array"))
+      if arrayIndex < 0 || arrayIndex > array.Length then raise (ArgumentOutOfRangeException("arrayIndex"))
+      if array.Length - arrayIndex < this.Count then raise (ArgumentException("ArrayPlusOffTooSmall"))
+      let count = this.Count
+      let ov = this.orderVersion
+      for index in 0..count do
+        if ov <> this.orderVersion then ThrowHelper.ThrowInvalidOperationException("Collection changed during enumeration")
+        let kvp = KeyValuePair(keys.[index], values.[index])
+        array.[arrayIndex + index] <- kvp
+      
     member this.Add(key, value) = 
       if not (this.TryAdd(key, value).Result) then ThrowHelper.ThrowInvalidOperationException("Key already exists") 
     member this.Add(kvp:KeyValuePair<'K,'V>) = 
@@ -1448,15 +1286,13 @@ type SortedMap<'K,'V>
 
   static member Empty = empty.Value
 
-
+[<StructLayout(LayoutKind.Sequential, Pack = 1)>]
 type public SortedMapCursor<'K,'V> =
     struct
       val internal source : SortedMap<'K,'V>
-      val mutable internal index : int
       val mutable internal current : KVP<'K,'V>
-      //val mutable internal currentKey : 'K
-      //val mutable internal currentValue: 'V
-      val mutable internal cursorVersion : int64
+      val mutable internal index : int
+      val mutable internal cursorVersion : int16
       val mutable internal isBatch : bool
       val mutable internal doSpin : bool
       [<MethodImplAttribute(MethodImplOptions.AggressiveInlining)>]
@@ -1464,22 +1300,20 @@ type public SortedMapCursor<'K,'V> =
         { source = source;
           index = -1;
           current = Unchecked.defaultof<_>;
-          //currentKey = Unchecked.defaultof<_>;
-          //currentValue = Unchecked.defaultof<_>;
-          cursorVersion = source.orderVersion;
+          cursorVersion = int16 source.orderVersion;
           isBatch = false;
           doSpin = source._isSynchronized
         }
     end
 
     member this.CurrentKey 
-      with [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>] get() = this.current.Key
+      with [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>] get() : 'K = this.current.Key
 
     member this.CurrentValue 
-      with [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>] get() = this.current.Value
+      with [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>] get() : 'V = this.current.Value
 
     member this.Current 
-      with [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>] get() : KVP<'K,'V> = this.current // KeyValuePair(this.currentKey, this.currentValue)
+      with [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>] get() : KVP<'K,'V> = this.current
 
     member this.Source 
       with [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>] get(): ISeries<'K,'V> = this.source :> ISeries<'K,'V>    
@@ -1492,37 +1326,39 @@ type public SortedMapCursor<'K,'V> =
     [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
     member this.TryGetValue(key: 'K, value: byref<'V>): bool = this.source.TryGetValue(key, &value)
         
+    [<MethodImplAttribute(MethodImplOptions.NoInlining)>]
+    member this.ThrowOnOrderVersionChange() : unit =
+        // source order change
+        this.index <- -1
+        let key = this.current.Key
+        this.current <- Unchecked.defaultof<_>
+        ThrowHelper.ThrowOutOfOrderKeyException(key, "SortedMap order was changed since last move. Catch OutOfOrderKeyException and use its CurrentKey property together with MoveAt(key, Lookup.GT) to recover.")
+
     [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
-    member this.MoveNext() =
+    member this.MoveNext() : bool =
       this.index <- this.index + 1
       let mutable doSpin = this.doSpin;
-      let source = this.source
-      let mutable version = if doSpin then Volatile.Read(&source._version) else 0L
+      let mutable version = if doSpin then Volatile.Read(&this.source._version) else 0L
       
-      if this.index < source.size then
-        let mutable newC = source.GetPairByIndexUnchecked(this.index)
+      if this.index < this.source.size then
+        let mutable newC = this.source.GetPairByIndexUnchecked(this.index)
       
         while doSpin do
-          let nextVersion = Volatile.Read(&source._nextVersion)
+          let nextVersion = Volatile.Read(&this.source._nextVersion)
           if version = nextVersion then 
             doSpin <- false
           else
             let mutable sw = new SpinWait()
             sw.SpinOnce()
-            version <- Volatile.Read(&source._version)
-            if this.index < source.size then
-              newC <- source.GetPairByIndexUnchecked(this.index)
+            version <- Volatile.Read(&this.source._version)
+            if this.index < this.source.size then
+              newC <- this.source.GetPairByIndexUnchecked(this.index)
             else
               // NB this is only possible if size decreased but that changes 
               // this.source.orderVersion and operation will throw on the next section below
               doSpin <- false 
 
-        if this.cursorVersion <> source.orderVersion then
-          // source order change
-          this.index <- -1
-          let key = this.current.Key
-          this.current <- Unchecked.defaultof<_>
-          ThrowHelper.ThrowOutOfOrderKeyException(key, "SortedMap order was changed since last move. Catch OutOfOrderKeyException and use its CurrentKey property together with MoveAt(key, Lookup.GT) to recover.")
+        if this.cursorVersion <> int16 this.source.orderVersion then this.ThrowOnOrderVersionChange()
         this.current <- newC
         true
       else
@@ -1545,7 +1381,7 @@ type public SortedMapCursor<'K,'V> =
 
           if this.isBatch then
             Trace.Assert(this.index = this.source.size - 1)
-            Trace.Assert(this.source.isReadOnly)
+            Trace.Assert(this.source._isReadOnly)
             this.source :> ISeries<'K,'V>
           else raise (InvalidOperationException("SortedMap cursor is not at a batch position"))
 
@@ -1572,8 +1408,8 @@ type public SortedMapCursor<'K,'V> =
         result <-
         /////////// Start read-locked code /////////////
 
-          if (this.source.isReadOnly) && (this.index = -1) && this.source.size > 0 then
-            this.cursorVersion <- this.source.orderVersion
+          if (this.source._isReadOnly) && (this.index = -1) && this.source.size > 0 then
+            this.cursorVersion <- int16 this.source.orderVersion
             newIndex <- this.source.size - 1 // at the last element of the batch
             newC <- this.source.GetPairByIndexUnchecked(newIndex)
             //newKey <- this.source.GetKeyByIndexUnchecked(newIndex)
@@ -1612,7 +1448,7 @@ type public SortedMapCursor<'K,'V> =
         /////////// Start read-locked code /////////////
           if this.index = -1 then
             if this.source.size > 0 then
-              this.cursorVersion <- this.source.orderVersion
+              this.cursorVersion <- int16 this.source.orderVersion
               newIndex <- this.source.size - 1
               newC <- this.source.GetPairByIndexUnchecked(newIndex)
               //newKey <- this.source.GetKeyByIndexUnchecked(newIndex)
@@ -1620,7 +1456,7 @@ type public SortedMapCursor<'K,'V> =
               true
             else
               false
-          elif this.cursorVersion = this.source.orderVersion then
+          elif this.cursorVersion = int16 this.source.orderVersion then
             if this.index > 0 && this.index < this.source.size then
               newIndex <- this.index - 1
               newC <- this.source.GetPairByIndexUnchecked(newIndex)
@@ -1662,7 +1498,7 @@ type public SortedMapCursor<'K,'V> =
           let position = this.source.FindIndexAt(key, lookup)
           if position >= 0 then
             newC <- this.source.GetPairByIndexUnchecked(position)
-            this.cursorVersion <- this.source.orderVersion
+            this.cursorVersion <- int16 this.source.orderVersion
             newIndex <- position
             //newKey <- kvp.Key
             //newValue <- kvp.Value
@@ -1696,7 +1532,7 @@ type public SortedMapCursor<'K,'V> =
         result <-
         /////////// Start read-locked code /////////////
           if this.source.size > 0 then
-            this.cursorVersion <- this.source.orderVersion
+            this.cursorVersion <- int16 this.source.orderVersion
             newIndex <- 0
             newC <- this.source.GetPairByIndexUnchecked(newIndex)
             //newKey <- this.source.GetKeyByIndexUnchecked(newIndex)
@@ -1731,7 +1567,7 @@ type public SortedMapCursor<'K,'V> =
         result <-
         /////////// Start read-locked code /////////////
           if this.source.size > 0 then
-            this.cursorVersion <- this.source.orderVersion
+            this.cursorVersion <- int16 this.source.orderVersion
             newIndex <- this.source.size - 1
             newC <- this.source.GetPairByIndexUnchecked(newIndex)
             //newKey <- this.source.GetKeyByIndexUnchecked(newIndex)
@@ -1751,23 +1587,25 @@ type public SortedMapCursor<'K,'V> =
         //this.currentValue <- newValue
       result
 
+    [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
     member this.MoveNextAsync(): Task<bool> =
-      if this.source.isReadOnly then
+      if this.source._isReadOnly then
         if this.MoveNext() then TaskUtil.TrueTask else TaskUtil.FalseTask
       else ThrowHelper.ThrowNotSupportedException("Use an async cursor wrapper instead");TaskUtil.FalseTask
 
+    [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
     member this.Clone() = 
       let mutable copy = this
       copy
 
-    member this.Reset() = 
-      this.cursorVersion <- this.source.orderVersion
+    member this.Reset() : unit = 
+      this.cursorVersion <- int16 this.source.orderVersion
       this.current <- Unchecked.defaultof<_>
       //this.currentKey <- Unchecked.defaultof<'K>
       //this.currentValue <- Unchecked.defaultof<'V>
       this.index <- -1
 
-    member this.Dispose() = this.Reset()
+    member this.Dispose(): unit = this.Reset()
 
     interface IDisposable with
       member this.Dispose() = this.Dispose()
@@ -1808,55 +1646,4 @@ type public SortedMapCursor<'K,'V> =
         c
       member this.Clone() = this.Clone()
 
-//type internal ChunksContainer<'K,'V>
-//  (comparer : IComparer<'K>)  =
-//  let t = new SortedMap<_,_>(comparer)
-//  interface ISeries<'K,SortedMap<'K,'V>> with
-//    member x.Updated = t.Updated
-//    member x.Comparer = t.Comparer
-//    member x.First = t.First
-//    member x.TryGetAt(idx, value) = t.TryGetAt(idx, &value)
-//    member x.GetCursor() = t.GetCursor()
-//    member x.GetAsyncEnumerator(): IAsyncEnumerator<KeyValuePair<'K,SortedMap<'K, 'V>>> = 
-//      t.GetEnumerator() :> IAsyncEnumerator<KeyValuePair<'K,SortedMap<'K, 'V>>>
-//    member x.GetEnumerator(): IEnumerator = 
-//      t.GetEnumerator() :> IEnumerator
-//    member x.GetEnumerator(): IEnumerator<KeyValuePair<'K,SortedMap<'K, 'V>>> = 
-//      t.GetEnumerator() :> IEnumerator<KeyValuePair<'K,SortedMap<'K, 'V>>>
-//    member x.IsIndexed = false
-//    member x.IsCompleted = t.IsCompleted
-//    member x.Item
-//      with get (key) = t.Item(key)
-//    member x.Keys = t.Keys
-//    member x.Last = t.Last 
-//    member x.TryFindAt(key, direction, value) = t.TryFindAt(key, direction, &value)
-//    member x.Values = t.Values 
-    
-    
-//  interface IMutableChunksSeries<'K,'V,SortedMap<'K,'V>> with
-//    member x.Dispose() = ()
-//    member x.Flush() = Task.CompletedTask
-//    member x.Id = ""
-    
-//    member x.Set(key, v) =
-//        if v.size > 0 then 
-//          let ov = t.orderVersion
-//          t.Set(key, v) |> ignore
-//          t.orderVersion <- ov
-//        else t.TryRemove(key) |> ignore
-//        t._version <- v._version
-//        TaskUtil.FalseTask
-
-//    member x.RemoveMany(key, keyChunk, direction) =
-//      match direction with
-//      | Lookup.EQ -> (x :> IMutableChunksSeries<'K,'V,SortedMap<'K,'V>>).Set(key, keyChunk)
-//      | Lookup.LT | Lookup.LE -> 
-//        t.TryRemoveMany(key, Lookup.LT).Result |> ignore
-//        (x :> IMutableChunksSeries<'K,'V,SortedMap<'K,'V>>).Set(key, keyChunk)
-//      | Lookup.GT | Lookup.GE -> 
-//        t.TryRemoveMany(key, Lookup.GT).Result |> ignore
-//        (x :> IMutableChunksSeries<'K,'V,SortedMap<'K,'V>>).Set(key, keyChunk)
-//      | _ -> failwith "mute F# warning"
-
-//    member x.Version = t._version // small v, field
    

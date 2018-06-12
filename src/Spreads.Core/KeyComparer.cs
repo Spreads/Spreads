@@ -11,7 +11,6 @@ using System.Runtime.CompilerServices;
 
 namespace Spreads
 {
-
     internal class DummyKeyComparer<T> : IKeyComparer<T>
     {
         private IComparer<T> _comparer;
@@ -158,18 +157,23 @@ namespace Spreads
             return new KeyComparer<T>(comparer);
         }
 
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private T AddViaInterface(T value, long diff)
+        {
+            if (!_keyComparer.IsDiffable)
+            {
+                ThrowHelper.ThrowInvalidOperationException("Cannot Add: KeyComparer.IsDiffable is false");
+            }
+            return _keyComparer.Add(value, diff);
+        }
+
         /// <inheritdoc />
-        [Pure]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public T Add(T value, long diff)
         {
             if (_keyComparer != null)
             {
-                if (!_keyComparer.IsDiffable)
-                {
-                    ThrowHelper.ThrowInvalidOperationException("Cannot Add: KeyComparer.IsDiffable is false");
-                }
-                return _keyComparer.Add(value, diff);
+                return AddViaInterface(value, diff);
             }
 
             if (typeof(T) == typeof(DateTime))
@@ -440,10 +444,10 @@ namespace Spreads
             while (lo <= hi)
             {
                 // PERF: `lo` or `hi` will never be negative inside the loop,
-                //       so computing median using uints is safe since we know 
+                //       so computing median using uints is safe since we know
                 //       `length <= int.MaxValue`, and indices are >= 0
-                //       and thus cannot overflow an uint. 
-                //       Saves one subtraction per loop compared to 
+                //       and thus cannot overflow an uint.
+                //       Saves one subtraction per loop compared to
                 //       `int i = lo + ((hi - lo) >> 1);`
                 int i = (int)(((uint)hi + (uint)lo) >> 1);
 

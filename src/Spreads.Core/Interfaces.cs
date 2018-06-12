@@ -6,7 +6,6 @@ using Spreads.DataTypes;
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Threading;
 using System.Threading.Tasks;
 
 namespace Spreads
@@ -70,29 +69,14 @@ namespace Spreads
         IAsyncEnumerator<T> GetAsyncEnumerator();
     }
 
-    /// <summary>
-    /// Main interface for data series.
-    /// </summary>
-    public interface ISeries<TKey, TValue> : IAsyncEnumerable<KeyValuePair<TKey, TValue>>
-    {
-        /// <summary>
-        /// If true then elements are placed by some custom order (e.g. order of addition, index) and not sorted by keys.
-        /// </summary>
-        bool IsIndexed { get; }
 
+    public interface IAsyncNotifier
+    {
         /// <summary>
         /// False if the underlying collection could be changed, true if the underlying collection is immutable or is complete
         /// for adding (e.g. after OnCompleted in Rx) or IsCompleted in terms of ICollectio/IDictionary or has fixed keys/values (all 4 definitions are the same).
         /// </summary>
         bool IsCompleted { get; }
-
-        /// <summary>
-        /// Get cursor, which is an advanced enumerator supporting moves to first, last, previous, next, next batch, exact
-        /// positions and relative LT/LE/GT/GE moves.
-        /// </summary>
-        ICursor<TKey, TValue> GetCursor();
-
-        //////////////////////// former IReadOnlySeries members below ///////////////////////
 
         /// <summary>
         /// A ValueTask that is completed when underlying data is changed after the task is accessed.
@@ -102,6 +86,41 @@ namespace Spreads
         /// but spin on it. It means "likely updated or some condition where it is easier to retry moving on consumer side"
         /// </summary>
         ValueTask Updated { get; }
+    }
+
+    public interface IAsyncNotifier<T>
+    {
+        /// <summary>
+        /// False if the underlying collection could be changed, true if the underlying collection is immutable or is complete
+        /// for adding (e.g. after OnCompleted in Rx) or IsCompleted in terms of ICollectio/IDictionary or has fixed keys/values (all 4 definitions are the same).
+        /// </summary>
+        bool IsCompleted { get; }
+
+        /// <summary>
+        /// A ValueTask that is completed when underlying data is changed after the task is accessed.
+        /// Internally used for signaling to async cursors.
+        /// This is a signal to try MoveNext, which gives a definite answer, this task could complete
+        /// when data is not changed (false positive), consumers should not rely on this task
+        /// but spin on it. It means "likely updated or some condition where it is easier to retry moving on consumer side"
+        /// </summary>
+        ValueTask<T> Updated { get; }
+    }
+
+    /// <summary>
+    /// Main interface for data series.
+    /// </summary>
+    public interface ISeries<TKey, TValue> : IAsyncEnumerable<KeyValuePair<TKey, TValue>>, IAsyncNotifier
+    {
+        /// <summary>
+        /// If true then elements are placed by some custom order (e.g. order of addition, index) and not sorted by keys.
+        /// </summary>
+        bool IsIndexed { get; }
+
+        /// <summary>
+        /// Get cursor, which is an advanced enumerator supporting moves to first, last, previous, next, next batch, exact
+        /// positions and relative LT/LE/GT/GE moves.
+        /// </summary>
+        ICursor<TKey, TValue> GetCursor();       
 
         KeyComparer<TKey> Comparer { get; }
 
@@ -312,7 +331,7 @@ namespace Spreads
     /// <summary>
     /// An untyped <see cref="ISeries{TKey, TValue}"/> interface with both keys and values as <see cref="Variant"/> types.
     /// </summary>
-    public interface ISeries : ISeries<Variant, Variant>
+    public interface IVariantSeries : ISeries<Variant, Variant>
     {
         /// <summary>
         /// <see cref="TypeEnum"/> for the keys type.
@@ -336,14 +355,15 @@ namespace Spreads
 
     public class DataStream
     {
-        private DataStream() { }
+        private DataStream()
+        {
+        }
 
         /// <summary>
         /// 2**48 ought to be enough for anybody. It's 8.9 years of microseconds.
         /// </summary>
         public static ulong MaxVersion = (1UL << 48) - 1UL;
     }
-
 
     /// <summary>
     /// An untyped <see cref="ISeries{TKey, TValue}"/> interface with both keys and values as <see cref="Variant"/> types.

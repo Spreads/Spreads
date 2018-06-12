@@ -79,9 +79,6 @@ namespace Spreads.Tests
 
             public override bool IsIndexed => throw new NotImplementedException();
 
-            public override bool IsCompleted => throw new NotImplementedException();
-
-
             public override bool TryGetValue(int key, out int value)
             {
                 throw new NotImplementedException();
@@ -96,10 +93,7 @@ namespace Spreads.Tests
 
             public override IEnumerable<int> Values => throw new NotImplementedException();
 
-            public override ValueTask Updated => throw new NotImplementedException();
-
             public long Counter => _counter;
-
 
             public override ICursor<int, int> GetCursor()
             {

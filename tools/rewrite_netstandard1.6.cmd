@@ -1,1 +1,1 @@
-../bin/netstandard1.6/ ../bin/netstandard1.6/Spreads.Collections.dll SpreadsKey.snk
+re_write_il ../bin/netstandard2.0/ ../bin/netstandard2.0/Spreads.Collections.dll SpreadsKey.snk

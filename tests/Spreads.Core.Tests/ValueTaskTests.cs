@@ -5,7 +5,7 @@
 using NUnit.Framework;
 using Spreads.Utils;
 using System;
-using System.Threading.Channels;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Spreads.Core.Tests
@@ -51,22 +51,90 @@ namespace Spreads.Core.Tests
             });
         }
 
-        [Test, Ignore("not working")]
+        public class DummyNotifier<T> : IAsyncNotifier<T>
+        {
+            public DummyNotifier()
+            {
+            }
+
+            public bool IsCompleted => false;
+
+            public ValueTask<T> Updated => new ValueTask<T>(default(T));
+        }
+
+        [Test, Explicit("")]
+        public async Task SortedMapNotifierTest()
+        {
+            var count = 10_000_000; //_000_000; //_000_000;
+
+            var sm1 = new Spreads.Collections.SortedMap<int, int>(count);
+
+            var addTask = Task.Run(async () =>
+            {
+                await Task.Delay(100);
+                try
+                {
+                    for (int i = 0; i < count; i++)
+                    {
+                        if (i != 2)
+                        {
+                            sm1.TryAddLast(i, i);
+                            Thread.SpinWait(100);
+                        }
+                    }
+
+                    await sm1.Complete();
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine(ex);
+                }
+            });
+
+            var c = 0;
+
+            // await addTask;
+
+            Task.Run(async () =>
+            {
+                var rounds = 1;
+                using (Benchmark.Run("SM.Updated", count * rounds))
+                {
+                    Thread.CurrentThread.Name = "MNA";
+                    for (int r = 0; r < rounds; r++)
+                    {
+                        var cursor = sm1.GetCursor();
+
+                        while (await cursor.MoveNextAsync())
+                        {
+                            c++;
+                        }
+
+                        Console.WriteLine($" Sync: {AsyncCursorCounters.SyncCount}, Async: {AsyncCursorCounters.AsyncCount}, Await: {AsyncCursorCounters.AwaitCount}");
+                    }
+                }
+
+                Benchmark.Dump();
+                Console.WriteLine(c);
+            }).Wait();
+        }
+
+        [Test, Explicit("")]
         public async Task ReusableWhenAnyTest()
         {
-            var count = 1000;
+            var count = 10_000;
 
-            var ch1 = Channel.CreateBounded<int>(new BoundedChannelOptions(10) { SingleReader = false, AllowSynchronousContinuations = true, FullMode = BoundedChannelFullMode.Wait });
-            var ch2 = Channel.CreateBounded<int>(new BoundedChannelOptions(10) { SingleReader = false, AllowSynchronousContinuations = true, FullMode = BoundedChannelFullMode.Wait });
+            var sm1 = new Spreads.Collections.SortedMap<int, int>();
+            var sm2 = new Spreads.Collections.SortedMap<int, int>();
 
-            // var whenAny = new ReusableValueTaskWhenAny<int>();
+            var whenAny = new Spreads.Collections.Experimental.ReusableWhenAny2(sm1, sm2); //  ReusableValueTaskWhenAny<int>();
 
             var _ = Task.Run(async () =>
             {
                 await Task.Delay(100);
                 for (int i = 0; i < count; i++)
                 {
-                    await ch1.Writer.WriteAsync(i);
+                    await sm1.TryAddLast(i, i);
                 }
             });
 
@@ -75,7 +143,7 @@ namespace Spreads.Core.Tests
                 await Task.Delay(100);
                 for (int i = 0; i < count; i++)
                 {
-                    await ch2.Writer.WriteAsync(i);
+                    await sm2.TryAddLast(i, i);
                 }
             });
 
@@ -86,17 +154,7 @@ namespace Spreads.Core.Tests
             {
                 while (c < count)
                 {
-                    var t1 = ch1.Reader.ReadAsync();
-                    var t2 = ch2.Reader.ReadAsync();
-                    await new WhenAnyAwiter<int>(t1, t2);
-                    if (t1.IsCompleted)
-                    {
-                        var x = t1.Result;
-                    }
-                    if (t2.IsCompleted)
-                    {
-                        var x = t2.Result;
-                    }
+                    await whenAny.GetTask(); //  new WhenAnyAwiter<int>(t1, t2);
                     c++;
                     // Console.WriteLine(c);
                 }

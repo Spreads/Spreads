@@ -71,10 +71,6 @@ type SortedChunkedMapBase<'K,'V>
     this._nextVersion <- outerMap.Version
     this.innerFactory <- innerFactory
 
-  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
-  member inline private this.EnterWriteLock() : bool =
-    enterWriteLockIf &this.Locker this._isSynchronized
-
   // hash for locating existing value
   member inline private this.ExistingHashBucket(key) =
     // we return KVP to save TryFind(LE) call for the case when chunkUpperLimit > 0
@@ -99,14 +95,14 @@ type SortedChunkedMapBase<'K,'V>
   [<Obsolete("This involves deserializetion of all chunks just to get count")>]
   member this.Count
     with get() = 
-      let entered = this.EnterWriteLock()
+      this.BeforeWrite()
       try
         let mutable size' = 0L
         for okvp in outerMap do
           size' <- size' + int64 okvp.Value.Count
         size'
       finally
-        exitWriteLockIf &this.Locker entered
+        this.AfterWrite(false)
 
   // TODO remove Obsolete, just make sure these methods are not used inside SCM
   [<Obsolete>]
@@ -118,28 +114,13 @@ type SortedChunkedMapBase<'K,'V>
 
   member this.Version 
     with get() = readLockIf &this._nextVersion &this._version (not this.isReadOnly) (fun _ -> this._version)
-    and internal set v = 
-      enterWriteLockIf &this.Locker true |> ignore
-      try
-        this._version <- v // NB setter only for deserializer
-        this._nextVersion <- v
-      finally
-        exitWriteLockIf &this.Locker true
+    and internal set v =
+      this.BeforeWrite()
+      this._version <- v // NB setter only for deserializer
+      this._nextVersion <- v
+      this.AfterWrite(false)
 
-  member this.Complete() =
-    enterWriteLockIf &this.Locker true |> ignore
-    try
-      //if entered then Interlocked.Increment(&this._nextVersion) |> ignore
-      if not this.isReadOnly then 
-          this.isReadOnly <- true
-          this._isSynchronized <- false
-          this.NotifyUpdate()
-      Task.CompletedTask
-    finally
-      //Interlocked.Increment(&this._version) |> ignore
-      exitWriteLockIf &this.Locker true
-
-  override this.IsCompleted with get() = readLockIf &this._nextVersion &this._version (not this.isReadOnly) (fun _ -> this.isReadOnly)
+  member this.Complete() = this.DoComplete()
 
   override this.IsIndexed with get() = false
 
@@ -202,15 +183,12 @@ type SortedChunkedMapBase<'K,'V>
     else false
 
   override this.GetCursor() =
-    let entered = this.EnterWriteLock()
-    try
-      // if source is already read-only, MNA will always return false
-      if this.isReadOnly then new SortedChunkedMapCursor<_,_>(this) :> ICursor<'K,'V>
-      else
-        let c = new BaseCursorAsync<_,_,_>(Func<_>(this.GetEnumerator))
-        c :> ICursor<'K,'V>    
-    finally
-      exitWriteLockIf &this.Locker entered
+    // if source is already read-only, MNA will always return false
+    if this.IsCompleted then new SortedChunkedMapCursor<_,_>(this) :> ICursor<'K,'V>
+    else
+      let c = new BaseCursorAsync<_,_,_>(Func<_>(this.GetEnumerator))
+      c :> ICursor<'K,'V>    
+
 
   override this.GetContainerCursor() = this.GetEnumerator()
 
@@ -577,7 +555,7 @@ and
             else
               let mutable entered = false
               try
-                entered <- enterWriteLockIf &this.source.Locker this.source._isSynchronized
+                this.source.BeforeWrite()
                 if this.HasValidInner && newInner.MovePrevious() then 
                   doSwitchInner <- true
                   true
@@ -593,7 +571,7 @@ and
                     outerMoved <- false
                     false
               finally
-                exitWriteLockIf &this.source.Locker entered
+                this.source.AfterWrite(false)
           with
           | :? OutOfOrderKeyException<'K> as ooex ->
              raise (new OutOfOrderKeyException<'K>((if this.isBatch then this.outerCursor.CurrentValue.Last.Present.Key else this.innerCursor.CurrentKey), "SortedMap order was changed since last move. Catch OutOfOrderKeyException and use its CurrentKey property together with MoveAt(key, Lookup.GT) to recover."))
@@ -683,7 +661,7 @@ and
         /////////// Start read-locked code /////////////
           let mutable entered = false
           try
-            entered <- enterWriteLockIf &this.source.Locker this.source._isSynchronized
+            this.source.BeforeWrite()
             newInner <- this.innerCursor
             let res =
               if this.source.ChunkUpperLimit = 0 then
@@ -739,7 +717,7 @@ and
                     false
                 | _ -> false // LookupDirection.EQ
           finally
-            exitWriteLockIf &this.source.Locker entered
+            this.source.AfterWrite(false)
       /////////// End read-locked code /////////////
         if doSpin then
           let nextVersion = Volatile.Read(&this.source._nextVersion)
@@ -759,7 +737,7 @@ and
     member this.Clone() =
       let mutable entered = false
       try
-        entered <- enterWriteLockIf &this.source.Locker this.source._isSynchronized
+        this.source.BeforeWrite()
         let mutable clone = this
         clone.source <- this.source
         clone.outerCursor <- this.outerCursor.Clone()
@@ -767,7 +745,7 @@ and
         clone.isBatch <- this.innerCursor.isBatch
         clone
       finally
-        exitWriteLockIf &this.source.Locker entered
+        this.source.AfterWrite(false)
       
     member this.Reset() =
       if this.HasValidInner then this.innerCursor.Dispose()

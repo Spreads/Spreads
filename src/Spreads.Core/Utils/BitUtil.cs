@@ -3,6 +3,7 @@
 using System;
 using System.Runtime.CompilerServices;
 using System.Text;
+
 // ReSharper disable InconsistentNaming
 
 namespace Spreads.Utils
@@ -107,7 +108,10 @@ namespace Spreads.Utils
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int FindNextPositivePowerOfTwo(int value)
         {
-            return 1 << (32 - IntUtil.NumberOfLeadingZeros(value - 1));
+            unchecked
+            {
+                return 1 << (32 - IntUtil.NumberOfLeadingZeros(value - 1));
+            }
         }
 
         /// <summary>
