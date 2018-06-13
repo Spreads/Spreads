@@ -444,7 +444,7 @@ namespace Spreads.Cursors.Internal
         }
 
         /// <inheritdoc />
-        public ValueTask Updated
+        public ValueTask<bool> Updated
         {
             // NB this property is repeatedly called from MNA
             [MethodImpl(MethodImplOptions.AggressiveInlining)]

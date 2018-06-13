@@ -175,7 +175,7 @@ namespace Spreads
         public bool IsCompleted => true;
 
         /// <inheritdoc />
-        public ValueTask Updated => new ValueTask(Task.FromException(new InvalidOperationException("IsCompleted must be checked before accessing Updated property.")));
+        public ValueTask<bool> Updated => new ValueTask<bool>(Task.FromException<bool>(new InvalidOperationException("IsCompleted must be checked before accessing Updated property.")));
 
         #endregion ICursorSeries members
 

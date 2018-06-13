@@ -14,55 +14,58 @@ using System.Threading.Tasks.Sources;
 
 namespace Spreads
 {
-    // TODO Event tracing or conditional
-    internal static class AsyncCursorCounters
+    internal class BaseCursorAsync
     {
+        // TODO Event tracing or conditional
         private static long _syncCount;
+
         private static long _asyncCount;
         private static long _awaitCount;
 
-        public static long SyncCount => _syncCount;
+        internal static long SyncCount => _syncCount;
 
-        public static long AsyncCount => _asyncCount;
-        public static long AwaitCount => _awaitCount;
+        internal static long AsyncCount => _asyncCount;
+        internal static long AwaitCount => _awaitCount;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static void LogSync()
+        internal static void LogSync()
         {
             _syncCount++;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static void LogAsync()
+        internal static void LogAsync()
         {
             _asyncCount++;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static void LogAwait()
+        internal static void LogAwait()
         {
             _awaitCount++;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static void Reset()
+        internal static void ResetCounters()
         {
             _syncCount = 0;
             _asyncCount = 0;
             _awaitCount = 0;
         }
-    }
 
-    internal class BaseCursorAsync
-    {
         protected static readonly Action<object> SCompletedSentinel = s => throw new InvalidOperationException("Called completed sentinel");
         protected static readonly Action<object> SAvailableSentinel = s => throw new InvalidOperationException("Called available sentinel");
     }
 
+    internal interface IAsyncStateMachineEx : IAsyncStateMachine
+    {
+        long IsLocked { get; }
+        bool HasSkippedUpdate { get; set; }
+    }
+
     internal sealed class BaseCursorAsync<TKey, TValue, TCursor> : BaseCursorAsync,
         ISpecializedCursor<TKey, TValue, TCursor>,
-        IValueTaskSource<bool>,
-        IAsyncStateMachine
+        IValueTaskSource<bool>, IAsyncStateMachineEx
         where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
     {
         // TODO Pooling, but see #84
@@ -71,7 +74,7 @@ namespace Spreads
         // ReSharper disable once FieldCanBeMadeReadOnly.Local
         private TCursor _innerCursor;
 
-        private AsyncTaskMethodBuilder _builder = AsyncTaskMethodBuilder.Create();
+        // private AsyncTaskMethodBuilder _builder = AsyncTaskMethodBuilder.Create();
 
         private Action<object> _continuation;
         private object _continuationState;
@@ -81,6 +84,23 @@ namespace Spreads
         private bool _result;
         private ExceptionDispatchInfo _error;
         private short _version;
+
+        private long _isLocked = 1L;
+        private bool _hasSkippedUpdate;
+
+        public long IsLocked
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return Volatile.Read(ref _isLocked); }
+        }
+
+        public bool HasSkippedUpdate
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return _hasSkippedUpdate; }
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            set { _hasSkippedUpdate = value; }
+        }
 
         public BaseCursorAsync(Func<TCursor> cursorFactory) : this(cursorFactory())
         { }
@@ -103,7 +123,7 @@ namespace Spreads
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void ResetStateMachine()
+        public void TryOwnAndReset()
         {
             if (ReferenceEquals(Interlocked.CompareExchange(ref _continuation, null, SAvailableSentinel),
                 SAvailableSentinel))
@@ -112,6 +132,8 @@ namespace Spreads
                 {
                     _version++;
                 }
+
+                _isLocked = 1L;
 
                 _completed = false;
                 _result = default;
@@ -131,7 +153,7 @@ namespace Spreads
         {
             if (_innerCursor.MoveNext())
             {
-                AsyncCursorCounters.LogSync();
+                LogSync();
                 return new ValueTask<bool>(true);
             }
 
@@ -139,17 +161,17 @@ namespace Spreads
             {
                 if (_innerCursor.MoveNext())
                 {
-                    AsyncCursorCounters.LogSync();
+                    LogSync();
                     return new ValueTask<bool>(true);
                 }
-                AsyncCursorCounters.LogSync();
+                LogSync();
                 return new ValueTask<bool>(false);
             }
 
-            ResetStateMachine();
+            TryOwnAndReset();
 
-            var inst = this;
-            _builder.Start(ref inst); // invokes MoveNext, protected by ExecutionContext guards
+            // var inst = this;
+            // _builder.Start(ref inst); // invokes MoveNext, protected by ExecutionContext guards
 
             switch (GetStatus(_version))
             {
@@ -165,6 +187,23 @@ namespace Spreads
         public ValueTaskSourceStatus GetStatus(short token)
         {
             ValidateToken(token);
+
+            if (_innerCursor.MoveNext())
+            {
+                _completed = true;
+                _result = true;
+            }
+
+            if (_innerCursor.Source.IsCompleted)
+            {
+                if (_innerCursor.MoveNext())
+                {
+                    _completed = true;
+                    _result = true;
+                }
+                _completed = true;
+                _result = false;
+            }
 
             return
                 !_completed ? ValueTaskSourceStatus.Pending :
@@ -207,16 +246,17 @@ namespace Spreads
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         void IAsyncStateMachine.MoveNext()
         {
-            if (_completed)
+            if (Interlocked.CompareExchange(ref _isLocked, 1L, 0L) != 0L)
             {
                 return;
             }
+
             try
             {
                 if (_innerCursor.MoveNext())
                 {
                     SetResult(true);
-                    AsyncCursorCounters.LogAsync();
+                    LogAsync();
                     return;
                 }
 
@@ -225,16 +265,17 @@ namespace Spreads
                     if (_innerCursor.MoveNext())
                     {
                         SetResult(true);
-                        AsyncCursorCounters.LogAsync();
+                        LogAsync();
                         return;
                     }
 
                     SetResult(false);
-                    AsyncCursorCounters.LogAsync();
+                    LogAsync();
                     return;
                 }
 
-                AsyncCursorCounters.LogAwait();
+                LogAwait();
+                Volatile.Write(ref _isLocked, 0L);
             }
             catch (Exception e)
             {
@@ -275,12 +316,23 @@ namespace Spreads
                 }
             }
 
+            // From S.Th.Channels:
+            // We need to store the state before the CompareExchange, so that if it completes immediately
+            // after the CompareExchange, it'll find the state already stored.  If someone misuses this
+            // and schedules multiple continuations erroneously, we could end up using the wrong state.
+            // Make a best-effort attempt to catch such misuse.
             if (_continuationState != null)
             {
                 ThrowHelper.ThrowInvalidOperationException("Multiple continuations");
             }
             _continuationState = state;
 
+            // From S.Th.Channels:
+            // Try to set the provided continuation into _continuation.  If this succeeds, that means the operation
+            // has not yet completed, and the completer will be responsible for invoking the callback.  If this fails,
+            // that means the operation has already completed, and we must invoke the callback, but because we're still
+            // inside the awaiter's OnCompleted method and we want to avoid possible stack dives, we must invoke
+            // the continuation asynchronously rather than synchronously.
             Action<object> prevContinuation = Interlocked.CompareExchange(ref _continuation, continuation, null);
 
             if (prevContinuation != null)
@@ -319,6 +371,14 @@ namespace Spreads
                         break;
                 }
             }
+            else
+            {
+                Volatile.Write(ref _isLocked, 0L);
+                // Retry self, _continuations is now set, last chance to get result
+                // without external notification. If cannot move from here
+                // lock will remain open
+                ((IAsyncStateMachine)this).MoveNext();
+            }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -348,9 +408,7 @@ namespace Spreads
             {
                 if (_continuation == SCompletedSentinel || _continuation == SAvailableSentinel)
                 {
-                    Console.WriteLine("CONT == SENT");
-                    // return;
-                    // ThrowHelper.ThrowInvalidOperationException("Wrong continuation");
+                    ThrowHelper.ThrowInvalidOperationException("Wrong continuation");
                 }
 
                 if (_executionContext != null)
@@ -407,7 +465,7 @@ namespace Spreads
 
         public void Reset()
         {
-            ResetStateMachine();
+            TryOwnAndReset();
             _innerCursor?.Reset();
         }
 

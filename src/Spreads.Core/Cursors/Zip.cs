@@ -1315,7 +1315,7 @@ namespace Spreads
         }
 
         /// <inheritdoc />
-        public ValueTask Updated
+        public ValueTask<bool> Updated
         {
             // NB this property is repeatedly called from MNA
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -1327,7 +1327,7 @@ namespace Spreads
                 if (lro && rro)
                 {
                     // nothing to wait
-                    return new ValueTask();
+                    return new ValueTask<bool>(false);
                 }
 
                 if (lro)
@@ -1355,15 +1355,17 @@ namespace Spreads
                     }
                 }
 
-                var tl = _leftCursor.Source.Updated;
-                var tr = _rightCursor.Source.Updated;
-                if (tl.IsCompleted || tr.IsCompleted)
-                {
-                    return new ValueTask();
-                }
+                throw new NotImplementedException("TODO");
 
-                // TODO ValueTask.WhenAny
-                return new ValueTask(Task.WhenAny(tl.AsTask(), tr.AsTask()));
+                //var tl = _leftCursor.Source.Updated;
+                //var tr = _rightCursor.Source.Updated;
+                //if (tl.IsCompleted || tr.IsCompleted)
+                //{
+                //    return new ValueTask();
+                //}
+
+                //// TODO ValueTask.WhenAny
+                //return new ValueTask(Task.WhenAny(tl.AsTask(), tr.AsTask()));
             }
         }
 

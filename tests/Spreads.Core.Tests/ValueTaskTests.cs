@@ -65,24 +65,30 @@ namespace Spreads.Core.Tests
         [Test, Explicit("")]
         public void SortedMapNotifierTest()
         {
-            var rounds = 10000;
+            var rounds = 10_000;
             for (int r = 0; r < rounds; r++)
             {
                 var count = 1_000_000;
 
                 var sm1 = new Spreads.Collections.SortedMap<int, int>(count);
-
+                // sm1._isSynchronized = false;
                 var addTask = Task.Run(async () =>
                 {
-                    await Task.Delay(100);
+                    // await Task.Delay(5000);
                     try
                     {
+                        // sm1.TryAddLast(0, 0);
                         for (int i = 0; i < count; i++)
                         {
                             if (i != 2)
                             {
                                 sm1.TryAddLast(i, i);
                                 Thread.SpinWait(30);
+
+                                //if (i % 250000 == 0)
+                                //{
+                                //    GC.Collect(0, GCCollectionMode.Forced, false);
+                                //}
                             }
                         }
 
@@ -96,7 +102,7 @@ namespace Spreads.Core.Tests
 
                 var c = 0;
 
-                //await addTask;
+                // addTask.Wait();
 
                 Task.Run(async () =>
                 {
@@ -117,14 +123,15 @@ namespace Spreads.Core.Tests
                                     ThrowHelper.ThrowInvalidOperationException("Wrong cursor enumeration");
                                 }
                                 c++;
-                                if (c % 250000 == 0)
-                                {
-                                    Console.WriteLine(c);
-                                }
+                                //if (c % 250000 == 0)
+                                //{
+                                //    GC.Collect(0, GCCollectionMode.Forced, false);
+                                //    Console.WriteLine(c);
+                                //}
                             }
 
-                            Console.WriteLine($"{r}: Sync: {AsyncCursorCounters.SyncCount}, Async: {AsyncCursorCounters.AsyncCount}, Await: {AsyncCursorCounters.AwaitCount}");
-                            AsyncCursorCounters.Reset();
+                            Console.WriteLine($"{r}: Sync: {BaseCursorAsync.SyncCount}, Async: {BaseCursorAsync.AsyncCount}, Await: {BaseCursorAsync.AwaitCount}");
+                            BaseCursorAsync.ResetCounters();
                         }
                     }
 
@@ -138,49 +145,49 @@ namespace Spreads.Core.Tests
             Benchmark.Dump();
         }
 
-        [Test, Explicit("")]
-        public async Task ReusableWhenAnyTest()
-        {
-            var count = 10_000;
+        //[Test, Explicit("")]
+        //public async Task ReusableWhenAnyTest()
+        //{
+        //    var count = 10_000;
 
-            var sm1 = new Spreads.Collections.SortedMap<int, int>();
-            var sm2 = new Spreads.Collections.SortedMap<int, int>();
+        //    var sm1 = new Spreads.Collections.SortedMap<int, int>();
+        //    var sm2 = new Spreads.Collections.SortedMap<int, int>();
 
-            var whenAny = new Spreads.Collections.Experimental.ReusableWhenAny2(sm1, sm2); //  ReusableValueTaskWhenAny<int>();
+        //    var whenAny = new Spreads.Collections.Experimental.ReusableWhenAny2(sm1, sm2); //  ReusableValueTaskWhenAny<int>();
 
-            var _ = Task.Run(async () =>
-            {
-                await Task.Delay(100);
-                for (int i = 0; i < count; i++)
-                {
-                    await sm1.TryAddLast(i, i);
-                }
-            });
+        //    var _ = Task.Run(async () =>
+        //    {
+        //        await Task.Delay(100);
+        //        for (int i = 0; i < count; i++)
+        //        {
+        //            await sm1.TryAddLast(i, i);
+        //        }
+        //    });
 
-            var __ = Task.Run(async () =>
-            {
-                await Task.Delay(100);
-                for (int i = 0; i < count; i++)
-                {
-                    await sm2.TryAddLast(i, i);
-                }
-            });
+        //    var __ = Task.Run(async () =>
+        //    {
+        //        await Task.Delay(100);
+        //        for (int i = 0; i < count; i++)
+        //        {
+        //            await sm2.TryAddLast(i, i);
+        //        }
+        //    });
 
-            var c = 0;
-            using (Benchmark.Run("WhenAny", count))
-            {
-                Task.Run(async () =>
-            {
-                while (c < count)
-                {
-                    await whenAny.GetTask(); //  new WhenAnyAwiter<int>(t1, t2);
-                    c++;
-                    // Console.WriteLine(c);
-                }
-            }).Wait();
-            }
+        //    var c = 0;
+        //    using (Benchmark.Run("WhenAny", count))
+        //    {
+        //        Task.Run(async () =>
+        //    {
+        //        while (c < count)
+        //        {
+        //            await whenAny.GetTask(); //  new WhenAnyAwiter<int>(t1, t2);
+        //            c++;
+        //            // Console.WriteLine(c);
+        //        }
+        //    }).Wait();
+        //    }
 
-            Benchmark.Dump();
-        }
+        //    Benchmark.Dump();
+        //}
     }
 }

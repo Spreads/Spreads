@@ -554,7 +554,7 @@ namespace Spreads
         }
 
         /// <inheritdoc />
-        public ValueTask Updated
+        public ValueTask<bool> Updated
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
@@ -569,7 +569,7 @@ namespace Spreads
                 }
 
                 // completed
-                return new ValueTask();
+                return new ValueTask<bool>(false);
             }
         }
 

@@ -109,7 +109,7 @@ namespace Spreads
             return new VariantCursor(Inner.GetCursor(), this);
         }
 
-        public sealed override ValueTask Updated => Inner.Updated;
+        public sealed override ValueTask<bool> Updated => Inner.Updated;
 
         public override bool TryGetValue(Variant key, out Variant value)
         {

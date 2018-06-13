@@ -13,7 +13,7 @@ namespace Spreads
         /// <summary>
         /// Same as <see cref="ISeries{TKey,TValue}.Updated"/>
         /// </summary>
-        ValueTask Updated { get; }
+        ValueTask<bool> Updated { get; }
 
         /// <summary>
         /// Same as <see cref="ISeries{TKey,TValue}.IsIndexed"/>

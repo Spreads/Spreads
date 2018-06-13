@@ -69,7 +69,7 @@ namespace Spreads
         IAsyncEnumerator<T> GetAsyncEnumerator();
     }
 
-
+    [Obsolete]
     public interface IAsyncNotifier
     {
         /// <summary>
@@ -88,6 +88,7 @@ namespace Spreads
         ValueTask Updated { get; }
     }
 
+    [Obsolete]
     public interface IAsyncNotifier<T>
     {
         /// <summary>
@@ -109,8 +110,23 @@ namespace Spreads
     /// <summary>
     /// Main interface for data series.
     /// </summary>
-    public interface ISeries<TKey, TValue> : IAsyncEnumerable<KeyValuePair<TKey, TValue>>, IAsyncNotifier
+    public interface ISeries<TKey, TValue> : IAsyncEnumerable<KeyValuePair<TKey, TValue>>
     {
+        /// <summary>
+        /// False if the underlying collection could be changed, true if the underlying collection is immutable or is complete
+        /// for adding (e.g. after OnCompleted in Rx) or IsCompleted in terms of ICollectio/IDictionary or has fixed keys/values (all 4 definitions are the same).
+        /// </summary>
+        bool IsCompleted { get; }
+
+        /// <summary>
+        /// A ValueTask that is completed when underlying data is changed after the task is accessed.
+        /// Internally used for signaling to async cursors.
+        /// This is a signal to try MoveNext, which gives a definite answer, this task could complete
+        /// when data is not changed (false positive), consumers should not rely on this task
+        /// but spin on it. It means "likely updated or some condition where it is easier to retry moving on consumer side"
+        /// </summary>
+        ValueTask<bool> Updated { get; }
+
         /// <summary>
         /// If true then elements are placed by some custom order (e.g. order of addition, index) and not sorted by keys.
         /// </summary>
@@ -365,9 +381,9 @@ namespace Spreads
         public static ulong MaxVersion = (1UL << 48) - 1UL;
     }
 
-    /// <summary>
-    /// An untyped <see cref="ISeries{TKey, TValue}"/> interface with both keys and values as <see cref="Variant"/> types.
-    /// </summary>
+    ///// <summary>
+    ///// An untyped <see cref="ISeries{TKey, TValue}"/> interface with both keys and values as <see cref="Variant"/> types.
+    ///// </summary>
     //public interface ISeries : ISeries, ISeries<Variant, Variant>
     //{
     //}

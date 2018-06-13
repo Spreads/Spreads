@@ -92,7 +92,7 @@ namespace Spreads
         }
 
         /// <inheritdoc />
-        public abstract ValueTask Updated { get; }
+        public abstract ValueTask<bool> Updated { get; }
 
         /// <inheritdoc />
         public abstract Opt<KeyValuePair<TKey, TValue>> First { get; }
@@ -975,15 +975,13 @@ namespace Spreads
 
         internal bool _isReadOnly;
 
-        private object _cursors; // IAsyncStateMachine | ConcurrentBag<IAsyncStateMachine>
+        private object _cursors; // IAsyncStateMachineEx | ConcurrentBag<IAsyncStateMachineEx>
+        private ICursor<TKey, TValue> _updatedSourceCursor;
 
         internal long Locker;
 
-        private long _cursorNotifyLocker;
-        private bool _hasSkippedUpdate;
-
-        //private TaskCompletionSource<bool> _tcs;
-        //private TaskCompletionSource<bool> _unusedTcs;
+        //private long _cursorNotifyLocker;
+        //private bool _hasSkippedUpdate;
 
         internal abstract TCursor GetContainerCursor();
 
@@ -1017,7 +1015,7 @@ namespace Spreads
             }
             else
             {
-                if (_cursors is ConcurrentDictionary<IAsyncStateMachine, bool> dict)
+                if (_cursors is ConcurrentDictionary<IAsyncStateMachineEx, bool> dict)
                 {
                     dict.TryAdd(c, default);
                 }
@@ -1025,9 +1023,9 @@ namespace Spreads
                 {
                     BeforeWrite();
                     var existing = _cursors;
-                    _cursors = new ConcurrentDictionary<IAsyncStateMachine, bool>();
-                    ((ConcurrentDictionary<IAsyncStateMachine, bool>)_cursors).TryAdd((IAsyncStateMachine)existing, default);
-                    ((ConcurrentDictionary<IAsyncStateMachine, bool>)_cursors).TryAdd(c, default);
+                    _cursors = new ConcurrentDictionary<IAsyncStateMachineEx, bool>();
+                    ((ConcurrentDictionary<IAsyncStateMachineEx, bool>)_cursors).TryAdd((IAsyncStateMachineEx)existing, default);
+                    ((ConcurrentDictionary<IAsyncStateMachineEx, bool>)_cursors).TryAdd(c, default);
                     AfterWrite(false);
                 }
             }
@@ -1177,12 +1175,28 @@ namespace Spreads
 
         // private UpdateSource _updateSource;
 
-        public sealed override ValueTask Updated
+        public sealed override ValueTask<bool> Updated
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
-                throw new NotSupportedException();
+                if (_updatedSourceCursor == null)
+                {
+                    bool updated = false;
+                    BeforeWrite();
+                    if (_updatedSourceCursor == null)
+                    {
+                        _updatedSourceCursor = GetCursor();
+                        updated = _updatedSourceCursor.MoveLast();
+                    }
+                    AfterWrite(false);
+                    if (updated)
+                    {
+                        return new ValueTask<bool>(true);
+                    }
+                }
+
+                return _updatedSourceCursor.MoveNextAsync();
 
                 //if (_updateSource == null)
                 //{
@@ -1211,6 +1225,12 @@ namespace Spreads
             }
         }
 
+        protected virtual void Dispose(bool disposing)
+        {
+            _updatedSourceCursor.Dispose();
+            _updatedSourceCursor = null;
+        }
+
         internal Task DoComplete()
         {
             BeforeWrite();
@@ -1230,57 +1250,63 @@ namespace Spreads
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void NotifyUpdate()
+        internal void NotifyUpdate()
         {
-            NotifyUpdate(true);
+            var cursors = _cursors;
+            if (cursors != null)
+            {
+                if (cursors is ConcurrentDictionary<IAsyncStateMachineEx, bool> dict)
+                {
+                    foreach (var kvp in dict)
+                    {
+                        DoNotifyUpdateSingleAsync(kvp.Key, true);
+                    }
+                }
+                else
+                {
+                    DoNotifyUpdateSingleAsync((IAsyncStateMachineEx)cursors, true);
+                }
+            }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void NotifyUpdate(bool setSkipped)
+        private static void DoNotifyUpdateSingleAsync(IAsyncStateMachineEx cursor, bool setSkipped)
         {
-            if (_cursors == null || _cursorNotifyLocker == 1 || Interlocked.CompareExchange(ref _cursorNotifyLocker, 1L, 0L) != 0L)
+            if (cursor.IsLocked == 1)
             {
                 // try again later
                 if (setSkipped)
                 {
-                    _hasSkippedUpdate = true;
+                    cursor.HasSkippedUpdate = true;
                 }
                 return;
             }
 
 #if NETCOREAPP2_1
-            ThreadPool.QueueUserWorkItem<object>(DoNotifyUpdate, null, true);
+            ThreadPool.QueueUserWorkItem(_cb, (object)cursor, true);
 #else
             // This now works but very hacky and fragile, see corefx's 27445 discussion
             // var a = item.Item1;
             // var wcb = Unsafe.As<Action<object>, WaitCallback>(ref a);
-            ThreadPool.QueueUserWorkItem(DoNotifyUpdate, null);
+            ThreadPool.QueueUserWorkItem(_cb, cursor);
 #endif
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void DoNotifyUpdate(object state)
-        {
-            if (_cursors != null)
-            {
-                if (_cursors is ConcurrentDictionary<IAsyncStateMachine, bool> dict)
-                {
-                    foreach (var kvp in dict)
-                    {
-                        kvp.Key.MoveNext();
-                    }
-                }
-                else
-                {
-                    ((IAsyncStateMachine)_cursors).MoveNext();
-                }
-            }
+#if NETCOREAPP2_1
+        private static Action<object> _cb = DoNotifyUpdateSingleSync;
+#else
+        private static WaitCallback _cb = new WaitCallback(DoNotifyUpdateSingleSync);
+#endif
 
-            if (_hasSkippedUpdate)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static void DoNotifyUpdateSingleSync(object obj)
+        {
+            var cursor = (IAsyncStateMachineEx)obj;
+            cursor.MoveNext();
+            if (cursor.HasSkippedUpdate)
             {
-                NotifyUpdate(false);
+                DoNotifyUpdateSingleAsync(cursor, false);
             }
-            Volatile.Write(ref _cursorNotifyLocker, 0);
         }
 
         #endregion Synchronization
@@ -1735,18 +1761,19 @@ namespace Spreads
 
         #endregion ISeries members
 
-        public virtual void Dispose(bool disposing)
+        protected override void Dispose(bool disposing)
         {
             lock (SyncRoot)
             {
                 if (!_cursorIsSet) return;
             }
             _c.Dispose();
-            GC.SuppressFinalize(this);
+            base.Dispose(disposing);
         }
 
         public void Dispose()
         {
+            GC.SuppressFinalize(this);
             Dispose(true);
         }
 
