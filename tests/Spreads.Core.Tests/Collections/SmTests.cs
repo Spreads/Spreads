@@ -18,12 +18,14 @@ namespace Spreads.Core.Tests.Collections
         [Test, Explicit("long running")]
         public void AddSpeed()
         {
-            const int count = 10_000_000;
+            const int count = 1_000_000;
             for (int r = 0; r < 10; r++)
             {
                 var sl = new SortedList<int, int>();
                 var sm = new SortedMap<int, int>();
                 var scm = new SortedChunkedMap<int, int>();
+
+                var c = sm.GetCursor();
 
                 sm._isSynchronized = false;
                 scm._isSynchronized = false;

@@ -43,9 +43,23 @@ namespace Spreads
         {
             _awaitCount++;
         }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static void Reset()
+        {
+            _syncCount = 0;
+            _asyncCount = 0;
+            _awaitCount = 0;
+        }
     }
 
-    internal sealed class BaseCursorAsync<TKey, TValue, TCursor> :
+    internal class BaseCursorAsync
+    {
+        protected static readonly Action<object> SCompletedSentinel = s => throw new InvalidOperationException("Called completed sentinel");
+        protected static readonly Action<object> SAvailableSentinel = s => throw new InvalidOperationException("Called available sentinel");
+    }
+
+    internal sealed class BaseCursorAsync<TKey, TValue, TCursor> : BaseCursorAsync,
         ISpecializedCursor<TKey, TValue, TCursor>,
         IValueTaskSource<bool>,
         IAsyncStateMachine
@@ -57,13 +71,7 @@ namespace Spreads
         // ReSharper disable once FieldCanBeMadeReadOnly.Local
         private TCursor _innerCursor;
 
-        /// <summary>Current state of the state machine.</summary>
-        private int _state = 0;
-
         private AsyncTaskMethodBuilder _builder = AsyncTaskMethodBuilder.Create();
-        private ValueTaskAwaiter _awaiter0;
-        private static readonly Action<object> s_completed_sentinel = s => throw new InvalidOperationException("Called completed sentinel");
-        private static readonly Action<object> s_available_sentinel = s => throw new InvalidOperationException("Called available sentinel");
 
         private Action<object> _continuation;
         private object _continuationState;
@@ -85,7 +93,7 @@ namespace Spreads
                 Console.WriteLine("Source is null");
             }
 
-            _continuation = s_available_sentinel;
+            _continuation = SAvailableSentinel;
             _continuationState = null;
             _capturedContext = null;
             _executionContext = null;
@@ -97,8 +105,8 @@ namespace Spreads
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void ResetStateMachine()
         {
-            if (ReferenceEquals(Interlocked.CompareExchange(ref _continuation, null, s_available_sentinel),
-                s_available_sentinel))
+            if (ReferenceEquals(Interlocked.CompareExchange(ref _continuation, null, SAvailableSentinel),
+                SAvailableSentinel))
             {
                 unchecked
                 {
@@ -119,7 +127,7 @@ namespace Spreads
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private ValueTask<bool> GetMNAValueTask()
+        private ValueTask<bool> GetMoveNextAsyncValueTask()
         {
             if (_innerCursor.MoveNext())
             {
@@ -177,7 +185,7 @@ namespace Spreads
 
             var result = _result;
 
-            Volatile.Write(ref _continuation, s_available_sentinel);
+            Volatile.Write(ref _continuation, SAvailableSentinel);
 
             _error?.Throw();
             return result;
@@ -199,117 +207,39 @@ namespace Spreads
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         void IAsyncStateMachine.MoveNext()
         {
+            if (_completed)
+            {
+                return;
+            }
             try
             {
-                switch (_state)
+                if (_innerCursor.MoveNext())
                 {
-                    case 0:
-                        if (_innerCursor.MoveNext())
-                        {
-                            SetResult(true);
-                            AsyncCursorCounters.LogAsync();
-                            return;
-                        }
-
-                        if (_innerCursor.Source.IsCompleted)
-                        {
-                            if (_innerCursor.MoveNext())
-                            {
-                                SetResult(true);
-                                AsyncCursorCounters.LogAsync();
-                                return;
-                            }
-
-                            SetResult(false);
-                            AsyncCursorCounters.LogAsync();
-                            return;
-                        }
-
-                        // Volatile.Write(ref Locker, 0);
-                        // waiting = true;
-                        return;
-                    // no hot path, need to wait
-                    //try
-                    //{
-                    // _awaiter0 = _innerCursor.Source.Updated.GetAwaiter();
-                    //}
-                    //catch (Exception e)
-                    //{
-                    //    Console.WriteLine("GET AWAITER EX: " + e.ToString());
-                    //    throw;
-                    //}
-                    //if (!_awaiter0.IsCompleted)
-                    //{
-                    //    _state = 1;
-                    //    var inst = this;
-                    //    //try
-                    //    //{
-                    //    _builder.AwaitUnsafeOnCompleted(ref _awaiter0, ref inst);
-                    //    //}
-                    //    //catch (Exception e)
-                    //    //{
-                    //    //    Console.WriteLine("AWAIT ON COMPLETED EX: " + e.ToString());
-                    //    //    throw;
-                    //    //}
-
-                    //    return;
-                    //}
-                    //goto case 1;
-
-                    //case 1:
-                    //    AsyncCursorCounters.LogAwait();
-                    //    //try
-                    //    //{
-                    //    _awaiter0.GetResult();
-                    //    _awaiter0 = default;
-                    //    //}
-                    //    //catch (Exception e)
-                    //    //{
-                    //    //    Console.WriteLine("GET RESULT EX: " + e.ToString());
-                    //    //    throw;
-                    //    //}
-
-                    //    if (_innerCursor.MoveNext())
-                    //    {
-                    //        _state = 2;
-                    //        SetResult(true);
-                    //        AsyncCursorCounters.LogAsync();
-                    //        return;
-                    //    }
-
-                    //    if (_innerCursor.Source.IsCompleted)
-                    //    {
-                    //        _state = 2;
-                    //        if (_innerCursor.MoveNext())
-                    //        {
-                    //            SetResult(true);
-                    //            AsyncCursorCounters.LogAsync();
-                    //            return;
-                    //        }
-                    //        SetResult(false);
-                    //        AsyncCursorCounters.LogAsync();
-                    //        return;
-                    //    }
-
-                    //    goto case 0;
-
-                    case 2:
-
-                        _state = 0;
-                        goto case 0;
-
-                    default:
-                        ThrowHelper.ThrowInvalidOperationException("Impossible state in MoveNext");
-                        return;
+                    SetResult(true);
+                    AsyncCursorCounters.LogAsync();
+                    return;
                 }
+
+                if (_innerCursor.Source.IsCompleted)
+                {
+                    if (_innerCursor.MoveNext())
+                    {
+                        SetResult(true);
+                        AsyncCursorCounters.LogAsync();
+                        return;
+                    }
+
+                    SetResult(false);
+                    AsyncCursorCounters.LogAsync();
+                    return;
+                }
+
+                AsyncCursorCounters.LogAwait();
             }
             catch (Exception e)
             {
-                _state = 0; // int.MaxValue;
                 Console.WriteLine(e);
-                // SetException(e); // see https://github.com/dotnet/roslyn/issues/26567; we may want to move this out of the catch
-                //Environment.FailFast("Should not throw");
-                return;
+                SetException(e); // see https://github.com/dotnet/roslyn/issues/26567; we may want to move this out of the catch
             }
         }
 
@@ -355,9 +285,9 @@ namespace Spreads
 
             if (prevContinuation != null)
             {
-                if (!ReferenceEquals(prevContinuation, s_completed_sentinel))
+                if (!ReferenceEquals(prevContinuation, SCompletedSentinel))
                 {
-                    Debug.Assert(prevContinuation != s_available_sentinel, "Continuation was the available sentinel.");
+                    Debug.Assert(prevContinuation != SAvailableSentinel, "Continuation was the available sentinel.");
                     ThrowHelper.ThrowInvalidOperationException("Multiple continuations");
                 }
 
@@ -398,12 +328,12 @@ namespace Spreads
             SignalCompletion();
         }
 
-        //[MethodImpl(MethodImplOptions.AggressiveInlining)]
-        //public void SetException(Exception error)
-        //{
-        //    _error = ExceptionDispatchInfo.Capture(error);
-        //    SignalCompletion();
-        //}
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void SetException(Exception error)
+        {
+            _error = ExceptionDispatchInfo.Capture(error);
+            SignalCompletion();
+        }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void SignalCompletion()
@@ -414,9 +344,9 @@ namespace Spreads
             }
             _completed = true;
 
-            if (Interlocked.CompareExchange(ref _continuation, s_completed_sentinel, null) != null)
+            if (Interlocked.CompareExchange(ref _continuation, SCompletedSentinel, null) != null)
             {
-                if (_continuation == s_completed_sentinel || _continuation == s_available_sentinel)
+                if (_continuation == SCompletedSentinel || _continuation == SAvailableSentinel)
                 {
                     Console.WriteLine("CONT == SENT");
                     // return;
@@ -459,14 +389,14 @@ namespace Spreads
         private void SetCompletionAndInvokeContinuation()
         {
             Action<object> c = _continuation;
-            _continuation = s_completed_sentinel;
+            _continuation = SCompletedSentinel;
             c(_continuationState);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ValueTask<bool> MoveNextAsync()
         {
-            return GetMNAValueTask();
+            return GetMoveNextAsyncValueTask();
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

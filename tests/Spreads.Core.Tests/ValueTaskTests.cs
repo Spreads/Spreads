@@ -65,10 +65,10 @@ namespace Spreads.Core.Tests
         [Test, Explicit("")]
         public void SortedMapNotifierTest()
         {
-            var rounds = 100;
+            var rounds = 10000;
             for (int r = 0; r < rounds; r++)
             {
-                var count = 5_000_000;
+                var count = 1_000_000;
 
                 var sm1 = new Spreads.Collections.SortedMap<int, int>(count);
 
@@ -81,8 +81,8 @@ namespace Spreads.Core.Tests
                         {
                             if (i != 2)
                             {
-                                await sm1.TryAddLast(i, i);
-                                // Thread.SpinWait(30);
+                                sm1.TryAddLast(i, i);
+                                Thread.SpinWait(30);
                             }
                         }
 
@@ -96,7 +96,7 @@ namespace Spreads.Core.Tests
 
                 var c = 0;
 
-                // await addTask;
+                //await addTask;
 
                 Task.Run(async () =>
                 {
@@ -108,10 +108,23 @@ namespace Spreads.Core.Tests
                         {
                             while (await cursor.MoveNextAsync())
                             {
+                                if (c == 2)
+                                {
+                                    c++;
+                                }
+                                if (cursor.CurrentKey != c)
+                                {
+                                    ThrowHelper.ThrowInvalidOperationException("Wrong cursor enumeration");
+                                }
                                 c++;
+                                if (c % 250000 == 0)
+                                {
+                                    Console.WriteLine(c);
+                                }
                             }
 
-                            Console.WriteLine($" Sync: {AsyncCursorCounters.SyncCount}, Async: {AsyncCursorCounters.AsyncCount}, Await: {AsyncCursorCounters.AwaitCount}");
+                            Console.WriteLine($"{r}: Sync: {AsyncCursorCounters.SyncCount}, Async: {AsyncCursorCounters.AsyncCount}, Await: {AsyncCursorCounters.AwaitCount}");
+                            AsyncCursorCounters.Reset();
                         }
                     }
 
