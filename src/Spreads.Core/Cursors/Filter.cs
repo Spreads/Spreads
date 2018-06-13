@@ -386,7 +386,7 @@ namespace Spreads
         public Series<TKey, TValue, Filter<TKey, TValue, TCursor>> Source => new Series<TKey, TValue, Filter<TKey, TValue, TCursor>>(this);
 
         /// <inheritdoc />
-        public Task<bool> MoveNextAsync()
+        public ValueTask<bool> MoveNextAsync()
         {
             // TODO (review) why not just fakse? If someone uses this directly then it's ok to return fasle - but that would be a lie about underlying series state (MNA=false means compeleted)
             throw new NotSupportedException("Struct cursors are only sync, must use an async wrapper");

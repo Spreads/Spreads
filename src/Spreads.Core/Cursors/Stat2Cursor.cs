@@ -262,7 +262,7 @@ namespace Spreads
         public Series<TKey, Stat2<TKey>, Stat2Cursor<TKey, TValue, TCursor>> Source => new Series<TKey, Stat2<TKey>, Stat2Cursor<TKey, TValue, TCursor>>(this);
 
         /// <inheritdoc />
-        public Task<bool> MoveNextAsync()
+        public ValueTask<bool> MoveNextAsync()
         {
             throw new NotSupportedException();
         }

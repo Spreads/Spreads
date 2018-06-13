@@ -216,7 +216,7 @@ namespace Spreads
         public Series<TKey, TValue, Fill<TKey, TValue, TCursor>> Source => new Series<TKey, TValue, Fill<TKey, TValue, TCursor>>(this);
 
         /// <inheritdoc />
-        public Task<bool> MoveNextAsync()
+        public ValueTask<bool> MoveNextAsync()
         {
             throw new NotSupportedException();
         }

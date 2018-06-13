@@ -223,7 +223,7 @@ namespace Spreads
         public Series<TKey, bool, Comparison<TKey, TValue, TCursor>> Source => new Series<TKey, bool, Comparison<TKey, TValue, TCursor>>(this);
 
         /// <inheritdoc />
-        public Task<bool> MoveNextAsync()
+        public ValueTask<bool> MoveNextAsync()
         {
             throw new NotSupportedException();
         }

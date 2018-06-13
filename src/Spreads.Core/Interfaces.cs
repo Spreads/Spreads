@@ -55,7 +55,7 @@ namespace Spreads
         /// or cancellation token doesn't matter in the context.
         /// </remarks>
         /// <returns>true when there is a next element in the sequence, false if the sequence is complete and there will be no more elements ever.</returns>
-        Task<bool> MoveNextAsync();
+        ValueTask<bool> MoveNextAsync();
     }
 
     /// <summary>

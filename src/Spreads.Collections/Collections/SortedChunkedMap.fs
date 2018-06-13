@@ -182,14 +182,6 @@ type SortedChunkedMapBase<'K,'V>
       value <- value'; true
     else false
 
-  override this.GetCursor() =
-    // if source is already read-only, MNA will always return false
-    if this.IsCompleted then new SortedChunkedMapCursor<_,_>(this) :> ICursor<'K,'V>
-    else
-      let c = new BaseCursorAsync<_,_,_>(Func<_>(this.GetEnumerator))
-      c :> ICursor<'K,'V>    
-
-
   override this.GetContainerCursor() = this.GetEnumerator()
 
   // .NETs foreach optimization
@@ -729,9 +721,9 @@ and
       result
 
 
-    member this.MoveNextAsync(): Task<bool> = 
+    member this.MoveNextAsync(): ValueTask<bool> = 
       if this.source.isReadOnly then
-        if this.MoveNext() then TaskUtil.TrueTask else TaskUtil.FalseTask
+        if this.MoveNext() then new ValueTask<bool>(true) else ValueTask<bool>(false)
       else raise (NotSupportedException("Use SortedChunkedMapBaseGenericCursorAsync instead"))
 
     member this.Clone() =
@@ -764,7 +756,7 @@ and
       member this.Current with get(): obj = this.Current :> obj
 
     interface IAsyncEnumerator<KVP<'K,'V>> with
-      member this.MoveNextAsync(): Task<bool> = this.MoveNextAsync()
+      member this.MoveNextAsync(): ValueTask<bool> = this.MoveNextAsync()
       member this.DisposeAsync() = this.Dispose();Task.CompletedTask
 
 

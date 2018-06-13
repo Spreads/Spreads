@@ -62,61 +62,67 @@ namespace Spreads.Core.Tests
             public ValueTask<T> Updated => new ValueTask<T>(default(T));
         }
 
-        [Test, Explicit("")]   
-        public async Task SortedMapNotifierTest()
+        [Test, Explicit("")]
+        public void SortedMapNotifierTest()
         {
-            var count = 10_000_000;
-
-            var sm1 = new Spreads.Collections.SortedMap<int, int>(count);
-
-            var addTask = Task.Run(async () =>
+            var rounds = 100;
+            for (int r = 0; r < rounds; r++)
             {
-                await Task.Delay(100);
-                try
+                var count = 5_000_000;
+
+                var sm1 = new Spreads.Collections.SortedMap<int, int>(count);
+
+                var addTask = Task.Run(async () =>
                 {
-                    for (int i = 0; i < count; i++)
+                    await Task.Delay(100);
+                    try
                     {
-                        if (i != 2)
+                        for (int i = 0; i < count; i++)
                         {
-                            sm1.TryAddLast(i, i);
-                            // Thread.SpinWait(100);
+                            if (i != 2)
+                            {
+                                await sm1.TryAddLast(i, i);
+                                // Thread.SpinWait(30);
+                            }
+                        }
+
+                        await sm1.Complete();
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine(ex);
+                    }
+                });
+
+                var c = 0;
+
+                // await addTask;
+
+                Task.Run(async () =>
+                {
+                    using (Benchmark.Run("SM.Updated", count))
+                    {
+                        Thread.CurrentThread.Name = "MNA";
+
+                        using (var cursor = sm1.GetCursor())
+                        {
+                            while (await cursor.MoveNextAsync())
+                            {
+                                c++;
+                            }
+
+                            Console.WriteLine($" Sync: {AsyncCursorCounters.SyncCount}, Async: {AsyncCursorCounters.AsyncCount}, Await: {AsyncCursorCounters.AwaitCount}");
                         }
                     }
 
-                    await sm1.Complete();
-                }
-                catch (Exception ex)
+                    // Console.WriteLine(c);
+                }).ContinueWith(t =>
                 {
-                    Console.WriteLine(ex);
-                }
-            });
-
-            var c = 0;
-
-            // await addTask;
-
-            Task.Run(async () =>
-            {
-                var rounds = 1;
-                using (Benchmark.Run("SM.Updated", count * rounds))
-                {
-                    Thread.CurrentThread.Name = "MNA";
-                    for (int r = 0; r < rounds; r++)
-                    {
-                        var cursor = sm1.GetCursor();
-
-                        while (await cursor.MoveNextAsync())
-                        {
-                            c++;
-                        }
-
-                        Console.WriteLine($" Sync: {AsyncCursorCounters.SyncCount}, Async: {AsyncCursorCounters.AsyncCount}, Await: {AsyncCursorCounters.AwaitCount}");
-                    }
-                }
-
-                Benchmark.Dump();
-                Console.WriteLine(c);
-            }).Wait();
+                    addTask.Wait();
+                }).Wait();
+                
+            }
+            Benchmark.Dump();
         }
 
         [Test, Explicit("")]

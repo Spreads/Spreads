@@ -244,7 +244,7 @@ namespace Spreads.Core.Run
         {
             // TestVTS().Wait();
             var test = new Spreads.Core.Tests.ValueTaskTests();
-            test.SortedMapNotifierTest().Wait();
+            test.SortedMapNotifierTest();
             //BinaryLz4();
             //BinaryZstd();
             Console.ReadLine();

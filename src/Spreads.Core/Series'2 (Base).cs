@@ -993,9 +993,18 @@ namespace Spreads
             get { return _isReadOnly; }
         }
 
+        private ConcurrentDictionary<IAsyncStateMachine, object> _cursors = new ConcurrentDictionary<IAsyncStateMachine, object>();
+
         public override ICursor<TKey, TValue> GetCursor()
         {
-            return GetContainerCursor();
+            if (IsCompleted)
+            {
+                return GetContainerCursor();
+            }
+
+            var c = new BaseCursorAsync<TKey, TValue, TCursor>(GetContainerCursor());
+            _cursors.TryAdd(c, null);
+            return c;
         }
 
         TCursor ISpecializedSeries<TKey, TValue, TCursor>.GetCursor()
@@ -1139,22 +1148,24 @@ namespace Spreads
             return value;
         }
 
-        private UpdateSource _updateSource;
+        // private UpdateSource _updateSource;
 
         public sealed override ValueTask Updated
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
-                if (_updateSource == null)
-                {
-                    BeforeWrite();                          // lock (SyncRoot) {
-                    if (_updateSource == null)
-                    {
-                        _updateSource = new UpdateSource(this);
-                    }
-                    AfterWrite(doVersionIncrement: false);  // } // lock
-                }
+                throw new NotSupportedException();
+
+                //if (_updateSource == null)
+                //{
+                //    BeforeWrite();                          // lock (SyncRoot) {
+                //    if (_updateSource == null)
+                //    {
+                //        _updateSource = new UpdateSource(this);
+                //    }
+                //    AfterWrite(doVersionIncrement: false);  // } // lock
+                //}
 
                 // NB `Version mod short.Max` is used to simulate read-lock (similar to cursor reads)
                 // We store LSB of Version as VT token and then compare it to LSB of NextVersion
@@ -1169,7 +1180,7 @@ namespace Spreads
                 // a single (even forgeting that each update triggers notification). Therefore,
                 // update speed must be 65k * VTS Mops = 65 Bops (GHz) vs 4.2 GHz of top CPUs.
                 // Or VTS should work at 4.2G/65k = 65Kops (both 65 is coincidence, 65^2 = 4225).
-                return _updateSource.GetTask(); // new ValueTask(_updatedSource, unchecked((short)Volatile.Read(ref _version)));
+                // return _updateSource.GetTask(); // new ValueTask(_updatedSource, unchecked((short)Volatile.Read(ref _version)));
             }
         }
 
@@ -1191,307 +1202,334 @@ namespace Spreads
             return Task.CompletedTask;
         }
 
-        //[MethodImpl(MethodImplOptions.AggressiveInlining)]
-        //internal void NotifyUpdate2()
-        //{
-        //    var tcs = Volatile.Read(ref _tcs);
-        //    Volatile.Write(ref _tcs, null);
-        //    tcs?.TrySetResult(true);
-        //}
-
-        ///// <summary>
-        ///// A Task that is completed with True whenever underlying data is changed.
-        ///// Internally used for signaling to async cursors.
-        ///// After getting the Task one should check if any changes happened (version change or cursor move) before awaiting the task.
-        ///// If the task is completed with false then the series is read-only, immutable or complete.
-        ///// </summary>
-        //public Task Updated2
-        //{
-        //    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        //    get
-        //    {
-        //        // saving one allocation vs Interlocked.Exchange call
-        //        var unusedTcs = Interlocked.Exchange(ref _unusedTcs, null);
-        //        var newTcs = unusedTcs ?? new TaskCompletionSource<bool>();
-        //        var tcs = Interlocked.CompareExchange(ref _tcs, newTcs, null);
-        //        if (tcs == null)
-        //        {
-        //            // newTcs was put to the _tcs field, use it
-        //            tcs = newTcs;
-        //        }
-        //        else
-        //        {
-        //            Volatile.Write(ref _unusedTcs, newTcs);
-        //        }
-        //        return tcs.Task;
-        //    }
-        //}
-
+        private long Locker2;
+        private bool _hasSkipped;
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void NotifyUpdate()
         {
-            AsyncCursorCounters.LogAwait();
-            _updateSource?.TryNotifyUpdate();
-        }
-
-        internal class UpdateSource : IValueTaskSource, IAsyncStateMachine
-        {
-            // We do not need AsyncTaskMethodBuilder & state machine when we always signal ourselves
-            // State machine in AsyncEnumerable prototype is needed for _builder.AwaitUnsafeOnCompleted
-            // method to await for inputs (we use it for ReusableWhenAny). Here we only need to properly
-            // handle multiple continuations.
-
-            private const int StateStart = -1;
-
-            /// <summary>Current state of the state machine.</summary>
-            private int _state = StateStart; 
-
-            private AsyncTaskMethodBuilder _builder = AsyncTaskMethodBuilder.Create();
-
-            private ConcurrentQueue<(Action<object>, object, object)> _queue;
-            private List<(Action<object>, object, object)> _tempList;
-
-            private readonly ContainerSeries<TKey, TValue, TCursor> _series;
-
-            private short _version;
-
-            public UpdateSource(ContainerSeries<TKey, TValue, TCursor> series)
+            if (Locker2 == 1 || Interlocked.CompareExchange(ref Locker2, 1L, 0L) != 0L)
             {
-                _series = series;
+                _hasSkipped = true;
+                return;
             }
 
-            public ValueTask GetTask()
-            {
-                // Reset();
+            // DoNotifyUpdate(null);
 
-                _version = unchecked((short)Volatile.Read(ref _series._version));
-
-                //UpdatedSource inst = this;
-                //_builder.Start(ref inst); // invokes MoveNext, protected by ExecutionContext guards
-
-                switch (GetStatus(unchecked((short)Volatile.Read(ref _series._version))))
-                {
-                    case ValueTaskSourceStatus.Succeeded:
-                        return new ValueTask();
-
-                    default:
-                        return new ValueTask(this, unchecked((short)Volatile.Read(ref _series._version)));
-                }
-            }
-
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public ValueTaskSourceStatus GetStatus(short token)
-            {
-                if (unchecked((short)Volatile.Read(ref _series._version)) != token || _series._isReadOnly)
-                {
-                    // version changed after task creation, we are done
-                    return ValueTaskSourceStatus.Succeeded;
-                }
-                return ValueTaskSourceStatus.Pending;
-            }
-
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public void GetResult(short token)
-            {
-                //if (unchecked((short)Volatile.Read(ref _series._version)) == token)
-                //{
-                //    ThrowHelper.ThrowInvalidOperationException("Early call to GetResult");
-                //}
-                // TODO false positives are ok, we could just spin in cursors, no need to check something here
-            }
-
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public void OnCompleted(Action<object> continuation, object state, short token, ValueTaskSourceOnCompletedFlags flags)
-            {
-                if (continuation == null)
-                {
-                    ThrowHelper.ThrowArgumentNullException(nameof(continuation));
-                }
-
-                if ((flags & ValueTaskSourceOnCompletedFlags.FlowExecutionContext) != 0)
-                {
-                    ThrowHelper.ThrowNotSupportedException();
-                    // _executionContext = ExecutionContext.Capture();
-                }
-
-                object capturedContext = null;
-                if ((flags & ValueTaskSourceOnCompletedFlags.UseSchedulingContext) != 0)
-                {
-                    SynchronizationContext sc = SynchronizationContext.Current;
-                    if (sc != null && sc.GetType() != typeof(SynchronizationContext))
-                    {
-                        capturedContext = sc;
-                    }
-                    else
-                    {
-                        TaskScheduler ts = TaskScheduler.Current;
-                        if (ts != TaskScheduler.Default)
-                        {
-                            capturedContext = ts;
-                        }
-                    }
-                }
-
-                // Here we have continuation, which means that GetStatus returned Pending
-                // and the task is being awaited, there is no syncronous path (spin/retry)
-                // left for the task or cursor to detect version change without awaiting this task.
-
-                // If version has changed already (before a writer call UpdateNotify)
-                // then we could RunContinuation right here with forceAsync = true
-                // bypassing the queue. Otherwise we add the continuation and context
-                // to the queue and do additional chack after adding to the queue if
-                // the writer updates version while we are adding the item to the queue.
-
-                if (unchecked((short)Volatile.Read(ref _series._version)) != token || _series._isReadOnly)
-                {
-                    // version changed between check for completion via GetResult and await
-                    RunContinuation((continuation, state, capturedContext), true);
-                }
-                else
-                {
-                    // atomically create queue if it does not exist yet
-                    if (_queue == null)
-                    {
-                        _series.BeforeWrite(); // lock (SyncRoot) {
-                        if (_queue == null)
-                        {
-                            _queue = new ConcurrentQueue<(Action<object>, object, object)>();
-                        }
-
-                        _series.AfterWrite(doVersionIncrement: false); // } // lock
-                    }
-
-                    _queue.Enqueue((continuation, state, capturedContext));
-
-                    if (unchecked((short)Volatile.Read(ref _series._version)) != token || _series._isReadOnly)
-                    {
-                        NotifyUpdate(true);
-                    }
-                }
-            }
-
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            internal void TryNotifyUpdate()
-            {
-                NotifyUpdate(false);
-                //UpdatedSource inst = this;
-                //_builder.Start(ref inst); // invokes MoveNext, protected by ExecutionContext guards
-            }
-
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            private void NotifyUpdate(bool forceAsync)
-            {
-                if (_queue != null)
-                {
-                    lock (_queue)
-                    {
-                        if (_tempList == null) { _tempList = new List<(Action<object>, object, object)>(); }
-                        while (_queue.TryDequeue(out var item))
-                        {
-                            // RunContinuation(item, forceAsync);
-                            _tempList.Add(item);
-                        }
-
-                        foreach (var item in _tempList)
-                        {
-                            AsyncCursorCounters.LogAwait();
-                            RunContinuation(item, forceAsync);
-                        }
-                        _tempList.Clear();
-                    }
-                }
-            }
-
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            private void RunContinuation((Action<object>, object, object) continuationEx, bool forceAsync)
-            {
-                var cc = continuationEx.Item3;
-                if (cc == null)
-                {
-                    if (forceAsync)
-                    {
 #if NETCOREAPP2_1
-                        ThreadPool.QueueUserWorkItem(continuationEx.Item1, continuationEx.Item2, true);
+            ThreadPool.QueueUserWorkItem<object>(DoNotifyUpdate, null, true);
 #else
-                        // This now works but very hacky and fragile, see corefx's 27445 discussion
-                        // var a = item.Item1;
-                        // var wcb = Unsafe.As<Action<object>, WaitCallback>(ref a);
-                        ThreadPool.QueueUserWorkItem(new WaitCallback(continuationEx.Item1), continuationEx.Item2);
+            // This now works but very hacky and fragile, see corefx's 27445 discussion
+            // var a = item.Item1;
+            // var wcb = Unsafe.As<Action<object>, WaitCallback>(ref a);
+            ThreadPool.QueueUserWorkItem(DoNotifyUpdate, null);
 #endif
-                    }
-                    else
-                    {
-                        continuationEx.Item1(continuationEx.Item2);
-                    }
-                }
-                else if (cc is SynchronizationContext sc)
-                {
-                    sc.Post(s =>
-                    {
-                        continuationEx.Item1(continuationEx.Item2);
-                    }, null);
-                }
-                else if (cc is TaskScheduler ts)
-                {
-                    Task.Factory.StartNew(continuationEx.Item1, continuationEx.Item2, CancellationToken.None, TaskCreationOptions.DenyChildAttach, ts);
-                }
-            }
 
-            public void MoveNext()
-            {
-                try
-                {
-                    switch (_state)
-                    {
-                        case StateStart:
-                            goto case 0;
-
-                        case 0:
-
-                            try
-                            {
-                                if (unchecked((short)Volatile.Read(ref _series._version)) != _version || _series._isReadOnly)
-                                {
-                                    NotifyUpdate(false);
-                                }
-                                return;
-                            }
-                            catch (Exception ex)
-                            {
-                                Console.WriteLine(ex);
-                                throw;
-                            }
-
-                        case 1:
-                            _state = 0;
-                            goto case 0;
-
-                        default:
-                            ThrowHelper.ThrowInvalidOperationException();
-                            return;
-                    }
-                }
-                catch (Exception e)
-                {
-                    Console.WriteLine(e);
-                    return;
-                }
-            }
-
-            public void SetStateMachine(IAsyncStateMachine stateMachine)
-            {
-            }
+            // _updateSource?.TryNotifyUpdate();
         }
 
-        #endregion Synchronization
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void DoNotifyUpdate(object state)
+        {
+            foreach (var cursor in _cursors)
+            {
+                cursor.Key.MoveNext();
+            }
 
-        #region Unary Operators
+            if (_hasSkipped)
+            {
+                _hasSkipped = false;
+                DoNotifyUpdate(null);
+            }
+            Volatile.Write(ref Locker2, 0);
+        }
 
-        // UNARY ARITHMETIC
+//        internal class UpdateSource : IValueTaskSource, IAsyncStateMachine
+//        {
+//            // We do not need AsyncTaskMethodBuilder & state machine when we always signal ourselves
+//            // State machine in AsyncEnumerable prototype is needed for _builder.AwaitUnsafeOnCompleted
+//            // method to await for inputs (we use it for ReusableWhenAny). Here we only need to properly
+//            // handle multiple continuations.
 
-        /// <summary>
-        /// Add operator.
-        /// </summary>
+            //            private const int StateStart = -1;
+
+            //            /// <summary>Current state of the state machine.</summary>
+            //            private int _state = StateStart;
+
+            //            private AsyncTaskMethodBuilder _builder = AsyncTaskMethodBuilder.Create();
+
+            //            private ConcurrentQueue<(Action<object>, object, object)> _queue;
+            //            private ConcurrentQueue<(Action<object>, object, object)> _drainedQueue;
+
+            //            private List<(Action<object>, object, object)> _tempList;
+
+            //            private readonly ContainerSeries<TKey, TValue, TCursor> _series;
+
+            //            private short _version;
+
+            //            public UpdateSource(ContainerSeries<TKey, TValue, TCursor> series)
+            //            {
+            //                _series = series;
+            //            }
+
+            //            public ValueTask GetTask()
+            //            {
+            //                // Reset();
+
+            //                _version = unchecked((short)Volatile.Read(ref _series._version));
+
+            //                //UpdatedSource inst = this;
+            //                //_builder.Start(ref inst); // invokes MoveNext, protected by ExecutionContext guards
+
+            //                switch (GetStatus(unchecked((short)Volatile.Read(ref _series._version))))
+            //                {
+            //                    case ValueTaskSourceStatus.Succeeded:
+            //                        return new ValueTask();
+
+            //                    default:
+            //                        return new ValueTask(this, unchecked((short)Volatile.Read(ref _series._version)));
+            //                }
+            //            }
+
+            //            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            //            public ValueTaskSourceStatus GetStatus(short token)
+            //            {
+            //                if (unchecked((short)Volatile.Read(ref _series._version)) != token || _series._isReadOnly)
+            //                {
+            //                    // version changed after task creation, we are done
+            //                    return ValueTaskSourceStatus.Succeeded;
+            //                }
+            //                return ValueTaskSourceStatus.Pending;
+            //            }
+
+            //            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            //            public void GetResult(short token)
+            //            {
+            //                // TODO false positives are ok, we could just spin in cursors, no need to check something here
+            //            }
+
+            //            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            //            public void OnCompleted(Action<object> continuation, object state, short token, ValueTaskSourceOnCompletedFlags flags)
+            //            {
+            //                if (continuation == null)
+            //                {
+            //                    ThrowHelper.ThrowArgumentNullException(nameof(continuation));
+            //                }
+
+            //                if ((flags & ValueTaskSourceOnCompletedFlags.FlowExecutionContext) != 0)
+            //                {
+            //                    ThrowHelper.ThrowNotSupportedException();
+            //                    // _executionContext = ExecutionContext.Capture();
+            //                }
+
+            //                object capturedContext = null;
+            //                if ((flags & ValueTaskSourceOnCompletedFlags.UseSchedulingContext) != 0)
+            //                {
+            //                    SynchronizationContext sc = SynchronizationContext.Current;
+            //                    if (sc != null && sc.GetType() != typeof(SynchronizationContext))
+            //                    {
+            //                        capturedContext = sc;
+            //                    }
+            //                    else
+            //                    {
+            //                        TaskScheduler ts = TaskScheduler.Current;
+            //                        if (ts != TaskScheduler.Default)
+            //                        {
+            //                            capturedContext = ts;
+            //                        }
+            //                    }
+            //                }
+
+            //                // Here we have continuation, which means that GetStatus returned Pending
+            //                // and the task is being awaited, there is no syncronous path (spin/retry)
+            //                // left for the task or cursor to detect version change without awaiting this task.
+
+            //                // If version has changed already (before a writer call UpdateNotify)
+            //                // then we could RunContinuation right here with forceAsync = true
+            //                // bypassing the queue. Otherwise we add the continuation and context
+            //                // to the queue and do additional chack after adding to the queue if
+            //                // the writer updates version while we are adding the item to the queue.
+
+            //                if (unchecked((short)Volatile.Read(ref _series._version)) != token || _series._isReadOnly)
+            //                {
+            //                    // version changed between check for completion via GetResult and await
+            //                    RunContinuation((continuation, state, capturedContext), true);
+            //                }
+            //                else
+            //                {
+            //                    // atomically create queue if it does not exist yet
+            //                    if (_queue == null)
+            //                    {
+            //                        _series.BeforeWrite(); // lock (SyncRoot) {
+            //                        if (_queue == null)
+            //                        {
+            //                            _queue = new ConcurrentQueue<(Action<object>, object, object)>();
+            //                            _drainedQueue = new ConcurrentQueue<(Action<object>, object, object)>();
+            //                        }
+
+            //                        _series.AfterWrite(doVersionIncrement: false); // } // lock
+            //                    }
+
+            //                    _queue.Enqueue((continuation, state, capturedContext));
+
+            //                    if (unchecked((short)Volatile.Read(ref _series._version)) != token || _series._isReadOnly)
+            //                    {
+            //                        NotifyUpdate(true);
+            //                    }
+            //                }
+            //            }
+
+            //            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            //            internal void TryNotifyUpdate()
+            //            {
+            //                // True will queue completions on ThreadPool from AfterWrite
+            //                // TODO await data producers and continue from them inline
+            //                // Currently there is no read loop with ValueTask (working on it), but
+            //                // it should be possible to complete awaiter inline.
+            //                NotifyUpdate(true);
+            //            }
+
+            //            private int _qcdd;
+
+            //            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            //            private void NotifyUpdate(bool forceAsync)
+            //            {
+            //                if (_queue != null && _drainedQueue != null)
+            //                {
+            //                    // TODO without lock
+            //                    lock (_queue)
+            //                    {
+            //                        var queue = _queue;
+            //                        Interlocked.Exchange(ref _queue, _drainedQueue);
+            //                        while (queue.TryDequeue(out var item))
+            //                        {
+            //                            RunContinuation(item, forceAsync);
+            //                        }
+
+            //                        _drainedQueue = queue;
+
+            //                        //if (_tempList == null) { _tempList = new List<(Action<object>, object, object)>(); }
+
+            //                        //var qc = _queue.Count;
+            //                        //while (_queue.TryDequeue(out var item))
+            //                        //{
+            //                        //    // RunContinuation(item, forceAsync);
+            //                        //    _tempList.Add(item);
+            //                        //}
+
+            //                        //if (_tempList.Count != qc)
+            //                        //{
+            //                        //    _qcdd++;
+            //                        //    Console.WriteLine("Queue changed during drain: " + _qcdd);
+            //                        //}
+
+            //                        //foreach (var item in _tempList)
+            //                        //{
+            //                        //    RunContinuation(item, forceAsync);
+            //                        //}
+            //                        //_tempList.Clear();
+            //                    }
+            //                }
+            //            }
+
+            //            private ConcurrentDictionary<object, object> _debug = new ConcurrentDictionary<object, object>();
+
+            //            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            //            private void RunContinuation((Action<object>, object, object) continuationEx, bool forceAsync)
+            //            {
+            //                //if (_debug.ContainsKey(continuationEx.Item1))
+            //                //{
+            //                //    Console.WriteLine("Multiple continuation execution");
+            //                //}
+
+            //                var cc = continuationEx.Item3;
+            //                if (cc == null)
+            //                {
+            //                    if (forceAsync)
+            //                    {
+            //#if NETCOREAPP2_1
+            //                        ThreadPool.QueueUserWorkItem(continuationEx.Item1, continuationEx.Item2, true);
+            //#else
+            //                        // This now works but very hacky and fragile, see corefx's 27445 discussion
+            //                        // var a = item.Item1;
+            //                        // var wcb = Unsafe.As<Action<object>, WaitCallback>(ref a);
+            //                        ThreadPool.QueueUserWorkItem(new WaitCallback(continuationEx.Item1), continuationEx.Item2);
+            //#endif
+            //                    }
+            //                    else
+            //                    {
+            //                        continuationEx.Item1(continuationEx.Item2);
+            //                    }
+            //                }
+            //                else if (cc is SynchronizationContext sc)
+            //                {
+            //                    sc.Post(s =>
+            //                    {
+            //                        continuationEx.Item1(continuationEx.Item2);
+            //                    }, null);
+            //                }
+            //                else if (cc is TaskScheduler ts)
+            //                {
+            //                    Task.Factory.StartNew(continuationEx.Item1, continuationEx.Item2, CancellationToken.None, TaskCreationOptions.DenyChildAttach, ts);
+            //                }
+
+            //                // _debug.TryAdd(continuationEx.Item1, continuationEx.Item1);
+            //            }
+
+            //            public void MoveNext()
+            //            {
+            //                try
+            //                {
+            //                    switch (_state)
+            //                    {
+            //                        case StateStart:
+            //                            goto case 0;
+
+            //                        case 0:
+
+            //                            try
+            //                            {
+            //                                if (unchecked((short)Volatile.Read(ref _series._version)) != _version || _series._isReadOnly)
+            //                                {
+            //                                    NotifyUpdate(false);
+            //                                }
+            //                                return;
+            //                            }
+            //                            catch (Exception ex)
+            //                            {
+            //                                Console.WriteLine(ex);
+            //                                throw;
+            //                            }
+
+            //                        case 1:
+            //                            _state = 0;
+            //                            goto case 0;
+
+            //                        default:
+            //                            ThrowHelper.ThrowInvalidOperationException();
+            //                            return;
+            //                    }
+            //                }
+            //                catch (Exception e)
+            //                {
+            //                    Console.WriteLine(e);
+            //                    return;
+            //                }
+            //            }
+
+            //            public void SetStateMachine(IAsyncStateMachine stateMachine)
+            //            {
+            //            }
+            //        }
+
+            #endregion Synchronization
+
+            #region Unary Operators
+
+            // UNARY ARITHMETIC
+
+            /// <summary>
+            /// Add operator.
+            /// </summary>
         public static Series<TKey, TValue, Op<TKey, TValue, AddOp<TValue>, TCursor>> operator
             +(ContainerSeries<TKey, TValue, TCursor> series, TValue constant)
         {

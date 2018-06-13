@@ -159,9 +159,9 @@ namespace Spreads
         public Series<TKey, TValue, Empty<TKey, TValue>> Source => new Series<TKey, TValue, Empty<TKey, TValue>>(this);
 
         /// <inheritdoc />
-        public Task<bool> MoveNextAsync()
+        public ValueTask<bool> MoveNextAsync()
         {
-            return TaskUtil.FalseTask;
+            return new ValueTask<bool>(false);
         }
 
         #endregion ICursor members

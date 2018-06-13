@@ -2,10 +2,10 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-using Spreads.Utils;
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.ExceptionServices;
 using System.Threading;
@@ -62,13 +62,14 @@ namespace Spreads
 
         private AsyncTaskMethodBuilder _builder = AsyncTaskMethodBuilder.Create();
         private ValueTaskAwaiter _awaiter0;
-        private static readonly Action<object> s_sentinel = s => throw new InvalidOperationException();
+        private static readonly Action<object> s_completed_sentinel = s => throw new InvalidOperationException("Called completed sentinel");
+        private static readonly Action<object> s_available_sentinel = s => throw new InvalidOperationException("Called available sentinel");
 
         private Action<object> _continuation;
         private object _continuationState;
         private object _capturedContext;
         private ExecutionContext _executionContext;
-        internal bool _completed;
+        internal volatile bool _completed;
         private bool _result;
         private ExceptionDispatchInfo _error;
         private short _version;
@@ -84,7 +85,7 @@ namespace Spreads
                 Console.WriteLine("Source is null");
             }
 
-            _continuation = null;
+            _continuation = s_available_sentinel;
             _continuationState = null;
             _capturedContext = null;
             _executionContext = null;
@@ -93,22 +94,50 @@ namespace Spreads
             _version = 0;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void ResetStateMachine()
         {
-            unchecked
+            if (ReferenceEquals(Interlocked.CompareExchange(ref _continuation, null, s_available_sentinel),
+                s_available_sentinel))
             {
-                _version++;
+                unchecked
+                {
+                    _version++;
+                }
+
+                _completed = false;
+                _result = default;
+                _continuationState = null;
+                _error = null;
+                _executionContext = null;
+                _capturedContext = null;
             }
-            _completed = false;
-            _continuation = null;
-            _continuationState = null;
-            _error = null;
-            _executionContext = null;
-            _capturedContext = null;
+            else
+            {
+                ThrowHelper.ThrowInvalidOperationException("Cannot reset");
+            }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private ValueTask<bool> GetMNAValueTask()
         {
+            if (_innerCursor.MoveNext())
+            {
+                AsyncCursorCounters.LogSync();
+                return new ValueTask<bool>(true);
+            }
+
+            if (_innerCursor.Source.IsCompleted)
+            {
+                if (_innerCursor.MoveNext())
+                {
+                    AsyncCursorCounters.LogSync();
+                    return new ValueTask<bool>(true);
+                }
+                AsyncCursorCounters.LogSync();
+                return new ValueTask<bool>(false);
+            }
+
             ResetStateMachine();
 
             var inst = this;
@@ -124,6 +153,7 @@ namespace Spreads
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ValueTaskSourceStatus GetStatus(short token)
         {
             ValidateToken(token);
@@ -142,11 +172,15 @@ namespace Spreads
 
             if (!_completed)
             {
-                ThrowHelper.ThrowInvalidOperationException();
+                ThrowHelper.ThrowInvalidOperationException("_completed = false in GetResult");
             }
 
+            var result = _result;
+
+            Volatile.Write(ref _continuation, s_available_sentinel);
+
             _error?.Throw();
-            return _result;
+            return result;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -154,7 +188,7 @@ namespace Spreads
         {
             if (token != _version)
             {
-                ThrowHelper.ThrowInvalidOperationException();
+                ThrowHelper.ThrowInvalidOperationException("token != _version");
             }
         }
 
@@ -162,72 +196,130 @@ namespace Spreads
         {
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         void IAsyncStateMachine.MoveNext()
         {
             try
             {
                 switch (_state)
                 {
-
                     case 0:
                         if (_innerCursor.MoveNext())
                         {
-                            _state = 2;
                             SetResult(true);
+                            AsyncCursorCounters.LogAsync();
                             return;
                         }
 
                         if (_innerCursor.Source.IsCompleted)
                         {
-                            _state = 2;
                             if (_innerCursor.MoveNext())
                             {
                                 SetResult(true);
+                                AsyncCursorCounters.LogAsync();
                                 return;
                             }
+
                             SetResult(false);
+                            AsyncCursorCounters.LogAsync();
                             return;
                         }
 
-                        // no hot path, need to wait
+                        // Volatile.Write(ref Locker, 0);
+                        // waiting = true;
+                        return;
+                    // no hot path, need to wait
+                    //try
+                    //{
+                    // _awaiter0 = _innerCursor.Source.Updated.GetAwaiter();
+                    //}
+                    //catch (Exception e)
+                    //{
+                    //    Console.WriteLine("GET AWAITER EX: " + e.ToString());
+                    //    throw;
+                    //}
+                    //if (!_awaiter0.IsCompleted)
+                    //{
+                    //    _state = 1;
+                    //    var inst = this;
+                    //    //try
+                    //    //{
+                    //    _builder.AwaitUnsafeOnCompleted(ref _awaiter0, ref inst);
+                    //    //}
+                    //    //catch (Exception e)
+                    //    //{
+                    //    //    Console.WriteLine("AWAIT ON COMPLETED EX: " + e.ToString());
+                    //    //    throw;
+                    //    //}
 
-                        _awaiter0 = _innerCursor.Source.Updated.GetAwaiter();// Task.CompletedTask.GetAwaiter();
-                        if (!_awaiter0.IsCompleted)
-                        {
-                            _state = 1;
-                            var inst = this;
-                            _builder.AwaitUnsafeOnCompleted(ref _awaiter0, ref inst);
-                            return;
-                        }
-                        goto case 1;
+                    //    return;
+                    //}
+                    //goto case 1;
 
-                    case 1:
-                        _awaiter0.GetResult();
-                        _awaiter0 = default;
+                    //case 1:
+                    //    AsyncCursorCounters.LogAwait();
+                    //    //try
+                    //    //{
+                    //    _awaiter0.GetResult();
+                    //    _awaiter0 = default;
+                    //    //}
+                    //    //catch (Exception e)
+                    //    //{
+                    //    //    Console.WriteLine("GET RESULT EX: " + e.ToString());
+                    //    //    throw;
+                    //    //}
 
-                        goto case 0;
+                    //    if (_innerCursor.MoveNext())
+                    //    {
+                    //        _state = 2;
+                    //        SetResult(true);
+                    //        AsyncCursorCounters.LogAsync();
+                    //        return;
+                    //    }
+
+                    //    if (_innerCursor.Source.IsCompleted)
+                    //    {
+                    //        _state = 2;
+                    //        if (_innerCursor.MoveNext())
+                    //        {
+                    //            SetResult(true);
+                    //            AsyncCursorCounters.LogAsync();
+                    //            return;
+                    //        }
+                    //        SetResult(false);
+                    //        AsyncCursorCounters.LogAsync();
+                    //        return;
+                    //    }
+
+                    //    goto case 0;
 
                     case 2:
+
                         _state = 0;
                         goto case 0;
 
                     default:
-                        throw new InvalidOperationException();
+                        ThrowHelper.ThrowInvalidOperationException("Impossible state in MoveNext");
+                        return;
                 }
             }
             catch (Exception e)
             {
-                _state = int.MaxValue;
-                SetException(e); // see https://github.com/dotnet/roslyn/issues/26567; we may want to move this out of the catch
+                _state = 0; // int.MaxValue;
+                Console.WriteLine(e);
+                // SetException(e); // see https://github.com/dotnet/roslyn/issues/26567; we may want to move this out of the catch
+                //Environment.FailFast("Should not throw");
                 return;
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void OnCompleted(Action<object> continuation, object state, short token, ValueTaskSourceOnCompletedFlags flags)
         {
             if (continuation == null)
             {
-                throw new ArgumentNullException(nameof(continuation));
+                ThrowHelper.ThrowArgumentNullException(nameof(continuation));
+                return;
             }
             ValidateToken(token);
 
@@ -253,9 +345,22 @@ namespace Spreads
                 }
             }
 
-            _continuationState = state;
-            if (Interlocked.CompareExchange(ref _continuation, continuation, null) != null)
+            if (_continuationState != null)
             {
+                ThrowHelper.ThrowInvalidOperationException("Multiple continuations");
+            }
+            _continuationState = state;
+
+            Action<object> prevContinuation = Interlocked.CompareExchange(ref _continuation, continuation, null);
+
+            if (prevContinuation != null)
+            {
+                if (!ReferenceEquals(prevContinuation, s_completed_sentinel))
+                {
+                    Debug.Assert(prevContinuation != s_available_sentinel, "Continuation was the available sentinel.");
+                    ThrowHelper.ThrowInvalidOperationException("Multiple continuations");
+                }
+
                 _executionContext = null;
 
                 object cc = _capturedContext;
@@ -286,28 +391,38 @@ namespace Spreads
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void SetResult(bool result)
         {
             _result = result;
             SignalCompletion();
         }
 
-        public void SetException(Exception error)
-        {
-            _error = ExceptionDispatchInfo.Capture(error);
-            SignalCompletion();
-        }
+        //[MethodImpl(MethodImplOptions.AggressiveInlining)]
+        //public void SetException(Exception error)
+        //{
+        //    _error = ExceptionDispatchInfo.Capture(error);
+        //    SignalCompletion();
+        //}
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void SignalCompletion()
         {
             if (_completed)
             {
-                ThrowHelper.ThrowInvalidOperationException();
+                ThrowHelper.ThrowInvalidOperationException("Calling SignalCompletion on already completed task");
             }
             _completed = true;
 
-            if (Interlocked.CompareExchange(ref _continuation, s_sentinel, null) != null)
+            if (Interlocked.CompareExchange(ref _continuation, s_completed_sentinel, null) != null)
             {
+                if (_continuation == s_completed_sentinel || _continuation == s_available_sentinel)
+                {
+                    Console.WriteLine("CONT == SENT");
+                    // return;
+                    // ThrowHelper.ThrowInvalidOperationException("Wrong continuation");
+                }
+
                 if (_executionContext != null)
                 {
                     ExecutionContext.Run(_executionContext, s => InvokeContinuation(), null);
@@ -319,6 +434,7 @@ namespace Spreads
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void InvokeContinuation()
         {
             object cc = _capturedContext;
@@ -327,121 +443,31 @@ namespace Spreads
             switch (cc)
             {
                 case null:
-                    _continuation(_continuationState);
+                    SetCompletionAndInvokeContinuation();
                     break;
 
                 case SynchronizationContext sc:
-                    sc.Post(s => { _continuation(_continuationState); }, null);
+                    sc.Post(s => { SetCompletionAndInvokeContinuation(); }, null);
                     break;
 
                 case TaskScheduler ts:
-                    Task.Factory.StartNew(_continuation, _continuationState, CancellationToken.None, TaskCreationOptions.DenyChildAttach, ts);
+                    Task.Factory.StartNew(s => ((BaseCursorAsync<TKey, TValue, TCursor>)s).SetCompletionAndInvokeContinuation(), this, CancellationToken.None, TaskCreationOptions.DenyChildAttach, ts);
                     break;
             }
         }
 
+        private void SetCompletionAndInvokeContinuation()
+        {
+            Action<object> c = _continuation;
+            _continuation = s_completed_sentinel;
+            c(_continuationState);
+        }
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public async Task<bool> MoveNextAsync()
+        public ValueTask<bool> MoveNextAsync()
         {
-            return await GetMNAValueTask();
-            //if (_innerCursor.MoveNext())
-            //{
-            //    AsyncCursorCounters.LogSync();
-            //    return TaskUtil.TrueTask;
-            //}
-
-            //if (_innerCursor.Source.IsCompleted)
-            //{
-            //    // false almost always
-            //    if (_innerCursor.MoveNext())
-            //    {
-            //        AsyncCursorCounters.LogSync();
-            //        return TaskUtil.TrueTask;
-            //    }
-
-            //    AsyncCursorCounters.LogSync();
-            //    return TaskUtil.FalseTask;
-            //}
-
-            //return AwaitNotify();
+            return GetMNAValueTask();
         }
-
-        private async Task<bool> AwaitNotify()
-        {
-            // account for (unlikely) false positive return from await,
-            // check MN/IsCompleted before returing
-            while (true)
-            {
-                var task = _innerCursor.Source.Updated;
-                await task;
-                AsyncCursorCounters.LogAsync();
-                if (_innerCursor.MoveNext())
-                {
-                    return true;
-                }
-
-                if (_innerCursor.Source.IsCompleted)
-                {
-                    if (_innerCursor.MoveNext())
-                    {
-                        return true;
-                    }
-
-                    return false;
-                }
-            }
-
-            ThrowHelper.ThrowInvalidOperationException();
-            return false;
-        }
-
-        //[MethodImpl(MethodImplOptions.AggressiveInlining)]
-        //public Task<bool> MoveNextAsync()
-        //{
-        //    // sync move, hot path
-        //    if (_innerCursor.MoveNext())
-        //    {
-        //        return TaskUtil.TrueTask;
-        //    }
-
-        //    return MoveNextSlow();
-        //}
-
-        //private Task<bool> MoveNextSlow()
-        //{
-        //    // we took a task, but it could have been created after the previous update, need to try moving next
-        //    var task = (_innerCursor.Source as ContainerSeries<TKey, TValue, TCursor>).Updated2;
-        //    if (_innerCursor.MoveNext())
-        //    {
-        //        return TaskUtil.TrueTask;
-        //    }
-
-        //    if (_innerCursor.Source.IsCompleted)
-        //    {
-        //        // false almost always
-        //        if (_innerCursor.MoveNext())
-        //        {
-        //            return TaskUtil.TrueTask;
-        //        }
-
-        //        return TaskUtil.FalseTask;
-        //    }
-
-        //    // now task will always be completed by NotifyUpdate
-
-        //    Task<Task<bool>> returnTask = task.ContinueWith(continuationFunction: MoveNextContinuation,
-        //        continuationOptions: TaskContinuationOptions.DenyChildAttach);
-
-        //        return returnTask.Unwrap();
-
-        //}
-
-        //// TODO check if caching for this delegate is needed
-        //[MethodImpl(MethodImplOptions.AggressiveInlining)]
-        //private Task<bool> MoveNextContinuation(Task t)
-        //{
-        //    return _innerCursor.MoveNext() ? TaskUtil.TrueTask : MoveNextAsync();
-        //}
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool MoveNext()
@@ -451,8 +477,8 @@ namespace Spreads
 
         public void Reset()
         {
-            _innerCursor?.Reset();
             ResetStateMachine();
+            _innerCursor?.Reset();
         }
 
         public KeyValuePair<TKey, TValue> Current

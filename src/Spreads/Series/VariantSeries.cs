@@ -182,7 +182,7 @@ namespace Spreads
             }
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public Task<bool> MoveNextAsync()
+            public ValueTask<bool> MoveNextAsync()
             {
                 return _innerCursor.MoveNextAsync();
             }

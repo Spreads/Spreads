@@ -36,30 +36,30 @@ namespace Spreads.Tests.Cursors
         //    Assert.True(t.IsCanceled);
         //}
 
-        [Test]
-        public void CouldCancelDoAfter()
-        {
-            var sm = new SortedMap<int, int>();
+        //[Test]
+        //public void CouldCancelDoAfter()
+        //{
+        //    var sm = new SortedMap<int, int>();
 
-            sm.Add(1, 1);
+        //    sm.Add(1, 1);
 
-            var cursor = sm.GetCursor();
-            Assert.True(cursor.MoveNext());
-            Assert.False(cursor.MoveNext());
+        //    var cursor = sm.GetCursor();
+        //    Assert.True(cursor.MoveNext());
+        //    Assert.False(cursor.MoveNext());
 
-            var cts = new CancellationTokenSource();
+        //    var cts = new CancellationTokenSource();
 
-            var t = sm.Range(int.MinValue, 2, true, true).Do((k, v) =>
-            {
-                Console.WriteLine($"{k} - {v}");
-            }, cts.Token);
+        //    var t = sm.Range(int.MinValue, 2, true, true).Do((k, v) =>
+        //    {
+        //        Console.WriteLine($"{k} - {v}");
+        //    }, cts.Token);
 
-            cts.Cancel();
+        //    cts.Cancel();
 
-            Thread.Sleep(1000);
+        //    Thread.Sleep(1000);
 
-            Assert.True(t.IsCanceled);
-        }
+        //    Assert.True(t.IsCanceled);
+        //}
 
         [Test]
         public void DeadCursorDoesntCauseEndlessLoopInNotifyUpdate()

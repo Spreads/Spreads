@@ -215,7 +215,7 @@ namespace Spreads
             new Series<TKey, TValue, Op<TKey, TValue, TOp, TCursor>>(this);
 
         /// <inheritdoc />
-        public Task<bool> MoveNextAsync()
+        public ValueTask<bool> MoveNextAsync()
         {
             throw new NotSupportedException();
         }

@@ -170,7 +170,7 @@ namespace Spreads
                 _source = source;
             }
 
-            public Task<bool> MoveNextAsync()
+            public ValueTask<bool> MoveNextAsync()
             {
                 return _innerCursor.MoveNextAsync();
             }

@@ -521,7 +521,7 @@ namespace Spreads
         ISeries<TKey, TValue> ICursor<TKey, TValue>.Source => Source;
 
         /// <inheritdoc />
-        public Task<bool> MoveNextAsync()
+        public ValueTask<bool> MoveNextAsync()
         {
             throw new NotSupportedException();
         }

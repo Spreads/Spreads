@@ -186,7 +186,7 @@ namespace Spreads.Enumerators
 
             public KeyValuePair<DateTime, TAggr> Current => _current;
 
-            public async Task<bool> MoveNextAsync()
+            public async ValueTask<bool> MoveNextAsync()
             {
                 var e = _enumerator as IAsyncEnumerator<KeyValuePair<DateTime, TValue>>;
                 if (e == null) return false;

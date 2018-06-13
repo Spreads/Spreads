@@ -423,7 +423,7 @@ namespace Spreads.Cursors.Internal
         public Series<TKey, TCursor, LagStepImpl<TKey, TValue, TCursor>> Source => new Series<TKey, TCursor, LagStepImpl<TKey, TValue, TCursor>>(this);
 
         /// <inheritdoc />
-        public Task<bool> MoveNextAsync()
+        public ValueTask<bool> MoveNextAsync()
         {
             throw new NotSupportedException();
         }

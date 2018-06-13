@@ -687,7 +687,7 @@ namespace Spreads.Cursors.Internal
         public Series<TKey, TResult, SpanOpImpl<TKey, TValue, TResult, TSpanOp, TCursor>> Source => new Series<TKey, TResult, SpanOpImpl<TKey, TValue, TResult, TSpanOp, TCursor>>(this);
 
         /// <inheritdoc />
-        public Task<bool> MoveNextAsync()
+        public ValueTask<bool> MoveNextAsync()
         {
             throw new NotSupportedException();
         }

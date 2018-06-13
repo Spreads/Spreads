@@ -218,7 +218,7 @@ namespace Spreads
         public Series<TKey, TValue, Op2<TKey, TValue, TOp, TCursor>> Source => new Series<TKey, TValue, Op2<TKey, TValue, TOp, TCursor>>(this);
 
         /// <inheritdoc />
-        public Task<bool> MoveNextAsync()
+        public ValueTask<bool> MoveNextAsync()
         {
             throw new NotImplementedException();
         }

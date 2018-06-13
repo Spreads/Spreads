@@ -1073,12 +1073,6 @@ type SortedMap<'K,'V>
       else doSpin <- false
     result
 
-  override this.GetCursor() =
-    if this.IsCompleted then new SortedMapCursor<'K,'V>(this) :> ICursor<'K,'V>
-    else 
-      let c = new BaseCursorAsync<'K,'V,_>(Func<_>(this.GetEnumerator))
-      c :> ICursor<'K,'V>
-
   override this.GetContainerCursor() = this.GetEnumerator()
 
   // .NETs foreach pattern optimization must return struct
@@ -1588,10 +1582,10 @@ type public SortedMapCursor<'K,'V> =
       result
 
     [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
-    member this.MoveNextAsync(): Task<bool> =
+    member this.MoveNextAsync(): ValueTask<bool> =
       if this.source._isReadOnly then
-        if this.MoveNext() then TaskUtil.TrueTask else TaskUtil.FalseTask
-      else ThrowHelper.ThrowNotSupportedException("Use an async cursor wrapper instead");TaskUtil.FalseTask
+        if this.MoveNext() then new ValueTask<bool>(true) else new ValueTask<bool>(false)
+      else ThrowHelper.ThrowNotSupportedException("Use an async cursor wrapper instead");new ValueTask<bool>(false)
 
     [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
     member this.Clone() = 
@@ -1617,7 +1611,7 @@ type public SortedMapCursor<'K,'V> =
       member this.Current with get(): obj = this.Current :> obj
     
     interface IAsyncEnumerator<KVP<'K,'V>> with
-      member this.MoveNextAsync(): Task<bool> = this.MoveNextAsync()
+      member this.MoveNextAsync(): ValueTask<bool> = this.MoveNextAsync()
       member this.DisposeAsync() = this.Dispose();Task.CompletedTask
       
     interface ICursor<'K,'V> with
