@@ -62,10 +62,10 @@ namespace Spreads.Core.Tests
             public ValueTask<T> Updated => new ValueTask<T>(default(T));
         }
 
-        [Test, Explicit("")]
+        [Test, Explicit("")]   
         public async Task SortedMapNotifierTest()
         {
-            var count = 10_000_000; //_000_000; //_000_000;
+            var count = 10_000_000;
 
             var sm1 = new Spreads.Collections.SortedMap<int, int>(count);
 
@@ -79,7 +79,7 @@ namespace Spreads.Core.Tests
                         if (i != 2)
                         {
                             sm1.TryAddLast(i, i);
-                            Thread.SpinWait(100);
+                            // Thread.SpinWait(100);
                         }
                     }
 

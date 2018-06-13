@@ -7,7 +7,10 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
+using System.Runtime.ExceptionServices;
+using System.Threading;
 using System.Threading.Tasks;
+using System.Threading.Tasks.Sources;
 
 namespace Spreads
 {
@@ -42,7 +45,10 @@ namespace Spreads
         }
     }
 
-    internal sealed class BaseCursorAsync<TKey, TValue, TCursor> : ISpecializedCursor<TKey, TValue, TCursor>
+    internal sealed class BaseCursorAsync<TKey, TValue, TCursor> :
+        ISpecializedCursor<TKey, TValue, TCursor>,
+        IValueTaskSource<bool>,
+        IAsyncStateMachine
         where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
     {
         // TODO Pooling, but see #84
@@ -51,58 +57,313 @@ namespace Spreads
         // ReSharper disable once FieldCanBeMadeReadOnly.Local
         private TCursor _innerCursor;
 
-        private TaskCompletionSource<Task<bool>> _cancelledTcs;
+        /// <summary>Current state of the state machine.</summary>
+        private int _state = 0;
 
-        public BaseCursorAsync(Func<TCursor> cursorFactory)
-        {
-            _innerCursor = cursorFactory();
-            if (_innerCursor.Source == null)
-            {
-                Console.WriteLine("Source is null");
-            }
-        }
+        private AsyncTaskMethodBuilder _builder = AsyncTaskMethodBuilder.Create();
+        private ValueTaskAwaiter _awaiter0;
+        private static readonly Action<object> s_sentinel = s => throw new InvalidOperationException();
+
+        private Action<object> _continuation;
+        private object _continuationState;
+        private object _capturedContext;
+        private ExecutionContext _executionContext;
+        internal bool _completed;
+        private bool _result;
+        private ExceptionDispatchInfo _error;
+        private short _version;
+
+        public BaseCursorAsync(Func<TCursor> cursorFactory) : this(cursorFactory())
+        { }
 
         public BaseCursorAsync(TCursor cursor)
         {
             _innerCursor = cursor;
+            if (_innerCursor.Source == null)
+            {
+                Console.WriteLine("Source is null");
+            }
+
+            _continuation = null;
+            _continuationState = null;
+            _capturedContext = null;
+            _executionContext = null;
+            _completed = false;
+            _error = null;
+            _version = 0;
         }
 
-        private void Dispose(bool disposing)
+        public void ResetStateMachine()
         {
-            if (!disposing) return;
+            unchecked
+            {
+                _version++;
+            }
+            _completed = false;
+            _continuation = null;
+            _continuationState = null;
+            _error = null;
+            _executionContext = null;
+            _capturedContext = null;
+        }
 
-            _innerCursor?.Dispose();
-            // TODO (docs) a disposed cursor could still be used as a cursor factory and is actually used
-            // via Source.GetCursor(). This must be clearly mentioned in cursor specification
-            // and be a part of contracts test suite
-            // NB don't do this: _innerCursor = default(TCursor);
+        private ValueTask<bool> GetMNAValueTask()
+        {
+            ResetStateMachine();
 
-            _cancelledTcs = null;
+            var inst = this;
+            _builder.Start(ref inst); // invokes MoveNext, protected by ExecutionContext guards
+
+            switch (GetStatus(_version))
+            {
+                case ValueTaskSourceStatus.Succeeded:
+                    return new ValueTask<bool>(GetResult(_version));
+
+                default:
+                    return new ValueTask<bool>(this, _version);
+            }
+        }
+
+        public ValueTaskSourceStatus GetStatus(short token)
+        {
+            ValidateToken(token);
+
+            return
+                !_completed ? ValueTaskSourceStatus.Pending :
+                _error == null ? ValueTaskSourceStatus.Succeeded :
+                _error.SourceException is OperationCanceledException ? ValueTaskSourceStatus.Canceled :
+                ValueTaskSourceStatus.Faulted;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Task<bool> MoveNextAsync()
+        public bool GetResult(short token)
         {
-            if (_innerCursor.MoveNext())
+            ValidateToken(token);
+
+            if (!_completed)
             {
-                AsyncCursorCounters.LogSync();
-                return TaskUtil.TrueTask;
+                ThrowHelper.ThrowInvalidOperationException();
             }
 
-            if (_innerCursor.Source.IsCompleted)
+            _error?.Throw();
+            return _result;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void ValidateToken(short token)
+        {
+            if (token != _version)
             {
-                // false almost always
-                if (_innerCursor.MoveNext())
+                ThrowHelper.ThrowInvalidOperationException();
+            }
+        }
+
+        public void SetStateMachine(IAsyncStateMachine stateMachine)
+        {
+        }
+
+        void IAsyncStateMachine.MoveNext()
+        {
+            try
+            {
+                switch (_state)
                 {
-                    AsyncCursorCounters.LogSync();
-                    return TaskUtil.TrueTask;
-                }
 
-                AsyncCursorCounters.LogSync();
-                return TaskUtil.FalseTask;
+                    case 0:
+                        if (_innerCursor.MoveNext())
+                        {
+                            _state = 2;
+                            SetResult(true);
+                            return;
+                        }
+
+                        if (_innerCursor.Source.IsCompleted)
+                        {
+                            _state = 2;
+                            if (_innerCursor.MoveNext())
+                            {
+                                SetResult(true);
+                                return;
+                            }
+                            SetResult(false);
+                            return;
+                        }
+
+                        // no hot path, need to wait
+
+                        _awaiter0 = _innerCursor.Source.Updated.GetAwaiter();// Task.CompletedTask.GetAwaiter();
+                        if (!_awaiter0.IsCompleted)
+                        {
+                            _state = 1;
+                            var inst = this;
+                            _builder.AwaitUnsafeOnCompleted(ref _awaiter0, ref inst);
+                            return;
+                        }
+                        goto case 1;
+
+                    case 1:
+                        _awaiter0.GetResult();
+                        _awaiter0 = default;
+
+                        goto case 0;
+
+                    case 2:
+                        _state = 0;
+                        goto case 0;
+
+                    default:
+                        throw new InvalidOperationException();
+                }
+            }
+            catch (Exception e)
+            {
+                _state = int.MaxValue;
+                SetException(e); // see https://github.com/dotnet/roslyn/issues/26567; we may want to move this out of the catch
+                return;
+            }
+        }
+
+        public void OnCompleted(Action<object> continuation, object state, short token, ValueTaskSourceOnCompletedFlags flags)
+        {
+            if (continuation == null)
+            {
+                throw new ArgumentNullException(nameof(continuation));
+            }
+            ValidateToken(token);
+
+            if ((flags & ValueTaskSourceOnCompletedFlags.FlowExecutionContext) != 0)
+            {
+                _executionContext = ExecutionContext.Capture();
             }
 
-            return AwaitNotify();
+            if ((flags & ValueTaskSourceOnCompletedFlags.UseSchedulingContext) != 0)
+            {
+                SynchronizationContext sc = SynchronizationContext.Current;
+                if (sc != null && sc.GetType() != typeof(SynchronizationContext))
+                {
+                    _capturedContext = sc;
+                }
+                else
+                {
+                    TaskScheduler ts = TaskScheduler.Current;
+                    if (ts != TaskScheduler.Default)
+                    {
+                        _capturedContext = ts;
+                    }
+                }
+            }
+
+            _continuationState = state;
+            if (Interlocked.CompareExchange(ref _continuation, continuation, null) != null)
+            {
+                _executionContext = null;
+
+                object cc = _capturedContext;
+                _capturedContext = null;
+
+                switch (cc)
+                {
+                    case null:
+#if NETCOREAPP2_1
+                        ThreadPool.QueueUserWorkItem(continuation, state, true);
+#else
+                        ThreadPool.QueueUserWorkItem(new WaitCallback(continuation), state);
+#endif
+                        break;
+
+                    case SynchronizationContext sc:
+                        sc.Post(s =>
+                        {
+                            var tuple = (Tuple<Action<object>, object>)s;
+                            tuple.Item1(tuple.Item2);
+                        }, Tuple.Create(continuation, state));
+                        break;
+
+                    case TaskScheduler ts:
+                        Task.Factory.StartNew(continuation, state, CancellationToken.None, TaskCreationOptions.DenyChildAttach, ts);
+                        break;
+                }
+            }
+        }
+
+        public void SetResult(bool result)
+        {
+            _result = result;
+            SignalCompletion();
+        }
+
+        public void SetException(Exception error)
+        {
+            _error = ExceptionDispatchInfo.Capture(error);
+            SignalCompletion();
+        }
+
+        private void SignalCompletion()
+        {
+            if (_completed)
+            {
+                ThrowHelper.ThrowInvalidOperationException();
+            }
+            _completed = true;
+
+            if (Interlocked.CompareExchange(ref _continuation, s_sentinel, null) != null)
+            {
+                if (_executionContext != null)
+                {
+                    ExecutionContext.Run(_executionContext, s => InvokeContinuation(), null);
+                }
+                else
+                {
+                    InvokeContinuation();
+                }
+            }
+        }
+
+        private void InvokeContinuation()
+        {
+            object cc = _capturedContext;
+            _capturedContext = null;
+
+            switch (cc)
+            {
+                case null:
+                    _continuation(_continuationState);
+                    break;
+
+                case SynchronizationContext sc:
+                    sc.Post(s => { _continuation(_continuationState); }, null);
+                    break;
+
+                case TaskScheduler ts:
+                    Task.Factory.StartNew(_continuation, _continuationState, CancellationToken.None, TaskCreationOptions.DenyChildAttach, ts);
+                    break;
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public async Task<bool> MoveNextAsync()
+        {
+            return await GetMNAValueTask();
+            //if (_innerCursor.MoveNext())
+            //{
+            //    AsyncCursorCounters.LogSync();
+            //    return TaskUtil.TrueTask;
+            //}
+
+            //if (_innerCursor.Source.IsCompleted)
+            //{
+            //    // false almost always
+            //    if (_innerCursor.MoveNext())
+            //    {
+            //        AsyncCursorCounters.LogSync();
+            //        return TaskUtil.TrueTask;
+            //    }
+
+            //    AsyncCursorCounters.LogSync();
+            //    return TaskUtil.FalseTask;
+            //}
+
+            //return AwaitNotify();
         }
 
         private async Task<bool> AwaitNotify()
@@ -133,7 +394,6 @@ namespace Spreads
             ThrowHelper.ThrowInvalidOperationException();
             return false;
         }
-
 
         //[MethodImpl(MethodImplOptions.AggressiveInlining)]
         //public Task<bool> MoveNextAsync()
@@ -173,7 +433,7 @@ namespace Spreads
         //        continuationOptions: TaskContinuationOptions.DenyChildAttach);
 
         //        return returnTask.Unwrap();
-           
+
         //}
 
         //// TODO check if caching for this delegate is needed
@@ -192,6 +452,7 @@ namespace Spreads
         public void Reset()
         {
             _innerCursor?.Reset();
+            ResetStateMachine();
         }
 
         public KeyValuePair<TKey, TValue> Current
@@ -300,8 +561,21 @@ namespace Spreads
             Dispose(true);
         }
 
+        private void Dispose(bool disposing)
+        {
+            if (!disposing) return;
+
+            Reset();
+            _innerCursor?.Dispose();
+            // TODO (docs) a disposed cursor could still be used as a cursor factory and is actually used
+            // via Source.GetCursor(). This must be clearly mentioned in cursor specification
+            // and be a part of contracts test suite
+            // NB don't do this: _innerCursor = default(TCursor);
+        }
+
         public Task DisposeAsync()
         {
+            Reset();
             return _innerCursor.DisposeAsync();
         }
     }

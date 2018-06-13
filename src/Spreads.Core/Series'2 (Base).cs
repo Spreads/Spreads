@@ -1139,19 +1139,19 @@ namespace Spreads
             return value;
         }
 
-        private UpdatedSource _updatedSource;
+        private UpdateSource _updateSource;
 
         public sealed override ValueTask Updated
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
-                if (_updatedSource == null)
+                if (_updateSource == null)
                 {
                     BeforeWrite();                          // lock (SyncRoot) {
-                    if (_updatedSource == null)
+                    if (_updateSource == null)
                     {
-                        _updatedSource = new UpdatedSource(this);
+                        _updateSource = new UpdateSource(this);
                     }
                     AfterWrite(doVersionIncrement: false);  // } // lock
                 }
@@ -1169,7 +1169,7 @@ namespace Spreads
                 // a single (even forgeting that each update triggers notification). Therefore,
                 // update speed must be 65k * VTS Mops = 65 Bops (GHz) vs 4.2 GHz of top CPUs.
                 // Or VTS should work at 4.2G/65k = 65Kops (both 65 is coincidence, 65^2 = 4225).
-                return _updatedSource.GetTask(); // new ValueTask(_updatedSource, unchecked((short)Volatile.Read(ref _version)));
+                return _updateSource.GetTask(); // new ValueTask(_updatedSource, unchecked((short)Volatile.Read(ref _version)));
             }
         }
 
@@ -1231,10 +1231,10 @@ namespace Spreads
         public void NotifyUpdate()
         {
             AsyncCursorCounters.LogAwait();
-            _updatedSource?.TryNotifyUpdate();
+            _updateSource?.TryNotifyUpdate();
         }
 
-        internal class UpdatedSource : IValueTaskSource, IAsyncStateMachine
+        internal class UpdateSource : IValueTaskSource, IAsyncStateMachine
         {
             // We do not need AsyncTaskMethodBuilder & state machine when we always signal ourselves
             // State machine in AsyncEnumerable prototype is needed for _builder.AwaitUnsafeOnCompleted
@@ -1244,7 +1244,7 @@ namespace Spreads
             private const int StateStart = -1;
 
             /// <summary>Current state of the state machine.</summary>
-            private int _state = StateStart;
+            private int _state = StateStart; 
 
             private AsyncTaskMethodBuilder _builder = AsyncTaskMethodBuilder.Create();
 
@@ -1255,7 +1255,7 @@ namespace Spreads
 
             private short _version;
 
-            public UpdatedSource(ContainerSeries<TKey, TValue, TCursor> series)
+            public UpdateSource(ContainerSeries<TKey, TValue, TCursor> series)
             {
                 _series = series;
             }
@@ -1447,9 +1447,6 @@ namespace Spreads
                             goto case 0;
 
                         case 0:
-
-                            // It's reusabe for Zip - we should not discard uncompleted task - this will leak into the _queue
-                            // and is incorrect logically
 
                             try
                             {
