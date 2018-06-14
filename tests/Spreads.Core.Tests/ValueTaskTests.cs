@@ -83,7 +83,7 @@ namespace Spreads.Core.Tests
                             if (i != 2)
                             {
                                 sm1.TryAddLast(i, i);
-                                Thread.SpinWait(30);
+                                Thread.SpinWait(10);
 
                                 //if (i % 250000 == 0)
                                 //{
@@ -100,7 +100,7 @@ namespace Spreads.Core.Tests
                     }
                 });
 
-                var c = 0;
+                
 
                 // addTask.Wait();
 
@@ -109,35 +109,58 @@ namespace Spreads.Core.Tests
                     using (Benchmark.Run("SM.Updated", count))
                     {
                         Thread.CurrentThread.Name = "MNA";
-
-                        using (var cursor = sm1.GetCursor())
+                        try
                         {
-                            while (await cursor.MoveNextAsync())
+                            var c = 0;
+                            using (var cursor = sm1.GetCursor())
                             {
-                                if (c == 2)
+                                while (await cursor.MoveNextAsync())
                                 {
-                                    c++;
-                                }
-                                if (cursor.CurrentKey != c)
-                                {
-                                    ThrowHelper.ThrowInvalidOperationException("Wrong cursor enumeration");
-                                }
-                                c++;
-                                //if (c % 250000 == 0)
-                                //{
-                                //    GC.Collect(0, GCCollectionMode.Forced, false);
-                                //    Console.WriteLine(c);
-                                //}
-                            }
+                                    BaseCursorAsync.LogFinished();
+                                    if (c == 2)
+                                    {
+                                        c++;
+                                    }
 
-                            Console.WriteLine($"{r}: Sync: {BaseCursorAsync.SyncCount}, Async: {BaseCursorAsync.AsyncCount}, Await: {BaseCursorAsync.AwaitCount}");
-                            BaseCursorAsync.ResetCounters();
+                                    if (cursor.CurrentKey != c)
+                                    {
+                                        ThrowHelper.ThrowInvalidOperationException("Wrong cursor enumeration");
+                                    }
+
+                                    c++;
+                                    //if (c % 250000 == 0)
+                                    //{
+                                    //    GC.Collect(0, GCCollectionMode.Forced, false);
+                                    //    Console.WriteLine(c);
+                                    //}
+                                }
+
+                                if (c != count)
+                                {
+                                    ThrowHelper.ThrowInvalidOperationException($"Cannot move to count: c={c}, count={count}");
+                                }
+                                Thread.MemoryBarrier();
+                                if (BaseCursorAsync.SyncCount == 0)
+                                {
+                                    Console.WriteLine("SyncCount == 0");
+                                }
+
+                                Console.WriteLine(
+                                    $"{r}: Sync: {BaseCursorAsync.SyncCount}, Async: {BaseCursorAsync.AsyncCount}, Await: {BaseCursorAsync.AwaitCount}, Skipped: {BaseCursorAsync.SkippedCount}, Finished: {BaseCursorAsync.FinishedCount}");
+                                Thread.MemoryBarrier();
+                                BaseCursorAsync.ResetCounters();
+                            }
+                        }
+                        catch (Exception e)
+                        {
+                            Console.WriteLine("MNA ex: " + e);
                         }
                     }
 
                     // Console.WriteLine(c);
                 }).ContinueWith(t =>
                 {
+                    
                     addTask.Wait();
                 }).Wait();
                 

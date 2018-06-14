@@ -21,16 +21,22 @@ namespace Spreads
 
         private static long _asyncCount;
         private static long _awaitCount;
+        private static long _skippedCount;
 
-        internal static long SyncCount => _syncCount;
+        private static long _finishedCount;
+
+        internal static long SyncCount => Interlocked.Add(ref _syncCount, 0);
 
         internal static long AsyncCount => _asyncCount;
         internal static long AwaitCount => _awaitCount;
+        internal static long SkippedCount => _skippedCount;
+        internal static long FinishedCount => _finishedCount;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static void LogSync()
         {
-            _syncCount++;
+            Interlocked.Increment(ref _syncCount);
+            // _syncCount++;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -46,21 +52,38 @@ namespace Spreads
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static void LogSkipped()
+        {
+            _skippedCount++;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static void LogFinished()
+        {
+            _finishedCount++;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static void ResetCounters()
         {
-            _syncCount = 0;
+            Interlocked.Exchange(ref _syncCount, 0);
+            // _syncCount = 0;
             _asyncCount = 0;
             _awaitCount = 0;
+            _skippedCount = 0;
+            _finishedCount = 0;
         }
 
         protected static readonly Action<object> SCompletedSentinel = s => throw new InvalidOperationException("Called completed sentinel");
         protected static readonly Action<object> SAvailableSentinel = s => throw new InvalidOperationException("Called available sentinel");
     }
 
-    internal interface IAsyncStateMachineEx : IAsyncStateMachine
+    internal interface IAsyncStateMachineEx
     {
-        long IsLocked { get; }
-        bool HasSkippedUpdate { get; set; }
+        //long IsLocked { get; }
+        //bool HasSkippedUpdate { get; set; }
+
+        void TryComplete(bool runAsync);
     }
 
     internal sealed class BaseCursorAsync<TKey, TValue, TCursor> : BaseCursorAsync,
@@ -88,19 +111,19 @@ namespace Spreads
         private long _isLocked = 1L;
         private bool _hasSkippedUpdate;
 
-        public long IsLocked
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return Volatile.Read(ref _isLocked); }
-        }
+        //public long IsLocked
+        //{
+        //    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        //    get { return Volatile.Read(ref _isLocked); }
+        //}
 
-        public bool HasSkippedUpdate
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return _hasSkippedUpdate; }
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            set { _hasSkippedUpdate = value; }
-        }
+        //public bool HasSkippedUpdate
+        //{
+        //    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        //    get { return _hasSkippedUpdate; }
+        //    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        //    set { _hasSkippedUpdate = value; }
+        //}
 
         public BaseCursorAsync(Func<TCursor> cursorFactory) : this(cursorFactory())
         { }
@@ -144,7 +167,7 @@ namespace Spreads
             }
             else
             {
-                ThrowHelper.ThrowInvalidOperationException("Cannot reset");
+                ThrowHelper.FailFast("Cannot reset");
             }
         }
 
@@ -190,12 +213,14 @@ namespace Spreads
 
             if (_innerCursor.MoveNext())
             {
+                LogSync();
                 _completed = true;
                 _result = true;
             }
 
             if (_innerCursor.Source.IsCompleted)
             {
+                LogSync();
                 if (_innerCursor.MoveNext())
                 {
                     _completed = true;
@@ -219,7 +244,7 @@ namespace Spreads
 
             if (!_completed)
             {
-                ThrowHelper.ThrowInvalidOperationException("_completed = false in GetResult");
+                ThrowHelper.FailFast("_completed = false in GetResult");
             }
 
             var result = _result;
@@ -235,47 +260,96 @@ namespace Spreads
         {
             if (token != _version)
             {
-                ThrowHelper.ThrowInvalidOperationException("token != _version");
+                ThrowHelper.FailFast("token != _version");
             }
         }
 
-        public void SetStateMachine(IAsyncStateMachine stateMachine)
-        {
-        }
+        //public void SetStateMachine(IAsyncStateMachine stateMachine)
+        //{
+        //}
+
+        //[MethodImpl(MethodImplOptions.AggressiveInlining)]
+        //void IAsyncStateMachine.MoveNext()
+        //{
+        //}
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        void IAsyncStateMachine.MoveNext()
+        public void TryComplete(bool runAsync)
         {
             if (Interlocked.CompareExchange(ref _isLocked, 1L, 0L) != 0L)
             {
+                Volatile.Write(ref _hasSkippedUpdate, true);
                 return;
             }
 
+            // TODO we are moving cursor from sync updater thread, but should do 
+            // from a separate thread. Async updater (not implemented yet) is updating
+            // this cursor from it's own thread from the pool and it could continue
+            // moving cursor and push continuation. If it originates from IO,
+            // then IO will be completed by another thread that in turn will continue
+            // cursors chain.
+            // Instead of SetResultAsync we need the cursor moving part be on ThreadPool
+            // Hopefully signals are for a reason and 
+
             try
             {
-                if (_innerCursor.MoveNext())
+                do
                 {
-                    SetResult(true);
-                    LogAsync();
-                    return;
-                }
-
-                if (_innerCursor.Source.IsCompleted)
-                {
+                    // if during checks someones notifies us about updates but we are trying to move,
+                    // then we could miss update (happenned in tests once in 355M-5.5B ops)
+                    Volatile.Write(ref _hasSkippedUpdate, false);
                     if (_innerCursor.MoveNext())
                     {
-                        SetResult(true);
+                        if (runAsync)
+                        {
+                            SetResultAsync(true);
+                        }
+                        else
+                        {
+                            SetResult(true);
+                        }
+
                         LogAsync();
                         return;
                     }
 
-                    SetResult(false);
-                    LogAsync();
-                    return;
-                }
+                    if (_innerCursor.Source.IsCompleted)
+                    {
+                        if (_innerCursor.MoveNext())
+                        {
+                            if (runAsync)
+                            {
+                                SetResultAsync(true);
+                            }
+                            else
+                            {
+                                SetResult(true);
+                            }
+
+                            LogAsync();
+                            return;
+                        }
+
+                        if (runAsync) { SetResultAsync(false); }
+                        else { SetResult(false); }
+
+                        LogAsync();
+                        return;
+                    }
+
+                    // if (Volatile.Read(ref _hasSkippedUpdate)) { LogSkipped(); }
+                } while (Volatile.Read(ref _hasSkippedUpdate));
 
                 LogAwait();
+
                 Volatile.Write(ref _isLocked, 0L);
+                var locked = Volatile.Read(ref _isLocked);
+                if (Volatile.Read(ref _hasSkippedUpdate) && locked == 0 && !_completed)
+                {
+                    LogSkipped();
+                    TryComplete(true);
+                }
+
             }
             catch (Exception e)
             {
@@ -289,7 +363,7 @@ namespace Spreads
         {
             if (continuation == null)
             {
-                ThrowHelper.ThrowArgumentNullException(nameof(continuation));
+                ThrowHelper.FailFast(nameof(continuation));
                 return;
             }
             ValidateToken(token);
@@ -323,7 +397,7 @@ namespace Spreads
             // Make a best-effort attempt to catch such misuse.
             if (_continuationState != null)
             {
-                ThrowHelper.ThrowInvalidOperationException("Multiple continuations");
+                ThrowHelper.FailFast("Multiple continuations");
             }
             _continuationState = state;
 
@@ -340,7 +414,7 @@ namespace Spreads
                 if (!ReferenceEquals(prevContinuation, SCompletedSentinel))
                 {
                     Debug.Assert(prevContinuation != SAvailableSentinel, "Continuation was the available sentinel.");
-                    ThrowHelper.ThrowInvalidOperationException("Multiple continuations");
+                    ThrowHelper.FailFast("Multiple continuations");
                 }
 
                 _executionContext = null;
@@ -377,7 +451,7 @@ namespace Spreads
                 // Retry self, _continuations is now set, last chance to get result
                 // without external notification. If cannot move from here
                 // lock will remain open
-                ((IAsyncStateMachine)this).MoveNext();
+                TryComplete(true);
             }
         }
 
@@ -389,6 +463,13 @@ namespace Spreads
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void SetResultAsync(bool result)
+        {
+            _result = result;
+            SignalCompletion(true);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void SetException(Exception error)
         {
             _error = ExceptionDispatchInfo.Capture(error);
@@ -396,7 +477,7 @@ namespace Spreads
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void SignalCompletion()
+        private void SignalCompletion(bool runAsync = false)
         {
             if (_completed)
             {
@@ -413,17 +494,17 @@ namespace Spreads
 
                 if (_executionContext != null)
                 {
-                    ExecutionContext.Run(_executionContext, s => InvokeContinuation(), null);
+                    ExecutionContext.Run(_executionContext, s => InvokeContinuation(runAsync), null);
                 }
                 else
                 {
-                    InvokeContinuation();
+                    InvokeContinuation(runAsync);
                 }
             }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void InvokeContinuation()
+        private void InvokeContinuation(bool runAsync)
         {
             object cc = _capturedContext;
             _capturedContext = null;
@@ -431,7 +512,19 @@ namespace Spreads
             switch (cc)
             {
                 case null:
-                    SetCompletionAndInvokeContinuation();
+                    if (runAsync)
+                    {
+#if NETCOREAPP2_1
+                        ThreadPool.QueueUserWorkItem(_cb, this, true);
+#else
+                        ThreadPool.QueueUserWorkItem(new WaitCallback(_cb), this);
+#endif
+                    }
+                    else
+                    {
+                        SetCompletionAndInvokeContinuation();
+                    }
+
                     break;
 
                 case SynchronizationContext sc:
@@ -439,10 +532,16 @@ namespace Spreads
                     break;
 
                 case TaskScheduler ts:
-                    Task.Factory.StartNew(s => ((BaseCursorAsync<TKey, TValue, TCursor>)s).SetCompletionAndInvokeContinuation(), this, CancellationToken.None, TaskCreationOptions.DenyChildAttach, ts);
+                    // TODO threadpool
+                    Task.Factory.StartNew(_cb, this, CancellationToken.None, TaskCreationOptions.DenyChildAttach, ts);
                     break;
             }
         }
+
+        private Action<object> _cb = (th) =>
+        {
+            ((BaseCursorAsync<TKey, TValue, TCursor>)th).SetCompletionAndInvokeContinuation();
+        };
 
         private void SetCompletionAndInvokeContinuation()
         {

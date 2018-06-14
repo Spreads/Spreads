@@ -992,7 +992,7 @@ namespace Spreads
             // after this value is set so we do not need read lock. This is very
             // hot path for MNA
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return _isReadOnly; }
+            get { return Volatile.Read(ref _isReadOnly); }
         }
 
         public override ICursor<TKey, TValue> GetCursor()
@@ -1259,54 +1259,57 @@ namespace Spreads
                 {
                     foreach (var kvp in dict)
                     {
-                        DoNotifyUpdateSingleAsync(kvp.Key, true);
+                        DoNotifyUpdateSingleSync(kvp.Key);
                     }
                 }
                 else
                 {
-                    DoNotifyUpdateSingleAsync((IAsyncStateMachineEx)cursors, true);
+                    DoNotifyUpdateSingleSync((IAsyncStateMachineEx)cursors);
                 }
             }
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static void DoNotifyUpdateSingleAsync(IAsyncStateMachineEx cursor, bool setSkipped)
-        {
-            if (cursor.IsLocked == 1)
-            {
-                // try again later
-                if (setSkipped)
-                {
-                    cursor.HasSkippedUpdate = true;
-                }
-                return;
-            }
+//        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+//        private static void DoNotifyUpdateSingleAsync(IAsyncStateMachineEx cursor, bool setSkipped)
+//        {
+//            //if (cursor.IsLocked == 1)
+//            //{
+//            //    // try again later
+//            //    if (setSkipped)
+//            //    {
+//            //        cursor.HasSkippedUpdate = true;
+//            //    }
+//            //    return;
+//            //}
 
-#if NETCOREAPP2_1
-            ThreadPool.QueueUserWorkItem(_cb, (object)cursor, true);
-#else
-            // This now works but very hacky and fragile, see corefx's 27445 discussion
-            // var a = item.Item1;
-            // var wcb = Unsafe.As<Action<object>, WaitCallback>(ref a);
-            ThreadPool.QueueUserWorkItem(_cb, cursor);
-#endif
-        }
+//            cursor.TryComplete(true);
+//            DoNotifyUpdateSingleSync(cursor);
 
-#if NETCOREAPP2_1
-        private static Action<object> _cb = DoNotifyUpdateSingleSync;
-#else
-        private static WaitCallback _cb = new WaitCallback(DoNotifyUpdateSingleSync);
-#endif
+////#if NETCOREAPP2_1
+////            ThreadPool.QueueUserWorkItem(_cb, (object)cursor, true);
+////#else
+////            // This now works but very hacky and fragile, see corefx's 27445 discussion
+////            // var a = item.Item1;
+////            // var wcb = Unsafe.As<Action<object>, WaitCallback>(ref a);
+////            ThreadPool.QueueUserWorkItem(_cb, cursor);
+////#endif
+//        }
+
+//#if NETCOREAPP2_1
+//        private static Action<object> _cb = DoNotifyUpdateSingleSync;
+//#else
+//        private static WaitCallback _cb = new WaitCallback(DoNotifyUpdateSingleSync);
+//#endif
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static void DoNotifyUpdateSingleSync(object obj)
         {
             var cursor = (IAsyncStateMachineEx)obj;
-            cursor.MoveNext();
-            if (cursor.HasSkippedUpdate)
-            {
-                DoNotifyUpdateSingleAsync(cursor, false);
-            }
+            cursor.TryComplete(true);
+            //if (cursor.HasSkippedUpdate)
+            //{
+            //    DoNotifyUpdateSingleAsync(cursor, false);
+            //}
         }
 
         #endregion Synchronization
