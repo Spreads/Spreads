@@ -651,7 +651,7 @@ type SortedMap<'K,'V>
     let struct(added, keepOrderVersion) = 
       this.SetOrAddUnchecked(key, value, overwrite)
     if not keepOrderVersion then increment(&this.orderVersion)
-    this.AfterWrite(added)
+    this.AfterWrite(overwrite || added)
 
     #if DEBUG
     if this._version <> this._nextVersion then raise (ApplicationException("this._version <> this._nextVersion"))
