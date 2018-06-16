@@ -243,8 +243,8 @@ namespace Spreads.Core.Run
         private static void Main(string[] args)
         {
             // TestVTS().Wait();
-            var test = new Spreads.Core.Tests.ValueTaskTests();
-            test.SortedMapNotifierTest();
+            var test = new Spreads.Core.Tests.Threading.SpinningThreadpoolTests();
+            test.ThreadPoolPerformanceBenchmark();
             //BinaryLz4();
             //BinaryZstd();
             Console.ReadLine();
