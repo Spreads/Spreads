@@ -406,7 +406,7 @@ and
       with [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>] get(): KeyComparer<'K> = this.source.Comparer
 
     [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>] 
-    member this.TryGetValue(key: 'K, value: byref<'V>): bool = this.source.TryGetValue(key, &value)
+    member this.TryGetValue(key: 'K, [<Out>]value: byref<'V>): bool = this.source.TryGetValue(key, &value)
 
     [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
     member this.MoveNext() =
@@ -746,6 +746,11 @@ and
 
     member this.Dispose() = this.Reset()
 
+    member this.Initialize() =
+        let c = this.Clone()
+        c.Reset()
+        c
+
     interface IDisposable with
       member this.Dispose() = this.Dispose()
 
@@ -758,8 +763,6 @@ and
     interface IAsyncEnumerator<KVP<'K,'V>> with
       member this.MoveNextAsync(): ValueTask<bool> = this.MoveNextAsync()
       member this.DisposeAsync() = this.Dispose();Task.CompletedTask
-
-
 
     interface ICursor<'K,'V> with
       member this.Comparer with get() = this.source.Comparer
@@ -781,8 +784,5 @@ and
       member this.MovePrevious(stride, allowPartial) = raise (NotImplementedException())
 
     interface ISpecializedCursor<'K,'V, SortedChunkedMapCursor<'K,'V>> with
-      member this.Initialize() = 
-        let c = this.Clone()
-        c.Reset()
-        c
+      member this.Initialize() = this.Initialize()
       member this.Clone() = this.Clone()

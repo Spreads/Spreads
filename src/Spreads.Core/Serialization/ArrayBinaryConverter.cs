@@ -216,7 +216,7 @@ namespace Spreads.Serialization
                 if (!header.VersionAndFlags.IsCompressed)
                 {
                     // ReSharper disable once AssignNullToNotNullAttribute
-                    var stream = new UnmanagedMemoryStream((byte*)(ptr + 8), payloadSize - 8);
+                    var stream = new UnmanagedMemoryStream((byte*)(ptr + 8), payloadSize);
                     value = BinarySerializer.Json.Deserialize<TElement[]>(stream);
                     count = value.Length;
                     return payloadSize;
@@ -224,7 +224,7 @@ namespace Spreads.Serialization
                 else
                 {
                     // ReSharper disable once AssignNullToNotNullAttribute
-                    var comrpessedStream = new UnmanagedMemoryStream((byte*)(ptr + 8), payloadSize - 8);
+                    var comrpessedStream = new UnmanagedMemoryStream((byte*)(ptr + 8), payloadSize);
                     RecyclableMemoryStream decompressedStream =
                         RecyclableMemoryStreamManager.Default.GetStream();
 
