@@ -28,7 +28,7 @@ namespace Spreads.Serialization
         /// but for certain concrete types still be blittable. When this property is true, we
         /// ignore the IBinaryConverter interface when a generic type is blittable but implements that interface (or has it registered).
         /// </summary>
-        internal bool PreferBlittable { get; set; }
+        public bool PreferBlittable { get; set; }
 
         /// <summary>
         /// When this property is positive, the type must be blittable with the specified size,

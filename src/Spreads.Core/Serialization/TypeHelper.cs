@@ -163,7 +163,8 @@ namespace Spreads.Serialization
                 IsDelta = false,
                 IsCompressed = false
             },
-            TypeEnum = VariantHelper<T>.TypeEnum
+            TypeEnum = VariantHelper<T>.TypeEnum,
+            TypeSize = (Size > 0 && Size <= 255) ? (byte)Size : (byte)0
         };
 
         // ReSharper restore StaticMemberInGenericType

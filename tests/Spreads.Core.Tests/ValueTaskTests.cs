@@ -65,7 +65,7 @@ namespace Spreads.Core.Tests
         [Test, Explicit("")]
         public void SortedMapNotifierTest()
         {
-            var rounds = 10_000;
+            var rounds = 100_000;
             for (int r = 0; r < rounds; r++)
             {
                 var count = 1_000_000;
@@ -83,7 +83,7 @@ namespace Spreads.Core.Tests
                             if (i != 2)
                             {
                                 sm1.TryAddLast(i, i);
-                                Thread.SpinWait(10);
+                                Thread.SpinWait(30);
 
                                 //if (i % 250000 == 0)
                                 //{

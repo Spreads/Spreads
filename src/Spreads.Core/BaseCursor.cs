@@ -282,14 +282,14 @@ namespace Spreads
                 return;
             }
 
-            // TODO we are moving cursor from sync updater thread, but should do 
+            // TODO we are moving cursor from sync updater thread, but should do
             // from a separate thread. Async updater (not implemented yet) is updating
             // this cursor from it's own thread from the pool and it could continue
             // moving cursor and push continuation. If it originates from IO,
             // then IO will be completed by another thread that in turn will continue
             // cursors chain.
             // Instead of SetResultAsync we need the cursor moving part be on ThreadPool
-            // Hopefully signals are for a reason and 
+            // Hopefully signals are for a reason and
 
             try
             {
@@ -343,13 +343,12 @@ namespace Spreads
                 LogAwait();
 
                 Volatile.Write(ref _isLocked, 0L);
-                var locked = Volatile.Read(ref _isLocked);
-                if (Volatile.Read(ref _hasSkippedUpdate) && locked == 0 && !_completed)
+                // var locked = Volatile.Read(ref _isLocked);
+                if (Volatile.Read(ref _hasSkippedUpdate))//  && locked == 0 && !_completed)
                 {
                     LogSkipped();
                     TryComplete(true);
                 }
-
             }
             catch (Exception e)
             {

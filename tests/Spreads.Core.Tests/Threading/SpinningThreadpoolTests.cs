@@ -14,7 +14,7 @@ namespace Spreads.Core.Tests.Threading
     [TestFixture]
     public class SpinningThreadpoolTests
     {
-        public class Completable : IThreadPoolCompletable
+        public class Completable
         {
             private readonly SpinningThreadPool _tp;
             public static long TotalCount;
@@ -37,16 +37,16 @@ namespace Spreads.Core.Tests.Threading
         [Test, Explicit("Benchmark")]
         public void ThreadPoolPerformanceBenchmark()
         {
-            var count = 500_000_000;
+            var count = 50_000_000;
 
-            var items = Enumerable.Range(1, 100).Select(workerId => new Completable(SpinningThreadPool.Default)).ToArray();
+            var items = Enumerable.Range(1, 100).Select(x => (Action)(new Completable(SpinningThreadPool.Default)).ExecuteCompletion).ToArray();
 
             using (Benchmark.Run("SpinningThreadPool", count))
             {
                 for (int i = 0; i < count; i++)
                 {
-                    SpinningThreadPool.Default.UnsafeQueueCompletableItem(items[i % 100], false);
-                    Thread.SpinWait(1);
+                    SpinningThreadPool.Default.UnsafeQueueCompletableItem(items[i % 100], true);
+                    // Thread.SpinWait(1);
                 }
 
                 SpinningThreadPool.Default.Dispose();

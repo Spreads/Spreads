@@ -7,6 +7,7 @@ using System;
 using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
@@ -1093,14 +1094,16 @@ namespace Spreads
             {
                 if (Interlocked.CompareExchange(ref Locker, 1L, 0L) == 0L)
                 {
-                    // Interlocked.CompareExchange generated implicit memory barrier
-                    // TODO (perf) could do cheaper than interlocked, review
-                    // Volatile.Write(ref _nextVersion, _nextVersion + 1L);
-                    _nextVersion++;
-                    // see the aeron.net 49 & related coreclr issues
-                    _nextVersion = Volatile.Read(ref _nextVersion);
-
-                    // Interlocked.Increment(ref _nextVersion);
+                    if (IntPtr.Size == 8)
+                    {
+                        Volatile.Write(ref _nextVersion, _nextVersion + 1L);
+                        // see the aeron.net 49 & related coreclr issues
+                        _nextVersion = Volatile.Read(ref _nextVersion);
+                    }
+                    else
+                    {
+                        Interlocked.Increment(ref _nextVersion);
+                    }
 
                     // do not return from a loop, see CoreClr #9692
                     break;
@@ -1119,9 +1122,10 @@ namespace Spreads
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
+        [Conditional("DEBUG")]
         internal virtual void TryUnlock()
         {
-            throw new NotSupportedException();
+            ThrowHelper.FailFast("This should never happen. Locks are only in memory and should not take longer than a microsecond.");
         }
 
         /// <summary>
@@ -1136,25 +1140,41 @@ namespace Spreads
             // Volatile.Write will prevent any read/write to move below it
             if (doVersionIncrement)
             {
-                // TODO (perf) could do cheaper than interlocked, review
-                Volatile.Write(ref _version, _version + 1L);
-                // Interlocked.Increment(ref _version);
+                if (IntPtr.Size == 8)
+                {
+                    Volatile.Write(ref _version, _version + 1L);
+                }
+                else
+                {
+                    Interlocked.Increment(ref _version);
+                }
                 NotifyUpdate();
             }
             else
             {
                 // set nextVersion back to original version, no changes were made
-                // TODO (perf) could do cheaper than interlocked, review
-                Volatile.Write(ref _nextVersion, _version);
-                // Interlocked.Exchange(ref _nextVersion, _version);
+                if (IntPtr.Size == 8)
+                {
+                    Volatile.Write(ref _nextVersion, _version);
+                }
+                else
+                {
+                    Interlocked.Exchange(ref _nextVersion, _version);
+                }
             }
 
             // release write lock
-            // Interlocked.Exchange(ref Locker, 0L);
-            // TODO review if this is enough. Iterlocked is right for sure, but is more expensive (slower by more than 25% on field increment test)
-            Volatile.Write(ref Locker, 0L);
+            if (IntPtr.Size == 8)
+            {
+                Volatile.Write(ref Locker, 0L);
+            }
+            else
+            {
+                Interlocked.Exchange(ref Locker, 0L);
+            }
         }
 
+        [Obsolete("This cannot be inlined. In F# use inline function, in C# have to do manually on hot paths.")]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         protected T ReadLock<T>(Func<T> f)
         {
@@ -1269,37 +1289,37 @@ namespace Spreads
             }
         }
 
-//        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-//        private static void DoNotifyUpdateSingleAsync(IAsyncStateMachineEx cursor, bool setSkipped)
-//        {
-//            //if (cursor.IsLocked == 1)
-//            //{
-//            //    // try again later
-//            //    if (setSkipped)
-//            //    {
-//            //        cursor.HasSkippedUpdate = true;
-//            //    }
-//            //    return;
-//            //}
+        //        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        //        private static void DoNotifyUpdateSingleAsync(IAsyncStateMachineEx cursor, bool setSkipped)
+        //        {
+        //            //if (cursor.IsLocked == 1)
+        //            //{
+        //            //    // try again later
+        //            //    if (setSkipped)
+        //            //    {
+        //            //        cursor.HasSkippedUpdate = true;
+        //            //    }
+        //            //    return;
+        //            //}
 
-//            cursor.TryComplete(true);
-//            DoNotifyUpdateSingleSync(cursor);
+        //            cursor.TryComplete(true);
+        //            DoNotifyUpdateSingleSync(cursor);
 
-////#if NETCOREAPP2_1
-////            ThreadPool.QueueUserWorkItem(_cb, (object)cursor, true);
-////#else
-////            // This now works but very hacky and fragile, see corefx's 27445 discussion
-////            // var a = item.Item1;
-////            // var wcb = Unsafe.As<Action<object>, WaitCallback>(ref a);
-////            ThreadPool.QueueUserWorkItem(_cb, cursor);
-////#endif
-//        }
+        ////#if NETCOREAPP2_1
+        ////            ThreadPool.QueueUserWorkItem(_cb, (object)cursor, true);
+        ////#else
+        ////            // This now works but very hacky and fragile, see corefx's 27445 discussion
+        ////            // var a = item.Item1;
+        ////            // var wcb = Unsafe.As<Action<object>, WaitCallback>(ref a);
+        ////            ThreadPool.QueueUserWorkItem(_cb, cursor);
+        ////#endif
+        //        }
 
-//#if NETCOREAPP2_1
-//        private static Action<object> _cb = DoNotifyUpdateSingleSync;
-//#else
-//        private static WaitCallback _cb = new WaitCallback(DoNotifyUpdateSingleSync);
-//#endif
+        //#if NETCOREAPP2_1
+        //        private static Action<object> _cb = DoNotifyUpdateSingleSync;
+        //#else
+        //        private static WaitCallback _cb = new WaitCallback(DoNotifyUpdateSingleSync);
+        //#endif
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static void DoNotifyUpdateSingleSync(object obj)

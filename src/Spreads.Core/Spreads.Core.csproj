@@ -9,6 +9,9 @@
     <AssemblyVersion>1.0.0.0</AssemblyVersion>
     <LangVersion>7.2</LangVersion>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Release|netstandard2.0|AnyCPU'">
+    <DefineConstants>TRACE;NETSTANDARD;NETSTANDARD20;RELEASE;NETSTANDARD;NETSTANDARD2_0;RELEASE;NETSTANDARD;NETSTANDARD2_0</DefineConstants>
+  </PropertyGroup>
   <ItemGroup>
     <Compile Remove="Cursors\**" />
     <Compile Remove="Utils\Runtime\**" />

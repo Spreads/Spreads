@@ -10,7 +10,7 @@ using System.Runtime.InteropServices;
 namespace Spreads.DataTypes
 {
     /// <summary>
-    /// A Timestamp stored as nanoseconds since Unix epoch as Int64. Enough for 584 years.
+    /// A Timestamp stored as ticks (100ns) since Unix epoch as Int64.
     /// </summary>
     [StructLayout(LayoutKind.Sequential, Size = 8)]
     [Serialization(BlittableSize = 8)]
@@ -21,7 +21,6 @@ namespace Spreads.DataTypes
 
         private Timestamp(long value)
         {
-            Stopwatch.GetTimestamp();
             _value = value;
         }
 
@@ -52,8 +51,8 @@ namespace Spreads.DataTypes
 
         public override bool Equals(object obj)
         {
-            if (ReferenceEquals(null, obj)) return false;
-            return obj is Timestamp && Equals((Timestamp)obj);
+            if (obj is null) return false;
+            return obj is Timestamp timestamp && Equals(timestamp);
         }
 
         public override int GetHashCode()

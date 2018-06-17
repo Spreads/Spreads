@@ -96,6 +96,8 @@ namespace Spreads.DataTypes
         Table = 72,  // matrix of variants,
 
         ArrayBasedMap = 73,
+
+        KeyValue = 74
     }
 
     public partial struct Variant
