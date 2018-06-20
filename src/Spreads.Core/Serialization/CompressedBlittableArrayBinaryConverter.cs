@@ -290,7 +290,7 @@ namespace Spreads.Serialization
                 ThrowHelper.ThrowInvalidOperationException("Wrong compressed flag. CompressedBlittableArrayBinaryConverter.Read works only with compressed data.");
             }
 
-            if (header.VersionAndFlags.Version != 0)
+            if (header.VersionAndFlags.Version != Version)
             {
                 ThrowHelper.ThrowNotSupportedException($"CompressedBinaryConverter work only with version {Version}");
             }

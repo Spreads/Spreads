@@ -33,7 +33,11 @@ namespace Spreads.Serialization
         public bool IsFixedSize => false;
 
         public int Size => -1;
-        public byte Version => 1;
+        public byte Version
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return 1; }
+        }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public unsafe int SizeOf(in T map, out MemoryStream temporaryStream, SerializationFormat format = SerializationFormat.Binary)
@@ -44,7 +48,7 @@ namespace Spreads.Serialization
             }
             if (format == SerializationFormat.Binary)
             {
-                format = SerializationFormat.BinaryLz4;
+                format = SerializationFormat.BinaryZstd;
             }
 
             // headers
@@ -110,7 +114,7 @@ namespace Spreads.Serialization
             var header = new DataTypeHeader
             {
                 VersionAndFlags = {
-                    Version = 0,
+                    Version = Version,
                     IsBinary = true,
                     IsDelta = false,
                     IsCompressed = true },

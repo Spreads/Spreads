@@ -354,20 +354,20 @@ namespace Spreads.Serialization
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int Read(IntPtr ptr, out T value)
         {
-            if (Size >= 0)
-            {
-                Debug.Assert(Size > 0);
-#if DEBUG
-                var header = ReadUnaligned<DataTypeHeader>((void*) ptr);
-                Debug.Assert(header.Equals(_defaultHeader));
-#endif
-                value = ReadUnaligned<T>((void*)(ptr + DataTypeHeader.Size));
-                return Size + DataTypeHeader.Size;
-            }
             if (_hasBinaryConverter)
             {
                 Debug.Assert(Size == -1);
                 return _converterInstance.Read(ptr, out value);
+            }
+            if (Size >= 0)
+            {
+                Debug.Assert(Size > 0);
+#if DEBUG
+                var header = ReadUnaligned<DataTypeHeader>((void*)ptr);
+                Debug.Assert(header.Equals(_defaultHeader));
+#endif
+                value = ReadUnaligned<T>((void*)(ptr + DataTypeHeader.Size));
+                return Size + DataTypeHeader.Size;
             }
             Debug.Assert(Size < 0);
             ThrowHelper.ThrowInvalidOperationException("TypeHelper<T> doesn't support variable-size types");
@@ -378,6 +378,10 @@ namespace Spreads.Serialization
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int Write(in T value, IntPtr destination, MemoryStream ms = null, SerializationFormat format = SerializationFormat.Binary)
         {
+            if (_hasBinaryConverter)
+            {
+                return _converterInstance.Write(value, destination, ms, format);
+            }
             if (Size >= 0)
             {
                 Debug.Assert(Size > 0);
@@ -386,11 +390,7 @@ namespace Spreads.Serialization
                 WriteUnaligned((void*)(destination + DataTypeHeader.Size), value);
                 return len;
             }
-            if (_hasBinaryConverter)
-            {
-                Debug.Assert(Size == -1);
-                return _converterInstance.Write(value, destination, ms, format);
-            }
+
             Debug.Assert(Size < 0);
             ThrowHelper.ThrowInvalidOperationException("TypeHelper<T> doesn't support variable-size types");
             return -1;
@@ -401,24 +401,22 @@ namespace Spreads.Serialization
         /// </summary>
         /// <param name="value"></param>
         /// <param name="memoryStream"></param>
-        /// <param name="compression"></param>
+        /// <param name="format"></param>
         /// <returns></returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int SizeOf(T value, out MemoryStream memoryStream, SerializationFormat compression)
+        public static int SizeOf(T value, out MemoryStream memoryStream, SerializationFormat format)
         {
             memoryStream = null;
+            if (_hasBinaryConverter)
+            {
+                Debug.Assert(Size == -1);
+                return _converterInstance.SizeOf(value, out memoryStream, format);
+            }
             if (Size >= 0)
             {
                 return DataTypeHeader.Size + Size;
             }
-            if (_hasBinaryConverter)
-            {
-                Debug.Assert(Size == -1);
-                return _converterInstance.SizeOf(value, out memoryStream, compression);
-            }
-
             Debug.Assert(Size < 0);
-
             return -1;
         }
 

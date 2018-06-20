@@ -199,7 +199,7 @@ namespace Spreads.Serialization
                     {
                         var len = CompressedBlittableArrayBinaryConverter<TElement>.Instance.Read(ptr, out var tmp,
                             out count, exactSize);
-                        Debug.Assert(len == payloadSize);
+                        Debug.Assert(len == payloadSize + 8);
                         value = tmp;
                         return len;
                     }

@@ -11,7 +11,7 @@ using Spreads.Blosc;
 using Spreads.Collections;
 using Spreads.Serialization;
 
-namespace Spreads.Tests.Serialization
+namespace Spreads.Core.Tests.Serialization
 {
     [TestFixture]
     public class SerializationTests

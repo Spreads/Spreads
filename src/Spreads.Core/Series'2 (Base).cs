@@ -977,6 +977,8 @@ namespace Spreads
         internal bool _isReadOnly;
 
         private object _cursors; // IAsyncStateMachineEx | ConcurrentBag<IAsyncStateMachineEx>
+
+        [Obsolete]
         private ICursor<TKey, TValue> _updatedSourceCursor;
 
         internal long Locker;
@@ -1136,8 +1138,16 @@ namespace Spreads
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal void AfterWrite(bool doVersionIncrement)
         {
-            if (!_isSynchronized) return;
-            // Volatile.Write will prevent any read/write to move below it
+            if (!_isSynchronized)
+            {
+                if (doVersionIncrement)
+                {
+                    _version++;
+                    _nextVersion = _version;
+                }
+                return;
+            }
+
             if (doVersionIncrement)
             {
                 if (IntPtr.Size == 8)

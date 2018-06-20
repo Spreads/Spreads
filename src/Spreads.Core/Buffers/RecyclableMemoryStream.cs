@@ -904,9 +904,9 @@ namespace Spreads.Buffers
                         {
                             Current = new ArraySegment<byte>(_rms._largeBuffer, 0,
                                 checked((int)_rms._length)); // AS doesn't support long, will throw
+                            _idx = Int32.MaxValue;
                             return true;
                         }
-                        _idx = Int32.MaxValue;
                         return false;
                     }
 

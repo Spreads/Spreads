@@ -1007,7 +1007,7 @@ namespace Spreads.Tests
         {
             // https://github.com/dotnet/coreclr/issues/2430
 
-            var sizes = new[] { 33, 65, 129, 257, 513, 1025, 2049, 4097, 8193 };
+            var sizes = new[] {3, 7, 17, 33, 65, 129, 257, 513}; //, 1025, 2049, 4097, 8193 };
 
             Console.WriteLine(Vector<byte>.Count);
 
@@ -1022,7 +1022,7 @@ namespace Spreads.Tests
                     var val = (byte) (i % 255);
                     *(src + i) = val;
                 }
-                var count = (int)(1_000_000_000 / size);
+                var count = (int)(100_000_000 / size);
                 var srcSpan = new Span<byte>(srcArr);
                 var dstSpan = new Span<byte>(dstArr);
 
@@ -1068,29 +1068,29 @@ namespace Spreads.Tests
                         }
                     }
 
-                    //using (Benchmark.Run("Marshal.Copy", count, true))
-                    //{
-                    //    for (int i = 0; i < count; i++)
-                    //    {
-                    //        Marshal.Copy((IntPtr)src, dstArr, 0, size);
-                    //    }
-                    //}
+                    using (Benchmark.Run("Marshal.Copy", count, true))
+                    {
+                        for (int i = 0; i < count; i++)
+                        {
+                            Marshal.Copy((IntPtr)src, dstArr, 0, size);
+                        }
+                    }
 
-                    //using (Benchmark.Run("Array.Copy", count, true))
-                    //{
-                    //    for (int i = 0; i < count; i++)
-                    //    {
-                    //        Array.Copy(srcArr, dstArr, size);
-                    //    }
-                    //}
+                    using (Benchmark.Run("Array.Copy", count, true))
+                    {
+                        for (int i = 0; i < count; i++)
+                        {
+                            Array.Copy(srcArr, dstArr, size);
+                        }
+                    }
 
-                    //using (Benchmark.Run("Memory.BlockCopy", count, true))
-                    //{
-                    //    for (int i = 0; i < count; i++)
-                    //    {
-                    //        Buffer.BlockCopy(srcArr, 0, dstArr, 0, size);
-                    //    }
-                    //}
+                    using (Benchmark.Run("Memory.BlockCopy", count, true))
+                    {
+                        for (int i = 0; i < count; i++)
+                        {
+                            Buffer.BlockCopy(srcArr, 0, dstArr, 0, size);
+                        }
+                    }
 
                     using (Benchmark.Run("Span.CopyTo", count, true))
                     {

@@ -2,27 +2,54 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+using Newtonsoft.Json;
 using Spreads.Serialization;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Runtime.Serialization;
+
+// ReSharper disable PrivateFieldCanBeConvertedToLocalVariable
 
 namespace Spreads.DataTypes
 {
+    [DataContract]
+    [JsonObject(MemberSerialization.OptOut)]
     [Serialization(PreferBlittable = true)] // when both types are blittable the struct is written in one operation
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     public readonly struct TaggedKeyValue<TKey, TValue> : IEquatable<TaggedKeyValue<TKey, TValue>>, IBinaryConverter<TaggedKeyValue<TKey, TValue>>
     {
+        private static readonly int KeySize = TypeHelper<TKey>.Size;
+        private static readonly int ValueSize = TypeHelper<TValue>.Size;
+        private static readonly bool IsFixedSizeStatic = TypeHelper<TKey>.Size > 0 && TypeHelper<TValue>.Size > 0;
+        private static readonly int FixedSizeStatic = 4 + TypeHelper<TKey>.Size + TypeHelper<TValue>.Size;
+
         // for blittable case all this is written in one operation,
         // for var size case will manually write with two headers
+        [JsonIgnore]
+        [IgnoreDataMember]
         private readonly byte _keyTypeEnum;
+
+        [JsonIgnore]
+        [IgnoreDataMember]
         private readonly byte _valueTypeEnum;
+
+        [JsonIgnore]
+        [IgnoreDataMember]
         private readonly byte _reserved;
+
+        [JsonProperty("t")]
+        [DataMember(Name = "t", Order = 0)]
         public readonly byte Tag;
-        
+
+        [JsonProperty("k")]
+        [DataMember(Name = "k", Order = 1)]
         public readonly TKey Key;
+
+        [JsonProperty("v")]
+        [DataMember(Name = "v", Order = 2)]
         public readonly TValue Value;
 
         public TaggedKeyValue(TKey key, TValue value)
@@ -50,12 +77,12 @@ namespace Spreads.DataTypes
 
         public int SizeOf(in TaggedKeyValue<TKey, TValue> value, out MemoryStream temporaryStream, SerializationFormat format = SerializationFormat.Binary)
         {
-            var fixedSize = TypeHelper<TaggedKeyValue<TKey, TValue>>.Size;
-            if (fixedSize > 0)
+            if (IsFixedSizeStatic)
             {
                 temporaryStream = default;
-                return fixedSize;
+                return FixedSizeStatic;
             }
+            
             throw new NotImplementedException();
         }
 
@@ -80,25 +107,31 @@ namespace Spreads.DataTypes
             throw new NotImplementedException();
         }
 
+        [JsonIgnore]
+        [IgnoreDataMember]
         public bool IsFixedSize
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return TypeHelper<TaggedKeyValue<TKey, TValue>>.Size > 0; }
+            get { return IsFixedSizeStatic; }
         }
 
+        [JsonIgnore]
+        [IgnoreDataMember]
         public int Size
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
-                return TypeHelper<TaggedKeyValue<TKey, TValue>>.Size;
+                return IsFixedSizeStatic ? FixedSizeStatic : -1;
             }
         }
 
+        [JsonIgnore]
+        [IgnoreDataMember]
         public byte Version
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return 0; }
+            get { return 1; }
         }
 
         public static implicit operator KeyValuePair<TKey, TValue>(TaggedKeyValue<TKey, TValue> kv)
@@ -119,7 +152,7 @@ namespace Spreads.DataTypes
         public override bool Equals(object obj)
         {
             if (ReferenceEquals(null, obj)) return false;
-            return obj is TaggedKeyValue<TKey, TValue> && Equals((TaggedKeyValue<TKey, TValue>) obj);
+            return obj is TaggedKeyValue<TKey, TValue> && Equals((TaggedKeyValue<TKey, TValue>)obj);
         }
 
         public override int GetHashCode()
