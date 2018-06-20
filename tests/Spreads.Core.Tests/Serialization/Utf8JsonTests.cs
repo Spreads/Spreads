@@ -17,12 +17,14 @@ namespace Spreads.Core.Tests.Serialization
         public struct TestValue
         {
             public string Str { get; set; }
+            public string Str1 { get; set; }
             public int Num { get; set; }
             public int Num1 { get; set; }
             public int Num2 { get; set; }
             //public Decimal Dec { get; set; }
             public double Dbl { get; set; }
             public double Dbl1 { get; set; }
+            //public bool Boo { get; set; }
         }
 
         [Test, Explicit("long running")]
@@ -40,11 +42,13 @@ namespace Spreads.Core.Tests.Serialization
                     Num = i,
                     Num1 = i,
                     Num2 = i,
-                    Str = i.ToString()
+                    Str = i.ToString(),
+                    Str1 = ((double)i + 1 / (double)(i + 1)).ToString(),
+                    //Boo = i % 2 == 0
                 };
             }
 
-            for (int r = 0; r < 50; r++)
+            for (int r = 0; r < 30; r++)
             {
                 //using (Benchmark.Run("JSON.NET", count))
                 //{

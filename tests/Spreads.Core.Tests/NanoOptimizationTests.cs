@@ -1022,7 +1022,7 @@ namespace Spreads.Tests
                     var val = (byte) (i % 255);
                     *(src + i) = val;
                 }
-                var count = (int)(100_000_000 / size);
+                var count = (int)(100_000_000 / Math.Log(size));
                 var srcSpan = new Span<byte>(srcArr);
                 var dstSpan = new Span<byte>(dstArr);
 
