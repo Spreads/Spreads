@@ -8,7 +8,11 @@
 	
 	url = https://github.com/fsharp/FSharp.Data.git
 	branch = master
+
 [submodule "lib/Utf8Json"]
+	
 	path = lib/Utf8Json
+	
 	url = https://github.com/Spreads/Utf8Json
+	
 	branch = spreads

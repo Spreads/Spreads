@@ -67,7 +67,6 @@
     <Compile Include="..\..\lib\Utf8Json\src\Utf8Json\Internal\StringEncoding.cs" Link="Serialization\Utf8Json\Internal\StringEncoding.cs" />
     <Compile Include="..\..\lib\Utf8Json\src\Utf8Json\Internal\StringMutator.cs" Link="Serialization\Utf8Json\Internal\StringMutator.cs" />
     <Compile Include="..\..\lib\Utf8Json\src\Utf8Json\Internal\ThreadsafeTypeKeyHashTable.cs" Link="Serialization\Utf8Json\Internal\ThreadsafeTypeKeyHashTable.cs" />
-    <Compile Include="..\..\lib\Utf8Json\src\Utf8Json\Internal\UnsafeMemory.cs" Link="Serialization\Utf8Json\Internal\UnsafeMemory.cs" />
     <Compile Include="..\..\lib\Utf8Json\src\Utf8Json\Internal\UnsafeMemory.Low.cs" Link="Serialization\Utf8Json\Internal\UnsafeMemory.Low.cs" />
     <Compile Include="..\..\lib\Utf8Json\src\Utf8Json\JsonReader.cs" Link="Serialization\Utf8Json\JsonReader.cs" />
     <Compile Include="..\..\lib\Utf8Json\src\Utf8Json\JsonSerializer.cs" Link="Serialization\Utf8Json\JsonSerializer.cs" />
