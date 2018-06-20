@@ -24,6 +24,63 @@
     <Compile Remove="Utils\FastMember\ObjectReader.cs" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="..\..\lib\Utf8Json\src\Utf8Json\Attributes.cs" Link="Serialization\Utf8Json\Attributes.cs" />
+    <Compile Include="..\..\lib\Utf8Json\src\Utf8Json\Formatters\AnonymousFormatter.cs" Link="Serialization\Utf8Json\Formatters\AnonymousFormatter.cs" />
+    <Compile Include="..\..\lib\Utf8Json\src\Utf8Json\Formatters\CollectionFormatters.cs" Link="Serialization\Utf8Json\Formatters\CollectionFormatters.cs" />
+    <Compile Include="..\..\lib\Utf8Json\src\Utf8Json\Formatters\DateTimeFormatter.cs" Link="Serialization\Utf8Json\Formatters\DateTimeFormatter.cs" />
+    <Compile Include="..\..\lib\Utf8Json\src\Utf8Json\Formatters\DictionaryFormatter.cs" Link="Serialization\Utf8Json\Formatters\DictionaryFormatter.cs" />
+    <Compile Include="..\..\lib\Utf8Json\src\Utf8Json\Formatters\DynamicObjectTypeFallbackFormatter.cs" Link="Serialization\Utf8Json\Formatters\DynamicObjectTypeFallbackFormatter.cs" />
+    <Compile Include="..\..\lib\Utf8Json\src\Utf8Json\Formatters\EnumFormatter.cs" Link="Serialization\Utf8Json\Formatters\EnumFormatter.cs" />
+    <Compile Include="..\..\lib\Utf8Json\src\Utf8Json\Formatters\IgnoreFormatter.cs" Link="Serialization\Utf8Json\Formatters\IgnoreFormatter.cs" />
+    <Compile Include="..\..\lib\Utf8Json\src\Utf8Json\Formatters\MultiDimentionalArrayFormatter.cs" Link="Serialization\Utf8Json\Formatters\MultiDimentionalArrayFormatter.cs" />
+    <Compile Include="..\..\lib\Utf8Json\src\Utf8Json\Formatters\NullableFormatter.cs" Link="Serialization\Utf8Json\Formatters\NullableFormatter.cs" />
+    <Compile Include="..\..\lib\Utf8Json\src\Utf8Json\Formatters\PrimitiveFormatter.cs" Link="Serialization\Utf8Json\Formatters\PrimitiveFormatter.cs" />
+    <Compile Include="..\..\lib\Utf8Json\src\Utf8Json\Formatters\PrimitiveObjectFormatter.cs" Link="Serialization\Utf8Json\Formatters\PrimitiveObjectFormatter.cs" />
+    <Compile Include="..\..\lib\Utf8Json\src\Utf8Json\Formatters\StandardClassLibraryFormatters.cs" Link="Serialization\Utf8Json\Formatters\StandardClassLibraryFormatters.cs" />
+    <Compile Include="..\..\lib\Utf8Json\src\Utf8Json\Formatters\TupleFormatter.cs" Link="Serialization\Utf8Json\Formatters\TupleFormatter.cs" />
+    <Compile Include="..\..\lib\Utf8Json\src\Utf8Json\Formatters\ValueTupleFormatter.cs" Link="Serialization\Utf8Json\Formatters\ValueTupleFormatter.cs" />
+    <Compile Include="..\..\lib\Utf8Json\src\Utf8Json\IJsonFormatter.cs" Link="Serialization\Utf8Json\IJsonFormatter.cs" />
+    <Compile Include="..\..\lib\Utf8Json\src\Utf8Json\IJsonFormatterResolver.cs" Link="Serialization\Utf8Json\IJsonFormatterResolver.cs" />
+    <Compile Include="..\..\lib\Utf8Json\src\Utf8Json\Internal\ArrayBuffer.cs" Link="Serialization\Utf8Json\Internal\ArrayBuffer.cs" />
+    <Compile Include="..\..\lib\Utf8Json\src\Utf8Json\Internal\ArrayPool.cs" Link="Serialization\Utf8Json\Internal\ArrayPool.cs" />
+    <Compile Include="..\..\lib\Utf8Json\src\Utf8Json\Internal\AutomataDictionary.cs" Link="Serialization\Utf8Json\Internal\AutomataDictionary.cs" />
+    <Compile Include="..\..\lib\Utf8Json\src\Utf8Json\Internal\BinaryUtil.cs" Link="Serialization\Utf8Json\Internal\BinaryUtil.cs" />
+    <Compile Include="..\..\lib\Utf8Json\src\Utf8Json\Internal\ByteArrayComparer.cs" Link="Serialization\Utf8Json\Internal\ByteArrayComparer.cs" />
+    <Compile Include="..\..\lib\Utf8Json\src\Utf8Json\Internal\ByteArrayStringHashTable.cs" Link="Serialization\Utf8Json\Internal\ByteArrayStringHashTable.cs" />
+    <Compile Include="..\..\lib\Utf8Json\src\Utf8Json\Internal\DoubleConversion\DiyFp.cs" Link="Serialization\Utf8Json\Internal\DoubleConversion\DiyFp.cs" />
+    <Compile Include="..\..\lib\Utf8Json\src\Utf8Json\Internal\DoubleConversion\DoubleToStringConverter.cs" Link="Serialization\Utf8Json\Internal\DoubleConversion\DoubleToStringConverter.cs" />
+    <Compile Include="..\..\lib\Utf8Json\src\Utf8Json\Internal\DoubleConversion\IEEE.cs" Link="Serialization\Utf8Json\Internal\DoubleConversion\IEEE.cs" />
+    <Compile Include="..\..\lib\Utf8Json\src\Utf8Json\Internal\DoubleConversion\PowersOfTenCache.cs" Link="Serialization\Utf8Json\Internal\DoubleConversion\PowersOfTenCache.cs" />
+    <Compile Include="..\..\lib\Utf8Json\src\Utf8Json\Internal\DoubleConversion\StringToDouble.cs" Link="Serialization\Utf8Json\Internal\DoubleConversion\StringToDouble.cs" />
+    <Compile Include="..\..\lib\Utf8Json\src\Utf8Json\Internal\DoubleConversion\StringToDoubleConverter.cs" Link="Serialization\Utf8Json\Internal\DoubleConversion\StringToDoubleConverter.cs" />
+    <Compile Include="..\..\lib\Utf8Json\src\Utf8Json\Internal\Emit\DynamicAssembly.cs" Link="Serialization\Utf8Json\Internal\Emit\DynamicAssembly.cs" />
+    <Compile Include="..\..\lib\Utf8Json\src\Utf8Json\Internal\Emit\ExpressionUtility.cs" Link="Serialization\Utf8Json\Internal\Emit\ExpressionUtility.cs" />
+    <Compile Include="..\..\lib\Utf8Json\src\Utf8Json\Internal\Emit\ILGeneratorExtensions.cs" Link="Serialization\Utf8Json\Internal\Emit\ILGeneratorExtensions.cs" />
+    <Compile Include="..\..\lib\Utf8Json\src\Utf8Json\Internal\Emit\ILViewer.cs" Link="Serialization\Utf8Json\Internal\Emit\ILViewer.cs" />
+    <Compile Include="..\..\lib\Utf8Json\src\Utf8Json\Internal\Emit\MetaMember.cs" Link="Serialization\Utf8Json\Internal\Emit\MetaMember.cs" />
+    <Compile Include="..\..\lib\Utf8Json\src\Utf8Json\Internal\Emit\MetaType.cs" Link="Serialization\Utf8Json\Internal\Emit\MetaType.cs" />
+    <Compile Include="..\..\lib\Utf8Json\src\Utf8Json\Internal\FarmHash.cs" Link="Serialization\Utf8Json\Internal\FarmHash.cs" />
+    <Compile Include="..\..\lib\Utf8Json\src\Utf8Json\Internal\FuncExtensions.cs" Link="Serialization\Utf8Json\Internal\FuncExtensions.cs" />
+    <Compile Include="..\..\lib\Utf8Json\src\Utf8Json\Internal\GuidBits.cs" Link="Serialization\Utf8Json\Internal\GuidBits.cs" />
+    <Compile Include="..\..\lib\Utf8Json\src\Utf8Json\Internal\NumberConverter.cs" Link="Serialization\Utf8Json\Internal\NumberConverter.cs" />
+    <Compile Include="..\..\lib\Utf8Json\src\Utf8Json\Internal\ReflectionExtensions.cs" Link="Serialization\Utf8Json\Internal\ReflectionExtensions.cs" />
+    <Compile Include="..\..\lib\Utf8Json\src\Utf8Json\Internal\StringEncoding.cs" Link="Serialization\Utf8Json\Internal\StringEncoding.cs" />
+    <Compile Include="..\..\lib\Utf8Json\src\Utf8Json\Internal\StringMutator.cs" Link="Serialization\Utf8Json\Internal\StringMutator.cs" />
+    <Compile Include="..\..\lib\Utf8Json\src\Utf8Json\Internal\ThreadsafeTypeKeyHashTable.cs" Link="Serialization\Utf8Json\Internal\ThreadsafeTypeKeyHashTable.cs" />
+    <Compile Include="..\..\lib\Utf8Json\src\Utf8Json\Internal\UnsafeMemory.cs" Link="Serialization\Utf8Json\Internal\UnsafeMemory.cs" />
+    <Compile Include="..\..\lib\Utf8Json\src\Utf8Json\Internal\UnsafeMemory.Low.cs" Link="Serialization\Utf8Json\Internal\UnsafeMemory.Low.cs" />
+    <Compile Include="..\..\lib\Utf8Json\src\Utf8Json\JsonReader.cs" Link="Serialization\Utf8Json\JsonReader.cs" />
+    <Compile Include="..\..\lib\Utf8Json\src\Utf8Json\JsonSerializer.cs" Link="Serialization\Utf8Json\JsonSerializer.cs" />
+    <Compile Include="..\..\lib\Utf8Json\src\Utf8Json\JsonSerializer.NonGeneric.cs" Link="Serialization\Utf8Json\JsonSerializer.NonGeneric.cs" />
+    <Compile Include="..\..\lib\Utf8Json\src\Utf8Json\JsonToken.cs" Link="Serialization\Utf8Json\JsonToken.cs" />
+    <Compile Include="..\..\lib\Utf8Json\src\Utf8Json\JsonWriter.cs" Link="Serialization\Utf8Json\JsonWriter.cs" />
+    <Compile Include="..\..\lib\Utf8Json\src\Utf8Json\Resolvers\AttributeFormatterResolver.cs" Link="Serialization\Utf8Json\Resolvers\AttributeFormatterResolver.cs" />
+    <Compile Include="..\..\lib\Utf8Json\src\Utf8Json\Resolvers\BuiltinResolver.cs" Link="Serialization\Utf8Json\Resolvers\BuiltinResolver.cs" />
+    <Compile Include="..\..\lib\Utf8Json\src\Utf8Json\Resolvers\CompositeResolver.cs" Link="Serialization\Utf8Json\Resolvers\CompositeResolver.cs" />
+    <Compile Include="..\..\lib\Utf8Json\src\Utf8Json\Resolvers\DynamicGenericResolver.cs" Link="Serialization\Utf8Json\Resolvers\DynamicGenericResolver.cs" />
+    <Compile Include="..\..\lib\Utf8Json\src\Utf8Json\Resolvers\DynamicObjectResolver.cs" Link="Serialization\Utf8Json\Resolvers\DynamicObjectResolver.cs" />
+    <Compile Include="..\..\lib\Utf8Json\src\Utf8Json\Resolvers\EnumResolver.cs" Link="Serialization\Utf8Json\Resolvers\EnumResolver.cs" />
+    <Compile Include="..\..\lib\Utf8Json\src\Utf8Json\Resolvers\StandardResolver.cs" Link="Serialization\Utf8Json\Resolvers\StandardResolver.cs" />
     <Compile Include="Cursors\Comparison.cs" />
     <Compile Include="Cursors\Cursor.cs" />
     <Compile Include="Cursors\Empty.cs" />
@@ -154,6 +211,10 @@
   </ItemGroup>
   <ItemGroup>
     <Folder Include="Cursors\Experimental\" />
+    <Folder Include="Serialization\Utf8Json\Formatters\" />
+    <Folder Include="Serialization\Utf8Json\Internal\DoubleConversion\" />
+    <Folder Include="Serialization\Utf8Json\Internal\Emit\" />
+    <Folder Include="Serialization\Utf8Json\Resolvers\" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Cursors\Readme.md" />
