@@ -8,7 +8,7 @@ namespace Spreads.DataTypes
     /// 0
     /// 0 1 2 3 4 5 6 7 8
     /// +-+-+-+-+-+-+-+-+
-    /// |  Ver  |R|B|D|C|
+    /// |  Ver  |R|D|C|B|
     /// +---------------+
     /// C - compressed
     /// D - diffed (if a type implements <see cref="IDelta{T}"/>)
@@ -25,9 +25,9 @@ namespace Spreads.DataTypes
         internal const int CompressedBitOffset = 0;
 
         internal const byte VersionMask = 0b_1111_0000;
-        internal const byte CompressedFlagMask = 0b_0000_0001;
-        internal const byte DeltaFlagMask = 0b_0000_0010;
-        internal const byte BinaryFlagMask = 0b_0000_0100;
+        internal const byte BinaryFlagMask = 0b_0000_0001;
+        internal const byte CompressedFlagMask = 0b_0000_0010;
+        internal const byte DeltaFlagMask = 0b_0000_0100;
 
         private byte _value;
 

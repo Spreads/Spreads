@@ -363,8 +363,10 @@ namespace Spreads
     /// <summary>
     /// DataStream has incrementing keys.
     /// </summary>
-    /// <typeparam name="T"></typeparam>
     public interface IDataStream<T> : ISeries<ulong, T>
+    { }
+
+    public interface IMutableDataStream<T> : IDataStream<T>
     {
         Task<bool> TryAddLast(T value);
     }
