@@ -26,7 +26,7 @@ namespace Spreads.Buffers
     /// The consuming method or collection must dispose the <see cref="MemoryHandle"/> reservation. If the caller
     /// needs to retain the memory and must call <see cref="Clone"/> and pass the cloned memory.
     /// </remarks>
-    public struct RetainedMemory<T>
+    public struct RetainedMemory<T> : IDisposable
     {
         private MemoryHandle _memoryHandle;
 

@@ -29,7 +29,6 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
 
@@ -127,10 +126,7 @@ namespace Spreads.Buffers
             }
         }
 
-        // private bool _disposed;
-
-        // long to allow Interlocked.Read (for .NET Standard 1.4 compat)
-        private long _disposedState;
+        private long _refCount;
 
         /// <summary>
         /// Callstack of the constructor. It is only set if MemoryManager.GenerateCallStacks is true,
@@ -159,7 +155,7 @@ namespace Spreads.Buffers
             byte[] initialLargeBuffer, int length = 0)
         {
             var rms = Pool.Allocate();
-            rms._disposedState = 0;
+            rms._refCount = 1;
             rms._memoryManager = memoryManager;
             rms._id = Interlocked.Increment(ref _lastId);
             rms._tag = tag;
@@ -197,6 +193,7 @@ namespace Spreads.Buffers
             return rms;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private RecyclableMemoryStream() : base(EmptyArray)
         {
         }
@@ -205,6 +202,7 @@ namespace Spreads.Buffers
         /// Allocate a new RecyclableMemoryStream object.
         /// </summary>
         /// <param name="memoryManager">The memory manager</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static RecyclableMemoryStream Create(RecyclableMemoryStreamManager memoryManager)
         {
             return Create(memoryManager, null, 0, null);
@@ -215,6 +213,7 @@ namespace Spreads.Buffers
         /// </summary>
         /// <param name="memoryManager">The memory manager</param>
         /// <param name="tag">A string identifying this stream for logging and debugging purposes</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static RecyclableMemoryStream Create(RecyclableMemoryStreamManager memoryManager, string tag)
         {
             return Create(memoryManager, tag, 0, null);
@@ -226,9 +225,16 @@ namespace Spreads.Buffers
         /// <param name="memoryManager">The memory manager</param>
         /// <param name="tag">A string identifying this stream for logging and debugging purposes</param>
         /// <param name="requestedSize">The initial requested size to prevent future allocations</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static RecyclableMemoryStream Create(RecyclableMemoryStreamManager memoryManager, string tag, int requestedSize)
         {
             return Create(memoryManager, tag, requestedSize, null);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public long AddReference()
+        {
+            return Interlocked.Increment(ref _refCount);
         }
 
         #endregion Constructors
@@ -248,7 +254,14 @@ namespace Spreads.Buffers
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA1816:CallGCSuppressFinalizeCorrectly", Justification = "We have different disposal semantics, so SuppressFinalize is in a different spot.")]
         protected override void Dispose(bool disposing)
         {
-            if (Interlocked.CompareExchange(ref _disposedState, 1, 0) != 0)
+            var remaining = Interlocked.Decrement(ref _refCount);
+
+            if (disposing && remaining > 0)
+            {
+                return;
+            }
+
+            if (remaining < 0)
             {
                 string doubleDisposeStack = null;
                 if (_memoryManager.GenerateCallStacks)
@@ -427,12 +440,12 @@ namespace Spreads.Buffers
         /// <summary>
         /// Whether the stream can currently read
         /// </summary>
-        public override bool CanRead => Interlocked.Read(ref _disposedState) == 0;
+        public override bool CanRead => Interlocked.Read(ref _refCount) != 0;
 
         /// <summary>
         /// Whether the stream can currently seek
         /// </summary>
-        public override bool CanSeek => Interlocked.Read(ref _disposedState) == 0;
+        public override bool CanSeek => Interlocked.Read(ref _refCount) != 0;
 
         /// <summary>
         /// Always false
@@ -442,7 +455,7 @@ namespace Spreads.Buffers
         /// <summary>
         /// Whether the stream can currently write
         /// </summary>
-        public override bool CanWrite => Interlocked.Read(ref _disposedState) == 0;
+        public override bool CanWrite => Interlocked.Read(ref _refCount) != 0;
 
         /// <summary>
         /// Returns a single buffer containing the contents of the stream.
@@ -983,7 +996,7 @@ namespace Spreads.Buffers
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void CheckDisposed()
         {
-            if (Interlocked.Read(ref _disposedState) != 0)
+            if (Interlocked.Read(ref _refCount) == 0)
             {
                 ThrowHelper.ThrowObjectDisposedException(string.Format("The stream with Id {0} and Tag {1} is disposed.", _id, _tag));
             }
