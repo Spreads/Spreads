@@ -2,15 +2,15 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-using Newtonsoft.Json;
+// using Newtonsoft.Json;
 using Spreads.Buffers;
 using Spreads.DataTypes;
+using Spreads.Serialization.Utf8Json;
 using System;
 using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
 using System.Runtime.CompilerServices;
-using System.Text;
 using static System.Runtime.CompilerServices.Unsafe;
 
 #pragma warning disable 0618
@@ -54,10 +54,66 @@ namespace Spreads.Serialization
                 {
                     return size;
                 }
+                Trace.TraceWarning($"Cannot use binary format {format.ToString()} to serialize type {typeof(T).Name}");
             }
-            var ms = Json.SerializeWithHeader(value, format);
-            temporaryStream = ms;
-            return (checked((int)ms.Length));
+
+            if (format == SerializationFormat.Json)
+            {
+                var rms = JsonSerializer.SerializeWithOffset(value, DataTypeHeader.Size);
+                rms.Position = 0;
+                var header = new DataTypeHeader
+                {
+                    VersionAndFlags = {
+                                    Version = 0,
+                                    IsBinary = false,
+                                    IsDelta = false,
+                                    IsCompressed = false },
+                    TypeEnum = VariantHelper<T>.TypeEnum
+                };
+                rms.WriteAsPtr(header);
+
+                rms.WriteAsPtr(checked((int)rms.Length - 8));
+
+                rms.Position = 0;
+                temporaryStream = rms;
+                return checked((int)rms.Length);
+            }
+            else
+            {
+                // NB: fallback for failed binary uses Json.Deflate
+
+                // uncompressed
+                var rms = JsonSerializer.SerializeWithOffset(value, 0);
+                var compressedStream =
+                    RecyclableMemoryStreamManager.Default.GetStream(null, checked((int)rms.Length));
+                compressedStream.WriteAsPtr(0L);
+                using (var compressor = new DeflateStream(compressedStream, CompressionLevel.Optimal, true))
+                {
+                    rms.Position = 0;
+                    rms.CopyTo(compressor);
+                    compressor.Close();
+                }
+
+                rms.Dispose();
+
+                compressedStream.Position = 0;
+                var header = new DataTypeHeader
+                {
+                    VersionAndFlags =
+                    {
+                        Version = 0,
+                        IsBinary = false,
+                        IsDelta = false,
+                        IsCompressed = true
+                    },
+                    TypeEnum = VariantHelper<T>.TypeEnum
+                };
+                compressedStream.WriteAsPtr(header);
+                compressedStream.WriteAsPtr(checked((int)compressedStream.Length - 8));
+                compressedStream.Position = 0;
+                temporaryStream = compressedStream;
+                return (checked((int)compressedStream.Length));
+            }
         }
 
         /// <summary>
@@ -90,22 +146,19 @@ namespace Spreads.Serialization
                 ThrowHelper.ThrowArgumentNullException(nameof(value));
             }
 
-            int size;
             if (temporaryStream != null)
             {
                 Debug.Assert(temporaryStream.Position == 0);
 #if DEBUG
-                    var checkSize = SizeOf(value, out MemoryStream tmp, format);
-                    Debug.Assert(checkSize == temporaryStream.Length, "Memory stream length must be equal to the SizeOf");
-                    tmp?.Dispose();
+                var checkSize = SizeOf(value, out MemoryStream tmp, format);
+                Debug.Assert(checkSize == temporaryStream.Length, "Memory stream length must be equal to the SizeOf");
+                tmp?.Dispose();
 #endif
-                size = checked((int)temporaryStream.Length);
+                var size = checked((int)temporaryStream.Length);
                 temporaryStream.WriteToRef(ref AsRef<byte>((void*)pinnedDestination));
                 temporaryStream.Dispose();
                 return size;
             }
-
-            size = TypeHelper<T>.Size; //TypeHelper<T>.SizeOf(value, out tempStream);
 
             if ((int)format < 100)
             {
@@ -115,15 +168,17 @@ namespace Spreads.Serialization
                 }
             }
 
-            var jsonStream = Json.SerializeWithHeader(value, format);
-            size = checked((int)jsonStream.Length);
-            jsonStream.WriteToRef(ref AsRef<byte>((void*)pinnedDestination));
-            jsonStream.Dispose();
-            return size;
+            SizeOf(in value, out temporaryStream, format);
+            if (temporaryStream == null)
+            {
+                ThrowHelper.ThrowInvalidOperationException("Tempstream for Json or binary fallback must be returned from SizeOf");
+            }
+
+            return WriteSlow(in value, pinnedDestination, temporaryStream, format);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe int Write<T>(T value, ref byte[] destination,
+        public static int Write<T>(T value, ref byte[] destination,
             MemoryStream temporaryStream = null, SerializationFormat format = SerializationFormat.Binary)
         {
             var asMemory = (Memory<byte>)destination;
@@ -131,7 +186,7 @@ namespace Spreads.Serialization
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe int Write<T>(T value, ref Memory<byte> destination,
+        public static int Write<T>(T value, ref Memory<byte> destination,
             MemoryStream temporaryStream = null, SerializationFormat format = SerializationFormat.Binary)
         {
             return Write(in value, ref destination, temporaryStream, format);
@@ -198,12 +253,14 @@ namespace Spreads.Serialization
 
             if (!header.VersionAndFlags.IsCompressed)
             {
+                // ReSharper disable once AssignNullToNotNullAttribute
                 var stream = new UnmanagedMemoryStream((byte*)(ptr + 8), payloadSize);
-                value = Json.Deserialize<T>(stream);
+                value = JsonSerializer.Deserialize<T>(stream);
                 return payloadSize + 8;
             }
             else
             {
+                // ReSharper disable once AssignNullToNotNullAttribute
                 var comrpessedStream = new UnmanagedMemoryStream((byte*)(ptr + 8), payloadSize);
                 RecyclableMemoryStream decompressedStream =
                     RecyclableMemoryStreamManager.Default.GetStream();
@@ -215,7 +272,7 @@ namespace Spreads.Serialization
                 }
                 comrpessedStream.Dispose();
                 decompressedStream.Position = 0;
-                value = Json.Deserialize<T>(decompressedStream);
+                value = JsonSerializer.Deserialize<T>(decompressedStream);
                 return payloadSize + 8;
             }
         }
@@ -223,166 +280,9 @@ namespace Spreads.Serialization
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static unsafe int Read<T>(ReadOnlyMemory<byte> buffer, out T value)
         {
-            return Read(in buffer, out value);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe int Read<T>(in ReadOnlyMemory<byte> buffer, out T value)
-        {
             using (var handle = buffer.Pin())
             {
                 return Read((IntPtr)handle.Pointer, out value);
-            }
-        }
-
-        public static JsonSerializer Json => JsonSerializer.Instance;
-
-        public sealed class JsonSerializer
-        {
-            private class JsonNetArrayPool : IArrayPool<char>
-            {
-                public static readonly JsonNetArrayPool Pool = new JsonNetArrayPool();
-
-                public char[] Rent(int minimumLength)
-                {
-                    return BufferPool<char>.Rent(minimumLength);
-                }
-
-                public void Return(char[] array)
-                {
-                    BufferPool<char>.Return(array, true);
-                }
-            }
-
-            private readonly Newtonsoft.Json.JsonSerializer _serializer;
-            internal static JsonSerializer Instance = new JsonSerializer();
-
-            private JsonSerializer()
-            {
-                _serializer = new Newtonsoft.Json.JsonSerializer();
-            }
-
-            public MemoryStream Serialize<T>(T value)
-            {
-                var ms = RecyclableMemoryStreamManager.Default.GetStream();
-                using (var writer = new StreamWriter(ms, Encoding.UTF8, 4096, true))
-                using (var jsonwriter = new JsonTextWriter(writer))
-                {
-                    jsonwriter.ArrayPool = JsonNetArrayPool.Pool;
-                    _serializer.Serialize(writer, value);
-                }
-
-                // we created the stream with initial positoin 0, return to that position
-                ms.Position = 0;
-                return ms;
-            }
-
-            internal MemoryStream SerializeWithHeader<T>(T value, SerializationFormat format)
-            {
-                // NB We may wated binary format but falled back here,
-                // then we still prefer compressed version
-                // Return uncompressed JSON only when explicitly asked for.
-                if (format == SerializationFormat.Json)
-                {
-                    RecyclableMemoryStream ms = RecyclableMemoryStreamManager.Default.GetStream();
-                    ms.WriteAsPtr(0L);
-                    using (var writer = new StreamWriter(ms, Encoding.UTF8, 4096, true))
-                    using (var jsonwriter = new JsonTextWriter(writer))
-                    {
-                        jsonwriter.ArrayPool = JsonNetArrayPool.Pool;
-                        _serializer.Serialize(writer, value);
-                    }
-
-                    // we created the stream with initial positoin 0, return to that position
-
-                    ms.Position = 0;
-
-                    var header = new DataTypeHeader
-                    {
-                        VersionAndFlags = {
-                            Version = 0,
-                            IsBinary = false,
-                            IsDelta = false,
-                            IsCompressed = false },
-                        TypeEnum = VariantHelper<T>.TypeEnum
-                    };
-                    ms.WriteAsPtr(header);
-
-                    ms.WriteAsPtr(checked((int)ms.Length - 8));
-                    
-                    ms.Position = 0;
-                    return ms;
-                }
-                else
-                {
-                    RecyclableMemoryStream ms =
-                        RecyclableMemoryStreamManager.Default.GetStream("JSON.SerializeWithHeader", 4096, true);
-                    // no header before compression ms.WriteAsPtr(0L);
-                    using (var writer = new StreamWriter(ms, Encoding.UTF8, 4096, true))
-                    using (var jsonwriter = new JsonTextWriter(writer))
-                    {
-                        jsonwriter.ArrayPool = JsonNetArrayPool.Pool;
-                        _serializer.Serialize(writer, value);
-                    }
-                    var compressedStream =
-                        RecyclableMemoryStreamManager.Default.GetStream(null, checked((int)ms.Length));
-                    compressedStream.WriteAsPtr(0L);
-                    using (var compressor = new DeflateStream(compressedStream, CompressionLevel.Optimal, true))
-                    {
-                        ms.Position = 0;
-                        ms.CopyTo(compressor);
-                        compressor.Close();
-                    }
-                    ms.Dispose();
-
-                    compressedStream.Position = 0;
-                    var header = new DataTypeHeader
-                    {
-                        VersionAndFlags = {
-                            Version = 0,
-                            IsBinary = false,
-                            IsDelta = false,
-                            IsCompressed = true },
-                        TypeEnum = VariantHelper<T>.TypeEnum
-                    };
-                    compressedStream.WriteAsPtr(header);
-                    compressedStream.WriteAsPtr(checked((int)compressedStream.Length - 8));
-                    compressedStream.Position = 0;
-                    return compressedStream;
-                }
-            }
-
-            public T Deserialize<T>(Stream stream)
-            {
-                using (var reader = new JsonTextReader(new StreamReader(stream, Encoding.UTF8, true, 4096, true)))
-                {
-                    reader.ArrayPool = JsonNetArrayPool.Pool;
-                    return _serializer.Deserialize<T>(reader);
-                }
-            }
-
-            public MemoryStream Serialize(object value)
-            {
-                var ms = RecyclableMemoryStreamManager.Default.GetStream();
-                using (var writer = new StreamWriter(ms, Encoding.UTF8, 4096, true))
-                using (var jsonwriter = new JsonTextWriter(writer))
-                {
-                    jsonwriter.ArrayPool = JsonNetArrayPool.Pool;
-                    _serializer.Serialize(writer, value);
-                }
-                // we created the stream with initial positoin 0, return to that position
-                ms.Position = 0;
-                return ms;
-            }
-
-            public object Deserialize(Stream stream, Type ty)
-            {
-                using (var reader = new JsonTextReader(new StreamReader(stream, Encoding.UTF8, true, 4096, true)))
-                {
-                    reader.ArrayPool = JsonNetArrayPool.Pool;
-                    _serializer.Deserialize(reader);
-                    return _serializer.Deserialize(reader, ty);
-                }
             }
         }
     }

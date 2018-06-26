@@ -78,9 +78,10 @@ namespace Spreads.Buffers
         public delegate void UsageReportEventHandler(
             long smallPoolInUseBytes, long smallPoolFreeBytes, long largePoolInUseBytes, long largePoolFreeBytes);
 
-        public const int DefaultBlockSize = 128 * 1024;
-        public const int DefaultLargeBufferMultiple = 1024 * 1024;
-        public const int DefaultMaximumBufferSize = 128 * 1024 * 1024;
+        // Spreads uses RMS mostly for small messages
+        public const int DefaultBlockSize = 64 * 1024; // Max Pow2 < LOH
+        public const int DefaultLargeBufferMultiple = 128 * 1024; // Min Pow2 > LOH
+        public const int DefaultMaximumBufferSize = 10 * 1024 * 1024; // 10 MB
 
         private readonly int _blockSize;
         private readonly long[] _largeBufferFreeSize;

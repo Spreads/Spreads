@@ -8,9 +8,7 @@
     <FileVersion>1.0.0.0</FileVersion>
     <AssemblyVersion>1.0.0.0</AssemblyVersion>
     <LangVersion>7.2</LangVersion>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Release|netstandard2.0|AnyCPU'">
-    <DefineConstants>TRACE;NETSTANDARD;NETSTANDARD20;RELEASE;NETSTANDARD;NETSTANDARD2_0;RELEASE;NETSTANDARD;NETSTANDARD2_0</DefineConstants>
+    <DefineConstants>$(DefineConstants);SPREADS</DefineConstants>
   </PropertyGroup>
   <ItemGroup>
     <Compile Remove="Cursors\**" />
@@ -219,6 +217,9 @@
     <None Include="Cursors\Readme.md" />
   </ItemGroup>
   <ItemGroup>
+    <Reference Include="Microsoft.IO.RecyclableMemoryStream">
+      <HintPath>..\..\..\..\..\..\..\Users\Victor Baybekov\.nuget\packages\microsoft.io.recyclablememorystream\1.2.2\lib\netstandard1.4\Microsoft.IO.RecyclableMemoryStream.dll</HintPath>
+    </Reference>
     <Reference Include="System.Data.SqlXml">
       <HintPath>..\..\..\..\..\..\..\Program Files (x86)\Reference Assemblies\Microsoft\Framework\.NETFramework\v4.7.1\System.Data.SqlXml.dll</HintPath>
     </Reference>

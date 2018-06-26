@@ -12,7 +12,7 @@ namespace Spreads.DataTypes
     /// |  Ver  |R|B|D|C|    TypeEnum   |  TypeSize     | SubTypeEnum   |
     /// +---------------------------------------------------------------+
     /// </summary>
-    [StructLayout(LayoutKind.Explicit, Pack = 1, Size = 4)]
+    [StructLayout(LayoutKind.Explicit, Pack = 1, Size = Size)]
     public struct DataTypeHeader
     {
         public const int Size = 4;
