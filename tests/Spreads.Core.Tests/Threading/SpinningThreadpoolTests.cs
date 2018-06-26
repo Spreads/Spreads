@@ -25,7 +25,7 @@ namespace Spreads.Core.Tests.Threading
                 _tp = tp;
             }
 
-            public void ExecuteCompletion()
+            public void ExecuteCompletion(object val)
             {
                 // for (int i = 0; i < 10; i++)
                 {
@@ -39,13 +39,13 @@ namespace Spreads.Core.Tests.Threading
         {
             var count = 50_000_000;
 
-            var items = Enumerable.Range(1, 100).Select(x => (Action)(new Completable(SpinningThreadPool.Default)).ExecuteCompletion).ToArray();
+            var items = Enumerable.Range(1, 100).Select(x => (Action<object>)(new Completable(SpinningThreadPool.Default)).ExecuteCompletion).ToArray();
 
             using (Benchmark.Run("SpinningThreadPool", count))
             {
                 for (int i = 0; i < count; i++)
                 {
-                    SpinningThreadPool.Default.UnsafeQueueCompletableItem(items[i % 100], true);
+                    SpinningThreadPool.Default.UnsafeQueueCompletableItem(items[i % 100], null, true);
                     // Thread.SpinWait(1);
                 }
 
