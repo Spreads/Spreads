@@ -49,6 +49,7 @@ namespace Spreads.Serialization
         /// Write entire stream to a pointer
         /// </summary>
         [Obsolete("Use AsRef + WriteToRef")]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void WriteToPtr(this MemoryStream stream, IntPtr ptr)
         {
             stream.Position = 0;
@@ -67,6 +68,7 @@ namespace Spreads.Serialization
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void WriteToRef(this MemoryStream stream, ref byte destination)
         {
             if (stream is RecyclableMemoryStream rms)
@@ -81,24 +83,30 @@ namespace Spreads.Serialization
             }
             else
             {
-                stream.Position = 0;
-                var buffer = BufferPool.StaticBuffer.Array.Length >= stream.Length
-                    ? BufferPool.StaticBuffer.Array
-                    : BufferPool<byte>.Rent(checked((int)stream.Length));
-                var position = 0;
+                WriteToRefSlow(stream, ref destination);
+            }
+        }
 
-                int length;
-                while ((length = stream.Read(buffer, 0, buffer.Length)) > 0)
-                {
-                    CopyBlockUnaligned(ref AddByteOffset(ref destination, (IntPtr)position),
-                        ref buffer[0], checked((uint)length));
-                    position += length;
-                }
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static void WriteToRefSlow(MemoryStream stream, ref byte destination)
+        {
+            stream.Position = 0;
+            var buffer = BufferPool.StaticBuffer.Array.Length >= stream.Length
+                ? BufferPool.StaticBuffer.Array
+                : BufferPool<byte>.Rent(checked((int) stream.Length));
+            var position = 0;
 
-                if (BufferPool.StaticBuffer.Array.Length < stream.Length)
-                {
-                    BufferPool<byte>.Return(buffer);
-                }
+            int length;
+            while ((length = stream.Read(buffer, 0, buffer.Length)) > 0)
+            {
+                CopyBlockUnaligned(ref AddByteOffset(ref destination, (IntPtr) position),
+                    ref buffer[0], checked((uint) length));
+                position += length;
+            }
+
+            if (BufferPool.StaticBuffer.Array.Length < stream.Length)
+            {
+                BufferPool<byte>.Return(buffer);
             }
         }
     }

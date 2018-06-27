@@ -2,11 +2,12 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-using System;
 using NUnit.Framework;
-using Spreads.Utils;
-using System.Runtime.InteropServices;
 using Spreads.Serialization;
+using Spreads.Utils;
+using System;
+using System.Runtime.InteropServices;
+using Spreads.Buffers;
 
 namespace Spreads.Core.Tests.Serialization
 {
@@ -21,14 +22,16 @@ namespace Spreads.Core.Tests.Serialization
             public int Num { get; set; }
             public int Num1 { get; set; }
             public int Num2 { get; set; }
+
             //public Decimal Dec { get; set; }
             public double Dbl { get; set; }
+
             public double Dbl1 { get; set; }
             //public bool Boo { get; set; }
         }
 
         [Test, Explicit("long running")]
-        public void CompareUtf8JsonWithBinarySerializer()
+        public unsafe void CompareUtf8JsonWithBinarySerializer()
         {
             var count = 100_000;
             var values = new TestValue[count];
@@ -50,30 +53,17 @@ namespace Spreads.Core.Tests.Serialization
 
             for (int r = 0; r < 30; r++)
             {
-                //using (Benchmark.Run("JSON.NET", count))
-                //{
-                //    var lenSum = 0L;
-                //    for (int i = 0; i < count; i++)
-                //    {
-                //        var ms = BinarySerializer.Json.Serialize(values[i]);
-                //        var val = BinarySerializer.Json.Deserialize<TestValue>(ms);
-                //        lenSum += ms.Length;
-                //        //var str = Encoding.UTF8.GetString(ms.ToArray());
-                //        //Console.WriteLine(str);
-                //        ms.Dispose();
-                //    }
-                //    // Console.WriteLine("JSON.NET " + lenSum);
-                //}
-
                 using (Benchmark.Run("Utf8Json.NuGet", count))
                 {
                     var lenSum = 0L;
 
                     for (int i = 0; i < count; i++)
                     {
-                        var arrSegment = Utf8Json.JsonSerializer.SerializeUnsafe(values[i]);
-                        Utf8Json.JsonSerializer.Deserialize<TestValue>(arrSegment.Array);
-                        lenSum += arrSegment.Count;
+                        var stream = RecyclableMemoryStreamManager.Default.GetStream();
+                        Utf8Json.JsonSerializer.Serialize(stream, values[i]);
+                        Utf8Json.JsonSerializer.Deserialize<TestValue>(stream);
+                        lenSum += stream.Length;
+                        stream.Dispose();
                         //var str = Encoding.UTF8.GetString(stream.ToArray());
                         //Console.WriteLine(str);
                     }
@@ -86,13 +76,30 @@ namespace Spreads.Core.Tests.Serialization
 
                     for (int i = 0; i < count; i++)
                     {
-                        var arrSegment = Spreads.Serialization.Utf8Json.JsonSerializer.SerializeUnsafe(values[i]);
-                        Spreads.Serialization.Utf8Json.JsonSerializer.Deserialize<TestValue>(arrSegment.Array);
-                        lenSum += arrSegment.Count;
+                        var stream = Spreads.Serialization.Utf8Json.JsonSerializer.SerializeWithOffset(values[i], 0);
+                        Spreads.Serialization.Utf8Json.JsonSerializer.Deserialize<TestValue>(stream);
+                        lenSum += stream.Length;
+                        stream.Dispose();
                         //var str = Encoding.UTF8.GetString(stream.ToArray());
                         //Console.WriteLine(str);
                     }
                     // Console.WriteLine("Utf8Json " + lenSum);
+                }
+
+                using (Benchmark.Run("Spreads BinarySerializer", count))
+                {
+                    var lenSum = 0L;
+                    var bytes = new byte[1000];
+                    fixed (byte* ptr = &bytes[0])
+                    {
+                        for (int i = 0; i < count; i++)
+                        {
+                            var size = BinarySerializer.SizeOf(values[i], out var stream, SerializationFormat.Json);
+                            BinarySerializer.WriteUnsafe(values[i], (IntPtr)ptr, stream, SerializationFormat.Json);
+                            BinarySerializer.Read<TestValue>((IntPtr)ptr, out var value);
+                            lenSum += size;
+                        }
+                    }
                 }
             }
             Benchmark.Dump();

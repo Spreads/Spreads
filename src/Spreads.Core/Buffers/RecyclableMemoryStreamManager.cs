@@ -80,6 +80,7 @@ namespace Spreads.Buffers
 
         // Spreads uses RMS mostly for small messages
         public const int DefaultBlockSize = 64 * 1024; // Max Pow2 < LOH
+
         public const int DefaultLargeBufferMultiple = 128 * 1024; // Min Pow2 > LOH
         public const int DefaultMaximumBufferSize = 10 * 1024 * 1024; // 10 MB
 
@@ -161,35 +162,56 @@ namespace Spreads.Buffers
         /// <summary>
         /// The size of each block. It must be set at creation and cannot be changed.
         /// </summary>
-        public int BlockSize => _blockSize;
+        public int BlockSize
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return _blockSize; }
+        }
 
         /// <summary>
         /// All buffers are multiples of this number. It must be set at creation and cannot be changed.
         /// </summary>
-        public int LargeBufferMultiple => _largeBufferMultiple;
+        public int LargeBufferMultiple
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return _largeBufferMultiple; }
+        }
 
         /// <summary>
         /// Gets or sets the maximum buffer size.
         /// </summary>
         /// <remarks>Any buffer that is returned to the pool that is larger than this will be
         /// discarded and garbage collected.</remarks>
-        public int MaximumBufferSize => _maximumBufferSize;
+        public int MaximumBufferSize
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return _maximumBufferSize; }
+        }
 
         /// <summary>
         /// Number of bytes in large pool not currently in use
         /// </summary>
-        public long LargePoolFreeSize => _largeBufferFreeSize.Sum();
+        public long LargePoolFreeSize
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return _largeBufferFreeSize.Sum(); }
+        }
 
         /// <summary>
         /// Number of bytes currently in use by streams from the large pool
         /// </summary>
-        public long LargePoolInUseSize => _largeBufferInUseSize.Sum();
+        public long LargePoolInUseSize
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return _largeBufferInUseSize.Sum(); }
+        }
 
         /// <summary>
         /// How many buffers are in the large pool
         /// </summary>
         public long LargeBuffersFree
         {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
                 long free = 0;
@@ -200,12 +222,6 @@ namespace Spreads.Buffers
                 return free;
             }
         }
-
-        /// <summary>
-        /// How many bytes of small free blocks to allow before we start dropping
-        /// those returned to us.
-        /// </summary>
-        //public long MaximumFreeSmallPoolBytes { get; set; }
 
         /// <summary>
         /// How many bytes of large free buffers to allow before we start dropping
@@ -234,7 +250,12 @@ namespace Spreads.Buffers
         /// retrieved from a stream which is subsequently modified is not used after modification (as it may no longer
         /// be valid).
         /// </summary>
-        public bool AggressiveBufferReturn { get; set; }
+        public bool AggressiveBufferReturn
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get;
+            set;
+        } = true;
 
         /// <summary>
         /// Removes and returns a single block from the pool.
@@ -334,17 +355,8 @@ namespace Spreads.Buffers
 
             if (!IsLargeBufferMultiple(buffer.Length))
             {
-                // Ignore
-                try
-                {
-                    BufferPool<byte>.Return(buffer);
-                }
-                catch
-                {}
+                BufferPool<byte>.Return(buffer);
                 return;
-                //ThrowHelper.ThrowArgumentException(
-                //    "buffer did not originate from this memory manager. The size is not a multiple of " +
-                //    LargeBufferMultiple);
             }
 
             var poolIndex = buffer.Length / _largeBufferMultiple - 1;
@@ -403,10 +415,6 @@ namespace Spreads.Buffers
                 {
                     ThrowHelper.ThrowArgumentException("blocks contains buffers that are not BlockSize in length");
                 }
-            }
-
-            foreach (var block in blocks)
-            {
                 BufferPool<byte>.Return(block, true);
             }
 

@@ -65,7 +65,7 @@ namespace Spreads.Buffers
     /// are maintained in the stream until the stream is disposed (unless AggressiveBufferReturn is enabled in the stream manager).
     ///
     /// </remarks>
-    public class RecyclableMemoryStream : MemoryStream
+    public sealed class RecyclableMemoryStream : MemoryStream
     {
         private static readonly ObjectPool<RecyclableMemoryStream> Pool = new ObjectPool<RecyclableMemoryStream>(() => new RecyclableMemoryStream(), Environment.ProcessorCount * 16);
 
@@ -400,6 +400,7 @@ namespace Spreads.Buffers
         /// <exception cref="ObjectDisposedException">Object has been disposed</exception>
         public override long Length
         {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
                 CheckDisposed();
@@ -415,11 +416,13 @@ namespace Spreads.Buffers
         /// <exception cref="ObjectDisposedException">Object has been disposed</exception>
         public override long Position
         {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
                 CheckDisposed();
                 return _position;
             }
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             set
             {
                 CheckDisposed();
@@ -878,23 +881,40 @@ namespace Spreads.Buffers
 
             private RecyclableMemoryStream _rms;
 
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public ChunksEnumerable(RecyclableMemoryStream rms)
             {
                 _rms = rms;
-                IsSingleChunk = (_rms._largeBuffer != null) || (_rms._blocks.Count == 1 && _rms._length > 0);
+                IsSingleChunk = (_rms._largeBuffer != null || _rms._blocks.Count == 1) && _rms._length > 0;
             }
 
             [Obsolete("Hide from API")]
-            public byte[] LargeBuffer => _rms._largeBuffer;
+            public byte[] SingleChunk
+            {
+                [MethodImpl(MethodImplOptions.AggressiveInlining)]
+                get { return IsSingleChunk ? _rms._largeBuffer ?? _rms._blocks[0] : Array.Empty<byte>(); }
+            }
 
             [Obsolete("Hide from API")]
-            public List<byte[]> RawChunks => _rms._blocks;
+            public byte[] LargeBuffer
+            {
+                [MethodImpl(MethodImplOptions.AggressiveInlining)]
+                get { return _rms._largeBuffer; }
+            }
+
+            [Obsolete("Hide from API")]
+            public List<byte[]> RawChunks
+            {
+                [MethodImpl(MethodImplOptions.AggressiveInlining)]
+                get { return _rms._blocks; }
+            }
 
             public struct ChunksEnumerator : IEnumerator<ArraySegment<byte>>
             {
                 private int _idx;
                 private RecyclableMemoryStream _rms;
 
+                [MethodImpl(MethodImplOptions.AggressiveInlining)]
                 public ChunksEnumerator(RecyclableMemoryStream rms)
                 {
                     if (rms._largeBuffer != null)
@@ -909,6 +929,7 @@ namespace Spreads.Buffers
                     Current = default;
                 }
 
+                [MethodImpl(MethodImplOptions.AggressiveInlining)]
                 public bool MoveNext()
                 {
                     if (_rms._largeBuffer != null)
@@ -942,6 +963,7 @@ namespace Spreads.Buffers
                     return false;
                 }
 
+                [MethodImpl(MethodImplOptions.AggressiveInlining)]
                 public void Reset()
                 {
                     if (_rms._largeBuffer != null)
@@ -954,15 +976,17 @@ namespace Spreads.Buffers
                     }
                 }
 
-                public ArraySegment<byte> Current { get; private set; }
+                public ArraySegment<byte> Current { [MethodImpl(MethodImplOptions.AggressiveInlining)]get; [MethodImpl(MethodImplOptions.AggressiveInlining)]private set; }
 
                 object IEnumerator.Current => Current;
 
+                [MethodImpl(MethodImplOptions.AggressiveInlining)]
                 public void Dispose()
                 {
                 }
             }
 
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public ChunksEnumerator GetEnumerator()
             {
                 return new ChunksEnumerator(_rms);
@@ -984,6 +1008,7 @@ namespace Spreads.Buffers
         /// </summary>
         public ChunksEnumerable Chunks
         {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
                 CheckDisposed();
@@ -991,12 +1016,27 @@ namespace Spreads.Buffers
             }
         }
 
+        public override bool TryGetBuffer(out ArraySegment<byte> buffer)
+        {
+            var chunks = Chunks;
+            if (chunks.IsSingleChunk)
+            {
+#pragma warning disable 618
+                buffer = new ArraySegment<byte>(chunks.SingleChunk, 0, checked((int)_length));
+#pragma warning restore 618
+                return true;
+            }
+
+            buffer = default;
+            return false;
+        }
+
         #region Helper Methods
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void CheckDisposed()
         {
-            if (Interlocked.Read(ref _refCount) == 0)
+            if (IntPtr.Size == 8 ? Volatile.Read(ref _refCount) == 0 : Interlocked.Read(ref _refCount) == 0)
             {
                 ThrowHelper.ThrowObjectDisposedException(string.Format("The stream with Id {0} and Tag {1} is disposed.", _id, _tag));
             }
@@ -1091,6 +1131,7 @@ namespace Spreads.Buffers
         /// <summary>
         /// Release the large buffer (either stores it for eventual release or returns it immediately).
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void ReleaseLargeBuffer()
         {
             if (_memoryManager.AggressiveBufferReturn)

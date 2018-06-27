@@ -59,7 +59,7 @@ namespace Spreads.Serialization
 
             if (format == SerializationFormat.Json)
             {
-                var rms = JsonSerializer.SerializeWithOffset(value, DataTypeHeader.Size);
+                var rms = JsonSerializer.SerializeWithOffset(value, DataTypeHeader.Size + 4);
                 rms.Position = 0;
                 var header = new DataTypeHeader
                 {
