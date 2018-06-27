@@ -63,11 +63,12 @@ namespace Spreads.Serialization
                 rms.Position = 0;
                 var header = new DataTypeHeader
                 {
-                    VersionAndFlags = {
-                                    Version = 0,
-                                    IsBinary = false,
-                                    IsDelta = false,
-                                    IsCompressed = false },
+                    VersionAndFlags = { // NB All defaults
+                                    // Version = 0,
+                                    // IsBinary = false,
+                                    // IsDelta = false,
+                                    // IsCompressed = false
+                                    },
                     TypeEnum = VariantHelper<T>.TypeEnum
                 };
                 rms.WriteAsPtr(header);
@@ -91,7 +92,7 @@ namespace Spreads.Serialization
                 {
                     rms.Position = 0;
                     rms.CopyTo(compressor);
-                    compressor.Close();
+                    compressor.Dispose();
                 }
 
                 rms.Dispose();
@@ -101,9 +102,10 @@ namespace Spreads.Serialization
                 {
                     VersionAndFlags =
                     {
-                        Version = 0,
-                        IsBinary = false,
-                        IsDelta = false,
+                        // NB Do not assign defaults
+                        // Version = 0,
+                        // IsBinary = false,
+                        // IsDelta = false,
                         IsCompressed = true
                     },
                     TypeEnum = VariantHelper<T>.TypeEnum
@@ -235,7 +237,7 @@ namespace Spreads.Serialization
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static unsafe int Read<T>(IntPtr ptr, out T value)
         {
-            var payloadSize = ReadUnaligned<int>((void*)(ptr + 4));
+            var payloadSize = ReadUnaligned<int>((void*)(ptr + DataTypeHeader.Size));
             var header = ReadUnaligned<DataTypeHeader>((void*)ptr);
 
             if (header.VersionAndFlags.IsBinary)
@@ -253,28 +255,41 @@ namespace Spreads.Serialization
 
             if (!header.VersionAndFlags.IsCompressed)
             {
-                // ReSharper disable once AssignNullToNotNullAttribute
-                var stream = new UnmanagedMemoryStream((byte*)(ptr + 8), payloadSize);
-                value = JsonSerializer.Deserialize<T>(stream);
-                return payloadSize + 8;
+                var buffer = BufferPool<byte>.Rent(payloadSize);
+                CopyBlockUnaligned(ref buffer[0], ref *(byte*)(ptr + DataTypeHeader.Size + 4), (uint)payloadSize);
+                var rms = RecyclableMemoryStream.Create(RecyclableMemoryStreamManager.Default, null,
+                    payloadSize, buffer, payloadSize);
+                value = JsonSerializer.Deserialize<T>(rms);
+                rms.Dispose();
+                return payloadSize + DataTypeHeader.Size + 4;
             }
             else
             {
-                // ReSharper disable once AssignNullToNotNullAttribute
-                var comrpessedStream = new UnmanagedMemoryStream((byte*)(ptr + 8), payloadSize);
-                RecyclableMemoryStream decompressedStream =
-                    RecyclableMemoryStreamManager.Default.GetStream();
-
-                using (var decompressor = new DeflateStream(comrpessedStream, CompressionMode.Decompress, true))
-                {
-                    decompressor.CopyTo(decompressedStream);
-                    decompressor.Close();
-                }
-                comrpessedStream.Dispose();
-                decompressedStream.Position = 0;
-                value = JsonSerializer.Deserialize<T>(decompressedStream);
-                return payloadSize + 8;
+                return ReadJsonCompressed(ptr, out value, payloadSize);
             }
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static unsafe int ReadJsonCompressed<T>(IntPtr ptr, out T value, int payloadSize)
+        {
+            var buffer = BufferPool<byte>.Rent(payloadSize);
+            CopyBlockUnaligned(ref buffer[0], ref *(byte*) (ptr + DataTypeHeader.Size + 4), (uint) payloadSize);
+            var comrpessedStream = RecyclableMemoryStream.Create(RecyclableMemoryStreamManager.Default, null,
+                payloadSize, buffer, payloadSize);
+
+            RecyclableMemoryStream decompressedStream =
+                RecyclableMemoryStreamManager.Default.GetStream();
+
+            using (var decompressor = new DeflateStream(comrpessedStream, CompressionMode.Decompress, true))
+            {
+                decompressor.CopyTo(decompressedStream);
+                decompressor.Dispose();
+            }
+
+            comrpessedStream.Dispose();
+            decompressedStream.Position = 0;
+            value = JsonSerializer.Deserialize<T>(decompressedStream);
+            return payloadSize + DataTypeHeader.Size + 4;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

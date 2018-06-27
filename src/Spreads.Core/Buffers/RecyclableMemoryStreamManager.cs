@@ -240,7 +240,12 @@ namespace Spreads.Buffers
         /// Whether to save callstacks for stream allocations. This can help in debugging.
         /// It should NEVER be turned on generally in production.
         /// </summary>
-        public bool GenerateCallStacks { get; set; }
+        public bool GenerateCallStacks
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get;
+            set;
+        }
 
         /// <summary>
         /// Whether dirty buffers can be immediately returned to the buffer pool. E.g. when GetBuffer() is called on
@@ -409,13 +414,17 @@ namespace Spreads.Buffers
                 return;
             }
 
-            foreach (var block in blocks)
+            if (blocks.Count > 0)
             {
-                if (block == null || block.Length != BlockSize)
+                foreach (var block in blocks)
                 {
-                    ThrowHelper.ThrowArgumentException("blocks contains buffers that are not BlockSize in length");
+                    if (block == null || block.Length != BlockSize)
+                    {
+                        ThrowHelper.ThrowArgumentException("blocks contains buffers that are not BlockSize in length");
+                    }
+
+                    BufferPool<byte>.Return(block, false);
                 }
-                BufferPool<byte>.Return(block, true);
             }
 
             ReportUsageReport(0, 0, LargePoolInUseSize, LargePoolFreeSize);

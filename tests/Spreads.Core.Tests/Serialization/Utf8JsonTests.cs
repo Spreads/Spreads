@@ -27,7 +27,7 @@ namespace Spreads.Core.Tests.Serialization
             public double Dbl { get; set; }
 
             public double Dbl1 { get; set; }
-            //public bool Boo { get; set; }
+            public bool Boo { get; set; }
         }
 
         [Test, Explicit("long running")]
@@ -47,11 +47,11 @@ namespace Spreads.Core.Tests.Serialization
                     Num2 = i,
                     Str = i.ToString(),
                     Str1 = ((double)i + 1 / (double)(i + 1)).ToString(),
-                    //Boo = i % 2 == 0
+                    Boo = i % 2 == 0
                 };
             }
 
-            for (int r = 0; r < 30; r++)
+            for (int r = 0; r < 20; r++)
             {
                 using (Benchmark.Run("Utf8Json.NuGet", count))
                 {
@@ -59,7 +59,7 @@ namespace Spreads.Core.Tests.Serialization
 
                     for (int i = 0; i < count; i++)
                     {
-                        var stream = RecyclableMemoryStreamManager.Default.GetStream();
+                        var stream = RecyclableMemoryStreamManager.Default.GetStream(null, 1000);
                         Utf8Json.JsonSerializer.Serialize(stream, values[i]);
                         Utf8Json.JsonSerializer.Deserialize<TestValue>(stream);
                         lenSum += stream.Length;

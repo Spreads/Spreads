@@ -365,7 +365,7 @@ namespace Spreads.Buffers
             get
             {
                 CheckDisposed();
-                return CapacityPrivate;
+                return CapacityInternal;
             }
             set
             {
@@ -374,7 +374,7 @@ namespace Spreads.Buffers
             }
         }
 
-        private int CapacityPrivate
+        internal int CapacityInternal
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
@@ -408,6 +408,15 @@ namespace Spreads.Buffers
             }
         }
 
+        internal long LengthInternal
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get
+            {
+                return _length;
+            }
+        }
+
         private long _position;
 
         /// <summary>
@@ -436,6 +445,20 @@ namespace Spreads.Buffers
                     throw new ArgumentOutOfRangeException("value", "value cannot be more than " + MaxStreamLength);
                 }
 
+                _position = (int)value;
+            }
+        }
+
+        internal long PositionInternal
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get
+            {
+                return _position;
+            }
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            set
+            {
                 _position = (int)value;
             }
         }
@@ -791,6 +814,23 @@ namespace Spreads.Buffers
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal void SetLengthInternal(long value)
+        {
+            if (value < 0 || value > MaxStreamLength)
+            {
+                ThrowHelper.ThrowArgumentOutOfRangeException("value must be non-negative and at most " + MaxStreamLength);
+            }
+
+            EnsureCapacity((int)value);
+
+            _length = (int)value;
+            if (_position > value)
+            {
+                _position = (int)value;
+            }
+        }
+
         /// <summary>
         /// Sets the position to the offset from the seek location
         /// </summary>
@@ -877,32 +917,22 @@ namespace Spreads.Buffers
 
         public struct ChunksEnumerable : IEnumerable<ArraySegment<byte>>
         {
-            public readonly bool IsSingleChunk;
-
             private RecyclableMemoryStream _rms;
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public ChunksEnumerable(RecyclableMemoryStream rms)
             {
                 _rms = rms;
-                IsSingleChunk = (_rms._largeBuffer != null || _rms._blocks.Count == 1) && _rms._length > 0;
             }
 
-            [Obsolete("Hide from API")]
-            public byte[] SingleChunk
-            {
-                [MethodImpl(MethodImplOptions.AggressiveInlining)]
-                get { return IsSingleChunk ? _rms._largeBuffer ?? _rms._blocks[0] : Array.Empty<byte>(); }
-            }
-
-            [Obsolete("Hide from API")]
+            [Obsolete("Hide API")]
             public byte[] LargeBuffer
             {
                 [MethodImpl(MethodImplOptions.AggressiveInlining)]
                 get { return _rms._largeBuffer; }
             }
 
-            [Obsolete("Hide from API")]
+            [Obsolete("Hide API")]
             public List<byte[]> RawChunks
             {
                 [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -1003,6 +1033,23 @@ namespace Spreads.Buffers
             }
         }
 
+        [Obsolete("Hide API")]
+        public bool IsSingleChunk
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get
+            {
+                return (_largeBuffer != null || _blocks.Count == 1) && _length > 0;
+            }
+        }
+
+        [Obsolete("Hide API")]
+        public byte[] SingleChunk
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return IsSingleChunk ? _largeBuffer ?? _blocks[0] : null; }
+        }
+
         /// <summary>
         /// Iterate over all internal chunks as ArraySegments without copying data
         /// </summary>
@@ -1018,11 +1065,10 @@ namespace Spreads.Buffers
 
         public override bool TryGetBuffer(out ArraySegment<byte> buffer)
         {
-            var chunks = Chunks;
-            if (chunks.IsSingleChunk)
+            if (IsSingleChunk)
             {
 #pragma warning disable 618
-                buffer = new ArraySegment<byte>(chunks.SingleChunk, 0, checked((int)_length));
+                buffer = new ArraySegment<byte>(SingleChunk, 0, checked((int)_length));
 #pragma warning restore 618
                 return true;
             }
@@ -1121,7 +1167,7 @@ namespace Spreads.Buffers
             }
             else
             {
-                while (CapacityPrivate < newCapacity)
+                while (CapacityInternal < newCapacity)
                 {
                     _blocks.Add((_memoryManager.GetBlock()));
                 }

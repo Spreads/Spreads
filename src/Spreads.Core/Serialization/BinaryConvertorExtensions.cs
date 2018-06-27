@@ -26,20 +26,35 @@ namespace Spreads.Serialization
             {
                 ThrowHelper.ThrowInvalidOperationException("This method should only be used for writing fixed-size types to a stream");
             }
-            // NB do not use a buffer pool here but instead use a thread-static buffer
-            // that will grow to maximum size of a type. Fixed-size types are usually small.
-            // Take/return is more expensive than the work we do with the pool here.
 
-            var rm = Buffers.BufferPool.StaticBufferMemory;
+            if (stream is RecyclableMemoryStream rms && rms.IsSingleChunk && rms.CapacityInternal - rms.PositionInternal > size)
+            {
+                WriteUnaligned(ref rms.SingleChunk[rms.PositionInternal], value);
+                if (rms.PositionInternal + size > rms.LengthInternal)
+                {
+                    rms.SetLengthInternal(rms.PositionInternal + size);
+                }
+                else
+                {
+                    rms.PositionInternal = rms.PositionInternal + size;
+                }
+            }
+            else
+            {
+                // NB do not use a buffer pool here but instead use a thread-static buffer
+                // that will grow to maximum size of a type. Fixed-size types are usually small.
+                // Take/return is more expensive than the work we do with the pool here.
 
-            //var ownedBuffer = Buffers.BufferPool.StaticBuffer.pi;
-            //var buffer = ownedBuffer.Memory;
+                var rm = Buffers.BufferPool.StaticBufferMemory;
 
-            WriteUnaligned(rm.Pointer, value);
+                //var ownedBuffer = Buffers.BufferPool.StaticBuffer.pi;
+                //var buffer = ownedBuffer.Memory;
 
-            // TODO typecheck stream and use faster methods
-            stream.Write(BufferPool.StaticBuffer.Array, 0, size);
+                WriteUnaligned(rm.Pointer, value);
 
+                // TODO typecheck stream and use faster methods
+                stream.Write(BufferPool.StaticBuffer.Array, 0, size);
+            }
             // NB this is not needed as long as converter.Write guarantees overwriting all Size bytes.
             // //Array.Clear(_buffer, 0, size);
             return size;
@@ -73,12 +88,20 @@ namespace Spreads.Serialization
         {
             if (stream is RecyclableMemoryStream rms)
             {
-                var position = 0;
-                foreach (var segment in rms.Chunks)
+                if (rms.IsSingleChunk)
                 {
-                    CopyBlockUnaligned(ref AddByteOffset(ref destination, (IntPtr)position),
-                        ref segment.Array[segment.Offset], checked((uint)segment.Count));
-                    position += segment.Count;
+                    CopyBlockUnaligned(ref destination,
+                        ref rms.SingleChunk[0], checked((uint)rms.LengthInternal));
+                }
+                else
+                {
+                    var position = 0;
+                    foreach (var segment in rms.Chunks)
+                    {
+                        CopyBlockUnaligned(ref AddByteOffset(ref destination, (IntPtr)position),
+                            ref segment.Array[segment.Offset], checked((uint)segment.Count));
+                        position += segment.Count;
+                    }
                 }
             }
             else
@@ -93,14 +116,14 @@ namespace Spreads.Serialization
             stream.Position = 0;
             var buffer = BufferPool.StaticBuffer.Array.Length >= stream.Length
                 ? BufferPool.StaticBuffer.Array
-                : BufferPool<byte>.Rent(checked((int) stream.Length));
+                : BufferPool<byte>.Rent(checked((int)stream.Length));
             var position = 0;
 
             int length;
             while ((length = stream.Read(buffer, 0, buffer.Length)) > 0)
             {
-                CopyBlockUnaligned(ref AddByteOffset(ref destination, (IntPtr) position),
-                    ref buffer[0], checked((uint) length));
+                CopyBlockUnaligned(ref AddByteOffset(ref destination, (IntPtr)position),
+                    ref buffer[0], checked((uint)length));
                 position += length;
             }
 

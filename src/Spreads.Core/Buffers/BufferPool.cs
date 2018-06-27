@@ -74,14 +74,26 @@ namespace Spreads.Buffers
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
-                if (_threadStaticBuffer != null) { return _threadStaticBuffer; }
+                if (_threadStaticBuffer != null)
+                {
+                    return _threadStaticBuffer;
+                }
 
-                _threadStaticBuffer = OwnedPooledArray<byte>.Create(new byte[Settings.ThreadStaticPinnedBufferSize]); // BufferPool<byte>.RentOwnedPooledArray(StaticBufferSize);
-                _threadStaticBuffer._referenceCount = int.MinValue;
-                // NB Pin in LOH if ThreadStaticPinnedBufferSize > 85k, limit impact on compaction (see Slab in Kestrel)
-                _threadStaticMemory = new RetainedMemory<byte>(_threadStaticBuffer.Memory);
-                return _threadStaticBuffer;
+                return CreateThreadStaticBuffer();
             }
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static OwnedPooledArray<byte> CreateThreadStaticBuffer()
+        {
+            _threadStaticBuffer =
+                OwnedPooledArray<byte>.Create(
+                    new byte[Settings
+                        .ThreadStaticPinnedBufferSize]); // BufferPool<byte>.RentOwnedPooledArray(StaticBufferSize);
+            _threadStaticBuffer._referenceCount = int.MinValue;
+            // NB Pin in LOH if ThreadStaticPinnedBufferSize > 85k, limit impact on compaction (see Slab in Kestrel)
+            _threadStaticMemory = new RetainedMemory<byte>(_threadStaticBuffer.Memory);
+            return _threadStaticBuffer;
         }
 
         internal static RetainedMemory<byte> StaticBufferMemory

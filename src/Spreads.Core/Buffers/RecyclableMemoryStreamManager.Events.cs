@@ -24,6 +24,7 @@
 // THE SOFTWARE.
 // ---------------------------------------------------------------------
 
+using System.Diagnostics;
 using System.Diagnostics.Tracing;
 
 namespace Spreads.Buffers
@@ -48,6 +49,7 @@ namespace Spreads.Buffers
             }
 
             [Event(1, Level = EventLevel.Verbose)]
+            [Conditional("TRACE_RMS")]
             public void MemoryStreamCreated(long id, string tag, int requestedSize)
             {
                 if (IsEnabled(EventLevel.Verbose, EventKeywords.None))
@@ -57,6 +59,7 @@ namespace Spreads.Buffers
             }
 
             [Event(2, Level = EventLevel.Verbose)]
+            [Conditional("TRACE_RMS")]
             public void MemoryStreamDisposed(long id, string tag)
             {
                 if (IsEnabled(EventLevel.Verbose, EventKeywords.None))
@@ -66,6 +69,7 @@ namespace Spreads.Buffers
             }
 
             [Event(3, Level = EventLevel.Critical)]
+            [Conditional("TRACE_RMS")]
             public void MemoryStreamDoubleDispose(long id, string tag, string allocationStack, string disposeStack1,
                                                   string disposeStack2)
             {
@@ -77,6 +81,7 @@ namespace Spreads.Buffers
             }
 
             [Event(4, Level = EventLevel.Error)]
+            [Conditional("TRACE_RMS")]
             public void MemoryStreamFinalized(long id, string tag, string allocationStack)
             {
                 if (IsEnabled())
@@ -86,6 +91,7 @@ namespace Spreads.Buffers
             }
 
             [Event(5, Level = EventLevel.Verbose)]
+            [Conditional("TRACE_RMS")]
             public void MemoryStreamToArray(long id, string tag, string stack, int size)
             {
                 if (IsEnabled(EventLevel.Verbose, EventKeywords.None))
@@ -95,6 +101,7 @@ namespace Spreads.Buffers
             }
 
             [Event(6, Level = EventLevel.Informational)]
+            [Conditional("TRACE_RMS")]
             public void MemoryStreamManagerInitialized(int blockSize, int largeBufferMultiple, int maximumBufferSize)
             {
                 if (IsEnabled())
@@ -104,6 +111,7 @@ namespace Spreads.Buffers
             }
 
             [Event(7, Level = EventLevel.Verbose)]
+            [Conditional("TRACE_RMS")]
             public void MemoryStreamNewBlockCreated(long smallPoolInUseBytes)
             {
                 if (IsEnabled(EventLevel.Verbose, EventKeywords.None))
@@ -113,6 +121,7 @@ namespace Spreads.Buffers
             }
 
             [Event(8, Level = EventLevel.Verbose)]
+            [Conditional("TRACE_RMS")]
             public void MemoryStreamNewLargeBufferCreated(int requiredSize, long largePoolInUseBytes)
             {
                 if (IsEnabled(EventLevel.Verbose, EventKeywords.None))
@@ -122,6 +131,7 @@ namespace Spreads.Buffers
             }
 
             [Event(9, Level = EventLevel.Verbose)]
+            [Conditional("TRACE_RMS")]
             public void MemoryStreamNonPooledLargeBufferCreated(int requiredSize, string tag, string allocationStack)
             {
                 if (IsEnabled(EventLevel.Verbose, EventKeywords.None))
@@ -131,6 +141,7 @@ namespace Spreads.Buffers
             }
 
             [Event(10, Level = EventLevel.Warning)]
+            [Conditional("TRACE_RMS")]
             public void MemoryStreamDiscardBuffer(MemoryStreamBufferType bufferType, string tag,
                                                   MemoryStreamDiscardReason reason)
             {
@@ -141,6 +152,7 @@ namespace Spreads.Buffers
             }
 
             [Event(11, Level = EventLevel.Error)]
+            [Conditional("TRACE_RMS")]
             public void MemoryStreamOverCapacity(int requestedCapacity, long maxCapacity, string tag,
                                                  string allocationStack)
             {
