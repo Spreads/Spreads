@@ -54,30 +54,37 @@ namespace Spreads.Serialization
                 {
                     return size;
                 }
-                Trace.TraceWarning($"Cannot use binary format {format.ToString()} to serialize type {typeof(T).Name}");
             }
 
+            return SizeOfSlow(value, out temporaryStream, format);
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static int SizeOfSlow<T>(T value, out MemoryStream temporaryStream, SerializationFormat format)
+        {
             if (format == SerializationFormat.Json)
             {
                 var rms = JsonSerializer.SerializeWithOffset(value, DataTypeHeader.Size + 4);
                 rms.Position = 0;
                 var header = new DataTypeHeader
                 {
-                    VersionAndFlags = { // NB All defaults
-                                    // Version = 0,
-                                    // IsBinary = false,
-                                    // IsDelta = false,
-                                    // IsCompressed = false
-                                    },
+                    VersionAndFlags =
+                    {
+                        // NB All defaults
+                        // Version = 0,
+                        // IsBinary = false,
+                        // IsDelta = false,
+                        // IsCompressed = false
+                    },
                     TypeEnum = VariantHelper<T>.TypeEnum
                 };
                 rms.WriteAsPtr(header);
 
-                rms.WriteAsPtr(checked((int)rms.Length - 8));
+                rms.WriteAsPtr(checked((int) rms.Length - 8));
 
                 rms.Position = 0;
                 temporaryStream = rms;
-                return checked((int)rms.Length);
+                return checked((int) rms.Length);
             }
             else
             {
@@ -86,7 +93,7 @@ namespace Spreads.Serialization
                 // uncompressed
                 var rms = JsonSerializer.SerializeWithOffset(value, 0);
                 var compressedStream =
-                    RecyclableMemoryStreamManager.Default.GetStream(null, checked((int)rms.Length));
+                    RecyclableMemoryStreamManager.Default.GetStream(null, checked((int) rms.Length));
                 compressedStream.WriteAsPtr(0L);
                 using (var compressor = new DeflateStream(compressedStream, CompressionLevel.Optimal, true))
                 {
@@ -111,10 +118,10 @@ namespace Spreads.Serialization
                     TypeEnum = VariantHelper<T>.TypeEnum
                 };
                 compressedStream.WriteAsPtr(header);
-                compressedStream.WriteAsPtr(checked((int)compressedStream.Length - 8));
+                compressedStream.WriteAsPtr(checked((int) compressedStream.Length - 8));
                 compressedStream.Position = 0;
                 temporaryStream = compressedStream;
-                return (checked((int)compressedStream.Length));
+                return (checked((int) compressedStream.Length));
             }
         }
 
@@ -246,9 +253,16 @@ namespace Spreads.Serialization
                 return TypeHelper<T>.Read(ptr, out value);
             }
 
+            return ReadSlow(ptr, out value, header, payloadSize);
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static unsafe int ReadSlow<T>(IntPtr ptr, out T value, DataTypeHeader header, int payloadSize)
+        {
             if (header.VersionAndFlags.Version != 0)
             {
-                ThrowHelper.ThrowNotImplementedException("Only version 0 is supported for unknown types that are serialized as JSON");
+                ThrowHelper.ThrowNotImplementedException(
+                    "Only version 0 is supported for unknown types that are serialized as JSON");
                 value = default;
                 return -1;
             }
@@ -256,7 +270,7 @@ namespace Spreads.Serialization
             if (!header.VersionAndFlags.IsCompressed)
             {
                 var buffer = BufferPool<byte>.Rent(payloadSize);
-                CopyBlockUnaligned(ref buffer[0], ref *(byte*)(ptr + DataTypeHeader.Size + 4), (uint)payloadSize);
+                CopyBlockUnaligned(ref buffer[0], ref *(byte*) (ptr + DataTypeHeader.Size + 4), (uint) payloadSize);
                 var rms = RecyclableMemoryStream.Create(RecyclableMemoryStreamManager.Default, null,
                     payloadSize, buffer, payloadSize);
                 value = JsonSerializer.Deserialize<T>(rms);
