@@ -228,7 +228,14 @@ namespace Spreads
 
             var moved = _cursor.MoveAt(key, direction);
 
-            if (moved && ApplyPredicates())
+            if (!moved)
+            {
+                // if not moved at all then regardless of the direction
+                // we do not have values to filter.
+                return false;
+            }
+
+            if (ApplyPredicates())
             {
                 // done with true
                 State = CursorState.Moving;
