@@ -397,7 +397,7 @@ namespace Spreads.Serialization
         }
 
         /// <summary>
-        /// Returns binary size of the value
+        /// Returns binary size of the value with header
         /// </summary>
         /// <param name="value"></param>
         /// <param name="memoryStream"></param>

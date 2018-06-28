@@ -38,7 +38,7 @@ namespace Spreads.Buffers
         {
             Memory = memory;
             _memoryHandle = memory.Pin();
-#if DEBUG
+#if DETECT_LEAKS
             _finalizeChecker = new PanicOnFinalize();
 #endif
         }
@@ -47,7 +47,7 @@ namespace Spreads.Buffers
         {
             Memory = memory;
             _memoryHandle = handle;
-#if DEBUG
+#if DETECT_LEAKS
             _finalizeChecker = new PanicOnFinalize();
 #endif
         }
@@ -122,7 +122,7 @@ namespace Spreads.Buffers
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Dispose()
         {
-#if DEBUG
+#if DETECT_LEAKS
             _finalizeChecker.Dispose();
 #endif
             _memoryHandle.Dispose();
@@ -132,13 +132,13 @@ namespace Spreads.Buffers
         /// <summary>
         /// Increment the underlying OwnedBuffer reference count and return a copy of this preserved memory.
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public RetainedMemory<T> Clone()
         {
             return new RetainedMemory<T>(Memory);
         }
 
-#if DEBUG
-
+#if DETECT_LEAKS
         internal class PanicOnFinalize : IDisposable
         {
             public bool Disposed;

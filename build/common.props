@@ -17,7 +17,7 @@
         <PublicSign Condition=" '$(OS)' != 'Windows_NT' ">true</PublicSign>
         <AssemblyOriginatorKeyFile>..\..\tools\SpreadsKey.snk</AssemblyOriginatorKeyFile>
         <DelaySign>false</DelaySign>
-        <!--<DebugType>embedded</DebugType>-->
+        <DebugType>embedded</DebugType>
         <DebugSymbols>true</DebugSymbols>
     </PropertyGroup>
 
