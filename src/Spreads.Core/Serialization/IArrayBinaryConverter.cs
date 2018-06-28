@@ -7,7 +7,7 @@ namespace Spreads.Serialization
     {
         byte Version { get; }
 
-        int SizeOf(in TElement[] map, int valueOffset, int valueCount, out MemoryStream temporaryStream,
+        int SizeOf(in TElement[] value, int valueOffset, int valueCount, out MemoryStream temporaryStream,
             SerializationFormat format = SerializationFormat.Binary);
 
         int Write(in TElement[] value, int valueOffset, int valueCount, IntPtr pinnedDestination,

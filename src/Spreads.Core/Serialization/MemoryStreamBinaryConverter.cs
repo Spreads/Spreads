@@ -15,11 +15,11 @@ namespace Spreads.Serialization
         public bool IsFixedSize => false;
         public int Size => -1;
 
-        public int SizeOf(in MemoryStream map, out MemoryStream temporaryStream, SerializationFormat format = SerializationFormat.Binary)
+        public int SizeOf(in MemoryStream value, out MemoryStream temporaryStream, SerializationFormat format = SerializationFormat.Binary)
         {
-            if (map.Length > int.MaxValue) throw new ArgumentOutOfRangeException(nameof(temporaryStream), "Memory stream is too large");
+            if (value.Length > int.MaxValue) throw new ArgumentOutOfRangeException(nameof(temporaryStream), "Memory stream is too large");
             temporaryStream = null;
-            return checked((int)map.Length + 8);
+            return checked((int)value.Length + 8);
         }
 
         public unsafe int Write(in MemoryStream value, IntPtr pinnedDestination, MemoryStream temporaryStream = null, SerializationFormat format = SerializationFormat.Binary)

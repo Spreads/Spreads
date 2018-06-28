@@ -56,12 +56,12 @@ namespace Spreads.Serialization
         /// possible to calculate serialized bytes length without actually performing serialization.
         /// The stream temporaryStream contains a header and its length is equal to the returned value.
         /// </summary>
-        /// <param name="map">A value to serialize.</param>
+        /// <param name="value">A value to serialize.</param>
         /// <param name="temporaryStream">A stream a value is serialized into if it is not possible to calculate serialized buffer size
         /// without actually performing serialization.</param>
         /// <param name="format">Preferred serialization format.</param>
         /// <returns></returns>
-        int SizeOf(in T map, out MemoryStream temporaryStream, SerializationFormat format = SerializationFormat.Binary);
+        int SizeOf(in T value, out MemoryStream temporaryStream, SerializationFormat format = SerializationFormat.Binary);
 
         /// <summary>
         /// Write serialized value to the buffer at offset if there is enough capacity.

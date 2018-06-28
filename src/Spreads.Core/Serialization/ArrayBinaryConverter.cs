@@ -41,10 +41,10 @@ namespace Spreads.Serialization
         public byte Version => 0;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public int SizeOf(in TElement[] map, int valueOffset, int valueCount, out MemoryStream temporaryStream,
+        public int SizeOf(in TElement[] value, int valueOffset, int valueCount, out MemoryStream temporaryStream,
             SerializationFormat format = SerializationFormat.Binary)
         {
-            if ((uint)valueOffset + (uint)valueCount > (uint)map.Length)
+            if ((uint)valueOffset + (uint)valueCount > (uint)value.Length)
             {
                 ThrowHelper.ThrowArgumentOutOfRangeException();
             }
@@ -61,14 +61,14 @@ namespace Spreads.Serialization
 
                     if (format == SerializationFormat.BinaryLz4 || format == SerializationFormat.BinaryZstd)
                     {
-                        return CompressedBlittableArrayBinaryConverter<TElement>.Instance.SizeOf(map, valueOffset,
+                        return CompressedBlittableArrayBinaryConverter<TElement>.Instance.SizeOf(value, valueOffset,
                             valueCount, out temporaryStream, format);
                     }
                 }
             }
 
-            temporaryStream = null;
-            return -1;
+            return BinarySerializer.SizeOf(new ArraySegment<TElement>(value, valueOffset, valueCount), out temporaryStream,
+                format);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -148,15 +148,8 @@ namespace Spreads.Serialization
             {
                 ThrowHelper.ThrowInvalidOperationException("ByteArrayBinaryConverter work only with version 0");
             }
-            if (!header.VersionAndFlags.IsBinary)
-            {
-                ThrowHelper.ThrowInvalidOperationException("ByteArrayBinaryConverter work only with binary data");
-                value = default;
-                count = default;
-                return -1;
-            }
-
-            if (ItemSize > 0)
+            
+            if (header.VersionAndFlags.IsBinary && ItemSize > 0)
             {
                 if (!header.VersionAndFlags.IsCompressed)
                 {
@@ -209,8 +202,17 @@ namespace Spreads.Serialization
                 }
             }
 
+
+            var readLen = BinarySerializer.Read<TElement[]>(ptr, out var arr);
+            if (readLen > 0 && arr != null)
+            {
+                value = arr;
+                count = arr.Length;
+                return readLen;
+            }
+
             ThrowHelper.ThrowInvalidOperationException(
-                "ArrayBinaryConverter must be called only on blittable types");
+                "ArrayBinaryConverter cannot read array");
             value = default;
             count = 0;
             return default;
@@ -219,9 +221,9 @@ namespace Spreads.Serialization
         private static readonly int ItemSize = TypeHelper<TElement>.Size;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public int SizeOf(in TElement[] map, out MemoryStream temporaryStream, SerializationFormat format = SerializationFormat.Binary)
+        public int SizeOf(in TElement[] value, out MemoryStream temporaryStream, SerializationFormat format = SerializationFormat.Binary)
         {
-            return SizeOf(in map, 0, map.Length, out temporaryStream, format);
+            return SizeOf(in value, 0, value.Length, out temporaryStream, format);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

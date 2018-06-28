@@ -40,7 +40,7 @@ namespace Spreads.Serialization
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public unsafe int SizeOf(in T map, out MemoryStream temporaryStream, SerializationFormat format = SerializationFormat.Binary)
+        public unsafe int SizeOf(in T value, out MemoryStream temporaryStream, SerializationFormat format = SerializationFormat.Binary)
         {
             if ((int)format >= 100)
             {
@@ -54,15 +54,15 @@ namespace Spreads.Serialization
             // headers
             var size = 8 + 14;
             // NB for regular keys, use keys array length
-            var keysSize = ArrayBinaryConverter<TKey>.Instance.SizeOf(map.Keys, 0, map.IsRegular ? map.Keys.Length : map.Length, out var keysStream, format);
-            var valuesSize = ArrayBinaryConverter<TValue>.Instance.SizeOf(map.Values, 0, map.Length, out var valuesStream, format);
+            var keysSize = ArrayBinaryConverter<TKey>.Instance.SizeOf(value.Keys, 0, value.IsRegular ? value.Keys.Length : value.Length, out var keysStream, format);
+            var valuesSize = ArrayBinaryConverter<TValue>.Instance.SizeOf(value.Values, 0, value.Length, out var valuesStream, format);
 
             Debug.Assert(keysStream != null && valuesStream != null);
 
             size += keysSize;
             size += valuesSize;
 
-            if (map.Length == 0)
+            if (value.Length == 0)
             {
                 temporaryStream = default;
                 return size; // empty map
@@ -75,10 +75,10 @@ namespace Spreads.Serialization
             var position = 8;
 
             // 14 - map header
-            WriteUnaligned(ref AddByteOffset(ref destination, (IntPtr)position), map.Length);
-            WriteUnaligned(ref AddByteOffset(ref destination, (IntPtr)position + 4), map.Version);
-            WriteUnaligned(ref AddByteOffset(ref destination, (IntPtr)position + 4 + 8), (byte)(map.IsRegular ? 1 : 0));
-            WriteUnaligned(ref AddByteOffset(ref destination, (IntPtr)position + 4 + 8 + 1), (byte)(map.IsCompleted ? 1 : 0));
+            WriteUnaligned(ref AddByteOffset(ref destination, (IntPtr)position), value.Length);
+            WriteUnaligned(ref AddByteOffset(ref destination, (IntPtr)position + 4), value.Version);
+            WriteUnaligned(ref AddByteOffset(ref destination, (IntPtr)position + 4 + 8), (byte)(value.IsRegular ? 1 : 0));
+            WriteUnaligned(ref AddByteOffset(ref destination, (IntPtr)position + 4 + 8 + 1), (byte)(value.IsCompleted ? 1 : 0));
 
             position = position + 14;
             if (keysStream != null)
@@ -89,7 +89,7 @@ namespace Spreads.Serialization
             {
                 fixed (byte* keysPtr = &buffer[position])
                 {
-                    ArrayBinaryConverter<TKey>.Instance.Write(map.Keys, 0, map.IsRegular ? map.Keys.Length : map.Length,
+                    ArrayBinaryConverter<TKey>.Instance.Write(value.Keys, 0, value.IsRegular ? value.Keys.Length : value.Length,
                         (IntPtr)keysPtr, null, format);
                 }
             }
@@ -103,7 +103,7 @@ namespace Spreads.Serialization
             {
                 fixed (byte* valuesPtr = &buffer[position])
                 {
-                    ArrayBinaryConverter<TValue>.Instance.Write(map.Values, 0, map.Length,
+                    ArrayBinaryConverter<TValue>.Instance.Write(value.Values, 0, value.Length,
                         (IntPtr)valuesPtr, null, format);
                 }
             }

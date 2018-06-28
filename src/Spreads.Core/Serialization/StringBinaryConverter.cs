@@ -18,11 +18,11 @@ namespace Spreads.Serialization
         public bool IsFixedSize => false;
         public int Size => 0;
 
-        public unsafe int SizeOf(in string map, out MemoryStream temporaryStream, SerializationFormat format = SerializationFormat.Binary)
+        public unsafe int SizeOf(in string value, out MemoryStream temporaryStream, SerializationFormat format = SerializationFormat.Binary)
         {
-            fixed (char* charPtr = map)
+            fixed (char* charPtr = value)
             {
-                var totalLength = 8 + Encoding.UTF8.GetByteCount(charPtr, map.Length);
+                var totalLength = 8 + Encoding.UTF8.GetByteCount(charPtr, value.Length);
                 temporaryStream = null;
                 return totalLength;
             }
