@@ -3,6 +3,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 using Spreads.Serialization;
+using Spreads.Serialization.Utf8Json;
 using System;
 using System.Globalization;
 using System.Runtime.CompilerServices;
@@ -26,6 +27,7 @@ namespace Spreads.DataTypes
     /// </remarks>
     [StructLayout(LayoutKind.Sequential, Pack = 8, Size = 8)]
     [Serialization(BlittableSize = 8)]
+    [JsonFormatter(typeof(Formatter))]
     public readonly struct Price : IComparable<Price>, IEquatable<Price>, IConvertible
     {
         static Price()
@@ -472,5 +474,36 @@ namespace Spreads.DataTypes
         }
 
         #endregion IConvertible
+
+        internal class Formatter : IJsonFormatter<Price>
+        {
+            public void Serialize(ref JsonWriter writer, Price value, IJsonFormatterResolver formatterResolver)
+            {
+                writer.WriteBeginArray();
+
+                writer.WriteInt64(value.Mantissa);
+
+                writer.WriteValueSeparator();
+
+                writer.WriteInt32(value.Exponent);
+
+                writer.WriteEndArray();
+            }
+
+            public Price Deserialize(ref JsonReader reader, IJsonFormatterResolver formatterResolver)
+            {
+                reader.ReadIsBeginArrayWithVerify();
+
+                var mantissa = reader.ReadInt64();
+
+                reader.ReadIsValueSeparatorWithVerify();
+
+                var exponent = reader.ReadInt32();
+
+                reader.ReadIsEndArrayWithVerify();
+
+                return new Price(exponent, mantissa); ;
+            }
+        }
     }
 }

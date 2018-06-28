@@ -2,8 +2,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-using Newtonsoft.Json;
 using Spreads.Serialization;
+using Spreads.Serialization.Utf8Json;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -15,8 +15,6 @@ using System.Runtime.Serialization;
 
 namespace Spreads.DataTypes
 {
-    [DataContract]
-    [JsonObject(MemberSerialization.OptOut)]
     [Serialization(PreferBlittable = true)] // when both types are blittable the struct is written in one operation
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     public readonly struct TaggedKeyValue<TKey, TValue> : IEquatable<TaggedKeyValue<TKey, TValue>>, IBinaryConverter<TaggedKeyValue<TKey, TValue>>
@@ -28,27 +26,21 @@ namespace Spreads.DataTypes
 
         // for blittable case all this is written in one operation,
         // for var size case will manually write with two headers
-        [JsonIgnore]
         [IgnoreDataMember]
         private readonly byte _keyTypeEnum;
 
-        [JsonIgnore]
         [IgnoreDataMember]
         private readonly byte _valueTypeEnum;
 
-        [JsonIgnore]
         [IgnoreDataMember]
         private readonly byte _reserved;
 
-        [JsonProperty("t")]
         [DataMember(Name = "t", Order = 0)]
         public readonly byte Tag;
 
-        [JsonProperty("k")]
         [DataMember(Name = "k", Order = 1)]
         public readonly TKey Key;
 
-        [JsonProperty("v")]
         [DataMember(Name = "v", Order = 2)]
         public readonly TValue Value;
 
@@ -82,7 +74,7 @@ namespace Spreads.DataTypes
                 temporaryStream = default;
                 return FixedSizeStatic;
             }
-            
+
             throw new NotImplementedException();
         }
 
@@ -107,7 +99,6 @@ namespace Spreads.DataTypes
             throw new NotImplementedException();
         }
 
-        [JsonIgnore]
         [IgnoreDataMember]
         public bool IsFixedSize
         {
@@ -115,7 +106,6 @@ namespace Spreads.DataTypes
             get { return IsFixedSizeStatic; }
         }
 
-        [JsonIgnore]
         [IgnoreDataMember]
         public int Size
         {
@@ -126,7 +116,6 @@ namespace Spreads.DataTypes
             }
         }
 
-        [JsonIgnore]
         [IgnoreDataMember]
         public byte Version
         {
@@ -164,6 +153,47 @@ namespace Spreads.DataTypes
                 hashCode = (hashCode * 397) ^ EqualityComparer<TValue>.Default.GetHashCode(Value);
                 return hashCode;
             }
+        }
+    }
+
+
+    // NB cannot use an attribute, this is hardcoded in DynamicGenericResolverGetFormatterHelper
+    public class TaggedKeyValueFormatter<TKey, TValue> : IJsonFormatter<TaggedKeyValue<TKey, TValue>>
+    {
+        public void Serialize(ref JsonWriter writer, TaggedKeyValue<TKey, TValue> value, IJsonFormatterResolver formatterResolver)
+        {
+            writer.WriteBeginArray();
+
+            writer.WriteByte(value.Tag);
+
+            writer.WriteValueSeparator();
+
+            formatterResolver.GetFormatter<TKey>().Serialize(ref writer, value.Key, formatterResolver);
+
+            writer.WriteValueSeparator();
+
+            formatterResolver.GetFormatter<TValue>().Serialize(ref writer, value.Value, formatterResolver);
+
+            writer.WriteEndArray();
+        }
+
+        public TaggedKeyValue<TKey, TValue> Deserialize(ref JsonReader reader, IJsonFormatterResolver formatterResolver)
+        {
+            reader.ReadIsBeginArrayWithVerify();
+
+            var tag = reader.ReadByte();
+
+            reader.ReadIsValueSeparatorWithVerify();
+
+            var key = formatterResolver.GetFormatterWithVerify<TKey>().Deserialize(ref reader, formatterResolver);
+
+            reader.ReadIsValueSeparatorWithVerify();
+
+            var value = formatterResolver.GetFormatterWithVerify<TValue>().Deserialize(ref reader, formatterResolver);
+
+            reader.ReadIsEndArrayWithVerify();
+
+            return new TaggedKeyValue<TKey, TValue>(key, value, tag);
         }
     }
 }

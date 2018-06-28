@@ -6,6 +6,7 @@ using NUnit.Framework;
 using Spreads.DataTypes;
 using Spreads.Serialization;
 using System;
+using Spreads.Serialization.Utf8Json;
 
 namespace Spreads.Core.Tests.DataTypes
 {
@@ -28,5 +29,20 @@ namespace Spreads.Core.Tests.DataTypes
             Assert.AreEqual(20 + 4, read);
             Assert.AreEqual(kv, kv1);
         }
+
+        [Test]
+        public void CouldSerializeWithCustomFormatter()
+        {
+            var kv = new TaggedKeyValue<long, double>(DateTime.Now.Ticks, 123.45, 255);
+
+            var bytes = JsonSerializer.Serialize(kv);
+
+            var kv1 = JsonSerializer.Deserialize<TaggedKeyValue<long, double>>(bytes);
+
+            Assert.AreEqual(kv.Tag, kv1.Tag);
+            Assert.AreEqual(kv.Key, kv1.Key);
+            Assert.AreEqual(kv.Value, kv1.Value);
+        }
+
     }
 }
