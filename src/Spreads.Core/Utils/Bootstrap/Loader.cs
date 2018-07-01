@@ -233,7 +233,7 @@ namespace Spreads.Utils.Bootstrap
             if (resource == null)
                 return null;
 
-            string path = ExtractNativeResource<T>(resource);
+            string path = ExtractNativeResource<T>(resource, abi);
             if (path == null)
                 return null;
 
@@ -306,11 +306,43 @@ namespace Spreads.Utils.Bootstrap
             return resourceStream;
         }
 
-        public static string ExtractNativeResource<T>(string resource)
+        public static string ExtractNativeResource<T>(string resource, ABI abi)
         {
             var split = resource.Split('.');
-            // each process will have its own temp folder
-            string path = Path.Combine(Bootstrapper.Instance.TempFolder, split[2] + "." + split[3]);
+            var basePath = AppDomain.CurrentDomain.BaseDirectory;
+            string path;
+            if (!abi.IsWindows())
+            {
+                // On Windows, LoadLibrary makes it available for DllImport
+                // regardless of the location. On Linux, we need to
+                // set LD_LIBRARY_PATH which is not possible to do from
+                // already running app that needs it. Extracting to the current
+                // directory is the simplest thing:
+                // - we do not support WoW64-like thing on Linux even if it exists, only 64 bit on Linux so far
+                // - location should be writable, while /usr/lib and /usr/local/lib are not writeable
+                // - on Windows there was IIS issue - it was reloading every time content changed,
+                // that is why we used temp folder.
+                path = Path.Combine(basePath, split[2] + "." + split[3]);
+                if (File.Exists(path))
+                {
+                    return path;
+                }
+            }
+            else
+            {
+                // On Windows same manages dll could be run from both x32/x64
+                // but LoadLibrary makes P/Invoke "just work" (TM)
+                basePath = Path.Combine(basePath, split[1]);
+                if (!Directory.Exists(basePath))
+                {
+                    Directory.CreateDirectory(basePath);
+                }
+                path = Path.Combine(basePath, split[2] + "." + split[3]);
+                if (File.Exists(path))
+                {
+                    return path;
+                }
+            }
 
             try
             {
@@ -336,8 +368,9 @@ namespace Spreads.Utils.Bootstrap
                 }
                 return path;
             }
-            catch
+            catch (Exception ex)
             {
+                Trace.TraceError(ex.ToString());
                 File.Delete(path);
                 return null;
             }
@@ -402,45 +435,6 @@ namespace Spreads.Utils.Bootstrap
             }
             return path;
         }
-
-        //public static Assembly LoadManagedDll<T>(string name)
-        //{
-        //    // [os/][arch/]name.extension
-        //    var split = name.Split('/');
-        //    string path = null;
-        //    if (split.Length == 1)
-        //    {
-        //        // name.extension
-        //        path = Path.Combine(Bootstrapper.Instance.AppFolder, split[0]);
-        //    }
-        //    else
-        //    {
-        //        throw new ArgumentException("wrong resource name");
-        //    }
-
-        //    Assembly assembly = typeof(T).GetTypeInfo().Assembly;
-        //    using (Stream resourceStream = assembly.GetManifestResourceStream(name))
-        //    {
-        //        using (DeflateStream deflateStream = new DeflateStream(resourceStream, CompressionMode.Decompress))
-        //        {
-        //            using (
-        //                MemoryStream ms = new MemoryStream())
-        //            {
-        //                byte[] buffer = new byte[1048576];
-        //                int bytesRead;
-        //                do
-        //                {
-        //                    bytesRead = deflateStream.Read(buffer, 0, buffer.Length);
-        //                    if (bytesRead != 0)
-        //                        ms.Write(buffer, 0, bytesRead);
-        //                }
-        //                while (bytesRead != 0);
-        //                var bytes = ms.ToArray();
-        //                return Assembly.Load(bytes);
-        //            }
-        //        }
-        //    }
-        //}
 
         public static void CompressResource(string path)
         {
