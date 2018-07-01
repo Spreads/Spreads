@@ -1,10 +1,12 @@
 ﻿using Spreads.Utils;
 using System;
 using System.Collections.Concurrent;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Sources;
+using Spreads.Serialization;
 
 namespace Spreads.Core.Run
 {
@@ -243,10 +245,10 @@ namespace Spreads.Core.Run
         private static void Main(string[] args)
         {
             // TestVTS().Wait();
-            var test = new Spreads.Core.Tests.Threading.SpinningThreadpoolTests();
-            test.ThreadPoolPerformanceBenchmark();
+            //var test = new Spreads.Core.Tests.Threading.SpinningThreadpoolTests();
+            //test.ThreadPoolPerformanceBenchmark();
             //BinaryLz4();
-            //BinaryZstd();
+            Zstd();
             Console.ReadLine();
         }
 
@@ -283,36 +285,36 @@ namespace Spreads.Core.Run
 
         //}
 
-        //static unsafe void Zstd()
-        //{
-        //    var rng = new Random();
+        static unsafe void Zstd()
+        {
+            var rng = new Random();
 
-        //    var dest = (Memory<byte>)new byte[1000000];
-        //    var buffer = dest;
-        //    var handle = buffer.Pin();
-        //    var ptr = (IntPtr)handle.Pointer;
+            var dest = (Memory<byte>)new byte[1000000];
+            var buffer = dest;
+            var handle = buffer.Pin();
+            var ptr = (IntPtr)handle.Pointer;
 
-        //    var source = new decimal[10000];
-        //    for (var i = 0; i < 10000; i++)
-        //    {
-        //        source[i] = i;
-        //    }
+            var source = new decimal[10000];
+            for (var i = 0; i < 10000; i++)
+            {
+                source[i] = i;
+            }
 
-        //    var len = BinarySerializer.Write(source, ref buffer, 0, null,
-        //        SerializationFormat.BinaryZstd);
+            var len = BinarySerializer.Write(source, ref buffer, null,
+                SerializationFormat.BinaryZstd);
 
-        //    Console.WriteLine($"Useful: {source.Length * 16}");
-        //    Console.WriteLine($"Total: {len}");
+            Console.WriteLine($"Useful: {source.Length * 16}");
+            Console.WriteLine($"Total: {len}");
 
-        //    var destination = new decimal[10000];
+            var destination = new decimal[10000];
 
-        //    var len2 = BinarySerializer.Read(buffer, out destination);
+            var len2 = BinarySerializer.Read(buffer, out destination);
 
-        //    if (source.SequenceEqual(destination))
-        //    {
-        //        Console.WriteLine("BinaryZstd OK");
-        //    }
-        //    handle.Dispose();
-        //}
+            if (source.SequenceEqual(destination))
+            {
+                Console.WriteLine("BinaryZstd OK");
+            }
+            handle.Dispose();
+        }
     }
 }

@@ -57,6 +57,8 @@ Project("{6EC3EE1D-3C4E-46DD-8F32-0CC8E7565705}") = "Spreads.Collections", "src\
 EndProject
 Project("{6EC3EE1D-3C4E-46DD-8F32-0CC8E7565705}") = "Spreads.Collections.Deedle.Tests", "tests\Spreads.Collections.Deedle.Tests\Spreads.Collections.Deedle.Tests.fsproj", "{AF72A63A-67B4-4975-81B3-6C9407AC8B3A}"
 EndProject
+Project("{E53339B2-1760-4266-BCC7-CA923CBCF16C}") = "docker-compose", "docker-compose.dcproj", "{4082C087-A86C-4DFD-99C8-CEFA98C71FEA}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -195,6 +197,18 @@ Global
 		{AF72A63A-67B4-4975-81B3-6C9407AC8B3A}.Release|x64.Build.0 = Release|Any CPU
 		{AF72A63A-67B4-4975-81B3-6C9407AC8B3A}.Release|x86.ActiveCfg = Release|Any CPU
 		{AF72A63A-67B4-4975-81B3-6C9407AC8B3A}.Release|x86.Build.0 = Release|Any CPU
+		{4082C087-A86C-4DFD-99C8-CEFA98C71FEA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4082C087-A86C-4DFD-99C8-CEFA98C71FEA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4082C087-A86C-4DFD-99C8-CEFA98C71FEA}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{4082C087-A86C-4DFD-99C8-CEFA98C71FEA}.Debug|x64.Build.0 = Debug|Any CPU
+		{4082C087-A86C-4DFD-99C8-CEFA98C71FEA}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{4082C087-A86C-4DFD-99C8-CEFA98C71FEA}.Debug|x86.Build.0 = Debug|Any CPU
+		{4082C087-A86C-4DFD-99C8-CEFA98C71FEA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4082C087-A86C-4DFD-99C8-CEFA98C71FEA}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4082C087-A86C-4DFD-99C8-CEFA98C71FEA}.Release|x64.ActiveCfg = Release|Any CPU
+		{4082C087-A86C-4DFD-99C8-CEFA98C71FEA}.Release|x64.Build.0 = Release|Any CPU
+		{4082C087-A86C-4DFD-99C8-CEFA98C71FEA}.Release|x86.ActiveCfg = Release|Any CPU
+		{4082C087-A86C-4DFD-99C8-CEFA98C71FEA}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

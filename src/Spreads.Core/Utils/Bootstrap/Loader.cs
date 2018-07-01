@@ -50,7 +50,7 @@ namespace Spreads.Utils.Bootstrap
         [DllImport("kernel32", SetLastError = true, CharSet = CharSet.Ansi, ExactSpelling = true)]
         private static extern IntPtr GetProcAddress(IntPtr library, string function);
 
-        [DllImport("kernel32.dll", CharSet = CharSet.Ansi, SetLastError = true)]
+        [DllImport("kernel32", CharSet = CharSet.Ansi, SetLastError = true)]
         public static extern bool SetDllDirectory(string lpPathName);
 
         public IntPtr LastError()
@@ -98,21 +98,89 @@ namespace Spreads.Utils.Bootstrap
 
         protected abstract int GetDLOpenFlags();
 
-        [DllImport("libdl", CallingConvention = CallingConvention.Cdecl)]
-        private static extern IntPtr dlopen([MarshalAs(UnmanagedType.LPStr)] string path, int flags);
+        private static IntPtr dlopen(string path, int flags)
+        {
+            try
+            {
+                return UnixLibraryLoaderNative.dlopen(path, flags);
+            }
+            catch
+            {
+                return UnixLibraryLoaderNative2.dlopen(path, flags);
+            }
+        }
 
-        [DllImport("libdl", CallingConvention = CallingConvention.Cdecl)]
-        private static extern IntPtr dlsym(IntPtr library, [MarshalAs(UnmanagedType.LPStr)] string function);
+        private static IntPtr dlsym(IntPtr library, string function)
+        {
+            try
+            {
+                return UnixLibraryLoaderNative.dlsym(library, function);
+            }
+            catch
+            {
+                return UnixLibraryLoaderNative2.dlsym(library, function);
+            }
+        }
 
-        [DllImport("libdl", CallingConvention = CallingConvention.Cdecl)]
-        private static extern int dlclose(IntPtr library);
+        private static int dlclose(IntPtr library)
+        {
+            try
+            {
+                return UnixLibraryLoaderNative.dlclose(library);
+            }
+            catch
+            {
+                return UnixLibraryLoaderNative2.dlclose(library);
+            }
+        }
 
-        [DllImport("libdl", CallingConvention = CallingConvention.Cdecl)]
-        private static extern IntPtr dlerror();
+        private static IntPtr dlerror()
+        {
+            try
+            {
+                return UnixLibraryLoaderNative.dlerror();
+            }
+            catch
+            {
+                return UnixLibraryLoaderNative2.dlerror();
+            }
+        }
 
         public IntPtr LastError()
         {
             return UnixLibraryLoader.dlerror();
+        }
+
+        private static class UnixLibraryLoaderNative
+        {
+            [DllImport("libdl", CallingConvention = CallingConvention.Cdecl)]
+            public static extern IntPtr dlopen([MarshalAs(UnmanagedType.LPStr)] string path, int flags);
+
+            [DllImport("libdl", CallingConvention = CallingConvention.Cdecl)]
+            public static extern IntPtr dlsym(IntPtr library, [MarshalAs(UnmanagedType.LPStr)] string function);
+
+            [DllImport("libdl", CallingConvention = CallingConvention.Cdecl)]
+            public static extern int dlclose(IntPtr library);
+
+            [DllImport("libdl", CallingConvention = CallingConvention.Cdecl)]
+            public static extern IntPtr dlerror();
+        }
+
+        // see https://github.com/dotnet/corefx/issues/17135
+        // for FreeBSD may need another option with 'libc'
+        private static class UnixLibraryLoaderNative2
+        {
+            [DllImport("libdl.so.2", CallingConvention = CallingConvention.Cdecl)]
+            public static extern IntPtr dlopen([MarshalAs(UnmanagedType.LPStr)] string path, int flags);
+
+            [DllImport("libdl.so.2", CallingConvention = CallingConvention.Cdecl)]
+            public static extern IntPtr dlsym(IntPtr library, [MarshalAs(UnmanagedType.LPStr)] string function);
+
+            [DllImport("libdl.so.2", CallingConvention = CallingConvention.Cdecl)]
+            public static extern int dlclose(IntPtr library);
+
+            [DllImport("libdl.so.2", CallingConvention = CallingConvention.Cdecl)]
+            public static extern IntPtr dlerror();
         }
     }
 

@@ -1,0 +1,9 @@
+version: '3.4'
+
+services:
+  spreads.core.run:
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+    ports:
+      - "80"
+
