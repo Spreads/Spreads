@@ -56,6 +56,7 @@ namespace Spreads.DataTypes
             if (typeof(T) == typeof(UUID)) return TypeEnum.UUID;
 
             if (typeof(T) == typeof(Variant)) return TypeEnum.Variant;
+            if (typeof(T) == typeof(Json)) return TypeEnum.Json;
             if (typeof(T) == typeof(string)) return TypeEnum.String;
             if (typeof(T) == typeof(ErrorCode)) return TypeEnum.ErrorCode;
             if (typeof(T).IsArray) return TypeEnum.Array;

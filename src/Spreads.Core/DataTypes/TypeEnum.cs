@@ -84,7 +84,7 @@ namespace Spreads.DataTypes
         FixedBinary = DataTypes.Variant.KnownSmallTypesLimit, // 64
 
         // Variable size types
-
+        Json = 65,
         String = 66,
         Binary = 67,
 
