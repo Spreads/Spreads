@@ -1,6 +1,7 @@
 ﻿using Spreads.Utils;
 using System;
 using System.Collections.Concurrent;
+using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
@@ -244,6 +245,13 @@ namespace Spreads.Core.Run
 
         private static void Main(string[] args)
         {
+
+            var dirs = Directory.GetFileSystemEntries("/localdata", "*", SearchOption.AllDirectories);
+            foreach (var dir in dirs)
+            {
+                Console.WriteLine(dir);
+            }
+
             // TestVTS().Wait();
             //var test = new Spreads.Core.Tests.Threading.SpinningThreadpoolTests();
             //test.ThreadPoolPerformanceBenchmark();
