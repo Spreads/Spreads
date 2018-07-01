@@ -390,7 +390,6 @@ namespace Spreads.Core.Tests
             var arr = new double[len];
 
             var buffer = new byte[len * 8];
-            var fixedBuffer = new FixedBuffer(buffer);
 
             var unmanagedMemory = Marshal.AllocHGlobal(len * 8);
             var directBuffer = new DirectBuffer(len * 8, unmanagedMemory);
@@ -398,7 +397,6 @@ namespace Spreads.Core.Tests
             for (int i = 0; i < len; i++)
             {
                 arr[i] = i;
-                fixedBuffer.WriteDouble(i * 8, i);
                 directBuffer.WriteDouble(i * 8, i);
             }
             var list = new List<double>(arr);
@@ -551,37 +549,6 @@ namespace Spreads.Core.Tests
             {
                 foreach (var idx in idxs)
                 {
-                    sum += fixedBuffer.ReadDouble(idx * 8);
-                }
-            }
-            sw.Stop();
-            Console.WriteLine($"FixedBuffer: {sum}");
-            Console.WriteLine($"Elapsed {sw.ElapsedMilliseconds}");
-            Console.WriteLine($"Mops {(double)len * maxRounds / sw.ElapsedMilliseconds * 0.0001}");
-            Console.WriteLine("---");
-
-            sw.Restart();
-            sum = 0.0;
-            var ifb = fixedBuffer as IDirectBuffer;
-            for (int rounds = 0; rounds < maxRounds; rounds++)
-            {
-                foreach (var idx in idxs)
-                {
-                    sum += ifb.ReadDouble(idx * 8);
-                }
-            }
-            sw.Stop();
-            Console.WriteLine($"IFixedBuffer: {sum}");
-            Console.WriteLine($"Elapsed {sw.ElapsedMilliseconds}");
-            Console.WriteLine($"Mops {(double)len * maxRounds / sw.ElapsedMilliseconds * 0.0001}");
-            Console.WriteLine("---");
-
-            sw.Restart();
-            sum = 0.0;
-            for (int rounds = 0; rounds < maxRounds; rounds++)
-            {
-                foreach (var idx in idxs)
-                {
                     sum += directBuffer.ReadDouble(idx * 8);
                 }
             }
@@ -591,21 +558,7 @@ namespace Spreads.Core.Tests
             Console.WriteLine($"Mops {(double)len * maxRounds / sw.ElapsedMilliseconds * 0.0001}");
             Console.WriteLine("---");
 
-            sw.Restart();
-            sum = 0.0;
-            var idb = directBuffer as IDirectBuffer;
-            for (int rounds = 0; rounds < maxRounds; rounds++)
-            {
-                foreach (var idx in idxs)
-                {
-                    sum += idb.ReadDouble(idx * 8);
-                }
-            }
-            sw.Stop();
-            Console.WriteLine($"IDirectBuffer: {sum}");
-            Console.WriteLine($"Elapsed {sw.ElapsedMilliseconds}");
-            Console.WriteLine($"Mops {(double)len * maxRounds / sw.ElapsedMilliseconds * 0.0001}");
-            Console.WriteLine("---");
+            
         }
     }
 }

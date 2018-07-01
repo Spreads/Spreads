@@ -12,6 +12,7 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
+using Spreads.Threading;
 
 namespace Spreads
 {
@@ -1280,7 +1281,7 @@ namespace Spreads
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal void NotifyUpdate()
+        public void NotifyUpdate()
         {
             var cursors = _cursors;
             if (cursors != null)
@@ -1289,57 +1290,21 @@ namespace Spreads
                 {
                     foreach (var kvp in dict)
                     {
-                        DoNotifyUpdateSingleSync(kvp.Key);
+                        SpinningThreadPool.Default.UnsafeQueueCompletableItem(DoNotifyUpdateSingleSync, kvp.Key, true);
                     }
                 }
                 else
                 {
-                    DoNotifyUpdateSingleSync((IAsyncStateMachineEx)cursors);
+                    SpinningThreadPool.Default.UnsafeQueueCompletableItem(DoNotifyUpdateSingleSync, cursors, true);
                 }
             }
         }
-
-        //        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        //        private static void DoNotifyUpdateSingleAsync(IAsyncStateMachineEx cursor, bool setSkipped)
-        //        {
-        //            //if (cursor.IsLocked == 1)
-        //            //{
-        //            //    // try again later
-        //            //    if (setSkipped)
-        //            //    {
-        //            //        cursor.HasSkippedUpdate = true;
-        //            //    }
-        //            //    return;
-        //            //}
-
-        //            cursor.TryComplete(true);
-        //            DoNotifyUpdateSingleSync(cursor);
-
-        ////#if NETCOREAPP2_1
-        ////            ThreadPool.QueueUserWorkItem(_cb, (object)cursor, true);
-        ////#else
-        ////            // This now works but very hacky and fragile, see corefx's 27445 discussion
-        ////            // var a = item.Item1;
-        ////            // var wcb = Unsafe.As<Action<object>, WaitCallback>(ref a);
-        ////            ThreadPool.QueueUserWorkItem(_cb, cursor);
-        ////#endif
-        //        }
-
-        //#if NETCOREAPP2_1
-        //        private static Action<object> _cb = DoNotifyUpdateSingleSync;
-        //#else
-        //        private static WaitCallback _cb = new WaitCallback(DoNotifyUpdateSingleSync);
-        //#endif
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static void DoNotifyUpdateSingleSync(object obj)
         {
             var cursor = (IAsyncStateMachineEx)obj;
             cursor.TryComplete(true);
-            //if (cursor.HasSkippedUpdate)
-            //{
-            //    DoNotifyUpdateSingleAsync(cursor, false);
-            //}
         }
 
         #endregion Synchronization

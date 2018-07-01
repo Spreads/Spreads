@@ -1,6 +1,4 @@
-﻿using System.Linq.Expressions;
-using Spreads.Blosc;
-using Spreads.Serialization;
+﻿using Spreads.Serialization;
 
 namespace Spreads
 {
@@ -11,7 +9,7 @@ namespace Spreads
     {
         // TODO find best values
         /// <summary>
-        /// 
+        ///
         /// </summary>
         public const int SliceMemoryAlignment = 8;
 
@@ -21,9 +19,9 @@ namespace Spreads
         internal class AdditionalCorrectnessChecks
         {
             // Unless _doAdditionalCorrectnessChecks is changed from default before this internal
-            // class is ever referenced from any code path it will have default 
-            // value and this field will be JIT compile-time constant. f set to false checks such as 
-            // if(Settings.AdditionalCorrectnessChecks.DoChecks) will be 
+            // class is ever referenced from any code path it will have default
+            // value and this field will be JIT compile-time constant. f set to false checks such as
+            // if(Settings.AdditionalCorrectnessChecks.DoChecks) will be
             // completely eliminated by JIT.
             public static readonly bool DoChecks = _doAdditionalCorrectnessChecks;
         }
@@ -47,7 +45,7 @@ namespace Spreads
         private static bool _doAdditionalCorrectnessChecks = true;
 
         /// <summary>
-        /// 
+        ///
         /// </summary>
         public static bool DoAdditionalCorrectnessChecks
         {
@@ -55,12 +53,15 @@ namespace Spreads
             set => _doAdditionalCorrectnessChecks = value;
         }
 
-        internal static int SCMDefaultChunkLength = 4096;
+        // ReSharper disable once InconsistentNaming
+        internal static int SCMDefaultChunkLength = 8192;
 
         // See e.g. https://gregoryszorc.com/blog/2017/03/07/better-compression-with-zstandard/
         internal static int _lz4CompressionLevel = 4;
+
         internal static int _zstdCompressionLevel = 5;
 
+        // ReSharper disable once InconsistentNaming
         public static int LZ4CompressionLevel
         {
             get => _lz4CompressionLevel;

@@ -11,6 +11,7 @@ using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using Spreads.Blosc;
+using Spreads.Serialization.Utf8Json;
 using Xunit.Abstractions;
 
 namespace Spreads.Core.Tests.Serialization
@@ -189,8 +190,8 @@ namespace Spreads.Core.Tests.Serialization
             Assert.Equal(2, newInts[0]);
             Assert.Equal(3, newInts[1]);
 
-            var bsonBytes = BinarySerializer.Json.Serialize(segment);
-            var newInts2 = BinarySerializer.Json.Deserialize<int[]>(bsonBytes);
+            var bsonBytes = JsonSerializer.Serialize(segment);
+            var newInts2 = JsonSerializer.Deserialize<int[]>(bsonBytes);
 
             Assert.Equal(2, newInts2[0]);
             Assert.Equal(3, newInts2[1]);
@@ -266,9 +267,9 @@ namespace Spreads.Core.Tests.Serialization
         public void CouldSerializeIMessage()
         {
             var ping = new PingMessage();
-            var ms = BinarySerializer.Json.Serialize(ping);
+            var ms = JsonSerializer.Serialize(ping);
 
-            var ping2 = BinarySerializer.Json.Deserialize<IMessage>(ms);
+            var ping2 = JsonSerializer.Deserialize<IMessage>(ms);
 
             Assert.Equal("ping", ping2.Type);
             Assert.Equal(ping.Id, ping2.Id);

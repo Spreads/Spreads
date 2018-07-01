@@ -84,6 +84,12 @@ namespace Spreads.Serialization
 
         private static readonly Dictionary<Type, int> SizeDelegateCache = new Dictionary<Type, int>();
 
+        // used by reflection below
+        private static int Size<T>()
+        {
+            return TypeHelper<T>.Size;
+        }
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static int GetSize(Type ty)
         {
