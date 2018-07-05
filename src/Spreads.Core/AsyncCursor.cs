@@ -2,6 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+using Spreads.Utils;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -14,8 +15,10 @@ using System.Threading.Tasks.Sources;
 
 namespace Spreads
 {
-    internal class BaseCursorAsync
+    internal class AsyncCursor
     {
+        protected static IDisposable _nullSubscriptionSentinel = new DummyDisposable();
+
         // TODO Event tracing or conditional
         private static long _syncCount;
 
@@ -78,18 +81,10 @@ namespace Spreads
         protected static readonly Action<object> SAvailableSentinel = s => throw new InvalidOperationException("Called available sentinel");
     }
 
-    internal interface IAsyncStateMachineEx
-    {
-        //long IsLocked { get; }
-        //bool HasSkippedUpdate { get; set; }
-
-        void TryComplete(bool runAsync);
-    }
-
-    internal sealed class BaseCursorAsync<TKey, TValue, TCursor> : BaseCursorAsync,
-        ISpecializedCursor<TKey, TValue, TCursor>,
-        IValueTaskSource<bool>, IAsyncStateMachineEx
-        where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
+    internal sealed class AsyncCursor<TKey, TValue, TCursor> : AsyncCursor,
+         ISpecializedCursor<TKey, TValue, TCursor>,
+         IValueTaskSource<bool>, IAsyncCompletable
+         where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
     {
         // TODO Pooling, but see #84
 
@@ -110,30 +105,17 @@ namespace Spreads
 
         private long _isLocked = 1L;
         private bool _hasSkippedUpdate;
+        private IDisposable _subscription;
 
-        //public long IsLocked
-        //{
-        //    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        //    get { return Volatile.Read(ref _isLocked); }
-        //}
-
-        //public bool HasSkippedUpdate
-        //{
-        //    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        //    get { return _hasSkippedUpdate; }
-        //    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        //    set { _hasSkippedUpdate = value; }
-        //}
-
-        public BaseCursorAsync(Func<TCursor> cursorFactory) : this(cursorFactory())
+        public AsyncCursor(Func<TCursor> cursorFactory) : this(cursorFactory())
         { }
 
-        public BaseCursorAsync(TCursor cursor)
+        public AsyncCursor(TCursor cursor)
         {
             _innerCursor = cursor;
             if (_innerCursor.Source == null)
             {
-                Console.WriteLine("Source is null");
+                Environment.FailFast("Source is null");
             }
 
             _continuation = SAvailableSentinel;
@@ -539,7 +521,7 @@ namespace Spreads
 
         private Action<object> _cb = (th) =>
         {
-            ((BaseCursorAsync<TKey, TValue, TCursor>)th).SetCompletionAndInvokeContinuation();
+            ((AsyncCursor<TKey, TValue, TCursor>)th).SetCompletionAndInvokeContinuation();
         };
 
         private void SetCompletionAndInvokeContinuation()
@@ -552,6 +534,15 @@ namespace Spreads
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ValueTask<bool> MoveNextAsync()
         {
+            if (_subscription == null)
+            {
+                _subscription = _innerCursor.AsyncCompleter?.Subscribe(this) ?? _nullSubscriptionSentinel;
+            }
+            if (ReferenceEquals(_subscription, _nullSubscriptionSentinel))
+            {
+                // NB last chance, no async support
+                return new ValueTask<bool>(_innerCursor.MoveNext());
+            }
             return GetMoveNextAsyncValueTask();
         }
 
@@ -643,9 +634,35 @@ namespace Spreads
             get { return _innerCursor.CurrentBatch; }
         }
 
-        public ISeries<TKey, TValue> Source => _innerCursor.Source;
+        public ISeries<TKey, TValue> Source
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return _innerCursor.Source; }
+        }
 
-        public bool IsContinuous => _innerCursor.IsContinuous;
+        public bool IsContinuous
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return _innerCursor.IsContinuous; }
+        }
+
+        public bool IsIndexed
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return _innerCursor.IsIndexed; }
+        }
+
+        public bool IsCompleted
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return _innerCursor.IsCompleted; }
+        }
+
+        public IAsyncCompleter AsyncCompleter
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return _innerCursor.AsyncCompleter; }
+        }
 
         public TCursor Initialize()
         {
@@ -659,7 +676,7 @@ namespace Spreads
 
         ICursor<TKey, TValue> ICursor<TKey, TValue>.Clone()
         {
-            return new BaseCursorAsync<TKey, TValue, TCursor>(_innerCursor.Clone());
+            return new AsyncCursor<TKey, TValue, TCursor>(_innerCursor.Clone());
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -668,13 +685,10 @@ namespace Spreads
             return _innerCursor.TryGetValue(key, out value);
         }
 
-        public void Dispose()
-        {
-            Dispose(true);
-        }
-
         private void Dispose(bool disposing)
         {
+            _subscription?.Dispose();
+
             if (!disposing) return;
 
             Reset();
@@ -683,6 +697,17 @@ namespace Spreads
             // via Source.GetCursor(). This must be clearly mentioned in cursor specification
             // and be a part of contracts test suite
             // NB don't do this: _innerCursor = default(TCursor);
+        }
+
+        public void Dispose()
+        {
+            GC.SuppressFinalize(this);
+            Dispose(true);
+        }
+
+        ~AsyncCursor()
+        {
+            Dispose(false);
         }
 
         public Task DisposeAsync()

@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 namespace Spreads.Cursors.Internal
 {
     internal struct SpanOpImpl<TKey, TValue, TResult, TSpanOp, TCursor> :
-        ICursorSeries<TKey, TResult, SpanOpImpl<TKey, TValue, TResult, TSpanOp, TCursor>>
+        ISpecializedCursor<TKey, TResult, SpanOpImpl<TKey, TValue, TResult, TSpanOp, TCursor>>
         where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
         where TSpanOp : struct, ISpanOp<TKey, TValue, TResult, TCursor> //, ICursorOnlineOp2<TKey, TValue, TResult, TCursor>
     {
@@ -160,17 +160,43 @@ namespace Spreads.Cursors.Internal
         }
 
         /// <inheritdoc />
-        public ISeries<TKey, TResult> CurrentBatch => null;
+        public ISeries<TKey, TResult> CurrentBatch
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return null; }
+        }
 
         /// <inheritdoc />
-        public KeyComparer<TKey> Comparer => _cursor.Comparer;
+        public KeyComparer<TKey> Comparer
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return _cursor.Comparer; }
+        }
 
         object IEnumerator.Current => Current;
 
         /// <summary>
         /// LagImpl cursor is discrete even if its input cursor is continuous.
         /// </summary>
-        public bool IsContinuous => false;
+        public bool IsContinuous
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return false; }
+        }
+
+        /// <inheritdoc />
+        public bool IsIndexed
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return _cursor.Source.IsIndexed; }
+        }
+
+        /// <inheritdoc />
+        public bool IsCompleted
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return _cursor.Source.IsCompleted; }
+        }
 
         /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -692,30 +718,13 @@ namespace Spreads.Cursors.Internal
             throw new NotSupportedException();
         }
 
+        public IAsyncCompleter AsyncCompleter
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return _cursor.AsyncCompleter; }
+        }
+
         #endregion ICursor members
-
-        #region ICursorSeries members
-
-        /// <inheritdoc />
-        public bool IsIndexed => _cursor.Source.IsIndexed;
-
-        /// <inheritdoc />
-        public bool IsCompleted
-        {
-            // NB this property is repeatedly called from MNA
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return _cursor.Source.IsCompleted; }
-        }
-
-        /// <inheritdoc />
-        public ValueTask<bool> Updated
-        {
-            // NB this property is repeatedly called from MNA
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return _cursor.Source.Updated; }
-        }
-
-        #endregion ICursorSeries members
 
         public Task DisposeAsync()
         {

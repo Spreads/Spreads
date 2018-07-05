@@ -322,6 +322,12 @@ namespace Spreads.Utils.Bootstrap
                 // - location should be writable, while /usr/lib and /usr/local/lib are not writeable
                 // - on Windows there was IIS issue - it was reloading every time content changed,
                 // that is why we used temp folder.
+
+                // TODO currently need <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+                // otherwise managed dll is in NuGet folder, while native is extracted into local bin
+                // folder. This flag is consistent with donet publish behavior that will place all 
+                // dlls in one place, so it's OK for now.
+
                 path = Path.Combine(basePath, split[2] + "." + split[3]);
                 if (File.Exists(path))
                 {

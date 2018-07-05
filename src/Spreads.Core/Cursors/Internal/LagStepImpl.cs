@@ -10,7 +10,7 @@ namespace Spreads.Cursors.Internal
     // Value is lagged cursor.
 
     internal struct LagStepImpl<TKey, TValue, TCursor> :
-        ICursorSeries<TKey, TCursor, LagStepImpl<TKey, TValue, TCursor>>
+        ISpecializedCursor<TKey, TCursor, LagStepImpl<TKey, TValue, TCursor>>
         where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
     {
         #region Cursor state
@@ -443,12 +443,10 @@ namespace Spreads.Cursors.Internal
             get { return _cursor.Source.IsCompleted; }
         }
 
-        /// <inheritdoc />
-        public ValueTask<bool> Updated
+        public IAsyncCompleter AsyncCompleter
         {
-            // NB this property is repeatedly called from MNA
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return _cursor.Source.Updated; }
+            get { return _cursor.AsyncCompleter; }
         }
 
         #endregion ICursorSeries members

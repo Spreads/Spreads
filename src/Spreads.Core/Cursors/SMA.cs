@@ -14,7 +14,7 @@ using System.Threading.Tasks;
 namespace Spreads
 {
     public struct SMA<TKey, TValue, TCursor> :
-        ICursorSeries<TKey, TValue, SMA<TKey, TValue, TCursor>>
+        ISpecializedCursor<TKey, TValue, SMA<TKey, TValue, TCursor>>
         where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
     {
         #region Cursor state
@@ -166,17 +166,50 @@ namespace Spreads
         }
 
         /// <inheritdoc />
-        public ISeries<TKey, TValue> CurrentBatch => null;
+        public ISeries<TKey, TValue> CurrentBatch
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return null; }
+        }
 
         /// <inheritdoc />
-        public KeyComparer<TKey> Comparer => _cursor.Comparer;
+        public KeyComparer<TKey> Comparer
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return _cursor.Comparer; }
+        }
 
         object IEnumerator.Current => Current;
 
         /// <summary>
         /// Window cursor is discrete even if its input cursor is continuous.
         /// </summary>
-        public bool IsContinuous => false;
+        public bool IsContinuous
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return false; }
+        }
+
+        /// <inheritdoc />
+        public bool IsIndexed
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return _cursor.Source.IsIndexed; }
+        }
+
+        /// <inheritdoc />
+        public bool IsCompleted
+        {
+            // NB this property is repeatedly called from MNA
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return _cursor.Source.IsCompleted; }
+        }
+
+        public IAsyncCompleter AsyncCompleter
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return _cursor.AsyncCompleter; }
+        }
 
         /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -297,28 +330,7 @@ namespace Spreads
 
         #endregion ICursor members
 
-        #region ICursorSeries members
-
-        /// <inheritdoc />
-        public bool IsIndexed => _cursor.Source.IsIndexed;
-
-        /// <inheritdoc />
-        public bool IsCompleted
-        {
-            // NB this property is repeatedly called from MNA
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return _cursor.Source.IsCompleted; }
-        }
-
-        /// <inheritdoc />
-        public ValueTask<bool> Updated
-        {
-            // NB this property is repeatedly called from MNA
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return _cursor.Source.Updated; }
-        }
-
-        #endregion ICursorSeries members
+       
 
         public Task DisposeAsync()
         {

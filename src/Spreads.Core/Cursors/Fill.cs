@@ -12,11 +12,11 @@ using System.Threading.Tasks;
 namespace Spreads
 {
     /// <summary>
-    /// A continuous cursor <see cref="ICursorSeries{TKey,TValue,TCursor}"/> that fills missing values with a given value.
+    /// A continuous cursor <see cref="ISpecializedCursor{TKey,TValue,TCursor}"/> that fills missing values with a given value.
     /// It delegates moves directly to the underlying cursor.
     /// </summary>
     public struct Fill<TKey, TValue, TCursor> :
-        ICursorSeries<TKey, TValue, Fill<TKey, TValue, TCursor>>
+        ISpecializedCursor<TKey, TValue, Fill<TKey, TValue, TCursor>>
         where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
     {
         #region Cursor state
@@ -133,12 +133,40 @@ namespace Spreads
         }
 
         /// <inheritdoc />
-        public KeyComparer<TKey> Comparer => _cursor.Comparer;
+        public KeyComparer<TKey> Comparer
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return _cursor.Comparer; }
+        }
 
         object IEnumerator.Current => Current;
 
         /// <inheritdoc />
-        public bool IsContinuous => true;
+        public bool IsContinuous
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return true; }
+        }
+
+        /// <inheritdoc />
+        public bool IsIndexed
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return _cursor.Source.IsIndexed; }
+        }
+
+        /// <inheritdoc />
+        public bool IsCompleted
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return _cursor.Source.IsCompleted; }
+        }
+
+        public IAsyncCompleter AsyncCompleter
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return _cursor.AsyncCompleter; }
+        }
 
         /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -231,29 +259,6 @@ namespace Spreads
         public TValue Value => _value;
 
         #endregion Custom Properties
-
-        #region ICursorSeries members
-
-        /// <inheritdoc />
-        public bool IsIndexed => _cursor.Source.IsIndexed;
-
-        /// <inheritdoc />
-        public bool IsCompleted
-        {
-            // NB this property is repeatedly called from MNA
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return _cursor.Source.IsCompleted; }
-        }
-
-        /// <inheritdoc />
-        public ValueTask<bool> Updated
-        {
-            // NB this property is repeatedly called from MNA
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return _cursor.Source.Updated; }
-        }
-
-        #endregion ICursorSeries members
 
         public Task DisposeAsync()
         {

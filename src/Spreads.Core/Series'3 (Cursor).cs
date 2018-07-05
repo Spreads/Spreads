@@ -17,9 +17,9 @@ namespace Spreads
 #pragma warning disable 660, 661
 
     // TODO review if we could keep cursor and not initialize every time
-    public struct Series<TKey, TValue, TCursor> : ISpecializedSeries<TKey, TValue, TCursor>
+    public struct Series<TKey, TValue, TCursor> : ISpecializedSeries<TKey, TValue, TCursor>, IAsyncCompleter
 #pragma warning restore 660, 661
-        where TCursor : ICursorSeries<TKey, TValue, TCursor>
+        where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
     {
         // ReSharper disable once InconsistentNaming
         internal readonly TCursor _cursor;
@@ -76,7 +76,7 @@ namespace Spreads
         public ICursor<TKey, TValue> GetCursor()
         {
             // Async support. ICursorSeries implementations do not implement MNA
-            return new BaseCursorAsync<TKey, TValue, TCursor>(_cursor.Initialize());
+            return new AsyncCursor<TKey, TValue, TCursor>(_cursor.Initialize());
         }
 
         /// <inheritdoc />
@@ -93,14 +93,6 @@ namespace Spreads
         TCursor ISpecializedSeries<TKey, TValue, TCursor>.GetCursor()
         {
             return GetEnumerator();
-        }
-
-        /// <inheritdoc />
-        public ValueTask<bool> Updated
-        {
-            // NB this property is repeatedly called from MNA
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return _cursor.Updated; }
         }
 
 
@@ -1120,5 +1112,10 @@ namespace Spreads
         public Series<TKey, TValue, Cursor<TKey, TValue>> Unspecialized => this;
 
         #endregion Implicit cast
+
+        public IDisposable Subscribe(IAsyncCompletable subscriber)
+        {
+            return _cursor.AsyncCompleter?.Subscribe(subscriber);
+        }
     }
 }

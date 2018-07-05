@@ -2,6 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+using Spreads.Threading;
 using Spreads.Utils;
 using System;
 using System.Collections;
@@ -12,7 +13,6 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
-using Spreads.Threading;
 
 namespace Spreads
 {
@@ -961,7 +961,7 @@ namespace Spreads
 #pragma warning disable 660, 661
 
     public abstract class ContainerSeries<TKey, TValue, TCursor> : Series<TKey, TValue>,
-        ISpecializedSeries<TKey, TValue, TCursor>
+        ISpecializedSeries<TKey, TValue, TCursor>, IAsyncCompleter
 #pragma warning restore 660, 661
         where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
     {
@@ -977,7 +977,7 @@ namespace Spreads
 
         internal bool _isReadOnly;
 
-        private object _cursors; // IAsyncStateMachineEx | ConcurrentBag<IAsyncStateMachineEx>
+        private object _cursors; // IAsyncStateMachineEx | ConcurrentDictionary<IAsyncStateMachineEx>
 
         [Obsolete]
         private ICursor<TKey, TValue> _updatedSourceCursor;
@@ -1005,35 +1005,108 @@ namespace Spreads
             {
                 return GetContainerCursor();
             }
+            // NB subscribe from AsyncCursor
+            var c = new AsyncCursor<TKey, TValue, TCursor>(GetContainerCursor());
+            return c;
+        }
 
-            var c = new BaseCursorAsync<TKey, TValue, TCursor>(GetContainerCursor());
+        private class ContainerSubscription : IDisposable
+        {
+            private readonly ContainerSeries<TKey, TValue, TCursor> _container;
+            private readonly WeakReference<IAsyncCompletable> _wr;
 
+            public ContainerSubscription(ContainerSeries<TKey, TValue, TCursor> container, WeakReference<IAsyncCompletable> wr)
+            {
+                _container = container;
+                _wr = wr;
+            }
+
+            public void Dispose(bool disposing)
+            {
+                if (_container._cursors == null)
+                {
+                    ThrowHelper.ThrowInvalidOperationException("Cannot unsubscribe non-subscribed cursor");
+                    return;
+                }
+                else
+                {
+                    if (ReferenceEquals(_container._cursors, _wr))
+                    {
+                        _container.BeforeWrite();
+                        _container._cursors = null;
+                        _container.AfterWrite(false);
+                    }
+                    else if (_container._cursors is ConcurrentDictionary<WeakReference<IAsyncCompletable>, bool> dict)
+                    {
+                        dict.TryRemove(_wr, out _);
+                    }
+                    else
+                    {
+                        ThrowHelper.ThrowInvalidOperationException("Cannot unsubscribe non-subscribed cursor");
+                    }
+                }
+            }
+
+            public void Dispose()
+            {
+                GC.SuppressFinalize(this);
+                Dispose(true);
+            }
+
+            ~ContainerSubscription()
+            {
+                Dispose(false);
+            }
+        }
+
+        public IDisposable Subscribe(IAsyncCompletable subscriber)
+        {
+            WeakReference<IAsyncCompletable> wr = null;
             if (_cursors == null)
             {
                 BeforeWrite();
                 if (_cursors == null)
                 {
-                    _cursors = c;
+                    wr = new WeakReference<IAsyncCompletable>(subscriber);
+                    _cursors = wr;
                 }
                 AfterWrite(false);
             }
             else
             {
-                if (_cursors is ConcurrentDictionary<IAsyncStateMachineEx, bool> dict)
+                if (_cursors is WeakReference<IAsyncCompletable> wr1
+                    && !wr1.TryGetTarget(out var _))
                 {
-                    dict.TryAdd(c, default);
+                    BeforeWrite();
+                    if (!wr1.TryGetTarget(out var _))
+                    {
+                        wr1.SetTarget(subscriber);
+                        wr = wr1;
+                    }
+                    else
+                    {
+                        Subscribe(subscriber);
+                    }
+                    AfterWrite(false);
+                }
+                else if (_cursors is ConcurrentDictionary<WeakReference<IAsyncCompletable>, bool> dict)
+                {
+                    wr = new WeakReference<IAsyncCompletable>(subscriber);
+                    dict.TryAdd(wr, default);
                 }
                 else
                 {
+                    wr = new WeakReference<IAsyncCompletable>(subscriber);
                     BeforeWrite();
-                    var existing = _cursors;
-                    _cursors = new ConcurrentDictionary<IAsyncStateMachineEx, bool>();
-                    ((ConcurrentDictionary<IAsyncStateMachineEx, bool>)_cursors).TryAdd((IAsyncStateMachineEx)existing, default);
-                    ((ConcurrentDictionary<IAsyncStateMachineEx, bool>)_cursors).TryAdd(c, default);
+                    var existing = _cursors as WeakReference<IAsyncCompletable>;
+                    _cursors = new ConcurrentDictionary<WeakReference<IAsyncCompletable>, bool>();
+                    ((ConcurrentDictionary<WeakReference<IAsyncCompletable>, bool>)_cursors).TryAdd(existing, default);
+                    ((ConcurrentDictionary<WeakReference<IAsyncCompletable>, bool>)_cursors).TryAdd(wr, default);
                     AfterWrite(false);
                 }
             }
-            return c;
+
+            return new ContainerSubscription(this, wr);
         }
 
         TCursor ISpecializedSeries<TKey, TValue, TCursor>.GetCursor()
@@ -1286,16 +1359,22 @@ namespace Spreads
             var cursors = _cursors;
             if (cursors != null)
             {
-                if (cursors is ConcurrentDictionary<IAsyncStateMachineEx, bool> dict)
+                if (cursors is ConcurrentDictionary<WeakReference<IAsyncCompletable>, bool> dict)
                 {
                     foreach (var kvp in dict)
                     {
-                        SpinningThreadPool.Default.UnsafeQueueCompletableItem(DoNotifyUpdateSingleSync, kvp.Key, true);
+                        if (kvp.Key.TryGetTarget(out var tg))
+                        {
+                            SpinningThreadPool.Default.UnsafeQueueCompletableItem(DoNotifyUpdateSingleSync, tg, true);
+                        }
                     }
                 }
-                else
+                else if (cursors is WeakReference<IAsyncCompletable> wr)
                 {
-                    SpinningThreadPool.Default.UnsafeQueueCompletableItem(DoNotifyUpdateSingleSync, cursors, true);
+                    if (wr.TryGetTarget(out var tg))
+                    {
+                        SpinningThreadPool.Default.UnsafeQueueCompletableItem(DoNotifyUpdateSingleSync, tg, true);
+                    }
                 }
             }
         }
@@ -1303,8 +1382,8 @@ namespace Spreads
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static void DoNotifyUpdateSingleSync(object obj)
         {
-            var cursor = (IAsyncStateMachineEx)obj;
-            cursor.TryComplete(true);
+            var cursor = (IAsyncCompletable)obj;
+            cursor.TryComplete(false);
         }
 
         #endregion Synchronization

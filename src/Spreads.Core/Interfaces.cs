@@ -7,6 +7,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using JetBrains.Annotations;
 
 namespace Spreads
 {
@@ -69,42 +70,15 @@ namespace Spreads
         IAsyncEnumerator<T> GetAsyncEnumerator();
     }
 
-    [Obsolete]
-    public interface IAsyncNotifier
+    public interface IAsyncCompletable
     {
-        /// <summary>
-        /// False if the underlying collection could be changed, true if the underlying collection is immutable or is complete
-        /// for adding (e.g. after OnCompleted in Rx) or IsCompleted in terms of ICollectio/IDictionary or has fixed keys/values (all 4 definitions are the same).
-        /// </summary>
-        bool IsCompleted { get; }
-
-        /// <summary>
-        /// A ValueTask that is completed when underlying data is changed after the task is accessed.
-        /// Internally used for signaling to async cursors.
-        /// This is a signal to try MoveNext, which gives a definite answer, this task could complete
-        /// when data is not changed (false positive), consumers should not rely on this task
-        /// but spin on it. It means "likely updated or some condition where it is easier to retry moving on consumer side"
-        /// </summary>
-        ValueTask Updated { get; }
+        void TryComplete(bool runAsync);
     }
 
-    [Obsolete]
-    public interface IAsyncNotifier<T>
+    public interface IAsyncCompleter
     {
-        /// <summary>
-        /// False if the underlying collection could be changed, true if the underlying collection is immutable or is complete
-        /// for adding (e.g. after OnCompleted in Rx) or IsCompleted in terms of ICollectio/IDictionary or has fixed keys/values (all 4 definitions are the same).
-        /// </summary>
-        bool IsCompleted { get; }
-
-        /// <summary>
-        /// A ValueTask that is completed when underlying data is changed after the task is accessed.
-        /// Internally used for signaling to async cursors.
-        /// This is a signal to try MoveNext, which gives a definite answer, this task could complete
-        /// when data is not changed (false positive), consumers should not rely on this task
-        /// but spin on it. It means "likely updated or some condition where it is easier to retry moving on consumer side"
-        /// </summary>
-        ValueTask<T> Updated { get; }
+         [CanBeNull]
+         IDisposable Subscribe(IAsyncCompletable subscriber);
     }
 
     /// <summary>
@@ -119,15 +93,6 @@ namespace Spreads
         bool IsCompleted { get; }
 
         /// <summary>
-        /// A ValueTask that is completed when underlying data is changed after the task is accessed.
-        /// Internally used for signaling to async cursors.
-        /// This is a signal to try MoveNext, which gives a definite answer, this task could complete
-        /// when data is not changed (false positive), consumers should not rely on this task
-        /// but spin on it. It means "likely updated or some condition where it is easier to retry moving on consumer side"
-        /// </summary>
-        ValueTask<bool> Updated { get; }
-
-        /// <summary>
         /// If true then elements are placed by some custom order (e.g. order of addition, index) and not sorted by keys.
         /// </summary>
         bool IsIndexed { get; }
@@ -136,7 +101,7 @@ namespace Spreads
         /// Get cursor, which is an advanced enumerator supporting moves to first, last, previous, next, next batch, exact
         /// positions and relative LT/LE/GT/GE moves.
         /// </summary>
-        ICursor<TKey, TValue> GetCursor();       
+        ICursor<TKey, TValue> GetCursor();
 
         KeyComparer<TKey> Comparer { get; }
 
@@ -342,6 +307,18 @@ namespace Spreads
         /// Copy this cursor and position the copy at the same place as this cursor.
         /// </summary>
         new TCursor Clone();
+
+        /// <summary>
+        /// Same as <see cref="ISeries{TKey,TValue}.IsIndexed"/>
+        /// </summary>
+        bool IsIndexed { get; }
+
+        /// <summary>
+        /// Same as <see cref="ISeries{TKey,TValue}.IsCompleted"/>
+        /// </summary>
+        bool IsCompleted { get; }
+
+        [CanBeNull] IAsyncCompleter AsyncCompleter { get; }
     }
 
     /// <summary>

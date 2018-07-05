@@ -17,7 +17,7 @@ namespace Spreads
     /// Map cursor.
     /// </summary>
     public struct Map<TKey, TInput, TResult, TCursor> :
-        ICursorSeries<TKey, TResult, Map<TKey, TInput, TResult, TCursor>>
+        ISpecializedCursor<TKey, TResult, Map<TKey, TInput, TResult, TCursor>>
         where TCursor : ISpecializedCursor<TKey, TInput, TCursor>
     {
         #region Cursor state
@@ -38,7 +38,7 @@ namespace Spreads
 
         #region Constructors
 
-        internal Map(TCursor cursor, Func<TKey, TInput, TResult> selector) : this()
+        internal Map(TCursor cursor, Func<TKey, TInput, TResult> selector) // : this()
         {
             _selector = selector;
             _cursor = cursor;
@@ -138,9 +138,13 @@ namespace Spreads
         }
 
         /// <inheritdoc />
-        public ISeries<TKey, TResult> CurrentBatch => throw new NotSupportedException();
+        public ISeries<TKey, TResult> CurrentBatch => null;
 
-        public CursorState State => _cursor.State;
+        public CursorState State
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return _cursor.State; }
+        }
 
         /// <inheritdoc />
         public KeyComparer<TKey> Comparer => _cursor.Comparer;
@@ -148,7 +152,32 @@ namespace Spreads
         object IEnumerator.Current => Current;
 
         /// <inheritdoc />
-        public bool IsContinuous => _cursor.IsContinuous;
+        public bool IsContinuous
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return _cursor.IsContinuous; }
+        }
+
+        /// <inheritdoc />
+        public bool IsIndexed
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return _cursor.IsIndexed; }
+        }
+
+        /// <inheritdoc />
+        public bool IsCompleted
+        {
+            // NB this property is repeatedly called from MNA
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return _cursor.IsCompleted; }
+        }
+
+        public IAsyncCompleter AsyncCompleter
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return _cursor.AsyncCompleter; }
+        }
 
         /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -238,29 +267,6 @@ namespace Spreads
         public Func<TKey, TInput, TResult> Selector => _selector;
 
         #endregion Custom Properties
-
-        #region ICursorSeries members
-
-        /// <inheritdoc />
-        public bool IsIndexed => _cursor.Source.IsIndexed;
-
-        /// <inheritdoc />
-        public bool IsCompleted
-        {
-            // NB this property is repeatedly called from MNA
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return _cursor.Source.IsCompleted; }
-        }
-
-        /// <inheritdoc />
-        public ValueTask<bool> Updated
-        {
-            // NB this property is repeatedly called from MNA
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return _cursor.Source.Updated; }
-        }
-
-        #endregion ICursorSeries members
 
         public Task DisposeAsync()
         {

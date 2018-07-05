@@ -16,7 +16,7 @@ namespace Spreads
     /// Empty cursor.
     /// </summary>
     public struct Empty<TKey, TValue> :
-        ICursorSeries<TKey, TValue, Empty<TKey, TValue>>
+        ISpecializedCursor<TKey, TValue, Empty<TKey, TValue>>
     {
         #region Lifetime management
 
@@ -174,8 +174,7 @@ namespace Spreads
         /// <inheritdoc />
         public bool IsCompleted => true;
 
-        /// <inheritdoc />
-        public ValueTask<bool> Updated => new ValueTask<bool>(Task.FromException<bool>(new InvalidOperationException("IsCompleted must be checked before accessing Updated property.")));
+        public IAsyncCompleter AsyncCompleter => null;
 
         #endregion ICursorSeries members
 

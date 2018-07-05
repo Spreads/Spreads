@@ -32,7 +32,7 @@ namespace Spreads
     /// <summary>
     /// Unspecialized cursor wrapper. Wraps <see cref="ICursor{TKey,TValue}"/> as <see cref="ISpecializedCursor{TKey,TValue,TCursor}"/>.
     /// </summary>
-    public struct Cursor<TKey, TValue> : ICursorSeries<TKey, TValue, Cursor<TKey, TValue>>
+    public struct Cursor<TKey, TValue> : ISpecializedCursor<TKey, TValue, Cursor<TKey, TValue>>
     {
         private readonly ICursor<TKey, TValue> _cursor;
 
@@ -205,10 +205,12 @@ namespace Spreads
             return _cursor.TryGetValue(key, out value);
         }
 
-        #region ICursorSeries members
-
         /// <inheritdoc />
-        public bool IsIndexed => _cursor.Source.IsIndexed;
+        public bool IsIndexed
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return _cursor.Source.IsIndexed; }
+        }
 
         /// <inheritdoc />
         public bool IsCompleted
@@ -218,16 +220,16 @@ namespace Spreads
             get { return _cursor.Source.IsCompleted; }
         }
 
-        /// <inheritdoc />
-        public ValueTask<bool> Updated
+        public IAsyncCompleter AsyncCompleter
         {
-            // NB this property is repeatedly called from MNA
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return _cursor.Source.Updated; }
+            get { return _cursor.Source as IAsyncCompleter; }
         }
 
-        public CursorState State => _cursor.State;
-
-        #endregion
+        public CursorState State
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return _cursor.State; }
+        }
     }
 }

@@ -15,7 +15,7 @@ namespace Spreads
     /// Filter cursor.
     /// </summary>
     public struct Filter<TKey, TValue, TCursor> :
-        ICursorSeries<TKey, TValue, Filter<TKey, TValue, TCursor>>
+        ISpecializedCursor<TKey, TValue, Filter<TKey, TValue, TCursor>>
         where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
     {
         #region Cursor state
@@ -174,15 +174,47 @@ namespace Spreads
         }
 
         /// <inheritdoc />
-        public ISeries<TKey, TValue> CurrentBatch => throw new NotSupportedException();
+        public ISeries<TKey, TValue> CurrentBatch
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return null; }
+        }
 
         /// <inheritdoc />
-        public KeyComparer<TKey> Comparer => _cursor.Comparer;
+        public KeyComparer<TKey> Comparer
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return _cursor.Comparer; }
+        }
 
         object IEnumerator.Current => Current;
 
         /// <inheritdoc />
-        public bool IsContinuous => _cursor.IsContinuous;
+        public bool IsContinuous
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return _cursor.IsContinuous; }
+        }
+
+        /// <inheritdoc />
+        public bool IsIndexed
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return _cursor.Source.IsIndexed; }
+        }
+
+        /// <inheritdoc />
+        public bool IsCompleted
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return _cursor.Source.IsCompleted; }
+        }
+
+        public IAsyncCompleter AsyncCompleter
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return _cursor.AsyncCompleter; }
+        }
 
         /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -353,10 +385,6 @@ namespace Spreads
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Task<bool> MoveNextBatch()
         {
-            if (State == CursorState.None)
-            {
-                ThrowHelper.ThrowInvalidOperationException($"CursorSeries {GetType().Name} is not initialized as a cursor. Call the Initialize() method and *use* (as IDisposable) the returned value to access ICursor MoveXXX members.");
-            }
             return Utils.TaskUtil.FalseTask;
         }
 
@@ -401,28 +429,7 @@ namespace Spreads
 
         #endregion ICursor members
 
-        #region ICursorSeries members
-
-        /// <inheritdoc />
-        public bool IsIndexed => _cursor.Source.IsIndexed;
-
-        /// <inheritdoc />
-        public bool IsCompleted
-        {
-            // NB this property is repeatedly called from MNA
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return _cursor.Source.IsCompleted; }
-        }
-
-        /// <inheritdoc />
-        public ValueTask<bool> Updated
-        {
-            // NB this property is repeatedly called from MNA
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return _cursor.Source.Updated; }
-        }
-
-        #endregion ICursorSeries members
+       
 
         public Task DisposeAsync()
         {

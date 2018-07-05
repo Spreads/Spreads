@@ -83,7 +83,6 @@
     <Compile Include="Cursors\Empty.cs" />
     <Compile Include="Cursors\Fill.cs" />
     <Compile Include="Cursors\Filter.cs" />
-    <Compile Include="Cursors\ICursorSeries.cs" />
     <Compile Include="Cursors\Internal\ISpanOp.cs" />
     <Compile Include="Cursors\Internal\LagStepImpl.cs" />
     <Compile Include="Cursors\Internal\SpanOpImpl.cs" />

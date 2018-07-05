@@ -51,7 +51,7 @@ namespace Spreads.Core.Tests
             });
         }
 
-        public class DummyNotifier<T> : IAsyncNotifier<T>
+        public class DummyNotifier<T> : IAsyncCompleter
         {
             public DummyNotifier()
             {
@@ -116,7 +116,7 @@ namespace Spreads.Core.Tests
                             {
                                 while (await cursor.MoveNextAsync())
                                 {
-                                    BaseCursorAsync.LogFinished();
+                                    AsyncCursor.LogFinished();
                                     if (c == 2)
                                     {
                                         c++;
@@ -140,15 +140,15 @@ namespace Spreads.Core.Tests
                                     ThrowHelper.ThrowInvalidOperationException($"Cannot move to count: c={c}, count={count}");
                                 }
                                 Thread.MemoryBarrier();
-                                if (BaseCursorAsync.SyncCount == 0)
+                                if (AsyncCursor.SyncCount == 0)
                                 {
                                     Console.WriteLine("SyncCount == 0");
                                 }
 
                                 Console.WriteLine(
-                                    $"{r}: Sync: {BaseCursorAsync.SyncCount}, Async: {BaseCursorAsync.AsyncCount}, Await: {BaseCursorAsync.AwaitCount}, Skipped: {BaseCursorAsync.SkippedCount}, Finished: {BaseCursorAsync.FinishedCount}");
+                                    $"{r}: Sync: {AsyncCursor.SyncCount}, Async: {AsyncCursor.AsyncCount}, Await: {AsyncCursor.AwaitCount}, Skipped: {AsyncCursor.SkippedCount}, Finished: {AsyncCursor.FinishedCount}");
                                 Thread.MemoryBarrier();
-                                BaseCursorAsync.ResetCounters();
+                                AsyncCursor.ResetCounters();
                             }
                         }
                         catch (Exception e)

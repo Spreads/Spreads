@@ -18,7 +18,7 @@ namespace Spreads
     /// </summary>
     [StructLayout(LayoutKind.Auto)]
     public struct Range<TKey, TValue, TCursor> :
-        ICursorSeries<TKey, TValue, Range<TKey, TValue, TCursor>>
+        ISpecializedCursor<TKey, TValue, Range<TKey, TValue, TCursor>>
         where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
     {
         [Flags]
@@ -531,7 +531,11 @@ namespace Spreads
         #region ISpecializedCursorSeries members
 
         /// <inheritdoc />
-        public bool IsIndexed => _cursor.Source.IsIndexed;
+        public bool IsIndexed
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return _cursor.Source.IsIndexed; }
+        }
 
         /// <inheritdoc />
         public bool IsCompleted
@@ -553,23 +557,16 @@ namespace Spreads
             }
         }
 
-        /// <inheritdoc />
-        public ValueTask<bool> Updated
+        public IAsyncCompleter AsyncCompleter
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
-                if ((_flags & Flags.AtEnd) != Flags.AtEnd // not at the end
-                    && (State != CursorState.Moving  // not moving
-                        || EndOk(_cursor.CurrentKey)  // or moving but not reached the range end
-                       )
-                    )
+                if (!IsCompleted)
                 {
-                    return _cursor.Source.Updated;
+                    return _cursor.AsyncCompleter;
                 }
-
-                // completed
-                return new ValueTask<bool>(false);
+                return null;
             }
         }
 

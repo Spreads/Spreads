@@ -16,12 +16,12 @@ namespace Spreads
     // require a binary search. But still it is Log(n) vs best case Log(1)
 
     /// <summary>
-    /// A continuous cursor <see cref="ICursorSeries{TKey,TValue,TCursor}"/> that returns a key and a value
+    /// A continuous cursor <see cref="ISpecializedCursor{TKey,TValue,TCursor}"/> that returns a key and a value
     /// at or before (<see cref="Lookup.LE"/>) a requested key in <see cref="TryGetValue"/>.
     /// It delegates moves directly to the underlying cursor.
     /// </summary>
     public struct RepeatWithKey<TKey, TValue, TCursor> :
-        ICursorSeries<TKey, (TKey, TValue), RepeatWithKey<TKey, TValue, TCursor>>
+        ISpecializedCursor<TKey, (TKey, TValue), RepeatWithKey<TKey, TValue, TCursor>>
         where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
     {
         #region Cursor state
@@ -335,22 +335,23 @@ namespace Spreads
         #region ICursorSeries members
 
         /// <inheritdoc />
-        public bool IsIndexed => _cursor.Source.IsIndexed;
+        public bool IsIndexed
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return _cursor.Source.IsIndexed; }
+        }
 
         /// <inheritdoc />
         public bool IsCompleted
         {
-            // NB this property is repeatedly called from MNA
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get { return _cursor.Source.IsCompleted; }
         }
 
-        /// <inheritdoc />
-        public ValueTask<bool> Updated
+        public IAsyncCompleter AsyncCompleter
         {
-            // NB this property is repeatedly called from MNA
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return _cursor.Source.Updated; }
+            get { return _cursor.AsyncCompleter; }
         }
 
         #endregion ICursorSeries members
@@ -363,7 +364,7 @@ namespace Spreads
     }
 
     public struct Repeat<TKey, TValue, TCursor> :
-        ICursorSeries<TKey, TValue, Repeat<TKey, TValue, TCursor>>
+        ISpecializedCursor<TKey, TValue, Repeat<TKey, TValue, TCursor>>
         where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
     {
         #region Cursor state
@@ -464,17 +465,49 @@ namespace Spreads
         }
 
         /// <inheritdoc />
-        public ISeries<TKey, TValue> CurrentBatch => null;
+        public ISeries<TKey, TValue> CurrentBatch
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return null; }
+        }
 
-        public CursorState State => _cursor.State;
+        public CursorState State
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return _cursor.State; }
+        }
 
         /// <inheritdoc />
-        public KeyComparer<TKey> Comparer => _cursor.Comparer;
+        public KeyComparer<TKey> Comparer
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return _cursor.Comparer; }
+        }
 
         object IEnumerator.Current => Current;
 
         /// <inheritdoc />
-        public bool IsContinuous => true;
+        public bool IsContinuous
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return true; }
+        }
+
+        /// <inheritdoc />
+        public bool IsIndexed
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return _cursor.Source.IsIndexed; }
+        }
+
+        /// <inheritdoc />
+        public bool IsCompleted
+        {
+            // NB this property is repeatedly called from MNA
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return _cursor.Source.IsCompleted; }
+        }
+
 
         /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -560,28 +593,13 @@ namespace Spreads
 
         #endregion ICursor members
 
-        #region ICursorSeries members
 
-        /// <inheritdoc />
-        public bool IsIndexed => _cursor.Source.IsIndexed;
-
-        /// <inheritdoc />
-        public bool IsCompleted
+       
+        public IAsyncCompleter AsyncCompleter
         {
-            // NB this property is repeatedly called from MNA
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return _cursor.Source.IsCompleted; }
+            get { return _cursor.AsyncCompleter; }
         }
-
-        /// <inheritdoc />
-        public ValueTask<bool> Updated
-        {
-            // NB this property is repeatedly called from MNA
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return _cursor.Source.Updated; }
-        }
-
-        #endregion ICursorSeries members
 
         public Task DisposeAsync()
         {

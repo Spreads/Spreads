@@ -18,7 +18,7 @@ namespace Spreads
     /// or <see cref="RepeatWithKey{TKey,TValue,TCursor}"/>.
     /// </summary>
     public struct Zip<TKey, TLeft, TRight, TCursorLeft, TCursorRight>
-        : ICursorSeries<TKey, (TLeft, TRight), Zip<TKey, TLeft, TRight, TCursorLeft, TCursorRight>>
+        : ISpecializedCursor<TKey, (TLeft, TRight), Zip<TKey, TLeft, TRight, TCursorLeft, TCursorRight>>
         where TCursorLeft : ISpecializedCursor<TKey, TLeft, TCursorLeft>
         where TCursorRight : ISpecializedCursor<TKey, TRight, TCursorRight>
     {
@@ -87,13 +87,20 @@ namespace Spreads
         /// </summary>
         private (bool left, bool right) _everMoved;
 
-        public CursorState State { get; internal set; }
+        private CursorState _state;
+
+        public CursorState State
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return _state; }
+        }
 
         #endregion Cursor state
 
         #region Constructors
 
-        internal Zip(TCursorLeft leftCursor, TCursorRight rightCursor) : this()
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal Zip(TCursorLeft leftCursor, TCursorRight rightCursor)
         {
             if (!leftCursor.Comparer.Equals(rightCursor.Comparer))
             {
@@ -114,6 +121,13 @@ namespace Spreads
             _cmp = _leftCursor.Comparer;
             _isContinuous = (_leftCursor.IsContinuous, _rightCursor.IsContinuous);
             _cont = (Cont)((_isContinuous.left ? 2 : 0) + (_isContinuous.right ? 1 : 0));
+            _state = CursorState.Initialized;
+            _everMoved = default;
+            _c = default;
+            _completer = null;
+            _isValueSet = default;
+            _currentKey = default;
+            _currentValue = default;
         }
 
         #endregion Constructors
@@ -138,7 +152,7 @@ namespace Spreads
                     _c = _c,
                     _everMoved = _everMoved,
 
-                    State = State
+                    _state = _state
                 };
 
             return instance;
@@ -158,7 +172,7 @@ namespace Spreads
                     _cmp = _cmp,
                     _c = 0,
 
-                    State = CursorState.Initialized
+                    _state = CursorState.Initialized
                 };
             // used only in Moving state
             return instance;
@@ -179,7 +193,7 @@ namespace Spreads
             _isValueSet = (false, false);
             _everMoved = (false, false);
 
-            State = CursorState.None;
+            _state = CursorState.None;
         }
 
         /// <inheritdoc />
@@ -194,7 +208,7 @@ namespace Spreads
             _isValueSet = (false, false);
             _everMoved = (false, false);
 
-            State = CursorState.Initialized;
+            _state = CursorState.Initialized;
         }
 
         ICursor<TKey, (TLeft, TRight)> ICursor<TKey, (TLeft, TRight)>.Clone()
@@ -260,7 +274,30 @@ namespace Spreads
         object IEnumerator.Current => Current;
 
         /// <inheritdoc />
-        public bool IsContinuous => _cont == Cont.Both;
+        public bool IsContinuous
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return _cont == Cont.Both; }
+        }
+
+        /// <inheritdoc />
+        public bool IsIndexed
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get
+            {
+                return false; // TODO
+            }
+        }
+
+        /// <inheritdoc />
+        public bool IsCompleted
+        {
+            // NB this property is repeatedly called from MNA
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            // TODO when all discretes are RO then this cursor is RO as well
+            get { return _leftCursor.Source.IsCompleted && _rightCursor.Source.IsCompleted; }
+        }
 
         /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -482,7 +519,7 @@ namespace Spreads
             if (moved)
             {
                 _currentKey = currentKey;
-                State = CursorState.Moving;
+                _state = CursorState.Moving;
             }
             return moved;
         }
@@ -574,7 +611,7 @@ namespace Spreads
 
             if (moved)
             {
-                State = CursorState.Moving;
+                _state = CursorState.Moving;
                 _currentKey = currentKey;
             }
             else if (State == CursorState.Moving)
@@ -676,7 +713,7 @@ namespace Spreads
 
             if (moved)
             {
-                State = CursorState.Moving;
+                _state = CursorState.Moving;
                 _currentKey = currentKey;
             }
             else if (State == CursorState.Moving)
@@ -1295,81 +1332,65 @@ namespace Spreads
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ValueTask<bool> MoveNextAsync()
         {
-            throw new NotSupportedException("Should use BaseCursorAsync");
+            throw new NotSupportedException("Should use AsyncCursor");
         }
 
-        #endregion ICursor members
+        private IAsyncCompleter _completer;
 
-        #region ICursorSeries members
+        public IAsyncCompleter AsyncCompleter => IsCompleted
+            ? null
+            : _completer ?? (_completer = new ZipCompleter(_leftCursor, _rightCursor));
 
-        /// <inheritdoc />
-        public bool IsIndexed => false; // TODO
-
-        /// <inheritdoc />
-        public bool IsCompleted
+        private class ZipCompleter : IAsyncCompleter
         {
-            // NB this property is repeatedly called from MNA
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            // TODO when all discretes are RO then this cursor is RO as well
-            get { return _leftCursor.Source.IsCompleted && _rightCursor.Source.IsCompleted; }
-        }
+            private readonly IAsyncCompleter _leftCompleter;
+            private readonly IAsyncCompleter _rightCompleter;
 
-        /// <inheritdoc />
-        public ValueTask<bool> Updated
-        {
-            // NB this property is repeatedly called from MNA
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get
+            public ZipCompleter(TCursorLeft left, TCursorRight right)
             {
-                var lro = _leftCursor.Source.IsCompleted;
-                var rro = _rightCursor.Source.IsCompleted;
+                _leftCompleter = left.IsCompleted ? null : left.AsyncCompleter;
+                _rightCompleter = right.IsCompleted ? null : right.AsyncCompleter;
+            }
 
-                if (lro && rro)
+            private class ZipCompleterSubscription : IDisposable
+            {
+                private readonly IDisposable _left;
+                private readonly IDisposable _right;
+
+                public ZipCompleterSubscription(IDisposable left, IDisposable right)
                 {
-                    // nothing to wait
-                    return new ValueTask<bool>(false);
+                    _left = left;
+                    _right = right;
                 }
 
-                if (lro)
+                // ReSharper disable once UnusedParameter.Local
+                private void Dispose(bool disposing)
                 {
-                    return _rightCursor.Source.Updated;
+                    _left?.Dispose();
+                    _right?.Dispose();
                 }
 
-                if (rro)
+                public void Dispose()
                 {
-                    return _leftCursor.Source.Updated;
+                    GC.SuppressFinalize(this);
+                    Dispose(true);
                 }
 
-                if (_cont == Cont.None)
+                ~ZipCompleterSubscription()
                 {
-                    if (_everMoved.Equals((true, true)))
-                    {
-                        if (_c < 0)
-                        {
-                            return _leftCursor.Source.Updated;
-                        }
-                        if (_c > 0)
-                        {
-                            return _rightCursor.Source.Updated;
-                        }
-                    }
+                    Dispose(false);
                 }
+            }
 
-                throw new NotImplementedException("TODO");
-
-                //var tl = _leftCursor.Source.Updated;
-                //var tr = _rightCursor.Source.Updated;
-                //if (tl.IsCompleted || tr.IsCompleted)
-                //{
-                //    return new ValueTask();
-                //}
-
-                //// TODO ValueTask.WhenAny
-                //return new ValueTask(Task.WhenAny(tl.AsTask(), tr.AsTask()));
+            public IDisposable Subscribe(IAsyncCompletable subscriber)
+            {
+                var left = _leftCompleter?.Subscribe(subscriber);
+                var right = _rightCompleter?.Subscribe(subscriber);
+                return new ZipCompleterSubscription(left, right);
             }
         }
 
-        #endregion ICursorSeries members
+        #endregion ICursor members
 
         internal Map<TKey, (TLeft, TRight), TResult, Zip<TKey, TLeft, TRight, TCursorLeft, TCursorRight>> Map<TResult>(Func<TKey, (TLeft, TRight), TResult> selector)
         {

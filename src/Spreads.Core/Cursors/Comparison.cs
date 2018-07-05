@@ -12,10 +12,10 @@ using System.Threading.Tasks;
 namespace Spreads
 {
     /// <summary>
-    /// An <see cref="ICursorSeries{TKey,TValue,TCursor}"/> that applies an operation to each value of its input series.
+    /// An <see cref="ISpecializedCursor{TKey,TValue,TCursor}"/> that applies an operation to each value of its input series.
     /// </summary>
     public struct Comparison<TKey, TValue, TCursor> :
-        ICursorSeries<TKey, bool, Comparison<TKey, TValue, TCursor>>
+        ISpecializedCursor<TKey, bool, Comparison<TKey, TValue, TCursor>>
         where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
     {
         #region Cursor state
@@ -134,17 +134,49 @@ namespace Spreads
         }
 
         /// <inheritdoc />
-        public ISeries<TKey, bool> CurrentBatch => throw new NotSupportedException();
+        public ISeries<TKey, bool> CurrentBatch
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return null; }
+        }
 
-        public CursorState State => _cursor.State;
+        public CursorState State
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return _cursor.State; }
+        }
 
         /// <inheritdoc />
-        public KeyComparer<TKey> Comparer => _cursor.Comparer;
+        public KeyComparer<TKey> Comparer
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return _cursor.Comparer; }
+        }
 
         object IEnumerator.Current => Current;
 
         /// <inheritdoc />
-        public bool IsContinuous => _cursor.IsContinuous;
+        public bool IsContinuous
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return _cursor.IsContinuous; }
+        }
+
+        /// <inheritdoc />
+        public bool IsIndexed
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return _cursor.Source.IsIndexed; }
+        }
+
+        /// <inheritdoc />
+        public bool IsCompleted
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return _cursor.Source.IsCompleted; }
+        }
+
+        public IAsyncCompleter AsyncCompleter => _cursor.AsyncCompleter;
 
         /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -215,12 +247,16 @@ namespace Spreads
         }
 
         /// <inheritdoc />
-        ISeries<TKey, bool> ICursor<TKey, bool>.Source => new Series<TKey, bool, Comparison<TKey, TValue, TCursor>>(this);
+        ISeries<TKey, bool> ICursor<TKey, bool>.Source => Source;
 
         /// <summary>
         /// Get a <see cref="Series{TKey,TValue,TCursor}"/> based on this cursor.
         /// </summary>
-        public Series<TKey, bool, Comparison<TKey, TValue, TCursor>> Source => new Series<TKey, bool, Comparison<TKey, TValue, TCursor>>(this);
+        public Series<TKey, bool, Comparison<TKey, TValue, TCursor>> Source
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return new Series<TKey, bool, Comparison<TKey, TValue, TCursor>>(this); }
+        }
 
         /// <inheritdoc />
         public ValueTask<bool> MoveNextAsync()
@@ -235,33 +271,15 @@ namespace Spreads
         /// <summary>
         /// A value used by TOp.
         /// </summary>
-        public TValue Value => _value;
+        public TValue Value
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return _value; }
+        }
 
         #endregion Custom Properties
 
-        #region ICursorSeries members
-
-        /// <inheritdoc />
-        public bool IsIndexed => _cursor.Source.IsIndexed;
-
-        /// <inheritdoc />
-        public bool IsCompleted
-        {
-            // NB this property is repeatedly called from MNA
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return _cursor.Source.IsCompleted; }
-        }
-
-        /// <inheritdoc />
-        public ValueTask<bool> Updated
-        {
-            // NB this property is repeatedly called from MNA
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return _cursor.Source.Updated; }
-        }
-
-        #endregion ICursorSeries members
-
+       
         public Task DisposeAsync()
         {
             Dispose();

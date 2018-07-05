@@ -5,6 +5,7 @@
 using Spreads.DataTypes;
 using System.Diagnostics.Contracts;
 using System.Runtime.CompilerServices;
+// ReSharper disable InconsistentNaming
 
 // ReSharper disable CompareOfFloatsByEqualityOperator
 
@@ -48,7 +49,7 @@ namespace Spreads
 
     #region Arithmetic operations
 
-    public struct AddOp<T> : IOp<T>
+    public readonly struct AddOp<T> : IOp<T>
     {
         internal static T ZipSelector<TKey>(TKey key, (T, T) value)
         {
@@ -118,7 +119,7 @@ namespace Spreads
         }
     }
 
-    public struct MultiplyOp<T> : IOp<T>
+    public readonly struct MultiplyOp<T> : IOp<T>
     {
         internal static T ZipSelector<TKey>(TKey key, (T, T) value)
         {
@@ -182,7 +183,7 @@ namespace Spreads
         }
     }
 
-    public struct SubtractOp<T> : IOp<T>
+    public readonly struct SubtractOp<T> : IOp<T>
     {
         internal static T ZipSelector<TKey>(TKey key, (T, T) value)
         {
@@ -246,7 +247,7 @@ namespace Spreads
         }
     }
 
-    public struct SubtractReverseOp<T> : IOp<T>
+    public readonly struct SubtractReverseOp<T> : IOp<T>
     {
         [Pure]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -305,7 +306,7 @@ namespace Spreads
         }
     }
 
-    public struct DivideOp<T> : IOp<T>
+    public readonly struct DivideOp<T> : IOp<T>
     {
         [Pure]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -359,7 +360,7 @@ namespace Spreads
         }
     }
 
-    public struct DivideReverseOp<T> : IOp<T>
+    public readonly struct DivideReverseOp<T> : IOp<T>
     {
         [Pure]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -408,7 +409,7 @@ namespace Spreads
         }
     }
 
-    public struct ModuloOp<T> : IOp<T>
+    public readonly struct ModuloOp<T> : IOp<T>
     {
         [Pure]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -462,7 +463,7 @@ namespace Spreads
         }
     }
 
-    public struct ModuloReverseOp<T> : IOp<T>
+    public readonly struct ModuloReverseOp<T> : IOp<T>
     {
         [Pure]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -511,7 +512,7 @@ namespace Spreads
         }
     }
 
-    public struct NegateOp<T> : IOp<T>
+    public readonly struct NegateOp<T> : IOp<T>
     {
         [Pure]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -560,7 +561,7 @@ namespace Spreads
         }
     }
 
-    public struct PlusOp<T> : IOp<T>
+    public readonly struct PlusOp<T> : IOp<T>
     {
         [Pure]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -613,7 +614,7 @@ namespace Spreads
 
     #region Comparison operations
 
-    public struct LTOp<T> : IOp<T, bool>
+    public readonly struct LTOp<T> : IOp<T, bool>
     {
         internal static bool ZipSelector<TKey>(TKey key, (T, T) value)
         {
@@ -674,7 +675,7 @@ namespace Spreads
         }
     }
 
-    public struct LTReverseOp<T> : IOp<T, bool>
+    public readonly struct LTReverseOp<T> : IOp<T, bool>
     {
         internal static IOp<T, bool> Instance = default(LTReverseOp<T>);
 
@@ -730,7 +731,7 @@ namespace Spreads
         }
     }
 
-    public struct LEOp<T> : IOp<T, bool>
+    public readonly struct LEOp<T> : IOp<T, bool>
     {
         internal static bool ZipSelector<TKey>(TKey key, (T, T) value)
         {
@@ -791,7 +792,7 @@ namespace Spreads
         }
     }
 
-    public struct LEReverseOp<T> : IOp<T, bool>
+    public readonly struct LEReverseOp<T> : IOp<T, bool>
     {
         internal static IOp<T, bool> Instance = default(LEReverseOp<T>);
 
@@ -847,7 +848,7 @@ namespace Spreads
         }
     }
 
-    public struct GTOp<T> : IOp<T, bool>
+    public readonly struct GTOp<T> : IOp<T, bool>
     {
         [Pure]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -908,7 +909,7 @@ namespace Spreads
         }
     }
 
-    public struct GTReverseOp<T> : IOp<T, bool>
+    public readonly struct GTReverseOp<T> : IOp<T, bool>
     {
         internal static IOp<T, bool> Instance = default(GTReverseOp<T>);
 
@@ -964,7 +965,7 @@ namespace Spreads
         }
     }
 
-    public struct GEOp<T> : IOp<T, bool>
+    public readonly struct GEOp<T> : IOp<T, bool>
     {
         internal static bool ZipSelector<TKey>(TKey key, (T, T) value)
         {
@@ -1025,7 +1026,7 @@ namespace Spreads
         }
     }
 
-    public struct GEReverseOp<T> : IOp<T, bool>
+    public readonly struct GEReverseOp<T> : IOp<T, bool>
     {
         internal static IOp<T, bool> Instance = default(GEReverseOp<T>);
 
@@ -1081,7 +1082,7 @@ namespace Spreads
         }
     }
 
-    public struct EQOp<T> : IOp<T, bool>
+    public readonly struct EQOp<T> : IOp<T, bool>
     {
         internal static bool ZipSelector<TKey>(TKey key, (T, T) value)
         {
@@ -1142,7 +1143,7 @@ namespace Spreads
         }
     }
 
-    public struct NEQOp<T> : IOp<T, bool>
+    public readonly struct NEQOp<T> : IOp<T, bool>
     {
         internal static bool ZipSelector<TKey>(TKey key, (T, T) value)
         {
