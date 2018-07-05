@@ -6,6 +6,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
@@ -204,35 +205,61 @@ namespace Spreads
         /// <summary>
         /// End key is inclusive or missing.
         /// </summary>
-        public bool EndInclusive => (_flags & Flags.EndInclusive) == Flags.EndInclusive;
+        public bool EndInclusive
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return (_flags & Flags.EndInclusive) == Flags.EndInclusive; }
+        }
 
         /// <summary>
         /// Start key is inclusive or missing.
         /// </summary>
-        public bool StartInclusive => (_flags & Flags.StartInclusive) == Flags.StartInclusive;
+        public bool StartInclusive
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return (_flags & Flags.StartInclusive) == Flags.StartInclusive; }
+        }
 
         /// <summary>
         /// End key
         /// </summary>
-        public Opt<TKey> EndKey => (_flags & Flags.EndKeyIsPresent) == Flags.EndKeyIsPresent ? Opt.Present(_endKey) : Opt<TKey>.Missing;
+        public Opt<TKey> EndKey
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get
+            {
+                return (_flags & Flags.EndKeyIsPresent) == Flags.EndKeyIsPresent
+                    ? Opt.Present(_endKey)
+                    : Opt<TKey>.Missing;
+            }
+        }
 
         /// <summary>
         /// Start key
         /// </summary>
-        public Opt<TKey> StartKey => (_flags & Flags.StartKeyIsPresent) == Flags.StartKeyIsPresent ? Opt.Present(_startKey) : Opt<TKey>.Missing;
+        public Opt<TKey> StartKey
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get
+            {
+                return (_flags & Flags.StartKeyIsPresent) == Flags.StartKeyIsPresent
+                    ? Opt.Present(_startKey)
+                    : Opt<TKey>.Missing;
+            }
+        }
 
         /// <summary>
         /// If positive then this range has known count.
         /// </summary>
-        public long Count => _count;
+        public long Count => _count >= 0 ? _count : Source.Count();
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private bool EndOk(TKey key)
         {
             if (!_isWindow && (_flags & Flags.EndKeyIsPresent) != Flags.EndKeyIsPresent) return true;
             // If EndInclusive then c == 0 is OK. We could subtract the flag from c and alway use c < 0
-            var c = _cmp.Compare(key, _endKey) - (int)(_flags & Flags.EndInclusive);
-            return c < 0; //(_flags & Flags.EndInclusive) == Flags.EndInclusive ? c <= 0 : c < 0;
+            var c = _cmp.Compare(key, _endKey);
+            return c < 0 || (c == 0 && EndInclusive);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -356,6 +383,10 @@ namespace Spreads
             {
                 Debug.Assert(_cmp.Compare(_cursor.CurrentKey, _startKey) == 0);
                 State = CursorState.Moving;
+                if (_count == _steps)
+                {
+                    _flags |= Flags.AtEnd;
+                }
                 return true;
             }
 
@@ -423,11 +454,13 @@ namespace Spreads
 
             if (!moved) return false;
 
+            var c = _cmp.Compare(_cursor.CurrentKey, _endKey);
+
             var endIsOk =
                 // end is checked by count
                 _steps > 0
                 // NB First check of EndOk(_cursor.CurrentKey) is done above. This is the remaining part.
-                || _cmp.Compare(_cursor.CurrentKey, _endKey) - (_flags & Flags.EndInclusive) < 0;
+                || c < 0 || (c == 0 && EndInclusive);
 
             if (endIsOk)
             {
