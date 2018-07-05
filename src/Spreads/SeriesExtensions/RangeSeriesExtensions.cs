@@ -55,7 +55,7 @@ namespace Spreads
         internal static Series<TKey, TValue, Range<TKey, TValue, TCursor>> Range<TKey, TValue, TCursor>(
             this Series<TKey, TValue, TCursor> series,
             Opt<TKey> startKey, Opt<TKey> endKey, bool startInclusive = true, bool endInclusive = true)
-            where TCursor : ICursorSeries<TKey, TValue, TCursor>
+            where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
         {
             var cursor = new Range<TKey, TValue, TCursor>(
                 series.GetEnumerator(), startKey, endKey, startInclusive, endInclusive);
@@ -109,7 +109,7 @@ namespace Spreads
         internal static Series<TKey, TValue, Range<TKey, TValue, TCursor>> Range<TKey, TValue, TCursor>(
             this Series<TKey, TValue, TCursor> series,
             TKey startKey, TKey endKey, bool startInclusive = true, bool endInclusive = true)
-            where TCursor : ICursorSeries<TKey, TValue, TCursor>
+            where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
         {
             return series.Range(Opt.Present(startKey), Opt.Present(endKey), startInclusive, endInclusive);
         }
@@ -156,7 +156,7 @@ namespace Spreads
         public static Series<TKey, TValue, Range<TKey, TValue, TCursor>> After<TKey, TValue, TCursor>(
             this Series<TKey, TValue, TCursor> series,
             TKey startKey, bool startInclusive = true)
-            where TCursor : ICursorSeries<TKey, TValue, TCursor>
+            where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
         {
             return series.Range(Opt.Present(startKey), Opt<TKey>.Missing, startInclusive, true);
         }
@@ -261,7 +261,7 @@ namespace Spreads
         public static Series<TKey, TValue, Range<TKey, TValue, TCursor>> Before<TKey, TValue, TCursor>(
             this Series<TKey, TValue, TCursor> series,
             TKey endKey, bool endInclusive = true)
-            where TCursor : ICursorSeries<TKey, TValue, TCursor>
+            where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
         {
             return series.Range(Opt<TKey>.Missing, Opt.Present(endKey), true, endInclusive);
         }

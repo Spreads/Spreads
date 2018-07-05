@@ -108,7 +108,7 @@ namespace Spreads
 
         public static Series<TKey, TResult, Map<TKey, TValue, TResult, TCursor>> Map<TKey, TValue, TResult, TCursor>(
             this Series<TKey, TValue, TCursor> series, Func<TKey, TValue, TResult> selector)
-            where TCursor : ICursorSeries<TKey, TValue, TCursor>
+            where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
         {
             // TODO review how to combine maps (former ICanMapValues interface)
             var cursor = new Map<TKey, TValue, TResult, TCursor>(series.GetEnumerator(), selector);
@@ -117,7 +117,7 @@ namespace Spreads
 
         public static Series<TKey, TResult, Map<TKey, TValue, TResult, TCursor>> Map<TKey, TValue, TResult, TCursor>(
             this Series<TKey, TValue, TCursor> series, Func<TValue, TResult> selector)
-            where TCursor : ICursorSeries<TKey, TValue, TCursor>
+            where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
         {
             // TODO review how to combine maps (former ICanMapValues interface)
             var cursor = new Map<TKey, TValue, TResult, TCursor>(series.GetEnumerator(), selector);

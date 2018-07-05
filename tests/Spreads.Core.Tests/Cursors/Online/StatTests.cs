@@ -10,7 +10,7 @@ using Spreads.Utils;
 
 // ReSharper disable CompareOfFloatsByEqualityOperator
 
-namespace Spreads.Tests.Cursors.Online
+namespace Spreads.Core.Tests.Cursors.Online
 {
     [TestFixture]
     public class StatTests

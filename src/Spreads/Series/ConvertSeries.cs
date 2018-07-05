@@ -103,8 +103,6 @@ namespace Spreads
             return new ConvertCursor(Inner.GetCursor(), this as TImpl);
         }
 
-        public override ValueTask<bool> Updated => Inner.Updated;
-
         public override bool TryGetAt(long idx, out KeyValuePair<TKey2, TValue2> value)
         {
             KeyValuePair<TKey, TValue> tmp;

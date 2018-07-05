@@ -133,7 +133,7 @@ namespace Spreads
 
         public static Series<TKey, TValue, SMA<TKey, TValue, TCursor>> SMA<TKey, TValue, TCursor>(
             this Series<TKey, TValue, TCursor> series, int count, bool allowIncomplete = false)
-            where TCursor : ICursorSeries<TKey, TValue, TCursor>
+            where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
         {
             var cursor = new SMA<TKey, TValue, TCursor>(series.GetEnumerator(), count, allowIncomplete);
             return cursor.Source;
@@ -141,7 +141,7 @@ namespace Spreads
 
         public static Series<TKey, TValue, SMA<TKey, TValue, TCursor>> SMA<TKey, TValue, TCursor>(
             this Series<TKey, TValue, TCursor> series, TKey width, Lookup lookup = Lookup.GE)
-            where TCursor : ICursorSeries<TKey, TValue, TCursor>
+            where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
         {
             var cursor = new SMA<TKey, TValue, TCursor>(series.GetEnumerator(), width, lookup);
             return cursor.Source;
@@ -149,7 +149,7 @@ namespace Spreads
 
         public static Series<TKey, Stat2<TKey>, Stat2Cursor<TKey, TValue, TCursor>> Stat2<TKey, TValue, TCursor>(
             this Series<TKey, TValue, TCursor> series, int count, bool allowIncomplete = false)
-            where TCursor : ICursorSeries<TKey, TValue, TCursor>
+            where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
         {
             var cursor = new Stat2Cursor<TKey, TValue, TCursor>(series.GetEnumerator(), count, allowIncomplete);
             return cursor.Source;
@@ -157,7 +157,7 @@ namespace Spreads
 
         public static Series<TKey, Stat2<TKey>, Stat2Cursor<TKey, TValue, TCursor>> Stat2<TKey, TValue, TCursor>(
             this Series<TKey, TValue, TCursor> series, TKey width, Lookup lookup = Lookup.GE)
-            where TCursor : ICursorSeries<TKey, TValue, TCursor>
+            where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
         {
             var cursor = new Stat2Cursor<TKey, TValue, TCursor>(series.GetEnumerator(), width, lookup);
             return cursor.Source;
@@ -165,7 +165,7 @@ namespace Spreads
 
         public static Stat2<TKey> Stat2<TKey, TValue, TCursor>(
             this Series<TKey, TValue, TCursor> series)
-            where TCursor : ICursorSeries<TKey, TValue, TCursor>
+            where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
         {
             var stat = new Stat2<TKey>();
             using (var cursor = series.GetEnumerator())

@@ -7,7 +7,7 @@ using System.Linq;
 using NUnit.Framework;
 using Spreads.Collections;
 
-namespace Spreads.Tests.Cursors
+namespace Spreads.Core.Tests.Cursors
 {
     [TestFixture]
     public class WindowCursorTests
@@ -36,6 +36,44 @@ namespace Spreads.Tests.Cursors
                 Assert.AreEqual(expected, pair.Value.Values.Sum());
                 Console.WriteLine(pair.Value.Values.Sum());
                 //Console.WriteLine(keyValuePair.Value.Aggregate("", (st,kvp) => st + "," + kvp.Value));
+            }
+        }
+
+        [Test]
+        public void CouldUseWindowCursorWithIncomplete()
+        {
+            SortedMap<int, double> sm = new SortedMap<int, double>();
+
+            var count = 20;
+
+            for (int i = 0; i < count; i++)
+            {
+                sm.Add(i, i);
+            }
+
+            var window = sm.Window(10, true);
+            foreach (var pair in window)
+            {
+                Assert.AreEqual(Math.Min(pair.Key + 1, 10), pair.Value.Count());
+            }
+
+            var window2 = sm.Window(count*2, true);
+            foreach (var pair in window2)
+            {
+                Assert.AreEqual(sm.Values.Take(pair.Key + 1).Sum(), pair.Value.Values.Sum());
+                Assert.AreEqual(pair.Key + 1, pair.Value.Count());
+            }
+
+            var window3 = sm.Window(3, Lookup.EQ);
+            foreach (var pair in window3)
+            {
+                Console.WriteLine($"{pair.Key}:");
+                foreach (var keyValuePair in pair.Value)
+                {
+                    Console.WriteLine($"{keyValuePair.Key} - {keyValuePair.Value}");
+                }
+
+                Console.WriteLine("--------------");
             }
         }
     }

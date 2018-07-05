@@ -7,7 +7,7 @@ using System.Linq;
 using NUnit.Framework;
 using Spreads.Collections;
 
-namespace Spreads.Tests.Cursors
+namespace Spreads.Core.Tests.Cursors
 {
     [TestFixture]
     public class RangeCursorTests

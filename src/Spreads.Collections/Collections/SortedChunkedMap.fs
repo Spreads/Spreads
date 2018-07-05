@@ -786,3 +786,6 @@ and
     interface ISpecializedCursor<'K,'V, SortedChunkedMapCursor<'K,'V>> with
       member this.Initialize() = this.Initialize()
       member this.Clone() = this.Clone()
+      member this.IsIndexed with get() = false
+      member this.IsCompleted with get() = this.source.IsCompleted
+      member this.AsyncCompleter with get() = this.source :> IAsyncCompleter

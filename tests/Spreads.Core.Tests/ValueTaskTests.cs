@@ -51,17 +51,6 @@ namespace Spreads.Core.Tests
             });
         }
 
-        public class DummyNotifier<T> : IAsyncCompleter
-        {
-            public DummyNotifier()
-            {
-            }
-
-            public bool IsCompleted => false;
-
-            public ValueTask<T> Updated => new ValueTask<T>(default(T));
-        }
-
         [Test, Explicit("")]
         public void SortedMapNotifierTest()
         {
@@ -99,8 +88,6 @@ namespace Spreads.Core.Tests
                         Console.WriteLine(ex);
                     }
                 });
-
-                
 
                 // addTask.Wait();
 
@@ -160,10 +147,8 @@ namespace Spreads.Core.Tests
                     // Console.WriteLine(c);
                 }).ContinueWith(t =>
                 {
-                    
                     addTask.Wait();
                 }).Wait();
-                
             }
             Benchmark.Dump();
         }

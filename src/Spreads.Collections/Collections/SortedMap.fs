@@ -1639,5 +1639,6 @@ type public SortedMapCursor<'K,'V> =
         c.Reset()
         c
       member this.Clone() = this.Clone()
-
-   
+      member this.IsIndexed with get() = false
+      member this.IsCompleted with get() = this.source.IsCompleted
+      member this.AsyncCompleter with get() = this.source :> IAsyncCompleter

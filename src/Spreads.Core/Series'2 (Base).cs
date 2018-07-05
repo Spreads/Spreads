@@ -94,9 +94,6 @@ namespace Spreads
         }
 
         /// <inheritdoc />
-        public abstract ValueTask<bool> Updated { get; }
-
-        /// <inheritdoc />
         public abstract Opt<KeyValuePair<TKey, TValue>> First { get; }
 
         /// <inheritdoc />
@@ -979,9 +976,6 @@ namespace Spreads
 
         private object _cursors; // IAsyncStateMachineEx | ConcurrentDictionary<IAsyncStateMachineEx>
 
-        [Obsolete]
-        private ICursor<TKey, TValue> _updatedSourceCursor;
-
         internal long Locker;
 
         //private long _cursorNotifyLocker;
@@ -1277,63 +1271,8 @@ namespace Spreads
             return value;
         }
 
-        // private UpdateSource _updateSource;
-
-        public sealed override ValueTask<bool> Updated
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get
-            {
-                if (_updatedSourceCursor == null)
-                {
-                    bool updated = false;
-                    BeforeWrite();
-                    if (_updatedSourceCursor == null)
-                    {
-                        _updatedSourceCursor = GetCursor();
-                        updated = _updatedSourceCursor.MoveLast();
-                    }
-                    AfterWrite(false);
-                    if (updated)
-                    {
-                        return new ValueTask<bool>(true);
-                    }
-                }
-
-                return _updatedSourceCursor.MoveNextAsync();
-
-                //if (_updateSource == null)
-                //{
-                //    BeforeWrite();                          // lock (SyncRoot) {
-                //    if (_updateSource == null)
-                //    {
-                //        _updateSource = new UpdateSource(this);
-                //    }
-                //    AfterWrite(doVersionIncrement: false);  // } // lock
-                //}
-
-                // NB `Version mod short.Max` is used to simulate read-lock (similar to cursor reads)
-                // We store LSB of Version as VT token and then compare it to LSB of NextVersion
-                // in GetResult and OnCompleted. If versoins ar equal then there were no writes
-                // after the task creating and before awating. If versions are not equal then
-                // the task completes syncronously. We know that its concumers loop and will
-                // call MoveNext to get exact changes (new value or completed). The risk is
-                // not false positive but a missed change. In theory, there could be 65k updates
-                // after VT creation and before awating. But the chance of this is 1/65k even if
-                // we could update data with infinite speed. On benchmarks, VTS machinery could
-                // work with at least 1MOPS speed, so we need to update data 65k times during
-                // a single (even forgeting that each update triggers notification). Therefore,
-                // update speed must be 65k * VTS Mops = 65 Bops (GHz) vs 4.2 GHz of top CPUs.
-                // Or VTS should work at 4.2G/65k = 65Kops (both 65 is coincidence, 65^2 = 4225).
-                // return _updateSource.GetTask(); // new ValueTask(_updatedSource, unchecked((short)Volatile.Read(ref _version)));
-            }
-        }
-
         protected virtual void Dispose(bool disposing)
-        {
-            _updatedSourceCursor.Dispose();
-            _updatedSourceCursor = null;
-        }
+        { }
 
         internal Task DoComplete()
         {

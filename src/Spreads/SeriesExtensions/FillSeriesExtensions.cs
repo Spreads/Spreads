@@ -34,7 +34,7 @@ namespace Spreads
 
         public static Series<TKey, TValue, Fill<TKey, TValue, TCursor>> Fill<TKey, TValue, TCursor>(
             this Series<TKey, TValue, TCursor> series, TValue value)
-            where TCursor : ICursorSeries<TKey, TValue, TCursor>
+            where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
         {
             var cursor = new Fill<TKey, TValue, TCursor>(series.GetEnumerator(), value);
             return cursor.Source;
