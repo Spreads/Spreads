@@ -224,7 +224,7 @@ namespace Spreads
         public KeyValuePair<TKey, (TLeft, TRight)> Current
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new KeyValuePair<TKey, (TLeft, TRight)>(_currentKey, _currentValue); }
+            get { return new KeyValuePair<TKey, (TLeft, TRight)>(_currentKey, CurrentValue); } // NB! not _currentValue
         }
 
         /// <inheritdoc />
