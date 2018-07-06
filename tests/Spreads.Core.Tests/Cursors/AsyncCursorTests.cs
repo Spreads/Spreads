@@ -231,7 +231,7 @@ namespace Spreads.Core.Tests.Cursors
             t.Wait();
         }
 
-        [Test]
+        [Test, Ignore("Cancellation is not supported")]
         public void CouldCancelMapCursor()
         {
             var sm = new SortedMap<int, int>();
@@ -256,6 +256,28 @@ namespace Spreads.Core.Tests.Cursors
 
             cts.Cancel();
             t.Wait();
+        }
+
+        [Test]
+        public async Task NotificationWorksWhenCursorIsNotWating()
+        {
+            var sm = new SortedMap<int, int>();
+
+            sm.Add(1, 1);
+            sm.Add(2, 2);
+
+            var cursor = sm.GetCursor();
+            Assert.True(await cursor.MoveNextAsync());
+            Assert.True(await cursor.MoveNextAsync());
+
+            Assert.IsTrue(cursor.MovePrevious());
+
+            await sm.TryAdd(3, 3);
+
+            await Task.Delay(250);
+
+            Assert.AreEqual(1, cursor.CurrentKey);
+            Assert.AreEqual(1, cursor.CurrentValue);
         }
     }
 }

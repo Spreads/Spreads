@@ -246,17 +246,17 @@ namespace Spreads.Core.Run
         private static void Main(string[] args)
         {
 
-            var dirs = Directory.GetFileSystemEntries("/localdata", "*", SearchOption.AllDirectories);
-            foreach (var dir in dirs)
-            {
-                Console.WriteLine(dir);
-            }
+            //var dirs = Directory.GetFileSystemEntries("/localdata", "*", SearchOption.AllDirectories);
+            //foreach (var dir in dirs)
+            //{
+            //    Console.WriteLine(dir);
+            //}
 
             // TestVTS().Wait();
-            //var test = new Spreads.Core.Tests.Threading.SpinningThreadpoolTests();
-            //test.ThreadPoolPerformanceBenchmark();
+            var test = new Spreads.Core.Tests.Threading.SpinningThreadpoolTests();
+            test.ThreadPoolPerformanceBenchmark();
             //BinaryLz4();
-            Zstd();
+            // Zstd();
             Console.ReadLine();
         }
 

@@ -16,11 +16,11 @@ namespace Spreads.Core.Tests.Threading
     {
         public class Completable
         {
-            private readonly SpinningThreadPool _tp;
+            private readonly SpreadsThreadPool _tp;
             public static long TotalCount;
             private bool recursive;
 
-            public Completable(SpinningThreadPool tp)
+            public Completable(SpreadsThreadPool tp)
             {
                 _tp = tp;
             }
@@ -39,19 +39,27 @@ namespace Spreads.Core.Tests.Threading
         {
             var count = 50_000_000;
 
-            var items = Enumerable.Range(1, 100).Select(x => (Action<object>)(new Completable(SpinningThreadPool.Default)).ExecuteCompletion).ToArray();
-
-            using (Benchmark.Run("SpinningThreadPool", count))
+            var items = Enumerable.Range(1, 100).Select(x => (Action<object>)(new Completable(SpreadsThreadPool.Default)).ExecuteCompletion).ToArray();
+            var tp = SpreadsThreadPool.Default;
+            var th = new Thread(() =>
             {
-                for (int i = 0; i < count; i++)
+                using (Benchmark.Run("SpinningThreadPool", count))
                 {
-                    SpinningThreadPool.Default.UnsafeQueueCompletableItem(items[i % 100], null, true);
-                    // Thread.SpinWait(1);
-                }
+                    for (int i = 0; i < count; i++)
+                    {
+                        tp.UnsafeQueueCompletableItem(items[i % 100], null, true);
+                        //Thread.SpinWait(1);
+                    }
 
-                SpinningThreadPool.Default.Dispose();
-                SpinningThreadPool.Default.WaitForThreadsExit();
-            }
+                    tp.Dispose();
+                    tp.WaitForThreadsExit();
+                }
+            });
+
+            th.Priority = ThreadPriority.Normal;
+            th.Start();
+
+            th.Join();
 
             Console.WriteLine($"Total: {Completable.TotalCount}");
             foreach (var item in items)

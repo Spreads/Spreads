@@ -37,7 +37,7 @@ namespace Spreads.Threading
             public const int CACHE_LINE_SIZE = 64;
         }
 
-        private readonly SpinningThreadPool _pool;
+        private readonly SpreadsThreadPool _pool;
         private readonly UnfairSemaphore _semaphore = new UnfairSemaphore();
         private static readonly int ProcessorCount = Environment.ProcessorCount;
         private const int CompletedState = 1;
@@ -149,8 +149,10 @@ namespace Spreads.Threading
             private volatile int m_mask = INITIAL_SIZE - 1;
 
 #if DEBUG
+
             // in debug builds, start at the end so we exercise the index reset logic.
             private const int START_INDEX = int.MaxValue;
+
 #else
             private const int START_INDEX = 0;
 #endif
@@ -431,7 +433,7 @@ namespace Spreads.Threading
         private readonly PaddingFor32 pad2;
 #pragma warning restore 169
 
-        public ThreadPoolWorkQueue(SpinningThreadPool pool)
+        public ThreadPoolWorkQueue(SpreadsThreadPool pool)
         {
             _pool = pool;
         }
@@ -487,7 +489,7 @@ namespace Spreads.Threading
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Enqueue(Action<object> callback, ExecutionContext exCtx, object state, bool forceGlobal)
         {
-            EnsureThreadRequested();
+            
             ThreadPoolWorkQueueThreadLocals tl = null;
             if (!forceGlobal)
             {
@@ -502,6 +504,7 @@ namespace Spreads.Threading
             {
                 workItems.Enqueue((callback, exCtx, state));
             }
+            EnsureThreadRequested();
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -550,8 +553,6 @@ namespace Spreads.Threading
             // Set up our thread-local data
             ThreadPoolWorkQueueThreadLocals tl = EnsureCurrentThreadHasQueue();
 
-            var spinWait = new SpinWait();
-
             while (true)
             {
                 bool missedSteal = false;
@@ -559,24 +560,17 @@ namespace Spreads.Threading
 
                 if (completableCtx.Item1 == null)
                 {
-                    spinWait.SpinOnce();
-                    if (spinWait.NextSpinWillYield)
+                    if (IsAddingCompleted)
                     {
-                        spinWait.Reset();
-                        if (IsAddingCompleted)
+                        if (!missedSteal)
                         {
-                            spinWait.Reset();
-                            if (!missedSteal)
-                            {
-                                break;
-                            }
+                            break;
                         }
-                        else
-                        {
-                            spinWait.Reset();
-                            _semaphore.Wait();
-                            MarkThreadRequestSatisfied();
-                        }
+                    }
+                    else
+                    {
+                        _semaphore.Wait();
+                        MarkThreadRequestSatisfied();
                     }
                     continue;
                 }
@@ -748,18 +742,18 @@ namespace Spreads.Threading
     }
 
     /// <summary>
-    /// A thread pool that spins longer than default when there are no more work.
+    /// Non-allocating thread pool.
     /// </summary>
-    public class SpinningThreadPool
+    public class SpreadsThreadPool
     {
-        public static readonly SpinningThreadPool Default = new SpinningThreadPool(
+        public static readonly SpreadsThreadPool Default = new SpreadsThreadPool(
             new ThreadPoolSettings(Environment.ProcessorCount * 4, "DefaultSpinningThreadPool"));
 
         internal readonly ThreadPoolWorkQueue workQueue;
         public ThreadPoolSettings Settings { get; }
         private readonly PoolWorker[] _workers;
 
-        public SpinningThreadPool(ThreadPoolSettings settings)
+        public SpreadsThreadPool(ThreadPoolSettings settings)
         {
             workQueue = new ThreadPoolWorkQueue(this);
             Settings = settings;
@@ -780,7 +774,7 @@ namespace Spreads.Threading
             {
                 context = ExecutionContext.Capture();
             }
-            
+
             // after ctx logic
             if (state != null)
             {
@@ -895,7 +889,7 @@ namespace Spreads.Threading
 
         private class PoolWorker
         {
-            private readonly SpinningThreadPool _pool;
+            private readonly SpreadsThreadPool _pool;
 
             private readonly TaskCompletionSource<object> _threadExit;
 
@@ -904,7 +898,7 @@ namespace Spreads.Threading
                 get { return _threadExit.Task; }
             }
 
-            public PoolWorker(SpinningThreadPool pool, int workerId)
+            public PoolWorker(SpreadsThreadPool pool, int workerId)
             {
                 _pool = pool;
                 _threadExit = new TaskCompletionSource<object>();
@@ -912,6 +906,19 @@ namespace Spreads.Threading
                 var thread = new Thread(RunThread, pool.Settings.ThreadMaxStackSize);
 
                 thread.IsBackground = pool.Settings.ThreadType == ThreadType.Background;
+
+                // THEORY, need to validate:
+                // For Spreads the most critical path is completion of cursors that are wating
+                // on MoveNextAsync. On machines with small (v)CPUs count there could be a lot of
+                // activity on IO threads or other threads, but that could wait until we are
+                // performing actual calculations. We use Thread.Sleep(0) in UnfairSemaphore
+                // that yields only to threads with the same priority - this is good for this 
+                // case - threads from this pool will continue to do work until they have it.
+                // Note that we do not stick to the pool threads and could often jump to the 
+                // normal ThreadPool or start waiting from it. That's OK because if we have 
+                // data available then those threads will just execute calculations. If they 
+                // have to wait then we should wake consumers from higher-priority threads.
+                // Try: thread.Priority = Thread.CurrentThread.Priority + 1;
 
                 if (pool.Settings.Name != null)
                     thread.Name = string.Format("{0}_{1}", pool.Settings.Name, workerId);

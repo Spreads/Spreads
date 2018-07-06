@@ -1017,27 +1017,15 @@ namespace Spreads
 
             public void Dispose(bool disposing)
             {
-                if (_container._cursors == null)
+                if (ReferenceEquals(_container._cursors, _wr))
                 {
-                    ThrowHelper.ThrowInvalidOperationException("Cannot unsubscribe non-subscribed cursor");
-                    return;
+                    _container.BeforeWrite();
+                    _container._cursors = null;
+                    _container.AfterWrite(false);
                 }
-                else
+                else if (_container._cursors is ConcurrentDictionary<WeakReference<IAsyncCompletable>, bool> dict)
                 {
-                    if (ReferenceEquals(_container._cursors, _wr))
-                    {
-                        _container.BeforeWrite();
-                        _container._cursors = null;
-                        _container.AfterWrite(false);
-                    }
-                    else if (_container._cursors is ConcurrentDictionary<WeakReference<IAsyncCompletable>, bool> dict)
-                    {
-                        dict.TryRemove(_wr, out _);
-                    }
-                    else
-                    {
-                        ThrowHelper.ThrowInvalidOperationException("Cannot unsubscribe non-subscribed cursor");
-                    }
+                    dict.TryRemove(_wr, out _);
                 }
             }
 
@@ -1304,7 +1292,7 @@ namespace Spreads
                     {
                         if (kvp.Key.TryGetTarget(out var tg))
                         {
-                            SpinningThreadPool.Default.UnsafeQueueCompletableItem(DoNotifyUpdateSingleSync, tg, true);
+                            SpreadsThreadPool.Default.UnsafeQueueCompletableItem(DoNotifyUpdateSingleSync, tg, true);
                         }
                     }
                 }
@@ -1312,7 +1300,7 @@ namespace Spreads
                 {
                     if (wr.TryGetTarget(out var tg))
                     {
-                        SpinningThreadPool.Default.UnsafeQueueCompletableItem(DoNotifyUpdateSingleSync, tg, true);
+                        SpreadsThreadPool.Default.UnsafeQueueCompletableItem(DoNotifyUpdateSingleSync, tg, true);
                     }
                 }
             }

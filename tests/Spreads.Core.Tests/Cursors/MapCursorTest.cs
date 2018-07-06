@@ -233,13 +233,13 @@ namespace Spreads.Core.Tests.Cursors
         {
             var count = 10;
             var sm = new SortedMap<int, int>();
-
+            var zipMap = sm.Map(x => x * x).Zip(sm.Map(x => x * x), (l,r) => l + r);
 
             var t1 = Task.Run(async () =>
             {
                 for (int i = 0; i < count; i++)
                 {
-                    await Task.Delay(15);
+                    await Task.Delay(250);
                     var _ = await sm.TryAdd(i, i);
                     
                 }
@@ -248,7 +248,7 @@ namespace Spreads.Core.Tests.Cursors
             var cnt = 0;
             var t2 = Task.Run(async () =>
             {
-                var c = sm.GetCursor();
+                var c = zipMap.GetCursor();
                 
                 while (await c.MoveNextAsync())
                 {

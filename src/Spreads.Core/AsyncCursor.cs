@@ -258,6 +258,12 @@ namespace Spreads
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void TryComplete(bool runAsync)
         {
+            // NB: OnCompleted opens the lock. If there is no awaiter then
+            // we register a missed update and return. This methods does 
+            // not move _innerCursor if noone is awating on MNA. Cursors are
+            // single-reader (one thread at time) so if someone awaits on one
+            // thread and moves a cursor on another then this is incorrect
+            // unsupporate usage.
             if (Interlocked.CompareExchange(ref _isLocked, 1L, 0L) != 0L)
             {
                 Volatile.Write(ref _hasSkippedUpdate, true);
