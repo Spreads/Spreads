@@ -279,5 +279,36 @@ namespace Spreads.Core.Tests.Cursors
             Assert.AreEqual(1, cursor.CurrentKey);
             Assert.AreEqual(1, cursor.CurrentValue);
         }
+
+
+        [Test]
+        public async Task CouldCancelCursor()
+        {
+            var sm = new SortedMap<int, int>();
+
+            var cursor = sm.GetCursor();
+
+            var completable = cursor as IAsyncCompletable;
+
+            var t = Task.Run(async () =>
+            {
+                try
+                {
+                    await cursor.MoveNextAsync();
+                    Assert.Fail();
+                }
+                catch (Exception ex)
+                {
+                    Assert.True(true);
+                }
+            });
+
+            Thread.Sleep(100);
+
+            completable?.TryComplete(true, true);
+
+            t.Wait();
+        }
+
     }
 }

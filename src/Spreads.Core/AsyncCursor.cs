@@ -2,6 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+using Spreads.Threading;
 using Spreads.Utils;
 using System;
 using System.Collections;
@@ -256,10 +257,15 @@ namespace Spreads
         //}
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void TryComplete(bool runAsync)
+        public void TryComplete(bool runAsync, bool cancel)
         {
+            if (cancel)
+            {
+                _error = _error ?? ExceptionDispatchInfo.Capture(new OperationCanceledException());
+            }
+
             // NB: OnCompleted opens the lock. If there is no awaiter then
-            // we register a missed update and return. This methods does 
+            // we register a missed update and return. This methods does
             // not move _innerCursor if noone is awating on MNA. Cursors are
             // single-reader (one thread at time) so if someone awaits on one
             // thread and moves a cursor on another then this is incorrect
@@ -267,6 +273,12 @@ namespace Spreads
             if (Interlocked.CompareExchange(ref _isLocked, 1L, 0L) != 0L)
             {
                 Volatile.Write(ref _hasSkippedUpdate, true);
+                return;
+            }
+
+            if (_error != null)
+            {
+                SignalCompletion(runAsync);
                 return;
             }
 
@@ -335,7 +347,7 @@ namespace Spreads
                 if (Volatile.Read(ref _hasSkippedUpdate))//  && locked == 0 && !_completed)
                 {
                     LogSkipped();
-                    TryComplete(true);
+                    TryComplete(true, false);
                 }
             }
             catch (Exception e)
@@ -412,11 +424,7 @@ namespace Spreads
                 switch (cc)
                 {
                     case null:
-#if NETCOREAPP2_1
-                        ThreadPool.QueueUserWorkItem(continuation, state, true);
-#else
-                        ThreadPool.QueueUserWorkItem(new WaitCallback(continuation), state);
-#endif
+                        SpreadsThreadPool.Default.UnsafeQueueCompletableItem(continuation, state, true);
                         break;
 
                     case SynchronizationContext sc:
@@ -438,7 +446,7 @@ namespace Spreads
                 // Retry self, _continuations is now set, last chance to get result
                 // without external notification. If cannot move from here
                 // lock will remain open
-                TryComplete(true);
+                TryComplete(true, false);
             }
         }
 
@@ -461,6 +469,13 @@ namespace Spreads
         {
             _error = ExceptionDispatchInfo.Capture(error);
             SignalCompletion();
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void SetExceptionAsync(Exception error)
+        {
+            _error = ExceptionDispatchInfo.Capture(error);
+            SignalCompletion(true);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -501,11 +516,7 @@ namespace Spreads
                 case null:
                     if (runAsync)
                     {
-#if NETCOREAPP2_1
-                        ThreadPool.QueueUserWorkItem(_cb, this, true);
-#else
-                        ThreadPool.QueueUserWorkItem(new WaitCallback(_cb), this);
-#endif
+                        SpreadsThreadPool.Default.UnsafeQueueCompletableItem(_cb, this, true);
                     }
                     else
                     {
@@ -519,7 +530,6 @@ namespace Spreads
                     break;
 
                 case TaskScheduler ts:
-                    // TODO threadpool
                     Task.Factory.StartNew(_cb, this, CancellationToken.None, TaskCreationOptions.DenyChildAttach, ts);
                     break;
             }

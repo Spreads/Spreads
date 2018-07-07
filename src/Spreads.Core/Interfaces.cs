@@ -72,7 +72,7 @@ namespace Spreads
 
     public interface IAsyncCompletable
     {
-        void TryComplete(bool runAsync);
+        void TryComplete(bool runAsync, bool cancel);
     }
 
     public interface IAsyncCompleter

@@ -1310,7 +1310,7 @@ namespace Spreads
         private static void DoNotifyUpdateSingleSync(object obj)
         {
             var cursor = (IAsyncCompletable)obj;
-            cursor.TryComplete(false);
+            cursor.TryComplete(false, false);
         }
 
         #endregion Synchronization
