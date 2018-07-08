@@ -150,7 +150,7 @@ namespace Spreads.Buffers
                 {
                     // sanity check
                     ThrowHelper.ThrowInvalidOperationException(
-                        $"Finalizer was called despite being disposd: {Callstack}");
+                        $"Finalizer was called despite being disposed: {Callstack}");
                 }
                 else
                 {

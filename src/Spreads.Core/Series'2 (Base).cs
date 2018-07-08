@@ -1286,22 +1286,30 @@ namespace Spreads
             var cursors = _cursors;
             if (cursors != null)
             {
-                if (cursors is ConcurrentDictionary<WeakReference<IAsyncCompletable>, bool> dict)
+                SpreadsThreadPool.Default.UnsafeQueueCompletableItem(DoNotifyUpdate, null, true);
+            }
+        }
+
+        // TODO: Looks like this is not inlined, and this case is already when async cursors are waiting so method call is slower than async machinery anyway
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private void DoNotifyUpdate(object _)
+        {
+            var cursors = _cursors;
+            if (cursors is ConcurrentDictionary<WeakReference<IAsyncCompletable>, bool> dict)
+            {
+                foreach (var kvp in dict)
                 {
-                    foreach (var kvp in dict)
-                    {
-                        if (kvp.Key.TryGetTarget(out var tg))
-                        {
-                            SpreadsThreadPool.Default.UnsafeQueueCompletableItem(DoNotifyUpdateSingleSync, tg, true);
-                        }
-                    }
-                }
-                else if (cursors is WeakReference<IAsyncCompletable> wr)
-                {
-                    if (wr.TryGetTarget(out var tg))
+                    if (kvp.Key.TryGetTarget(out var tg))
                     {
                         SpreadsThreadPool.Default.UnsafeQueueCompletableItem(DoNotifyUpdateSingleSync, tg, true);
                     }
+                }
+            }
+            else if (cursors is WeakReference<IAsyncCompletable> wr)
+            {
+                if (wr.TryGetTarget(out var tg))
+                {
+                    SpreadsThreadPool.Default.UnsafeQueueCompletableItem(DoNotifyUpdateSingleSync, tg, true);
                 }
             }
         }

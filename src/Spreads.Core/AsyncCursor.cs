@@ -93,8 +93,6 @@ namespace Spreads
         // ReSharper disable once FieldCanBeMadeReadOnly.Local
         private TCursor _innerCursor;
 
-        // private AsyncTaskMethodBuilder _builder = AsyncTaskMethodBuilder.Create();
-
         private Action<object> _continuation;
         private object _continuationState;
         private object _capturedContext;
@@ -176,9 +174,6 @@ namespace Spreads
 
             TryOwnAndReset();
 
-            // var inst = this;
-            // _builder.Start(ref inst); // invokes MoveNext, protected by ExecutionContext guards
-
             switch (GetStatus(_version))
             {
                 case ValueTaskSourceStatus.Succeeded:
@@ -246,15 +241,6 @@ namespace Spreads
                 ThrowHelper.FailFast("token != _version");
             }
         }
-
-        //public void SetStateMachine(IAsyncStateMachine stateMachine)
-        //{
-        //}
-
-        //[MethodImpl(MethodImplOptions.AggressiveInlining)]
-        //void IAsyncStateMachine.MoveNext()
-        //{
-        //}
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void TryComplete(bool runAsync, bool cancel)
