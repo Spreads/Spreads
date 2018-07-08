@@ -1,5 +1,6 @@
 ﻿using System;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
@@ -34,6 +35,7 @@ namespace Spreads
     /// The minimal implementation of Option type. T must implement IEquitable for custom equality.
     /// </summary>
     [StructLayout(LayoutKind.Auto)]
+    [DebuggerDisplay("{" + nameof(ToString) + "()}")]
     public readonly struct Opt<T> // : IEquatable<Opt<T>>
     {
         /// <summary>
@@ -178,6 +180,11 @@ namespace Spreads
         {
             isPresent = IsPresent;
             value = Present;
+        }
+
+        public override string ToString()
+        {
+            return IsMissing ? "{Opt: Missing}" : $"{{Opt: {Present.ToString()}}}";
         }
     }
 }
