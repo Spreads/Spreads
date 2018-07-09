@@ -14,6 +14,14 @@ namespace Spreads.Core.Tests.DataTypes
     public class TaggedKeyValueTests
     {
         [Test]
+        public void FullName()
+        {
+            var ty = Type.GetType("Spreads.DataTypes.TaggedKeyValue`2[System.Int64,System.Double]");
+            var kv = new TaggedKeyValue<long, double>(DateTime.Now.Ticks, 123.45, 255);
+            Console.WriteLine((typeof(TaggedKeyValue<long, double>)).ToString());
+        }
+
+        [Test]
         public void DateTimeDoubleIsTreatedAsBlittable()
         {
             var kv = new TaggedKeyValue<long, double>(DateTime.Now.Ticks, 123.45, 255);

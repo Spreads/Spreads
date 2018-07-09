@@ -26,6 +26,7 @@ namespace Spreads
         private static long _asyncCount;
         private static long _awaitCount;
         private static long _skippedCount;
+        private static long _missedCount;
 
         private static long _finishedCount;
 
@@ -34,6 +35,7 @@ namespace Spreads
         internal static long AsyncCount => _asyncCount;
         internal static long AwaitCount => _awaitCount;
         internal static long SkippedCount => _skippedCount;
+        internal static long MissedCount => _missedCount;
         internal static long FinishedCount => _finishedCount;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -62,6 +64,12 @@ namespace Spreads
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static void LogMissed()
+        {
+            _missedCount++;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static void LogFinished()
         {
             _finishedCount++;
@@ -75,6 +83,7 @@ namespace Spreads
             _asyncCount = 0;
             _awaitCount = 0;
             _skippedCount = 0;
+            _missedCount = 0;
             _finishedCount = 0;
         }
 
@@ -105,6 +114,7 @@ namespace Spreads
         private long _isLocked = 1L;
         private bool _hasSkippedUpdate;
         private IDisposable _subscription;
+        private IAsyncSubscription _subscriptionEx;
 
         public AsyncCursor(Func<TCursor> cursorFactory) : this(cursorFactory())
         { }
@@ -161,7 +171,7 @@ namespace Spreads
                 return new ValueTask<bool>(true);
             }
 
-            if (_innerCursor.Source.IsCompleted)
+            if (_innerCursor.IsCompleted)
             {
                 if (_innerCursor.MoveNext())
                 {
@@ -196,7 +206,7 @@ namespace Spreads
                 _result = true;
             }
 
-            if (_innerCursor.Source.IsCompleted)
+            if (_innerCursor.IsCompleted)
             {
                 LogSync();
                 if (_innerCursor.MoveNext())
@@ -259,6 +269,7 @@ namespace Spreads
             if (Interlocked.CompareExchange(ref _isLocked, 1L, 0L) != 0L)
             {
                 Volatile.Write(ref _hasSkippedUpdate, true);
+                LogMissed();
                 return;
             }
 
@@ -267,6 +278,8 @@ namespace Spreads
                 SignalCompletion(runAsync);
                 return;
             }
+
+
 
             // TODO we are moving cursor from sync updater thread, but should do
             // from a separate thread. Async updater (not implemented yet) is updating
@@ -286,6 +299,7 @@ namespace Spreads
                     Volatile.Write(ref _hasSkippedUpdate, false);
                     if (_innerCursor.MoveNext())
                     {
+                        _subscriptionEx?.RequestNotification(-1);
                         if (runAsync)
                         {
                             SetResultAsync(true);
@@ -299,10 +313,11 @@ namespace Spreads
                         return;
                     }
 
-                    if (_innerCursor.Source.IsCompleted)
+                    if (_innerCursor.IsCompleted)
                     {
                         if (_innerCursor.MoveNext())
                         {
+                            _subscriptionEx?.RequestNotification(-1);
                             if (runAsync)
                             {
                                 SetResultAsync(true);
@@ -329,7 +344,6 @@ namespace Spreads
                 LogAwait();
 
                 Volatile.Write(ref _isLocked, 0L);
-                // var locked = Volatile.Read(ref _isLocked);
                 if (Volatile.Read(ref _hasSkippedUpdate))//  && locked == 0 && !_completed)
                 {
                     LogSkipped();
@@ -428,6 +442,12 @@ namespace Spreads
             }
             else
             {
+                // if we request notification before releasing the lock then
+                // we will have _hasSkippedUpdate flag set. Then we retry ourselves anyway
+                if (_subscription is IAsyncSubscription sub)
+                {
+                    sub.RequestNotification(1);
+                }
                 Volatile.Write(ref _isLocked, 0L);
                 // Retry self, _continuations is now set, last chance to get result
                 // without external notification. If cannot move from here
@@ -539,6 +559,7 @@ namespace Spreads
             if (_subscription == null)
             {
                 _subscription = _innerCursor.AsyncCompleter?.Subscribe(this) ?? _nullSubscriptionSentinel;
+                _subscriptionEx = _subscription as IAsyncSubscription;
             }
             if (ReferenceEquals(_subscription, _nullSubscriptionSentinel))
             {

@@ -15,14 +15,29 @@ using System.Runtime.Serialization;
 
 namespace Spreads.DataTypes
 {
+
     [Serialization(PreferBlittable = true)] // when both types are blittable the struct is written in one operation
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
+    // NB cannot use JsonFormatter attribute, this is hardcoded in DynamicGenericResolverGetFormatterHelper
     public readonly struct TaggedKeyValue<TKey, TValue> : IEquatable<TaggedKeyValue<TKey, TValue>>, IBinaryConverter<TaggedKeyValue<TKey, TValue>>
     {
         private static readonly int KeySize = TypeHelper<TKey>.Size;
         private static readonly int ValueSize = TypeHelper<TValue>.Size;
         private static readonly bool IsFixedSizeStatic = TypeHelper<TKey>.Size > 0 && TypeHelper<TValue>.Size > 0;
         private static readonly int FixedSizeStatic = 4 + TypeHelper<TKey>.Size + TypeHelper<TValue>.Size;
+
+        private static DataTypeHeader _defaultHeader = new DataTypeHeader
+        {
+            VersionAndFlags =
+            {
+                Version = 1,
+                IsBinary = true,
+                IsDelta = false,
+                IsCompressed = false
+            },
+            TypeEnum = VariantHelper<TaggedKeyValue<TKey, TValue>>.TypeEnum,
+            TypeSize = IsFixedSizeStatic ? (byte)FixedSizeStatic : (byte)0
+        };
 
         // for blittable case all this is written in one operation,
         // for var size case will manually write with two headers
@@ -86,6 +101,7 @@ namespace Spreads.DataTypes
             {
                 return BinarySerializer.WriteUnsafe(value, pinnedDestination, temporaryStream, format);
             }
+            // TODO write key + value
             throw new NotImplementedException();
         }
 

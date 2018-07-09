@@ -248,7 +248,11 @@ namespace Spreads
         /// <summary>
         /// Get a <see cref="Series{TKey,TValue,TCursor}"/> based on this cursor.
         /// </summary>
-        public Series<TKey, TResult, Map<TKey, TInput, TResult, TCursor>> Source => new Series<TKey, TResult, Map<TKey, TInput, TResult, TCursor>>(this);
+        public Series<TKey, TResult, Map<TKey, TInput, TResult, TCursor>> Source
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return new Series<TKey, TResult, Map<TKey, TInput, TResult, TCursor>>(this); }
+        }
 
         /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

@@ -75,6 +75,11 @@ namespace Spreads
         void TryComplete(bool runAsync, bool cancel);
     }
 
+    internal interface IAsyncSubscription : IDisposable
+    {
+        void RequestNotification(int count);
+    }
+
     public interface IAsyncCompleter
     {
          [CanBeNull]
@@ -346,6 +351,7 @@ namespace Spreads
     public interface IMutableDataStream<T> : IDataStream<T>
     {
         Task<bool> TryAddLast(T value);
+        Task Complete();
     }
 
     public class DataStream

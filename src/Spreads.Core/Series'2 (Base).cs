@@ -978,8 +978,10 @@ namespace Spreads
 
         internal long Locker;
 
-        //private long _cursorNotifyLocker;
-        //private bool _hasSkippedUpdate;
+        protected ContainerSeries()
+        {
+            _doNotifyUpdateSingleSyncCallback = DoNotifyUpdateSingleSync;
+        }
 
         internal abstract TCursor GetContainerCursor();
 
@@ -1004,20 +1006,31 @@ namespace Spreads
             return c;
         }
 
-        private class ContainerSubscription : IDisposable
+        private class ContainerSubscription : IAsyncSubscription
         {
             private readonly ContainerSeries<TKey, TValue, TCursor> _container;
-            private readonly WeakReference<IAsyncCompletable> _wr;
+            public readonly WeakReference<IAsyncCompletable> Wr;
+
+            // Public interface exposes only IDisposable, only if subscription is IAsyncSubscription cursor knows what to do
+            // Otherwise this number will stay at 1 and NotifyUpdate will send all updates
+            private long _requests = 0;
+
+            public long Requests
+            {
+                [MethodImpl(MethodImplOptions.AggressiveInlining)]
+                get { return Volatile.Read(ref _requests); }
+            }
 
             public ContainerSubscription(ContainerSeries<TKey, TValue, TCursor> container, WeakReference<IAsyncCompletable> wr)
             {
                 _container = container;
-                _wr = wr;
+                Wr = wr;
             }
 
             public void Dispose(bool disposing)
             {
-                if (ReferenceEquals(_container._cursors, _wr))
+                Volatile.Write(ref _requests, 0);
+                if (ReferenceEquals(_container._cursors, Wr))
                 {
                     _container.BeforeWrite();
                     _container._cursors = null;
@@ -1025,7 +1038,7 @@ namespace Spreads
                 }
                 else if (_container._cursors is ConcurrentDictionary<WeakReference<IAsyncCompletable>, bool> dict)
                 {
-                    dict.TryRemove(_wr, out _);
+                    dict.TryRemove(Wr, out _);
                 }
             }
 
@@ -1033,6 +1046,11 @@ namespace Spreads
             {
                 GC.SuppressFinalize(this);
                 Dispose(true);
+            }
+
+            public void RequestNotification(int count)
+            {
+                Interlocked.Add(ref _requests, count);
             }
 
             ~ContainerSubscription()
@@ -1043,27 +1061,26 @@ namespace Spreads
 
         public IDisposable Subscribe(IAsyncCompletable subscriber)
         {
-            WeakReference<IAsyncCompletable> wr = null;
+            var wr_ = new WeakReference<IAsyncCompletable>(subscriber);
+            var subscription = new ContainerSubscription(this, wr_);
             if (_cursors == null)
             {
                 BeforeWrite();
                 if (_cursors == null)
                 {
-                    wr = new WeakReference<IAsyncCompletable>(subscriber);
-                    _cursors = wr;
+                    _cursors = subscription;
                 }
                 AfterWrite(false);
             }
             else
             {
-                if (_cursors is WeakReference<IAsyncCompletable> wr1
-                    && !wr1.TryGetTarget(out var _))
+                if (_cursors is ContainerSubscription sub
+                    && !sub.Wr.TryGetTarget(out var _))
                 {
                     BeforeWrite();
-                    if (!wr1.TryGetTarget(out var _))
+                    if (!sub.Wr.TryGetTarget(out var _))
                     {
-                        wr1.SetTarget(subscriber);
-                        wr = wr1;
+                        sub.Wr.SetTarget(subscriber);
                     }
                     else
                     {
@@ -1071,24 +1088,22 @@ namespace Spreads
                     }
                     AfterWrite(false);
                 }
-                else if (_cursors is ConcurrentDictionary<WeakReference<IAsyncCompletable>, bool> dict)
+                else if (_cursors is ConcurrentDictionary<ContainerSubscription, bool> dict)
                 {
-                    wr = new WeakReference<IAsyncCompletable>(subscriber);
-                    dict.TryAdd(wr, default);
+                    dict.TryAdd(subscription, default);
                 }
                 else
                 {
-                    wr = new WeakReference<IAsyncCompletable>(subscriber);
                     BeforeWrite();
-                    var existing = _cursors as WeakReference<IAsyncCompletable>;
-                    _cursors = new ConcurrentDictionary<WeakReference<IAsyncCompletable>, bool>();
-                    ((ConcurrentDictionary<WeakReference<IAsyncCompletable>, bool>)_cursors).TryAdd(existing, default);
-                    ((ConcurrentDictionary<WeakReference<IAsyncCompletable>, bool>)_cursors).TryAdd(wr, default);
+                    var existing = _cursors as ContainerSubscription;
+                    _cursors = new ConcurrentDictionary<ContainerSubscription, bool>();
+                    ((ConcurrentDictionary<ContainerSubscription, bool>)_cursors).TryAdd(existing, default);
+                    ((ConcurrentDictionary<ContainerSubscription, bool>)_cursors).TryAdd(subscription, default);
                     AfterWrite(false);
                 }
             }
 
-            return new ContainerSubscription(this, wr);
+            return subscription;
         }
 
         TCursor ISpecializedSeries<TKey, TValue, TCursor>.GetCursor()
@@ -1286,33 +1301,35 @@ namespace Spreads
             var cursors = _cursors;
             if (cursors != null)
             {
-                SpreadsThreadPool.Default.UnsafeQueueCompletableItem(DoNotifyUpdate, null, true);
+                DoNotifyUpdate(null);
             }
         }
 
-        // TODO: Looks like this is not inlined, and this case is already when async cursors are waiting so method call is slower than async machinery anyway
         [MethodImpl(MethodImplOptions.NoInlining)]
         private void DoNotifyUpdate(object _)
         {
             var cursors = _cursors;
-            if (cursors is ConcurrentDictionary<WeakReference<IAsyncCompletable>, bool> dict)
+
+            if (cursors is ContainerSubscription sub)
+            {
+                if (sub.Requests > 0 && sub.Wr.TryGetTarget(out var tg))
+                {
+                    SpreadsThreadPool.Default.UnsafeQueueCompletableItem(_doNotifyUpdateSingleSyncCallback, tg, true);
+                }
+            }
+            else if (cursors is ConcurrentDictionary<ContainerSubscription, bool> dict)
             {
                 foreach (var kvp in dict)
                 {
-                    if (kvp.Key.TryGetTarget(out var tg))
+                    if (kvp.Key.Requests > 0 && kvp.Key.Wr.TryGetTarget(out var tg))
                     {
-                        SpreadsThreadPool.Default.UnsafeQueueCompletableItem(DoNotifyUpdateSingleSync, tg, true);
+                        SpreadsThreadPool.Default.UnsafeQueueCompletableItem(_doNotifyUpdateSingleSyncCallback, tg, true);
                     }
                 }
             }
-            else if (cursors is WeakReference<IAsyncCompletable> wr)
-            {
-                if (wr.TryGetTarget(out var tg))
-                {
-                    SpreadsThreadPool.Default.UnsafeQueueCompletableItem(DoNotifyUpdateSingleSync, tg, true);
-                }
-            }
         }
+
+        private Action<object> _doNotifyUpdateSingleSyncCallback;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static void DoNotifyUpdateSingleSync(object obj)

@@ -44,7 +44,7 @@ namespace Spreads
 
         internal Window(TCursor cursor, int count, bool allowIncomplete = false) : this()
         {
-            if (cursor.Source.IsIndexed)
+            if (cursor.IsIndexed)
             {
                 throw new NotSupportedException("Window is not supported for indexed series, only for sorted ones.");
             }
@@ -65,7 +65,7 @@ namespace Spreads
 
         internal Window(TCursor cursor, TKey width, Lookup lookup) : this()
         {
-            if (cursor.Source.IsIndexed)
+            if (cursor.IsIndexed)
             {
                 throw new NotSupportedException("Window is not supported for indexed series, only for sorted ones.");
             }
@@ -201,14 +201,14 @@ namespace Spreads
         public bool IsIndexed
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return _cursor.Source.IsIndexed; }
+            get { return _cursor.IsIndexed; }
         }
 
         /// <inheritdoc />
         public bool IsCompleted
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return _cursor.Source.IsCompleted; }
+            get { return _cursor.IsCompleted; }
         }
 
         /// <inheritdoc />

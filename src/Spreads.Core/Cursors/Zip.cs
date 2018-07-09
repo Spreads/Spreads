@@ -107,7 +107,7 @@ namespace Spreads
                 throw new ArgumentException("Comparers are not the same");
             }
 
-            if (leftCursor.Source.IsIndexed || rightCursor.Source.IsIndexed)
+            if (leftCursor.IsIndexed || rightCursor.IsIndexed)
             {
                 // TODO Should probably create a separate Lookup cursor that looks up keys from L in R via TGV
                 // If R is continuous we still just call TGV. If L is continuous, then TVG on Lookup cursor with call TGV on both
@@ -296,7 +296,7 @@ namespace Spreads
             // NB this property is repeatedly called from MNA
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             // TODO when all discretes are RO then this cursor is RO as well
-            get { return _leftCursor.Source.IsCompleted && _rightCursor.Source.IsCompleted; }
+            get { return _leftCursor.IsCompleted && _rightCursor.IsCompleted; }
         }
 
         /// <inheritdoc />

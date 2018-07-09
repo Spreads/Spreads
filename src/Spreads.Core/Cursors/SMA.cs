@@ -194,7 +194,7 @@ namespace Spreads
         public bool IsIndexed
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return _cursor.Source.IsIndexed; }
+            get { return _cursor.IsIndexed; }
         }
 
         /// <inheritdoc />
@@ -202,7 +202,7 @@ namespace Spreads
         {
             // NB this property is repeatedly called from MNA
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return _cursor.Source.IsCompleted; }
+            get { return _cursor.IsCompleted; }
         }
 
         public IAsyncCompleter AsyncCompleter

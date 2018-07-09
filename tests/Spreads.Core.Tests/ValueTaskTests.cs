@@ -71,8 +71,8 @@ namespace Spreads.Core.Tests
                         {
                             if (i != 2)
                             {
-                                sm1.TryAddLast(i, i);
-                                Thread.SpinWait(30);
+                                await sm1.TryAddLast(i, i);
+                                Thread.SpinWait(10);
 
                                 //if (i % 250000 == 0)
                                 //{
@@ -133,7 +133,7 @@ namespace Spreads.Core.Tests
                                 }
 
                                 Console.WriteLine(
-                                    $"{r}: Sync: {AsyncCursor.SyncCount}, Async: {AsyncCursor.AsyncCount}, Await: {AsyncCursor.AwaitCount}, Skipped: {AsyncCursor.SkippedCount}, Finished: {AsyncCursor.FinishedCount}");
+                                    $"{r}: Sync: {AsyncCursor.SyncCount}, Async: {AsyncCursor.AsyncCount}, Await: {AsyncCursor.AwaitCount}, Skipped: {AsyncCursor.SkippedCount}, Missed: {AsyncCursor.MissedCount}, Finished: {AsyncCursor.FinishedCount}");
                                 Thread.MemoryBarrier();
                                 AsyncCursor.ResetCounters();
                             }

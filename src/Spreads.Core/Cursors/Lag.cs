@@ -160,14 +160,14 @@ namespace Spreads
         public bool IsIndexed
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return _cursor.Source.IsIndexed; }
+            get { return _cursor.IsIndexed; }
         }
 
         /// <inheritdoc />
         public bool IsCompleted
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return _cursor.Source.IsCompleted; }
+            get { return _cursor.IsCompleted; }
         }
 
         public IAsyncCompleter AsyncCompleter

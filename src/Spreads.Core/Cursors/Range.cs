@@ -82,7 +82,7 @@ namespace Spreads
             bool isWindow = false,
             int count = -1) : this()
         {
-            if (!isWindow && cursor.Source.IsIndexed)
+            if (!isWindow && cursor.IsIndexed)
             {
                 throw new NotSupportedException("RangeSeries is not supported for indexed series, only for sorted ones.");
             }
@@ -567,7 +567,7 @@ namespace Spreads
         public bool IsIndexed
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return _cursor.Source.IsIndexed; }
+            get { return _cursor.IsIndexed; }
         }
 
         /// <inheritdoc />
@@ -583,7 +583,7 @@ namespace Spreads
                     )
                 )
                 {
-                    return _cursor.Source.IsCompleted;
+                    return _cursor.IsCompleted;
                 }
 
                 return true;

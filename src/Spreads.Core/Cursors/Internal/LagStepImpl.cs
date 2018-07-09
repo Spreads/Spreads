@@ -433,14 +433,14 @@ namespace Spreads.Cursors.Internal
         #region ICursorSeries members
 
         /// <inheritdoc />
-        public bool IsIndexed => _cursor.Source.IsIndexed;
+        public bool IsIndexed => _cursor.IsIndexed;
 
         /// <inheritdoc />
         public bool IsCompleted
         {
             // NB this property is repeatedly called from MNA
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return _cursor.Source.IsCompleted; }
+            get { return _cursor.IsCompleted; }
         }
 
         public IAsyncCompleter AsyncCompleter
