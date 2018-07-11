@@ -750,7 +750,7 @@ namespace Spreads.Threading
     public class SpreadsThreadPool
     {
         public static readonly SpreadsThreadPool Default = new SpreadsThreadPool(
-            new ThreadPoolSettings(Environment.ProcessorCount * 4, "DefaultSpinningThreadPool"));
+            new ThreadPoolSettings(Environment.ProcessorCount, "DefaultSpinningThreadPool"));
 
         internal readonly ThreadPoolWorkQueue workQueue;
         public ThreadPoolSettings Settings { get; }
