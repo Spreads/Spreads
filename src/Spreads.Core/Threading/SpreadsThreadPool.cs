@@ -709,7 +709,10 @@ namespace Spreads.Threading
             ThreadType = threadType;
             NumThreads = numThreads;
             ApartmentState = apartmentState;
-            ExceptionHandler = exceptionHandler ?? (ex => { ThrowHelper.FailFast("Unhandled exception in dedicated thread pool: " + ex.ToString()); });
+            ExceptionHandler = exceptionHandler ?? (ex =>
+            {
+                ThrowHelper.FailFast("Unhandled exception in dedicated thread pool: " + ex.ToString());
+            });
             ThreadMaxStackSize = threadMaxStackSize;
 
             if (numThreads <= 0)

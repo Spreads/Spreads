@@ -58,6 +58,8 @@ namespace Spreads.Core.Tests
             for (int r = 0; r < rounds; r++)
             {
                 var count = 1_000_000;
+                var cnt1 = 0;
+                var cnt2 = 0;
 
                 var sm1 = new Spreads.Collections.SortedMap<int, int>(count);
                 // sm1._isSynchronized = false;
@@ -72,7 +74,7 @@ namespace Spreads.Core.Tests
                             if (i != 2)
                             {
                                 await sm1.TryAddLast(i, i);
-                                Thread.SpinWait(10);
+                                Thread.SpinWait(5);
 
                                 //if (i % 250000 == 0)
                                 //{
@@ -82,6 +84,8 @@ namespace Spreads.Core.Tests
                         }
 
                         await sm1.Complete();
+                        //Console.WriteLine("cnt1: " + cnt1);
+                        //Console.WriteLine("cnt2: " + cnt2);
                     }
                     catch (Exception ex)
                     {
@@ -89,66 +93,113 @@ namespace Spreads.Core.Tests
                     }
                 });
 
-                // addTask.Wait();
+                ICursor<int, int> cursor1;
 
-                Task.Run(async () =>
+                // addTask.Wait();
+                using (Benchmark.Run("SM.Updated", count))
                 {
-                    using (Benchmark.Run("SM.Updated", count))
+                    var t1 = Task.Run(async () =>
+                {
+                    Thread.CurrentThread.Name = "MNA1";
+                    try
                     {
-                        Thread.CurrentThread.Name = "MNA";
+                        using (cursor1 = sm1.GetCursor())
+                        {
+                            // Console.WriteLine("MNA1 started");
+                            while (await cursor1.MoveNextAsync())
+                            {
+                                AsyncCursor.LogFinished();
+                                if (cnt1 == 2)
+                                {
+                                    cnt1++;
+                                    // Console.WriteLine("MNA1 moving");
+                                }
+
+                                if (cursor1.CurrentKey != cnt1)
+                                {
+                                    ThrowHelper.ThrowInvalidOperationException("Wrong cursor enumeration");
+                                }
+
+                                cnt1++;
+                                //if (c % 250000 == 0)
+                                //{
+                                //    GC.Collect(0, GCCollectionMode.Forced, false);
+                                //    Console.WriteLine(c);
+                                //}
+                            }
+
+                            if (cnt1 != count)
+                            {
+                                ThrowHelper.ThrowInvalidOperationException($"Cannot move to count: c={cnt1}, count={count}");
+                            }
+
+                            if (AsyncCursor.SyncCount == 0)
+                            {
+                                Console.WriteLine("SyncCount == 0");
+                            }
+
+                            Thread.MemoryBarrier();
+                        }
+                    }
+                    catch (Exception e)
+                    {
+                        Console.WriteLine("MNA1 ex: " + e);
+                    }
+                });
+
+                    ICursor<int, int> cursor2;
+                    var t2 = Task.Run(async () =>
+                    {
+                        Thread.CurrentThread.Name = "MNA2";
                         try
                         {
-                            var c = 0;
-                            using (var cursor = sm1.GetCursor())
+                            using (cursor2 = sm1.GetCursor())
                             {
-                                while (await cursor.MoveNextAsync())
+                                // Console.WriteLine("MNA2 started");
+                                while (await cursor2.MoveNextAsync())
                                 {
                                     AsyncCursor.LogFinished();
-                                    if (c == 2)
+                                    if (cnt2 == 2)
                                     {
-                                        c++;
+                                        cnt2++;
+                                        // Console.WriteLine("MNA2 moving");
                                     }
 
-                                    if (cursor.CurrentKey != c)
+                                    if (cursor2.CurrentKey != cnt2)
                                     {
                                         ThrowHelper.ThrowInvalidOperationException("Wrong cursor enumeration");
                                     }
 
-                                    c++;
-                                    //if (c % 250000 == 0)
-                                    //{
-                                    //    GC.Collect(0, GCCollectionMode.Forced, false);
-                                    //    Console.WriteLine(c);
-                                    //}
+                                    cnt2++;
                                 }
 
-                                if (c != count)
+                                if (cnt2 != count)
                                 {
-                                    ThrowHelper.ThrowInvalidOperationException($"Cannot move to count: c={c}, count={count}");
+                                    ThrowHelper.ThrowInvalidOperationException($"Cannot move to count: c={cnt2}, count={count}");
                                 }
-                                Thread.MemoryBarrier();
+
                                 if (AsyncCursor.SyncCount == 0)
                                 {
                                     Console.WriteLine("SyncCount == 0");
                                 }
-
-                                Console.WriteLine(
-                                    $"{r}: Sync: {AsyncCursor.SyncCount}, Async: {AsyncCursor.AsyncCount}, Await: {AsyncCursor.AwaitCount}, Skipped: {AsyncCursor.SkippedCount}, Missed: {AsyncCursor.MissedCount}, Finished: {AsyncCursor.FinishedCount}");
-                                Thread.MemoryBarrier();
-                                AsyncCursor.ResetCounters();
                             }
                         }
                         catch (Exception e)
                         {
-                            Console.WriteLine("MNA ex: " + e);
+                            Console.WriteLine("MNA2 ex: " + e);
                         }
-                    }
+                    });
 
-                    // Console.WriteLine(c);
-                }).ContinueWith(t =>
-                {
-                    addTask.Wait();
-                }).Wait();
+                    var finished = false;
+                    while (!finished)
+                    {
+                        finished = Task.WhenAll(addTask, t1, t2).Wait(2000);
+                        //Console.WriteLine("cnt1: " + cnt1);
+                        //Console.WriteLine("cnt2: " + cnt2);
+                    }
+                    Console.WriteLine($"{r}: Sync: {AsyncCursor.SyncCount}, Async: {AsyncCursor.AsyncCount}, Await: {AsyncCursor.AwaitCount}, Skipped: {AsyncCursor.SkippedCount}, Missed: {AsyncCursor.MissedCount}, Finished: {AsyncCursor.FinishedCount}");
+                    AsyncCursor.ResetCounters();
+                }
             }
             Benchmark.Dump();
         }

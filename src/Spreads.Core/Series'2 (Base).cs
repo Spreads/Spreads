@@ -1013,12 +1013,13 @@ namespace Spreads
 
             // Public interface exposes only IDisposable, only if subscription is IAsyncSubscription cursor knows what to do
             // Otherwise this number will stay at 1 and NotifyUpdate will send all updates
-            private long _requests = 0;
+            private long _requests;
 
             public long Requests
             {
                 [MethodImpl(MethodImplOptions.AggressiveInlining)]
                 get { return Volatile.Read(ref _requests); }
+                // set { Volatile.Write(ref _requests, value); }
             }
 
             public ContainerSubscription(ContainerSeries<TKey, TValue, TCursor> container, WeakReference<IAsyncCompletable> wr)
@@ -1027,18 +1028,34 @@ namespace Spreads
                 Wr = wr;
             }
 
+            // ReSharper disable once UnusedParameter.Local
             public void Dispose(bool disposing)
             {
-                Volatile.Write(ref _requests, 0);
-                if (ReferenceEquals(_container._cursors, Wr))
+                try
                 {
-                    _container.BeforeWrite();
-                    _container._cursors = null;
-                    _container.AfterWrite(false);
+                    Volatile.Write(ref _requests, 0);
+                    var existing = Interlocked.CompareExchange(ref _container._cursors, null, this);
+                    if (existing == this)
+                    {
+                        return;
+                    }
+                    if (existing is ConcurrentDictionary<ContainerSubscription, bool> dict)
+                    {
+                        dict.TryRemove(this, out _);
+                    }
+                    else
+                    {
+                        var message = "Wrong cursors type";
+                        Trace.TraceError(message);
+                        ThrowHelper.FailFast(message);
+                    }
                 }
-                else if (_container._cursors is ConcurrentDictionary<WeakReference<IAsyncCompletable>, bool> dict)
+                catch (Exception ex)
                 {
-                    dict.TryRemove(Wr, out _);
+                    var message = "Error in unsubscribe: " + ex;
+                    Trace.TraceError(message);
+                    ThrowHelper.FailFast(message);
+                    throw;
                 }
             }
 
@@ -1061,49 +1078,57 @@ namespace Spreads
 
         public IDisposable Subscribe(IAsyncCompletable subscriber)
         {
-            var wr_ = new WeakReference<IAsyncCompletable>(subscriber);
-            var subscription = new ContainerSubscription(this, wr_);
-            if (_cursors == null)
+            var wr = new WeakReference<IAsyncCompletable>(subscriber);
+            var subscription = new ContainerSubscription(this, wr);
+            try
             {
-                BeforeWrite();
-                if (_cursors == null)
+                while (true)
                 {
-                    _cursors = subscription;
-                }
-                AfterWrite(false);
-            }
-            else
-            {
-                if (_cursors is ContainerSubscription sub
-                    && !sub.Wr.TryGetTarget(out var _))
-                {
-                    BeforeWrite();
-                    if (!sub.Wr.TryGetTarget(out var _))
+                    var existing1 = Interlocked.CompareExchange<object>(ref _cursors, subscription, null);
+                    if (existing1 == null)
                     {
-                        sub.Wr.SetTarget(subscriber);
+                        break;
                     }
+
+                    if (existing1 is ConcurrentDictionary<ContainerSubscription, bool> dict)
+                    {
+                        dict.TryAdd(subscription, default);
+                        break;
+                    }
+
+                    if (!(existing1 is ContainerSubscription existing2))
+                    {
+                        ThrowHelper.FailFast("Wrong _cursors type.");
+                        return default;
+                    }
+                    var newDict = new ConcurrentDictionary<ContainerSubscription, bool>();
+                    if (existing2.Wr.TryGetTarget(out _))
+                    {
+                        newDict.TryAdd(existing2, default);
+                    }
+                    // ReSharper disable once RedundantIfElseBlock
                     else
                     {
-                        Subscribe(subscriber);
+                        // No need for existing2.Dispose(), it will be GCed, save one recursive call -
+                        // otherwise Dispose will set _cursors to null vs existing2:
                     }
-                    AfterWrite(false);
-                }
-                else if (_cursors is ConcurrentDictionary<ContainerSubscription, bool> dict)
-                {
-                    dict.TryAdd(subscription, default);
-                }
-                else
-                {
-                    BeforeWrite();
-                    var existing = _cursors as ContainerSubscription;
-                    _cursors = new ConcurrentDictionary<ContainerSubscription, bool>();
-                    ((ConcurrentDictionary<ContainerSubscription, bool>)_cursors).TryAdd(existing, default);
-                    ((ConcurrentDictionary<ContainerSubscription, bool>)_cursors).TryAdd(subscription, default);
-                    AfterWrite(false);
-                }
-            }
 
-            return subscription;
+                    newDict.TryAdd(subscription, default);
+                    var existing3 = Interlocked.CompareExchange<object>(ref _cursors, newDict, existing2);
+                    if (existing3 == existing2)
+                    {
+                        break;
+                    }
+                }
+                return subscription;
+            }
+            catch (Exception ex)
+            {
+                var message = "Error in ContainerSeries.Subscribe: " + ex;
+                Trace.TraceError(message);
+                ThrowHelper.FailFast(message);
+                throw;
+            }
         }
 
         TCursor ISpecializedSeries<TKey, TValue, TCursor>.GetCursor()
@@ -1153,13 +1178,16 @@ namespace Spreads
         /// </summary>
         /// <returns></returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [Obsolete("Use this ONLY for IMutableSeries operations")]
         internal void BeforeWrite()
         {
             // TODO review (recall) why SCM needed access to this
 
 #if DEBUG
-            var spinwait = new SpinWait();
+            var sw = new Stopwatch();
+            sw.Start();
 #endif
+            var spinwait = new SpinWait();
             // NB try{} finally{ .. code here .. } prevents method inlining, therefore should be used at the caller place, not here
             var doSpin = _isSynchronized;
             // ReSharper disable once LoopVariableIsNeverChangedInsideLoop
@@ -1182,13 +1210,12 @@ namespace Spreads
                     break;
                 }
 #if DEBUG
-                if (spinwait.Count == 10000) // 10 000 is c.700 msec
+                sw.Stop();
+                var elapsed = sw.ElapsedMilliseconds;
+                if (elapsed > 1000)
                 {
                     TryUnlock();
                 }
-
-#else
-                var spinwait = new SpinWait();
 #endif
                 spinwait.SpinOnce();
             }
@@ -1198,7 +1225,7 @@ namespace Spreads
         [Conditional("DEBUG")]
         internal virtual void TryUnlock()
         {
-            ThrowHelper.FailFast("This should never happen. Locks are only in memory and should not take longer than a microsecond.");
+            ThrowHelper.FailFast("This should never happen. Locks are only in memory and should not take longer than a millisecond.");
         }
 
         /// <summary>
@@ -1207,6 +1234,7 @@ namespace Spreads
         /// </summary>
         /// <param name="doVersionIncrement"></param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [Obsolete("Use this ONLY for IMutableSeries operations")]
         internal void AfterWrite(bool doVersionIncrement)
         {
             if (!_isSynchronized)
@@ -1216,10 +1244,8 @@ namespace Spreads
                     _version++;
                     _nextVersion = _version;
                 }
-                return;
             }
-
-            if (doVersionIncrement)
+            else if (doVersionIncrement)
             {
                 if (IntPtr.Size == 8)
                 {
@@ -1229,7 +1255,8 @@ namespace Spreads
                 {
                     Interlocked.Increment(ref _version);
                 }
-                NotifyUpdate();
+
+                NotifyUpdate(false);
             }
             else
             {
@@ -1279,7 +1306,9 @@ namespace Spreads
 
         internal Task DoComplete()
         {
+#pragma warning disable 618
             BeforeWrite();
+#pragma warning restore 618
             if (!_isReadOnly)
             {
                 _isReadOnly = true;
@@ -1290,29 +1319,33 @@ namespace Spreads
                 // We have it only here, ok for now but TODO review later
                 _nextVersion = _version;
             }
+#pragma warning disable 618
             AfterWrite(false);
-            NotifyUpdate();
+#pragma warning restore 618
+            Interlocked.Exchange(ref Locker, 0L);
+            Console.WriteLine("Notify completeion");
+            NotifyUpdate(true);
             return Task.CompletedTask;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void NotifyUpdate()
+        internal void NotifyUpdate(bool force)
         {
             var cursors = _cursors;
             if (cursors != null)
             {
-                DoNotifyUpdate(null);
+                DoNotifyUpdate(force);
             }
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
-        private void DoNotifyUpdate(object _)
+        private void DoNotifyUpdate(bool force)
         {
             var cursors = _cursors;
 
             if (cursors is ContainerSubscription sub)
             {
-                if (sub.Requests > 0 && sub.Wr.TryGetTarget(out var tg))
+                if ((sub.Requests > 0 || force) && sub.Wr.TryGetTarget(out var tg))
                 {
                     SpreadsThreadPool.Default.UnsafeQueueCompletableItem(_doNotifyUpdateSingleSyncCallback, tg, true);
                 }
@@ -1321,15 +1354,20 @@ namespace Spreads
             {
                 foreach (var kvp in dict)
                 {
-                    if (kvp.Key.Requests > 0 && kvp.Key.Wr.TryGetTarget(out var tg))
+                    var sub1 = kvp.Key;
+                    if ((sub1.Requests > 0 || force) && sub1.Wr.TryGetTarget(out var tg))
                     {
                         SpreadsThreadPool.Default.UnsafeQueueCompletableItem(_doNotifyUpdateSingleSyncCallback, tg, true);
                     }
                 }
             }
+            else
+            {
+                ThrowHelper.FailFast("Wrong cursors subscriptions type");
+            }
         }
 
-        private Action<object> _doNotifyUpdateSingleSyncCallback;
+        private readonly Action<object> _doNotifyUpdateSingleSyncCallback;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static void DoNotifyUpdateSingleSync(object obj)

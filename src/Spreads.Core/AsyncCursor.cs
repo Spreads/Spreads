@@ -181,6 +181,17 @@ namespace Spreads
                 LogSync();
                 return new ValueTask<bool>(false);
             }
+            // Delay subscribing as much as possible
+            if (_subscription == null)
+            {
+                _subscription = _innerCursor.AsyncCompleter?.Subscribe(this) ?? _nullSubscriptionSentinel;
+                _subscriptionEx = _subscription as IAsyncSubscription;
+            }
+            if (ReferenceEquals(_subscription, _nullSubscriptionSentinel))
+            {
+                // NB last chance, no async support
+                return new ValueTask<bool>(_innerCursor.MoveNext());
+            }
 
             TryOwnAndReset();
 
@@ -232,7 +243,7 @@ namespace Spreads
 
             if (!_completed)
             {
-                ThrowHelper.FailFast("_completed = false in GetResult");
+                ThrowHelper.ThrowInvalidOperationException("_completed = false in GetResult");
             }
 
             var result = _result;
@@ -273,22 +284,12 @@ namespace Spreads
                 return;
             }
 
+            // separate because there could be no awaiter when we cancel and lock is taken
             if (_error != null)
             {
                 SignalCompletion(runAsync);
                 return;
             }
-
-
-
-            // TODO we are moving cursor from sync updater thread, but should do
-            // from a separate thread. Async updater (not implemented yet) is updating
-            // this cursor from it's own thread from the pool and it could continue
-            // moving cursor and push continuation. If it originates from IO,
-            // then IO will be completed by another thread that in turn will continue
-            // cursors chain.
-            // Instead of SetResultAsync we need the cursor moving part be on ThreadPool
-            // Hopefully signals are for a reason and
 
             try
             {
@@ -315,9 +316,10 @@ namespace Spreads
 
                     if (_innerCursor.IsCompleted)
                     {
+                        // not needed: if completed then there will be no updates
+                        _subscriptionEx?.RequestNotification(-1);
                         if (_innerCursor.MoveNext())
                         {
-                            _subscriptionEx?.RequestNotification(-1);
                             if (runAsync)
                             {
                                 SetResultAsync(true);
@@ -343,6 +345,7 @@ namespace Spreads
 
                 LogAwait();
 
+                _subscriptionEx?.RequestNotification(1);
                 Volatile.Write(ref _isLocked, 0L);
                 if (Volatile.Read(ref _hasSkippedUpdate))//  && locked == 0 && !_completed)
                 {
@@ -444,10 +447,8 @@ namespace Spreads
             {
                 // if we request notification before releasing the lock then
                 // we will have _hasSkippedUpdate flag set. Then we retry ourselves anyway
-                if (_subscription is IAsyncSubscription sub)
-                {
-                    sub.RequestNotification(1);
-                }
+
+                _subscriptionEx?.RequestNotification(1);
                 Volatile.Write(ref _isLocked, 0L);
                 // Retry self, _continuations is now set, last chance to get result
                 // without external notification. If cannot move from here
@@ -497,12 +498,12 @@ namespace Spreads
             {
                 if (_continuation == SCompletedSentinel || _continuation == SAvailableSentinel)
                 {
-                    ThrowHelper.ThrowInvalidOperationException("Wrong continuation");
+                    ThrowHelper.FailFast("Wrong continuation");
                 }
 
                 if (_executionContext != null)
                 {
-                    ExecutionContext.Run(_executionContext, s => InvokeContinuation(runAsync), null);
+                    ExecutionContext.Run(_executionContext, runAsync ? _contextCallbackAsync : _contextCallback, this);
                 }
                 else
                 {
@@ -510,6 +511,18 @@ namespace Spreads
                 }
             }
         }
+
+        // TODO refactor callbacks sync vs async path
+
+        private readonly ContextCallback _contextCallback = (th) =>
+        {
+            ((AsyncCursor<TKey, TValue, TCursor>)th).InvokeContinuation(false);
+        };
+
+        private readonly ContextCallback _contextCallbackAsync = (th) =>
+        {
+            ((AsyncCursor<TKey, TValue, TCursor>)th).InvokeContinuation(true);
+        };
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void InvokeContinuation(bool runAsync)
@@ -522,7 +535,7 @@ namespace Spreads
                 case null:
                     if (runAsync)
                     {
-                        SpreadsThreadPool.Default.UnsafeQueueCompletableItem(_cb, this, true);
+                        SpreadsThreadPool.Default.UnsafeQueueCompletableItem(_cbForScheduler, this, true);
                     }
                     else
                     {
@@ -532,16 +545,22 @@ namespace Spreads
                     break;
 
                 case SynchronizationContext sc:
-                    sc.Post(s => { SetCompletionAndInvokeContinuation(); }, null);
+                    sc.Post(_sendOrPostCallback, this);
                     break;
 
                 case TaskScheduler ts:
-                    Task.Factory.StartNew(_cb, this, CancellationToken.None, TaskCreationOptions.DenyChildAttach, ts);
+                    Task.Factory.StartNew(_cbForScheduler, this, CancellationToken.None, TaskCreationOptions.DenyChildAttach, ts);
                     break;
             }
         }
 
-        private Action<object> _cb = (th) =>
+
+        private readonly SendOrPostCallback _sendOrPostCallback = (th) =>
+        {
+            ((AsyncCursor<TKey, TValue, TCursor>)th).SetCompletionAndInvokeContinuation();
+        };
+
+        private readonly Action<object> _cbForScheduler = (th) =>
         {
             ((AsyncCursor<TKey, TValue, TCursor>)th).SetCompletionAndInvokeContinuation();
         };
@@ -556,16 +575,6 @@ namespace Spreads
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ValueTask<bool> MoveNextAsync()
         {
-            if (_subscription == null)
-            {
-                _subscription = _innerCursor.AsyncCompleter?.Subscribe(this) ?? _nullSubscriptionSentinel;
-                _subscriptionEx = _subscription as IAsyncSubscription;
-            }
-            if (ReferenceEquals(_subscription, _nullSubscriptionSentinel))
-            {
-                // NB last chance, no async support
-                return new ValueTask<bool>(_innerCursor.MoveNext());
-            }
             return GetMoveNextAsyncValueTask();
         }
 

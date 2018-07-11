@@ -405,6 +405,14 @@ and
     member this.Comparer 
       with [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>] get(): KeyComparer<'K> = this.source.Comparer
 
+    member this.Source: ISeries<'K,'V> = this.source :> ISeries<'K,'V>      
+    
+    member this.IsContinuous with get() = false
+
+    member this.IsCompleted with get() = this.source.IsCompleted
+    
+    member this.AsyncCompleter with get() = this.source :> IAsyncCompleter
+
     [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>] 
     member this.TryGetValue(key: 'K, [<Out>]value: byref<'V>): bool = this.source.TryGetValue(key, &value)
 
@@ -468,8 +476,6 @@ and
         if doSwitchInner then this.innerCursor <- newInner
       result
 
-    member this.Source: ISeries<'K,'V> = this.source :> ISeries<'K,'V>      
-    member this.IsContinuous with get() = false
     member this.CurrentBatch: ISeries<'K,'V> = 
       let mutable result = Unchecked.defaultof<_>
       let mutable doSpin = true
@@ -765,15 +771,15 @@ and
       member this.DisposeAsync() = this.Dispose();Task.CompletedTask
 
     interface ICursor<'K,'V> with
-      member this.Comparer with get() = this.source.Comparer
+      member this.Comparer with get() = this.Comparer
       member this.CurrentBatch = this.CurrentBatch
       member this.MoveNextBatch(): Task<bool> = this.MoveNextBatch()
       member this.MoveAt(index:'K, lookup:Lookup) = this.MoveAt(index, lookup)
       member this.MoveFirst():bool = this.MoveFirst()
       member this.MoveLast():bool =  this.MoveLast()
       member this.MovePrevious():bool = this.MovePrevious()
-      member this.CurrentKey with get() = this.innerCursor.CurrentKey
-      member this.CurrentValue with get() = this.innerCursor.CurrentValue
+      member this.CurrentKey with get() = this.CurrentKey
+      member this.CurrentValue with get() = this.CurrentValue
       member this.Source with get() = this.source :> ISeries<'K,'V>
       member this.Clone() = this.Clone() :> ICursor<'K,'V>
       member this.IsContinuous with get() = false
@@ -787,5 +793,5 @@ and
       member this.Initialize() = this.Initialize()
       member this.Clone() = this.Clone()
       member this.IsIndexed with get() = false
-      member this.IsCompleted with get() = this.source.IsCompleted
-      member this.AsyncCompleter with get() = this.source :> IAsyncCompleter
+      member this.IsCompleted with get() = this.IsCompleted
+      member this.AsyncCompleter with get() = this.AsyncCompleter

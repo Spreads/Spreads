@@ -17,7 +17,7 @@ namespace Spreads
 #pragma warning disable 660, 661
 
     // TODO review if we could keep cursor and not initialize every time
-    public struct Series<TKey, TValue, TCursor> : ISpecializedSeries<TKey, TValue, TCursor>, IAsyncCompleter
+    public readonly struct Series<TKey, TValue, TCursor> : ISpecializedSeries<TKey, TValue, TCursor>, IAsyncCompleter
 #pragma warning restore 660, 661
         where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
     {

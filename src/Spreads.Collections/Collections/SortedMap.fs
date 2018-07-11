@@ -1314,6 +1314,10 @@ type public SortedMapCursor<'K,'V> =
     
     member this.IsContinuous with get() = false
 
+    member this.IsCompleted with get() = Volatile.Read(&this.source._isReadOnly)
+    
+    member this.AsyncCompleter with get() = this.source :> IAsyncCompleter
+
     member this.Comparer
       with [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>] get() : KeyComparer<'K> = this.source.ComparerInlined
     
@@ -1640,5 +1644,5 @@ type public SortedMapCursor<'K,'V> =
         c
       member this.Clone() = this.Clone()
       member this.IsIndexed with get() = false
-      member this.IsCompleted with get() = this.source.IsCompleted
-      member this.AsyncCompleter with get() = this.source :> IAsyncCompleter
+      member this.IsCompleted with get() = this.IsCompleted
+      member this.AsyncCompleter with get() = this.AsyncCompleter
