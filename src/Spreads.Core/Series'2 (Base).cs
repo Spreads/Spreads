@@ -1340,7 +1340,6 @@ namespace Spreads
             AfterWrite(false);
 #pragma warning restore 618
             Interlocked.Exchange(ref Locker, 0L);
-            Console.WriteLine("Notify completeion");
             NotifyUpdate(true);
             return Task.CompletedTask;
         }

@@ -60,6 +60,8 @@ namespace Spreads.Core.Tests
                 var count = 1_000_000;
                 var cnt1 = 0;
                 var cnt2 = 0;
+                var cnt3 = 0;
+                var cnt4 = 0;
 
                 var sm1 = new Spreads.Collections.SortedMap<int, int>(count);
                 // sm1._isSynchronized = false;
@@ -93,17 +95,15 @@ namespace Spreads.Core.Tests
                     }
                 });
 
-                ICursor<int, int> cursor1;
-
                 // addTask.Wait();
-                using (Benchmark.Run("SM.Updated", count))
+                using (Benchmark.Run("SM.Updated", count * 5))
                 {
                     var t1 = Task.Run(async () =>
                 {
                     Thread.CurrentThread.Name = "MNA1";
                     try
                     {
-                        using (cursor1 = sm1.GetCursor())
+                        using (var cursor1 = sm1.GetCursor())
                         {
                             // Console.WriteLine("MNA1 started");
                             while (await cursor1.MoveNextAsync())
@@ -130,7 +130,7 @@ namespace Spreads.Core.Tests
 
                             if (cnt1 != count)
                             {
-                                ThrowHelper.ThrowInvalidOperationException($"Cannot move to count: c={cnt1}, count={count}");
+                                ThrowHelper.ThrowInvalidOperationException($"1 Cannot move to count: c={cnt1}, count={count}");
                             }
 
                             if (AsyncCursor.SyncCount == 0)
@@ -147,13 +147,13 @@ namespace Spreads.Core.Tests
                     }
                 });
 
-                    ICursor<int, int> cursor2;
+                    
                     var t2 = Task.Run(async () =>
                     {
                         Thread.CurrentThread.Name = "MNA2";
                         try
                         {
-                            using (cursor2 = sm1.GetCursor())
+                            using (var cursor2 = sm1.GetCursor())
                             {
                                 // Console.WriteLine("MNA2 started");
                                 while (await cursor2.MoveNextAsync())
@@ -175,7 +175,7 @@ namespace Spreads.Core.Tests
 
                                 if (cnt2 != count)
                                 {
-                                    ThrowHelper.ThrowInvalidOperationException($"Cannot move to count: c={cnt2}, count={count}");
+                                    ThrowHelper.ThrowInvalidOperationException($"2 Cannot move to count: c={cnt2}, count={count}");
                                 }
 
                                 if (AsyncCursor.SyncCount == 0)
@@ -190,10 +190,94 @@ namespace Spreads.Core.Tests
                         }
                     });
 
+                    var t3 = Task.Run(async () =>
+                    {
+                        Thread.CurrentThread.Name = "MNA3";
+                        try
+                        {
+                            using (var cursor3 = sm1.GetCursor())
+                            {
+                                // Console.WriteLine("MNA2 started");
+                                while (await cursor3.MoveNextAsync())
+                                {
+                                    AsyncCursor.LogFinished();
+                                    if (cnt3 == 2)
+                                    {
+                                        cnt3++;
+                                        // Console.WriteLine("MNA2 moving");
+                                    }
+
+                                    if (cursor3.CurrentKey != cnt3)
+                                    {
+                                        ThrowHelper.ThrowInvalidOperationException("Wrong cursor enumeration");
+                                    }
+
+                                    cnt3++;
+                                }
+
+                                if (cnt3 != count)
+                                {
+                                    ThrowHelper.ThrowInvalidOperationException($"3 Cannot move to count: c={cnt3}, count={count}");
+                                }
+
+                                if (AsyncCursor.SyncCount == 0)
+                                {
+                                    Console.WriteLine("SyncCount == 0");
+                                }
+                            }
+                        }
+                        catch (Exception e)
+                        {
+                            Console.WriteLine("MNA3 ex: " + e);
+                        }
+                    });
+
+                    var t4 = Task.Run(async () =>
+                    {
+                        Thread.CurrentThread.Name = "MNA4";
+                        try
+                        {
+                            using (var cursor4 = sm1.GetCursor())
+                            {
+                                // Console.WriteLine("MNA2 started");
+                                while (await cursor4.MoveNextAsync())
+                                {
+                                    AsyncCursor.LogFinished();
+                                    if (cnt4 == 2)
+                                    {
+                                        cnt4++;
+                                        // Console.WriteLine("MNA2 moving");
+                                    }
+
+                                    if (cursor4.CurrentKey != cnt4)
+                                    {
+                                        ThrowHelper.ThrowInvalidOperationException("Wrong cursor enumeration");
+                                    }
+
+                                    cnt4++;
+                                }
+
+                                if (cnt4 != count)
+                                {
+                                    ThrowHelper.ThrowInvalidOperationException($"4 Cannot move to count: c={cnt4}, count={count}");
+                                }
+
+                                if (AsyncCursor.SyncCount == 0)
+                                {
+                                    Console.WriteLine("SyncCount == 0");
+                                }
+                            }
+                        }
+                        catch (Exception e)
+                        {
+                            Console.WriteLine("MNA3 ex: " + e);
+                        }
+                    });
+
                     var finished = false;
                     while (!finished)
                     {
-                        finished = Task.WhenAll(addTask, t1, t2).Wait(2000);
+                        finished = Task.WhenAll(addTask, t1, t2, t3, t4).Wait(2000);
                         //Console.WriteLine("cnt1: " + cnt1);
                         //Console.WriteLine("cnt2: " + cnt2);
                     }
