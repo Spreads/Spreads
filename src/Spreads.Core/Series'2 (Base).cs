@@ -6,7 +6,6 @@ using Spreads.Threading;
 using Spreads.Utils;
 using System;
 using System.Collections;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -974,7 +973,8 @@ namespace Spreads
 
         internal bool _isReadOnly;
 
-        private object _cursors; // IAsyncStateMachineEx | ConcurrentDictionary<IAsyncStateMachineEx>
+        // Unition of ContainerSubscription | ConcurrentHashSet<ContainerSubscription>
+        private object _cursors;
 
         internal long Locker;
 
@@ -1039,9 +1039,12 @@ namespace Spreads
                     {
                         return;
                     }
-                    if (existing is ConcurrentDictionary<ContainerSubscription, bool> dict)
+                    if (existing is HashSet<ContainerSubscription> hashSet)
                     {
-                        dict.TryRemove(this, out _);
+                        lock (hashSet)
+                        {
+                            hashSet.Remove(this);
+                        }
                     }
                     else
                     {
@@ -1090,9 +1093,18 @@ namespace Spreads
                         break;
                     }
 
-                    if (existing1 is ConcurrentDictionary<ContainerSubscription, bool> dict)
+                    if (existing1 is HashSet<ContainerSubscription> hashSet)
                     {
-                        dict.TryAdd(subscription, default);
+                        lock (hashSet)
+                        {
+                            if (hashSet.Contains(subscription))
+                            {
+                                // NB not failfast, existing are not affected
+                                ThrowHelper.ThrowInvalidOperationException("Already subscribed");
+                            }
+                            hashSet.Add(subscription);
+                        }
+
                         break;
                     }
 
@@ -1101,10 +1113,10 @@ namespace Spreads
                         ThrowHelper.FailFast("Wrong _cursors type.");
                         return default;
                     }
-                    var newDict = new ConcurrentDictionary<ContainerSubscription, bool>();
+                    var newHashSet = new HashSet<ContainerSubscription>();
                     if (existing2.Wr.TryGetTarget(out _))
                     {
-                        newDict.TryAdd(existing2, default);
+                        newHashSet.Add(existing2);
                     }
                     // ReSharper disable once RedundantIfElseBlock
                     else
@@ -1113,8 +1125,13 @@ namespace Spreads
                         // otherwise Dispose will set _cursors to null vs existing2:
                     }
 
-                    newDict.TryAdd(subscription, default);
-                    var existing3 = Interlocked.CompareExchange<object>(ref _cursors, newDict, existing2);
+                    if (newHashSet.Contains(subscription))
+                    {
+                        // NB not failfast, existing are not affected
+                        ThrowHelper.ThrowInvalidOperationException("Already subscribed");
+                    }
+                    newHashSet.Add(subscription);
+                    var existing3 = Interlocked.CompareExchange<object>(ref _cursors, newHashSet, existing2);
                     if (existing3 == existing2)
                     {
                         break;
@@ -1350,14 +1367,17 @@ namespace Spreads
                     SpreadsThreadPool.Default.UnsafeQueueCompletableItem(_doNotifyUpdateSingleSyncCallback, tg, true);
                 }
             }
-            else if (cursors is ConcurrentDictionary<ContainerSubscription, bool> dict)
+            else if (cursors is HashSet<ContainerSubscription> hashSet)
             {
-                foreach (var kvp in dict)
+                lock (hashSet)
                 {
-                    var sub1 = kvp.Key;
-                    if ((sub1.Requests > 0 || force) && sub1.Wr.TryGetTarget(out var tg))
+                    foreach (var kvp in hashSet)
                     {
-                        SpreadsThreadPool.Default.UnsafeQueueCompletableItem(_doNotifyUpdateSingleSyncCallback, tg, true);
+                        var sub1 = kvp;
+                        if ((sub1.Requests > 0 || force) && sub1.Wr.TryGetTarget(out var tg))
+                        {
+                            SpreadsThreadPool.Default.UnsafeQueueCompletableItem(_doNotifyUpdateSingleSyncCallback, tg, true);
+                        }
                     }
                 }
             }
