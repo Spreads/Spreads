@@ -986,7 +986,7 @@ namespace Spreads
         internal abstract TCursor GetContainerCursor();
 
         /// <inheritdoc />
-        public sealed override bool IsCompleted
+        public override bool IsCompleted
         {
             // NB this is set only inside write lock, no other locks are possible
             // after this value is set so we do not need read lock. This is very
@@ -1363,6 +1363,7 @@ namespace Spreads
             {
                 if ((sub.Requests > 0 || force) && sub.Wr.TryGetTarget(out var tg))
                 {
+                    // ReSharper disable once InconsistentlySynchronizedField
                     SpreadsThreadPool.Default.UnsafeQueueCompletableItem(_doNotifyUpdateSingleSyncCallback, tg, true);
                 }
             }
