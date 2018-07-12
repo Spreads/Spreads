@@ -2,12 +2,12 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+using JetBrains.Annotations;
 using Spreads.DataTypes;
 using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using JetBrains.Annotations;
 
 namespace Spreads
 {
@@ -82,8 +82,50 @@ namespace Spreads
 
     public interface IAsyncCompleter
     {
-         [CanBeNull]
-         IDisposable Subscribe(IAsyncCompletable subscriber);
+        [CanBeNull]
+        IDisposable Subscribe(IAsyncCompletable subscriber);
+    }
+
+    public class DataStream
+    {
+        private DataStream()
+        {
+        }
+
+        /// <summary>
+        /// 2**48 ought to be enough for anybody. It's 8.9 years of microseconds.
+        /// </summary>
+        public static ulong MaxVersion = (1UL << 48) - 1UL;
+    }
+
+    /// <summary>
+    /// DataStream has incrementing keys.
+    /// </summary>
+    public interface IDataStream<T> : IAsyncEnumerable<KeyValuePair<ulong, T>>
+    {
+        /// <summary>
+        /// False if the underlying collection could be changed, true if the underlying collection is immutable or is complete
+        /// for adding (e.g. after OnCompleted in Rx) or IsCompleted in terms of ICollectio/IDictionary or has fixed keys/values (all 4 definitions are the same).
+        /// </summary>
+        bool IsCompleted { get; }
+
+        Opt<KeyValuePair<ulong, T>> Last { get; }
+    }
+
+    public interface IMutableDataStream<T> : IDataStream<T>
+    {
+        /// <summary>
+        /// Returns false if the version is not the next one after the current one (atomic check) or if the stream is completed.
+        /// Similar to CAS logic when new values depend on previous ones and concurrent writes are possible.
+        /// </summary>
+        Task<bool> TryAddLast(ulong version, T value);
+
+        /// <summary>
+        /// Returns false if the stream is completed. Atomically increments version for the added value.
+        /// </summary>
+        Task<bool> TryAddLast(T value);
+
+        Task Complete();
     }
 
     /// <summary>
@@ -340,30 +382,6 @@ namespace Spreads
         /// <see cref="TypeEnum"/> for the values type.
         /// </summary>
         TypeEnum ValueType { get; }
-    }
-
-    /// <summary>
-    /// DataStream has incrementing keys.
-    /// </summary>
-    public interface IDataStream<T> : ISeries<ulong, T>
-    { }
-
-    public interface IMutableDataStream<T> : IDataStream<T>
-    {
-        Task<bool> TryAddLast(T value);
-        Task Complete();
-    }
-
-    public class DataStream
-    {
-        private DataStream()
-        {
-        }
-
-        /// <summary>
-        /// 2**48 ought to be enough for anybody. It's 8.9 years of microseconds.
-        /// </summary>
-        public static ulong MaxVersion = (1UL << 48) - 1UL;
     }
 
     ///// <summary>
