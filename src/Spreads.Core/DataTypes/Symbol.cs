@@ -47,7 +47,7 @@ namespace Spreads.DataTypes
             fixed (char* charPtr = symbol)
             fixed (byte* ptr = Bytes)
             {
-                Encoding.UTF8.GetBytes(charPtr, symbol.Length, (byte*)ptr, Size);
+                Encoding.UTF8.GetBytes(charPtr, symbol.Length, ptr, Size);
             }
         }
 
