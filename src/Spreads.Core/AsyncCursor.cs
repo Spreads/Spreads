@@ -605,11 +605,23 @@ namespace Spreads
 
             async ValueTask<bool> MoveNextAsyncBatchMode()
             {
+                var wasInBatch = _isInBatch;
                 _isInBatch = await MoveNextBatch();
                 if (!_isInBatch)
                 {
                     // when MNB returns false there will be no more batches
                     _batchMode = false;
+                    if (wasInBatch)
+                    {
+                        // NB: in the current implementation moveat must work because the batch
+                        // was available and we have not yet disposed _innerBatchEnumerator
+                        // This depends on the fact that batching is an optional internal feature of ICursor
+                        // and not a standalone implementation
+                        if (!_innerCursor.MoveAt(_innerBatchEnumerator.Current.Key, Lookup.EQ))
+                        {
+                            ThrowHelper.ThrowInvalidOperationException("Cannot move to the current batch key after no more batches are available.");
+                        }
+                    }
                 }
                 return await MoveNextAsync();
             }

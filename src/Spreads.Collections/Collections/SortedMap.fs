@@ -1369,13 +1369,11 @@ type public SortedMapCursor<'K,'V> =
         false
 
     member private this.MoveNextBatch(): ValueTask<bool> =
-      if this.source._isReadOnly then
-        // only once  
-        if this.isBatch then new ValueTask<bool>(false)
-        else
-          this.isBatch <- true
-          new ValueTask<bool>(true)
-      else new ValueTask<bool>(false)
+      // only once  
+      if this.isBatch then new ValueTask<bool>(false)
+      else
+        this.isBatch <- true
+        new ValueTask<bool>(true)
 
     [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
     member this.MovePrevious() = 
@@ -1572,9 +1570,9 @@ type public SortedMapCursor<'K,'V> =
       
     interface IAsyncBatchEnumerator<KVP<'K,'V>> with
       member this.MoveNextBatch(noAsync: bool): ValueTask<bool> = this.MoveNextBatch()
-      member this.CurrentBatch 
+      member this.CurrentBatch
         with get(): IEnumerable<KVP<'K, 'V>> = 
-          if this.source._isReadOnly then 
+          if this.isBatch then 
             this.source :> IEnumerable<KVP<'K, 'V>> 
           else Unchecked.defaultof<_>
       
