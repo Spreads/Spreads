@@ -52,9 +52,9 @@ namespace Spreads.DataTypes
                 if (value._string != null)
                 {
                     var maxLen = Encoding.UTF8.GetMaxByteCount(value._string.Length);
-                    var useShared = maxLen <= BufferPool.SharedBuffer.Array.Length;
+                    var useShared = maxLen <= BufferPool.StaticBuffer.Array.Length;
                     var buffer = useShared
-                        ? BufferPool.SharedBuffer.Array
+                        ? BufferPool.StaticBuffer.Array
                         : BufferPool<byte>.Rent(maxLen);
 
                     fixed (char* charPtr = value._string)

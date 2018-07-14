@@ -1031,14 +1031,10 @@ namespace Spreads
 
         /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Task<bool> MoveNextBatch()
+        public ValueTask<bool> MoveNextBatch()
         {
-            if (State == CursorState.None)
-            {
-                ThrowHelper.ThrowInvalidOperationException($"CursorSeries {GetType().Name} is not initialized as a cursor. Call the Initialize() method and *use* (as IDisposable) the returned value to access ICursor MoveXXX members.");
-            }
-            // TODO (low) review if we could implement this
-            return Utils.TaskUtil.FalseTask;
+            ThrowHelper.ThrowNotSupportedException();
+            return default;
         }
 
         /// <inheritdoc />

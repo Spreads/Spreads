@@ -1852,9 +1852,13 @@ namespace Spreads
         {
             lock (SyncRoot)
             {
-                if (!_cursorIsSet) return;
+                if (!_cursorIsSet)
+                {
+                    return;
+                }
+                _cursorIsSet = false;
+                _c.Dispose();
             }
-            _c.Dispose();
             base.Dispose(disposing);
         }
 

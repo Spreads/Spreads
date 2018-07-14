@@ -103,6 +103,12 @@ namespace Spreads
     /// </summary>
     public interface IDataStream<T> : IAsyncEnumerable<KeyValuePair<ulong, T>>
     {
+        // NB we do not implement specialized IDataStream<T,TCursor>/ISpecializedEnumerator yet.
+        // It's only for data consumption/production so interface call at hundreds of millions ops
+        // is fine. For cursors it was important because they *transform* numeric data online (not in batches)
+        // and method call could be more expensive than the operation itself. E.g. Map()'s delegate call 
+        // is more expensive than some simple arithmetic operation on values.
+
         /// <summary>
         /// False if the underlying collection could be changed, true if the underlying collection is immutable or is complete
         /// for adding (e.g. after OnCompleted in Rx) or IsCompleted in terms of ICollectio/IDictionary or has fixed keys/values (all 4 definitions are the same).
@@ -289,7 +295,7 @@ namespace Spreads
         /// Returns true when a batch is available immediately (async for IO, not for waiting for new values),
         /// returns false when batching is not supported or there are no more immediate values and a consumer should switch to MoveNextAsync().
         /// </summary>
-        Task<bool> MoveNextBatch();
+        ValueTask<bool> MoveNextBatch();
 
         // NB Using KeyValueReadOnlySpan because batching is only profitable if
         // we could get spans from source or if reduce operation over span is so

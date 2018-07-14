@@ -116,16 +116,16 @@ namespace Spreads
         private IDisposable _subscription;
         private IAsyncSubscription _subscriptionEx;
 
-        public AsyncCursor(Func<TCursor> cursorFactory) : this(cursorFactory())
-        { }
+        private bool _batchMode = false;
 
-        public AsyncCursor(TCursor cursor)
+        public AsyncCursor(TCursor cursor, bool batchMode = false)
         {
             _innerCursor = cursor;
             if (_innerCursor.Source == null)
             {
                 Environment.FailFast("Source is null");
             }
+            _batchMode = batchMode;
 
             _continuation = SAvailableSentinel;
             _continuationState = null;
@@ -655,7 +655,7 @@ namespace Spreads
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Task<bool> MoveNextBatch()
+        public ValueTask<bool> MoveNextBatch()
         {
             return _innerCursor.MoveNextBatch();
         }

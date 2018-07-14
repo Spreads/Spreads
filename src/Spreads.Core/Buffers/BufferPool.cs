@@ -49,9 +49,9 @@ namespace Spreads.Buffers
         /// Shared buffers are for slicing of small PreservedBuffers
         /// </summary>
         [ThreadStatic]
-        internal static OwnedPooledArray<byte> SharedBuffer;
+        private static OwnedPooledArray<byte> _sharedBuffer;
         [ThreadStatic]
-        internal static RetainedMemory<byte> SharedBufferMemory;
+        private static RetainedMemory<byte> _sharedBufferMemory;
 
         [ThreadStatic]
         internal static int SharedBufferOffset;
@@ -124,34 +124,34 @@ namespace Spreads.Buffers
             const int smallTreshhold = 16;
             if (length <= smallTreshhold)
             {
-                if (SharedBuffer == null)
+                if (_sharedBuffer == null)
                 {
-                    SharedBuffer = BufferPool<byte>.RentOwnedPooledArray(SharedBufferSize);
+                    _sharedBuffer = BufferPool<byte>.RentOwnedPooledArray(SharedBufferSize);
                     // NB we must create a reference or the first RetainedMemory could
                     // dispose _sharedBuffer on RetainedMemory disposal.
 
                     // We are discarding RetainedMemory struct and will unpin below manually
-                    SharedBufferMemory = SharedBuffer.Retain();
+                    _sharedBufferMemory = _sharedBuffer.Retain();
 
                     SharedBufferOffset = 0;
                 }
-                var bufferSize = SharedBuffer.Memory.Length;
+                var bufferSize = _sharedBuffer.Memory.Length;
                 var newOffset = SharedBufferOffset + length;
                 if (newOffset > bufferSize)
                 {
                     // replace shared buffer, the old one will be disposed
                     // when all ReservedMemory views on it are disposed
-                    var previous = SharedBufferMemory;
-                    SharedBuffer = BufferPool<byte>.RentOwnedPooledArray(SharedBufferSize);
+                    var previous = _sharedBufferMemory;
+                    _sharedBuffer = BufferPool<byte>.RentOwnedPooledArray(SharedBufferSize);
 
-                    SharedBufferMemory = SharedBuffer.Retain();
+                    _sharedBufferMemory = _sharedBuffer.Retain();
                     previous.Dispose(); // unpinning manually, now the buffer is free and it's retainers determine when it goes back to the pool
 
                     SharedBufferOffset = 0;
                     newOffset = length;
                 }
 
-                var retainedMemory = SharedBuffer.Retain(SharedBufferOffset, length);
+                var retainedMemory = _sharedBuffer.Retain(SharedBufferOffset, length);
                 SharedBufferOffset = BitUtil.Align(newOffset, Settings.SliceMemoryAlignment);
                 return retainedMemory;
             }

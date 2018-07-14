@@ -162,7 +162,7 @@ namespace Spreads
 
         /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Task<bool> MoveNextBatch()
+        public ValueTask<bool> MoveNextBatch()
         {
             return _cursor.MoveNextBatch();
         }

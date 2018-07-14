@@ -496,7 +496,7 @@ and
           else sw.SpinOnce()
       result
 
-    member this.MoveNextBatch(): Task<bool> =
+    member this.MoveNextBatch(): ValueTask<bool> =
       let mutable newIsBatch = this.isBatch
 
       let mutable result = Unchecked.defaultof<_>
@@ -512,8 +512,8 @@ and
           try
             if (not this.HasValidInner || this.isBatch) && this.outerCursor.MoveNext() then
                 newIsBatch <- true
-                TaskUtil.TrueTask
-            else TaskUtil.FalseTask
+                new ValueTask<bool>(true)
+            else new ValueTask<bool>(false)
           with
           | :? OutOfOrderKeyException<'K> as ooex ->
             Trace.Assert(this.isBatch)
@@ -773,7 +773,7 @@ and
     interface ICursor<'K,'V> with
       member this.Comparer with get() = this.Comparer
       member this.CurrentBatch = this.CurrentBatch
-      member this.MoveNextBatch(): Task<bool> = this.MoveNextBatch()
+      member this.MoveNextBatch() = this.MoveNextBatch()
       member this.MoveAt(index:'K, lookup:Lookup) = this.MoveAt(index, lookup)
       member this.MoveFirst():bool = this.MoveFirst()
       member this.MoveLast():bool =  this.MoveLast()

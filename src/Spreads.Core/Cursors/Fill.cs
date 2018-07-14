@@ -222,10 +222,10 @@ namespace Spreads
 
         /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Task<bool> MoveNextBatch()
+        public ValueTask<bool> MoveNextBatch()
         {
-            // TODO (?)
-            return Utils.TaskUtil.FalseTask;
+            ThrowHelper.ThrowNotSupportedException();
+            return default;
         }
 
         /// <inheritdoc />

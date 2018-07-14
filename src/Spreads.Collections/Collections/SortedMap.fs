@@ -1390,7 +1390,7 @@ type public SortedMapCursor<'K,'V> =
           else sw.SpinOnce()
       result
 
-    member this.MoveNextBatch(): Task<bool> =
+    member this.MoveNextBatch(): ValueTask<bool> =
       let mutable newIndex = this.index
       let mutable newC = Unchecked.defaultof<_>
       //let mutable newKey = this.currentKey
@@ -1413,8 +1413,8 @@ type public SortedMapCursor<'K,'V> =
             //newKey <- this.source.GetKeyByIndexUnchecked(newIndex)
             //newValue <- this.source.values.[newIndex]
             newIsBatch <- true
-            TaskUtil.TrueTask
-          else TaskUtil.FalseTask
+            new ValueTask<bool>(true)
+          else new ValueTask<bool>(false)
 
         /////////// End read-locked code /////////////
         if doSpin then
@@ -1621,7 +1621,7 @@ type public SortedMapCursor<'K,'V> =
     interface ICursor<'K,'V> with
       member this.Comparer with get() = this.Comparer
       member this.CurrentBatch = this.CurrentBatch
-      member this.MoveNextBatch(): Task<bool> = this.MoveNextBatch()
+      member this.MoveNextBatch() = this.MoveNextBatch()
       member this.MoveAt(index:'K, lookup:Lookup) = this.MoveAt(index, lookup)
       member this.MoveFirst():bool = this.MoveFirst()
       member this.MoveLast():bool =  this.MoveLast()

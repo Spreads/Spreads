@@ -20,7 +20,7 @@ namespace Spreads
         {
             // Unless _doAdditionalCorrectnessChecks is changed from default before this internal
             // class is ever referenced from any code path it will have default
-            // value and this field will be JIT compile-time constant. f set to false checks such as
+            // value and this field will be JIT compile-time constant. If set to false checks such as
             // if(Settings.AdditionalCorrectnessChecks.DoChecks) will be
             // completely eliminated by JIT.
             public static readonly bool DoChecks = _doAdditionalCorrectnessChecks;

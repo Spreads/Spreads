@@ -240,7 +240,7 @@ namespace Spreads
                 throw new NotImplementedException();
             }
 
-            public Task<bool> MoveNextBatch()
+            public ValueTask<bool> MoveNextBatch()
             {
                 return _innerCursor.MoveNextBatch();
             }
