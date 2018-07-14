@@ -312,9 +312,6 @@ namespace Spreads
         }
 
         /// <inheritdoc />
-        public ISeries<TKey, TValue> CurrentBatch => throw new NotSupportedException();
-
-        /// <inheritdoc />
         public KeyComparer<TKey> Comparer => _cmp;
 
         object IEnumerator.Current => Current;
@@ -492,14 +489,6 @@ namespace Spreads
             }
 
             return false;
-        }
-
-        /// <inheritdoc />
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public ValueTask<bool> MoveNextBatch()
-        {
-            ThrowHelper.ThrowNotSupportedException();
-            return default;
         }
 
         /// <inheritdoc />

@@ -1,4 +1,3 @@
-using Spreads.Utils;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -159,9 +158,6 @@ namespace Spreads.Cursors.Internal
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get { return _laggedCursor; }
         }
-
-        /// <inheritdoc />
-        public ISeries<TKey, TCursor> CurrentBatch => null;
 
         /// <inheritdoc />
         public KeyComparer<TKey> Comparer => _cursor.Comparer;
@@ -360,14 +356,6 @@ namespace Spreads.Cursors.Internal
             }
 
             return moved;
-        }
-
-        /// <inheritdoc />
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public ValueTask<bool> MoveNextBatch()
-        {
-            ThrowHelper.ThrowNotSupportedException();
-            return default;
         }
 
         /// <inheritdoc />

@@ -166,13 +166,6 @@ namespace Spreads
         }
 
         /// <inheritdoc />
-        public ISeries<TKey, TValue> CurrentBatch
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return null; }
-        }
-
-        /// <inheritdoc />
         public KeyComparer<TKey> Comparer
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -296,14 +289,6 @@ namespace Spreads
 
         /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public ValueTask<bool> MoveNextBatch()
-        {
-            ThrowHelper.ThrowNotSupportedException();
-            return default;
-        }
-
-        /// <inheritdoc />
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool MovePrevious()
         {
             if (State < CursorState.Moving) return MoveLast();
@@ -326,8 +311,6 @@ namespace Spreads
         }
 
         #endregion ICursor members
-
-       
 
         public Task DisposeAsync()
         {

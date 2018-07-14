@@ -12,7 +12,7 @@ using System.Threading.Tasks;
 namespace Spreads
 {
     /// <summary>
-    /// An <see cref="ICursorSeries{TKey,TValue,TCursor}"/> that applies an arithmetic operation
+    /// An <see cref="ISpecializedSeries{TKey,TValue,TCursor}"/> that applies an arithmetic operation
     /// <see cref="IOp{TValue}"/> to each value of its input series.
     /// </summary>
     public struct Op2<TKey, TValue, TOp, TCursor> :
@@ -128,13 +128,6 @@ namespace Spreads
             }
         }
 
-        /// <inheritdoc />
-        public ISeries<TKey, TValue> CurrentBatch
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return null; }
-        }
-
         public CursorState State
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -230,14 +223,6 @@ namespace Spreads
         public bool MoveNext()
         {
             return _cursor.MoveNext();
-        }
-
-        /// <inheritdoc />
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public ValueTask<bool> MoveNextBatch()
-        {
-            ThrowHelper.ThrowNotSupportedException();
-            return default;
         }
 
         /// <inheritdoc />

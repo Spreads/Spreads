@@ -2,9 +2,9 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+#nowarn "44"
 
 namespace rec Spreads.Collections
-
 // TODO [x] Simplify monster method TryFindWithIndex (done)
 // TODO Test TryFindWithIndex
 // TODO Finalize new interfaces, strides are needed in containers most of all
@@ -1101,7 +1101,7 @@ type SortedMap<'K,'V>
   /// Make the capacity equal to the size
   member this.TrimExcess() = this.Capacity <- this.size
 
-  member private this.Dispose(disposing:bool) =
+  override this.Dispose(disposing:bool) =
     if BufferPoolRetainedMemoryHelper<'V>.IsRetainedMemory then BufferPoolRetainedMemoryHelper<'V>.DisposeRetainedMemory(values, 0, this.size)
     
     // TODO control that we do not try to return wrong buffers
@@ -1110,8 +1110,10 @@ type SortedMap<'K,'V>
       BufferPool<_>.Return(values, true) |> ignore
     with | _ -> ()
     if disposing then GC.SuppressFinalize(this)
+    base.Dispose(disposing)
   
   member this.Dispose() = this.Dispose(true)
+  
   override this.Finalize() = this.Dispose(false)
 
   //#endregion

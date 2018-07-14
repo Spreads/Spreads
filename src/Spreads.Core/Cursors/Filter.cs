@@ -174,13 +174,6 @@ namespace Spreads
         }
 
         /// <inheritdoc />
-        public ISeries<TKey, TValue> CurrentBatch
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return null; }
-        }
-
-        /// <inheritdoc />
         public KeyComparer<TKey> Comparer
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -379,14 +372,6 @@ namespace Spreads
             }
 
             return moved;
-        }
-
-        /// <inheritdoc />
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public ValueTask<bool> MoveNextBatch()
-        {
-            ThrowHelper.ThrowNotSupportedException();
-            return default;
         }
 
         /// <inheritdoc />

@@ -2,7 +2,6 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-using JetBrains.Annotations;
 using Spreads.DataTypes;
 using System;
 using System.Collections;
@@ -11,8 +10,7 @@ using System.Threading.Tasks;
 
 namespace Spreads
 {
-    // NB Interfaces in a single file because
-    // current order is logical from the most primitive to complex interfaces
+    // NB Interfaces in a single file because current order is logical from the most primitive to complex interfaces
 
     // See also
     // https://github.com/dotnet/csharplang/blob/master/proposals/async-streams.md
@@ -21,13 +19,13 @@ namespace Spreads
     // The compiler will bind to the pattern-based APIs if they exist, preferring those over using the interface
     // (the pattern may be satisfied with instance methods or extension methods). The requirements for the pattern are:
 
-    //* The enumerable must expose a GetAsyncEnumerator method that may be called with no arguments and that returns an enumerator
-    //  that meets the relevant pattern.
-    //* The enumerator must expose a MoveNextAsync method that may be called with no arguments and that returns something which may
-    //  be awaited and whose GetResult() returns a bool.
-    //* The enumerator must also expose Current property whose getter returns a T representing the kind of data being enumerated.
-    //* The enumerator may optionally expose a DisposeAsync method that may be invoked with no arguments and that returns something
-    //  that can be awaited and whose GetResult() returns void.
+    // * The enumerable must expose a GetAsyncEnumerator method that may be called with no arguments and that returns an enumerator
+    //   that meets the relevant pattern.
+    // * The enumerator must expose a MoveNextAsync method that may be called with no arguments and that returns something which may
+    //   be awaited and whose GetResult() returns a bool.
+    // * The enumerator must also expose Current property whose getter returns a T representing the kind of data being enumerated.
+    // * The enumerator may optionally expose a DisposeAsync method that may be invoked with no arguments and that returns something
+    //   that can be awaited and whose GetResult() returns void.
 
     public interface IAsyncDisposable
     {
@@ -39,10 +37,10 @@ namespace Spreads
     /// </summary>
     /// <remarks>
     /// Contract: when MoveNext() returns false it means that there are no more elements
-    /// *right now*, and a consumer should call <see cref="MoveNextAsync()"/> to await for a new element, or spin
-    /// and repeatedly call <see cref="IEnumerator.MoveNext"/> when a new element is expected very soon. Repeated calls to MoveNext()
-    /// could eventually return true. Changes to the underlying sequence, which do not affect enumeration,
-    /// do not invalidate the enumerator.
+    /// *right now*, and a consumer must call <see cref="MoveNextAsync()"/> and await a new element, or spin
+    /// and repeatedly call <see cref="IEnumerator.MoveNext"/> when a new element is expected very soon.
+    /// Repeated calls to MoveNext() could eventually return true. Changes to the underlying sequence that
+    /// do not affect enumeration do not invalidate the enumerator.
     ///
     /// False move from a valid state keeps a cursor/enumerator at the previous valid state.
     /// </remarks>
@@ -51,16 +49,29 @@ namespace Spreads
         /// <summary>
         /// Async move next.
         /// </summary>
-        /// <remarks>
-        /// We often refer to this method as <c>MoveNextAsync</c> when it is used with <c>CancellationToken.None</c>
-        /// or cancellation token doesn't matter in the context.
-        /// </remarks>
-        /// <returns>true when there is a next element in the sequence, false if the sequence is complete and there will be no more elements ever.</returns>
+        /// <returns>
+        /// True when there is a next element in the sequence, false if the sequence is
+        /// complete and there will be no more elements ever.
+        /// </returns>
         ValueTask<bool> MoveNextAsync();
     }
 
+
+    // A marker interface for optional batching feature
+    internal interface IAsyncBatchEnumerator<out T> : IAsyncEnumerator<IEnumerable<T>>
+    {
+        // Same contract as in cursors:
+        // if MoveNext() returns false then there are no batches available synchronously
+        // (e.g. some SIMD operations such as Sum() could benefit if a SortedMap
+        // is available instantly, but they should not even try async call because normal Sum() will be faster )
+        // For IO case MoveNext() is a happy-path, but if it returns false then a consumer
+        // must call and await MoveNextAsync(). Only after MNA returns false there will be no batches ever
+        // and consumer must switch to per-item calls.
+    }
+
     /// <summary>
-    /// Exposes the <see cref="IAsyncEnumerator{T}"/> async enumerator, which supports a sync and async iteration over a collection of a specified type.
+    /// Exposes the <see cref="IAsyncEnumerator{T}"/> async enumerator, which supports a sync and async
+    /// iteration over a collection of a specified type.
     /// </summary>
     public interface IAsyncEnumerable<out T> : IEnumerable<T>
     {
@@ -77,12 +88,18 @@ namespace Spreads
 
     internal interface IAsyncSubscription : IDisposable
     {
+        // Currently it is called with -1 after an async move completes
+        // But notifiers could decrement themselves if we guarantee that
+        // a single notification will succeed and there is no risk of missing
+        // un update. However, this matters for a hot loop with several MOPS
+        // For real-world data with so many updates we just spin and do not 
+        // use async machinery, this is for les sfrequent but important data
+        // that we cannot miss but should not spin.
         void RequestNotification(int count);
     }
 
     public interface IAsyncCompleter
     {
-        [CanBeNull]
         IDisposable Subscribe(IAsyncCompletable subscriber);
     }
 
@@ -99,12 +116,13 @@ namespace Spreads
     }
 
     /// <summary>
-    /// DataStream has incrementing keys.
+    /// DataStreams are unbounded sequences of data items, either recorded or arriving in real-time.
+    /// DataStreams have sequential keys.
     /// </summary>
     public interface IDataStream<T> : IAsyncEnumerable<KeyValuePair<ulong, T>>
     {
         // NB we do not implement specialized IDataStream<T,TCursor>/ISpecializedEnumerator yet.
-        // It's only for data consumption/production so interface call at hundreds of millions ops
+        // It's only for data consumption/production so interface call at couple of hundreds MOPS
         // is fine. For cursors it was important because they *transform* numeric data online (not in batches)
         // and method call could be more expensive than the operation itself. E.g. Map()'s delegate call 
         // is more expensive than some simple arithmetic operation on values.
@@ -135,7 +153,7 @@ namespace Spreads
     }
 
     /// <summary>
-    /// Main interface for data series.
+    /// Series are navigable ordered data streams of key-value pairs.
     /// </summary>
     public interface ISeries<TKey, TValue> : IAsyncEnumerable<KeyValuePair<TKey, TValue>>
     {
@@ -151,7 +169,7 @@ namespace Spreads
         bool IsIndexed { get; }
 
         /// <summary>
-        /// Get cursor, which is an advanced enumerator supporting moves to first, last, previous, next, next batch, exact
+        /// Get cursor, which is an advanced enumerator supporting moves to first, last, previous, next, exact
         /// positions and relative LT/LE/GT/GE moves.
         /// </summary>
         ICursor<TKey, TValue> GetCursor();
@@ -169,7 +187,7 @@ namespace Spreads
         Opt<KeyValuePair<TKey, TValue>> Last { get; }
 
         /// <summary>
-        /// See ICursor.TryGetValue docs.
+        /// Equivalent of <see cref="ICursor{TKey,TValue}.TryGetValue"/>.
         /// </summary>
         TValue this[TKey key] { get; }
 
@@ -177,25 +195,22 @@ namespace Spreads
 
         ///// <summary>
         ///// Value at index (offset). Implemented efficiently for indexed series and SortedMap, but default implementation
-        ///// is LINQ's <code>[series].Skip(idx-1).Take(1).Value</code> .
+        ///// is LINQ's <code>[series].Skip(idx-1).Take(1).Value</code>.
         ///// </summary>
         bool TryGetAt(long idx, out KeyValuePair<TKey, TValue> kvp); // TODO support negative moves in all implementations, -1 is last
 
         /// <summary>
-        /// The method finds value according to direction, returns false if it could not find such a value
+        /// The method finds value according to direction, returns false if it could not find such a value.
         /// For indexed series LE/GE directions are invalid (throws InvalidOperationException), while
         /// LT/GT search is done by index rather than by key and possible only when a key exists.
-        /// TryFindAt works only with existing keys and is an equivalent of ICursor.MoveAt.
-        ///
-        /// Check IsMissing property of returned value - it's equivalent to false return of TryXXX pattern.
+        /// TryFindAt works only with existing keys and is an equivalent of <see cref="ICursor{TKey,TValue}.MoveAt"/>.
         /// </summary>
         bool TryFindAt(TKey key, Lookup direction, out KeyValuePair<TKey, TValue> kvp);
 
-        // NB: Not async ones. Sometimes it's useful for optimization when we check underlying type.
+        // NB: Key/Values are not async ones. Sometimes it's useful for optimization when we check underlying type.
 
         // TODO when default interfaces are implemented in C# 7.3/8 then Keys/Values should just redirect
         // to cursor.CurrentKey/CurrentValue (important not to Current.Key/Current.Value - slower)
-        // Current SortedMap implementation of those members is overkill
 
         /// <summary>
         /// Keys enumerable.
@@ -221,40 +236,26 @@ namespace Spreads
         new TCursor GetCursor();
     }
 
-    // TODO (docs) review the contract (together with IAsynEnumerable above) and format the xml doc
-
     /// <summary>
-    /// ICursor is an advanced enumerator that supports moves to first, last, previous, next, next batch, exact
+    /// ICursor is an advanced enumerator that supports moves to first, last, previous, next, exact
     /// positions and relative LT/LE/GT/GE moves.
     /// </summary>
     /// <remarks>
     /// Cursor is resilient to changes in an underlying sequence during movements, e.g. the
     /// sequence could grow during move next. (See documentation for out of order behavior.)
     ///
-    /// Supports batches with MoveNextBatchAsync() and CurrentBatch members. Accessing current key
-    /// after MoveNextBatchAsync or CurrentBatch after any single key movement results in InvalidOperationException.
-    /// IsBatch property indicates whether the cursor is positioned on a single value or a batch.
-    ///
     /// Contracts:
-    /// 1. At the beginning a cursor consumer could call any single move method or MoveNextBatch. MoveNextBatch could
-    ///    be called only on the initial move or after a previous MoveNextBatch() call that returned true. It MUST NOT
-    ///    be called in any other situation, ICursor implementations MUST return false on any such wrong call.
-    /// 2. CurrentBatch contains a batch only after a call to MoveNextBatch() returns true. CurrentBatch is undefined
-    ///    in all other cases.
-    /// 3. After a call to MoveNextBatch() returns false, the consumer MUST use only single calls. ICursor implementations MUST
-    ///    ensure that the relative moves MoveNextAsync/Previous start from the last position of the previous batch.
-    /// 4. Synchronous moves return true if data is instantly available, e.g. in a map data structure in memory or on fast disk DB.
-    ///    ICursor implementations should not block threads, e.g. if a map is IUpdateable, synchronous MoveNextAsync should not wait for
+    /// 1. At the beginning a cursor consumer could call any single move method.
+    /// 2. Synchronous moves return true if data is instantly available, e.g. in a map data structure in memory or on fast disk DB.
+    ///    ICursor implementations should not block threads, e.g. if a series is not completed synchronous MoveNext should not wait for
     ///    an update but return false if there is no data right now.
-    /// 5. When synchronous MoveNextAsync or MoveLast return false, the consumer should call async overload of MoveNextAsync. Inside the async
-    ///    implementation of MoveNextAsync, a cursor must check if the source is IUpdateable and return Task.FromResult(false) immediately if it is not.
-    /// 6. When any move returns false, cursor stays at the position before that move (TODO now this is ensured only for SM MN/MP and for Bind(ex.MA) )
-    /// _. TODO If the source is updated during a lifetime of a cursor, cursor must recreate its state at its current position
-    ///    Rewind logic only for async? Throw in all cases other than MoveNextAsync, MoveAt? Or at least on MovePrevious.
-    ///    Or special behavior of MoveNextAsync only on appends or changing the last value? On other changes must throw invalidOp (locks are there!)
-    ///    So if update is before the current position of a cursor, then throw. If after - then this doesn't affect the cursor in any way.
-    ///    TODO cursor could implement IUpdateable when source does, or pass through to CursorSeries
-    ///
+    /// 3. When synchronous MoveNext or MoveLast return false, the consumer should call MoveNextAsync. Inside the async
+    ///    implementation of MoveNextAsync, a cursor must check if the source is could have new values and return Task.FromResult(false) immediately if it is not.
+    /// 4. When any move returns false, a cursor stays at the position before that move. Current/CurrentKey/CurrentValue could be called
+    ///    any number of times and they are ususually lazy and cached after the move (for containers) or the first call (for values that require evaluation).
+    ///    Any change in underlying container data will not be reflected in the current cursor values if the cursor is not moving and
+    ///    no out-of-order exception is thrown e.g. when `SortedMap.Set(k, v)` is called and the cursor is at `k` position.
+    ///    Subsequent move of the cursor will throw OOO exception.
     /// </remarks>
     public interface ICursor<TKey, TValue> : IAsyncEnumerator<KeyValuePair<TKey, TValue>>
     {
@@ -276,7 +277,7 @@ namespace Spreads
         // NB returning zero is the same as false, no need for TryXXX/Opt<>
         // if we moved by zero steps then we at the same position as before.
         // Zero means we are by stride or less close to the end. If allowPartial = true or stride = 1
-        // then we are at the end of series on zero return value.
+        // then we are at the end of series if the return value is zero.
 
         long MoveNext(long stride, bool allowPartial);
 
@@ -284,30 +285,9 @@ namespace Spreads
 
         long MovePrevious(long stride, bool allowPartial);
 
-        // NB even if we could
-
         TKey CurrentKey { get; }
 
         TValue CurrentValue { get; }
-
-        /// <summary>
-        /// Optional (used for batch/SIMD optimization where gains are visible), MUST NOT throw NotImplementedException()
-        /// Returns true when a batch is available immediately (async for IO, not for waiting for new values),
-        /// returns false when batching is not supported or there are no more immediate values and a consumer should switch to MoveNextAsync().
-        /// </summary>
-        ValueTask<bool> MoveNextBatch();
-
-        // NB Using KeyValueReadOnlySpan because batching is only profitable if
-        // we could get spans from source or if reduce operation over span is so
-        // fast that accumulating a batch in a buffer is cheaper (e.g. SIMD sum, but
-        // couldn't find such case in benchmarks)
-
-        /// <summary>
-        /// Optional (used for batch/SIMD optimization where gains are visible), could throw NotImplementedException()
-        /// The actual implementation of the batch could be mutable and could reference a part of the original series, therefore consumer
-        /// should never try to mutate the batch directly even if type check reveals that this is possible, e.g. it is a SortedMap
-        /// </summary>
-        ISeries<TKey, TValue> CurrentBatch { get; }
 
         /// <summary>
         /// Original series. Note that .Source.GetCursor() is equivalent to .Clone() called on not started cursor
@@ -371,7 +351,7 @@ namespace Spreads
         /// </summary>
         bool IsCompleted { get; }
 
-        [CanBeNull] IAsyncCompleter AsyncCompleter { get; }
+        IAsyncCompleter AsyncCompleter { get; }
     }
 
     /// <summary>

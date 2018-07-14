@@ -30,9 +30,8 @@ namespace Spreads
         }
     }
 
-    // TODO xml docs
     /// <summary>
-    /// The minimal implementation of Option type. T must implement IEquitable for custom equality.
+    /// A minimal implementation of the Option type. <typeparamref name="T"/> must implement <see cref="IEquatable{T}"/> for custom equality.
     /// </summary>
     [StructLayout(LayoutKind.Auto)]
     [DebuggerDisplay("{" + nameof(ToString) + "()}")]

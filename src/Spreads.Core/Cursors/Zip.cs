@@ -266,9 +266,6 @@ namespace Spreads
         }
 
         /// <inheritdoc />
-        public ISeries<TKey, (TLeft, TRight)> CurrentBatch => default(ISeries<TKey, (TLeft, TRight)>);
-
-        /// <inheritdoc />
         public KeyComparer<TKey> Comparer => _cmp;
 
         object IEnumerator.Current => Current;
@@ -1027,14 +1024,6 @@ namespace Spreads
                 }
             }
             return moved;
-        }
-
-        /// <inheritdoc />
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public ValueTask<bool> MoveNextBatch()
-        {
-            ThrowHelper.ThrowNotSupportedException();
-            return default;
         }
 
         /// <inheritdoc />

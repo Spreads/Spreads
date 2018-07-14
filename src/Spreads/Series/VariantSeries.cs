@@ -240,11 +240,6 @@ namespace Spreads
                 throw new NotImplementedException();
             }
 
-            public ValueTask<bool> MoveNextBatch()
-            {
-                return _innerCursor.MoveNextBatch();
-            }
-
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public ICursor<Variant, Variant> Clone()
             {
@@ -277,8 +272,6 @@ namespace Spreads
                 [MethodImpl(MethodImplOptions.AggressiveInlining)]
                 get { return _source.ToValue2(_innerCursor.CurrentValue); }
             }
-
-            public ISeries<Variant, Variant> CurrentBatch => Create(_innerCursor.CurrentBatch);
 
             public ISeries<Variant, Variant> Source => _source; //Create(_innerCursor.Source);
             public bool IsContinuous => _innerCursor.IsContinuous;

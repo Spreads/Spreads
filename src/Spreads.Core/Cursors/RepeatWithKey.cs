@@ -150,9 +150,6 @@ namespace Spreads
         }
 
         /// <inheritdoc />
-        public ISeries<TKey, (TKey, TValue)> CurrentBatch => null;
-
-        /// <inheritdoc />
         public KeyComparer<TKey> Comparer => _cmp;
 
         object IEnumerator.Current => Current;
@@ -293,14 +290,6 @@ namespace Spreads
             var moved = _cursor.MoveNext();
             _previousState.wasMovingNext = moved;
             return moved;
-        }
-
-        /// <inheritdoc />
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public ValueTask<bool> MoveNextBatch()
-        {
-            ThrowHelper.ThrowNotSupportedException();
-            return default;
         }
 
         /// <inheritdoc />
@@ -461,13 +450,6 @@ namespace Spreads
             get { return _cursor.CurrentValue.Item2; }
         }
 
-        /// <inheritdoc />
-        public ISeries<TKey, TValue> CurrentBatch
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return null; }
-        }
-
         public CursorState State
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -504,7 +486,6 @@ namespace Spreads
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get { return _cursor.IsCompleted; }
         }
-
 
         /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -562,14 +543,6 @@ namespace Spreads
 
         /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public ValueTask<bool> MoveNextBatch()
-        {
-            ThrowHelper.ThrowNotSupportedException();
-            return default;
-        }
-
-        /// <inheritdoc />
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool MovePrevious()
         {
             return _cursor.MovePrevious();
@@ -591,8 +564,6 @@ namespace Spreads
 
         #endregion ICursor members
 
-
-       
         public IAsyncCompleter AsyncCompleter
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]

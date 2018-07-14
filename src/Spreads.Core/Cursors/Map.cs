@@ -137,9 +137,6 @@ namespace Spreads
             }
         }
 
-        /// <inheritdoc />
-        public ISeries<TKey, TResult> CurrentBatch => null;
-
         public CursorState State
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -226,15 +223,6 @@ namespace Spreads
         public bool MoveNext()
         {
             return _cursor.MoveNext();
-        }
-
-        /// <inheritdoc />
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public ValueTask<bool> MoveNextBatch()
-        {
-            // TODO this should work
-            ThrowHelper.ThrowNotSupportedException();
-            return default;
         }
 
         /// <inheritdoc />

@@ -164,13 +164,6 @@ namespace Spreads
             get { return _cursor.CurrentValue; }
         }
 
-        /// <inheritdoc />
-        public ISeries<TKey, Stat2<TKey>> CurrentBatch
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return null; }
-        }
-
         public CursorState State
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -272,14 +265,6 @@ namespace Spreads
 
         /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public ValueTask<bool> MoveNextBatch()
-        {
-            ThrowHelper.ThrowNotSupportedException();
-            return default;
-        }
-
-        /// <inheritdoc />
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool MovePrevious()
         {
             return _cursor.MovePrevious();
@@ -308,8 +293,6 @@ namespace Spreads
         #endregion ICursor members
 
         #region ICursorSeries members
-
-        
 
         public IAsyncCompleter AsyncCompleter
         {

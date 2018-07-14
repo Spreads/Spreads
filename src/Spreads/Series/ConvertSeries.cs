@@ -223,11 +223,6 @@ namespace Spreads
                 throw new NotImplementedException();
             }
 
-            public ValueTask<bool> MoveNextBatch()
-            {
-                return _innerCursor.MoveNextBatch();
-            }
-
             public ICursor<TKey2, TValue2> Clone()
             {
                 return new ConvertCursor(_innerCursor.Clone(), _source);
@@ -251,9 +246,6 @@ namespace Spreads
             public TKey2 CurrentKey => _source.ToKey2(_innerCursor.CurrentKey);
 
             public TValue2 CurrentValue => _source.ToValue2(_innerCursor.CurrentValue);
-
-            // TODO object pooling
-            public ISeries<TKey2, TValue2> CurrentBatch => Create(_innerCursor.CurrentBatch);
 
             public ISeries<TKey2, TValue2> Source => _source; //Create(_innerCursor.Source);
             public bool IsContinuous => _innerCursor.IsContinuous;

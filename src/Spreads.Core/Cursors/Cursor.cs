@@ -2,18 +2,16 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+using Spreads.Utils;
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
-using Spreads.Utils;
 using System.Runtime.CompilerServices;
+using System.Threading.Tasks;
 
 // ReSharper disable once CheckNamespace
 namespace Spreads
 {
-
     /// <summary>
     /// SpecializedWrapper Extensions
     /// </summary>
@@ -26,7 +24,6 @@ namespace Spreads
         {
             return new Cursor<TKey, TValue>(series.GetCursor());
         }
-
     }
 
     /// <summary>
@@ -161,20 +158,6 @@ namespace Spreads
         }
 
         /// <inheritdoc />
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public ValueTask<bool> MoveNextBatch()
-        {
-            return _cursor.MoveNextBatch();
-        }
-
-        /// <inheritdoc />
-        public ISeries<TKey, TValue> CurrentBatch
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return _cursor.CurrentBatch; }
-        }
-
-        /// <inheritdoc />
         public ISeries<TKey, TValue> Source
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -183,8 +166,6 @@ namespace Spreads
 
         /// <inheritdoc />
         public bool IsContinuous => _cursor.IsContinuous;
-
-
 
         /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
