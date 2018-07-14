@@ -118,7 +118,8 @@ namespace Spreads
 
         private bool _batchMode;
         private bool _isInBatch;
-        private IEnumerator<KeyValuePair<TKey, TValue>> _batchEnumerator;
+        private readonly IAsyncBatchEnumerator<KeyValuePair<TKey, TValue>> _outerBatchEnumerator;
+        private IEnumerator<KeyValuePair<TKey, TValue>> _innerBatchEnumerator;
 
         public AsyncCursor(TCursor cursor, bool batchMode = false)
         {
@@ -127,7 +128,21 @@ namespace Spreads
             {
                 Environment.FailFast("Source is null");
             }
+
             _batchMode = batchMode;
+
+            if (_batchMode)
+            {
+                // ReSharper disable once SuspiciousTypeConversion.Global
+                if (cursor is IAsyncBatchEnumerator<KeyValuePair<TKey, TValue>> batchEnumerator)
+                {
+                    _outerBatchEnumerator = batchEnumerator;
+                }
+                else
+                {
+                    ThrowHelper.ThrowInvalidOperationException("Batch mode is only supported when inner cursor implements IAsyncBatchEnumerator interface.");
+                }
+            }
 
             _continuation = SAvailableSentinel;
             _continuationState = null;
@@ -580,7 +595,7 @@ namespace Spreads
         {
             if (_batchMode)
             {
-                if (_isInBatch && _batchEnumerator.MoveNext())
+                if (_isInBatch && _innerBatchEnumerator.MoveNext())
                 {
                     return new ValueTask<bool>(true);
                 }
@@ -591,7 +606,7 @@ namespace Spreads
 
         private async ValueTask<bool> MoveNextAsyncBatch()
         {
-            _isInBatch = await MoveNextBatch();
+            _isInBatch = await _outerBatchEnumerator.MoveNextAsync();
             if (!_isInBatch)
             {
                 // when MNB returns false there will be no more batches
@@ -607,7 +622,7 @@ namespace Spreads
         {
             if (_isInBatch)
             {
-                return _batchEnumerator.MoveNext();
+                return _innerBatchEnumerator.MoveNext();
             }
             return _innerCursor.MoveNext();
         }
@@ -616,13 +631,13 @@ namespace Spreads
         {
             TryOwnAndReset();
             _innerCursor?.Reset();
-            _batchEnumerator?.Reset();
+            _innerBatchEnumerator?.Reset();
         }
 
         public KeyValuePair<TKey, TValue> Current
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return _isInBatch ? _batchEnumerator.Current : _innerCursor.Current; }
+            get { return _isInBatch ? _innerBatchEnumerator.Current : _innerCursor.Current; }
         }
 
         object IEnumerator.Current => ((IEnumerator)_innerCursor).Current;
@@ -650,7 +665,7 @@ namespace Spreads
         {
             if (_isInBatch)
             {
-                return _batchEnumerator.MoveNext();
+                return _innerBatchEnumerator.MoveNext();
             }
             return _innerCursor.MoveFirst();
         }
@@ -698,13 +713,13 @@ namespace Spreads
         public TKey CurrentKey
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return _isInBatch ? _batchEnumerator.Current.Key : _innerCursor.CurrentKey; }
+            get { return _isInBatch ? _innerBatchEnumerator.Current.Key : _innerCursor.CurrentKey; }
         }
 
         public TValue CurrentValue
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return _isInBatch ? _batchEnumerator.Current.Value : _innerCursor.CurrentValue; }
+            get { return _isInBatch ? _innerBatchEnumerator.Current.Value : _innerCursor.CurrentValue; }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -716,19 +731,19 @@ namespace Spreads
             }
             try
             {
-                var t = _innerCursor.MoveNextBatch();
-                if (t.IsCompletedSuccessfully)
+                _isInBatch = _outerBatchEnumerator.MoveNext();
+                if (_isInBatch)
                 {
-                    _isInBatch = t.Result;
-                    if (_isInBatch)
-                    {
-                        _batchEnumerator?.Dispose();
-                        _batchEnumerator = CurrentBatch.GetEnumerator();
-                    }
-                    return t;
+                    
+                        _innerBatchEnumerator?.Dispose();
+#pragma warning disable HAA0401 // Possible allocation of reference type enumerator
+                    _innerBatchEnumerator = CurrentBatch.GetEnumerator();
+#pragma warning restore HAA0401 // Possible allocation of reference type enumerator
+
+                    return new ValueTask<bool>(true);
                 }
 
-                return MoveNextBatchTask(t);
+                return MoveNextBatchAsync();
             }
             catch (NotSupportedException)
             {
@@ -738,22 +753,23 @@ namespace Spreads
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
-        private async ValueTask<bool> MoveNextBatchTask(ValueTask<bool> t)
+        private async ValueTask<bool> MoveNextBatchAsync()
         {
-            var result = await t;
-            _isInBatch = result;
+            _isInBatch = await _outerBatchEnumerator.MoveNextAsync();
             if (_isInBatch)
             {
-                _batchEnumerator?.Dispose();
-                _batchEnumerator = CurrentBatch.GetEnumerator();
+                _innerBatchEnumerator?.Dispose();
+#pragma warning disable HAA0401 // Possible allocation of reference type enumerator
+                _innerBatchEnumerator = CurrentBatch.GetEnumerator();
+#pragma warning restore HAA0401 // Possible allocation of reference type enumerator
             }
-            return result;
+            return _isInBatch;
         }
 
-        public ISeries<TKey, TValue> CurrentBatch
+        private IEnumerable<KeyValuePair<TKey, TValue>> CurrentBatch
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return _innerCursor.CurrentBatch; }
+            get { return _outerBatchEnumerator.Current; }
         }
 
         public ISeries<TKey, TValue> Source
@@ -810,7 +826,7 @@ namespace Spreads
         private void Dispose(bool disposing)
         {
             _subscription?.Dispose();
-            _batchEnumerator?.Dispose();
+            _innerBatchEnumerator?.Dispose();
 
             if (!disposing) return;
 
