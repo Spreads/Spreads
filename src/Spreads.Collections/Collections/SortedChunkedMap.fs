@@ -771,10 +771,12 @@ and
       member this.MoveNextAsync(): ValueTask<bool> = this.MoveNextAsync()
       member this.DisposeAsync() = this.Dispose();Task.CompletedTask
 
+    interface IAsyncBatchEnumerator<KVP<'K,'V>> with
+      member this.MoveNextBatch(noAsync: bool): ValueTask<bool> = this.MoveNextBatch()
+      member this.CurrentBatch with get(): IEnumerable<KVP<'K, 'V>> = this.CurrentBatch :> IEnumerable<KVP<'K, 'V>>
+      
     interface ICursor<'K,'V> with
       member this.Comparer with get() = this.Comparer
-      member this.CurrentBatch = this.CurrentBatch
-      member this.MoveNextBatch() = this.MoveNextBatch()
       member this.MoveAt(index:'K, lookup:Lookup) = this.MoveAt(index, lookup)
       member this.MoveFirst():bool = this.MoveFirst()
       member this.MoveLast():bool =  this.MoveLast()

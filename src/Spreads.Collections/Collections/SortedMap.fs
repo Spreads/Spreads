@@ -1368,68 +1368,14 @@ type public SortedMapCursor<'K,'V> =
         this.index <- this.index - 1
         false
 
-
-    member this.CurrentBatch: ISeries<'K,'V> = 
-      let mutable result = Unchecked.defaultof<_>
-      let mutable doSpin = true
-      let sw = new SpinWait()
-      while doSpin do
-        doSpin <- this.source._isSynchronized
-        let version = if doSpin then Volatile.Read(&this.source._version) else 0L
-        result <-
-        /////////// Start read-locked code /////////////
-
-          if this.isBatch then
-            Trace.Assert(this.index = this.source.size - 1)
-            Trace.Assert(this.source._isReadOnly)
-            this.source :> ISeries<'K,'V>
-          else raise (InvalidOperationException("SortedMap cursor is not at a batch position"))
-
-        /////////// End read-locked code /////////////
-        if doSpin then
-          let nextVersion = Volatile.Read(&this.source._nextVersion)
-          if version = nextVersion then doSpin <- false
-          else sw.SpinOnce()
-      result
-
-    member this.MoveNextBatch(): ValueTask<bool> =
-      let mutable newIndex = this.index
-      let mutable newC = Unchecked.defaultof<_>
-      //let mutable newKey = this.currentKey
-      //let mutable newValue = this.currentValue
-      let mutable newIsBatch = this.isBatch
-
-      let mutable result = Unchecked.defaultof<_>
-      let mutable doSpin = true
-      let sw = new SpinWait()
-      while doSpin do
-        doSpin <- this.source._isSynchronized
-        let version = if doSpin then Volatile.Read(&this.source._version) else 0L
-        result <-
-        /////////// Start read-locked code /////////////
-
-          if (this.source._isReadOnly) && (this.index = -1) && this.source.size > 0 then
-            this.cursorVersion <- int16 this.source.orderVersion
-            newIndex <- this.source.size - 1 // at the last element of the batch
-            newC <- this.source.GetPairByIndexUnchecked(newIndex)
-            //newKey <- this.source.GetKeyByIndexUnchecked(newIndex)
-            //newValue <- this.source.values.[newIndex]
-            newIsBatch <- true
-            new ValueTask<bool>(true)
-          else new ValueTask<bool>(false)
-
-        /////////// End read-locked code /////////////
-        if doSpin then
-          let nextVersion = Volatile.Read(&this.source._nextVersion)
-          if version = nextVersion then doSpin <- false
-          else sw.SpinOnce()
-      if result.Result then
-        this.index <- newIndex
-        this.current <- newC
-        //this.currentKey <- newKey
-        //this.currentValue <- newValue
-        this.isBatch <- newIsBatch
-      result
+    member private this.MoveNextBatch(): ValueTask<bool> =
+      if this.source._isReadOnly then
+        // only once  
+        if this.isBatch then new ValueTask<bool>(false)
+        else
+          this.isBatch <- true
+          new ValueTask<bool>(true)
+      else new ValueTask<bool>(false)
 
     [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
     member this.MovePrevious() = 
@@ -1609,21 +1555,31 @@ type public SortedMapCursor<'K,'V> =
 
     interface IDisposable with
       member this.Dispose() = this.Dispose()
-
-    interface IEnumerator<KVP<'K,'V>> with    
+    
+    interface IEnumerator with 
+      member this.Current with get(): obj = this.Current :> obj
       member this.Reset() = this.Reset()
       member this.MoveNext():bool = this.MoveNext()
+      
+    interface IEnumerator<KVP<'K,'V>> with    
       member this.Current with get(): KVP<'K, 'V> = this.Current
-      member this.Current with get(): obj = this.Current :> obj
-    
+      
+    interface IAsyncDisposable with
+      member this.DisposeAsync() = this.Dispose();Task.CompletedTask
+      
     interface IAsyncEnumerator<KVP<'K,'V>> with
       member this.MoveNextAsync(): ValueTask<bool> = this.MoveNextAsync()
-      member this.DisposeAsync() = this.Dispose();Task.CompletedTask
+      
+    interface IAsyncBatchEnumerator<KVP<'K,'V>> with
+      member this.MoveNextBatch(noAsync: bool): ValueTask<bool> = this.MoveNextBatch()
+      member this.CurrentBatch 
+        with get(): IEnumerable<KVP<'K, 'V>> = 
+          if this.source._isReadOnly then 
+            this.source :> IEnumerable<KVP<'K, 'V>> 
+          else Unchecked.defaultof<_>
       
     interface ICursor<'K,'V> with
       member this.Comparer with get() = this.Comparer
-      member this.CurrentBatch = this.CurrentBatch
-      member this.MoveNextBatch() = this.MoveNextBatch()
       member this.MoveAt(index:'K, lookup:Lookup) = this.MoveAt(index, lookup)
       member this.MoveFirst():bool = this.MoveFirst()
       member this.MoveLast():bool =  this.MoveLast()

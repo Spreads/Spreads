@@ -58,15 +58,17 @@ namespace Spreads
 
 
     // A marker interface for optional batching feature
-    internal interface IAsyncBatchEnumerator<out T> : IAsyncEnumerator<IEnumerable<T>>
+    internal interface IAsyncBatchEnumerator<out T> // F# doesn't allow to implement this: IAsyncEnumerator<IEnumerable<T>>
     {
         // Same contract as in cursors:
-        // if MoveNext() returns false then there are no batches available synchronously
+        // if MoveNextBatchAsync(noAsync = true) returns false then there are no batches available synchronously
         // (e.g. some SIMD operations such as Sum() could benefit if a SortedMap
         // is available instantly, but they should not even try async call because normal Sum() will be faster )
-        // For IO case MoveNext() is a happy-path, but if it returns false then a consumer
-        // must call and await MoveNextAsync(). Only after MNA returns false there will be no batches ever
-        // and consumer must switch to per-item calls.
+        // For IO case MoveNextBatchAsync(noAsync = true) is a happy-path, but if it returns false then a consumer
+        // must call and await MoveNextBatch(noAsync = false). Only after MNB(noAsync = false) returns false there
+        // will be no batches ever and consumer must switch to per-item calls.
+        ValueTask<bool> MoveNextBatch(bool noAsync);
+        IEnumerable<T> CurrentBatch { get; }
     }
 
     /// <summary>

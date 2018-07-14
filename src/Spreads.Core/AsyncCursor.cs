@@ -599,20 +599,20 @@ namespace Spreads
                 {
                     return new ValueTask<bool>(true);
                 }
-                return MoveNextAsyncBatch();
+                return MoveNextAsyncBatchMode();
             }
             return GetMoveNextAsyncValueTask();
-        }
 
-        private async ValueTask<bool> MoveNextAsyncBatch()
-        {
-            _isInBatch = await _outerBatchEnumerator.MoveNextAsync();
-            if (!_isInBatch)
+            async ValueTask<bool> MoveNextAsyncBatchMode()
             {
-                // when MNB returns false there will be no more batches
-                _batchMode = false;
+                _isInBatch = await MoveNextBatch();
+                if (!_isInBatch)
+                {
+                    // when MNB returns false there will be no more batches
+                    _batchMode = false;
+                }
+                return await MoveNextAsync();
             }
-            return await MoveNextAsync();
         }
 
         #endregion Async synchronization
@@ -723,7 +723,7 @@ namespace Spreads
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public ValueTask<bool> MoveNextBatch()
+        private ValueTask<bool> MoveNextBatch()
         {
             if (!_batchMode)
             {
@@ -731,11 +731,10 @@ namespace Spreads
             }
             try
             {
-                _isInBatch = _outerBatchEnumerator.MoveNext();
+                _isInBatch = _outerBatchEnumerator.MoveNextBatch(true).Result;
                 if (_isInBatch)
                 {
-                    
-                        _innerBatchEnumerator?.Dispose();
+                    _innerBatchEnumerator?.Dispose();
 #pragma warning disable HAA0401 // Possible allocation of reference type enumerator
                     _innerBatchEnumerator = CurrentBatch.GetEnumerator();
 #pragma warning restore HAA0401 // Possible allocation of reference type enumerator
@@ -750,26 +749,25 @@ namespace Spreads
                 _batchMode = false;
                 throw;
             }
-        }
 
-        [MethodImpl(MethodImplOptions.NoInlining)]
-        private async ValueTask<bool> MoveNextBatchAsync()
-        {
-            _isInBatch = await _outerBatchEnumerator.MoveNextAsync();
-            if (_isInBatch)
+            async ValueTask<bool> MoveNextBatchAsync()
             {
-                _innerBatchEnumerator?.Dispose();
+                _isInBatch = await _outerBatchEnumerator.MoveNextBatch(false);
+                if (_isInBatch)
+                {
+                    _innerBatchEnumerator?.Dispose();
 #pragma warning disable HAA0401 // Possible allocation of reference type enumerator
-                _innerBatchEnumerator = CurrentBatch.GetEnumerator();
+                    _innerBatchEnumerator = CurrentBatch.GetEnumerator();
 #pragma warning restore HAA0401 // Possible allocation of reference type enumerator
+                }
+                return _isInBatch;
             }
-            return _isInBatch;
         }
 
         private IEnumerable<KeyValuePair<TKey, TValue>> CurrentBatch
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return _outerBatchEnumerator.Current; }
+            get { return _outerBatchEnumerator.CurrentBatch; }
         }
 
         public ISeries<TKey, TValue> Source
