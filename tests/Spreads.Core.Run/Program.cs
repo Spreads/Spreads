@@ -243,7 +243,7 @@ namespace Spreads.Core.Run
             var x = AwaitVT(default(ValueTask));
         }
 
-        private static void Main(string[] args)
+        private static async Task Main(string[] args)
         {
 
             //var dirs = Directory.GetFileSystemEntries("/localdata", "*", SearchOption.AllDirectories);
@@ -256,8 +256,8 @@ namespace Spreads.Core.Run
             //var test = new Spreads.Core.Tests.Threading.SpinningThreadpoolTests();
             //test.ThreadPoolPerformanceBenchmark();
 
-            var test = new Spreads.Core.Tests.ValueTaskTests();
-            test.SortedMapNotifierTest();
+            var test = new Spreads.Core.Tests.Cursors.AsyncCursorTests();
+            await test.CouldEnumerateSCMInBatchMode();
 
             //BinaryLz4();
             // Zstd();

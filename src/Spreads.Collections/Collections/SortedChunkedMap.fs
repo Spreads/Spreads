@@ -351,52 +351,32 @@ and
     [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
     member this.MoveNext() =
       let mutable newInner = Unchecked.defaultof<_> 
-      let mutable doSwitchInner = false
+      // let mutable doSwitchInner = false
       let mutable result = Unchecked.defaultof<_>
       let mutable doSpin = true
       let mutable outerMoved = false
-      let sw = new SpinWait()
+      let mutable sw = new SpinWait()
+
       while doSpin do
+
         // here we use copy-by-value of structs, SMCursor is cloneable this way without calling Clone()
         // TODO assignment of doSwitchInner and then check is probably more expensive than always updating on true
         newInner <- this.innerCursor
+
         doSpin <- this.source._isSynchronized
         let version = if doSpin then Volatile.Read(&this.source._version) else 0L
+
         /////////// Start read-locked code /////////////
         if (not this.HasValidInner) then
           if this.outerCursor.MoveFirst() then
             newInner <- new SortedMapCursor<'K,'V>(this.outerCursor.CurrentValue)
-            doSwitchInner <- true
             result <- newInner.MoveFirst()
+            if not result then ThrowHelper.ThrowInvalidOperationException("Outer should not have empty chunks")
           else result <- false
         if this.HasValidInner then
           if newInner.MoveNext() then
-            doSwitchInner <- true
             result <- true
           else
-            // Why MP not needed after false move
-            //if this.outerCursor.MoveNext() then
-            //  // outerMoved <- true
-            //  // try move previous inner again
-            //  if newInner.MoveNext() then
-            //    doSwitchInner <- true
-            //    result <- true
-            //    if not (this.outerCursor.MovePrevious()) then
-            //      ThrowHelper.ThrowInvalidOperationException("Cannot move outer cursor to previous existing position and the move previous doesn't throw OOO exception.")
-            //  else
-            //    newInner <- new SortedMapCursor<'K,'V>(this.outerCursor.CurrentValue)
-            //    result <- newInner.MoveNext()
-            //    doSwitchInner <- true
-            //    // TODO test line above should fail, correct is below?
-            //    //if result then
-            //    //  doSwitchInner <- true
-            //    //else
-            //    //  if not (this.outerCursor.MovePrevious()) then
-            //    //    ThrowHelper.ThrowInvalidOperationException("Cannot move outer cursor to previous existing position and the move previous doesn't throw OOO exception.")
-            //else
-            //  // outerMoved <- false
-            //  result <- false
-            /////////////////////
             if outerMoved || this.outerCursor.MoveNext() then
               
               // this is for spin - if we could get value but versions are not equal and we need to spin
@@ -404,14 +384,8 @@ and
               outerMoved <- true
 
               newInner <- new SortedMapCursor<'K,'V>(this.outerCursor.CurrentValue)
-              doSwitchInner <- true
-              let moved = newInner.MoveNext()
-              if moved then 
-                result <- true
-              else
-                ThrowHelper.ThrowInvalidOperationException("Outer should not have empty chunks")
-                outerMoved <- false; // need to try to move outer again
-                result <- false 
+              result <- newInner.MoveNext()
+              if not result then ThrowHelper.ThrowInvalidOperationException("Outer should not have empty chunks")
             else
               outerMoved <- false
               result <- false
@@ -422,7 +396,8 @@ and
           if version = nextVersion then doSpin <- false
           else sw.SpinOnce()
       if result then
-        if doSwitchInner then this.innerCursor <- newInner
+        // if doSwitchInner then 
+        this.innerCursor <- newInner
       result
 
     member private this.CurrentBatch =
@@ -442,7 +417,7 @@ and
       let mutable result = Unchecked.defaultof<_>
       let mutable doSpin = true
       let mutable outerMoved = false
-      let sw = new SpinWait()
+      let mutable sw = new SpinWait()
       while doSpin do
         doSpin <- this.source._isSynchronized
         let version = if doSpin then Volatile.Read(&this.source._version) else 0L
@@ -495,7 +470,7 @@ and
       let mutable newInner = this.innerCursor
       let mutable result = Unchecked.defaultof<_>
       let mutable doSpin = true
-      let sw = new SpinWait()
+      let mutable sw = new SpinWait()
       while doSpin do
         doSpin <- this.source._isSynchronized
         let version = if doSpin then Volatile.Read(&this.source._version) else 0L
@@ -525,7 +500,7 @@ and
       let mutable newInner = this.innerCursor
       let mutable result = Unchecked.defaultof<_>
       let mutable doSpin = true
-      let sw = new SpinWait()
+      let mutable sw = new SpinWait()
       while doSpin do
         doSpin <- this.source._isSynchronized
         let version = if doSpin then Volatile.Read(&this.source._version) else 0L
@@ -555,7 +530,7 @@ and
       let mutable newInner = Unchecked.defaultof<_>
       let mutable result = Unchecked.defaultof<_>
       let mutable doSpin = true
-      let sw = new SpinWait()
+      let mutable sw = new SpinWait()
       while doSpin do
         doSpin <- this.source._isSynchronized
         let version = if doSpin then Volatile.Read(&this.source._version) else 0L

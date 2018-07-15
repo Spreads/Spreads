@@ -282,14 +282,16 @@ namespace Spreads.Core.Tests.Cursors
         [Test]
         public async Task CouldEnumerateSCMInBatchMode()
         {
-            // Settings.SCMDefaultChunkLength = 5;
+            Settings.SCMDefaultChunkLength = Settings.SCMDefaultChunkLength * 4;
             var scm = new SortedChunkedMap<int, int>();
-            var count = Settings.SCMDefaultChunkLength - 1;
+            var count = 50_000_000; // Settings.SCMDefaultChunkLength - 1;
 
             for (int i = 0; i < count; i++)
             {
                 await scm.TryAdd(i, i);
             }
+
+            Console.WriteLine("Added first half");
 
 #pragma warning disable HAA0401 // Possible allocation of reference type enumerator
             var ae = scm.GetCursor();
@@ -299,29 +301,42 @@ namespace Spreads.Core.Tests.Cursors
             {
                 using (Benchmark.Run("SCM.AsyncEnumerator", count))
                 {
-                    var cnt = 0;
-                    while (await ae.MoveNextAsync())
+                    try
                     {
-                        Assert.AreEqual(cnt, ae.Current.Key);
-                        cnt++;
+                        var cnt = 0;
+                        while (await ae.MoveNextAsync())
+                        {
+                            if (cnt != ae.Current.Key)
+                            {
+                                ThrowHelper.ThrowInvalidOperationException();
+                            }
+
+                            cnt++;
+                        }
+
+                        await ae.DisposeAsync();
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine("EXCEPTION: " + ex.ToString());
+                        throw;
                     }
 
-                    await ae.DisposeAsync();
                     // Assert.AreEqual(scm.Count, cnt);
                 }
 
                 Benchmark.Dump();
             });
 
-            Thread.Sleep(1000);
+            // Thread.Sleep(1000);
 
-            for (int i = count; i < count + 10; i++)
+            for (int i = count; i < count * 2; i++)
             {
                 await scm.TryAdd(i, i);
-                Thread.SpinWait(1000);
+                //Thread.SpinWait(50);
             }
 
-            Thread.Sleep(2000);
+            // Thread.Sleep(2000);
 
             await scm.Complete();
 

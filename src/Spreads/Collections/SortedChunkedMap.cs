@@ -45,30 +45,10 @@ namespace Spreads.Collections
             SmInnerFactory, KeyComparer<TKey>.Default, Opt<int>.Missing)
         { }
 
-        // TODO we must know if cached bucket is the last one, not this
-        //[MethodImpl(MethodImplOptions.AggressiveInlining)]
-        //private int CompareToLast(TKey key)
-        //{
-        //    if (_lastKey.IsMissing)
-        //    {
-        //        var lastKvp = LastUnchecked;
-        //        if (lastKvp.IsPresent)
-        //        {
-        //            _lastKey = Opt.Present(lastKvp.Present.Key);
-        //        }
-        //    }
-        //    if (_lastKey.IsPresent)
-        //    {
-        //        return comparer.Compare(key, _lastKey.Present);
-        //    }
-        //    // any key is last when map is empty
-        //    return 1;
-        //}
-
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal async Task<bool> SetOrAddUnchecked(TKey key, TValue value, bool overwrite)
         {
-            // TODO we should keep track of last value and || on the last condition
+            // TODO happy path when adding last without TryFindAt, we should keep track of last bucket and || on the last condition
             if (!(_prevWBucket is null)
                 && comparer.Compare(key, _prevWHash) >= 0
                 && (_prevWBucket.CompareToLast(key) <= 0)
@@ -133,9 +113,16 @@ namespace Spreads.Collections
         internal async Task<bool> SetOrAdd(TKey key, TValue value, bool overwrite)
         {
             BeforeWrite();
-            var result = await SetOrAddUnchecked(key, value, overwrite);
-            AfterWrite(result);
-            return result;
+            var result = false;
+            try
+            {
+                result = await SetOrAddUnchecked(key, value, overwrite);
+                return result;
+            }
+            finally
+            {
+                AfterWrite(result);
+            }
         }
 
         public bool IsAppendOnly => false;
@@ -144,18 +131,32 @@ namespace Spreads.Collections
         public async Task<bool> Set(TKey key, TValue value)
         {
             BeforeWrite();
-            var result = await SetOrAddUnchecked(key, value, true);
-            AfterWrite(result);
-            return result;
+            var result = false;
+            try
+            {
+                result = await SetOrAddUnchecked(key, value, true);
+                return result;
+            }
+            finally
+            {
+                AfterWrite(result);
+            }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public async Task<bool> TryAdd(TKey key, TValue value)
         {
             BeforeWrite();
-            var result = await SetOrAddUnchecked(key, value, false);
-            AfterWrite(result);
-            return result;
+            var result = false;
+            try
+            {
+                result = await SetOrAddUnchecked(key, value, false);
+                return result;
+            }
+            finally
+            {
+                AfterWrite(result);
+            }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -163,11 +164,18 @@ namespace Spreads.Collections
         public void Add(TKey key, TValue value)
         {
             BeforeWrite();
-            var result = SetOrAddUnchecked(key, value, false).Result;
-            AfterWrite(result);
-            if (!result)
+            var result = false;
+            try
             {
-                ThrowHelper.ThrowArgumentException("Key already exists");
+                result = SetOrAddUnchecked(key, value, false).Result;
+                if (!result)
+                {
+                    ThrowHelper.ThrowArgumentException("Key already exists");
+                }
+            }
+            finally
+            {
+                AfterWrite(result);
             }
         }
 
@@ -175,28 +183,40 @@ namespace Spreads.Collections
         public async Task<bool> TryAddFirst(TKey key, TValue value)
         {
             BeforeWrite();
-            var o = FirstUnchecked;
-            var c = o.IsMissing
-                ? -1
-                : comparer.Compare(key, o.Present.Key);
-            var added = c < 0 && await SetOrAddUnchecked(key, value, false);
-
-            AfterWrite(added);
-            return added;
+            var added = false;
+            try
+            {
+                var o = FirstUnchecked;
+                var c = o.IsMissing
+                    ? -1
+                    : comparer.Compare(key, o.Present.Key);
+                added = c < 0 && await SetOrAddUnchecked(key, value, false);
+                return added;
+            }
+            finally
+            {
+                AfterWrite(added);
+            }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public async Task<bool> TryAddLast(TKey key, TValue value)
         {
             BeforeWrite();
-            var o = LastUnchecked;
-            var c = o.IsMissing
+            var added = false;
+            try
+            {
+                var o = LastUnchecked;
+                var c = o.IsMissing
                     ? 1
                     : comparer.Compare(key, o.Present.Key);
-            var added = c > 0 && await SetOrAddUnchecked(key, value, false);
-
-            AfterWrite(added);
-            return added;
+                added = c > 0 && await SetOrAddUnchecked(key, value, false);
+                return added;
+            }
+            finally
+            {
+                AfterWrite(added);
+            }
         }
 
         public Task<bool> TryRemoveMany(TKey key, TValue updatedAtKey, Lookup direction)
@@ -212,9 +232,18 @@ namespace Spreads.Collections
 
         public async Task Complete()
         {
-            await Flush();
-            await outerMap.Complete();
             await DoComplete();
+            BeforeWrite();
+            try
+            {
+                await Flush();
+                await outerMap.Complete();
+                _isReadOnly = true;
+            }
+            finally
+            {
+                AfterWrite(false);
+            }
         }
 
         // NB first/last optimization is possible, but removes are rare in the primary use case
@@ -306,40 +335,61 @@ namespace Spreads.Collections
         public async ValueTask<Opt<TValue>> TryRemove(TKey key)
         {
             BeforeWrite();
-            var result = await TryRemoveUnchecked(key);
-            var removed = result.IsPresent;
-            AfterWrite(removed);
-            if (removed)
+            var removed = false;
+            try
             {
-                Interlocked.Increment(ref orderVersion);
+                var result = await TryRemoveUnchecked(key);
+                removed = result.IsPresent;
+                if (removed)
+                {
+                    Interlocked.Increment(ref orderVersion);
+                }
+                return removed ? Opt.Present(result.Present.Value) : Opt<TValue>.Missing;
             }
-            return removed ? Opt.Present(result.Present.Value) : Opt<TValue>.Missing;
+            finally
+            {
+                AfterWrite(removed);
+            }
         }
 
         public async ValueTask<Opt<KeyValuePair<TKey, TValue>>> TryRemoveFirst()
         {
             BeforeWrite();
-            var opt = FirstUnchecked;
             var result = Opt<KeyValuePair<TKey, TValue>>.Missing;
-            if (opt.IsPresent)
+            try
             {
-                result = await TryRemoveUnchecked(opt.Present.Key);
+                var opt = FirstUnchecked;
+                result = Opt<KeyValuePair<TKey, TValue>>.Missing;
+                if (opt.IsPresent)
+                {
+                    result = await TryRemoveUnchecked(opt.Present.Key);
+                }
+                return result;
             }
-            AfterWrite(result.IsPresent);
-            return result;
+            finally
+            {
+                AfterWrite(result.IsPresent);
+            }
         }
 
         public async ValueTask<Opt<KeyValuePair<TKey, TValue>>> TryRemoveLast()
         {
             BeforeWrite();
-            var opt = LastUnchecked;
             var result = Opt<KeyValuePair<TKey, TValue>>.Missing;
-            if (opt.IsPresent)
+            try
             {
-                result = await TryRemoveUnchecked(opt.Present.Key);
+                var opt = LastUnchecked;
+                result = Opt<KeyValuePair<TKey, TValue>>.Missing;
+                if (opt.IsPresent)
+                {
+                    result = await TryRemoveUnchecked(opt.Present.Key);
+                }               
+                return result;
             }
-            AfterWrite(result.IsPresent);
-            return result;
+            finally
+            {
+                AfterWrite(result.IsPresent);
+            }
         }
 
         private async ValueTask<Opt<KeyValuePair<TKey, TValue>>> TryRemoveManyUnchecked(TKey key, Lookup direction)
@@ -440,9 +490,16 @@ namespace Spreads.Collections
             // TODO(low) for non-EQ this is not atomic now, could add a special method for removed in IMutableChunksSeries
             // then in its impl it could be done in a transaction. However, this nethod is not used frequently
             BeforeWrite();
-            var result = await TryRemoveManyUnchecked(key, direction);
-            AfterWrite(result.IsPresent);
-            return result;
+            Opt<KeyValuePair<TKey, TValue>> result = Opt<KeyValuePair<TKey, TValue>>.Missing;
+            try
+            {
+                result = await TryRemoveManyUnchecked(key, direction);
+                return result;
+            }
+            finally
+            {
+                AfterWrite(result.IsPresent);
+            }
         }
 
         // TODO after checks, should form changed new chunks and use outer append method with rewrite
@@ -599,8 +656,14 @@ namespace Spreads.Collections
         public async Task Flush()
         {
             BeforeWrite();
-            await FlushUnchecked();
-            AfterWrite(false);
+            try
+            {
+                await FlushUnchecked();
+            }
+            finally
+            {
+                AfterWrite(false);
+            }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

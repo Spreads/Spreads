@@ -1347,7 +1347,6 @@ type public SortedMapCursor<'K,'V> =
       
       if this.index < this.source.size then
         let mutable newC = this.source.GetPairByIndexUnchecked(this.index)
-      
         while doSpin do
           let nextVersion = Volatile.Read(&this.source._nextVersion)
           if version = nextVersion then 

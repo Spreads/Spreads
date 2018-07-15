@@ -16,9 +16,9 @@ namespace Spreads.Core.Tests.Collections
     public class SMTests
     {
         [Test, Explicit("long running")]
-        public void AddSpeed()
+        public async Task AddSpeed()
         {
-            const int count = 1_000_000;
+            const int count = 5_000_000;
             for (int r = 0; r < 10; r++)
             {
                 var sl = new SortedList<int, int>();
@@ -30,27 +30,27 @@ namespace Spreads.Core.Tests.Collections
                 sm._isSynchronized = false;
                 scm._isSynchronized = false;
 
-                //using (Benchmark.Run("SL", count))
-                //{
-                //    for (int i = 0; i < count; i++)
-                //    {
-                //        if (i != 2)
-                //        {
-                //            sl.Add(i, i);
-                //        }
-                //    }
-                //}
+                using (Benchmark.Run("SL", count))
+                {
+                    for (int i = 0; i < count; i++)
+                    {
+                        if (i != 2)
+                        {
+                            sl.Add(i, i);
+                        }
+                    }
+                }
 
-                //using (Benchmark.Run("SM", count))
-                //{
-                //    for (int i = 0; i < count; i++)
-                //    {
-                //        if (i != 2)
-                //        {
-                //            sm.Add(i, i);
-                //        }
-                //    }
-                //}
+                using (Benchmark.Run("SM", count))
+                {
+                    for (int i = 0; i < count; i++)
+                    {
+                        if (i != 2)
+                        {
+                            await sm.TryAdd(i, i);
+                        }
+                    }
+                }
 
                 using (Benchmark.Run("SCM", count))
                 {
@@ -58,7 +58,7 @@ namespace Spreads.Core.Tests.Collections
                     {
                         if (i != 2)
                         {
-                            scm.Add(i, i);
+                            await scm.TryAdd(i, i);
                         }
                     }
                 }

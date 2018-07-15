@@ -972,11 +972,6 @@ namespace Spreads
 
         internal long Locker;
 
-        protected ContainerSeries()
-        {
-            _doNotifyUpdateSingleSyncCallback = DoNotifyUpdateSingleSync;
-        }
-
         internal abstract TCursor GetContainerCursor();
 
         /// <inheritdoc />
@@ -1396,7 +1391,7 @@ namespace Spreads
             }
         }
 
-        private readonly Action<object> _doNotifyUpdateSingleSyncCallback;
+        private static readonly Action<object> _doNotifyUpdateSingleSyncCallback = DoNotifyUpdateSingleSync;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static void DoNotifyUpdateSingleSync(object obj)
