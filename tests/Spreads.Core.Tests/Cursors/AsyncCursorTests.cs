@@ -280,11 +280,117 @@ namespace Spreads.Core.Tests.Cursors
         }
 
         [Test]
+        public async Task CouldEnumerateSMUsingCursor()
+        {
+            var map = new SortedMap<int, int>();
+            var count = 10_000_000;
+
+            for (int i = 0; i < count; i++)
+            {
+                await map.TryAdd(i, i);
+            }
+
+#pragma warning disable HAA0401 // Possible allocation of reference type enumerator
+            var ae = map.GetCursor();
+#pragma warning restore HAA0401 // Possible allocation of reference type enumerator
+
+            var t = Task.Run(async () =>
+            {
+                using (Benchmark.Run("SCM.AsyncEnumerator", count))
+                {
+                    var cnt = 0;
+                    while (await ae.MoveNextAsync())
+                    {
+                        cnt++;
+                    }
+
+                    await ae.DisposeAsync();
+                    Assert.AreEqual(count * 2, cnt);
+                }
+
+                Benchmark.Dump();
+            });
+
+            for (int i = count; i < count * 2; i++)
+            {
+                await map.TryAdd(i, i);
+            }
+            await map.Complete();
+
+            t.Wait();
+        }
+
+        [Test]
         public async Task CouldEnumerateSCMInBatchMode()
         {
             Settings.SCMDefaultChunkLength = Settings.SCMDefaultChunkLength * 4;
             var scm = new SortedChunkedMap<int, int>();
             var count = 50_000_000; // Settings.SCMDefaultChunkLength - 1;
+
+            //for (int i = 0; i < count; i++)
+            //{
+            //    await scm.TryAdd(i, i);
+            //}
+
+            Console.WriteLine("Added first half");
+
+#pragma warning disable HAA0401 // Possible allocation of reference type enumerator
+            var ae = scm.GetAsyncEnumerator();
+#pragma warning restore HAA0401 // Possible allocation of reference type enumerator
+
+            var t = Task.Run(async () =>
+            {
+                using (Benchmark.Run("SCM.AsyncEnumerator", count))
+                {
+                    //try
+                    //{
+                        var cnt = count;
+                        while (await ae.MoveNextAsync())
+                        {
+                            if (cnt != ae.Current.Key)
+                            {
+                                ThrowHelper.ThrowInvalidOperationException($"cnt {cnt} != ae.Current.Key {ae.Current.Key}");
+                            }
+
+                            cnt++;
+                        }
+
+                        await ae.DisposeAsync();
+                    //}
+                    //catch (Exception ex)
+                    //{
+                    //    Console.WriteLine("EXCEPTION: " + ex.ToString());
+                    //    Console.WriteLine("INNER: " + ex.InnerException?.ToString());
+                    //    throw;
+                    //}
+
+                    // Assert.AreEqual(scm.Count, cnt);
+                }
+
+                Benchmark.Dump();
+            });
+
+            // Thread.Sleep(1000);
+
+            for (int i = count; i < count * 2; i++)
+            {
+                await scm.TryAdd(i, i);
+                //Thread.SpinWait(50);
+            }
+
+            // Thread.Sleep(2000);
+
+            await scm.Complete();
+
+            t.Wait();
+        }
+
+        [Test]
+        public async Task CouldEnumerateSCMUsingCursor()
+        {
+            Settings.SCMDefaultChunkLength = Settings.SCMDefaultChunkLength * 4;
+            var scm = new SortedChunkedMap<int, int>();
+            var count = 1_000_000; // Settings.SCMDefaultChunkLength - 1;
 
             for (int i = 0; i < count; i++)
             {

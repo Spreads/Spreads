@@ -32,7 +32,7 @@ namespace Spreads.Collections
         {
             var sm = new SortedMap<TKey, TValue>(capacity, keyComparer)
             {
-                _isSynchronized = false
+                _isSynchronized = true
             };
             return sm;
         };

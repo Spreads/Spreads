@@ -120,6 +120,7 @@ namespace Spreads
         private bool _isInBatch;
         private readonly IAsyncBatchEnumerator<KeyValuePair<TKey, TValue>> _outerBatchEnumerator;
         private IEnumerator<KeyValuePair<TKey, TValue>> _innerBatchEnumerator;
+        private IEnumerable<KeyValuePair<TKey, TValue>> _nextBatch;
 
         public AsyncCursor(TCursor cursor, bool preferBatchMode = false)
         {
@@ -593,21 +594,61 @@ namespace Spreads
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ValueTask<bool> MoveNextAsync()
         {
-            if (_preferBatchMode)
+            if (!_preferBatchMode) { return GetMoveNextAsyncValueTask(); }
+
+            ////////// BATCH MODE //////////
+
+            if (_isInBatch && _innerBatchEnumerator.MoveNext())
             {
-                if (_isInBatch && _innerBatchEnumerator.MoveNext())
-                {
-                    return new ValueTask<bool>(true);
-                }
-                return MoveNextAsyncBatchMode();
+                return new ValueTask<bool>(true);
             }
-            return GetMoveNextAsyncValueTask();
+            return MoveNextAsyncBatchMode();
 
             async ValueTask<bool> MoveNextAsyncBatchMode()
             {
                 var wasInBatch = _isInBatch;
-                _isInBatch = await MoveNextBatch();
-                if (!_isInBatch)
+
+                // _nextBatch = _outerBatchEnumerator.CurrentBatch;
+                // previous happy-path move was false, try to get next batch
+                // but we do not use read locking here, probably new values were added to the current batch
+                // cache the new batch and retry current
+                _isInBatch = _nextBatch != null || await _outerBatchEnumerator.MoveNextBatch(false);
+                if (_isInBatch)
+                {
+                    if (_nextBatch == null)
+                    {
+                        _nextBatch = _outerBatchEnumerator.CurrentBatch;
+                    }
+
+                    if (wasInBatch && _innerBatchEnumerator.MoveNext())
+                    {
+                        // try move over potentially missed values
+                        // regardless of movedNextBatch, if previous moved then next is either null or unused cached
+                        return true;
+                    }
+
+                    if (_nextBatch != null)
+                    {
+                        _innerBatchEnumerator?.Dispose();
+                        _innerBatchEnumerator = _nextBatch.GetEnumerator();
+                        _nextBatch = null;
+                        if (_innerBatchEnumerator.MoveNext())
+                        {
+                            return true;
+                        }
+                        else
+                        {
+                            ThrowHelper.ThrowInvalidOperationException("Batches should not be empty");
+                        }
+                    }
+                    else
+                    {
+                        ThrowHelper.ThrowInvalidOperationException("_nextBatch == null");
+                    }
+
+                    //     _isInBatch = await MoveNextBatch();
+                }
+                else
                 {
                     // when MNB returns false there will be no more batches
                     _preferBatchMode = false;
@@ -734,47 +775,48 @@ namespace Spreads
             get { return _isInBatch ? _innerBatchEnumerator.Current.Value : _innerCursor.CurrentValue; }
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private ValueTask<bool> MoveNextBatch()
-        {
-            if (!_preferBatchMode)
-            {
-                ThrowHelper.ThrowNotSupportedException();
-            }
-            try
-            {
-                _isInBatch = _outerBatchEnumerator.MoveNextBatch(true).Result;
-                if (_isInBatch)
-                {
-                    _innerBatchEnumerator?.Dispose();
-#pragma warning disable HAA0401 // Possible allocation of reference type enumerator
-                    _innerBatchEnumerator = CurrentBatch.GetEnumerator();
-#pragma warning restore HAA0401 // Possible allocation of reference type enumerator
+//        [Obsolete]
+//        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+//        private ValueTask<bool> MoveNextBatch()
+//        {
+//            if (!_preferBatchMode)
+//            {
+//                ThrowHelper.ThrowNotSupportedException();
+//            }
+//            try
+//            {
+//                _isInBatch = _outerBatchEnumerator.MoveNextBatch(true).Result;
+//                if (_isInBatch)
+//                {
+//                    _innerBatchEnumerator?.Dispose();
+//#pragma warning disable HAA0401 // Possible allocation of reference type enumerator
+//                    _innerBatchEnumerator = CurrentBatch.GetEnumerator();
+//#pragma warning restore HAA0401 // Possible allocation of reference type enumerator
 
-                    return new ValueTask<bool>(true);
-                }
+//                    return new ValueTask<bool>(true);
+//                }
 
-                return MoveNextBatchAsync();
-            }
-            catch (NotSupportedException)
-            {
-                _preferBatchMode = false;
-                throw;
-            }
+//                return MoveNextBatchAsync();
+//            }
+//            catch (NotSupportedException)
+//            {
+//                _preferBatchMode = false;
+//                throw;
+//            }
 
-            async ValueTask<bool> MoveNextBatchAsync()
-            {
-                _isInBatch = await _outerBatchEnumerator.MoveNextBatch(false);
-                if (_isInBatch)
-                {
-                    _innerBatchEnumerator?.Dispose();
-#pragma warning disable HAA0401 // Possible allocation of reference type enumerator
-                    _innerBatchEnumerator = CurrentBatch.GetEnumerator();
-#pragma warning restore HAA0401 // Possible allocation of reference type enumerator
-                }
-                return _isInBatch;
-            }
-        }
+//            async ValueTask<bool> MoveNextBatchAsync()
+//            {
+//                _isInBatch = await _outerBatchEnumerator.MoveNextBatch(false);
+//                if (_isInBatch)
+//                {
+//                    _innerBatchEnumerator?.Dispose();
+//#pragma warning disable HAA0401 // Possible allocation of reference type enumerator
+//                    _innerBatchEnumerator = CurrentBatch.GetEnumerator();
+//#pragma warning restore HAA0401 // Possible allocation of reference type enumerator
+//                }
+//                return _isInBatch;
+//            }
+//        }
 
         private IEnumerable<KeyValuePair<TKey, TValue>> CurrentBatch
         {
