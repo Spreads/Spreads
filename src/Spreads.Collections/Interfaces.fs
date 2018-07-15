@@ -7,13 +7,6 @@ namespace Spreads
 open System.Collections.Generic
 open System.Runtime.InteropServices
 
-[<AllowNullLiteral>]
-type internal IKeyHasher<'K> =
-  /// Generates an order-preserving hash.
-  /// The hashes are used as bucket keys and should be a
-  /// http://en.wikipedia.org/wiki/Monotonic_function
-  abstract Hash: k:'K -> 'K
-
 [<Interface>]
 [<AllowNullLiteral>]
 type IImmutableSeries<'K,'V> =

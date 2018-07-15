@@ -32,16 +32,16 @@ open Spreads.Collections
 open Spreads.Utils
 open Spreads
 open Spreads.Collections.Concurrent
+open System
 open System.Net.Http.Headers
-
 
 // NB: Why regular keys? Because we do not care about daily or hourly data, but there are 1440 (480) minutes in a day (trading hours)
 // with the same diff between each consequitive minute. The number is much bigger with seconds and msecs so that
 // memory saving is meaningful, while vectorized calculations on values benefit from fast comparison of regular keys.
 // Ticks (and seconds for illiquid instruments) are not regular, but they are never equal among different instruments.
 
-// NB (update 2018) Regular keys are useful for DataStreams (WIP), but real data is almost never regular. 
-// Keep it at least for the blood wasted on making it right. 
+// NB (update 2018) Regular keys are useful for DataStreams (WIP) with sequential ids, but real data is almost never regular. 
+// Keep it at least for the sake of blood wasted on making it right.
 
 /// Mutable sorted thread-safe IMutableSeries<'K,'V> implementation similar to SCG.SortedList<'K,'V>
 [<AllowNullLiteral>]
@@ -68,6 +68,12 @@ type SortedMap<'K,'V>
   // data fields
   [<DefaultValueAttribute>]
   val mutable internal size : int
+
+  // A small hook to avoid outer orderVersion increment in SCM.
+  // This is simpler than a special child class (also SM is sealed)
+  // and incurres only a null check  
+  [<DefaultValueAttribute>]
+  val mutable internal keepOrderVersionDelegate : Func<'V,'V,bool>
 
   let initCapacity = 
     if capacity.IsPresent && capacity.Present > 16 then
@@ -510,7 +516,7 @@ type SortedMap<'K,'V>
       { new IEnumerable<'K> with
           member x.GetEnumerator() = x.GetEnumerator() :> IEnumerator
           member x.GetEnumerator() : IEnumerator<'K> =
-            let mutable c : SortedMapCursor<'K,'V> = this.GetSMCursor();
+            let mutable c : SortedMapCursor<'K,'V> = this.GetContainerCursor();
             { new IEnumerator<'K> with
                 member __.Current with get() = c.CurrentKey
                 member __.Current with get() : obj = c.CurrentKey :> obj
@@ -525,7 +531,7 @@ type SortedMap<'K,'V>
       { new IEnumerable<'V> with
           member x.GetEnumerator() = x.GetEnumerator() :> IEnumerator
           member x.GetEnumerator() : IEnumerator<'V> =
-            let mutable c : SortedMapCursor<'K,'V> = this.GetSMCursor();
+            let mutable c : SortedMapCursor<'K,'V> = this.GetContainerCursor();
             { new IEnumerator<'V> with
                 member __.Current with get() = c.CurrentValue
                 member __.Current with get() : obj = c.CurrentValue :> obj
@@ -631,6 +637,9 @@ type SortedMap<'K,'V>
           if index >= 0 then // contains key
             Debug.Assert(index < this.size)
             if overwrite then
+              if this.keepOrderVersionDelegate <> null then 
+                let previous = values.[index]
+                keepOrderVersion <- this.keepOrderVersionDelegate.Invoke(previous, v)
               values.[index] <- v
           else
             this.Insert(~~~index, k, v)
@@ -1077,14 +1086,10 @@ type SortedMap<'K,'V>
 
   // .NETs foreach pattern optimization must return struct
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
-  member this.GetEnumerator() : SortedMapCursor<_,_> = new SortedMapCursor<'K,'V>(this)
-
-  // .NETs foreach pattern optimization must return struct
-  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
-  member this.GetAsyncEnumerator() : SortedMapCursor<_,_> = new SortedMapCursor<'K,'V>(this)
-  
-  [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
-  member internal this.GetSMCursor() = new SortedMapCursor<'K,'V>(this)
+  member this.GetEnumerator() : SortedMapCursor<_,_> =
+    readLockIf &this._nextVersion &this._version (not this._isReadOnly) (fun _ ->
+          new SortedMapCursor<'K,'V>(this)
+    )
 
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
   override this.TryGetAt(idx:int64, [<Out>]value: byref<KeyValuePair<'K, 'V>>) : bool =

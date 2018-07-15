@@ -34,63 +34,31 @@ type SortedChunkedMapBase<'K,'V>
     outerFactory:Func<KeyComparer<'K>,IMutableSeries<'K, SortedMap<'K,'V>>>,
     innerFactory:Func<int, KeyComparer<'K>,SortedMap<'K,'V>>, 
     comparer:KeyComparer<'K>,
-    hasher:Opt<IKeyHasher<'K>>, 
     chunkMaxSize:Opt<int>) as this=
   inherit ContainerSeries<'K,'V, SortedChunkedMapCursor<'K,'V>>()
 
-  let outerMap = outerFactory.Invoke(comparer)
+  // let this.outerMap = outerFactory.Invoke(comparer)
 
   let mutable prevRHash = Unchecked.defaultof<'K>
   let mutable prevRBucket: SortedMap<'K,'V> = null  
 
-  let mutable prevWHash = Unchecked.defaultof<'K>
-  let mutable prevWBucket: SortedMap<'K,'V> = null 
-
+  [<DefaultValueAttribute>] 
+  val mutable internal outerMap : IMutableSeries<'K, SortedMap<'K,'V>>
+  
   [<DefaultValueAttribute>]
   val mutable internal innerFactory : Func<int, KeyComparer<'K>,SortedMap<'K,'V>>
 
-  [<DefaultValueAttribute>]
-  val mutable internal isReadOnly : bool
-
   [<DefaultValueAttribute>] 
   val mutable internal orderVersion : int64
-
-  /// Non-zero only for the defaul slicing logic. When zero, we do not check for chunk size
-  let chunkUpperLimit : int = 
-    if hasher.IsPresent then 0
-    else
-      if chunkMaxSize.IsPresent && chunkMaxSize.Present > 0 then chunkMaxSize.Present
-      else Settings.SCMDefaultChunkLength
-  
+ 
   let mutable id = String.Empty
-
-  // used only when chunkUpperLimit = 0
-  let hasher : IKeyHasher<'K> = if hasher.IsPresent then hasher.Present else Unchecked.defaultof<_>
-
+  
   do
+    this.outerMap <- outerFactory.Invoke(comparer)
     this._isSynchronized <- true
-    this._version <- outerMap.Version
-    this._nextVersion <- outerMap.Version
+    this._version <- this.outerMap.Version
+    this._nextVersion <- this.outerMap.Version
     this.innerFactory <- innerFactory
-
-  // hash for locating existing value
-  member inline private this.ExistingHashBucket(key) =
-    // we return KVP to save TryFind(LE) call for the case when chunkUpperLimit > 0
-    if chunkUpperLimit = 0 then
-      KVP(hasher.Hash(key), Unchecked.defaultof<_>)
-    else
-      let mutable h = Unchecked.defaultof<_>
-      outerMap.TryFindAt(key, Lookup.LE, &h) |> ignore
-      h
-
-  //member this.Clear() : Task = 
-  //  let first = this.First
-  //  if first.IsPresent then
-  //    task {
-  //      let! removed = this.TryRemoveMany(first.Present.Key, Lookup.GE)
-  //      return ()
-  //    } :> Task
-  //  else TaskUtil.CompletedTask
 
   override this.Comparer with [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>] get() = comparer
 
@@ -100,35 +68,25 @@ type SortedChunkedMapBase<'K,'V>
       this.BeforeWrite()
       try
         let mutable size' = 0L
-        for okvp in outerMap do
+        for okvp in this.outerMap do
           size' <- size' + int64 okvp.Value.Count
         size'
       finally
         this.AfterWrite(false)
 
-  // TODO remove Obsolete, just make sure these methods are not used inside SCM
-  [<Obsolete>]
-  member internal __.OuterMap with get() = outerMap
-  [<Obsolete>]
-  member internal __.ChunkUpperLimit with get() = chunkUpperLimit
-  [<Obsolete>]
-  member internal __.Hasher with get() = hasher
-
-  member this.Version 
-    with get() = readLockIf &this._nextVersion &this._version (not this.isReadOnly) (fun _ -> this._version)
+  member this.Version
+    with get() = readLockIf &this._nextVersion &this._version (not this._isReadOnly) (fun _ -> this._version)
     and internal set v =
       this.BeforeWrite()
       this._version <- v // NB setter only for deserializer
       this._nextVersion <- v
       this.AfterWrite(false)
 
-  member this.Complete() = this.DoComplete()
-
   override this.IsIndexed with get() = false
 
   member inline private __.FirstUnchecked
     with [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>] get() = 
-      let outerFirst = outerMap.First
+      let outerFirst = this.outerMap.First
       if outerFirst.IsMissing then
         Opt<_>.Missing
       else
@@ -136,11 +94,11 @@ type SortedChunkedMapBase<'K,'V>
       
   override this.First
     with [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>] get() = 
-      readLockIf &this._nextVersion &this._version (not this.isReadOnly) (fun _ -> this.FirstUnchecked)
+      readLockIf &this._nextVersion &this._version (not this._isReadOnly) (fun _ -> this.FirstUnchecked)
 
   member inline private __.LastUnchecked
     with [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>] get() : Opt<KeyValuePair<'K,'V>> = 
-      let outerLast = outerMap.Last
+      let outerLast = this.outerMap.Last
       if outerLast.IsMissing then
         Opt<_>.Missing
       else
@@ -148,25 +106,17 @@ type SortedChunkedMapBase<'K,'V>
       
   override this.Last
     with [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>] get() : Opt<KeyValuePair<'K,'V>> = 
-      readLockIf &this._nextVersion &this._version (not this.isReadOnly) (fun _ -> this.LastUnchecked )
+      readLockIf &this._nextVersion &this._version (not this._isReadOnly) (fun _ -> this.LastUnchecked )
 
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
   member private this.TryUpdateRBucket(key) : unit =
     let mutable prevBucket' = Unchecked.defaultof<_>
     let foundNewBucket: bool =
-      // if hasher is set then for each key we have deterministic hash that does not depend on outer map at all
-      if chunkUpperLimit = 0 then // deterministic hash
-        let hash = hasher.Hash(key)
-        let c = comparer.Compare(hash, prevRHash)
-        // either prevBucket is wrong or not set at all (key = default)
-        if c <> 0 then outerMap.TryFindAt(hash, Lookup.EQ, &prevBucket')        
-        else false
-      else
-        // we are inside previous bucket, getter alway should try to get a value from there
-        if not (prevRBucket <> null && comparer.Compare(key, prevRHash) >= 0 
-          && prevRBucket.CompareToLast(key) <= 0) then
-          outerMap.TryFindAt(key, Lookup.LE, &prevBucket')
-        else false
+      // we are inside previous bucket, getter alway should try to get a value from there
+      if not (prevRBucket <> null && comparer.Compare(key, prevRHash) >= 0 
+        && prevRBucket.CompareToLast(key) <= 0) then
+        this.outerMap.TryFindAt(key, Lookup.LE, &prevBucket')
+      else false
     if foundNewBucket then // bucket switch
       prevRHash <- prevBucket'.Key
       prevRBucket <- prevBucket'.Value
@@ -180,7 +130,7 @@ type SortedChunkedMapBase<'K,'V>
   override this.TryGetValue(key, [<Out>]value: byref<'V>) : bool =
     let mutable value' = Unchecked.defaultof<_>
     let inline res() = this.TryGetValueUnchecked(key, &value')
-    if readLockIf &this._nextVersion &this._version (not this.isReadOnly) res then
+    if readLockIf &this._nextVersion &this._version (not this._isReadOnly) res then
       value <- value'; true
     else false
 
@@ -188,7 +138,7 @@ type SortedChunkedMapBase<'K,'V>
 
   // .NETs foreach optimization
   member this.GetEnumerator() =
-    readLockIf &this._nextVersion &this._version (not this.isReadOnly) (fun _ ->
+    readLockIf &this._nextVersion &this._version (not this._isReadOnly) (fun _ ->
       new SortedChunkedMapCursor<_,_>(this)
     )
   
@@ -197,7 +147,8 @@ type SortedChunkedMapBase<'K,'V>
     let tupleResult =
       let mutable kvp = Unchecked.defaultof<KeyValuePair<'K, 'V>>
       
-      let hashBucket = this.ExistingHashBucket key
+      let mutable hashBucket = Unchecked.defaultof<_>
+      this.outerMap.TryFindAt(key, Lookup.LE, &hashBucket) |> ignore
       let hash = hashBucket.Key
       let c = comparer.Compare(hash, prevRHash)
 
@@ -208,7 +159,7 @@ type SortedChunkedMapBase<'K,'V>
             if hashBucket.Value <> null then
               innerMapKvp <- hashBucket
               true
-            else outerMap.TryFindAt(hash, Lookup.EQ, &innerMapKvp)
+            else this.outerMap.TryFindAt(hash, Lookup.EQ, &innerMapKvp)
           if ok then
             prevRHash <- hash
             prevRBucket <- innerMapKvp.Value
@@ -227,7 +178,7 @@ type SortedChunkedMapBase<'K,'V>
         | Lookup.LT | Lookup.LE ->
           // look into previous bucket and take last
           let mutable innerMapKvp = Unchecked.defaultof<_>
-          let ok = outerMap.TryFindAt(hash, Lookup.LT, &innerMapKvp)
+          let ok = this.outerMap.TryFindAt(hash, Lookup.LT, &innerMapKvp)
           if ok then
             Debug.Assert(innerMapKvp.Value.Last.IsPresent) // if previous was found it shoudn't be empty
             let pair = innerMapKvp.Value.Last.Present
@@ -237,7 +188,7 @@ type SortedChunkedMapBase<'K,'V>
         | Lookup.GT | Lookup.GE ->
           // look into next bucket and take first
           let mutable innerMapKvp = Unchecked.defaultof<_>
-          let ok = outerMap.TryFindAt(hash, Lookup.GT, &innerMapKvp)
+          let ok = this.outerMap.TryFindAt(hash, Lookup.GT, &innerMapKvp)
           if ok then
             Debug.Assert(innerMapKvp.Value.First.IsPresent) // if previous was found it shoudn't be empty
             let pair = innerMapKvp.Value.First.Present
@@ -257,7 +208,7 @@ type SortedChunkedMapBase<'K,'V>
   [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
   override this.TryFindAt(key:'K, direction:Lookup, [<Out>] result: byref<KeyValuePair<'K, 'V>>) = 
     let res() = this.TryFindTuple(key, direction)
-    let tupleResult = readLockIf &this._nextVersion &this._version (not this.isReadOnly) res
+    let tupleResult = readLockIf &this._nextVersion &this._version (not this._isReadOnly) res
     let struct (ret0,res0) = tupleResult
     result <- res0
     ret0
@@ -355,29 +306,6 @@ type SortedChunkedMapBase<'K,'V>
     // the rest is in BaseSeries
     member this.Item with get k = this.Item(k)
 
-  //interface IMutableSeries<'K,'V> with
-  //  member this.IsAppendOnly with get() = false
-  //  member this.Complete() = this.Complete()
-  //  member this.Version with get() = this.Version
-  //  member this.Count with get() = this.Count
-  //  member this.Set(k, v) = this.Set(k,v)
-  //  member this.TryAdd(k, v) = this.TryAdd(k,v)
-  //  member this.TryAddLast(k, v) = this.TryAddLast(k, v)
-  //  member this.TryAddFirst(k, v) = this.TryAddFirst(k, v)
-  //  member this.TryRemove(k) = this.TryRemove(k)
-  //  member this.TryRemoveFirst() = this.TryRemoveFirst()
-  //  member this.TryRemoveLast() = this.TryRemoveLast()
-  //  member this.TryRemoveMany(key:'K,direction:Lookup) = this.TryRemoveMany(key, direction) 
-  //  member this.TryRemoveMany(key:'K,value:'V, direction:Lookup) = raise (NotSupportedException())
-  //  member this.TryAppend(appendMap:ISeries<'K,'V>, option:AppendOption) =
-  //    raise (NotImplementedException())
-
-  //interface IPersistentSeries<'K,'V> with
-  //  member this.Flush() = this.Flush()
-  //  member this.Dispose() = this.DisposeAsync(true) |> ignore // TODO review
-  //  member this.Id with get() = this.Id
-  //#endregion
-
 and
   public SortedChunkedMapCursor<'K,'V> =
     struct
@@ -389,7 +317,7 @@ and
       val mutable internal batchCursor : ICursor<'K,SortedMap<'K,'V>>
       new(source:SortedChunkedMapBase<'K,'V>) = 
         { source = if source <> Unchecked.defaultof<_> then source else failwith "source is null"; 
-          outerCursor = source.OuterMap.GetCursor();
+          outerCursor = source.outerMap.GetCursor();
           innerCursor = Unchecked.defaultof<_>;
           batchCursor = null;
         }
@@ -429,6 +357,9 @@ and
       let mutable outerMoved = false
       let sw = new SpinWait()
       while doSpin do
+        // here we use copy-by-value of structs, SMCursor is cloneable this way without calling Clone()
+        // TODO assignment of doSwitchInner and then check is probably more expensive than always updating on true
+        newInner <- this.innerCursor
         doSpin <- this.source._isSynchronized
         let version = if doSpin then Volatile.Read(&this.source._version) else 0L
         /////////// Start read-locked code /////////////
@@ -438,19 +369,47 @@ and
             doSwitchInner <- true
             result <- newInner.MoveFirst()
           else result <- false
-        else
-          
-          if this.HasValidInner && this.innerCursor.MoveNext() then 
+        if this.HasValidInner then
+          if newInner.MoveNext() then
+            doSwitchInner <- true
             result <- true
           else
+            // Why MP not needed after false move
+            //if this.outerCursor.MoveNext() then
+            //  // outerMoved <- true
+            //  // try move previous inner again
+            //  if newInner.MoveNext() then
+            //    doSwitchInner <- true
+            //    result <- true
+            //    if not (this.outerCursor.MovePrevious()) then
+            //      ThrowHelper.ThrowInvalidOperationException("Cannot move outer cursor to previous existing position and the move previous doesn't throw OOO exception.")
+            //  else
+            //    newInner <- new SortedMapCursor<'K,'V>(this.outerCursor.CurrentValue)
+            //    result <- newInner.MoveNext()
+            //    doSwitchInner <- true
+            //    // TODO test line above should fail, correct is below?
+            //    //if result then
+            //    //  doSwitchInner <- true
+            //    //else
+            //    //  if not (this.outerCursor.MovePrevious()) then
+            //    //    ThrowHelper.ThrowInvalidOperationException("Cannot move outer cursor to previous existing position and the move previous doesn't throw OOO exception.")
+            //else
+            //  // outerMoved <- false
+            //  result <- false
+            /////////////////////
             if outerMoved || this.outerCursor.MoveNext() then
+              
+              // this is for spin - if we could get value but versions are not equal and we need to spin
+              // then we do not need to move outer again if it was already moved
               outerMoved <- true
+
               newInner <- new SortedMapCursor<'K,'V>(this.outerCursor.CurrentValue)
               doSwitchInner <- true
               let moved = newInner.MoveNext()
               if moved then 
                 result <- true
-              else 
+              else
+                ThrowHelper.ThrowInvalidOperationException("Outer should not have empty chunks")
                 outerMoved <- false; // need to try to move outer again
                 result <- false 
             else
@@ -472,7 +431,7 @@ and
 
     member this.MoveNextBatch(noAsync: bool): ValueTask<bool> =
       if this.batchCursor = null then 
-        this.batchCursor <- this.source.OuterMap.GetCursor()
+        this.batchCursor <- this.source.outerMap.GetCursor()
       if noAsync then new ValueTask<bool>(this.batchCursor.MoveNext())
       else this.batchCursor.MoveNextAsync()
 
@@ -607,26 +566,11 @@ and
             this.source.BeforeWrite()
             newInner <- this.innerCursor
             let res =
-              if this.source.ChunkUpperLimit = 0 then
-                let hash = this.source.Hasher.Hash(key)
-                let c = 
-                  if not this.HasValidInner then 2 // <> 0 below
-                  else this.source.Comparer.Compare(hash, this.outerCursor.CurrentKey)
-              
-                if c <> 0 then // not in the current bucket, switch bucket
-                  if this.outerCursor.MoveAt(hash, Lookup.EQ) then // Equal!
-                    newInner <- new SortedMapCursor<'K,'V>(this.outerCursor.CurrentValue)
-                    newInner.MoveAt(key, direction)
-                  else
-                    false
-                else
-                  newInner.MoveAt(key, direction)
+              if this.outerCursor.MoveAt(key, Lookup.LE) then // LE!
+                newInner <- new SortedMapCursor<'K,'V>(this.outerCursor.CurrentValue)
+                newInner.MoveAt(key, direction)
               else
-                if this.outerCursor.MoveAt(key, Lookup.LE) then // LE!
-                  newInner <- new SortedMapCursor<'K,'V>(this.outerCursor.CurrentValue)
-                  newInner.MoveAt(key, direction)
-                else
-                  false
+                false
 
             if res then
               true
@@ -660,9 +604,8 @@ and
         this.innerCursor <- newInner
       result
 
-
     member this.MoveNextAsync(): ValueTask<bool> = 
-      if this.source.isReadOnly then
+      if this.source._isReadOnly then
         if this.MoveNext() then new ValueTask<bool>(true) else ValueTask<bool>(false)
       else raise (NotSupportedException("Use SortedChunkedMapBaseGenericCursorAsync instead"))
 

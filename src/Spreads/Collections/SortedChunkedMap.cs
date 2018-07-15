@@ -1,10 +1,11 @@
-﻿using Spreads.Utils;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
+
+#pragma warning disable 618
 
 namespace Spreads.Collections
 {
@@ -12,14 +13,22 @@ namespace Spreads.Collections
 
     public class SortedChunkedMap<TKey, TValue> : SortedChunkedMapBase<TKey, TValue>, IPersistentSeries<TKey, TValue>
     {
+        private readonly int _chunkUpperLimit;
+        private TKey _prevWHash;
+        private SortedMap<TKey, TValue> _prevWBucket;
+        private Opt<TKey> _lastKey;
+
         internal SortedChunkedMap(Func<KeyComparer<TKey>, IMutableSeries<TKey, SortedMap<TKey, TValue>>> outerFactory,
             Func<int, KeyComparer<TKey>, SortedMap<TKey, TValue>> innerFactory,
             KeyComparer<TKey> comparer,
-            Opt<IKeyHasher<TKey>> hasher,
-            Opt<int> chunkMaxSize) : base(outerFactory, innerFactory, comparer, hasher, chunkMaxSize)
-        { }
+            Opt<int> chunkMaxSize) : base(outerFactory, innerFactory, comparer, chunkMaxSize)
+        {
+            _chunkUpperLimit = chunkMaxSize.IsPresent && chunkMaxSize.Present > 0 ? chunkMaxSize.Present : Settings.SCMDefaultChunkLength;
+            var lastKvp = LastUnchecked;
+            _lastKey = lastKvp.IsPresent ? Opt.Present(lastKvp.Present.Key) : Opt<TKey>.Missing;
+        }
 
-        private static Func<int, KeyComparer<TKey>, SortedMap<TKey, TValue>> smInnerFactory = (capacity, keyComparer) =>
+        private static readonly Func<int, KeyComparer<TKey>, SortedMap<TKey, TValue>> SmInnerFactory = (capacity, keyComparer) =>
         {
             var sm = new SortedMap<TKey, TValue>(capacity, keyComparer)
             {
@@ -28,109 +37,94 @@ namespace Spreads.Collections
             return sm;
         };
 
-        public SortedChunkedMap() : base(c =>
-            new SortedMap<TKey, SortedMap<TKey, TValue>>(c), smInnerFactory, KeyComparer<TKey>.Default, Opt<IKeyHasher<TKey>>.Missing, Opt<int>.Missing)
+        public SortedChunkedMap() : this(c =>
+            new SortedMap<TKey, SortedMap<TKey, TValue>>(c)
+            {
+                keepOrderVersionDelegate = (prev, next) => prev.orderVersion == next.orderVersion
+            },
+            SmInnerFactory, KeyComparer<TKey>.Default, Opt<int>.Missing)
         { }
 
-        //[<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
-        //member internal this.SetWithHasher(key: 'K, value: 'V, overwrite: bool) : unit =
-        // TODO
-        //let hash = hasher.Hash(key)
-        //let c = comparer.Compare(hash, prevHash)
-        //let mutable prevBucket' = Unchecked.defaultof<_>
-        //let bucketIsSet = this.PrevBucketIsSet(&prevBucket')
-        //if c = 0 && bucketIsSet then
-        //  Debug.Assert(prevBucket'._version = this._version)
-        //  prevBucket'.Set(key, value)
-        //  this.NotifyUpdate(true)
-        //else
-        //  // bucket switch
-        //  if bucketIsSet then this.FlushUnchecked()
-        //  let isNew, bucket =
-        //    let mutable bucketKvp = Unchecked.defaultof<_>
-        //    let ok = outerMap.TryFindAt(hash, Lookup.EQ, &bucketKvp)
-        //    if ok then
-        //      false, bucketKvp.Value
-        //    else
-        //      let newSm = innerFactory(0, comparer)
-        //      true, newSm
-        //  bucket._version <- this._version // NB old bucket could have stale version, update for both cases
-        //  bucket._nextVersion <- this._version
-        //  bucket.Set(key, value)
-        //  if isNew then
-        //    outerMap.Set(hash, bucket)
-        //    Debug.Assert(bucket._version = outerMap.Version, "Outer setter must update its version")
-        //  this.NotifyUpdate(true)
-        //  prevHash <- hash
-        //  prevBucket.SetTarget(bucket)
-        // ()
+        // TODO we must know if cached bucket is the last one, not this
+        //[MethodImpl(MethodImplOptions.AggressiveInlining)]
+        //private int CompareToLast(TKey key)
+        //{
+        //    if (_lastKey.IsMissing)
+        //    {
+        //        var lastKvp = LastUnchecked;
+        //        if (lastKvp.IsPresent)
+        //        {
+        //            _lastKey = Opt.Present(lastKvp.Present.Key);
+        //        }
+        //    }
+        //    if (_lastKey.IsPresent)
+        //    {
+        //        return comparer.Compare(key, _lastKey.Present);
+        //    }
+        //    // any key is last when map is empty
+        //    return 1;
+        //}
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal async Task<bool> SetOrAddUnchecked(TKey key, TValue value, bool overwrite)
         {
-            if (chunkUpperLimit == 0)
+            // TODO we should keep track of last value and || on the last condition
+            if (!(_prevWBucket is null)
+                && comparer.Compare(key, _prevWHash) >= 0
+                && (_prevWBucket.CompareToLast(key) <= 0)
+                )
             {
-                ThrowHelper.ThrowNotImplementedException();
-                return await TaskUtil.FalseTask;
+                // We are inside previous bucket, setter has no choice but to set to this
+                // bucket regardless of its size
+
+                // We know that SM is synchronous
+                var res = _prevWBucket.SetOrAdd(key, value, overwrite).Result;
+                NotifyUpdate(false);
+                return res;
+            }
+
+            if (outerMap.TryFindAt(key, Lookup.LE, out var kvp)
+                // the second condition here is for the case when we add inside existing bucket, overflow above chunkUpperLimit is inevitable without a separate split logic
+                && (kvp.Value.size < _chunkUpperLimit || kvp.Value.CompareToLast(key) <= 0)
+            )
+            {
+                if (comparer.Compare(_prevWHash, kvp.Key) != 0)
+                {
+                    // switched active bucket
+                    await FlushUnchecked();
+                    // if add fails later, it is ok to update the stale version to this._version
+                    kvp.Value._version = _version;
+                    kvp.Value._nextVersion = _version;
+                    _prevWHash = kvp.Key;
+                    _prevWBucket = kvp.Value;
+                }
+
+                Debug.Assert(kvp.Value._version == _version);
+                var res = await kvp.Value.SetOrAdd(key, value, overwrite);
+                NotifyUpdate(false);
+                return res;
             }
             else
             {
-                if (!(prevWBucket is null)
-                    && prevWBucket.CompareToLast(key) <= 0
-                    && comparer.Compare(key, prevWHash) >= 0)
+                if (!(_prevWBucket is null))
                 {
-                    // we are inside previous bucket, setter has no choice but to set to this
-                    // bucket regardless of its size
-                    var res = await prevWBucket.SetOrAdd(key, value, overwrite);
-                    NotifyUpdate(false);
-                    return res;
+                    await FlushUnchecked();
                 }
-                else
-                {
-                    if (outerMap.TryFindAt(key, Lookup.LE, out var kvp)
-                        // the second condition here is for the case when we add inside existing bucket, overflow above chunkUpperLimit is inevitable without a separate split logic (TODO?)
-                        && (kvp.Value.size < chunkUpperLimit || kvp.Value.CompareToLast(key) <= 0)
-                    )
-                    {
-                        if (comparer.Compare(prevWHash, kvp.Key) != 0)
-                        {
-                            // switched active bucket
-                            await FlushUnchecked();
-                            // if add fails later, it is ok to update the stale version to this._version (TODO WTF this comment says?)
-                            kvp.Value._version = _version;
-                            kvp.Value._nextVersion = _version;
-                            prevWHash = kvp.Key;
-                            prevWBucket = kvp.Value;
-                        }
+                // create a new bucket at key
+                var newSm = innerFactory.Invoke(0, comparer);
+                newSm._version = _version;
+                newSm._nextVersion = _version;
+                // Set and Add are the same here, we use new SM
+                var _ = await newSm.SetOrAdd(key, value, overwrite); // we know that SM is syncronous
 
-                        Debug.Assert(kvp.Value._version == _version);
-                        var res = await kvp.Value.SetOrAdd(key, value, overwrite);
-                        NotifyUpdate(false);
-                        return res;
-                    }
-                    else
-                    {
-                        if (!(prevWBucket is null))
-                        {
-                            await FlushUnchecked();
-                        }
-                        // create a new bucket at key
-                        var newSm = innerFactory.Invoke(0, comparer);
-                        newSm._version = _version;
-                        newSm._nextVersion = _version;
-                        // Set and Add are the same here, we use new SM
-                        var _ = await newSm.SetOrAdd(key, value, overwrite); // we know that SM is syncronous
+                var outerSet =
+                    await outerMap.Set(key,
+                        newSm); // outerMap.Version is incremented here, set non-empty bucket only
 
-                        var outerSet =
-                            await outerMap.Set(key,
-                                newSm); // outerMap.Version is incremented here, set non-empty bucket only
-
-                        prevWHash = key;
-                        prevWBucket = newSm;
-                        NotifyUpdate(false);
-                        return outerSet;
-                    }
-                }
+                _prevWHash = key;
+                _prevWBucket = newSm;
+                NotifyUpdate(false);
+                return outerSet;
             }
         }
 
@@ -216,31 +210,39 @@ namespace Spreads.Collections
             return default;
         }
 
+        public async Task Complete()
+        {
+            await Flush();
+            await outerMap.Complete();
+            await DoComplete();
+        }
+
         // NB first/last optimization is possible, but removes are rare in the primary use case
         [MethodImplAttribute(MethodImplOptions.AggressiveInlining)]
         private async ValueTask<Opt<KeyValuePair<TKey, TValue>>> TryRemoveUnchecked(TKey key)
         {
-            var hashBucket = ExistingHashBucket(key);
-            var hash = hashBucket.Key;
-            var c = comparer.Compare(hash, prevWHash);
+            outerMap.TryFindAt(key, Lookup.LE, out var hashBucket);
 
-            if (c == 0 && !(prevWBucket is null))
+            var hash = hashBucket.Key;
+            var c = comparer.Compare(hash, _prevWHash);
+
+            if (c == 0 && !(_prevWBucket is null))
             {
-                var res = await prevWBucket.TryRemove(key); // SM is sync
+                var res = await _prevWBucket.TryRemove(key); // SM is sync
                 if (res.IsPresent)
                 {
-                    Debug.Assert(prevWBucket._version == _version + 1L,
+                    Debug.Assert(_prevWBucket._version == _version + 1L,
                         "Verion of the active bucket must much SCM version");
-                    prevWBucket._version = _version + 1L;
-                    prevWBucket._nextVersion = _version + 1L;
+                    _prevWBucket._version = _version + 1L;
+                    _prevWBucket._nextVersion = _version + 1L;
                     // NB no outer set here, it must happen on prev bucket switch
-                    if (prevWBucket.Count == 0)
+                    if (_prevWBucket.Count == 0)
                     {
                         // but here we must notify outer that version has changed
                         // setting empty bucket will remove it in the outer map
                         // (implementation detail, but this is internal)
-                        var _ = await outerMap.Set(prevWHash, prevWBucket);
-                        prevWBucket = null;
+                        var _ = await outerMap.Set(_prevWHash, _prevWBucket);
+                        _prevWBucket = null;
                         return Opt.Present(new KeyValuePair<TKey, TValue>(key, res.Present));
                     }
                     else
@@ -255,7 +257,7 @@ namespace Spreads.Collections
             }
             else
             {
-                if (!(prevWBucket is null))
+                if (!(_prevWBucket is null))
                 {
                     // store potentially modified active bucket in the outer, including version
                     await FlushUnchecked();
@@ -276,18 +278,18 @@ namespace Spreads.Collections
                 if (ok)
                 {
                     var bucket = innerMapKvp.Value;
-                    prevWHash = hash;
-                    prevWBucket = bucket;
+                    _prevWHash = hash;
+                    _prevWBucket = bucket;
                     var res = await bucket.TryRemove(key);
                     if (res.IsPresent)
                     {
                         bucket._version = _version + 1L;
                         bucket._nextVersion = _version + 1L;
                         // NB empty will be removed, see comment above
-                        var _ = await outerMap.Set(prevWHash, bucket);
+                        var _ = await outerMap.Set(_prevWHash, bucket);
                         if (bucket.Count == 0)
                         {
-                            prevWBucket = null;
+                            _prevWBucket = null;
                         }
                     }
 
@@ -346,8 +348,8 @@ namespace Spreads.Collections
             var _ = outerMap.Version;
             if (outerMap.Last.IsMissing)
             {
-                Debug.Assert(prevWBucket is null);
-                prevWBucket = null;
+                Debug.Assert(_prevWBucket is null);
+                _prevWBucket = null;
                 return Opt<KeyValuePair<TKey, TValue>>.Missing;
             }
 
@@ -571,15 +573,15 @@ namespace Spreads.Collections
         {
             prevRBucket = null;
             prevRHash = default;
-            if (!(prevWBucket is null) && prevWBucket._version != outerMap.Version)
+            if (!(_prevWBucket is null) && _prevWBucket._version != outerMap.Version)
             {
                 // ensure the version of current bucket is saved in outer
-                Debug.Assert(prevWBucket._version == _version,
+                Debug.Assert(_prevWBucket._version == _version,
                     "TODO review/test, this must be true? RemoveMany doesn't use prev bucket, review logic there");
 
-                prevWBucket._version = _version;
-                prevWBucket._nextVersion = _version;
-                var _ = await outerMap.Set(prevWHash, prevWBucket);
+                _prevWBucket._version = _version;
+                _prevWBucket._nextVersion = _version;
+                var _ = await outerMap.Set(_prevWHash, _prevWBucket);
                 if (outerMap is IPersistentObject x)
                 {
                     await x.Flush();
@@ -590,7 +592,7 @@ namespace Spreads.Collections
                 // nothing to flush
                 Debug.Assert(outerMap.Version == _version);
             }
-            prevWBucket = null;
+            _prevWBucket = null;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -622,3 +624,5 @@ namespace Spreads.Collections
         }
     }
 }
+
+#pragma warning restore 618

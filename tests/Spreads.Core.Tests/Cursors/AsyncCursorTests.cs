@@ -2,68 +2,23 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+
+using NUnit.Framework;
+using Spreads.Collections;
+using Spreads.Utils;
 using System;
 using System.Threading;
 using System.Threading.Tasks;
-using NUnit.Framework;
-using Spreads.Collections;
 
 namespace Spreads.Core.Tests.Cursors
 {
     [TestFixture]
     public class AsyncCursorTests
     {
-        //[Test]
-        //public void CouldCancelMNA()
-        //{
-        //    var sm = new SortedMap<int, int>();
-
-        //    sm.Add(1, 1);
-
-        //    var cursor = sm.GetCursor();
-        //    Assert.True(cursor.MoveNext());
-        //    Assert.False(cursor.MoveNext());
-
-        //    var cts = new CancellationTokenSource();
-
-        //    var t = Task.Run(() => cursor.MoveNextAsync(cts.Token));
-
-        //    cts.Cancel();
-
-        //    Thread.Sleep(100);
-
-        //    Assert.True(t.IsCanceled);
-        //}
-
-        //[Test]
-        //public void CouldCancelDoAfter()
-        //{
-        //    var sm = new SortedMap<int, int>();
-
-        //    sm.Add(1, 1);
-
-        //    var cursor = sm.GetCursor();
-        //    Assert.True(cursor.MoveNext());
-        //    Assert.False(cursor.MoveNext());
-
-        //    var cts = new CancellationTokenSource();
-
-        //    var t = sm.Range(int.MinValue, 2, true, true).Do((k, v) =>
-        //    {
-        //        Console.WriteLine($"{k} - {v}");
-        //    }, cts.Token);
-
-        //    cts.Cancel();
-
-        //    Thread.Sleep(1000);
-
-        //    Assert.True(t.IsCanceled);
-        //}
-
         [Test]
         public void DeadCursorDoesntCauseEndlessLoopInNotifyUpdate()
         {
-            var sm = new SortedMap<int, int>();
+            var sm = new SortedChunkedMap<int, int>();
 
             sm.Add(1, 1);
 
@@ -89,7 +44,7 @@ namespace Spreads.Core.Tests.Cursors
         [Test]
         public void CancelledCursorDoesntCauseEndlessLoopInNotifyUpdate()
         {
-            var sm = new SortedMap<int, int>();
+            var sm = new SortedChunkedMap<int, int>();
 
             sm.Add(1, 1);
 
@@ -167,7 +122,7 @@ namespace Spreads.Core.Tests.Cursors
         [Test]
         public void RangeCursorStopsBeforeEndKey()
         {
-            var sm = new SortedMap<int, int>();
+            var sm = new SortedChunkedMap<int, int>();
 
             sm.Add(1, 1);
             sm.Add(2, 2);
@@ -200,7 +155,7 @@ namespace Spreads.Core.Tests.Cursors
         [Test]
         public void RangeCursorMovesAfterAwating()
         {
-            var sm = new SortedMap<int, int>();
+            var sm = new SortedChunkedMap<int, int>();
 
             sm.Add(1, 1);
 
@@ -231,40 +186,14 @@ namespace Spreads.Core.Tests.Cursors
             t.Wait();
         }
 
-        [Test, Ignore("Cancellation is not supported")]
-        public void CouldCancelMapCursor()
-        {
-            var sm = new SortedMap<int, int>();
-
-            sm.Add(1, 1);
-
-            var range = sm.Map(x => x + 1).Range(0, Int32.MaxValue, true, true);
-
-            var cursor = range.GetCursor();
-            Assert.True(cursor.MoveNext());
-            Assert.False(cursor.MoveNext());
-
-            var cts = new CancellationTokenSource();
-
-            var t = Task.Run(() =>
-            {
-                Thread.Sleep(100);
-                var task = cursor.MoveNextAsync();
-                Assert.True(task.IsCanceled);
-                //task.Wait();
-            });
-
-            cts.Cancel();
-            t.Wait();
-        }
-
         [Test]
         public async Task NotificationWorksWhenCursorIsNotWating()
         {
-            var sm = new SortedMap<int, int>();
+            var sm = new SortedChunkedMap<int, int>();
 
             sm.Add(1, 1);
             sm.Add(2, 2);
+            sm.Flush();
 
             var cursor = sm.GetCursor();
             Assert.True(await cursor.MoveNextAsync());
@@ -280,11 +209,10 @@ namespace Spreads.Core.Tests.Cursors
             Assert.AreEqual(1, cursor.CurrentValue);
         }
 
-
         [Test]
         public async Task CouldCancelCursor()
         {
-            var sm = new SortedMap<int, int>();
+            var sm = new SortedChunkedMap<int, int>();
 
             var cursor = sm.GetCursor();
 
@@ -310,5 +238,94 @@ namespace Spreads.Core.Tests.Cursors
             t.Wait();
         }
 
+        [Test]
+        public async Task CouldEnumerateSMInBatchMode()
+        {
+            var map = new SortedMap<int, int>();
+            var count = 10_000_000;
+
+            for (int i = 0; i < count; i++)
+            {
+                await map.TryAdd(i, i);
+            }
+
+#pragma warning disable HAA0401 // Possible allocation of reference type enumerator
+            var ae = map.GetAsyncEnumerator();
+#pragma warning restore HAA0401 // Possible allocation of reference type enumerator
+
+            var t = Task.Run(async () =>
+            {
+                using (Benchmark.Run("SCM.AsyncEnumerator", count))
+                {
+                    var cnt = 0;
+                    while (await ae.MoveNextAsync())
+                    {
+                        cnt++;
+                    }
+
+                    await ae.DisposeAsync();
+                    Assert.AreEqual(count * 2, cnt);
+                }
+
+                Benchmark.Dump();
+            });
+
+            for (int i = count; i < count * 2; i++)
+            {
+                await map.TryAdd(i, i);
+            }
+            await map.Complete();
+
+            t.Wait();
+        }
+
+        [Test]
+        public async Task CouldEnumerateSCMInBatchMode()
+        {
+            // Settings.SCMDefaultChunkLength = 5;
+            var scm = new SortedChunkedMap<int, int>();
+            var count = Settings.SCMDefaultChunkLength - 1;
+
+            for (int i = 0; i < count; i++)
+            {
+                await scm.TryAdd(i, i);
+            }
+
+#pragma warning disable HAA0401 // Possible allocation of reference type enumerator
+            var ae = scm.GetCursor();
+#pragma warning restore HAA0401 // Possible allocation of reference type enumerator
+
+            var t = Task.Run(async () =>
+            {
+                using (Benchmark.Run("SCM.AsyncEnumerator", count))
+                {
+                    var cnt = 0;
+                    while (await ae.MoveNextAsync())
+                    {
+                        Assert.AreEqual(cnt, ae.Current.Key);
+                        cnt++;
+                    }
+
+                    await ae.DisposeAsync();
+                    // Assert.AreEqual(scm.Count, cnt);
+                }
+
+                Benchmark.Dump();
+            });
+
+            Thread.Sleep(1000);
+
+            for (int i = count; i < count + 10; i++)
+            {
+                await scm.TryAdd(i, i);
+                Thread.SpinWait(1000);
+            }
+
+            Thread.Sleep(2000);
+
+            await scm.Complete();
+
+            t.Wait();
+        }
     }
 }

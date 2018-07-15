@@ -54,7 +54,7 @@ namespace Spreads
         }
 
         // ReSharper disable once InconsistentNaming
-        internal static int SCMDefaultChunkLength = 8192;
+        internal static int SCMDefaultChunkLength = 4096;
 
         // See e.g. https://gregoryszorc.com/blog/2017/03/07/better-compression-with-zstandard/
         internal static int _lz4CompressionLevel = 4;

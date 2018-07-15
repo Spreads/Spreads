@@ -72,19 +72,13 @@ namespace Spreads
         /// <inheritdoc />
         public abstract bool IsCompleted { get; }
 
-        public IAsyncEnumerator<KeyValuePair<TKey, TValue>> GetAsyncEnumerator()
-        {
-            return GetCursor();
-        }
+        public abstract IAsyncEnumerator<KeyValuePair<TKey, TValue>> GetAsyncEnumerator();
 
-        public IEnumerator<KeyValuePair<TKey, TValue>> GetEnumerator()
-        {
-            return GetCursor();
-        }
+        public abstract IEnumerator<KeyValuePair<TKey, TValue>> GetEnumerator();
 
         IEnumerator IEnumerable.GetEnumerator()
         {
-            return GetCursor();
+            return GetEnumerator();
         }
 
         Cursor<TKey, TValue> ISpecializedSeries<TKey, TValue, Cursor<TKey, TValue>>.GetCursor()
@@ -993,6 +987,21 @@ namespace Spreads
             // hot path for MNA
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get { return Volatile.Read(ref _isReadOnly); }
+        }
+
+        public sealed override IAsyncEnumerator<KeyValuePair<TKey, TValue>> GetAsyncEnumerator()
+        {
+            if (IsCompleted)
+            {
+                return GetContainerCursor();
+            }
+            var c = new AsyncCursor<TKey, TValue, TCursor>(GetContainerCursor(), true);
+            return c;
+        }
+
+        public sealed override IEnumerator<KeyValuePair<TKey, TValue>> GetEnumerator()
+        {
+            return GetContainerCursor();
         }
 
         public override ICursor<TKey, TValue> GetCursor()

@@ -116,12 +116,12 @@ namespace Spreads
         private IDisposable _subscription;
         private IAsyncSubscription _subscriptionEx;
 
-        private bool _batchMode;
+        private bool _preferBatchMode;
         private bool _isInBatch;
         private readonly IAsyncBatchEnumerator<KeyValuePair<TKey, TValue>> _outerBatchEnumerator;
         private IEnumerator<KeyValuePair<TKey, TValue>> _innerBatchEnumerator;
 
-        public AsyncCursor(TCursor cursor, bool batchMode = false)
+        public AsyncCursor(TCursor cursor, bool preferBatchMode = false)
         {
             _innerCursor = cursor;
             if (_innerCursor.Source == null)
@@ -129,9 +129,9 @@ namespace Spreads
                 Environment.FailFast("Source is null");
             }
 
-            _batchMode = batchMode;
+            _preferBatchMode = preferBatchMode;
 
-            if (_batchMode)
+            if (_preferBatchMode)
             {
                 // ReSharper disable once SuspiciousTypeConversion.Global
                 if (cursor is IAsyncBatchEnumerator<KeyValuePair<TKey, TValue>> batchEnumerator)
@@ -140,7 +140,7 @@ namespace Spreads
                 }
                 else
                 {
-                    ThrowHelper.ThrowInvalidOperationException("Batch mode is only supported when inner cursor implements IAsyncBatchEnumerator interface.");
+                    _preferBatchMode = false;
                 }
             }
 
@@ -158,8 +158,8 @@ namespace Spreads
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void TryOwnAndReset()
         {
-            if (ReferenceEquals(Interlocked.CompareExchange(ref _continuation, null, SAvailableSentinel),
-                SAvailableSentinel))
+            var previous = Interlocked.CompareExchange(ref _continuation, null, SAvailableSentinel);
+            if (ReferenceEquals(previous, SAvailableSentinel) || previous is null)
             {
                 unchecked
                 {
@@ -593,7 +593,7 @@ namespace Spreads
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ValueTask<bool> MoveNextAsync()
         {
-            if (_batchMode)
+            if (_preferBatchMode)
             {
                 if (_isInBatch && _innerBatchEnumerator.MoveNext())
                 {
@@ -610,7 +610,7 @@ namespace Spreads
                 if (!_isInBatch)
                 {
                     // when MNB returns false there will be no more batches
-                    _batchMode = false;
+                    _preferBatchMode = false;
                     if (wasInBatch)
                     {
                         // NB: in the current implementation moveat must work because the batch
@@ -737,7 +737,7 @@ namespace Spreads
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private ValueTask<bool> MoveNextBatch()
         {
-            if (!_batchMode)
+            if (!_preferBatchMode)
             {
                 ThrowHelper.ThrowNotSupportedException();
             }
@@ -758,7 +758,7 @@ namespace Spreads
             }
             catch (NotSupportedException)
             {
-                _batchMode = false;
+                _preferBatchMode = false;
                 throw;
             }
 

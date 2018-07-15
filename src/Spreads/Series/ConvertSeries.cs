@@ -98,6 +98,16 @@ namespace Spreads
         public override KeyComparer<TKey2> Comparer => _comparer;
         public override bool IsIndexed => Inner.IsIndexed;
 
+        public override IAsyncEnumerator<KeyValuePair<TKey2, TValue2>> GetAsyncEnumerator()
+        {
+            return GetCursor();
+        }
+
+        public override IEnumerator<KeyValuePair<TKey2, TValue2>> GetEnumerator()
+        {
+            return GetCursor();
+        }
+
         public override ICursor<TKey2, TValue2> GetCursor()
         {
             return new ConvertCursor(Inner.GetCursor(), this as TImpl);

@@ -30,27 +30,27 @@ namespace Spreads.Core.Tests.Collections
                 sm._isSynchronized = false;
                 scm._isSynchronized = false;
 
-                using (Benchmark.Run("SL", count))
-                {
-                    for (int i = 0; i < count; i++)
-                    {
-                        if (i != 2)
-                        {
-                            sl.Add(i, i);
-                        }
-                    }
-                }
+                //using (Benchmark.Run("SL", count))
+                //{
+                //    for (int i = 0; i < count; i++)
+                //    {
+                //        if (i != 2)
+                //        {
+                //            sl.Add(i, i);
+                //        }
+                //    }
+                //}
 
-                using (Benchmark.Run("SM", count))
-                {
-                    for (int i = 0; i < count; i++)
-                    {
-                        if (i != 2)
-                        {
-                            sm.Add(i, i);
-                        }
-                    }
-                }
+                //using (Benchmark.Run("SM", count))
+                //{
+                //    for (int i = 0; i < count; i++)
+                //    {
+                //        if (i != 2)
+                //        {
+                //            sm.Add(i, i);
+                //        }
+                //    }
+                //}
 
                 using (Benchmark.Run("SCM", count))
                 {
