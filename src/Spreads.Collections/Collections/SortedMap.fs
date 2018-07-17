@@ -1346,13 +1346,13 @@ type public SortedMapCursor<'K,'V> =
       let mutable version = if doSpin then Volatile.Read(&this.source._version) else 0L
       
       if this.index < this.source.size then
+        let mutable sw = new SpinWait()
         let mutable newC = this.source.GetPairByIndexUnchecked(this.index)
         while doSpin do
           let nextVersion = Volatile.Read(&this.source._nextVersion)
           if version = nextVersion then 
             doSpin <- false
-          else
-            let mutable sw = new SpinWait()
+          else    
             sw.SpinOnce()
             version <- Volatile.Read(&this.source._version)
             if this.index < this.source.size then
@@ -1388,7 +1388,7 @@ type public SortedMapCursor<'K,'V> =
 
       let mutable result = Unchecked.defaultof<_>
       let mutable doSpin = true
-      let sw = new SpinWait()
+      let mutable sw = new SpinWait()
       while doSpin do
         doSpin <- this.source._isSynchronized
         let version = if doSpin then Volatile.Read(&this.source._version) else 0L
@@ -1436,7 +1436,7 @@ type public SortedMapCursor<'K,'V> =
       //let mutable newValue = this.currentValue
       let mutable result = Unchecked.defaultof<_>
       let mutable doSpin = true
-      let sw = new SpinWait()
+      let mutable sw = new SpinWait()
       while doSpin do
         doSpin <- this.source._isSynchronized
         let version = if doSpin then Volatile.Read(&this.source._version) else 0L
@@ -1473,7 +1473,7 @@ type public SortedMapCursor<'K,'V> =
       //let mutable newValue = this.currentValue
       let mutable result = Unchecked.defaultof<_>
       let mutable doSpin = true
-      let sw = new SpinWait()
+      let mutable sw = new SpinWait()
       while doSpin do
         doSpin <- this.source._isSynchronized
         let version = if doSpin then Volatile.Read(&this.source._version) else 0L
@@ -1508,7 +1508,7 @@ type public SortedMapCursor<'K,'V> =
       //let mutable newValue = this.currentValue
       let mutable result = Unchecked.defaultof<_>
       let mutable doSpin = true
-      let sw = new SpinWait()
+      let mutable sw = new SpinWait()
       while doSpin do
         doSpin <- this.source._isSynchronized
         let version = if doSpin then Volatile.Read(&this.source._version) else 0L

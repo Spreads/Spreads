@@ -1385,7 +1385,7 @@ namespace Spreads
                     }
                 }
             }
-            else
+            else if (!(cursors is null))
             {
                 ThrowHelper.FailFast("Wrong cursors subscriptions type");
             }

@@ -16,7 +16,6 @@ namespace Spreads.Collections
         private readonly int _chunkUpperLimit;
         private TKey _prevWHash;
         private SortedMap<TKey, TValue> _prevWBucket;
-        private Opt<TKey> _lastKey;
 
         internal SortedChunkedMap(Func<KeyComparer<TKey>, IMutableSeries<TKey, SortedMap<TKey, TValue>>> outerFactory,
             Func<int, KeyComparer<TKey>, SortedMap<TKey, TValue>> innerFactory,
@@ -25,7 +24,6 @@ namespace Spreads.Collections
         {
             _chunkUpperLimit = chunkMaxSize.IsPresent && chunkMaxSize.Present > 0 ? chunkMaxSize.Present : Settings.SCMDefaultChunkLength;
             var lastKvp = LastUnchecked;
-            _lastKey = lastKvp.IsPresent ? Opt.Present(lastKvp.Present.Key) : Opt<TKey>.Missing;
         }
 
         private static readonly Func<int, KeyComparer<TKey>, SortedMap<TKey, TValue>> SmInnerFactory = (capacity, keyComparer) =>
@@ -250,6 +248,7 @@ namespace Spreads.Collections
         [MethodImplAttribute(MethodImplOptions.AggressiveInlining)]
         private async ValueTask<Opt<KeyValuePair<TKey, TValue>>> TryRemoveUnchecked(TKey key)
         {
+            ThrowHelper.ThrowNotImplementedException("We do not handle outerMap.TryFindAt == false");
             outerMap.TryFindAt(key, Lookup.LE, out var hashBucket);
 
             var hash = hashBucket.Key;
