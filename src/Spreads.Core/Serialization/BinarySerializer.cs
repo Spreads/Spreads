@@ -68,23 +68,23 @@ namespace Spreads.Serialization
                 rms.Position = 0;
                 var header = new DataTypeHeader
                 {
-                    VersionAndFlags =
-                    {
-                        // NB All defaults
-                        // Version = 0,
-                        // IsBinary = false,
-                        // IsDelta = false,
-                        // IsCompressed = false
-                    },
+                    //VersionAndFlags =
+                    //{
+                    //    // NB All defaults
+                    //    // Version = 0,
+                    //    // IsBinary = false,
+                    //    // IsDelta = false,
+                    //    // IsCompressed = false
+                    //},
                     TypeEnum = VariantHelper<T>.TypeEnum
                 };
                 rms.WriteAsPtr(header);
 
-                rms.WriteAsPtr(checked((int) rms.Length - 8));
+                rms.WriteAsPtr(checked((int)rms.Length - 8));
 
                 rms.Position = 0;
                 temporaryStream = rms;
-                return checked((int) rms.Length);
+                return checked((int)rms.Length);
             }
             else
             {
@@ -93,7 +93,7 @@ namespace Spreads.Serialization
                 // uncompressed
                 var rms = JsonSerializer.SerializeWithOffset(value, 0);
                 var compressedStream =
-                    RecyclableMemoryStreamManager.Default.GetStream(null, checked((int) rms.Length));
+                    RecyclableMemoryStreamManager.Default.GetStream(null, checked((int)rms.Length));
                 compressedStream.WriteAsPtr(0L);
                 using (var compressor = new DeflateStream(compressedStream, CompressionLevel.Optimal, true))
                 {
@@ -118,10 +118,10 @@ namespace Spreads.Serialization
                     TypeEnum = VariantHelper<T>.TypeEnum
                 };
                 compressedStream.WriteAsPtr(header);
-                compressedStream.WriteAsPtr(checked((int) compressedStream.Length - 8));
+                compressedStream.WriteAsPtr(checked((int)compressedStream.Length - 8));
                 compressedStream.Position = 0;
                 temporaryStream = compressedStream;
-                return (checked((int) compressedStream.Length));
+                return (checked((int)compressedStream.Length));
             }
         }
 
@@ -270,7 +270,7 @@ namespace Spreads.Serialization
             if (!header.VersionAndFlags.IsCompressed)
             {
                 var buffer = BufferPool<byte>.Rent(payloadSize);
-                CopyBlockUnaligned(ref buffer[0], ref *(byte*) (ptr + DataTypeHeader.Size + 4), (uint) payloadSize);
+                CopyBlockUnaligned(ref buffer[0], ref *(byte*)(ptr + DataTypeHeader.Size + 4), (uint)payloadSize);
                 var rms = RecyclableMemoryStream.Create(RecyclableMemoryStreamManager.Default, null,
                     payloadSize, buffer, payloadSize);
                 value = JsonSerializer.Deserialize<T>(rms);
@@ -287,7 +287,7 @@ namespace Spreads.Serialization
         private static unsafe int ReadJsonCompressed<T>(IntPtr ptr, out T value, int payloadSize)
         {
             var buffer = BufferPool<byte>.Rent(payloadSize);
-            CopyBlockUnaligned(ref buffer[0], ref *(byte*) (ptr + DataTypeHeader.Size + 4), (uint) payloadSize);
+            CopyBlockUnaligned(ref buffer[0], ref *(byte*)(ptr + DataTypeHeader.Size + 4), (uint)payloadSize);
             var comrpessedStream = RecyclableMemoryStream.Create(RecyclableMemoryStreamManager.Default, null,
                 payloadSize, buffer, payloadSize);
 
@@ -312,6 +312,50 @@ namespace Spreads.Serialization
             using (var handle = buffer.Pin())
             {
                 return Read((IntPtr)handle.Pointer, out value);
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int Read<T>(Stream stream, out T value)
+        {
+            if (stream is RecyclableMemoryStream rms && rms.IsSingleChunk)
+            {
+                return Read(rms.SingleChunk, out value);
+            }
+
+            try
+            {
+                var len = checked((int) stream.Length);
+                rms = RecyclableMemoryStreamManager.Default.GetStream(null, len, true);
+
+                try
+                {
+                    if (!rms.IsSingleChunk)
+                    {
+                        ThrowHelper.ThrowInvalidOperationException(
+                            "RMS GetStream(null, len, true) must return single chunk");
+                    }
+
+                    stream.CopyTo(rms);
+                    return Read(rms.SingleChunk, out value);
+                }
+                finally
+                {
+                    rms.Dispose();
+                }
+            }
+            catch (NotSupportedException)
+            {
+                rms = RecyclableMemoryStreamManager.Default.GetStream();
+                try
+                {
+                    stream.CopyTo(rms);
+                    return Read(rms, out value);
+                }
+                finally
+                {
+                    rms.Dispose();
+                }
             }
         }
     }

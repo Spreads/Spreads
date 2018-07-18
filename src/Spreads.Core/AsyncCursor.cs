@@ -154,6 +154,12 @@ namespace Spreads
             _version = 0;
         }
 
+        public TCursor InnerCursor
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return _innerCursor; }
+        }
+
         #region Async synchronization
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
