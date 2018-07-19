@@ -5,6 +5,7 @@
 using Spreads.Serialization;
 using Spreads.Serialization.Utf8Json;
 using System;
+using System.Diagnostics;
 using System.Globalization;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -27,6 +28,7 @@ namespace Spreads.DataTypes
     /// </remarks>
     [StructLayout(LayoutKind.Sequential, Pack = 8, Size = 8)]
     [Serialization(BlittableSize = 8)]
+    [DebuggerDisplay("{" + nameof(ToString) + "()}")]
     [JsonFormatter(typeof(Formatter))]
     public readonly struct Price : IComparable<Price>, IEquatable<Price>, IConvertible
     {
@@ -267,6 +269,7 @@ namespace Spreads.DataTypes
         }
 
         /// <inheritdoc />
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool Equals(Price other)
         {
             if (_value == other._value)
@@ -297,36 +300,43 @@ namespace Spreads.DataTypes
             return obj is Price && Equals((Price)obj);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool operator ==(Price x, Price y)
         {
             return x.Equals(y);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool operator !=(Price x, Price y)
         {
             return !x.Equals(y);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool operator >(Price x, Price y)
         {
             return x.CompareTo(y) > 0;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool operator <(Price x, Price y)
         {
             return x.CompareTo(y) < 0;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool operator >=(Price x, Price y)
         {
             return x.CompareTo(y) >= 0;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool operator <=(Price x, Price y)
         {
             return x.CompareTo(y) <= 0;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Price operator -(Price x)
         {
             var newPrice = new Price(x.Exponent, -x.Mantissa);
