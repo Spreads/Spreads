@@ -25,10 +25,13 @@ namespace Spreads.Buffers
     /// When it is passed to any method or added  to any collection the reservation ownership is transfered as well.
     /// The consuming method or collection must dispose the <see cref="MemoryHandle"/> reservation. If the caller
     /// needs to retain the memory and must call <see cref="Clone"/> and pass the cloned memory.
+    ///
+    /// Access to this struct is not thread-safe, only one thread could call its methods at a time.
     /// </remarks>
     public struct RetainedMemory<T> : IDisposable
     {
         private MemoryHandle _memoryHandle;
+        private Memory<T> _memory;
 
         /// <summary>
         /// Create a new RetainedMemory from Memory and pins it.
@@ -36,16 +39,22 @@ namespace Spreads.Buffers
         /// <param name="memory"></param>
         public RetainedMemory(Memory<T> memory)
         {
-            Memory = memory;
+            _memory = memory;
             _memoryHandle = memory.Pin();
 #if DETECT_LEAKS
             _finalizeChecker = new PanicOnFinalize();
 #endif
         }
 
+        /// <summary>
+        /// Used internally with "fake" handle, that could unpin owned buffer but
+        /// does not hold a pinned GCHandle. However, any existing MemoryHandle
+        /// should work and the dispose method of RetainedMemory will dispose
+        /// MemoryHandle (i.e. ownership of the handle is *transfered* into this ctor).
+        /// </summary>
         internal RetainedMemory(Memory<T> memory, MemoryHandle handle)
         {
-            Memory = memory;
+            _memory = memory;
             _memoryHandle = handle;
 #if DETECT_LEAKS
             _finalizeChecker = new PanicOnFinalize();
@@ -79,9 +88,13 @@ namespace Spreads.Buffers
         }
 
         /// <summary>
-        /// Memory
+        /// Memory.
         /// </summary>
-        public Memory<T> Memory { get; private set; }
+        public Memory<T> Memory
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return _memory; }
+        }
 
         /// <summary>
         /// A shortcut to Memory.Span property.
@@ -96,7 +109,11 @@ namespace Spreads.Buffers
         /// Gets the number of elements in the RetainedMemory.
         /// </summary>
         [Obsolete("Use Length property instead")]
-        public int Count => Memory.Length;
+        public int Count
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return Memory.Length; }
+        }
 
         /// <summary>
         /// Gets the number of elements in the RetainedMemory.
@@ -126,7 +143,7 @@ namespace Spreads.Buffers
             _finalizeChecker.Dispose();
 #endif
             _memoryHandle.Dispose();
-            Memory = default;
+            _memory = default;
         }
 
         /// <summary>

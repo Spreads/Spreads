@@ -90,7 +90,7 @@ namespace Spreads.Buffers
             {
                 ThrowHelper.ThrowObjectDisposedException(nameof(OwnedPooledArray<T>));
             }
-            BufferPool<T>.Return(array);
+            BufferPool<T>.Return(array, true);
             if (disposing)
             {
                 Pool.Free(this);
