@@ -49,7 +49,7 @@ namespace Spreads
         }
 
         public static Series<TKey, TResult, Map<TKey, (TLeft, TRight), TResult, Zip<TKey, TLeft, TRight, TCursorLeft, TCursorRight>>> Zip<TKey, TLeft, TRight, TResult, TCursorLeft, TCursorRight>(
-            in this (ContainerSeries<TKey, TLeft, TCursorLeft> left, ContainerSeries<TKey, TRight, TCursorRight> right) tuple, Func<TKey, TLeft, TRight, TResult> selector)
+            this (ContainerSeries<TKey, TLeft, TCursorLeft> left, ContainerSeries<TKey, TRight, TCursorRight> right) tuple, Func<TKey, TLeft, TRight, TResult> selector)
             where TCursorLeft : ISpecializedCursor<TKey, TLeft, TCursorLeft>
             where TCursorRight : ISpecializedCursor<TKey, TRight, TCursorRight>
         {
@@ -58,7 +58,7 @@ namespace Spreads
         }
 
         public static Series<TKey, TResult, Map<TKey, (TLeft, TRight), TResult, Zip<TKey, TLeft, TRight, TCursorLeft, TCursorRight>>> Zip<TKey, TLeft, TRight, TResult, TCursorLeft, TCursorRight>(
-            in this (ContainerSeries<TKey, TLeft, TCursorLeft> left, ContainerSeries<TKey, TRight, TCursorRight> right) tuple, Func<TLeft, TRight, TResult> selector)
+            this (ContainerSeries<TKey, TLeft, TCursorLeft> left, ContainerSeries<TKey, TRight, TCursorRight> right) tuple, Func<TLeft, TRight, TResult> selector)
             where TCursorLeft : ISpecializedCursor<TKey, TLeft, TCursorLeft>
             where TCursorRight : ISpecializedCursor<TKey, TRight, TCursorRight>
         {
@@ -103,7 +103,7 @@ namespace Spreads
         #region Generic CursorSeries
 
         public static Series<TKey, (TLeft, TRight), Zip<TKey, TLeft, TRight, TCursorLeft, TCursorRight>> Zip<TKey, TLeft, TRight, TCursorLeft, TCursorRight>(
-            in this Series<TKey, TLeft, TCursorLeft> series, Series<TKey, TRight, TCursorRight> other)
+            this Series<TKey, TLeft, TCursorLeft> series, Series<TKey, TRight, TCursorRight> other)
             where TCursorLeft : ISpecializedCursor<TKey, TLeft, TCursorLeft>
             where TCursorRight : ISpecializedCursor<TKey, TRight, TCursorRight>
         {
@@ -112,7 +112,7 @@ namespace Spreads
         }
 
         public static Series<TKey, TResult, Map<TKey, (TLeft, TRight), TResult, Zip<TKey, TLeft, TRight, TCursorLeft, TCursorRight>>> Zip<TKey, TLeft, TRight, TResult, TCursorLeft, TCursorRight>(
-            in this Series<TKey, TLeft, TCursorLeft> series, Series<TKey, TRight, TCursorRight> other, Func<TKey, TLeft, TRight, TResult> selector)
+            this Series<TKey, TLeft, TCursorLeft> series, Series<TKey, TRight, TCursorRight> other, Func<TKey, TLeft, TRight, TResult> selector)
             where TCursorLeft : ISpecializedCursor<TKey, TLeft, TCursorLeft>
             where TCursorRight : ISpecializedCursor<TKey, TRight, TCursorRight>
         {
@@ -121,7 +121,7 @@ namespace Spreads
         }
 
         public static Series<TKey, TResult, Map<TKey, (TLeft, TRight), TResult, Zip<TKey, TLeft, TRight, TCursorLeft, TCursorRight>>> Zip<TKey, TLeft, TRight, TResult, TCursorLeft, TCursorRight>(
-            in this Series<TKey, TLeft, TCursorLeft> series, Series<TKey, TRight, TCursorRight> other, Func<TLeft, TRight, TResult> selector)
+            this Series<TKey, TLeft, TCursorLeft> series, Series<TKey, TRight, TCursorRight> other, Func<TLeft, TRight, TResult> selector)
             where TCursorLeft : ISpecializedCursor<TKey, TLeft, TCursorLeft>
             where TCursorRight : ISpecializedCursor<TKey, TRight, TCursorRight>
         {
@@ -130,7 +130,7 @@ namespace Spreads
         }
 
         public static Series<TKey, TResult, Map<TKey, (TLeft, TRight), TResult, Zip<TKey, TLeft, TRight, TCursorLeft, TCursorRight>>> Zip<TKey, TLeft, TRight, TResult, TCursorLeft, TCursorRight>(
-            in this (Series<TKey, TLeft, TCursorLeft> left, Series<TKey, TRight, TCursorRight> right) tuple, Func<TKey, TLeft, TRight, TResult> selector)
+            this (Series<TKey, TLeft, TCursorLeft> left, Series<TKey, TRight, TCursorRight> right) tuple, Func<TKey, TLeft, TRight, TResult> selector)
             where TCursorLeft : ISpecializedCursor<TKey, TLeft, TCursorLeft>
             where TCursorRight : ISpecializedCursor<TKey, TRight, TCursorRight>
         {
@@ -139,7 +139,7 @@ namespace Spreads
         }
 
         public static Series<TKey, TResult, Map<TKey, (TLeft, TRight), TResult, Zip<TKey, TLeft, TRight, TCursorLeft, TCursorRight>>> Zip<TKey, TLeft, TRight, TResult, TCursorLeft, TCursorRight>(
-            in this (Series<TKey, TLeft, TCursorLeft> left, Series<TKey, TRight, TCursorRight> right) tuple, Func<TLeft, TRight, TResult> selector)
+            this (Series<TKey, TLeft, TCursorLeft> left, Series<TKey, TRight, TCursorRight> right) tuple, Func<TLeft, TRight, TResult> selector)
             where TCursorLeft : ISpecializedCursor<TKey, TLeft, TCursorLeft>
             where TCursorRight : ISpecializedCursor<TKey, TRight, TCursorRight>
         {
