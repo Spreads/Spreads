@@ -51,7 +51,8 @@ namespace Spreads.DataTypes
 
         public static implicit operator Timestamp(DateTime dateTime)
         {
-            var value = (dateTime.ToUniversalTime().Ticks - UnixEpochTicks) * 100;
+            Debug.Assert(dateTime.Kind != DateTimeKind.Local, "DateTime for Timestamp conversion is assumed to be UTC, got Local");
+            var value = (dateTime.Ticks - UnixEpochTicks) * 100;
             return new Timestamp(value);
         }
 
