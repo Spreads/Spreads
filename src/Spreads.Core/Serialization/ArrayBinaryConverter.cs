@@ -111,7 +111,7 @@ namespace Spreads.Serialization
                         };
                         WriteUnaligned((void*)pinnedDestination, header);
 
-                        // size
+                        // payload size
                         WriteUnaligned((void*)(pinnedDestination + DataTypeHeader.Size), totalSize - 8);
 
                         if (valueCount > 0)
@@ -134,6 +134,10 @@ namespace Spreads.Serialization
                     // ThrowHelper.ThrowInvalidOperationException("ArrayBinaryConverter must be called only with one of binary serialization format");
                 }
             }
+
+            // NB this converter should not be used directly and BinarySerializer check if stream is null and gets it when needed
+            //SizeOf(value, valueOffset, valueCount, out var stream, format);
+            //return Write(in value, pinnedDestination, stream, format);
 
             ThrowHelper.ThrowInvalidOperationException("SizeOf must have returned a temporary stream for cases when Size < 0 or JSON was requested");
             return default;

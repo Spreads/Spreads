@@ -26,6 +26,10 @@ namespace Spreads.Serialization
         private int _length;
         private JsonReader _reader;
 
+        private readonly int _payloadSize;
+        private readonly DataTypeHeader _header;
+        private readonly DataTypeHeader _itemHeader;
+
         public SerializedMemoryIterator(Memory<byte> memory, bool isBinary)
         {
             _memory = memory;
@@ -33,9 +37,13 @@ namespace Spreads.Serialization
 
             _handle = memory.Pin();
 
-            // _index = -1;
             _offset = 0;
             _length = 0;
+
+            _payloadSize = 0;
+            _header = default;
+            _itemHeader = default;
+
             if (!isBinary)
             {
                 if (!MemoryMarshal.TryGetArray<byte>(memory, out var segment))
@@ -47,13 +55,38 @@ namespace Spreads.Serialization
             }
             else
             {
-                _reader = default;
+                _header = ReadUnaligned<DataTypeHeader>((void*)((IntPtr)_handle.Pointer));
+                _itemHeader = new DataTypeHeader()
+                {
+                    TypeSize = _header.TypeSize,
+                    TypeEnum = _header.ElementTypeEnum,
+                    VersionAndFlags = _header.VersionAndFlags
+                };
+                if (_header.VersionAndFlags.IsBinary)
+                {
+                    if (_header.TypeSize <= 0)
+                    {
+                        ThrowHelper.ThrowInvalidOperationException("Arrays could be serialized as binary only if the type size is fixed.");
+                    }
+                    _payloadSize = ReadUnaligned<int>((void*)((IntPtr)_handle.Pointer + DataTypeHeader.Size));
+                    _length = _header.TypeSize;
+                    _reader = default;
+                }
+                else
+                {
+                    if (!MemoryMarshal.TryGetArray<byte>(memory, out var segment))
+                    {
+                        ThrowHelper.ThrowInvalidOperationException("JSON data must be currently backed by a byte array. This is Utf8Json limitation.");
+                    }
+                    _reader = new JsonReader(segment.Array, segment.Offset + 8);
+                    _isBinary = false;
+                }
             }
         }
 
         public SerializedMemoryIterator GetEnumerator()
         {
-            return new SerializedMemoryIterator(_memory, _isBinary);
+            return this;
         }
 
         IEnumerator<DirectBuffer> IEnumerable<DirectBuffer>.GetEnumerator()
@@ -71,27 +104,18 @@ namespace Spreads.Serialization
         {
             if (_isBinary)
             {
-                // binary has always a header with fixed-size or an int after the header with payload size
-                // note that this only supports individual values packed consequitively, not binary arrays
-
-                _offset = _offset + _length;
-
-                if (_offset >= _memory.Length)
+                if (_offset == 0)
                 {
-                    return false;
-                }
-
-                var header = ReadUnaligned<DataTypeHeader>(_handle.Pointer);
-                if (header.IsFixedSize)
-                {
-                    _length = DataTypeHeader.Size + header.TypeSize;
+                    _offset = DataTypeHeader.Size + 4;
                 }
                 else
                 {
-                    var payloadLength = ReadUnaligned<int>((void*)((IntPtr)_handle.Pointer + 4));
-                    _length = DataTypeHeader.Size + 4 + payloadLength;
+                    _offset += _length;
                 }
-
+                if (_offset >= 8 + _payloadSize)
+                {
+                    return false;
+                }
                 return true;
             }
             else
@@ -136,6 +160,12 @@ namespace Spreads.Serialization
         }
 
         object IEnumerator.Current => Current;
+
+        public DataTypeHeader ItemHeader
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return _itemHeader; }
+        }
 
         public void Dispose()
         {

@@ -62,7 +62,9 @@ namespace Spreads.Serialization
         [MethodImpl(MethodImplOptions.NoInlining)]
         private static int SizeOfSlow<T>(T value, out MemoryStream temporaryStream, SerializationFormat format)
         {
-            if (format == SerializationFormat.Json)
+            // NB when we request binary uncompressed but items are not fixed size we use uncompressed 
+            // JSON so that we could iterate over values as byte Spans/DirectBuffers without uncompressing
+            if (format == SerializationFormat.Json || format == SerializationFormat.Binary)
             {
                 var rms = JsonSerializer.SerializeWithOffset(value, DataTypeHeader.Size + 4);
                 rms.Position = 0;
@@ -244,7 +246,6 @@ namespace Spreads.Serialization
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static unsafe int Read<T>(IntPtr ptr, out T value)
         {
-            var payloadSize = ReadUnaligned<int>((void*)(ptr + DataTypeHeader.Size));
             var header = ReadUnaligned<DataTypeHeader>((void*)ptr);
 
             if (header.VersionAndFlags.IsBinary)
@@ -253,6 +254,7 @@ namespace Spreads.Serialization
                 return TypeHelper<T>.Read(ptr, out value);
             }
 
+            var payloadSize = ReadUnaligned<int>((void*)(ptr + DataTypeHeader.Size));
             return ReadSlow(ptr, out value, header, payloadSize);
         }
 
