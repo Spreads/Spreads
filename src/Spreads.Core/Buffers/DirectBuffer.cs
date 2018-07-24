@@ -88,6 +88,22 @@ namespace Spreads.Buffers
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public DirectBuffer Slice(long start)
+        {
+            return new DirectBuffer(_length.ToInt64() - start, (IntPtr)(Data.ToInt64() + start));
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public DirectBuffer Slice(long start, long length)
+        {
+            if (!HasCapacity(start, length))
+            {
+                ThrowHelper.ThrowArgumentOutOfRangeException();
+            }
+            return new DirectBuffer(length, (IntPtr)(Data.ToInt64() + start));
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool HasCapacity(long offset, long length)
         {
             return (ulong)offset + (ulong)length <= (ulong)_length;
