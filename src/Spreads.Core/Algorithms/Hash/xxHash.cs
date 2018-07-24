@@ -50,13 +50,16 @@ namespace Spreads.Algorithms.Hash
 
             public XxHashState32(uint seed = 0)
             {
-                Seed = seed;
-                V1 = seed + PRIME32_1 + PRIME32_2;
-                V2 = seed + PRIME32_2;
-                V3 = seed + 0;
-                V4 = seed - PRIME32_1;
-                TotalLen = 0;
-                Memsize = 0;
+                unchecked
+                {
+                    Seed = seed;
+                    V1 = seed + PRIME32_1 + PRIME32_2;
+                    V2 = seed + PRIME32_2;
+                    V3 = seed + 0;
+                    V4 = seed - PRIME32_1;
+                    TotalLen = 0;
+                    Memsize = 0;
+                }
             }
         };
 
@@ -72,6 +75,10 @@ namespace Spreads.Algorithms.Hash
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static uint CalculateHash(IntPtr data, int len, uint seed = 0)
         {
+#if DEBUG
+            unchecked
+            {
+#endif
             uint h32;
             int index = 0;
 
@@ -125,11 +132,18 @@ namespace Spreads.Algorithms.Hash
             h32 ^= h32 >> 16;
 
             return h32;
+#if DEBUG
+            }
+#endif
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool Update(ref XxHashState32 state, IntPtr input, int len)
         {
+#if DEBUG
+            unchecked
+            {
+#endif
             int index = 0;
 
             state.TotalLen += (uint)len;
@@ -140,6 +154,7 @@ namespace Spreads.Algorithms.Hash
                 {
                     ByteUtil.MemoryCopy(ptr + state.Memsize, (byte*)input, (uint)len);
                 }
+
                 //Array.Copy(input, 0, state.Memory, state.Memsize, len);
                 state.Memsize += (uint)len;
 
@@ -152,6 +167,7 @@ namespace Spreads.Algorithms.Hash
                 {
                     ByteUtil.MemoryCopy(ptr + state.Memsize, (byte*)input, (uint)(16 - state.Memsize));
                 }
+
                 //Array.Copy(input, 0, state.Memory, state.Memsize, 16 - state.Memsize);
                 fixed (byte* ptr = state.Memory)
                 {
@@ -201,20 +217,30 @@ namespace Spreads.Algorithms.Hash
                 {
                     ByteUtil.MemoryCopy(ptr + 0, (byte*)(input + index), (uint)(len - index));
                 }
+
                 //Array.Copy(input, index, state.Memory, 0, len - index);
                 state.Memsize = (uint)(len - index);
             }
+
             return true;
+#if DEBUG
+            }
+#endif
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static uint Digest(XxHashState32 state)
         {
+#if DEBUG
+            unchecked
+            {
+#endif
             uint h32;
             int index = 0;
             if (state.TotalLen >= 16)
             {
-                h32 = RotateLeft(state.V1, 1) + RotateLeft(state.V2, 7) + RotateLeft(state.V3, 12) + RotateLeft(state.V4, 18);
+                h32 = RotateLeft(state.V1, 1) + RotateLeft(state.V2, 7) + RotateLeft(state.V3, 12) +
+                      RotateLeft(state.V4, 18);
             }
             else
             {
@@ -244,22 +270,39 @@ namespace Spreads.Algorithms.Hash
             h32 ^= h32 >> 16;
 
             return h32;
+#if DEBUG
+            }
+#endif
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static uint CalcSubHash(uint value, IntPtr buf, int index)
         {
+#if DEBUG
+            unchecked
+            {
+#endif
             var readValue = *(uint*)(buf + index);
             value += readValue * PRIME32_2;
             value = RotateLeft(value, 13);
             value *= PRIME32_1;
             return value;
+#if DEBUG
+            }
+#endif
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static uint RotateLeft(uint value, int count)
         {
+#if DEBUG
+            unchecked
+            {
+#endif
             return (value << count) | (value >> (32 - count));
+#if DEBUG
+            }
+#endif
         }
     }
 }
