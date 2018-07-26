@@ -112,9 +112,9 @@ namespace Spreads
         }
 
         /// <summary>
-        /// 2**48 ought to be enough for anybody. It's 8.9 years of microseconds.
+        /// 2**53 ought to be enough for anybody. It's 285 years of microseconds.
         /// </summary>
-        public static ulong MaxVersion = (1UL << 48) - 1UL;
+        public static ulong MaxVersion = (1UL << 53) - 1UL;
     }
 
     /// <summary>
