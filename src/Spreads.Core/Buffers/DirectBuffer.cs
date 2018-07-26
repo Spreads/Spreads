@@ -18,9 +18,9 @@ namespace Spreads.Buffers
     [StructLayout(LayoutKind.Sequential)]
     public readonly unsafe struct DirectBuffer
     {
-        public static DirectBuffer Invalid = new DirectBuffer((IntPtr)(-1), (byte*)IntPtr.Zero);
+        public static DirectBuffer Invalid = new DirectBuffer(-1, (byte*)IntPtr.Zero);
 
-        private readonly IntPtr _length;
+        private readonly long _length;
         internal readonly byte* _data;
 
         /// <summary>
@@ -39,7 +39,7 @@ namespace Spreads.Buffers
             {
                 ThrowHelper.ThrowArgumentException("Memory size must be > 0");
             }
-            _length = (IntPtr)length;
+            _length = length;
             _data = (byte*)data;
         }
 
@@ -47,29 +47,29 @@ namespace Spreads.Buffers
         /// Unsafe constructors performs no input checks.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public DirectBuffer(IntPtr length, byte* data)
+        public DirectBuffer(long length, byte* data)
         {
-            _data = data;
             _length = length;
+            _data = data;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public DirectBuffer(Span<byte> span)
         {
+            _length = span.Length;
             _data = (byte*)AsPointer(ref MemoryMarshal.GetReference(span));
-            _length = (IntPtr)span.Length;
         }
 
         public bool IsValid
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return _length != (IntPtr)(-1); }
+            get { return _length > 0; }
         }
 
-        public ReadOnlySpan<byte> Span
+        public Span<byte> Span
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new ReadOnlySpan<byte>(_data, (int)_length); }
+            get { return new Span<byte>(_data, (int)_length); }
         }
 
         /// <summary>
@@ -78,7 +78,7 @@ namespace Spreads.Buffers
         public long Length
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return (long)_length; }
+            get { return _length; }
         }
 
         public IntPtr Data
@@ -90,7 +90,7 @@ namespace Spreads.Buffers
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public DirectBuffer Slice(long start)
         {
-            return new DirectBuffer(_length.ToInt64() - start, (IntPtr)(Data.ToInt64() + start));
+            return new DirectBuffer(_length - start, (IntPtr)(Data.ToInt64() + start));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -521,6 +521,7 @@ namespace Spreads.Buffers
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        // ReSharper disable once InconsistentNaming
         public UUID ReadUUID(long index)
         {
             Assert(index, 16);
@@ -528,6 +529,7 @@ namespace Spreads.Buffers
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        // ReSharper disable once InconsistentNaming
         public void WriteUUID(long index, UUID value)
         {
             Assert(index, 16);
