@@ -196,7 +196,6 @@ namespace Spreads
                 LogSync();
                 return new ValueTask<bool>(true);
             }
-
             if (_innerCursor.IsCompleted)
             {
                 if (_innerCursor.MoveNext())
@@ -242,8 +241,7 @@ namespace Spreads
                 _completed = true;
                 _result = true;
             }
-
-            if (_innerCursor.IsCompleted)
+            else if (_innerCursor.IsCompleted)
             {
                 LogSync();
                 if (_innerCursor.MoveNext())
@@ -781,48 +779,48 @@ namespace Spreads
             get { return _isInBatch ? _innerBatchEnumerator.Current.Value : _innerCursor.CurrentValue; }
         }
 
-//        [Obsolete]
-//        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-//        private ValueTask<bool> MoveNextBatch()
-//        {
-//            if (!_preferBatchMode)
-//            {
-//                ThrowHelper.ThrowNotSupportedException();
-//            }
-//            try
-//            {
-//                _isInBatch = _outerBatchEnumerator.MoveNextBatch(true).Result;
-//                if (_isInBatch)
-//                {
-//                    _innerBatchEnumerator?.Dispose();
-//#pragma warning disable HAA0401 // Possible allocation of reference type enumerator
-//                    _innerBatchEnumerator = CurrentBatch.GetEnumerator();
-//#pragma warning restore HAA0401 // Possible allocation of reference type enumerator
+        //        [Obsolete]
+        //        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        //        private ValueTask<bool> MoveNextBatch()
+        //        {
+        //            if (!_preferBatchMode)
+        //            {
+        //                ThrowHelper.ThrowNotSupportedException();
+        //            }
+        //            try
+        //            {
+        //                _isInBatch = _outerBatchEnumerator.MoveNextBatch(true).Result;
+        //                if (_isInBatch)
+        //                {
+        //                    _innerBatchEnumerator?.Dispose();
+        //#pragma warning disable HAA0401 // Possible allocation of reference type enumerator
+        //                    _innerBatchEnumerator = CurrentBatch.GetEnumerator();
+        //#pragma warning restore HAA0401 // Possible allocation of reference type enumerator
 
-//                    return new ValueTask<bool>(true);
-//                }
+        //                    return new ValueTask<bool>(true);
+        //                }
 
-//                return MoveNextBatchAsync();
-//            }
-//            catch (NotSupportedException)
-//            {
-//                _preferBatchMode = false;
-//                throw;
-//            }
+        //                return MoveNextBatchAsync();
+        //            }
+        //            catch (NotSupportedException)
+        //            {
+        //                _preferBatchMode = false;
+        //                throw;
+        //            }
 
-//            async ValueTask<bool> MoveNextBatchAsync()
-//            {
-//                _isInBatch = await _outerBatchEnumerator.MoveNextBatch(false);
-//                if (_isInBatch)
-//                {
-//                    _innerBatchEnumerator?.Dispose();
-//#pragma warning disable HAA0401 // Possible allocation of reference type enumerator
-//                    _innerBatchEnumerator = CurrentBatch.GetEnumerator();
-//#pragma warning restore HAA0401 // Possible allocation of reference type enumerator
-//                }
-//                return _isInBatch;
-//            }
-//        }
+        //            async ValueTask<bool> MoveNextBatchAsync()
+        //            {
+        //                _isInBatch = await _outerBatchEnumerator.MoveNextBatch(false);
+        //                if (_isInBatch)
+        //                {
+        //                    _innerBatchEnumerator?.Dispose();
+        //#pragma warning disable HAA0401 // Possible allocation of reference type enumerator
+        //                    _innerBatchEnumerator = CurrentBatch.GetEnumerator();
+        //#pragma warning restore HAA0401 // Possible allocation of reference type enumerator
+        //                }
+        //                return _isInBatch;
+        //            }
+        //        }
 
         private IEnumerable<KeyValuePair<TKey, TValue>> CurrentBatch
         {
@@ -904,6 +902,7 @@ namespace Spreads
 
         ~AsyncCursor()
         {
+            Console.WriteLine("Called AsyncCursor finalizer");
             Dispose(false);
         }
 

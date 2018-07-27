@@ -2,11 +2,11 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-
 using NUnit.Framework;
 using Spreads.Collections;
 using Spreads.Utils;
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -344,18 +344,18 @@ namespace Spreads.Core.Tests.Cursors
                 {
                     //try
                     //{
-                        var cnt = count;
-                        while (await ae.MoveNextAsync())
+                    var cnt = count;
+                    while (await ae.MoveNextAsync())
+                    {
+                        if (cnt != ae.Current.Key)
                         {
-                            if (cnt != ae.Current.Key)
-                            {
-                                ThrowHelper.ThrowInvalidOperationException($"cnt {cnt} != ae.Current.Key {ae.Current.Key}");
-                            }
-
-                            cnt++;
+                            ThrowHelper.ThrowInvalidOperationException($"cnt {cnt} != ae.Current.Key {ae.Current.Key}");
                         }
 
-                        await ae.DisposeAsync();
+                        cnt++;
+                    }
+
+                    await ae.DisposeAsync();
                     //}
                     //catch (Exception ex)
                     //{
@@ -447,6 +447,85 @@ namespace Spreads.Core.Tests.Cursors
             await scm.Complete();
 
             t.Wait();
+        }
+
+        [Test]
+        public async Task CouldReadDataStreamWhileWritingFromManyThreads()
+        {
+            var map = new SortedMap<int, int>();
+
+            var count = 10_000;
+            var rounds = 100;
+
+            var writeTask = Task.Run(async () =>
+            {
+                for (int j = 0; j < rounds; j++)
+                {
+                    var t1 = Task.Run(async () =>
+                    {
+                        //using (Benchmark.Run("Write", count, true))
+                        {
+                            for (int i = j * count; i < (j + 1) * count; i++)
+                            {
+                                await map.TryAddLast(i, i);
+                            }
+                        }
+                        
+                        // even with 0 and false AsyncCursor if finalized, with Optimized works OK
+                        GC.Collect(1, GCCollectionMode.Default, true);
+
+                        // `using (Benchmark.Run...` does this
+                        //GC.Collect(2, GCCollectionMode.Forced, true);
+                        // GC.WaitForPendingFinalizers();
+                        //GC.Collect(2, GCCollectionMode.Forced, true);
+                        //GC.WaitForPendingFinalizers();
+                    });
+                    await t1;
+                }
+            });
+
+            var cnt = 0L;
+
+            // if we put it here everything works as expected
+            // ICursor<int, int> c;
+
+            var readTask = Task.Run(async () =>
+            {
+                var lastKey1 = 0;
+                for (int r = 0; r < 1; r++)
+                {
+                    // using (Benchmark.Run("Read", count, true))
+                    {
+                        // PROBLEM: cursor is collected and finalized before async loop finishes
+                        ICursor<int, int> cursor;
+                        using (cursor = map.GetCursor())
+                        {
+                            while (await cursor.MoveNextAsync())
+                            {
+                                Interlocked.Increment(ref cnt);
+                                if (cnt == count * rounds)
+                                {
+                                    Console.WriteLine("Reader reached the end, waiting for complete signal");
+                                }
+                            }
+                            // here is a strong reference to cursor with side effects of printing to console
+                            Console.WriteLine("Last value: " + cursor.Current.Key);
+                            // another strong reference after while loop, we dereference it's value and return from task
+                            lastKey1 = cursor.CurrentKey;
+                        }
+                    }
+                }
+
+                return lastKey1;
+            });
+
+            writeTask.Wait();
+            await map.Complete();
+            Console.WriteLine("Read after complete:" + Interlocked.Read(ref cnt));
+            var lastKey = await readTask;
+            Console.WriteLine("Last key: " + lastKey);
+            // Benchmark.Dump();
+            map.Dispose();
         }
     }
 }

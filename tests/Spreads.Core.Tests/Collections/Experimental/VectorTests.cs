@@ -25,7 +25,7 @@ namespace Spreads.Core.Tests.Collections.Experimental
             var array = new double[count];
             var memory = new Memory<double>(array);
             var handle = memory.Pin();
-            var db = new DirectBuffer((IntPtr) (count * 8), (byte*) handle.Pointer);
+            var db = new DirectBuffer((count * 8), (byte*) handle.Pointer);
             var vectorTArr = new Vector<double>(array);
             var vectorTBuf = new Vector<double>(db);
             var vectorArr = new Vector(array);

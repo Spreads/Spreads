@@ -965,10 +965,10 @@ namespace Spreads
         // ReSharper restore InconsistentNaming
         internal bool _isSynchronized = true;
 
-        internal bool _isReadOnly;
+        internal volatile bool _isReadOnly;
 
-        // Unition of ContainerSubscription | ConcurrentHashSet<ContainerSubscription>
-        private object _cursors;
+        // Union of ContainerSubscription | ConcurrentHashSet<ContainerSubscription>
+        private volatile object _cursors;
 
         internal long Locker;
 
