@@ -489,7 +489,6 @@ namespace Spreads.Threading
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Enqueue(Action<object> callback, ExecutionContext exCtx, object state, bool forceGlobal)
         {
-            
             ThreadPoolWorkQueueThreadLocals tl = null;
             if (!forceGlobal)
             {
@@ -749,18 +748,40 @@ namespace Spreads.Threading
     /// </summary>
     public class SpreadsThreadPool
     {
-        public static readonly SpreadsThreadPool Default = new SpreadsThreadPool(
-            new ThreadPoolSettings(Environment.ProcessorCount, "DefaultSpinningThreadPool"));
+        // it's shared and there is a cmment from MSFT that the number should
+        // be larger than intuition tells. By default ThreadPool has number
+        // of workers equals to processor count.
+        public static readonly int DefaultDedicatedWorkerThreads =
+            1 * 16 + 1 * 8 + Environment.ProcessorCount * 4;
+
+        // Without accessing this namespace and class it is not created
+        private static SpreadsThreadPool _default;
+
+        public static SpreadsThreadPool Default
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get
+            {
+                // This is not thread safe and has side effects. Should be accessed on startup.
+                return _default ?? (_default = new SpreadsThreadPool(
+                    new ThreadPoolSettings(DefaultDedicatedWorkerThreads,
+                        "DefaultSpinningThreadPool"), true));
+            }
+        }
 
         internal readonly ThreadPoolWorkQueue workQueue;
         public ThreadPoolSettings Settings { get; }
         private readonly PoolWorker[] _workers;
 
-        public SpreadsThreadPool(ThreadPoolSettings settings)
+        public SpreadsThreadPool(ThreadPoolSettings settings, bool adjustDefaultThreadpool = false)
         {
             workQueue = new ThreadPoolWorkQueue(this);
             Settings = settings;
             _workers = Enumerable.Range(1, settings.NumThreads).Select(workerId => new PoolWorker(this, workerId)).ToArray();
+            if (adjustDefaultThreadpool)
+            {
+                ThreadPool.SetMinThreads(settings.NumThreads, settings.NumThreads);
+            }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -915,11 +936,11 @@ namespace Spreads.Threading
                 // on MoveNextAsync. On machines with small (v)CPUs count there could be a lot of
                 // activity on IO threads or other threads, but that could wait until we are
                 // performing actual calculations. We use Thread.Sleep(0) in UnfairSemaphore
-                // that yields only to threads with the same priority - this is good for this 
+                // that yields only to threads with the same priority - this is good for this
                 // case - threads from this pool will continue to do work until they have it.
-                // Note that we do not stick to the pool threads and could often jump to the 
-                // normal ThreadPool or start waiting from it. That's OK because if we have 
-                // data available then those threads will just execute calculations. If they 
+                // Note that we do not stick to the pool threads and could often jump to the
+                // normal ThreadPool or start waiting from it. That's OK because if we have
+                // data available then those threads will just execute calculations. If they
                 // have to wait then we should wake consumers from higher-priority threads.
                 // Try: thread.Priority = Thread.CurrentThread.Priority + 1;
 
