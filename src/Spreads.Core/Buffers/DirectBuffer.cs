@@ -270,10 +270,38 @@ namespace Spreads.Buffers
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public uint VolatileReadUInt32(long index)
+        {
+            Assert(index, 4);
+            return Volatile.Read(ref *(uint*)(new IntPtr(_data + index)));
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void VolatileWriteUInt32(long index, uint value)
+        {
+            Assert(index, 4);
+            Volatile.Write(ref *(uint*)(new IntPtr(_data + index)), value);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public long VolatileReadInt64(long index)
         {
             Assert(index, 8);
             return Volatile.Read(ref *(long*)(new IntPtr(_data + index)));
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void VolatileWriteUInt64(long index, ulong value)
+        {
+            Assert(index, 8);
+            Volatile.Write(ref *(ulong*)(new IntPtr(_data + index)), value);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public ulong VolatileReadUInt64(long index)
+        {
+            Assert(index, 8);
+            return Volatile.Read(ref *(ulong*)(new IntPtr(_data + index)));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -383,7 +411,7 @@ namespace Spreads.Buffers
         /// <param name="index"> index in bytes from which to get.</param>
         /// <returns>the value at a given index.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public ushort ReadUint16(long index)
+        public ushort ReadUInt16(long index)
         {
             Assert(index, 2);
             return ReadUnaligned<ushort>(_data + index);
@@ -395,7 +423,7 @@ namespace Spreads.Buffers
         /// <param name="index">index in bytes for where to put.</param>
         /// <param name="value">value to be written</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void WriteUint16(long index, ushort value)
+        public void WriteUInt16(long index, ushort value)
         {
             Assert(index, 2);
             WriteUnaligned(_data + index, value);
@@ -407,7 +435,7 @@ namespace Spreads.Buffers
         /// <param name="index"> index in bytes from which to get.</param>
         /// <returns>the value at a given index.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public uint ReadUint32(long index)
+        public uint ReadUInt32(long index)
         {
             Assert(index, 4);
             return ReadUnaligned<uint>(_data + index);
@@ -419,7 +447,7 @@ namespace Spreads.Buffers
         /// <param name="index">index in bytes for where to put.</param>
         /// <param name="value">value to be written</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void WriteUint32(long index, uint value)
+        public void WriteUInt32(long index, uint value)
         {
             Assert(index, 4);
             WriteUnaligned(_data + index, value);
@@ -431,7 +459,7 @@ namespace Spreads.Buffers
         /// <param name="index"> index in bytes from which to get.</param>
         /// <returns>the value at a given index.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public ulong ReadUint64(long index)
+        public ulong ReadUInt64(long index)
         {
             Assert(index, 8);
             return ReadUnaligned<ulong>(_data + index);
@@ -442,7 +470,7 @@ namespace Spreads.Buffers
         /// </summary>
         /// <param name="index">index in bytes for where to put.</param>
         /// <param name="value">value to be written</param>
-        public void WriteUint64(long index, ulong value)
+        public void WriteUInt64(long index, ulong value)
         {
             Assert(index, 8);
             WriteUnaligned(_data + index, value);
