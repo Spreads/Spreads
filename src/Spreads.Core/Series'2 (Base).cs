@@ -965,10 +965,10 @@ namespace Spreads
         // ReSharper restore InconsistentNaming
         internal bool _isSynchronized = true;
 
-        internal volatile bool _isReadOnly;
+        internal bool _isReadOnly;
 
         // Union of ContainerSubscription | ConcurrentHashSet<ContainerSubscription>
-        private volatile object _cursors;
+        private object _cursors;
 
         internal long Locker;
 
@@ -1023,7 +1023,6 @@ namespace Spreads
             {
                 [MethodImpl(MethodImplOptions.AggressiveInlining)]
                 get { return Volatile.Read(ref _requests); }
-                // set { Volatile.Write(ref _requests, value); }
             }
 
             public ContainerSubscription(ContainerSeries<TKey, TValue, TCursor> container, WeakReference<IAsyncCompletable> wr)
@@ -1052,9 +1051,10 @@ namespace Spreads
                     }
                     else
                     {
-                        var message = "Wrong cursors type";
-                        Trace.TraceError(message);
-                        ThrowHelper.FailFast(message);
+                        Console.WriteLine("Subscription was GCed");
+                        //var message = "Wrong cursors type";
+                        //Trace.TraceError(message);
+                        //ThrowHelper.FailFast(message);
                     }
                 }
                 catch (Exception ex)
@@ -1391,6 +1391,8 @@ namespace Spreads
             }
         }
 
+        // ReSharper disable once InconsistentNaming
+        // ReSharper disable once StaticMemberInGenericType
         private static readonly Action<object> _doNotifyUpdateSingleSyncCallback = DoNotifyUpdateSingleSync;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

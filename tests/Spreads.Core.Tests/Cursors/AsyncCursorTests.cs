@@ -6,7 +6,6 @@ using NUnit.Framework;
 using Spreads.Collections;
 using Spreads.Utils;
 using System;
-using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -454,77 +453,61 @@ namespace Spreads.Core.Tests.Cursors
         {
             var map = new SortedMap<int, int>();
 
-            var count = 10_000;
-            var rounds = 100;
+            var count = 1_000_000;
+            var rounds = 1;
 
             var writeTask = Task.Run(async () =>
             {
-                for (int j = 0; j < rounds; j++)
+                using (Benchmark.Run("Write", count * rounds, true))
                 {
-                    var t1 = Task.Run(async () =>
+                    for (int j = 0; j < rounds; j++)
                     {
-                        //using (Benchmark.Run("Write", count, true))
+                        var t1 = Task.Run(async () =>
                         {
                             for (int i = j * count; i < (j + 1) * count; i++)
                             {
                                 await map.TryAddLast(i, i);
                             }
-                        }
-                        
-                        // even with 0 and false AsyncCursor if finalized, with Optimized works OK
-                        GC.Collect(1, GCCollectionMode.Default, true);
-
-                        // `using (Benchmark.Run...` does this
-                        //GC.Collect(2, GCCollectionMode.Forced, true);
-                        // GC.WaitForPendingFinalizers();
-                        //GC.Collect(2, GCCollectionMode.Forced, true);
-                        //GC.WaitForPendingFinalizers();
-                    });
-                    await t1;
+                        });
+                        await t1;
+                    }
                 }
             });
 
+            ICursor<int, int> cursor;
             var cnt = 0L;
-
-            // if we put it here everything works as expected
-            // ICursor<int, int> c;
-
             var readTask = Task.Run(async () =>
             {
-                var lastKey1 = 0;
                 for (int r = 0; r < 1; r++)
                 {
-                    // using (Benchmark.Run("Read", count, true))
+                    using (Benchmark.Run("Read", count, true))
                     {
-                        // PROBLEM: cursor is collected and finalized before async loop finishes
-                        ICursor<int, int> cursor;
                         using (cursor = map.GetCursor())
                         {
                             while (await cursor.MoveNextAsync())
                             {
                                 Interlocked.Increment(ref cnt);
-                                if (cnt == count * rounds)
-                                {
-                                    Console.WriteLine("Reader reached the end, waiting for complete signal");
-                                }
                             }
+
+                            // Left from coreclr 19161 tests, TODO remove when everything works OK
                             // here is a strong reference to cursor with side effects of printing to console
-                            Console.WriteLine("Last value: " + cursor.Current.Key);
+                            // Console.WriteLine("Last value: " + cursor.Current.Key);
                             // another strong reference after while loop, we dereference it's value and return from task
-                            lastKey1 = cursor.CurrentKey;
+                            // lastKey1 = cursor.CurrentKey;
                         }
                     }
                 }
-
-                return lastKey1;
             });
 
-            writeTask.Wait();
+            await writeTask;
             await map.Complete();
             Console.WriteLine("Read after complete:" + Interlocked.Read(ref cnt));
-            var lastKey = await readTask;
-            Console.WriteLine("Last key: " + lastKey);
-            // Benchmark.Dump();
+            await readTask;
+
+            // Console.WriteLine("Last key: " + lastKey);
+
+            Benchmark.Dump();
+
             map.Dispose();
         }
     }

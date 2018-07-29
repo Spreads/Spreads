@@ -10,6 +10,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.ExceptionServices;
+using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Sources;
@@ -115,6 +116,7 @@ namespace Spreads
         private bool _hasSkippedUpdate;
         private IDisposable _subscription;
         private IAsyncSubscription _subscriptionEx;
+        private GCHandle _keepAliveHandle;
 
         private bool _preferBatchMode;
         private bool _isInBatch;
@@ -469,6 +471,11 @@ namespace Spreads
             }
             else
             {
+                // we will lose the root after this method method returns without 
+                // completion, so we keep the reference to this cursor alive
+                // https://github.com/dotnet/coreclr/issues/19161
+                _keepAliveHandle = GCHandle.Alloc(this);
+
                 // if we request notification before releasing the lock then
                 // we will have _hasSkippedUpdate flag set. Then we retry ourselves anyway
 
@@ -512,6 +519,11 @@ namespace Spreads
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void SignalCompletion(bool runAsync = false)
         {
+            if (_keepAliveHandle.IsAllocated)
+            {
+                _keepAliveHandle.Free();
+            }
+
             if (_completed)
             {
                 ThrowHelper.ThrowInvalidOperationException("Calling SignalCompletion on already completed task");
@@ -779,55 +791,6 @@ namespace Spreads
             get { return _isInBatch ? _innerBatchEnumerator.Current.Value : _innerCursor.CurrentValue; }
         }
 
-        //        [Obsolete]
-        //        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        //        private ValueTask<bool> MoveNextBatch()
-        //        {
-        //            if (!_preferBatchMode)
-        //            {
-        //                ThrowHelper.ThrowNotSupportedException();
-        //            }
-        //            try
-        //            {
-        //                _isInBatch = _outerBatchEnumerator.MoveNextBatch(true).Result;
-        //                if (_isInBatch)
-        //                {
-        //                    _innerBatchEnumerator?.Dispose();
-        //#pragma warning disable HAA0401 // Possible allocation of reference type enumerator
-        //                    _innerBatchEnumerator = CurrentBatch.GetEnumerator();
-        //#pragma warning restore HAA0401 // Possible allocation of reference type enumerator
-
-        //                    return new ValueTask<bool>(true);
-        //                }
-
-        //                return MoveNextBatchAsync();
-        //            }
-        //            catch (NotSupportedException)
-        //            {
-        //                _preferBatchMode = false;
-        //                throw;
-        //            }
-
-        //            async ValueTask<bool> MoveNextBatchAsync()
-        //            {
-        //                _isInBatch = await _outerBatchEnumerator.MoveNextBatch(false);
-        //                if (_isInBatch)
-        //                {
-        //                    _innerBatchEnumerator?.Dispose();
-        //#pragma warning disable HAA0401 // Possible allocation of reference type enumerator
-        //                    _innerBatchEnumerator = CurrentBatch.GetEnumerator();
-        //#pragma warning restore HAA0401 // Possible allocation of reference type enumerator
-        //                }
-        //                return _isInBatch;
-        //            }
-        //        }
-
-        private IEnumerable<KeyValuePair<TKey, TValue>> CurrentBatch
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return _outerBatchEnumerator.CurrentBatch; }
-        }
-
         public ISeries<TKey, TValue> Source
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -884,6 +847,11 @@ namespace Spreads
             _subscription?.Dispose();
             _innerBatchEnumerator?.Dispose();
 
+            if (_keepAliveHandle.IsAllocated)
+            {
+                _keepAliveHandle.Free();
+            }
+
             if (!disposing) return;
 
             Reset();
@@ -902,7 +870,6 @@ namespace Spreads
 
         ~AsyncCursor()
         {
-            Console.WriteLine("Called AsyncCursor finalizer");
             Dispose(false);
         }
 
