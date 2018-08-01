@@ -2,6 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+using Spreads.Threading;
 using Spreads.Utils;
 using System;
 using System.Collections;
@@ -11,7 +12,6 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
-using Spreads.Collections.Generic;
 
 namespace Spreads
 {
@@ -1018,7 +1018,6 @@ namespace Spreads
             // Public interface exposes only IDisposable, only if subscription is IAsyncSubscription cursor knows what to do
             // Otherwise this number will stay at 1 and NotifyUpdate will send all updates
             private long _requests;
-
             private IAsyncCompletable _sr;
 
             public long Requests
@@ -1189,18 +1188,18 @@ namespace Spreads
         /// <summary>
         /// An object for external synchronization.
         /// </summary>
-        //public object SyncRoot
-        //{
-        //    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        //    get
-        //    {
-        //        if (_syncRoot == null)
-        //        {
-        //            Interlocked.CompareExchange(ref _syncRoot, new object(), null);
-        //        }
-        //        return _syncRoot;
-        //    }
-        //}
+        public object SyncRoot
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get
+            {
+                if (_syncRoot == null)
+                {
+                    Interlocked.CompareExchange(ref _syncRoot, new object(), null);
+                }
+                return _syncRoot;
+            }
+        }
 
         /// <summary>
         /// Takes a write lock, increments _nextVersion field and returns the current value of the _version field.
@@ -1741,82 +1740,24 @@ namespace Spreads
         where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
 #pragma warning restore 660, 661
     {
-        internal class ThreadStaticCursorsContext : IDisposable
-        {
-            private ThreadLocal<int> _indexes = new ThreadLocal<int>();
-            private readonly CursorContainerSeries<TKey, TValue, TCursor> _container;
-            private RefList<TCursor> _values;
-
-            private TCursor _value;
-
-            public ThreadStaticCursorsContext(CursorContainerSeries<TKey, TValue, TCursor> container)
-            {
-                _container = container;
-            }
-
-            public ref TCursor Value
-            {
-                [MethodImpl(MethodImplOptions.AggressiveInlining)]
-                get
-                {
-                    int idx;
-                    if (!_indexes.IsValueCreated)
-                    {
-                        if (_values is null)
-                        {
-                            _values = new RefList<TCursor>();
-                        }
-                        _value = _container.GetContainerCursor();
-                        _values.Add(_value);
-                        
-                        idx = _values.Count - 1;
-                        _indexes.Value = idx;
-                    }
-                    else
-                    {
-                        idx = _indexes.Value;
-                    }
-
-                    return ref _values[idx];
-                }
-            }
-
-            public void Dispose()
-            {
-                foreach (var cursor in _values)
-                {
-                    cursor.Dispose();
-                }
-                _values.Clear();
-                _values = null;
-                _indexes.Dispose();
-            }
-        }
-
-        // private bool _cursorIsSet;
-
-        private ThreadStaticCursorsContext _ctx;
+        private bool _cursorIsSet;
+        private TCursor _c;
 
         private ref TCursor C
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
-                var ctx = _ctx;
-                if (ctx == null)
+                lock (SyncRoot)
                 {
-                    var newCtx = new ThreadStaticCursorsContext(this);
-                    ctx = Interlocked.CompareExchange(ref _ctx, newCtx, null);
-                    if (ctx != null)
+                    if (!_cursorIsSet)
                     {
-                        newCtx.Dispose();
+                        _c = GetContainerCursor();
+                        _cursorIsSet = true;
                     }
-                    else
-                    {
-                        ctx = newCtx;
-                    }
+
+                    return ref _c;
                 }
-                return ref ctx.Value;
             }
         }
 
@@ -1827,7 +1768,7 @@ namespace Spreads
         {
             get
             {
-                // lock (SyncRoot)
+                lock (SyncRoot)
                 {
                     return C.MoveFirst() ? Opt.Present(C.Current) : Opt<KeyValuePair<TKey, TValue>>.Missing;
                 }
@@ -1839,7 +1780,7 @@ namespace Spreads
         {
             get
             {
-                // lock (SyncRoot)
+                lock (SyncRoot)
                 {
                     return C.MoveLast() ? Opt.Present(C.Current) : Opt<KeyValuePair<TKey, TValue>>.Missing;
                 }
@@ -1848,7 +1789,7 @@ namespace Spreads
 
         public override bool TryGetValue(TKey key, out TValue value)
         {
-            // lock (SyncRoot)
+            lock (SyncRoot)
             {
                 return C.TryGetValue(key, out value);
             }
@@ -1859,7 +1800,7 @@ namespace Spreads
         {
             // NB call to this.NavCursor.Source.TryGetAt(idx) is recursive (=> SO) and is logically wrong
             if (idx < 0) throw new ArgumentOutOfRangeException(nameof(idx));
-            // lock (SyncRoot)
+            lock (SyncRoot)
             {
                 if (!C.MoveFirst())
                 {
@@ -1881,7 +1822,7 @@ namespace Spreads
         /// <inheritdoc />
         public override bool TryFindAt(TKey key, Lookup direction, out KeyValuePair<TKey, TValue> kvp)
         {
-            // lock (SyncRoot)
+            lock (SyncRoot)
             {
                 if (C.MoveAt(key, direction))
                 {
@@ -1899,7 +1840,7 @@ namespace Spreads
         {
             get
             {
-                // lock (SyncRoot)
+                lock (SyncRoot)
                 {
                     while (C.MoveNext())
                     {
@@ -1914,7 +1855,7 @@ namespace Spreads
         {
             get
             {
-                // lock (SyncRoot)
+                lock (SyncRoot)
                 {
                     while (C.MoveNext())
                     {
@@ -1928,7 +1869,15 @@ namespace Spreads
 
         protected override void Dispose(bool disposing)
         {
-            _ctx?.Dispose();
+            lock (SyncRoot)
+            {
+                if (!_cursorIsSet)
+                {
+                    return;
+                }
+                _cursorIsSet = false;
+                _c.Dispose();
+            }
             base.Dispose(disposing);
         }
 
@@ -1956,7 +1905,7 @@ namespace Spreads
 
         public virtual Task<bool> TryAddLast(TKey key, TValue value)
         {
-            // lock (SyncRoot)
+            lock (SyncRoot)
             {
                 if (Last.IsMissing || Comparer.Compare(key, Last.Present.Key) > 0)
                 {
@@ -1969,7 +1918,7 @@ namespace Spreads
 
         public virtual Task<bool> TryAddFirst(TKey key, TValue value)
         {
-            // lock (SyncRoot)
+            lock (SyncRoot)
             {
                 if (First.IsMissing || Comparer.Compare(key, First.Present.Key) < 0)
                 {
@@ -1990,7 +1939,7 @@ namespace Spreads
 
         public virtual ValueTask<Opt<KeyValuePair<TKey, TValue>>> TryRemoveFirst()
         {
-            // lock (SyncRoot)
+            lock (SyncRoot)
             {
                 if (First.IsPresent)
                 {
@@ -2003,7 +1952,7 @@ namespace Spreads
 
         public virtual ValueTask<Opt<KeyValuePair<TKey, TValue>>> TryRemoveLast()
         {
-            // lock (SyncRoot)
+            lock (SyncRoot)
             {
                 if (Last.IsPresent)
                 {
