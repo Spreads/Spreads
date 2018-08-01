@@ -1018,6 +1018,7 @@ namespace Spreads
             // Public interface exposes only IDisposable, only if subscription is IAsyncSubscription cursor knows what to do
             // Otherwise this number will stay at 1 and NotifyUpdate will send all updates
             private long _requests;
+            private IAsyncCompletable _sr;
 
             public long Requests
             {
@@ -1029,6 +1030,10 @@ namespace Spreads
             {
                 _container = container;
                 Wr = wr;
+                if (wr.TryGetTarget(out var target))
+                {
+                    _sr = target;
+                }
             }
 
             // ReSharper disable once UnusedParameter.Local
@@ -1079,12 +1084,14 @@ namespace Spreads
 
             ~ContainerSubscription()
             {
+                Console.WriteLine("Container subscription is finalized");
                 Dispose(false);
             }
         }
 
         public IDisposable Subscribe(IAsyncCompletable subscriber)
         {
+            Console.WriteLine("Subscribing");
             var wr = new WeakReference<IAsyncCompletable>(subscriber);
             var subscription = new ContainerSubscription(this, wr);
             try
@@ -1368,7 +1375,8 @@ namespace Spreads
                 if ((sub.Requests > 0 || force) && sub.Wr.TryGetTarget(out var tg))
                 {
                     // ReSharper disable once InconsistentlySynchronizedField
-                    SpreadsThreadPool.Default.UnsafeQueueCompletableItem(_doNotifyUpdateSingleSyncCallback, tg, true);
+                    DoNotifyUpdateSingleSync(tg);
+                    // SpreadsThreadPool.Default.UnsafeQueueCompletableItem(_doNotifyUpdateSingleSyncCallback, tg, true);
                 }
             }
             else if (cursors is HashSet<ContainerSubscription> hashSet)
@@ -1380,7 +1388,8 @@ namespace Spreads
                         var sub1 = kvp;
                         if ((sub1.Requests > 0 || force) && sub1.Wr.TryGetTarget(out var tg))
                         {
-                            SpreadsThreadPool.Default.UnsafeQueueCompletableItem(_doNotifyUpdateSingleSyncCallback, tg, true);
+                            DoNotifyUpdateSingleSync(tg);
+                            // SpreadsThreadPool.Default.UnsafeQueueCompletableItem(_doNotifyUpdateSingleSyncCallback, tg, true);
                         }
                     }
                 }
@@ -1388,6 +1397,10 @@ namespace Spreads
             else if (!(cursors is null))
             {
                 ThrowHelper.FailFast("Wrong cursors subscriptions type");
+            }
+            else
+            {
+                Console.WriteLine("Cursors field is null");
             }
         }
 
@@ -1399,7 +1412,7 @@ namespace Spreads
         private static void DoNotifyUpdateSingleSync(object obj)
         {
             var cursor = (IAsyncCompletable)obj;
-            cursor.TryComplete(false, false);
+            cursor.TryComplete(true, false);
         }
 
         #endregion Synchronization
@@ -1730,7 +1743,7 @@ namespace Spreads
         private bool _cursorIsSet;
         private TCursor _c;
 
-        private TCursor C
+        private ref TCursor C
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
@@ -1743,7 +1756,7 @@ namespace Spreads
                         _cursorIsSet = true;
                     }
 
-                    return _c;
+                    return ref _c;
                 }
             }
         }
@@ -1876,6 +1889,7 @@ namespace Spreads
 
         ~CursorContainerSeries()
         {
+            Console.WriteLine($"CursorContainerSeries is finalized");
             Dispose(false);
         }
 

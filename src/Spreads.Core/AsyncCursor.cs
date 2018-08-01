@@ -310,6 +310,20 @@ namespace Spreads
                 return;
             }
 
+            if (runAsync)
+            {
+                SpreadsThreadPool.Default.UnsafeQueueCompletableItem(TryCompleteImpl, null, true);
+            }
+            else
+            {
+                TryCompleteImpl(null);
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void TryCompleteImpl(object dummy)
+        {
+            var runAsync = false;
             // separate because there could be no awaiter when we cancel and lock is taken
             if (_error != null)
             {
@@ -870,6 +884,7 @@ namespace Spreads
 
         ~AsyncCursor()
         {
+            Console.WriteLine("Async cursor finalized");
             Dispose(false);
         }
 
