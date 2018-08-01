@@ -10,31 +10,26 @@ using System.Threading;
 
 namespace Spreads.Utils
 {
-    public static unsafe class TimeService
+    public unsafe class TimeService : IDisposable
     {
-        private static IntPtr _lastUpdatedPtr;
-        private static bool _allocated;
+        public static TimeService Default = new TimeService();
 
-        private static Timer _timer;
+        private IntPtr _lastUpdatedPtr;
+        private bool _allocated;
 
-        static TimeService()
+        private Timer _timer;
+
+        public TimeService() : this(IntPtr.Zero)
         {
-            // Could stop and start with another pointer if needed
-            Start();
         }
 
-        public static void Start()
+        public TimeService(IntPtr ptr, int intervalMilliseconds = 1)
         {
-            Start(IntPtr.Zero);
+            Start(ptr, intervalMilliseconds);
         }
 
-        public static void Start(IntPtr ptr)
+        private void Start(IntPtr ptr, int intervalMilliseconds)
         {
-            if (_lastUpdatedPtr != IntPtr.Zero)
-            {
-                Stop();
-            }
-
             if (ptr == IntPtr.Zero)
             {
                 ptr = Marshal.AllocHGlobal(8);
@@ -46,11 +41,11 @@ namespace Spreads.Utils
             _timer = new Timer(o =>
             {
                 UpdateTime();
-            }, null, 0, 1);
+            }, null, 0, intervalMilliseconds);
             UpdateTime();
         }
 
-        public static void Stop()
+        public void Dispose()
         {
             if (_lastUpdatedPtr != IntPtr.Zero)
             {
@@ -63,14 +58,14 @@ namespace Spreads.Utils
             }
         }
 
-        public static Timestamp CurrentTime
+        public Timestamp CurrentTime
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get { return (Timestamp)Interlocked.Add(ref *(long*)_lastUpdatedPtr, 1); }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static void UpdateTime()
+        public void UpdateTime()
         {
             Interlocked.Exchange(ref *(long*)_lastUpdatedPtr, (long)(Timestamp)DateTime.UtcNow);
         }

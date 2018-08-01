@@ -16,22 +16,13 @@ namespace Spreads.Core.Tests.Utils
         [Explicit("long running")]
         public void TimeServiceProducesUniqueValues()
         {
-            // multi calls are ok
-            TimeService.Start();
-            TimeService.Stop();
-            TimeService.Stop();
-            TimeService.Start();
-            TimeService.Start();
-
             var ptr = Marshal.AllocHGlobal(8);
-            TimeService.Stop();
-            TimeService.Start(ptr);
+            var ts = new TimeService(ptr, 10);
 
-
-            var previous = TimeService.CurrentTime;
+            var previous = ts.CurrentTime;
             for (int i = 0; i < 1_00_000_000; i++)
             {
-                var current = TimeService.CurrentTime;
+                var current = ts.CurrentTime;
                 if (current <= previous)
                 {
                     Assert.Fail();
@@ -45,7 +36,7 @@ namespace Spreads.Core.Tests.Utils
 
                 if (i % 50_000_000 == 0)
                 {
-                    TimeService.UpdateTime();
+                    ts.UpdateTime();
                 }
                 previous = current;
             }
@@ -63,7 +54,7 @@ namespace Spreads.Core.Tests.Utils
             {
                 for (int i = 0; i < count; i++)
                 {
-                    var current = TimeService.CurrentTime;
+                    var current = TimeService.Default.CurrentTime;
                 }
             }
             
