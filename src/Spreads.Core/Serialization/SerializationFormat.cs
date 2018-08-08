@@ -5,7 +5,7 @@
     /// Objects are converted to JSON and compressed with raw deflate method
     /// if compression gives smaller size. This format is compatible with raw
     /// http payload with 'Accept-encoding: deflate' headers.
-    /// 
+    ///
     /// BinaryLz4/Zstd:
     /// Binary is stored as blittable representation with Blosc byteshuffle for arrays with fixed-size elements.
     /// Then serialized (and byteshuffled) buffer is compressed with LZ4 (super fast) or Zstd (high compression)
@@ -17,8 +17,6 @@
     /// </summary>
     public enum SerializationFormat : byte
     {
-        
-
         /// <summary>
         /// Custom binary format without compression.
         /// </summary>
@@ -52,6 +50,5 @@
 #if NETCOREAPP2_1
         JsonBrotli = 102
 #endif
-
     }
 }

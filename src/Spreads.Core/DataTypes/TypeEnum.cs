@@ -54,8 +54,6 @@ namespace Spreads.DataTypes
 
         Time = 17,
 
-        // TODO chck if there is IEEE standard for comlex
-        // TODO rename to Tuple
         /// <summary>
         /// Real + imaginary Float32 values (total size 8 bytes)
         /// </summary>
@@ -70,8 +68,11 @@ namespace Spreads.DataTypes
 
         Id = 21,
         Symbol = 22,
+        // ReSharper disable once InconsistentNaming
         UUID = 23,
 
+        Int128 = 24,
+        UInt128 = 25,
         ErrorCode = 63,
 
         // ----------------------------------------------------------------
@@ -84,7 +85,7 @@ namespace Spreads.DataTypes
         FixedBinary = DataTypes.Variant.KnownSmallTypesLimit, // 64
 
         // Variable size types
-        Json = 65,
+        
         String = 66,
         Binary = 67,
 
@@ -97,7 +98,31 @@ namespace Spreads.DataTypes
 
         ArrayBasedMap = 73,
 
-        KeyValue = 74
+        TaggedKeyValue = 74,
+
+        // NB For opaque types such as JSON/FlatBuffers/Thrift the value of TypeEnum is mostly to dispatch
+        // a value to correct second(app)-level deserializer. E.g. we have subtype slot in 
+        // DataType header that could be used to store additional information on what application type is 
+        // encoded using the given serialization scheme (if the payload itself does not contain such info).
+
+        Json = 100,
+        JsonDeflate = 101,
+        JsonBrotli = 102,
+        FlatBuffers = 103,
+        Thrift = 104,
+        Sbe = 105,
+
+        // Protocol
+        EchoMessage = 110,
+        RequestStreamInfoMessage = 111,
+        ResponseStreamInfoMessage = 112,
+        RequestAppendDataToStreamMessage = 113,
+        ResponseAppendDataToStreamMessage = 114,
+
+        // Up to 127 are reserved for something hard-coded
+
+        // TODO(?) Reserve 128+ types as App-specific known ones that could be registered (e.g. via IBinaryConverter or separate attribute)
+        // 128 is a big number for a single app
     }
 
     public partial struct Variant
@@ -124,11 +149,11 @@ namespace Spreads.DataTypes
 
             16, // Decimal
             8,  // Price
-            0, // TODO Money not implemented, maybe just use Decimal or extend Price logic 
+            16, // Money
 
-            // DateTime
-            8,
-            8, // 15
+            
+            8, // DateTime
+            8, // 15 - Timestamp
             4,
             4,
 
@@ -137,12 +162,12 @@ namespace Spreads.DataTypes
             16,
 
             // Symbols
-            1, // 20
-            4, // Id
-            16,
-            16,
-            0,
-            0, // 25
+            1, // 20 - Bool
+            4, // 21 - Id
+            16, // 22 - Symbol
+            16, // 23 - UUID
+            16, // 24 - Int128
+            16, // 25 - UInt128
             0,
             0,
             0,

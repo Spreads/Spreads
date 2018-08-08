@@ -70,9 +70,9 @@ namespace Spreads.Serialization
                 rms.Position = 0;
                 var header = new DataTypeHeader
                 {
+                    // NB All defaults
                     //VersionAndFlags =
                     //{
-                    //    // NB All defaults
                     //    // Version = 0,
                     //    // IsBinary = false,
                     //    // IsDelta = false,

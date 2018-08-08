@@ -3,11 +3,8 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 using NUnit.Framework;
-using Spreads.Buffers;
-using Spreads.Serialization;
-using BufferPool = Spreads.Buffers.BufferPool;
 
-namespace Spreads.Tests.Serialization
+namespace Spreads.Core.Tests.Serialization
 {
     [TestFixture]
     public class VariableLengthValuesTests

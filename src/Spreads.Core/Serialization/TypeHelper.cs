@@ -107,6 +107,20 @@ namespace Spreads.Serialization
 
     public sealed unsafe class TypeHelper<T> : TypeHelper
     {
+        // Default header + value
+        [StructLayout(LayoutKind.Sequential, Pack = 1)]
+        internal struct Placeholder
+        {
+            public readonly DataTypeHeader Header;
+            public T Value;
+
+            public Placeholder(DataTypeHeader header)
+            {
+                Header = header;
+                Value = default;
+            }
+        }
+
         // ReSharper disable StaticMemberInGenericType
         private static bool _hasBinaryConverter;
 
@@ -160,7 +174,8 @@ namespace Spreads.Serialization
         private static IBinaryConverter<T> _converterInstance;
         private static TypeParams _typeParams;
 
-        private static DataTypeHeader _defaultHeader = new DataTypeHeader
+        // ReSharper disable once InconsistentNaming
+        private static readonly Placeholder _placeholder = new Placeholder(new DataTypeHeader
         {
             VersionAndFlags =
             {
@@ -171,7 +186,7 @@ namespace Spreads.Serialization
             },
             TypeEnum = VariantHelper<T>.TypeEnum,
             TypeSize = (Size > 0 && Size <= 255) ? (byte)Size : (byte)0
-        };
+        });
 
         // ReSharper restore StaticMemberInGenericType
 
@@ -376,7 +391,7 @@ namespace Spreads.Serialization
                 return Size + DataTypeHeader.Size;
             }
             Debug.Assert(Size < 0);
-            ThrowHelper.ThrowInvalidOperationException("TypeHelper<T> doesn't support variable-size types");
+            ThrowHelper.FailFast("TypeHelper<T> doesn't support variable-size types. Code calling this method is incorrect, data corruption is possible.");
             value = default;
             return -1;
         }
@@ -392,14 +407,28 @@ namespace Spreads.Serialization
             {
                 Debug.Assert(Size > 0);
                 var len = DataTypeHeader.Size + Size;
-                WriteUnaligned((void*)(destination), _defaultHeader);
-                WriteUnaligned((void*)(destination + DataTypeHeader.Size), value);
+                // copy by value
+                var placeholder = _placeholder;
+                placeholder.Value = value;
+                WriteUnaligned((void*)(destination), placeholder);
+                // WriteUnaligned((void*)(destination + DataTypeHeader.Size), value);
                 return len;
             }
 
             Debug.Assert(Size < 0);
-            ThrowHelper.ThrowInvalidOperationException("TypeHelper<T> doesn't support variable-size types");
+            ThrowHelper.FailFast("TypeHelper<T> doesn't support variable-size types. Code calling this method is incorrect, data corruption is possible.");
             return -1;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static int WriteFixedSize(in T value, IntPtr destination)
+        {
+            var len = DataTypeHeader.Size + Size;
+            // copy by value
+            var placeholder = _placeholder;
+            placeholder.Value = value;
+            WriteUnaligned((void*)(destination), placeholder);
+            return len;
         }
 
         /// <summary>

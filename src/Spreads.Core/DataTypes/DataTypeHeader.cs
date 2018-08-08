@@ -9,7 +9,7 @@ namespace Spreads.DataTypes
     /// 0                   1                   2                   3
     /// 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
     /// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-    /// |  Ver  |R|B|D|C|    TypeEnum   |  TypeSize     | SubTypeEnum   |
+    /// |  Ver  |R|D|C|B|    TypeEnum   |  TypeSize     | SubTypeEnum   |
     /// +---------------------------------------------------------------+
     /// </summary>
     [StructLayout(LayoutKind.Explicit, Pack = 1, Size = Size)]
