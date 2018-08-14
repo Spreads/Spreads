@@ -248,7 +248,7 @@ namespace Spreads.Serialization
         {
             var header = ReadUnaligned<DataTypeHeader>((void*)ptr);
 
-            if (header.VersionAndFlags.IsBinary)
+            if (header.VersionAndFlags.IsBinary || TypeHelper<T>.HasBinaryConverter)
             {
                 Debug.Assert(TypeHelper<T>.Size >= 0 || TypeHelper<T>.HasBinaryConverter);
                 return TypeHelper<T>.Read(ptr, out value);
@@ -276,7 +276,7 @@ namespace Spreads.Serialization
                 var rms = RecyclableMemoryStream.Create(RecyclableMemoryStreamManager.Default, null,
                     payloadSize, buffer, payloadSize);
                 value = JsonSerializer.Deserialize<T>(rms);
-                rms.Dispose();
+                rms.Close();
                 return payloadSize + DataTypeHeader.Size + 4;
             }
             else
