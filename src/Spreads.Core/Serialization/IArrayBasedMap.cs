@@ -33,7 +33,7 @@ namespace Spreads.Serialization
         public bool IsFixedSize => false;
 
         public int Size => -1;
-        public byte Version
+        public byte ConverterVersion
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get { return 1; }
@@ -71,7 +71,7 @@ namespace Spreads.Serialization
             var buffer = RecyclableMemoryStreamManager.Default.GetLargeBuffer(size, String.Empty);
 
             ref var destination = ref buffer[0];
-            // relative to ptr + offset
+
             var position = 8;
 
             // 14 - map header
@@ -114,7 +114,7 @@ namespace Spreads.Serialization
             var header = new DataTypeHeader
             {
                 VersionAndFlags = {
-                    Version = Version,
+                    Version = ConverterVersion,
                     IsBinary = true,
                     IsDelta = false,
                     IsCompressed = true },
@@ -123,13 +123,14 @@ namespace Spreads.Serialization
             WriteUnaligned(ref destination, header);
 
             // payload length 
-            WriteUnaligned(ref AddByteOffset(ref destination, (IntPtr)4), position);
+            WriteUnaligned(ref AddByteOffset(ref destination, (IntPtr)4), position - 8);
 
             temporaryStream = RecyclableMemoryStream.Create(RecyclableMemoryStreamManager.Default,
                 null,
                 position,
                 buffer,
                 position);
+            temporaryStream.Position = 0;
             return position;
         }
 
@@ -140,6 +141,8 @@ namespace Spreads.Serialization
             {
                 SizeOf(in value, out temporaryStream, format);
             }
+
+            Debug.Assert(temporaryStream.Position == 0);
 
             var len = temporaryStream.Length;
             temporaryStream.WriteToRef(ref AsRef<byte>((void*)pinnedDestination));

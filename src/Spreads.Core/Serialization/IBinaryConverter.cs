@@ -4,7 +4,6 @@
 
 using System;
 using System.IO;
-using Spreads.Buffers;
 
 namespace Spreads.Serialization
 {
@@ -48,7 +47,7 @@ namespace Spreads.Serialization
         /// <summary>
         /// Version of the converter. 15 (4 bits) max.
         /// </summary>
-        byte Version { get; }
+        byte ConverterVersion { get; }
 
         /// <summary>
         /// Returns the size of serialized bytes including the version+lenght header.

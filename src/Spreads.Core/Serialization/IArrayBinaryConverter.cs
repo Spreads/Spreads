@@ -5,7 +5,7 @@ namespace Spreads.Serialization
 {
     internal interface IArrayBinaryConverter<TElement>
     {
-        byte Version { get; }
+        byte ConverterVersion { get; }
 
         int SizeOf(in TElement[] value, int valueOffset, int valueCount, out MemoryStream temporaryStream,
             SerializationFormat format = SerializationFormat.Binary);

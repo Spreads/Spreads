@@ -42,7 +42,7 @@ namespace Spreads.Serialization
             else
             {
                 // NB do not use a buffer pool here but instead use a thread-static buffer
-                // that will grow to maximum size of a type. Fixed-size types are usually small.
+                // that will grow to maximum size of a type. Fixed-size types are usually small ( < 255 bytes).
                 // Take/return is more expensive than the work we do with the pool here.
 
                 var rm = Buffers.BufferPool.StaticBufferMemory;

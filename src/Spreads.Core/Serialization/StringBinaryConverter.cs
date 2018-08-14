@@ -94,6 +94,6 @@ namespace Spreads.Serialization
             }
         }
 
-        public byte Version => 0;
+        public byte ConverterVersion => 0;
     }
 }

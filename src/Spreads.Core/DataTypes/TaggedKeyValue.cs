@@ -133,7 +133,7 @@ namespace Spreads.DataTypes
         }
 
         [IgnoreDataMember]
-        public byte Version
+        public byte ConverterVersion
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get { return 1; }

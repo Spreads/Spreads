@@ -129,7 +129,7 @@ namespace Spreads.Serialization
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
-                Debug.Assert(_hasBinaryConverter ? Size == -1 : Size > -1);
+                // Debug.Assert(_hasBinaryConverter ? Size == -1 : Size > -1);
                 return _hasBinaryConverter;
             }
         }
@@ -338,11 +338,11 @@ namespace Spreads.Serialization
                 catch
                 {
                     //Trace.TraceWarning($"Type {typeof(T).FullName} is marked as IBinaryConverter and so it must have a parameterless constructor");
-                    Environment.FailFast($"Type T ({typeof(T).FullName}) is marked as IBinaryConverter<T> and so it must have a parameterless constructor.");
+                    Environment.FailFast($"Type T ({typeof(T).FullName}) is marked as IBinaryConverter<T> and therefore must have a parameterless constructor.");
                 }
-                if (converter.Version <= 0)
+                if (converter.ConverterVersion <= 0)
                 {
-                    throw new InvalidOperationException("IBinaryConverter<T> implementation for a type T should have a positive version.");
+                    Environment.FailFast("IBinaryConverter<T> implementation for a type T should have a positive version.");
                 }
                 _converterInstance = converter;
                 _hasBinaryConverter = true;
@@ -385,7 +385,7 @@ namespace Spreads.Serialization
                 Debug.Assert(Size > 0);
 #if DEBUG
                 var header = ReadUnaligned<DataTypeHeader>((void*)ptr);
-                Debug.Assert(header.Equals(_defaultHeader));
+                Debug.Assert(header.Equals(_placeholder.Header));
 #endif
                 value = ReadUnaligned<T>((void*)(ptr + DataTypeHeader.Size));
                 return Size + DataTypeHeader.Size;
@@ -455,7 +455,7 @@ namespace Spreads.Serialization
             return -1;
         }
 
-        public static byte Version => _hasBinaryConverter ? _converterInstance.Version : (byte)0;
+        public static byte ConverterVersion => _hasBinaryConverter ? _converterInstance.ConverterVersion : (byte)0;
 
         public static void RegisterConverter(IBinaryConverter<T> converter, bool overrideExisting = false)
         {
@@ -463,7 +463,7 @@ namespace Spreads.Serialization
             if (Size >= 0) throw new InvalidOperationException("Cannot register a custom converter for pinnable types");
 
             // NB TypeHelper is internal, we could provide some hooks later e.g. for char or bool
-            if (converter.Version == 0)
+            if (converter.ConverterVersion == 0)
             {
                 Trace.TraceWarning("Adding a converter with version zero");
             }

@@ -50,7 +50,7 @@ namespace Spreads.Tests
             public long Long { get; set; }
             public bool IsFixedSize => false;
             public int Size => 0;
-            public byte Version => 1;
+            public byte ConverterVersion => 1;
 
             public int SizeOf(in MyPocoWithConvertor map, out MemoryStream temporaryStream, SerializationFormat format = SerializationFormat.Binary)
             {

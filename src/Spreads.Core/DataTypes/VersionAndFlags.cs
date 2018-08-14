@@ -39,6 +39,9 @@ namespace Spreads.DataTypes
             set { _value = (byte)((_value & ~VersionMask) | ((value << VersionBitsOffset) & VersionMask)); }
         }
 
+        /// <summary>
+        /// Compressed using raw deflate for JSON or using Blosc library with method encoded in Blosc header.
+        /// </summary>
         public bool IsCompressed
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -57,6 +60,9 @@ namespace Spreads.DataTypes
             }
         }
 
+        /// <summary>
+        /// Values are stored as deltas.
+        /// </summary>
         public bool IsDelta
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -75,6 +81,9 @@ namespace Spreads.DataTypes
             }
         }
 
+        /// <summary>
+        /// Not JSON fallback but some custom layout (blittable or manual pack).
+        /// </summary>
         public bool IsBinary
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]

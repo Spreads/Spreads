@@ -64,6 +64,6 @@ namespace Spreads.Serialization
             return payloadLength + 8;
         }
 
-        public byte Version => 0;
+        public byte ConverterVersion => 0;
     }
 }

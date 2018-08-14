@@ -10,6 +10,8 @@ using System.Runtime.InteropServices;
 
 namespace Spreads.DataTypes
 {
+    // TODO JS serialization: [seconds, nanos] or [millis, nanos] or just float?
+    
     /// <summary>
     /// A Timestamp stored as nanos since Unix epoch as Int64.
     /// 2^63: 9,223,372,036,854,780,000

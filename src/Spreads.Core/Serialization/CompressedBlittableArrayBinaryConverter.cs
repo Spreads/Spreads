@@ -34,7 +34,7 @@ namespace Spreads.Serialization
         public bool IsFixedSize => false;
         public int Size => -1;
 #pragma warning disable 618
-        public byte Version => 0;
+        public byte ConverterVersion => 0;
 
         private static readonly int ItemSize = TypeHelper<TElement>.Size;
 #pragma warning restore 618
@@ -290,9 +290,9 @@ namespace Spreads.Serialization
                 ThrowHelper.ThrowInvalidOperationException("Wrong compressed flag. CompressedBlittableArrayBinaryConverter.Read works only with compressed data.");
             }
 
-            if (header.VersionAndFlags.Version != Version)
+            if (header.VersionAndFlags.Version != ConverterVersion)
             {
-                ThrowHelper.ThrowNotSupportedException($"CompressedBinaryConverter work only with version {Version}");
+                ThrowHelper.ThrowNotSupportedException($"CompressedBinaryConverter work only with version {ConverterVersion}");
             }
             if (ItemSize <= 0)
             {

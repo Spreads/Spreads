@@ -34,11 +34,24 @@ namespace Spreads.Serialization
         internal static ArrayBinaryConverter<TElement> Instance =
             new ArrayBinaryConverter<TElement>();
 
-        public bool IsFixedSize => false;
-        public int Size => -1;
+        public bool IsFixedSize
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return false; }
+        }
+
+        public int Size
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return -1; }
+        }
 
         // This is special, TypeHelper is aware of it (for others version must be > 0)
-        public byte Version => 0;
+        public byte ConverterVersion
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return 0; }
+        }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public int SizeOf(in TElement[] value, int valueOffset, int valueCount, out MemoryStream temporaryStream,
@@ -148,7 +161,7 @@ namespace Spreads.Serialization
         {
             var header = ReadUnaligned<DataTypeHeader>((void*)ptr);
             var payloadSize = ReadUnaligned<int>((void*)(ptr + DataTypeHeader.Size));
-            if (header.VersionAndFlags.Version != Version)
+            if (header.VersionAndFlags.Version != ConverterVersion)
             {
                 ThrowHelper.ThrowInvalidOperationException("ByteArrayBinaryConverter work only with version 0");
             }
