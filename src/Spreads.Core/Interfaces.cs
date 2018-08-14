@@ -146,10 +146,14 @@ namespace Spreads
         /// </summary>
         Task<bool> TryAddLast(ulong version, T value);
 
+        Task<bool> TryAddLast(ulong version, T value, Timestamp timestamp);
+
         /// <summary>
         /// Atomically increments version for the added value. Returns version of the added value or zero if the stream is completed.
         /// </summary>
         ValueTask<ulong> TryAddLast(T value);
+
+        ValueTask<ulong> TryAddLast(T value, Timestamp timestamp);
 
         Task Complete();
     }
