@@ -11,7 +11,7 @@ using System.Runtime.InteropServices;
 namespace Spreads.DataTypes
 {
     // TODO JS serialization: [seconds, nanos] or [millis, nanos] or just float?
-    
+
     /// <summary>
     /// A Timestamp stored as nanos since Unix epoch as Int64.
     /// 2^63: 9,223,372,036,854,780,000
@@ -43,7 +43,18 @@ namespace Spreads.DataTypes
         public TimeSpan TimeSpan
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new TimeSpan(((DateTime)this).Ticks); }
+            get
+            {
+                // Due to TimeService implementation we often have small nanos,
+                // but zero means equality. One tick is as small as one nano for 
+                // most practical purposes when we do not work with nano resolution.
+                var ticks = Nanos / 100;
+                if (ticks == 0 && Nanos > 0)
+                {
+                    ticks = 1;
+                }
+                return new TimeSpan(ticks);
+            }
         }
 
         public static implicit operator DateTime(Timestamp timestamp)
