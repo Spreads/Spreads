@@ -16,6 +16,7 @@ namespace Spreads
     [StructLayout(LayoutKind.Sequential)]
     public readonly unsafe struct UUID : IEquatable<UUID>, IComparable<UUID>
     {
+        // opaque 16 bytes, ulongs help for equality/comparison and union fields in structs
         private readonly ulong _first;
         private readonly ulong _second;
 
@@ -28,12 +29,26 @@ namespace Spreads
         // TODO! test if this is the same as reading directly from fb, endianness could affect this
         public UUID(byte[] bytes)
         {
-            if (bytes == null || bytes.Length < 16) throw new ArgumentException("bytes == null || bytes.Length < 16", nameof(bytes));
+            if (bytes == null || bytes.Length != 16)
+            {
+                ThrowHelper.ThrowArgumentException("bytes == null || bytes.Length != 16");
+            }
             fixed (byte* ptr = &bytes[0])
             {
-                _first = *(ulong*)ptr;
-                _second = *(ulong*)(ptr + 8);
+                this = *(UUID*)ptr;
             }
+        }
+
+        internal ulong FirstHalfAsULong
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return _first; }
+        }
+
+        internal ulong SecondHalfAsULong
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return _second; }
         }
 
         [Obsolete("Use AsSpan() method")]
@@ -42,17 +57,16 @@ namespace Spreads
             var bytes = new byte[16];
             fixed (byte* ptr = &bytes[0])
             {
-                *(ulong*)ptr = _first;
-                *(ulong*)(ptr + 8) = _second;
+                *(UUID*)ptr = this;
             }
             return bytes;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Span<byte> AsSpan()
+        public ReadOnlySpan<byte> AsSpan()
         {
             var ptr = Unsafe.AsPointer(ref System.Runtime.CompilerServices.Unsafe.AsRef<UUID>(in this));
-            return new Span<byte>(ptr, 16);
+            return new ReadOnlySpan<byte>(ptr, 16);
         }
 
         public UUID(Guid guid) : this(guid.ToByteArray())
@@ -63,6 +77,7 @@ namespace Spreads
         {
         }
 
+        [Obsolete]
         [SuppressMessage("ReSharper", "ImpureMethodCallOnReadonlyValueField")]
         public int CompareTo(UUID other)
         {
@@ -76,7 +91,7 @@ namespace Spreads
 
         public bool Equals(UUID other)
         {
-            return this._first == other._first && this._second == other._second;
+            return _first == other._first && _second == other._second;
         }
 
         public override int GetHashCode()
@@ -87,7 +102,7 @@ namespace Spreads
 
         public override bool Equals(object obj)
         {
-            return this.Equals((UUID)obj);
+            return Equals((UUID)obj);
         }
 
         public static bool operator ==(UUID first, UUID second)
