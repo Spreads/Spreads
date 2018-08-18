@@ -525,6 +525,16 @@ namespace Spreads.Buffers
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public T Read<T>(long index)
+        {
+#if DEBUG
+            var size = SizeOf<T>();
+            Assert(index, size);
+#endif
+            return ReadUnaligned<T>(_data + index);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public int Read<T>(long index, out T value)
         {
             var size = SizeOf<T>();
