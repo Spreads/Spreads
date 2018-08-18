@@ -87,5 +87,12 @@ namespace Spreads
                 _zstdCompressionLevel = value;
             }
         }
+
+        /// <summary>
+        /// Set this property before accessing ChaosMonkey or types that use it.
+        /// When false then this value is stored in static readonly field and is
+        /// optimized away by JIT without any performance impact.
+        /// </summary>
+        public static bool EnableChaosMonkey { get; set; } = false;
     }
 }

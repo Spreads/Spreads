@@ -4,8 +4,9 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Threading;
+
+// ReSharper disable CompareOfFloatsByEqualityOperator
 
 namespace Spreads.Utils
 {
@@ -14,25 +15,25 @@ namespace Spreads.Utils
     }
 
     /// <summary>
-    /// When CHAOS_MONKEY conditional-compilation directive is set,
+    /// When enabled via <see cref="Settings.EnableChaosMonkey"/>,
     /// calling the methods will raise an error with a given probability
     /// </summary>
     public static class ChaosMonkey
     {
-#if CHAOS_MONKEY
-        public const bool Enabled = true;
-#else
-        public const bool Enabled = false;
-#endif
+        public static readonly bool Enabled = Settings.EnableChaosMonkey;
 
         [ThreadStatic]
         private static Random _rng;
 
+        // ReSharper disable once InconsistentNaming
         private static readonly Dictionary<string, object> _traceData = new Dictionary<string, object>();
+
         private static bool _force;
         private static int _scenario;
 
-        // Forces any exception regardless of probability
+        /// <summary>
+        /// Forces *once* any exception regardless of probability.
+        /// </summary>
         public static bool Force
         {
             get { return _force; }
@@ -47,103 +48,179 @@ namespace Spreads.Utils
 
         public static Dictionary<string, object> TraceData => _traceData;
 
-        [Conditional("CHAOS_MONKEY")]
         public static void SetTraceData(string key, object value)
         {
-            _traceData[key] = value;
+            if (Enabled)
+            {
+                _traceData[key] = value;
+            }
         }
 
-        [Conditional("CHAOS_MONKEY")]
         public static void OutOfMemory(double probability = 0.0)
         {
-            if (Force) { probability = 1.0; }
-            if (probability == 0.0) return;
-            if (_rng == null) _rng = new Random();
-            if (_rng.NextDouble() > probability) return;
-            Force = false;
-            throw new OutOfMemoryException();
-        }
-
-        [Conditional("CHAOS_MONKEY")]
-        public static void StackOverFlow(double probability = 0.0)
-        {
-            if (Force) { probability = 1.0; }
-            if (probability == 0.0) return;
-            if (_rng == null) _rng = new Random();
-            if (_rng.NextDouble() > probability) return;
-            Force = false;
-#if NET451
-            throw new StackOverflowException();
-#else
-            throw new ChaosMonkeyException();
-#endif
-        }
-
-        [Conditional("CHAOS_MONKEY")]
-        public static void Exception(double probability = 0.0, int scenario = 0)
-        {
-            if (Force) { probability = 1.0; }
-            if (probability == 0.0) return;
-            if (scenario > 0 && scenario != Scenario) return;
-            if (scenario > 0 && scenario == Scenario) Scenario = 0;
-            if (_rng == null) _rng = new Random();
-            if (_rng.NextDouble() > probability) return;
-            Force = false;
-            throw new ChaosMonkeyException();
-        }
-
-        [Conditional("CHAOS_MONKEY")]
-        public static void ThreadAbort(double probability = 0.0)
-        {
-            if (Force) { probability = 1.0; }
-            if (probability == 0.0) return;
-            if (_rng == null) _rng = new Random();
-            if (_rng.NextDouble() > probability) return;
-            Force = false;
-#if NET451
-            Thread.CurrentThread.Abort();
-#else
-            throw new ChaosMonkeyException();
-#endif
-        }
-
-        [Conditional("CHAOS_MONKEY")]
-        public static void Slowpoke(double probability = 0.0)
-        {
-            if (Force) { probability = 1.0; }
-            if (probability == 0.0) return;
-            if (_rng == null) _rng = new Random();
-            if (_rng.NextDouble() > probability) return;
-            Force = false;
-            Thread.Sleep(50);
-        }
-
-        [Conditional("CHAOS_MONKEY")]
-        public static void Chaos(double probability = 0.0)
-        {
-            if (Force) { probability = 1.0; }
-            if (probability == 0.0) return;
-            if (_rng == null) _rng = new Random();
-            var rn = _rng.NextDouble();
-            if (rn > probability) return;
-            Force = false;
-            if (rn < probability / 3.0)
+            if (Enabled)
             {
+                if (Force)
+                {
+                    probability = 1.0;
+                }
+
+                if (probability == 0.0) return;
+                if (_rng == null) _rng = new Random();
+                if (_rng.NextDouble() > probability) return;
+                Force = false;
                 throw new OutOfMemoryException();
             }
-            if (rn < probability * 2.0 / 3.0)
+        }
+
+        public static void StackOverFlow(double probability = 0.0)
+        {
+            if (Enabled)
             {
+                if (Force)
+                {
+                    probability = 1.0;
+                }
+
+                if (probability == 0.0) return;
+                if (_rng == null) _rng = new Random();
+                if (_rng.NextDouble() > probability) return;
+                Force = false;
 #if NET451
-            throw new StackOverflowException();
+                throw new StackOverflowException();
 #else
                 throw new ChaosMonkeyException();
 #endif
             }
+        }
+
+        public static void Exception(double probability = 0.0, int scenario = 0, Exception exception = null)
+        {
+            if (Enabled)
+            {
+                if (Force)
+                {
+                    probability = 1.0;
+                }
+
+                if (probability == 0.0) return;
+                if (scenario > 0 && scenario != Scenario) return;
+                if (scenario > 0 && scenario == Scenario) Scenario = 0;
+                if (_rng == null) _rng = new Random();
+                if (_rng.NextDouble() > probability) return;
+                Force = false;
+                throw exception ?? new ChaosMonkeyException();
+            }
+        }
+
+        public static void FailFast(double probability = 0.0, int scenario = 0)
+        {
+            if (Enabled)
+            {
+                if (Force)
+                {
+                    probability = 1.0;
+                }
+
+                if (probability == 0.0) return;
+                if (scenario > 0 && scenario != Scenario) return;
+                if (scenario > 0 && scenario == Scenario) Scenario = 0;
+                if (_rng == null) _rng = new Random();
+                if (_rng.NextDouble() > probability) return;
+                Force = false;
+                Environment.FailFast("Chaos monkey FTW!");
+            }
+        }
+
+        public static void ThreadAbort(double probability = 0.0)
+        {
+            if (Enabled)
+            {
+                if (Force)
+                {
+                    probability = 1.0;
+                }
+
+                if (probability == 0.0) return;
+                if (_rng == null) _rng = new Random();
+                if (_rng.NextDouble() > probability) return;
+                Force = false;
 #if NET451
             Thread.CurrentThread.Abort();
 #else
-            throw new ChaosMonkeyException();
+                throw new ChaosMonkeyException();
 #endif
+            }
+        }
+
+        public static void ThreadSleep(double probability = 0.0, int sleepMilliseconds = 50)
+        {
+            if (Enabled)
+            {
+                if (Force)
+                {
+                    probability = 1.0;
+                }
+
+                if (probability == 0.0) return;
+                if (_rng == null) _rng = new Random();
+                if (_rng.NextDouble() > probability) return;
+                Force = false;
+                Thread.Sleep(sleepMilliseconds);
+            }
+        }
+
+        public static void ThreadSpin(double probability = 0.0, int iterations = 1000)
+        {
+            if (Enabled)
+            {
+                if (Force)
+                {
+                    probability = 1.0;
+                }
+
+                if (probability == 0.0) return;
+                if (_rng == null) _rng = new Random();
+                if (_rng.NextDouble() > probability) return;
+                Force = false;
+
+                Thread.SpinWait(iterations);
+            }
+        }
+
+        public static void Chaos(double probability = 0.0)
+        {
+            if (Enabled)
+            {
+                if (Force)
+                {
+                    probability = 1.0;
+                }
+
+                if (probability == 0.0) return;
+                if (_rng == null) _rng = new Random();
+                var rn = _rng.NextDouble();
+                if (rn > probability) return;
+                Force = false;
+                if (rn < probability / 3.0)
+                {
+                    throw new OutOfMemoryException();
+                }
+
+                if (rn < probability * 2.0 / 3.0)
+                {
+#if NET451
+            throw new StackOverflowException();
+#else
+                    throw new ChaosMonkeyException();
+#endif
+                }
+#if NET451
+            Thread.CurrentThread.Abort();
+#else
+                throw new ChaosMonkeyException();
+#endif
+            }
         }
     }
 }
