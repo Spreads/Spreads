@@ -67,11 +67,17 @@ namespace Spreads.DataTypes
 
             // TODO known types, otherwise will fallback to fixed binary
 
-#pragma warning disable 618
-            if (TypeHelper<T>.Size >= 0) return TypeEnum.FixedBinary;
-#pragma warning restore 618
+            // TypeEnum is for known types only
+            // TODO Attrobute KnownType and 
+            //#pragma warning disable 618
+            //            if (TypeHelper<T>.Size >= 0) return TypeEnum.FixedBinary;
+            //#pragma warning restore 618
 
-            return TypeEnum.Object;
+            // TODO TypeEnum.Object is for Object with known subtype (runtime/app specific) - it is like a container 
+            // but for a single object
+            // return TypeEnum.Object;
+
+            return TypeEnum.None;
         }
 
         // ReSharper disable once StaticMemberInGenericType

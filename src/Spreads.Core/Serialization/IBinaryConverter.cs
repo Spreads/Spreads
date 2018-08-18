@@ -19,7 +19,7 @@ namespace Spreads.Serialization
     /// 0                   1                   2                   3
     /// 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
     /// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-    /// |  Ver  |R|D|C|B|    TypeEnum   |  TypeSize     | SubTypeEnum   |
+    /// |  Ver  |T|D|C|B|    TypeEnum   |  TypeSize     | SubTypeEnum   |
     /// +---------------------------------------------------------------+
     /// |R|     Payload Length (if VarLen/TypeSize is negative )        |
     /// +---------------------------------------------------------------+
@@ -29,7 +29,7 @@ namespace Spreads.Serialization
     /// B - binary format. If not set then the payload is JSON,
     /// if set then payload is custom binary (payload could have
     /// it's own headers e.g. Blosc)
-    /// R - reserved
+    /// T - value has Timestamp as the first element of payload for binary case or Timestamp field on JSON object.
     /// </remarks>
     public interface IBinaryConverter<T>
     {

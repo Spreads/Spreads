@@ -90,7 +90,8 @@ namespace Spreads.DataTypes
         Binary = 67,
 
         Variant = 68, // for sub-type in containers, must throw for scalars
-        Object = 69, // custom object, the type must have a KnownType attribute
+
+        Object = 69, // custom object, TODO the type must have a KnownType attribute
 
         Array = 70,
         Matrix = 71, // same as array must have a subtype defined

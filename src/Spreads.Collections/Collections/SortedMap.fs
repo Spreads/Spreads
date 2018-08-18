@@ -165,7 +165,6 @@ type SortedMap<'K,'V>
     let converter = {
       new ArrayBasedMapConverter<'K,'V, SortedMap<'K,'V>>() with
         member __.Read(ptr : IntPtr, [<Out>]value: byref<SortedMap<'K,'V>> ) = 
-          // TODO this is wrong, it works only because not used
           let version = Marshal.ReadByte(ptr)
           let totalSize = 8 + Marshal.ReadInt32(new IntPtr(ptr.ToInt64() + 4L))
           let mapSize = Marshal.ReadInt32(new IntPtr(ptr.ToInt64() + 8L))

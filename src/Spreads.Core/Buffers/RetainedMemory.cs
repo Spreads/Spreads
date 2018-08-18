@@ -13,7 +13,7 @@ namespace Spreads.Buffers
     /// <summary>
     /// A struct that wraps a <see cref="Memory{T}"/> and its <see cref="MemoryHandle"/> that is returned after calling <see cref="Memory{T}.Pin"/>.
     /// Increases the ref count of underlying OwnedBuffer by one.
-    /// Use this struct carefully: it must always be explicitly disposed, otherwise underlying OwnedPooledArray
+    /// Use this struct carefully: it must always be explicitly disposed, otherwise underlying MemoryManager implementation
     /// will never be returned to the pool and memory will leak.
     /// Use <see cref="Clone"/> method to create a copy of this memory and to ensure that the underlying <see cref="Buffers.OwnedPooledArray{T}"/> is not returned to the pool.
     /// When adding to a Spreads disposable collection (e.g. SortedMap) ownership is transfered to a collection and RetainedMemory
