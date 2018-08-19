@@ -23,7 +23,7 @@ namespace Spreads
             // value and this field will be JIT compile-time constant. If set to false checks such as
             // if(Settings.AdditionalCorrectnessChecks.DoChecks) will be
             // completely eliminated by JIT.
-            public static readonly bool DoChecks = _doAdditionalCorrectnessChecks;
+            public static readonly bool Enabled = _doAdditionalCorrectnessChecks;
         }
 
         /// <summary>
@@ -45,11 +45,18 @@ namespace Spreads
         private static bool _doAdditionalCorrectnessChecks = true;
 
         /// <summary>
-        ///
+        /// Enable/disable additional correctess checks that could affect performance or exit the process.
+        /// This could only be set at application startup before accessing other Spreads types.
+        /// By default this value is set to true and Spreads usually fails fast on any condition
+        /// that could compromise calculation correctness or data integrity. If an application
+        /// that uses Spreads runs correctly "long-enough" this setting could be set to false to measure
+        /// the effect of the checks on performance. If the effect is not significant it is safer
+        /// to keep this option as true if correctness of Spreads is more important than nanoseconds
+        /// and fail fast is more acceptable scenario than incorrect calculations.
         /// </summary>
         public static bool DoAdditionalCorrectnessChecks
         {
-            get => AdditionalCorrectnessChecks.DoChecks;
+            get => AdditionalCorrectnessChecks.Enabled;
             set => _doAdditionalCorrectnessChecks = value;
         }
 

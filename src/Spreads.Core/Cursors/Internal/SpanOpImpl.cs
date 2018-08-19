@@ -339,7 +339,7 @@ namespace Spreads.Cursors.Internal
                                 if (expand < 0) // Span is too big
                                 {
                                     moved = _op.RemoveAndMovePreviousRight(ref _cursor);
-                                    if (Settings.AdditionalCorrectnessChecks.DoChecks && !moved)
+                                    if (Settings.AdditionalCorrectnessChecks.Enabled && !moved)
                                     {
                                         ThrowHelper.ThrowInvalidOperationException("Lagged cursor should always move next toward current cursor");
                                     }
@@ -546,7 +546,7 @@ namespace Spreads.Cursors.Internal
                 {
                     moved = _op.RemoveAndMoveNextLeft(ref _laggedCursor);
                     expand = Expand();
-                    if (Settings.AdditionalCorrectnessChecks.DoChecks)
+                    if (Settings.AdditionalCorrectnessChecks.Enabled)
                     {
                         if (!moved)
                         {
@@ -644,7 +644,7 @@ namespace Spreads.Cursors.Internal
                 {
                     moved = _op.RemoveAndMoveNextLeft(ref _laggedCursor);
                     expand = Expand();
-                    if (Settings.AdditionalCorrectnessChecks.DoChecks)
+                    if (Settings.AdditionalCorrectnessChecks.Enabled)
                     {
                         if (!moved)
                         {
