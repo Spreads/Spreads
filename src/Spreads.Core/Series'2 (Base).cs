@@ -1210,7 +1210,14 @@ namespace Spreads
         internal void BeforeWrite()
         {
             // TODO review (recall) why SCM needed access to this
-
+            // TODO Use Settings.AdditionalCorrectnessChecks instead of #if DEBUG
+            // Failing to unlock in-memory is FailFast condition
+            // But before that move DS unlock logic to Utils
+            // If high-priority thread is writing in a hot loop on a machine/container
+            // with small number of cores it hypothetically could make other threads
+            // wait for a long time, and scheduler could switch to this thread
+            // when the higher-priority thread is holding the lock.
+            // Need to investigate more if thread scheduler if affected by CERs.
 #if DEBUG
             var sw = new Stopwatch();
             sw.Start();

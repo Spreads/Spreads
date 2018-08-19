@@ -3,10 +3,6 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 using NUnit.Framework;
-using Spreads.Utils;
-using System;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace Spreads.Core.Tests
 {

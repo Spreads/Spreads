@@ -1,4 +1,5 @@
-﻿using Spreads.Serialization;
+﻿using System;
+using Spreads.Serialization;
 
 namespace Spreads
 {
@@ -21,7 +22,7 @@ namespace Spreads
             // Unless _doAdditionalCorrectnessChecks is changed from default before this internal
             // class is ever referenced from any code path it will have default
             // value and this field will be JIT compile-time constant. If set to false checks such as
-            // if(Settings.AdditionalCorrectnessChecks.DoChecks) will be
+            // if(Settings.AdditionalCorrectnessChecks.Enabled) will be
             // completely eliminated by JIT.
             public static readonly bool Enabled = _doAdditionalCorrectnessChecks;
         }
@@ -54,6 +55,15 @@ namespace Spreads
         /// to keep this option as true if correctness of Spreads is more important than nanoseconds
         /// and fail fast is more acceptable scenario than incorrect calculations.
         /// </summary>
+        /// <remarks>
+        /// In Spreads, this setting is used for cases that does not reduce performance
+        /// a lot, e.g. null or range checks in hot loops that take fixed number of
+        /// CPU cycles, break inlining or similar fixed-time impact.
+        /// It should not be used e.g. to allocate finalizable objects to detect leaks
+        /// in buffer management and other cases that could generate a lot of garbage and
+        /// induce GC latency. For the later cases `#if DEBUG` is used.
+        /// </remarks>
+        [Obsolete("For JIT to work, use internal Settings.AdditionalCorrectnessChecks.Enabled static readonly field.")]
         public static bool DoAdditionalCorrectnessChecks
         {
             get => AdditionalCorrectnessChecks.Enabled;

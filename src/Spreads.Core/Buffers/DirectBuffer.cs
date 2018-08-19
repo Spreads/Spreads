@@ -63,7 +63,7 @@ namespace Spreads.Buffers
         public bool IsValid
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return _length > 0; }
+            get { return _length > 0 && (IntPtr) _data != IntPtr.Zero; }
         }
 
         public Span<byte> Span
@@ -110,12 +110,19 @@ namespace Spreads.Buffers
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        [Conditional("DEBUG")]
         private void Assert(long index, long length)
         {
-            if ((ulong)index + (ulong)length > (ulong)_length)
+            if (Settings.AdditionalCorrectnessChecks.Enabled)
             {
-                ThrowHelper.ThrowArgumentException("Not enough space");
+                // NB Not FailFast because we do not modify data on failed checks
+                if (!IsValid)
+                {
+                    ThrowHelper.ThrowInvalidOperationException("DirectBuffer is invalid");
+                }
+                if ((ulong)index + (ulong)length > (ulong)_length)
+                {
+                    ThrowHelper.ThrowArgumentException("Not enough space in DirectBuffer");
+                }
             }
         }
 
@@ -527,10 +534,8 @@ namespace Spreads.Buffers
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public T Read<T>(long index)
         {
-#if DEBUG
             var size = SizeOf<T>();
             Assert(index, size);
-#endif
             return ReadUnaligned<T>(_data + index);
         }
 
