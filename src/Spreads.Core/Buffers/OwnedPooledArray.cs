@@ -5,14 +5,13 @@
 using Spreads.Collections.Concurrent;
 using System;
 using System.Buffers;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Threading;
-using SRCS = System.Runtime.CompilerServices;
+using SRCSUnsafe = System.Runtime.CompilerServices.Unsafe;
 
 namespace Spreads.Buffers
 {
-    // NB (over)Using [SRCS.MethodImpl(SRCS.MethodImplOptions.AggressiveInlining)] just in case it could help sealed devirt
-
     public sealed class OwnedPooledArray<T> : MemoryManager<T>
     {
         private static readonly ObjectPool<OwnedPooledArray<T>> Pool = new ObjectPool<OwnedPooledArray<T>>(() => new OwnedPooledArray<T>(), Environment.ProcessorCount * 16);
@@ -20,41 +19,42 @@ namespace Spreads.Buffers
         private T[] _array;
         internal int _referenceCount;
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private OwnedPooledArray()
         { }
 
         internal T[] Array
         {
-            [SRCS.MethodImpl(SRCS.MethodImplOptions.AggressiveInlining)]
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get { return _array; }
         }
 
         public int Length
         {
-            [SRCS.MethodImpl(SRCS.MethodImplOptions.AggressiveInlining)]
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get { return _array.Length; }
         }
 
         public bool IsDisposed
         {
-            [SRCS.MethodImpl(SRCS.MethodImplOptions.AggressiveInlining)]
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get { return _array == null; }
         }
 
         public bool IsRetained
         {
-            [SRCS.MethodImpl(SRCS.MethodImplOptions.AggressiveInlining)]
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get { return _referenceCount > 0; }
         }
 
-        [SRCS.MethodImpl(SRCS.MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public override Span<T> GetSpan()
         {
             if (IsDisposed) ThrowHelper.ThrowObjectDisposedException(nameof(OwnedPooledArray<T>));
             return new Span<T>(_array);
         }
 
-        [SRCS.MethodImpl(SRCS.MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static OwnedPooledArray<T> Create(int minLength)
         {
             var ownedPooledArray = Pool.Allocate();
@@ -63,7 +63,7 @@ namespace Spreads.Buffers
             return ownedPooledArray;
         }
 
-        [SRCS.MethodImpl(SRCS.MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static OwnedPooledArray<T> Create(T[] array)
         {
             var ownedPooledArray = Pool.Allocate();
@@ -72,17 +72,21 @@ namespace Spreads.Buffers
             return ownedPooledArray;
         }
 
-        [SRCS.MethodImpl(SRCS.MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         protected override void Dispose(bool disposing)
         {
-            // special value that is not normally possible to keep thread-static buffer undisposable
+            // special value that is not normally possible - to keep thread-static buffer undisposable
             if (_referenceCount == int.MinValue) { return; }
 
             if (_referenceCount > 0)
             {
-                // ThrowHelper.ThrowInvalidOperationException("Disposing an OwnedPooledArray with ratained references");
                 Unpin();
                 return;
+            }
+
+            if (_referenceCount < 0)
+            {
+                ThrowHelper.FailFast("OwnedPooledArray.Dispose: _referenceCount < 0");
             }
 
             var array = Interlocked.Exchange(ref _array, null);
@@ -97,7 +101,13 @@ namespace Spreads.Buffers
             }
         }
 
-        [SRCS.MethodImpl(SRCS.MethodImplOptions.AggressiveInlining)]
+        ~OwnedPooledArray()
+        {
+            // NB MemoryManager calls SuppressFinalize in Dispose(true)
+            Dispose(false);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         protected override bool TryGetArray(out ArraySegment<T> buffer)
         {
             if (IsDisposed) ThrowHelper.ThrowObjectDisposedException(nameof(OwnedPooledArray<T>));
@@ -105,7 +115,7 @@ namespace Spreads.Buffers
             return true;
         }
 
-        [SRCS.MethodImpl(SRCS.MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public override MemoryHandle Pin(int elementIndex = 0)
         {
             unsafe
@@ -117,17 +127,37 @@ namespace Spreads.Buffers
                     Interlocked.Increment(ref _referenceCount);
                 }
 
-                if ((uint)elementIndex > (uint)_array.Length) { ThrowHelper.ThrowArgumentOutOfRangeException(nameof(elementIndex)); }
+                if ((uint)elementIndex > (uint)_array.Length)
+                {
+                    ThrowHelper.ThrowArgumentOutOfRangeException(nameof(elementIndex));
+                }
+
                 var handle = GCHandle.Alloc(_array, GCHandleType.Pinned);
-                var pointer = SRCS.Unsafe.Add<T>((void*)handle.AddrOfPinnedObject(), elementIndex);
+
+                var pointer = SRCSUnsafe.Add<T>((void*)handle.AddrOfPinnedObject(), elementIndex);
+
                 return new MemoryHandle(pointer, handle, this);
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public override void Unpin()
+        {
+            // special value that is not possible normally - to keep thread-static buffer undisposable
+            if (_referenceCount == int.MinValue) { return; }
+
+            var newRefCount = Interlocked.Decrement(ref _referenceCount);
+            if (newRefCount < 0) { ThrowHelper.FailFast("Buffer refcount was already zero before unpin."); }
+            if (newRefCount == 0)
+            {
+                Dispose(true);
             }
         }
 
         /// <summary>
         /// Retain buffer memory without pinning it.
         /// </summary>
-        [SRCS.MethodImpl(SRCS.MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public RetainedMemory<T> Retain()
         {
             return RetainImpl();
@@ -136,22 +166,30 @@ namespace Spreads.Buffers
         /// <summary>
         /// Retain buffer memory without pinning it.
         /// </summary>
-        [SRCS.MethodImpl(SRCS.MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public RetainedMemory<T> Retain(int length)
         {
+            if ((uint)length > (uint)_array.Length)
+            {
+                ThrowHelper.ThrowArgumentOutOfRangeException(nameof(length));
+            }
             return RetainImpl(length: length);
         }
 
         /// <summary>
         /// Retain buffer memory without pinning it.
         /// </summary>
-        [SRCS.MethodImpl(SRCS.MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public RetainedMemory<T> Retain(int start, int length)
         {
+            if ((uint)start + (uint)length > (uint)_array.Length)
+            {
+                ThrowHelper.ThrowArgumentOutOfRangeException(nameof(length));
+            }
             return RetainImpl(start, length);
         }
 
-        [SRCS.MethodImpl(SRCS.MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private RetainedMemory<T> RetainImpl(int start = -1, int length = -1)
         {
             if (IsDisposed) { ThrowHelper.ThrowObjectDisposedException(nameof(OwnedPooledArray<T>)); }
@@ -165,8 +203,8 @@ namespace Spreads.Buffers
             {
                 // MemoryHandle is not exposed in RetainedMemory. It is just IDisposable that
                 // keeps MH with it and could decrement refcount of this object when disposed.
-                // We sometimes need to keep a reference to underlying array and avoid returning
-                // it to BufferPool.
+                // We sometimes need to keep a reference to underlying buffer and avoid returning
+                // it to a BufferPool.
                 var handle = new MemoryHandle((void*)IntPtr.Zero, default, this);
                 if (length < 0) return new RetainedMemory<T>(Memory, handle);
                 if (start >= 0)
@@ -174,19 +212,6 @@ namespace Spreads.Buffers
                     return new RetainedMemory<T>(CreateMemory(start, length), handle);
                 }
                 return new RetainedMemory<T>(CreateMemory(length), handle);
-            }
-        }
-
-        [SRCS.MethodImpl(SRCS.MethodImplOptions.AggressiveInlining)]
-        public override void Unpin()
-        {
-            // special value that is not possible normally to keep thread-static buffer undisposable
-            if (_referenceCount == int.MinValue) { return; }
-            var newRefCount = Interlocked.Decrement(ref _referenceCount);
-            if (newRefCount < 0) { ThrowHelper.ThrowInvalidOperationException(); }
-            if (newRefCount == 0)
-            {
-                Dispose(true);
             }
         }
     }
