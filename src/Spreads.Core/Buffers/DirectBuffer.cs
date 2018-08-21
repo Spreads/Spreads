@@ -20,7 +20,7 @@ namespace Spreads.Buffers
     {
         public static DirectBuffer Invalid = new DirectBuffer(-1, (byte*)IntPtr.Zero);
 
-        private readonly long _length;
+        private readonly IntPtr _length;
         internal readonly byte* _data;
 
         /// <summary>
@@ -39,7 +39,7 @@ namespace Spreads.Buffers
             {
                 ThrowHelper.ThrowArgumentException("Memory size must be > 0");
             }
-            _length = length;
+            _length = (IntPtr)length;
             _data = (byte*)data;
         }
 
@@ -49,21 +49,21 @@ namespace Spreads.Buffers
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public DirectBuffer(long length, byte* data)
         {
-            _length = length;
+            _length = (IntPtr)length;
             _data = data;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public DirectBuffer(Span<byte> span)
         {
-            _length = span.Length;
+            _length = (IntPtr)span.Length;
             _data = (byte*)AsPointer(ref MemoryMarshal.GetReference(span));
         }
 
         public bool IsValid
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return _length > 0 && (IntPtr) _data != IntPtr.Zero; }
+            get { return (long)_length > 0 && (IntPtr) _data != IntPtr.Zero; }
         }
 
         public Span<byte> Span
@@ -78,7 +78,7 @@ namespace Spreads.Buffers
         public long Length
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return _length; }
+            get { return (long)_length; }
         }
 
         public IntPtr Data
@@ -90,7 +90,7 @@ namespace Spreads.Buffers
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public DirectBuffer Slice(long start)
         {
-            return new DirectBuffer(_length - start, (IntPtr)(Data.ToInt64() + start));
+            return new DirectBuffer((long)_length - start, (IntPtr)(Data.ToInt64() + start));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
