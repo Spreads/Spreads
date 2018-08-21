@@ -65,7 +65,6 @@ namespace Spreads.Algorithms.Hash
 
         // ReSharper disable InconsistentNaming
         private const uint PRIME32_1 = 2654435761U;
-
         private const uint PRIME32_2 = 2246822519U;
         private const uint PRIME32_3 = 3266489917U;
         private const uint PRIME32_4 = 668265263U;
@@ -152,7 +151,7 @@ namespace Spreads.Algorithms.Hash
             {
                 fixed (byte* ptr = state.Memory)
                 {
-                    ByteUtil.MemoryCopy(ptr + state.Memsize, (byte*)input, (uint)len);
+                    Unsafe.CopyBlockUnaligned(ptr + state.Memsize, (byte*)input, (uint)len);
                 }
 
                 //Array.Copy(input, 0, state.Memory, state.Memsize, len);
@@ -165,7 +164,7 @@ namespace Spreads.Algorithms.Hash
             {
                 fixed (byte* ptr = state.Memory)
                 {
-                    ByteUtil.MemoryCopy(ptr + state.Memsize, (byte*)input, (uint)(16 - state.Memsize));
+                    Unsafe.CopyBlockUnaligned(ptr + state.Memsize, (byte*)input, (uint)(16 - state.Memsize));
                 }
 
                 //Array.Copy(input, 0, state.Memory, state.Memsize, 16 - state.Memsize);
@@ -215,7 +214,7 @@ namespace Spreads.Algorithms.Hash
             {
                 fixed (byte* ptr = state.Memory)
                 {
-                    ByteUtil.MemoryCopy(ptr + 0, (byte*)(input + index), (uint)(len - index));
+                    Unsafe.CopyBlockUnaligned(ptr + 0, (byte*)(input + index), (uint)(len - index));
                 }
 
                 //Array.Copy(input, index, state.Memory, 0, len - index);
