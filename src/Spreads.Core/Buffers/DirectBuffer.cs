@@ -14,6 +14,7 @@ namespace Spreads.Buffers
     /// <summary>
     /// Provides unsafe read/write opertaions on a memory pointer.
     /// </summary>
+    [DebuggerTypeProxy(typeof(SpreadsBuffers_DirectBufferDebugView))]
     [DebuggerDisplay("Length={" + nameof(Length) + ("}"))]
     [StructLayout(LayoutKind.Sequential)]
     public readonly unsafe struct DirectBuffer
@@ -63,7 +64,7 @@ namespace Spreads.Buffers
         public bool IsValid
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return (long)_length > 0 && (IntPtr) _data != IntPtr.Zero; }
+            get { return (long)_length > 0 && (IntPtr)_data != IntPtr.Zero; }
         }
 
         public Span<byte> Span
@@ -659,94 +660,27 @@ namespace Spreads.Buffers
             CopyBlockUnaligned(_data + index, (byte*)source, checked((uint)length));
         }
 
-        ///// <summary>
-        ///// Copy this buffer to a pointer
-        ///// </summary>
-        //[MethodImpl(MethodImplOptions.AggressiveInlining)]
-        //public void Copy(IntPtr destination, long srcOffset, long length)
-        //{
-        //    Assert(srcOffset, length);
-        //    CopyBlockUnaligned((byte*)destination, _data + srcOffset, checked((uint)length));
-        //}
+        #region Debugger proxy class
 
-        ///// <summary>
-        ///// Copy this buffer to a byte array
-        ///// </summary>
-        //[MethodImpl(MethodImplOptions.AggressiveInlining)]
-        //public void Copy(byte[] destination, int destOffset, int srcOffset, int length)
-        //{
-        //    if ((ulong)destOffset + (ulong)length > (ulong)destination.Length)
-        //    {
-        //        ThrowHelper.ThrowArgumentOutOfRangeException();
-        //    }
-        //    fixed (byte* dstPtr = &destination[destOffset])
-        //    {
-        //        Copy((IntPtr)dstPtr, srcOffset, length);
-        //    }
-        //}
+        // ReSharper disable once InconsistentNaming
+        internal class SpreadsBuffers_DirectBufferDebugView
+        {
+            private readonly DirectBuffer _db;
 
-        ///// <summary>
-        ///// Copies a range of bytes from the underlying into a supplied byte array.
-        ///// </summary>
-        ///// <param name="index">index  in the underlying buffer to start from.</param>
-        ///// <param name="destination">array into which the bytes will be copied.</param>
-        ///// <param name="destinationOffset">offset in the supplied buffer to start the copy</param>
-        ///// <param name="length">length of the supplied buffer to use.</param>
-        ///// <returns>count of bytes copied.</returns>
-        //[MethodImpl(MethodImplOptions.AggressiveInlining)]
-        //public int CopyTo(long index, byte[] destination, int destinationOffset, int length)
-        //{
-        //    if (length > _length - index) throw new ArgumentException("length > _capacity - index");
-        //    Marshal.Copy(new IntPtr(_data.ToInt64() + index), destination, destinationOffset, length);
-        //    return length;
-        //}
+            public SpreadsBuffers_DirectBufferDebugView(DirectBuffer db)
+            {
+                _db = db;
+            }
 
-        ///// <summary>
-        ///// Writes a byte array into the underlying buffer.
-        ///// </summary>
-        ///// <param name="index">index  in the underlying buffer to start from.</param>
-        ///// <param name="source">source byte array to be copied to the underlying buffer.</param>
-        ///// <param name="srcOffset">offset in the supplied buffer to begin the copy.</param>
-        ///// <param name="length">length of the supplied buffer to copy.</param>
-        ///// <returns>count of bytes copied.</returns>
-        //[MethodImpl(MethodImplOptions.AggressiveInlining)]
-        //public int CopyFrom(long index, byte[] source, int srcOffset, int length)
-        //{
-        //    Assert(index, length);
-        //    if (source.Length < srcOffset + length)
-        //    {
-        //        ThrowHelper.ThrowArgumentOutOfRangeException();
-        //    }
-        //    //int count = Math.Min(len, (int)(this._length - index));
-        //    Marshal.Copy(source, srcOffset, new IntPtr(_data.ToInt64() + index), length);
+            public IntPtr Data => _db.Data;
 
-        //    return length;
-        //}
+            public long Length => _db.Length;
 
-        ////[MethodImpl(MethodImplOptions.AggressiveInlining)]
-        ////public int Write<T>(long index, T value, MemoryStream ms = null)
-        ////{
-        ////    return Serialization.BinarySerializer.Write<T>(value, ref this, checked((uint)index), ms);
-        ////}
+            public bool IsValid => _db.IsValid;
 
-        ///// <summary>
-        ///// Writes len bytes from source to this buffer at index. Works as memcpy, not memmove.
-        ///// </summary>
-        ///// <param name="index"></param>
-        ///// <param name="src"></param>
-        ///// <param name="srcOffset"></param>
-        ///// <param name="length"></param>
-        //[MethodImpl(MethodImplOptions.AggressiveInlining)]
-        //public void WriteBytes(long index, DirectBuffer src, long srcOffset, long length)
-        //{
-        //    Assert(index, length);
-        //    if ((ulong)src._length < (ulong)srcOffset + (ulong)length)
-        //    {
-        //        ThrowHelper.ThrowArgumentOutOfRangeException();
-        //    }
-        //    var source = src._data + srcOffset;
-        //    var destination = _data + index;
-        //    CopyBlockUnaligned(destination, source, checked((uint)length));
-        //}
+            public Span<byte> Span => _db.IsValid ? _db.Span : default;
+        }
+
+        #endregion Debugger proxy class
     }
 }
