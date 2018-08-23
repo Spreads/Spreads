@@ -31,11 +31,11 @@ namespace Spreads.Buffers
             ArrayPool<T>.Shared.Return(array, clearArray);
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static OwnedPooledArray<T> RentOwnedPooledArray(int minLength)
-        {
-            return ArrayMemoryPool<T>.Shared.RentCore(minLength);
-        }
+        //[MethodImpl(MethodImplOptions.AggressiveInlining)]
+        //internal static OwnedPooledArray<T> RentOwnedPooledArray(int minLength)
+        //{
+        //    return ArrayMemoryPool<T>.Shared.RentCore(minLength);
+        //}
     }
 
     public static class BufferPool
@@ -89,7 +89,7 @@ namespace Spreads.Buffers
             _threadStaticBuffer =
                 OwnedPooledArray<byte>.Create(
                     new byte[Settings
-                        .ThreadStaticPinnedBufferSize]); // BufferPool<byte>.RentOwnedPooledArray(StaticBufferSize);
+                        .ThreadStaticPinnedBufferSize]);
             _threadStaticBuffer._referenceCount = int.MinValue;
             // NB Pin in LOH if ThreadStaticPinnedBufferSize > 85k, limit impact on compaction (see Slab in Kestrel)
             _threadStaticMemory = new RetainedMemory<byte>(_threadStaticBuffer.Memory);
@@ -103,9 +103,8 @@ namespace Spreads.Buffers
             {
                 if (_threadStaticBuffer == null)
                 {
-                    var x = StaticBuffer; // access getter
+                    var _ = StaticBuffer; // access getter
                 }
-
                 return _threadStaticMemory;
             }
         }
@@ -126,7 +125,7 @@ namespace Spreads.Buffers
             {
                 if (_sharedBuffer == null)
                 {
-                    _sharedBuffer = BufferPool<byte>.RentOwnedPooledArray(SharedBufferSize);
+                    _sharedBuffer = OwnedPooledArray<byte>.Create(SharedBufferSize);
                     // NB we must create a reference or the first RetainedMemory could
                     // dispose _sharedBuffer on RetainedMemory disposal.
 
@@ -142,7 +141,7 @@ namespace Spreads.Buffers
                     // replace shared buffer, the old one will be disposed
                     // when all ReservedMemory views on it are disposed
                     var previous = _sharedBufferMemory;
-                    _sharedBuffer = BufferPool<byte>.RentOwnedPooledArray(SharedBufferSize);
+                    _sharedBuffer = OwnedPooledArray<byte>.Create(SharedBufferSize);
 
                     _sharedBufferMemory = _sharedBuffer.Retain();
                     previous.Dispose(); // unpinning manually, now the buffer is free and it's retainers determine when it goes back to the pool
@@ -158,7 +157,7 @@ namespace Spreads.Buffers
             // NB here we exclusively own the buffer and disposal of RetainedMemory will cause
             // disposal and returning to pool of the ownedBuffer instance, unless references were added via
             // RetainedMemory.Clone()
-            var ownedPooledArray = BufferPool<byte>.RentOwnedPooledArray(length);
+            var ownedPooledArray = OwnedPooledArray<byte>.Create(length);
             return requireExact ? ownedPooledArray.Retain(length) : ownedPooledArray.Retain();
 
         }
@@ -177,7 +176,7 @@ namespace Spreads.Buffers
             {
                 return StaticBuffer;
             }
-            return BufferPool<byte>.RentOwnedPooledArray(minimumSize);
+            return OwnedPooledArray<byte>.Create(minimumSize); //BufferPool<byte>.RentOwnedPooledArray(minimumSize);
         }
     }
 

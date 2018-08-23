@@ -4,6 +4,9 @@ using System.Runtime.InteropServices;
 
 namespace Spreads.DataTypes
 {
+    // TODO Fixed size TypeSize could use the 4th byte and max size could be 127 * 256 if we encode as simple varint
+    // or just as short - for this case SubTypeEnum is always unused
+
     /// <summary>
     /// DataType header
     /// 

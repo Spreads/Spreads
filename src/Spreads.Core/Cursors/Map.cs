@@ -233,7 +233,7 @@ namespace Spreads
         }
 
         /// <inheritdoc />
-        ISeries<TKey, TResult> ICursor<TKey, TResult>.Source => new Series<TKey, TResult, Map<TKey, TInput, TResult, TCursor>>(this);
+        ISeries<TKey, TResult> ICursor<TKey, TResult>.Source => Source;
 
         /// <summary>
         /// Get a <see cref="Series{TKey,TValue,TCursor}"/> based on this cursor.
