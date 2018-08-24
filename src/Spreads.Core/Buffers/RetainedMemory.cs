@@ -30,8 +30,9 @@ namespace Spreads.Buffers
     /// </remarks>
     public struct RetainedMemory<T> : IDisposable
     {
-        private MemoryHandle _memoryHandle;
-        private Memory<T> _memory;
+        // Could add Deconstruct method
+        internal MemoryHandle _memoryHandle;
+        internal Memory<T> _memory;
 
         /// <summary>
         /// Create a new RetainedMemory from Memory and pins it.
