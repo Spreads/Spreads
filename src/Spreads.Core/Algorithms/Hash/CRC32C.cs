@@ -81,7 +81,6 @@ namespace Spreads.Algorithms.Hash
                 //    next++;
                 //    len--;
                 //}
-                
                 while (len >= 32)
                 {
                     crc0 = (uint)Sse42.Crc32(crc0, ReadUnaligned<ulong>(next));
@@ -105,17 +104,25 @@ namespace Spreads.Algorithms.Hash
                     len -= 8;
                 }
 
-                // NB uint and ushort slows down perf, don't use them
-                // while (len >= 4)
-                // {
-                //     crc0 = Sse42.Crc32(crc0, ReadUnaligned<uint>(next));
-                //     next += 4;
-                //     len -= 4;
-                // }
+                while (len >= 4)
+                {
+                    crc0 = Sse42.Crc32(crc0, ReadUnaligned<uint>(next));
+                    next += 4;
+                    len -= 4;
+                }
 
-                if (len > 0)
+                while (len >= 2)
+                {
+                    crc0 = Sse42.Crc32(crc0, ReadUnaligned<ushort>(next));
+                    next += 2;
+                    len -= 2;
+                }
+
+                while (len > 0)
                 {
                     crc0 = Sse42.Crc32(crc0, *(next));
+                    next++;
+                    len--;
                 }
 
                 return crc0 ^ uint.MaxValue;
