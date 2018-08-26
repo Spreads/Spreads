@@ -21,7 +21,7 @@ namespace Spreads.Tests.Algorithms
             var mem = BufferPool.Retain(len);
             var ptr = (byte*)mem.Pointer;
             rng.NextBytes(mem.Span);
-            var count = 200_000_000;
+            var count = 50_000_000;
             uint hash = 0;
             using (Benchmark.Run("xxHash", count))
             {
@@ -34,7 +34,6 @@ namespace Spreads.Tests.Algorithms
             Console.WriteLine(hash);
         }
 
-
         [Test, Explicit("long running")]
         public unsafe void xxHashIncrementalBenchmark()
         {
@@ -46,17 +45,15 @@ namespace Spreads.Tests.Algorithms
             var count = 50_000_000;
             var sum = 0UL;
 
-            
-            uint digest = 0;
+            var state = new XxHash.XxHashState32(0);
             using (Benchmark.Run("xxHash", count))
             {
                 for (int i = 0; i < count; i++)
                 {
-                    var state = new XxHash.XxHashState32(digest);
                     XxHash.Update(ref state, ptr, len);
-                    digest = XxHash.Digest(state);
                 }
             }
+            var digest = XxHash.Digest(state);
             Benchmark.Dump();
             Console.WriteLine(digest);
         }
@@ -65,13 +62,12 @@ namespace Spreads.Tests.Algorithms
         public unsafe void xxHashIncrementalBenchmark2()
         {
             var rng = new Random(42);
-            var len = 10;
+            var len = 16;
             var mem = BufferPool.Retain(len);
             var ptr = (byte*)mem.Pointer;
             rng.NextBytes(mem.Span);
-            var count = 50_000_000;
+            var count = 100_000_000;
             var sum = 0UL;
-
 
             uint digest = 0;
             using (Benchmark.Run("xxHash", count))
@@ -84,5 +80,85 @@ namespace Spreads.Tests.Algorithms
             Benchmark.Dump();
             Console.WriteLine(digest);
         }
+
+       
+        [Test, Explicit("long running")]
+        public unsafe void Crc32CHashIncrementalBenchmark()
+        {
+            var rng = new Random(42);
+            var len = 16;
+            var offset = 4;
+            var mem = BufferPool.Retain(len + offset);
+            var ptr = (byte*)mem.Pointer + offset;
+            rng.NextBytes(mem.Span.Slice(offset));
+            var count = 100_000_000;
+            var sum = 0UL;
+
+            var mod8 = (ulong) ptr % 8;
+
+            uint digest = 0;
+            using (Benchmark.Run("xxHash", count))
+            {
+                for (int i = 0; i < count; i++)
+                {
+                    digest = Crc32C.CalculateCrc32C(ptr, len, digest);
+                }
+            }
+            Benchmark.Dump();
+            Console.WriteLine(digest);
+        }
+
+        [Test, Explicit("long running")]
+        public unsafe void Crc32CManagedHashIncrementalBenchmark2()
+        {
+            var rng = new Random(42);
+            var len = 16;
+            var mem = BufferPool.Retain(len);
+            var ptr = (byte*)mem.Pointer;
+            rng.NextBytes(mem.Span);
+            var count = 100_000_000;
+            var sum = 0UL;
+
+            uint digest = 0;
+            using (Benchmark.Run("xxHash", count))
+            {
+                for (int i = 0; i < count; i++)
+                {
+                    digest = Crc32C.CalculateCrc32CManaged(ptr, len, digest);
+                }
+            }
+            Benchmark.Dump();
+            Console.WriteLine(digest);
+        }
+
+
+        [Test, Explicit("long running")]
+        public unsafe void Crc32CRalphHashIncrementalBenchmark2()
+        {
+            var rng = new Random(42);
+            var len = 16;
+            var arr = new byte[len];
+            var memory = (Memory<byte>) arr;
+            var handle = memory.Pin();
+            var ptr = handle.Pointer;
+            rng.NextBytes(memory.Span);
+            var count = 100_000_000;
+            var sum = 0UL;
+
+            var crc32C = new Ralph.Crc32C.Crc32C();
+            uint digest = 0;
+            using (Benchmark.Run("xxHash", count))
+            {
+                for (int i = 0; i < count; i++)
+                {
+                    crc32C.Update(arr, 0, arr.Length);
+                    digest = crc32C.GetIntValue();
+                }
+            }
+            Benchmark.Dump();
+            Console.WriteLine(digest);
+        }
+
+        
     }
 }

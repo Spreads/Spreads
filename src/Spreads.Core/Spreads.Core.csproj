@@ -188,6 +188,13 @@
     <PackageReference Include="System.Threading.Thread">
       <Version>4.3.0</Version>
     </PackageReference>
+    
+    
+  </ItemGroup>
+  <ItemGroup Condition="'$(TargetFramework)' == 'netcoreapp2.1'">
+    <PackageReference Include="System.Runtime.Intrinsics.Experimental">
+      <Version>4.6.0-preview1-26724-02</Version>
+    </PackageReference>
   </ItemGroup>
   <ItemGroup>
     <None Update="DataTypes\Symbol.tt_">
@@ -220,4 +227,5 @@
       <HintPath>..\..\..\..\..\..\..\Program Files (x86)\Reference Assemblies\Microsoft\Framework\.NETFramework\v4.7.1\System.Data.SqlXml.dll</HintPath>
     </Reference>
   </ItemGroup>
+
 </Project>

@@ -21,6 +21,7 @@
 
 
     <ItemGroup>
+        <PackageReference Include="CRC32C.Standard" Version="1.0.0" />
         <PackageReference Include="Microsoft.CSharp" Version="4.5.0" />
         <PackageReference Include="Microsoft.IO.RecyclableMemoryStream" Version="1.2.2" />
         <PackageReference Include="System.Numerics.Vectors" Version="4.5.0" />
