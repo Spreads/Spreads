@@ -111,7 +111,7 @@ namespace Spreads.Tests.Buffers
                     sum = 0L;
                     for (var i = 0; i < count; i++)
                     {
-                        using (var wrapper = BufferPool<byte>.RentOwnedPooledArray(BufferPool.StaticBufferSize + 1)) // BufferPool.UseTempBuffer(BufferPool.StaticBufferSize + 1
+                        using (var wrapper = BufferPool.Retain(BufferPool.StaticBufferSize + 1)) // BufferPool.UseTempBuffer(BufferPool.StaticBufferSize + 1
                         {
                             wrapper.Memory.Span[0] = 123;
                             sum += wrapper.Memory.Span[0] + wrapper.Memory.Span[1];

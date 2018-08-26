@@ -527,23 +527,23 @@ namespace Spreads.Tests
         [Test, Explicit("long running")]
         public unsafe void PinningNonBlittableThrows()
         {
-            var buffer = BufferPool<string>.RentOwnedPooledArray(100);
+            var buffer = (Memory<string>)BufferPool<string>.Rent(100);
             Assert.Throws<ArgumentException>(() =>
             {
-                var handle = buffer.Memory.Pin();
+                var handle = buffer.Pin();
             });
             Assert.False(TypeHelper<string>.IsPinnable);
             Assert.True(TypeHelper<string>.Size <= 0);
         }
 
-        [Test, Explicit("long running")]
-        public unsafe void UnsafeWorksWithRefTypes()
-        {
-            var buffer = BufferPool<string>.RentOwnedPooledArray(100);
-            ref var addr = ref GetRef(buffer);
-            ref var pos = ref Unsafe.Add(ref addr, 1);
-            pos = "asd";
-        }
+        //[Test, Explicit("long running")]
+        //public unsafe void UnsafeWorksWithRefTypes()
+        //{
+        //    var buffer = BufferPool<string>.RentOwnedPooledArray(100);
+        //    ref var addr = ref GetRef(buffer);
+        //    ref var pos = ref Unsafe.Add(ref addr, 1);
+        //    pos = "asd";
+        //}
 
         private static bool mutable = TypeHelper<string>.IsPinnable;
         private static readonly bool ro = TypeHelper<string>.IsPinnable;
@@ -664,144 +664,144 @@ namespace Spreads.Tests
         //    Assert.False(b.IsDisposed);
         //}
 
-        [Test, Explicit("long running")]
-        public unsafe void ArrayVsOwnedBuffer()
-        {
-            var count = 1000000;
-            var array = new double[count];
-            var buffer = BufferPool<double>.RentOwnedPooledArray(count);
-            var buffer2 = BufferPool<double>.RentOwnedPooledArray(count);
+        //[Test, Explicit("long running")]
+        //public unsafe void ArrayVsOwnedBuffer()
+        //{
+        //    var count = 1000000;
+        //    var array = new double[count];
+        //    var buffer = BufferPool<double>.RentOwnedPooledArray(count);
+        //    var buffer2 = BufferPool<double>.RentOwnedPooledArray(count);
 
-            var handle2 = buffer2.Memory.Pin();
-            var pointer2 = handle2.Pointer;
+        //    var handle2 = buffer2.Memory.Pin();
+        //    var pointer2 = handle2.Pointer;
 
-            var buffer3 = BufferPool<double>.RentOwnedPooledArray(count);
-            var handle3 = buffer3.Memory.Pin();
-            var pointer3 = handle3.Pointer;
+        //    var buffer3 = BufferPool<double>.RentOwnedPooledArray(count);
+        //    var handle3 = buffer3.Memory.Pin();
+        //    var pointer3 = handle3.Pointer;
 
-            //var buffer4 = new DirectOwnedBuffer<double>(new double[count]);
+        //    //var buffer4 = new DirectOwnedBuffer<double>(new double[count]);
 
-            long sum = 0L;
-            var sw = new Stopwatch();
+        //    long sum = 0L;
+        //    var sw = new Stopwatch();
 
-            for (int r = 0; r < 10; r++)
-            {
-                sw.Restart();
-                for (int ii = 0; ii < 50; ii++)
-                {
-                    for (int i = 0; i < array.Length; i++)
-                    {
-                        array[i] = i;
-                        sum++;
-                    }
-                }
-                sw.Stop();
-                Console.WriteLine($"Array write {sw.MOPS(count * 50)}");
+        //    for (int r = 0; r < 10; r++)
+        //    {
+        //        sw.Restart();
+        //        for (int ii = 0; ii < 50; ii++)
+        //        {
+        //            for (int i = 0; i < array.Length; i++)
+        //            {
+        //                array[i] = i;
+        //                sum++;
+        //            }
+        //        }
+        //        sw.Stop();
+        //        Console.WriteLine($"Array write {sw.MOPS(count * 50)}");
 
-                //sum = 0;
-                //sw.Restart();
-                //for (int ii = 0; ii < 50; ii++)
-                //{
-                //    for (int i = 0; i < count; i++)
-                //    {
-                //        buffer4[i] = i;
-                //        sum++;
-                //    }
-                //}
-                //sw.Stop();
-                //Console.WriteLine($"DirectOwnedBuffer write {sw.MOPS(count * 50)}");
-                //Assert.True(sum < Int64.MaxValue);
+        //        //sum = 0;
+        //        //sw.Restart();
+        //        //for (int ii = 0; ii < 50; ii++)
+        //        //{
+        //        //    for (int i = 0; i < count; i++)
+        //        //    {
+        //        //        buffer4[i] = i;
+        //        //        sum++;
+        //        //    }
+        //        //}
+        //        //sw.Stop();
+        //        //Console.WriteLine($"DirectOwnedBuffer write {sw.MOPS(count * 50)}");
+        //        //Assert.True(sum < Int64.MaxValue);
 
-                //sw.Restart();
-                //for (int ii = 0; ii < 50; ii++)
-                //{
-                //    var span = buffer.Memory.Span;
-                //    for (int i = 0; i < count; i++)
-                //    {
-                //        span[i] = i;
-                //        sum++;
-                //    }
-                //}
-                //sw.Stop();
-                //Console.WriteLine($"Memory write {sw.MOPS(count * 50)}");
-                //Assert.True(sum < Int64.MaxValue);
+        //        //sw.Restart();
+        //        //for (int ii = 0; ii < 50; ii++)
+        //        //{
+        //        //    var span = buffer.Memory.Span;
+        //        //    for (int i = 0; i < count; i++)
+        //        //    {
+        //        //        span[i] = i;
+        //        //        sum++;
+        //        //    }
+        //        //}
+        //        //sw.Stop();
+        //        //Console.WriteLine($"Memory write {sw.MOPS(count * 50)}");
+        //        //Assert.True(sum < Int64.MaxValue);
 
-                //sw.Restart();
-                //for (int ii = 0; ii < 50; ii++)
-                //{
-                //    for (int i = 0; i < count; i++)
-                //    {
-                //        *((double*)pointer2 + i) = i;
-                //        sum++;
-                //    }
-                //}
-                //sw.Stop();
-                //Console.WriteLine($"Pointer write {sw.MOPS(count * 50)}");
-                //Assert.True(sum < Int64.MaxValue);
+        //        //sw.Restart();
+        //        //for (int ii = 0; ii < 50; ii++)
+        //        //{
+        //        //    for (int i = 0; i < count; i++)
+        //        //    {
+        //        //        *((double*)pointer2 + i) = i;
+        //        //        sum++;
+        //        //    }
+        //        //}
+        //        //sw.Stop();
+        //        //Console.WriteLine($"Pointer write {sw.MOPS(count * 50)}");
+        //        //Assert.True(sum < Int64.MaxValue);
 
-                //UnsafeGenericWrite<double>(count, buffer3);
+        //        //UnsafeGenericWrite<double>(count, buffer3);
 
-                Assert.True(sum < Int64.MaxValue);
-            }
+        //        Assert.True(sum < Int64.MaxValue);
+        //    }
 
-            Console.WriteLine("--------------------------------");
+        //    Console.WriteLine("--------------------------------");
 
-            for (int r = 0; r < 10; r++)
-            {
-                double sum2 = 0;
-                sw.Restart();
-                for (int ii = 0; ii < 100; ii++)
-                {
-                    for (int i = 0; i < array.Length; i++)
-                    {
-                        sum2 += array[i];
-                    }
-                }
-                sw.Stop();
-                Console.WriteLine($"Array read {sw.MOPS(count * 100)}");
+        //    for (int r = 0; r < 10; r++)
+        //    {
+        //        double sum2 = 0;
+        //        sw.Restart();
+        //        for (int ii = 0; ii < 100; ii++)
+        //        {
+        //            for (int i = 0; i < array.Length; i++)
+        //            {
+        //                sum2 += array[i];
+        //            }
+        //        }
+        //        sw.Stop();
+        //        Console.WriteLine($"Array read {sw.MOPS(count * 100)}");
 
-                //sum2 = 0;
-                //sw.Restart();
-                //for (int ii = 0; ii < 50; ii++)
-                //{
-                //    for (int i = 0; i < count; i++)
-                //    {
-                //        sum2 += buffer4[i];
-                //    }
-                //}
-                //sw.Stop();
-                //Console.WriteLine($"DirectOwnedBuffer read {sw.MOPS(count * 50)}");
+        //        //sum2 = 0;
+        //        //sw.Restart();
+        //        //for (int ii = 0; ii < 50; ii++)
+        //        //{
+        //        //    for (int i = 0; i < count; i++)
+        //        //    {
+        //        //        sum2 += buffer4[i];
+        //        //    }
+        //        //}
+        //        //sw.Stop();
+        //        //Console.WriteLine($"DirectOwnedBuffer read {sw.MOPS(count * 50)}");
 
-                //sum2 = 0;
-                //sw.Restart();
-                //var span = buffer.Memory.Span;
-                //for (int ii = 0; ii < 50; ii++)
-                //{
-                //    for (int i = 0; i < count; i++)
-                //    {
-                //        sum2 += span[i];
-                //    }
-                //}
-                //sw.Stop();
-                //Console.WriteLine($"Memory read {sw.MOPS(count * 50)}");
+        //        //sum2 = 0;
+        //        //sw.Restart();
+        //        //var span = buffer.Memory.Span;
+        //        //for (int ii = 0; ii < 50; ii++)
+        //        //{
+        //        //    for (int i = 0; i < count; i++)
+        //        //    {
+        //        //        sum2 += span[i];
+        //        //    }
+        //        //}
+        //        //sw.Stop();
+        //        //Console.WriteLine($"Memory read {sw.MOPS(count * 50)}");
 
-                //sum2 = 0;
-                //sw.Restart();
-                //for (int ii = 0; ii < 50; ii++)
-                //{
-                //    for (int i = 0; i < count; i++)
-                //    {
-                //        sum2 += *((double*)pointer2 + i);
-                //    }
-                //}
-                //sw.Stop();
-                //Console.WriteLine($"Pointer read {sw.MOPS(count * 50)}");
+        //        //sum2 = 0;
+        //        //sw.Restart();
+        //        //for (int ii = 0; ii < 50; ii++)
+        //        //{
+        //        //    for (int i = 0; i < count; i++)
+        //        //    {
+        //        //        sum2 += *((double*)pointer2 + i);
+        //        //    }
+        //        //}
+        //        //sw.Stop();
+        //        //Console.WriteLine($"Pointer read {sw.MOPS(count * 50)}");
 
-                //UnsafeGenericRead<double>(count, buffer3);
+        //        //UnsafeGenericRead<double>(count, buffer3);
 
-                Assert.True(sum2 < Int64.MaxValue);
-            }
-        }
+        //        Assert.True(sum2 < Int64.MaxValue);
+        //    }
+        //}
 
         [Test, Explicit("long running")]
         public unsafe void ArrayVsOwnedBufferBinarySearchDateTime()

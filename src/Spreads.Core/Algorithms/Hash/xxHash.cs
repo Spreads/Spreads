@@ -29,8 +29,6 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-using Spreads.Utils;
-using System;
 using System.Runtime.CompilerServices;
 
 namespace Spreads.Algorithms.Hash
@@ -39,13 +37,13 @@ namespace Spreads.Algorithms.Hash
     {
         public struct XxHashState32
         {
+            internal fixed byte Memory[16];
             internal ulong TotalLen;
             internal uint Seed;
             internal uint V1;
             internal uint V2;
             internal uint V3;
             internal uint V4;
-            internal fixed byte Memory[16];
             internal uint Memsize;
 
             public XxHashState32(uint seed = 0)
@@ -65,6 +63,7 @@ namespace Spreads.Algorithms.Hash
 
         // ReSharper disable InconsistentNaming
         private const uint PRIME32_1 = 2654435761U;
+
         private const uint PRIME32_2 = 2246822519U;
         private const uint PRIME32_3 = 3266489917U;
         private const uint PRIME32_4 = 668265263U;
@@ -72,7 +71,7 @@ namespace Spreads.Algorithms.Hash
         // ReSharper restore InconsistentNaming
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static uint CalculateHash(IntPtr data, int len, uint seed = 0)
+        public static uint CalculateHash(byte* data, int len, uint seed = 0)
         {
 #if DEBUG
             unchecked
@@ -137,7 +136,7 @@ namespace Spreads.Algorithms.Hash
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool Update(ref XxHashState32 state, IntPtr input, int len)
+        public static bool Update(ref XxHashState32 state, byte* input, int len)
         {
 #if DEBUG
             unchecked
@@ -149,7 +148,8 @@ namespace Spreads.Algorithms.Hash
 
             if (state.Memsize + len < 16)
             {
-                fixed (byte* ptr = state.Memory)
+                var ptr = (byte*)Unsafe.AsPointer(ref state);
+                // fixed (byte* ptr = state.Memory)
                 {
                     Unsafe.CopyBlockUnaligned(ptr + state.Memsize, (byte*)input, (uint)len);
                 }
@@ -162,21 +162,22 @@ namespace Spreads.Algorithms.Hash
 
             if (state.Memsize > 0)
             {
-                fixed (byte* ptr = state.Memory)
+                var ptr = (byte*)Unsafe.AsPointer(ref state);
+                // fixed (byte* ptr = state.Memory)
                 {
                     Unsafe.CopyBlockUnaligned(ptr + state.Memsize, (byte*)input, (uint)(16 - state.Memsize));
                 }
 
                 //Array.Copy(input, 0, state.Memory, state.Memsize, 16 - state.Memsize);
-                fixed (byte* ptr = state.Memory)
+                // fixed (byte* ptr = state.Memory)
                 {
-                    state.V1 = CalcSubHash(state.V1, (IntPtr)ptr, index);
+                    state.V1 = CalcSubHash(state.V1, ptr, index);
                     index += 4;
-                    state.V2 = CalcSubHash(state.V2, (IntPtr)ptr, index);
+                    state.V2 = CalcSubHash(state.V2, ptr, index);
                     index += 4;
-                    state.V3 = CalcSubHash(state.V3, (IntPtr)ptr, index);
+                    state.V3 = CalcSubHash(state.V3, ptr, index);
                     index += 4;
-                    state.V4 = CalcSubHash(state.V4, (IntPtr)ptr, index);
+                    state.V4 = CalcSubHash(state.V4, ptr, index);
                     //index += 4;
                 }
 
@@ -212,7 +213,8 @@ namespace Spreads.Algorithms.Hash
 
             if (index < len)
             {
-                fixed (byte* ptr = state.Memory)
+                var ptr = (byte*)Unsafe.AsPointer(ref state);
+                // fixed (byte* ptr = state.Memory)
                 {
                     Unsafe.CopyBlockUnaligned(ptr + 0, (byte*)(input + index), (uint)(len - index));
                 }
@@ -275,7 +277,7 @@ namespace Spreads.Algorithms.Hash
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static uint CalcSubHash(uint value, IntPtr buf, int index)
+        private static uint CalcSubHash(uint value, byte* buf, int index)
         {
 #if DEBUG
             unchecked
