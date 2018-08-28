@@ -26,7 +26,7 @@ namespace Spreads.Utils
 
         private static Stopwatch _sw;
         private static bool _headerIsPrinted;
-        private static readonly ConcurrentDictionary<string, List<Stat>> _stats = new ConcurrentDictionary<string, List<Stat>>();
+        private static readonly ConcurrentDictionary<string, List<Stat>> Stats = new ConcurrentDictionary<string, List<Stat>>();
 
         /// <summary>
         /// Returns an <see cref="IDisposable"/> structure that starts benchmarking and stops it when its Dispose method is called.
@@ -36,7 +36,7 @@ namespace Spreads.Utils
         /// <param name="innerLoopCount">Number of iterations to calculate performance.</param>
         /// <param name="silent">True to mute console output during disposal.</param>
         /// <returns>A disposable structure that measures time and memory allocations until disposed.</returns>
-        public static Stat Run(string caseName, int innerLoopCount = 1, bool silent = false)
+        public static Stat Run(string caseName, long innerLoopCount = 1, bool silent = false)
         {
             var sw = Interlocked.Exchange(ref _sw, null);
             sw = sw ?? new Stopwatch();
@@ -46,7 +46,7 @@ namespace Spreads.Utils
             return stat;
         }
 
-        private static void PrintHeader(string summary, string caller, int? caseLength = null)
+        private static void PrintHeader(string summary, string caller, int? caseLength = null, string unit = null)
         {
             var len = caseLength ?? 20;
             var caseDahes = new string('-', len + 1);
@@ -55,15 +55,16 @@ namespace Spreads.Utils
             if (!string.IsNullOrWhiteSpace(caller)) { Console.WriteLine($"**{caller}**"); }
             if (!string.IsNullOrWhiteSpace(summary)) { Console.WriteLine($"*{summary}*"); }
             Console.WriteLine();
-            Console.WriteLine(GetHeader(caseLength));
+            Console.WriteLine(GetHeader(caseLength, unit));
             Console.WriteLine(dashes);
         }
 
-        internal static string GetHeader(int? caseLength = null)
+        internal static string GetHeader(int? caseLength = null, string unit = null)
         {
+            unit = unit ?? "MOPS";
             var len = caseLength ?? 20;
             var caseHeader = "Case".PadRight(len);
-            return $" {caseHeader,-20}| {"MOPS",7} | {"Elapsed",8} | {"GC0",5} | {"GC1",5} | {"GC2",5} | {"Memory",7} ";
+            return $" {caseHeader,-20}| {unit,7} | {"Elapsed",8} | {"GC0",5} | {"GC1",5} | {"GC2",5} | {"Memory",7} ";
         }
 
         /// <summary>
@@ -71,20 +72,21 @@ namespace Spreads.Utils
         /// </summary>
         /// <param name="summary"></param>
         /// <param name="caller">A description of the benchmark that is printed above the table.</param>
-        public static void Dump(string summary = "", [CallerMemberName]string caller = "")
+        /// <param name="unit">Overwrite default MOPS unit of measure</param>
+        public static void Dump(string summary = "", [CallerMemberName]string caller = "", string unit = null)
         {
-            var maxLength = _stats.Keys.Select(k => k.Length).Max();
+            var maxLength = Stats.Keys.Select(k => k.Length).Max();
 
             PrintHeader(summary, caller, maxLength);
 
-            var stats = _stats.Select(GetAverages).OrderByDescending(s => s.MOPS);
+            var stats = Stats.Select(GetAverages).OrderByDescending(s => s.MOPS);
 
             foreach (var stat in stats)
             {
                 Console.WriteLine(stat.ToString(maxLength));
             }
 
-            _stats.Clear();
+            Stats.Clear();
 
             _headerIsPrinted = false;
 
@@ -122,16 +124,18 @@ namespace Spreads.Utils
         {
             internal readonly string _caseName;
             internal Stopwatch _stopwatch;
-            internal int _innerLoopCount;
+            internal long _innerLoopCount;
             internal StatSnapshot _statSnapshot;
             internal bool _silent;
+            private readonly string _unit;
 
-            internal Stat(string caseName, Stopwatch sw, int innerLoopCount, bool silent = false)
+            internal Stat(string caseName, Stopwatch sw, long innerLoopCount, bool silent = false, string unit = null)
             {
                 _caseName = caseName;
                 _stopwatch = sw;
                 _innerLoopCount = innerLoopCount;
                 _silent = silent;
+                _unit = unit;
 
                 _statSnapshot = new StatSnapshot(_stopwatch, true);
             }
@@ -148,14 +152,14 @@ namespace Spreads.Utils
                 _statSnapshot._gc2 = statEntry._gc2 - _statSnapshot._gc2 - 2;
                 _statSnapshot._memory = statEntry._memory - _statSnapshot._memory;
 
-                var list = _stats.GetOrAdd(_caseName, (s1) => new List<Stat>());
+                var list = Stats.GetOrAdd(_caseName, (s1) => new List<Stat>());
                 list.Add(this);
 
                 if (!_silent && !ForceSilence)
                 {
                     if (!_headerIsPrinted)
                     {
-                        PrintHeader(null, null);
+                        PrintHeader(null, null, unit: _unit);
                         _headerIsPrinted = true;
                     }
                     Console.WriteLine(ToString());
@@ -165,7 +169,8 @@ namespace Spreads.Utils
             /// <summary>
             /// Million operations per second.
             /// </summary>
-            public double MOPS => Math.Round((_innerLoopCount * 0.001) / ((double)_statSnapshot._elapsed), 3);
+            // ReSharper disable once InconsistentNaming
+            public double MOPS => Math.Round((_innerLoopCount * 0.001) / _statSnapshot._elapsed, 3);
 
             /// <inheritdoc />
             public override string ToString()
