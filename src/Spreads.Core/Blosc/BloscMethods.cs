@@ -14,9 +14,9 @@ namespace Spreads.Blosc
     /// <summary>
     /// Blosc settings.
     /// </summary>
-    internal static class BloscSettings
+    public static class BloscSettings
     {
-        internal static string DefaultCompressionMethod = "lz4";
+        internal static string DefaultCompressionMethod = "zstd";
 
         /// <summary>
         /// Get or set default compression method: BinaryLz4 (default) or BinaryZstd).
@@ -40,7 +40,7 @@ namespace Spreads.Blosc
     [SuppressUnmanagedCodeSecurity]
 #endif
 
-    internal class BloscMethods
+    public class BloscMethods
     {
         public const string BloscLibraryName = "libblosc";
 
@@ -90,7 +90,16 @@ namespace Spreads.Blosc
             }
         }
 
-        public static readonly int ProcessorCount = 1; // Environment.ProcessorCount;
+        // 1 - 1 
+        // 2 - 1
+        // 3 - 2
+        // 4 - 2
+        // 5 - 2
+        // 6 - 3
+        // 9 - 4
+        // 12 - 5
+        // 16 - 6
+        public static readonly int ProcessorCount = 1 + Environment.ProcessorCount / 3;
 
         #region Blosc
 

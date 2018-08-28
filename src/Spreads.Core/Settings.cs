@@ -14,6 +14,16 @@ namespace Spreads
         /// </summary>
         public const int SliceMemoryAlignment = 8;
 
+        // TODO Review: we do not need that big for every worker thread (default thread pool + Spreads' one = a lot)
+        // It's used for temp serialization when we need pinned memory without costs of Rent/Pin/Unpin/Return
+        // If we make it small then buffers are not in LOH and will fragment heap.
+        // Possible option is one large buffer with static incrementing counter and ThreadStatic index
+        // Could be stored as IntPtr+length and could be off-heap, but old APIs often need byte[].
+        // Another option - Retain() like we do for small buffers, but with interlocked add for claim
+        // and CAS for release. If pos = xadd(len) to get our end position, do work and then CAS(pos-len, pos)
+        // if we are unable to decrement position via CAS then just forget about it and rotate the buffer
+        // when noone is using it.
+
         // NB at least 85k for LOH
         internal const int ThreadStaticPinnedBufferSize = 128 * 1024;
 
