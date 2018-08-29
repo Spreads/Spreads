@@ -4,6 +4,7 @@
 
 using System;
 using System.Diagnostics;
+using System.Diagnostics.Contracts;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Threading;
@@ -64,13 +65,13 @@ namespace Spreads.Buffers
         public bool IsValid
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return (long)_length > 0 && (IntPtr)_data != IntPtr.Zero; }
+            get => (long)_length > 0 && (IntPtr)_data != IntPtr.Zero;
         }
 
         public Span<byte> Span
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new Span<byte>(_data, (int)_length); }
+            get => new Span<byte>(_data, (int)_length);
         }
 
         /// <summary>
@@ -79,15 +80,16 @@ namespace Spreads.Buffers
         public long Length
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return (long)_length; }
+            get => (long)_length;
         }
 
         public IntPtr Data
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return (IntPtr)_data; }
+            get => (IntPtr)_data;
         }
 
+        [Pure]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public DirectBuffer Slice(long start)
         {
@@ -97,6 +99,7 @@ namespace Spreads.Buffers
             return new DirectBuffer((long)_length - start, (byte*)(Data.ToInt64() + start));
         }
 
+        [Pure]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public DirectBuffer Slice(long start, long length)
         {
@@ -128,6 +131,7 @@ namespace Spreads.Buffers
         /// </summary>
         /// <param name="index">index in bytes from which to get.</param>
         /// <returns>the value at a given index.</returns>
+        [Pure]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public char ReadChar(long index)
         {
@@ -180,6 +184,7 @@ namespace Spreads.Buffers
         /// </summary>
         /// <param name="index"> index in bytes from which to get.</param>
         /// <returns>the value at a given index.</returns>
+        [Pure]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public byte ReadByte(long index)
         {
@@ -201,6 +206,7 @@ namespace Spreads.Buffers
             WriteUnaligned(_data + index, value);
         }
 
+        [Pure]
         public byte this[long index]
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -227,6 +233,7 @@ namespace Spreads.Buffers
         /// <param name="index"> index in bytes from which to get.</param>
         /// <returns>the value at a given index.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [Pure]
         public short ReadInt16(long index)
         {
             if (Settings.AdditionalCorrectnessChecks.Enabled)
@@ -253,6 +260,7 @@ namespace Spreads.Buffers
         /// <param name="index"> index in bytes from which to get.</param>
         /// <returns>the value at a given index.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [Pure]
         public int ReadInt32(long index)
         {
             if (Settings.AdditionalCorrectnessChecks.Enabled)
@@ -274,6 +282,7 @@ namespace Spreads.Buffers
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [Pure]
         public int VolatileReadInt32(long index)
         {
             if (Settings.AdditionalCorrectnessChecks.Enabled)
@@ -290,6 +299,7 @@ namespace Spreads.Buffers
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [Pure]
         public uint VolatileReadUInt32(long index)
         {
             if (Settings.AdditionalCorrectnessChecks.Enabled)
@@ -306,6 +316,7 @@ namespace Spreads.Buffers
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [Pure]
         public long VolatileReadInt64(long index)
         {
             if (Settings.AdditionalCorrectnessChecks.Enabled)
@@ -322,6 +333,7 @@ namespace Spreads.Buffers
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [Pure]
         public ulong VolatileReadUInt64(long index)
         {
             if (Settings.AdditionalCorrectnessChecks.Enabled)
@@ -338,6 +350,7 @@ namespace Spreads.Buffers
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [Pure]
         public int InterlockedIncrementInt32(long index)
         {
             if (Settings.AdditionalCorrectnessChecks.Enabled)
@@ -346,6 +359,7 @@ namespace Spreads.Buffers
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [Pure]
         public int InterlockedDecrementInt32(long index)
         {
             if (Settings.AdditionalCorrectnessChecks.Enabled)
@@ -354,6 +368,7 @@ namespace Spreads.Buffers
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [Pure]
         public int InterlockedAddInt32(long index, int value)
         {
             if (Settings.AdditionalCorrectnessChecks.Enabled)
@@ -362,6 +377,7 @@ namespace Spreads.Buffers
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [Pure]
         public int InterlockedReadInt32(long index)
         {
             if (Settings.AdditionalCorrectnessChecks.Enabled)
@@ -370,6 +386,7 @@ namespace Spreads.Buffers
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [Pure]
         public int InterlockedCompareExchangeInt32(long index, int value, int comparand)
         {
             if (Settings.AdditionalCorrectnessChecks.Enabled)
@@ -378,6 +395,7 @@ namespace Spreads.Buffers
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [Pure]
         public long InterlockedIncrementInt64(long index)
         {
             if (Settings.AdditionalCorrectnessChecks.Enabled)
@@ -386,6 +404,7 @@ namespace Spreads.Buffers
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [Pure]
         public long InterlockedDecrementInt64(long index)
         {
             if (Settings.AdditionalCorrectnessChecks.Enabled)
@@ -394,6 +413,7 @@ namespace Spreads.Buffers
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [Pure]
         public long InterlockedAddInt64(long index, long value)
         {
             if (Settings.AdditionalCorrectnessChecks.Enabled)
@@ -402,6 +422,7 @@ namespace Spreads.Buffers
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [Pure]
         public long InterlockedReadInt64(long index)
         {
             if (Settings.AdditionalCorrectnessChecks.Enabled)
@@ -410,6 +431,7 @@ namespace Spreads.Buffers
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [Pure]
         public long InterlockedCompareExchangeInt64(long index, long value, long comparand)
         {
             if (Settings.AdditionalCorrectnessChecks.Enabled)
@@ -423,6 +445,7 @@ namespace Spreads.Buffers
         /// <param name="index"> index in bytes from which to get.</param>
         /// <returns>the value at a given index.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [Pure]
         public long ReadInt64(long index)
         {
             if (Settings.AdditionalCorrectnessChecks.Enabled)
@@ -449,6 +472,7 @@ namespace Spreads.Buffers
         /// <param name="index"> index in bytes from which to get.</param>
         /// <returns>the value at a given index.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [Pure]
         public ushort ReadUInt16(long index)
         {
             if (Settings.AdditionalCorrectnessChecks.Enabled)
@@ -475,6 +499,7 @@ namespace Spreads.Buffers
         /// <param name="index"> index in bytes from which to get.</param>
         /// <returns>the value at a given index.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [Pure]
         public uint ReadUInt32(long index)
         {
             if (Settings.AdditionalCorrectnessChecks.Enabled)
@@ -501,6 +526,7 @@ namespace Spreads.Buffers
         /// <param name="index"> index in bytes from which to get.</param>
         /// <returns>the value at a given index.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [Pure]
         public ulong ReadUInt64(long index)
         {
             if (Settings.AdditionalCorrectnessChecks.Enabled)
@@ -528,6 +554,7 @@ namespace Spreads.Buffers
         /// <param name="index"> index in bytes from which to get.</param>
         /// <returns>the value at a given index.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [Pure]
         public float ReadFloat(long index)
         {
             if (Settings.AdditionalCorrectnessChecks.Enabled)
@@ -554,6 +581,7 @@ namespace Spreads.Buffers
         /// <param name="index"> index in bytes from which to get.</param>
         /// <returns>the value at a given index.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [Pure]
         public double ReadDouble(long index)
         {
             if (Settings.AdditionalCorrectnessChecks.Enabled)
@@ -575,6 +603,7 @@ namespace Spreads.Buffers
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [Pure]
         public T Read<T>(long index)
         {
             var size = SizeOf<T>();
@@ -584,6 +613,7 @@ namespace Spreads.Buffers
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [Pure]
         public int Read<T>(long index, out T value)
         {
             var size = SizeOf<T>();
@@ -611,6 +641,7 @@ namespace Spreads.Buffers
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [Pure]
         // ReSharper disable once InconsistentNaming
         public UUID ReadUUID(long index)
         {
@@ -629,6 +660,7 @@ namespace Spreads.Buffers
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [Pure]
         public int ReadAsciiDigit(long index)
         {
             if (Settings.AdditionalCorrectnessChecks.Enabled)

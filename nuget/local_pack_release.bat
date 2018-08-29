@@ -21,4 +21,6 @@ dotnet pack ..\src\Spreads.Collections\Spreads.Collections.fsproj -c RELEASE -o 
 dotnet restore ..\src\Spreads\Spreads.csproj
 dotnet pack ..\src\Spreads\Spreads.csproj -c RELEASE -o C:\tools\LocalNuget --version-suffix "%build%"R
 
+@for %%f in (C:\tools\LocalNuget\*"%build%"R.nupkg) do @C:\tools\nuget\NuGet.exe push %%f -source https://www.nuget.org/api/v2/package
+
 pause
