@@ -138,6 +138,109 @@ namespace Spreads.Algorithms.Hash
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static uint AppendCopy(uint crc, byte* data, int len, byte* copyTarget)
+        {
+#if NETCOREAPP2_1
+            if (IsHardwareAccelerated)
+            {
+                byte* next = data;
+
+                //// TODO see for parallelism https://stackoverflow.com/questions/17645167/implementing-sse-4-2s-crc32c-in-software/17646775#17646775
+                var crc0 = uint.MaxValue ^ crc;
+
+                // We use Unsafe.ReadUnaligned instead of manual alignment
+                //while (len > 0 && ((ulong)next & 7) != 0)
+                //{
+                //    crc0 = Sse42.Crc32(crc0, *next);
+                //    next++;
+                //    len--;
+                //}
+
+                while (len >= 32)
+                {
+                    crc0 = (uint)Sse42.Crc32(crc0, ReadUnaligned<ulong>(next));
+                    crc0 = (uint)Sse42.Crc32(crc0, ReadUnaligned<ulong>(next + 8));
+                    crc0 = (uint)Sse42.Crc32(crc0, ReadUnaligned<ulong>(next + 16));
+                    crc0 = (uint)Sse42.Crc32(crc0, ReadUnaligned<ulong>(next + 24));
+
+                    CopyBlockUnaligned(copyTarget, next, 32);
+
+                    copyTarget += 32;
+                    next += 32;
+                    len -= 32;
+                }
+
+                while (len >= 16)
+                {
+                    crc0 = (uint)Sse42.Crc32(crc0, ReadUnaligned<ulong>(next));
+                    crc0 = (uint)Sse42.Crc32(crc0, ReadUnaligned<ulong>(next + 8));
+
+                    CopyBlockUnaligned(copyTarget, next, 16);
+
+                    copyTarget += 16;
+                    next += 16;
+                    len -= 16;
+                }
+                while (len >= 8)
+                {
+                    crc0 = (uint)Sse42.Crc32(crc0, ReadUnaligned<ulong>(next));
+
+                    CopyBlockUnaligned(copyTarget, next, 8);
+
+                    copyTarget += 8;
+                    next += 8;
+                    len -= 8;
+                }
+
+                while (len >= 4)
+                {
+                    crc0 = Sse42.Crc32(crc0, ReadUnaligned<uint>(next));
+
+                    CopyBlockUnaligned(copyTarget, next, 4);
+
+                    copyTarget += 4;
+                    next += 4;
+                    len -= 4;
+                }
+
+                while (len >= 2)
+                {
+                    crc0 = Sse42.Crc32(crc0, ReadUnaligned<ushort>(next));
+
+                    CopyBlockUnaligned(copyTarget, next, 2);
+
+                    copyTarget += 2;
+                    next += 2;
+                    len -= 2;
+                }
+
+                while (len > 0)
+                {
+                    crc0 = Sse42.Crc32(crc0, *next);
+
+                    *copyTarget = *next;
+
+                    copyTarget++;
+                    next++;
+                    len--;
+                }
+
+                return crc0 ^ uint.MaxValue;
+            }
+            else
+            {
+                var crc0 = AppendManaged(crc, data, len);
+                CopyBlockUnaligned(copyTarget, data, (uint)len);
+                return crc0;
+            }
+#else
+            var crc0 = AppendManaged(crc, data, len);
+            CopyBlockUnaligned(copyTarget, data, (uint)len);
+            return crc0;
+#endif
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static uint AppendManaged(uint crc, byte* data, int length)
         {
 #if DEBUG
@@ -193,6 +296,28 @@ namespace Spreads.Algorithms.Hash
         internal static uint CalculateCrc32CManaged(byte* data, int len, uint seed = 0)
         {
             return AppendManaged(seed, data, len);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static uint CopyWithCrc32C(byte* data, int len, byte* copyTarget, uint seed = 0)
+        {
+            return AppendCopy(seed, data, len, copyTarget);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static uint CopyWithCrc32CManaged(byte* data, int len, byte* copyTarget, uint seed = 0)
+        {
+            var crc0 = AppendManaged(seed, data, len);
+            CopyBlockUnaligned(copyTarget, data, (uint)len);
+            return crc0;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static uint CopyWithCrc32CManual(byte* data, int len, byte* copyTarget, uint seed = 0)
+        {
+            var crc0 = Append(seed, data, len);
+            CopyBlockUnaligned(copyTarget, data, (uint)len);
+            return crc0;
         }
     }
 
