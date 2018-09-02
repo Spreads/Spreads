@@ -132,6 +132,12 @@ namespace Spreads.Utils
             return (value + (alignment - 1)) & ~(alignment - 1);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static long Align(long value, long alignment)
+        {
+            return (value + (alignment - 1)) & ~(alignment - 1);
+        }
+
         /// <summary>
         /// Generate a byte array from the hex representation of the given byte array.
         /// </summary>
