@@ -5,7 +5,6 @@
 using Spreads.DataTypes;
 using System;
 using System.Diagnostics;
-using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Threading;
@@ -21,7 +20,6 @@ namespace Spreads.Utils
 
         private Timer _timer;
         private Thread _spinnerThread;
-        // private long _nanosPerRequest = 0;
 
         public TimeService() : this(IntPtr.Zero)
         {
@@ -127,17 +125,6 @@ namespace Spreads.Utils
                     while (!ct.IsCancellationRequested)
                     {
                         UpdateTime();
-
-                        //var previous = *(long*)_lastUpdatedPtr;
-                        //var current = (long)(Timestamp)DateTime.UtcNow;
-                        //if (previous == current)
-                        //{
-                        //    Interlocked.Add(ref *(long*)_lastUpdatedPtr, 1);
-                        //}
-                        //else
-                        //{
-                        //    Interlocked.Exchange(ref *(long*) _lastUpdatedPtr, current);// + _nanosPerRequest);
-                        //}
                     }
                 }
                 finally
@@ -155,67 +142,6 @@ namespace Spreads.Utils
             {
                 Thread.Sleep(0);
             }
-
-            //// Calibrate
-
-            //Console.WriteLine("Calibrating");
-            //var rounds = 1000;
-            //var count = 100_000;
-            //var times = new long[count];
-            //var adj = new long[rounds];
-            //try
-            //{
-            //    GC.TryStartNoGCRegion(1_000_000);
-            //    Console.WriteLine("No GC");
-            //}
-            //finally
-            //{
-            //    for (int r = 0; r < rounds; r++)
-            //    {
-            //        RETRY:
-
-            //        for (int i = 0; i < count; i++)
-            //        {
-            //            // we cannot access CurrentTime faster than in a dedicated loop
-            //            times[i] = Interlocked.Read(ref *(long*)_lastUpdatedPtr);
-            //        }
-
-            //        var first = 0;
-            //        var last = 0;
-            //        for (int i = 1; i < count; i++)
-            //        {
-            //            if (times[i] != times[i - 1] && first == 0)
-            //            {
-            //                first = i;
-            //            }
-            //            if (times[i] != times[i - 1] && first != 0 && times[i] != times[first])
-            //            {
-            //                last = i;
-            //            }
-            //        }
-
-            //        if (first == 0 && last == 0)
-            //        {
-            //            count = count * 2;
-            //            times = new long[count];
-            //            Console.WriteLine("RETRY");
-            //            goto RETRY;
-            //        }
-
-            //        var iterations = last - first;
-            //        //Console.WriteLine($"First: {first} - {times[first]}");
-            //        //Console.WriteLine($"Last: {last} - {times[last]}");
-            //        //Console.WriteLine("Iters: " + iterations);
-            //        var timePerCalibrate = times[last] - times[first];
-            //        var nanosPerIter = timePerCalibrate / iterations;
-            //        adj[r] = nanosPerIter;
-            //    }
-            //}
-
-            //var avg = adj.Skip(rounds / 5).Sum() / (rounds - rounds / 5);
-
-            //Console.WriteLine($"Calibrated TimeService to use nanosPerIteration = {avg}");
-            //_nanosPerRequest = avg > 0 ? avg : _nanosPerRequest;
         }
     }
 }
