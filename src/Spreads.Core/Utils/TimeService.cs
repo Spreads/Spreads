@@ -4,6 +4,8 @@
 
 using Spreads.DataTypes;
 using System;
+using System.Diagnostics;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Threading;
@@ -18,6 +20,8 @@ namespace Spreads.Utils
         private bool _allocated;
 
         private Timer _timer;
+        private Thread _spinnerThread;
+        // private long _nanosPerRequest = 0;
 
         public TimeService() : this(IntPtr.Zero)
         {
@@ -37,6 +41,8 @@ namespace Spreads.Utils
             }
 
             _lastUpdatedPtr = ptr;
+
+            *(long*)_lastUpdatedPtr = 0;
 
             _timer = new Timer(o =>
             {
@@ -61,13 +67,155 @@ namespace Spreads.Utils
         public Timestamp CurrentTime
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return (Timestamp)Interlocked.Add(ref *(long*)_lastUpdatedPtr, 1); }
+            get => (Timestamp)Interlocked.Add(ref *(long*)_lastUpdatedPtr, 1);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void UpdateTime()
         {
-            Interlocked.Exchange(ref *(long*)_lastUpdatedPtr, (long)(Timestamp)DateTime.UtcNow);
+            if (_spinnerThread != null)
+            {
+                return;
+            }
+            while (true)
+            {
+                var last = Volatile.Read(ref *(long*)_lastUpdatedPtr);
+                var current = (long)(Timestamp)DateTime.UtcNow;
+                if (current > last)
+                {
+                    if (last == Interlocked.CompareExchange(ref *(long*)_lastUpdatedPtr, current, last))
+                    {
+                        break;
+                    }
+                }
+                else
+                {
+                    // Tight loop with Interlocked.Add cannot keep up with nanos
+                    // This is just in case. Strictly monotonic is important:
+                    // just ignore non-monotomic updates and CurrentTime will keep
+                    // incrementing on every access.
+                    Trace.TraceWarning("Current time is below or equal last recorded time.");
+                    break;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Dedicate a core to update time in a hot loop that will occupy 100% of one CPU core.
+        /// </summary>
+        /// <param name="ct"></param>
+        public void StartSpinUpdate(CancellationToken ct)
+        {
+            Console.WriteLine("Starting spinner thread");
+            if (!ct.CanBeCanceled)
+            {
+                ThrowHelper.ThrowInvalidOperationException("Must provide cancellable token to TimeService.SpinUpdate, otherwise a thread will spin and consume 100% of a core without a way to stop it.");
+            }
+
+            if (_spinnerThread != null)
+            {
+                ThrowHelper.ThrowInvalidOperationException("Spin Update is already started.");
+            }
+
+            object started = null;
+            var thread = new Thread(() =>
+            {
+                try
+                {
+                    Console.WriteLine("Started TimeSerive spinner thread");
+                    Interlocked.Exchange(ref started, new object());
+                    while (!ct.IsCancellationRequested)
+                    {
+                        UpdateTime();
+
+                        //var previous = *(long*)_lastUpdatedPtr;
+                        //var current = (long)(Timestamp)DateTime.UtcNow;
+                        //if (previous == current)
+                        //{
+                        //    Interlocked.Add(ref *(long*)_lastUpdatedPtr, 1);
+                        //}
+                        //else
+                        //{
+                        //    Interlocked.Exchange(ref *(long*) _lastUpdatedPtr, current);// + _nanosPerRequest);
+                        //}
+                    }
+                }
+                finally
+                {
+                    _spinnerThread = null;
+                }
+            });
+            thread.Priority = ThreadPriority.AboveNormal;
+            thread.IsBackground = true;
+            thread.Name = "TimeService_spinner";
+            thread.Start();
+            _spinnerThread = thread;
+
+            while (started == null)
+            {
+                Thread.Sleep(0);
+            }
+
+            //// Calibrate
+
+            //Console.WriteLine("Calibrating");
+            //var rounds = 1000;
+            //var count = 100_000;
+            //var times = new long[count];
+            //var adj = new long[rounds];
+            //try
+            //{
+            //    GC.TryStartNoGCRegion(1_000_000);
+            //    Console.WriteLine("No GC");
+            //}
+            //finally
+            //{
+            //    for (int r = 0; r < rounds; r++)
+            //    {
+            //        RETRY:
+
+            //        for (int i = 0; i < count; i++)
+            //        {
+            //            // we cannot access CurrentTime faster than in a dedicated loop
+            //            times[i] = Interlocked.Read(ref *(long*)_lastUpdatedPtr);
+            //        }
+
+            //        var first = 0;
+            //        var last = 0;
+            //        for (int i = 1; i < count; i++)
+            //        {
+            //            if (times[i] != times[i - 1] && first == 0)
+            //            {
+            //                first = i;
+            //            }
+            //            if (times[i] != times[i - 1] && first != 0 && times[i] != times[first])
+            //            {
+            //                last = i;
+            //            }
+            //        }
+
+            //        if (first == 0 && last == 0)
+            //        {
+            //            count = count * 2;
+            //            times = new long[count];
+            //            Console.WriteLine("RETRY");
+            //            goto RETRY;
+            //        }
+
+            //        var iterations = last - first;
+            //        //Console.WriteLine($"First: {first} - {times[first]}");
+            //        //Console.WriteLine($"Last: {last} - {times[last]}");
+            //        //Console.WriteLine("Iters: " + iterations);
+            //        var timePerCalibrate = times[last] - times[first];
+            //        var nanosPerIter = timePerCalibrate / iterations;
+            //        adj[r] = nanosPerIter;
+            //    }
+            //}
+
+            //var avg = adj.Skip(rounds / 5).Sum() / (rounds - rounds / 5);
+
+            //Console.WriteLine($"Calibrated TimeService to use nanosPerIteration = {avg}");
+            //_nanosPerRequest = avg > 0 ? avg : _nanosPerRequest;
         }
     }
 }
