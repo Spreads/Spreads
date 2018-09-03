@@ -5,6 +5,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Runtime.Serialization;
 using Newtonsoft.Json;
 using Spreads.Serialization;
 
@@ -18,10 +19,10 @@ namespace Spreads.DataTypes
         // TODO
         internal static int LinearSearchLimit = 30;
 
-        [JsonIgnore]
+        [IgnoreDataMember]
         private Dictionary<Variant, int> _rowKeyIndex;
 
-        [JsonIgnore]
+        [IgnoreDataMember]
         private Dictionary<Variant, int> _columnKeyIndex;
 
         private readonly int _rows;
@@ -348,8 +349,7 @@ namespace Spreads.DataTypes
         public Variant Value;
     }
 
-    [MessageType("table_delta")]
-    public class TableDto : IMessage
+    public class TableDto
     {
         [JsonProperty("type")]
         public string Type => "table_delta";

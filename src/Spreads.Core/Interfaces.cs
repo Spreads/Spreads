@@ -6,6 +6,7 @@ using Spreads.DataTypes;
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 
 namespace Spreads
@@ -56,7 +57,6 @@ namespace Spreads
         ValueTask<bool> MoveNextAsync();
     }
 
-
     // A marker interface for optional batching feature
     internal interface IAsyncBatchEnumerator<out T> // F# doesn't allow to implement this: IAsyncEnumerator<IEnumerable<T>>
     {
@@ -68,6 +68,7 @@ namespace Spreads
         // must call and await MoveNextBatch(noAsync = false). Only after MNB(noAsync = false) returns false there
         // will be no batches ever and consumer must switch to per-item calls.
         ValueTask<bool> MoveNextBatch(bool noAsync);
+
         IEnumerable<T> CurrentBatch { get; }
     }
 
@@ -94,7 +95,7 @@ namespace Spreads
         // But notifiers could decrement themselves if we guarantee that
         // a single notification will succeed and there is no risk of missing
         // un update. However, this matters for a hot loop with several MOPS
-        // For real-world data with so many updates we just spin and do not 
+        // For real-world data with so many updates we just spin and do not
         // use async machinery, this is for les sfrequent but important data
         // that we cannot miss but should not spin.
         void RequestNotification(int count);
@@ -117,16 +118,31 @@ namespace Spreads
         public static ulong MaxVersion = (1UL << 53) - 1UL;
     }
 
+    [StructLayout(LayoutKind.Auto)]
+    public readonly struct DataStreamEvent<T>
+    {
+        public DataStreamEvent(ulong version, Timestamp timestamp, T value)
+        {
+            Version = version;
+            Timestamp = timestamp;
+            Value = value;
+        }
+
+        public readonly ulong Version;
+        public readonly Timestamp Timestamp;
+        public readonly T Value;
+    }
+
     /// <summary>
     /// DataStreams are unbounded sequences of data items, either recorded or arriving in real-time.
     /// DataStreams have sequential keys.
     /// </summary>
-    public interface IDataStream<T> : IAsyncEnumerable<KeyValuePair<ulong, T>>
+    public interface IDataStream<T> : IAsyncEnumerable<DataStreamEvent<T>>
     {
         // NB we do not implement specialized IDataStream<T,TCursor>/ISpecializedEnumerator yet.
         // It's only for data consumption/production so interface call at couple of hundreds MOPS
         // is fine. For cursors it was important because they *transform* numeric data online (not in batches)
-        // and method call could be more expensive than the operation itself. E.g. Map()'s delegate call 
+        // and method call could be more expensive than the operation itself. E.g. Map()'s delegate call
         // is more expensive than some simple arithmetic operation on values.
 
         /// <summary>
@@ -135,7 +151,7 @@ namespace Spreads
         /// </summary>
         bool IsCompleted { get; }
 
-        Opt<KeyValuePair<ulong, T>> Last { get; }
+        Opt<DataStreamEvent<T>> Last { get; }
     }
 
     public interface IMutableDataStream<T> : IDataStream<T>
@@ -382,7 +398,6 @@ namespace Spreads
     //public interface ISeries : ISeries, ISeries<Variant, Variant>
     //{
     //}
-
 
     /// <summary>
     /// Mutable series

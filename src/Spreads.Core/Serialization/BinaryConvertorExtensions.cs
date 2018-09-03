@@ -45,7 +45,7 @@ namespace Spreads.Serialization
                 // that will grow to maximum size of a type. Fixed-size types are usually small ( < 255 bytes).
                 // Take/return is more expensive than the work we do with the pool here.
 
-                var rm = Buffers.BufferPool.StaticBufferMemory;
+                var rm = BufferPool.StaticBufferMemory;
 
                 //var ownedBuffer = Buffers.BufferPool.StaticBuffer.pi;
                 //var buffer = ownedBuffer.Memory;
@@ -68,7 +68,6 @@ namespace Spreads.Serialization
         public static void WriteToPtr(this MemoryStream stream, IntPtr ptr)
         {
             stream.Position = 0;
-            var ownedBuffer = BufferPool.StaticBuffer;
             var position = 0;
 
             // TODO Typecheck if RMS
@@ -99,6 +98,7 @@ namespace Spreads.Serialization
                     foreach (var segment in rms.Chunks)
                     {
                         CopyBlockUnaligned(ref AddByteOffset(ref destination, (IntPtr)position),
+                            // ReSharper disable once PossibleNullReferenceException
                             ref segment.Array[segment.Offset], checked((uint)segment.Count));
                         position += segment.Count;
                     }

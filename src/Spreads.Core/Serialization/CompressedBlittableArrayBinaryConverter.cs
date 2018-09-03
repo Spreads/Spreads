@@ -40,17 +40,19 @@ namespace Spreads.Serialization
 #pragma warning restore 618
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public unsafe int SizeOf(in TElement[] value, int valueOffset, int valueCount, out MemoryStream temporaryStream,
-            SerializationFormat format = SerializationFormat.Binary)
+        public unsafe int SizeOf(TElement[] value, int valueOffset, int valueCount, out MemoryStream temporaryStream,
+            SerializationFormat format = SerializationFormat.Binary,
+            Timestamp timestamp = default)
         {
             if (ItemSize > 0)
             {
-                var maxSize = 8 + (16 + BloscMethods.ProcessorCount * 4) + ItemSize * valueCount;
+                var tsSize = timestamp == default ? 0 : Timestamp.Size;
+                var maxSize = 8 + tsSize + (16 + BloscMethods.ProcessorCount * 4) + ItemSize * valueCount;
                 var buffer = BufferPool<byte>.Rent(maxSize); // RecyclableMemoryStreamManager.Default.GetLargeBuffer(maxSize, String.Empty);
                 int totalSize;
                 fixed (byte* ptr = &buffer[0])
                 {
-                    totalSize = Write(value, valueOffset, valueCount, (IntPtr)ptr, null, format);
+                    totalSize = Write(value, valueOffset, valueCount, (IntPtr)ptr, null, format, timestamp);
                 }
                 temporaryStream = RecyclableMemoryStream.Create(RecyclableMemoryStreamManager.Default,
                     null,
@@ -59,24 +61,27 @@ namespace Spreads.Serialization
                     totalSize);
                 return totalSize;
             }
-            ThrowHelper.ThrowInvalidOperationException("CompressedBlittableArrayBinaryConverter only supports blittable types");
 
+            ThrowHelper.ThrowInvalidOperationException("CompressedBlittableArrayBinaryConverter only supports blittable types");
             temporaryStream = default;
-            return default;
+            return -1;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public int Write(in ArraySegment<TElement> segment, IntPtr destination,
-            MemoryStream temporaryStream = null, SerializationFormat compression = SerializationFormat.Binary)
+        public int Write(ArraySegment<TElement> segment, IntPtr destination,
+            MemoryStream temporaryStream = null,
+            SerializationFormat compression = SerializationFormat.Binary,
+            Timestamp timestamp = default)
         {
             return Write(segment.Array, segment.Offset, segment.Count, destination,
                 temporaryStream, compression);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public unsafe int Write(in TElement[] value, int valueOffset, int valueCount, IntPtr pinnedDestination,
+        public unsafe int Write(TElement[] value, int valueOffset, int valueCount, IntPtr pinnedDestination,
             MemoryStream temporaryStream = null,
-            SerializationFormat format = SerializationFormat.Binary)
+            SerializationFormat format = SerializationFormat.Binary,
+            Timestamp timestamp = default)
         {
             // NB Blosc calls below are visually large - many LOCs with comments, but this is only a single method call
             if (value == null)
@@ -105,13 +110,22 @@ namespace Spreads.Serialization
             var isDelta = IsIDelta;
 
             var position = 8;
+
+            var tsSize = 0;
+            if (timestamp != default)
+            {
+                tsSize = Timestamp.Size;
+                WriteUnaligned((void*)(pinnedDestination + position), timestamp);
+                position += Timestamp.Size;
+            }
+
             if (valueCount > 0)
             {
                 var inputSize = valueCount * ItemSize;
                 var compressedSize = 0;
                 if (ItemSize > 0)
                 {
-                    var maxSize = 8 + (16 + BloscMethods.ProcessorCount * 4) + ItemSize * valueCount;
+                    var maxSize = 8 + tsSize + (16 + BloscMethods.ProcessorCount * 4) + ItemSize * valueCount;
 
                     if (typeof(TElement) == typeof(DateTime))
                     {
@@ -230,27 +244,6 @@ namespace Spreads.Serialization
                         "CompressedBlittableArrayBinaryConverter only supports blittable types");
                 }
 
-                //else if (BufferPoolRetainedMemoryHelper<TElement>.IsRetainedMemory)
-                //{
-                //    throw new NotImplementedException();
-                //}
-                //else
-                //{
-                //    MemoryStream tempStream;
-                //    var bytesSize =
-                //        BinarySerializer.SizeOf(new ArraySegment<TElement>(value, valueOffset, valueCount),
-                //            out tempStream, format);
-                //    var buffer = BufferPool<byte>.Rent(bytesSize);
-                //    var writtenBytes =
-                //        BinarySerializer.Write(new ArraySegment<TElement>(value, valueOffset, valueCount), buffer, 0,
-                //            tempStream);
-                //    tempStream?.Dispose();
-                //    Debug.Assert(bytesSize == writtenBytes);
-                //    compressedSize = CompressedBlittableArrayBinaryConverter<byte>.Instance.Write(buffer, 0, writtenBytes,
-                //        ref destination, destinationOffset, null, format);
-                //    BufferPool<byte>.Return(buffer);
-                //}
-
                 if (compressedSize > 0)
                 {
                     position += compressedSize;
@@ -268,7 +261,9 @@ namespace Spreads.Serialization
                     Version = 0,
                     IsBinary = true,
                     IsDelta = isDelta,
-                    IsCompressed = true },
+                    IsCompressed = true,
+                    IsTimestamped = tsSize > 0
+                },
                 TypeEnum = TypeEnum.Array,
                 TypeSize = (byte)ItemSize,
                 ElementTypeEnum = VariantHelper<TElement>.TypeEnum
@@ -280,7 +275,7 @@ namespace Spreads.Serialization
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public unsafe int Read(IntPtr ptr, out TElement[] value, out int length, bool exactSize = false)
+        public unsafe int Read(IntPtr ptr, out TElement[] value, out int length, out Timestamp timestamp, bool exactSize = false)
         {
             var header = ReadUnaligned<DataTypeHeader>((void*)ptr);
             var payloadSize = ReadUnaligned<int>((void*)(ptr + 4));
@@ -303,10 +298,21 @@ namespace Spreads.Serialization
             {
                 value = EmptyArray<TElement>.Instance;
                 length = 0;
+                timestamp = default;
                 return payloadSize + 8;
             }
 
             var source = ptr + 8;
+
+            if (header.VersionAndFlags.IsTimestamped)
+            {
+                timestamp = ReadUnaligned<Timestamp>((void*)(ptr + 8));
+                source += 8;
+            }
+            else
+            {
+                timestamp = default;
+            }
 
             // avoid additional P/Invoke call, read header directly
             // https://github.com/Blosc/c-blosc/blob/master/README_HEADER.rst

@@ -33,7 +33,7 @@ namespace Spreads.Core.Tests.DataTypes
             var written = BinarySerializer.Write(kv, ref tgt, null, SerializationFormat.Binary);
             Assert.AreEqual(20 + 4, written);
 
-            var read = BinarySerializer.Read(tgt, out TaggedKeyValue<long, double> kv1);
+            var read = BinarySerializer.Read(tgt, out TaggedKeyValue<long, double> kv1, out _);
             Assert.AreEqual(20 + 4, read);
             Assert.AreEqual(kv, kv1);
         }

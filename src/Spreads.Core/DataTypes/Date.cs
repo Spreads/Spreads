@@ -45,44 +45,44 @@ namespace Spreads.DataTypes
         }
     }
 
-    /// <summary>
-    /// Time stored as number of milliseconds.
-    /// </summary>
-    [StructLayout(LayoutKind.Sequential, Pack = 4, Size = 4)]
-    public struct Time
-    {
-        private readonly int _value;
+    ///// <summary>
+    ///// Time stored as number of milliseconds.
+    ///// </summary>
+    //[StructLayout(LayoutKind.Sequential, Pack = 4, Size = 4)]
+    //public struct Time
+    //{
+    //    private readonly int _value;
 
-        public Time(DateTime datetime)
-        {
-            _value = (int)((datetime.Ticks % TimeSpan.TicksPerDay) / TimeSpan.TicksPerMillisecond);
-        }
+    //    public Time(DateTime datetime)
+    //    {
+    //        _value = (int)((datetime.Ticks % TimeSpan.TicksPerDay) / TimeSpan.TicksPerMillisecond);
+    //    }
 
-        public Time(TimeSpan timespan)
-        {
-            _value = (int)(timespan.Ticks / TimeSpan.TicksPerMillisecond);
-        }
+    //    public Time(TimeSpan timespan)
+    //    {
+    //        _value = (int)(timespan.Ticks / TimeSpan.TicksPerMillisecond);
+    //    }
 
-        public TimeSpan TimeSpan => (TimeSpan)this;
+    //    public TimeSpan TimeSpan => (TimeSpan)this;
 
-        public static explicit operator TimeSpan(Time time)
-        {
-            return new TimeSpan(time._value * TimeSpan.TicksPerMillisecond);
-        }
+    //    public static explicit operator TimeSpan(Time time)
+    //    {
+    //        return new TimeSpan(time._value * TimeSpan.TicksPerMillisecond);
+    //    }
 
-        public static explicit operator Time(TimeSpan timespan)
-        {
-            return new Time(timespan);
-        }
+    //    public static explicit operator Time(TimeSpan timespan)
+    //    {
+    //        return new Time(timespan);
+    //    }
 
-        public override string ToString()
-        {
-            return ((TimeSpan)this).ToString("hh:mm:ss.fff");
-        }
+    //    public override string ToString()
+    //    {
+    //        return ((TimeSpan)this).ToString("hh:mm:ss.fff");
+    //    }
 
-        public string ToString(string format)
-        {
-            return ((TimeSpan)this).ToString(format);
-        }
-    }
+    //    public string ToString(string format)
+    //    {
+    //        return ((TimeSpan)this).ToString(format);
+    //    }
+    //}
 }

@@ -64,6 +64,7 @@ namespace Spreads.DataTypes
             if (typeof(T) == typeof(Table)) return TypeEnum.Table;
             if (typeof(T).GetTypeInfo().IsGenericType && typeof(T).GetGenericTypeDefinition() == typeof(Matrix<>)) return TypeEnum.Matrix;
             if (typeof(T).GetTypeInfo().IsGenericType && typeof(T).GetGenericTypeDefinition() == typeof(TaggedKeyValue<,>)) return TypeEnum.TaggedKeyValue;
+            // if (typeof(T).GetTypeInfo().IsGenericType && typeof(T).GetGenericTypeDefinition() == typeof(ValueWithTimestamp<>)) return TypeEnum.ValueWithTimestamp;
 
             // TODO known types, otherwise will fallback to fixed binary
 

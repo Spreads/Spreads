@@ -2,7 +2,6 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-using Spreads.Utils;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -13,21 +12,18 @@ namespace Spreads
 {
     internal static class ThrowHelper
     {
-        [ContractAnnotation("=> halt")]
         [MethodImpl(MethodImplOptions.NoInlining)]
         public static void ThrowArgumentException()
         {
             throw GetArgumentException();
         }
 
-        [ContractAnnotation("=> halt")]
         [MethodImpl(MethodImplOptions.NoInlining)]
         public static void ThrowArgumentException(string message)
         {
             throw GetArgumentException(message);
         }
 
-        [ContractAnnotation("=> halt")]
         [MethodImpl(MethodImplOptions.NoInlining)]
         public static void ThrowArgumentOutOfRangeException()
         {
@@ -40,105 +36,99 @@ namespace Spreads
             throw GetArgumentOutOfRangeException(argument);
         }
 
-        [ContractAnnotation("=> halt")]
         [MethodImpl(MethodImplOptions.NoInlining)]
         public static void ThrowInvalidOperationException()
         {
             throw GetInvalidOperationException();
         }
 
-        [ContractAnnotation("=> halt")]
         [MethodImpl(MethodImplOptions.NoInlining)]
         public static void ThrowInvalidCastException()
         {
             throw GetInvalidCastException();
         }
 
-        [ContractAnnotation("=> halt")]
         [MethodImpl(MethodImplOptions.NoInlining)]
         public static void ThrowInvalidOperationException(string message)
         {
             throw GetInvalidOperationException(message);
         }
 
-        [ContractAnnotation("=> halt")]
         [MethodImpl(MethodImplOptions.NoInlining)]
         public static void ThrowInvalidOperationException_ForVariantTypeMissmatch()
         {
             throw GetInvalidOperationException_ForVariantTypeMissmatch();
         }
 
-        [ContractAnnotation("=> halt")]
         [MethodImpl(MethodImplOptions.NoInlining)]
         public static void ThrowNotImplementedException()
         {
             throw GetNotImplementedException();
         }
 
-        [ContractAnnotation("=> halt")]
         [MethodImpl(MethodImplOptions.NoInlining)]
         public static void ThrowNotImplementedException(string message)
         {
             throw GetNotImplementedException(message);
         }
 
-        [ContractAnnotation("=> halt")]
         [MethodImpl(MethodImplOptions.NoInlining)]
         public static void ThrowNotSupportedException()
         {
             throw GetNotSupportedException();
         }
 
-        [ContractAnnotation("=> halt")]
         [MethodImpl(MethodImplOptions.NoInlining)]
         public static void ThrowNotSupportedException(string message)
         {
             throw GetNotSupportedException(message);
         }
 
-        [ContractAnnotation("=> halt")]
         [MethodImpl(MethodImplOptions.NoInlining)]
         public static void ThrowOutOfOrderKeyException<TKey>(TKey key)
         {
             throw GetOutOfOrderKeyException(key);
         }
 
-        [ContractAnnotation("=> halt")]
         [MethodImpl(MethodImplOptions.NoInlining)]
         public static void ThrowOutOfOrderKeyException<TKey>(TKey key, string message)
         {
             throw GetOutOfOrderKeyException(key, message);
         }
 
-        [ContractAnnotation("=> halt")]
         [MethodImpl(MethodImplOptions.NoInlining)]
         public static void ThrowKeyNotFoundException(string message)
         {
             throw GetKeyNotFoundException(message);
         }
 
-        [ContractAnnotation("=> halt")]
         [MethodImpl(MethodImplOptions.NoInlining)]
         public static void ThrowArgumentNullException(string argument)
         {
             throw new ArgumentNullException(argument);
         }
 
-        [ContractAnnotation("=> halt")]
         [MethodImpl(MethodImplOptions.NoInlining)]
         public static void ThrowObjectDisposedException(string objectName)
         {
             throw GetObjectDisposedException(objectName);
         }
 
-        [ContractAnnotation("=> halt")]
         [MethodImpl(MethodImplOptions.NoInlining)]
         public static void ThrowIOException(string message)
         {
             throw GetIOException(message);
         }
 
-        [ContractAnnotation("=> halt")]
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        public static void AssertFailFast(bool expectedTrueCondition, string message)
+        {
+            if (!expectedTrueCondition)
+            {
+                DoFailFast(message);
+            }
+        }
+
         [MethodImpl(MethodImplOptions.NoInlining)]
         public static void FailFast(string message)
         {

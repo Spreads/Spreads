@@ -3,6 +3,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 using Spreads.Serialization;
+using Spreads.Serialization.Utf8Json;
 using System;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
@@ -19,16 +20,21 @@ namespace Spreads.DataTypes
     /// Nanos per year: 31,557,600,000,000,000 (2^55)
     /// 292 years of nanos in 2^63 is ought to be enough for everyone (except JavaScript).
     /// </summary>
-    [StructLayout(LayoutKind.Sequential, Size = 8)]
+    [StructLayout(LayoutKind.Sequential, Size = Size)]
     [Serialization(BlittableSize = 8)]
     [DebuggerDisplay("{" + nameof(ToString) + "()}")]
+    [JsonFormatter(typeof(Formatter))]
     public readonly struct Timestamp : IComparable<Timestamp>, IEquatable<Timestamp>
     {
+        public const int Size = 8;
+
         private static readonly long UnixEpochTicks = new DateTime(1970, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc).Ticks;
         private readonly long _nanos;
 
         public Timestamp(long nanos)
         {
+            // TODO it is possible to detect micros and millis if we limit epoch to > 1972
+            // However, in JS multiplying my 1000 does not loses precision
             _nanos = nanos;
         }
 
@@ -46,7 +52,7 @@ namespace Spreads.DataTypes
             get
             {
                 // Due to TimeService implementation we often have small nanos,
-                // but zero means equality. One tick is as small as one nano for 
+                // but zero means equality. One tick is as small as one nano for
                 // most practical purposes when we do not work with nano resolution.
                 var ticks = Nanos / 100;
                 if (ticks == 0 && Nanos > 0)
@@ -160,6 +166,25 @@ namespace Spreads.DataTypes
         public static bool operator <=(Timestamp x, Timestamp y)
         {
             return x.CompareTo(y) <= 0;
+        }
+
+        internal class Formatter : IJsonFormatter<Timestamp>
+        {
+            // NB we use WriteInt64/ReadInt64 directly in types that have TS as a member.
+            // If we decide to chenge this layout then those types should resolve to this formatter
+
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public void Serialize(ref JsonWriter writer, Timestamp value, IJsonFormatterResolver formatterResolver)
+            {
+                writer.WriteInt64((long)value);
+            }
+
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public Timestamp Deserialize(ref JsonReader reader, IJsonFormatterResolver formatterResolver)
+            {
+                var timestamp = reader.ReadInt64();
+                return (Timestamp)timestamp;
+            }
         }
     }
 }

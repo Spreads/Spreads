@@ -37,30 +37,33 @@ namespace Spreads.Serialization
         public bool IsFixedSize
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return false; }
+            get => false;
         }
 
         public int Size
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return -1; }
+            get => -1;
         }
 
         // This is special, TypeHelper is aware of it (for others version must be > 0)
         public byte ConverterVersion
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return 0; }
+            get => 0;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public int SizeOf(in TElement[] value, int valueOffset, int valueCount, out MemoryStream temporaryStream,
-            SerializationFormat format = SerializationFormat.Binary)
+        public int SizeOf(TElement[] value, int valueOffset, int valueCount, out MemoryStream temporaryStream,
+            SerializationFormat format = SerializationFormat.Binary,
+            Timestamp timestamp = default)
         {
             if ((uint)valueOffset + (uint)valueCount > (uint)value.Length)
             {
                 ThrowHelper.ThrowArgumentOutOfRangeException();
             }
+
+            var tsSize = timestamp == default ? 0 : Timestamp.Size;
 
             if ((int)format < 100)
             {
@@ -69,28 +72,29 @@ namespace Spreads.Serialization
                     if (format == SerializationFormat.Binary)
                     {
                         temporaryStream = null;
-                        return 8 + ItemSize * valueCount;
+                        return 8 + tsSize + ItemSize * valueCount;
                     }
 
                     if (format == SerializationFormat.BinaryLz4 || format == SerializationFormat.BinaryZstd)
                     {
                         return CompressedBlittableArrayBinaryConverter<TElement>.Instance.SizeOf(value, valueOffset,
-                            valueCount, out temporaryStream, format);
+                            valueCount, out temporaryStream, format, timestamp);
                     }
                 }
             }
 
             return BinarySerializer.SizeOf(new ArraySegment<TElement>(value, valueOffset, valueCount), out temporaryStream,
-                format);
+                format, timestamp);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public unsafe int Write(in TElement[] value,
+        public unsafe int Write(TElement[] value,
             int valueOffset,
             int valueCount,
             IntPtr pinnedDestination,
             MemoryStream temporaryStream = null,
-            SerializationFormat format = SerializationFormat.Binary)
+            SerializationFormat format = SerializationFormat.Binary,
+            Timestamp timestamp = default)
         {
             if (value == null) throw new ArgumentNullException(nameof(value));
 
@@ -110,14 +114,16 @@ namespace Spreads.Serialization
                     {
                         // if (temporaryStream != null) throw new NotSupportedException("Uncompressed ArrayBinaryConverter does not work with temp streams.");
 
-                        var totalSize = 8 + ItemSize * valueCount;
+                        var tsSize = timestamp == default ? 0 : Timestamp.Size;
+
+                        var payloadSize = tsSize + ItemSize * valueCount;
 
                         ref var srcRef = ref As<TElement, byte>(ref value[valueOffset]);
 
                         // header
                         var header = new DataTypeHeader
                         {
-                            VersionAndFlags = { IsBinary = true },
+                            VersionAndFlags = { IsBinary = true, IsTimestamped = tsSize > 0 },
                             TypeEnum = TypeEnum.Array,
                             TypeSize = (byte)ItemSize,
                             ElementTypeEnum = VariantHelper<TElement>.TypeEnum
@@ -125,23 +131,28 @@ namespace Spreads.Serialization
                         WriteUnaligned((void*)pinnedDestination, header);
 
                         // payload size
-                        WriteUnaligned((void*)(pinnedDestination + DataTypeHeader.Size), totalSize - 8);
+                        WriteUnaligned((void*)(pinnedDestination + DataTypeHeader.Size), payloadSize);
+
+                        if (tsSize > 0)
+                        {
+                            WriteUnaligned((void*)(pinnedDestination + DataTypeHeader.Size + 4), timestamp);
+                        }
 
                         if (valueCount > 0)
                         {
-                            ref var dstRef = ref AsRef<byte>((void*)(pinnedDestination + 8));
+                            ref var dstRef = ref AsRef<byte>((void*)(pinnedDestination + 8 + tsSize));
 
                             CopyBlockUnaligned(ref dstRef, ref srcRef, checked((uint)(ItemSize * valueCount)));
                         }
 
-                        return totalSize;
+                        return 8 + payloadSize;
                     }
 
                     if (format == SerializationFormat.BinaryLz4 || format == SerializationFormat.BinaryZstd)
                     {
-                        return CompressedBlittableArrayBinaryConverter<TElement>.Instance.Write(in value, valueOffset,
+                        return CompressedBlittableArrayBinaryConverter<TElement>.Instance.Write(value, valueOffset,
                             valueCount,
-                            pinnedDestination, null, format);
+                            pinnedDestination, null, format, timestamp);
                     }
 
                     // ThrowHelper.ThrowInvalidOperationException("ArrayBinaryConverter must be called only with one of binary serialization format");
@@ -157,27 +168,55 @@ namespace Spreads.Serialization
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public unsafe int Read(IntPtr ptr, out TElement[] value, out int count, bool exactSize = true)
+        public unsafe int Read(IntPtr ptr, out TElement[] value, out int count, out Timestamp timestamp, bool exactSize = true)
         {
             var header = ReadUnaligned<DataTypeHeader>((void*)ptr);
             var payloadSize = ReadUnaligned<int>((void*)(ptr + DataTypeHeader.Size));
+            var position = 8;
+
             if (header.VersionAndFlags.Version != ConverterVersion)
             {
                 ThrowHelper.ThrowInvalidOperationException("ByteArrayBinaryConverter work only with version 0");
             }
-            
+
             if (header.VersionAndFlags.IsBinary && ItemSize > 0)
             {
                 if (!header.VersionAndFlags.IsCompressed)
                 {
-                    if (header.VersionAndFlags.IsDelta) { ThrowHelper.ThrowNotSupportedException("Raw ByteArrayBinaryConverter does not support deltas"); }
+                    if (header.VersionAndFlags.IsDelta)
+                    {
+                        ThrowHelper.ThrowNotSupportedException("Raw ByteArrayBinaryConverter does not support deltas");
+                    }
 
-                    var arraySize = payloadSize / ItemSize;
+                    var tsSize = 0;
+                    if (header.VersionAndFlags.IsTimestamped)
+                    {
+                        tsSize = Timestamp.Size;
+                        timestamp = ReadUnaligned<Timestamp>((void*)(ptr + position));
+                        position += 8;
+                    }
+                    else
+                    {
+                        timestamp = default;
+                    }
+
+                    var arraySize = (payloadSize - tsSize) / ItemSize;
                     if (arraySize > 0)
                     {
-                        if (header.TypeEnum != TypeEnum.Array) { ThrowHelper.ThrowInvalidOperationException("Wrong TypeEnum: expecting array"); }
-                        if (header.TypeSize != ItemSize) { ThrowHelper.ThrowInvalidOperationException("Wrong item size"); }
-                        if (header.ElementTypeEnum != VariantHelper<TElement>.TypeEnum) { ThrowHelper.ThrowInvalidOperationException("Wrong SubTypeEnum"); }
+                        if (header.TypeEnum != TypeEnum.Array)
+                        {
+                            ThrowHelper.ThrowInvalidOperationException("Wrong TypeEnum: expecting array");
+                        }
+
+                        if (header.TypeSize != ItemSize)
+                        {
+                            ThrowHelper.ThrowInvalidOperationException("Wrong item size");
+                        }
+
+                        if (header.ElementTypeEnum != VariantHelper<TElement>.TypeEnum)
+                        {
+                            ThrowHelper.ThrowInvalidOperationException("Wrong SubTypeEnum");
+                        }
 
                         TElement[] array;
                         if (BitUtil.IsPowerOfTwo(arraySize) || !exactSize)
@@ -195,7 +234,7 @@ namespace Spreads.Serialization
                         }
 
                         ref var dstRef = ref As<TElement, byte>(ref array[0]);
-                        ref var srcRef = ref AsRef<byte>((void*)(ptr + 8));
+                        ref var srcRef = ref AsRef<byte>((void*)(ptr + position));
 
                         CopyBlockUnaligned(ref dstRef, ref srcRef, checked((uint)payloadSize));
 
@@ -207,20 +246,25 @@ namespace Spreads.Serialization
                     }
 
                     count = arraySize;
-                    return payloadSize;
+                    return 8 + payloadSize;
                 }
-                else
+
                 {
                     var len = CompressedBlittableArrayBinaryConverter<TElement>.Instance.Read(ptr, out var tmp,
-                        out count, exactSize);
-                    Debug.Assert(len == payloadSize + 8);
+                        out count, out timestamp, exactSize);
+                    if (Settings.AdditionalCorrectnessChecks.Enabled)
+                    {
+                        ThrowHelper.AssertFailFast(len == 8 + payloadSize,
+                            $"len {len} == 8 + payloadSize {payloadSize}");
+                    }
+
+                    Debug.Assert(len == 8 + payloadSize);
                     value = tmp;
                     return len;
                 }
             }
 
-
-            var readLen = BinarySerializer.Read<TElement[]>(ptr, out var arr);
+            var readLen = BinarySerializer.Read<TElement[]>(ptr, out var arr, out timestamp);
             if (readLen > 0 && arr != null)
             {
                 value = arr;
@@ -228,8 +272,7 @@ namespace Spreads.Serialization
                 return readLen;
             }
 
-            ThrowHelper.ThrowInvalidOperationException(
-                "ArrayBinaryConverter cannot read array");
+            ThrowHelper.ThrowInvalidOperationException("ArrayBinaryConverter cannot read array");
             value = default;
             count = 0;
             return default;
@@ -238,22 +281,25 @@ namespace Spreads.Serialization
         private static readonly int ItemSize = TypeHelper<TElement>.Size;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public int SizeOf(in TElement[] value, out MemoryStream temporaryStream, SerializationFormat format = SerializationFormat.Binary)
+        public int SizeOf(TElement[] value, out MemoryStream temporaryStream,
+            SerializationFormat format = SerializationFormat.Binary,
+            Timestamp timestamp = default)
         {
-            return SizeOf(in value, 0, value.Length, out temporaryStream, format);
+            return SizeOf(value, 0, value.Length, out temporaryStream, format, timestamp);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public int Write(in TElement[] value, IntPtr pinnedDestination,
-            MemoryStream temporaryStream = null, SerializationFormat format = SerializationFormat.Binary)
+        public int Write(TElement[] value, IntPtr pinnedDestination,
+            MemoryStream temporaryStream = null,
+            SerializationFormat format = SerializationFormat.Binary, Timestamp timestamp = default)
         {
-            return Write(in value, 0, value.Length, pinnedDestination, temporaryStream, format);
+            return Write(value, 0, value.Length, pinnedDestination, temporaryStream, format, timestamp);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public int Read(IntPtr ptr, out TElement[] value)
+        public int Read(IntPtr ptr, out TElement[] value, out Timestamp timestamp)
         {
-            return Read(ptr, out value, out _, true);
+            return Read(ptr, out value, out _, out timestamp, true);
         }
     }
 }

@@ -13,13 +13,27 @@ namespace Spreads.Utils
 {
     public unsafe class TimeService : IDisposable
     {
-        public static TimeService Default = new TimeService();
+        private static TimeService _default = new TimeService();
+        /// <summary>
+        /// 
+        /// </summary>
+        public static TimeService Default
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => _default;
+            set
+            {
+                _default?.Dispose();
+                _default = value;
+            }
+        }
 
         private IntPtr _lastUpdatedPtr;
         private bool _allocated;
 
         private Timer _timer;
         private Thread _spinnerThread;
+        
 
         public TimeService() : this(IntPtr.Zero)
         {
@@ -40,7 +54,7 @@ namespace Spreads.Utils
 
             _lastUpdatedPtr = ptr;
 
-            *(long*)_lastUpdatedPtr = 0;
+            UpdateTime();
 
             _timer = new Timer(o =>
             {

@@ -2,13 +2,11 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-using Newtonsoft.Json;
 using Spreads.Buffers;
 using Spreads.DataTypes;
 using System;
 using System.Diagnostics;
 using System.IO;
-using System.Linq;
 using System.Runtime.CompilerServices;
 using static System.Runtime.CompilerServices.Unsafe;
 
@@ -33,14 +31,17 @@ namespace Spreads.Serialization
         public bool IsFixedSize => false;
 
         public int Size => -1;
+
         public byte ConverterVersion
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return 1; }
+            get => 1;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public unsafe int SizeOf(in T value, out MemoryStream temporaryStream, SerializationFormat format = SerializationFormat.Binary)
+        public unsafe int SizeOf(T value, out MemoryStream temporaryStream,
+            SerializationFormat format = SerializationFormat.Binary,
+            Timestamp timestamp = default)
         {
             if ((int)format >= 100)
             {
@@ -51,8 +52,11 @@ namespace Spreads.Serialization
                 format = SerializationFormat.BinaryZstd;
             }
 
+            var tsSize = timestamp == default ? 0 : Timestamp.Size;
+
             // headers
-            var size = 8 + 14;
+            var size = 8 + tsSize + 14;
+
             // NB for regular keys, use keys array length
             var keysSize = ArrayBinaryConverter<TKey>.Instance.SizeOf(value.Keys, 0, value.IsRegular ? value.Keys.Length : value.Length, out var keysStream, format);
             var valuesSize = ArrayBinaryConverter<TValue>.Instance.SizeOf(value.Values, 0, value.Length, out var valuesStream, format);
@@ -72,7 +76,12 @@ namespace Spreads.Serialization
 
             ref var destination = ref buffer[0];
 
-            var position = 8;
+            if (tsSize > 0)
+            {
+                WriteUnaligned(ref AddByteOffset(ref destination, (IntPtr)8), timestamp);
+            }
+
+            var position = 8 + tsSize;
 
             // 14 - map header
             WriteUnaligned(ref AddByteOffset(ref destination, (IntPtr)position), value.Length);
@@ -109,7 +118,6 @@ namespace Spreads.Serialization
             }
             position += valuesSize;
 
-            
             // version
             var header = new DataTypeHeader
             {
@@ -122,7 +130,7 @@ namespace Spreads.Serialization
             };
             WriteUnaligned(ref destination, header);
 
-            // payload length 
+            // payload length
             WriteUnaligned(ref AddByteOffset(ref destination, (IntPtr)4), position - 8);
 
             temporaryStream = RecyclableMemoryStream.Create(RecyclableMemoryStreamManager.Default,
@@ -135,11 +143,13 @@ namespace Spreads.Serialization
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public unsafe int Write(in T value, IntPtr pinnedDestination, MemoryStream temporaryStream = null, SerializationFormat format = SerializationFormat.Binary)
+        public unsafe int Write(T value, IntPtr pinnedDestination, MemoryStream temporaryStream = null,
+            SerializationFormat format = SerializationFormat.Binary,
+            Timestamp timestamp = default)
         {
             if (temporaryStream == null)
             {
-                SizeOf(in value, out temporaryStream, format);
+                SizeOf(value, out temporaryStream, format, timestamp);
             }
 
             Debug.Assert(temporaryStream.Position == 0);
@@ -151,48 +161,48 @@ namespace Spreads.Serialization
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public abstract int Read(IntPtr ptr, out T value);
+        public abstract int Read(IntPtr ptr, out T value, out Timestamp timestamp);
 
 #pragma warning restore 0618
     }
 
-    internal class ArrayBasedMapJsonConverter<TKey, TValue, TMap> : JsonConverter<TMap>
-        where TMap : IArrayBasedMap<TKey, TValue>
-    {
-        public override void WriteJson(JsonWriter writer, TMap value, JsonSerializer serializer)
-        {
-            var map = (IArrayBasedMap<TKey, TValue>)value;
-            writer.WriteStartArray();
-            writer.WriteValue(map.Length);
-            // TODO long version
-            writer.WriteValue(checked((int)map.Version));
-            writer.WriteValue(map.IsRegular);
-            writer.WriteValue(map.IsCompleted);
-            serializer.Serialize(writer, map.Keys.Take(map.IsRegular ? 2 : map.Length));
-            serializer.Serialize(writer, map.Values.Take(map.Length));
-            writer.WriteEndArray();
-        }
+    //internal class ArrayBasedMapJsonConverter<TKey, TValue, TMap> : JsonConverter<TMap>
+    //    where TMap : IArrayBasedMap<TKey, TValue>
+    //{
+    //    public override void WriteJson(JsonWriter writer, TMap value, JsonSerializer serializer)
+    //    {
+    //        var map = (IArrayBasedMap<TKey, TValue>)value;
+    //        writer.WriteStartArray();
+    //        writer.WriteValue(map.Length);
+    //        // TODO long version
+    //        writer.WriteValue(checked((int)map.Version));
+    //        writer.WriteValue(map.IsRegular);
+    //        writer.WriteValue(map.IsCompleted);
+    //        serializer.Serialize(writer, map.Keys.Take(map.IsRegular ? 2 : map.Length));
+    //        serializer.Serialize(writer, map.Values.Take(map.Length));
+    //        writer.WriteEndArray();
+    //    }
 
-        public override TMap ReadJson(JsonReader reader, Type objectType, TMap existingValue, bool hasExistingValue, JsonSerializer serializer)
-        {
-            if (reader.TokenType == JsonToken.Null)
-            {
-                return default;
-            }
-            if (reader.TokenType != JsonToken.StartArray)
-            {
-                throw new Exception("Invalid JSON for Variant type");
-            }
+    //    public override TMap ReadJson(JsonReader reader, Type objectType, TMap existingValue, bool hasExistingValue, JsonSerializer serializer)
+    //    {
+    //        if (reader.TokenType == JsonToken.Null)
+    //        {
+    //            return default;
+    //        }
+    //        if (reader.TokenType != JsonToken.StartArray)
+    //        {
+    //            throw new Exception("Invalid JSON for Variant type");
+    //        }
 
-            var length = reader.ReadAsInt32();
-            var versionAsInt32 = reader.ReadAsInt32();
-            var isRegural = reader.ReadAsBoolean();
-            var isCompleted = reader.ReadAsBoolean();
+    //        var length = reader.ReadAsInt32();
+    //        var versionAsInt32 = reader.ReadAsInt32();
+    //        var isRegural = reader.ReadAsBoolean();
+    //        var isCompleted = reader.ReadAsBoolean();
 
-            var keys = serializer.Deserialize<TKey[]>(reader);
-            var values = serializer.Deserialize<TValue[]>(reader);
+    //        var keys = serializer.Deserialize<TKey[]>(reader);
+    //        var values = serializer.Deserialize<TValue[]>(reader);
 
-            return default;
-        }
-    }
+    //        return default;
+    //    }
+    //}
 }

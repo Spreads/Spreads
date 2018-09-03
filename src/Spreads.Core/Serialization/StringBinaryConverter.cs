@@ -18,25 +18,32 @@ namespace Spreads.Serialization
         public bool IsFixedSize => false;
         public int Size => 0;
 
-        public unsafe int SizeOf(in string value, out MemoryStream temporaryStream, SerializationFormat format = SerializationFormat.Binary)
+        public unsafe int SizeOf(string value, out MemoryStream temporaryStream,
+            SerializationFormat format = SerializationFormat.Binary,
+            Timestamp timestamp = default)
         {
+            var tsSize = timestamp == default ? 0 : Timestamp.Size;
             fixed (char* charPtr = value)
             {
-                var totalLength = 8 + Encoding.UTF8.GetByteCount(charPtr, value.Length);
+                var totalLength = 8 + tsSize + Encoding.UTF8.GetByteCount(charPtr, value.Length);
                 temporaryStream = null;
                 return totalLength;
             }
         }
 
-        public unsafe int Write(in string value, IntPtr pinnedDestination, MemoryStream temporaryStream = null, SerializationFormat format = SerializationFormat.Binary)
+        public unsafe int Write(string value, IntPtr pinnedDestination, MemoryStream temporaryStream = null,
+            SerializationFormat format = SerializationFormat.Binary,
+            Timestamp timestamp = default)
         {
             if (temporaryStream == null)
             {
+                var tsSize = timestamp == default ? 0 : Timestamp.Size;
+
                 fixed (char* charPtr = value)
                 {
-                    var totalLength = 8 + Encoding.UTF8.GetByteCount(charPtr, value.Length);
+                    var utf8len = Encoding.UTF8.GetByteCount(charPtr, value.Length);
+                    var totalLength = 8 + tsSize + utf8len;
 
-                    
                     // version
                     var header = new DataTypeHeader
                     {
@@ -44,15 +51,25 @@ namespace Spreads.Serialization
                                 Version = 0,
                                 IsBinary = true,
                                 IsDelta = false,
-                                IsCompressed = false },
+                                IsCompressed = false,
+                                IsTimestamped = tsSize > 0
+                        },
                         TypeEnum = TypeEnum.String
                     };
                     WriteUnaligned((void*)pinnedDestination, header);
+
                     // payload length
-                    WriteUnaligned((void*)(pinnedDestination + 4), totalLength - 8);
+                    WriteUnaligned((void*)(pinnedDestination + 4), tsSize + utf8len);
+
+                    if (tsSize > 0)
+                    {
+                        // payload length
+                        WriteUnaligned((void*)(pinnedDestination + 8), timestamp);
+                    }
+
                     // payload
-                    var len = Encoding.UTF8.GetBytes(charPtr, value.Length, (byte*)pinnedDestination + 8, totalLength);
-                    Debug.Assert(totalLength == len + 8);
+                    var len = Encoding.UTF8.GetBytes(charPtr, value.Length, (byte*)pinnedDestination + 8 + tsSize, utf8len);
+                    Debug.Assert(totalLength == 8 + tsSize + len);
 
                     return totalLength;
                 }
@@ -62,23 +79,38 @@ namespace Spreads.Serialization
             return checked((int)temporaryStream.Length);
         }
 
-        public unsafe int Read(IntPtr ptr, out string value)
+        public unsafe int Read(IntPtr ptr, out string value, out Timestamp timestamp)
         {
             var header = ReadUnaligned<DataTypeHeader>((void*)ptr);
             var payloadLength = ReadUnaligned<int>((void*)(ptr + 4));
-            
-            if (header.VersionAndFlags.Version != 0) throw new NotSupportedException();
-            OwnedPooledArray<byte> ownedPooledBuffer = BufferPool.UseTempBuffer(payloadLength);
+            var position = 8;
+            var tsSize = 0;
+            if (header.VersionAndFlags.IsTimestamped)
+            {
+                tsSize = Timestamp.Size;
+                timestamp = ReadUnaligned<Timestamp>((void*)(ptr + position));
+                position += 8;
+            }
+            else
+            {
+                timestamp = default;
+            }
+
+            if (header.VersionAndFlags.Version != 0)
+            {
+                ThrowHelper.ThrowNotSupportedException();
+            }
+            var ownedPooledBuffer = BufferPool.UseTempBuffer(payloadLength);
             var buffer = ownedPooledBuffer.Memory;
             var handle = buffer.Pin();
 
             try
             {
-                Marshal.Copy(ptr + 8, ownedPooledBuffer.Array, 0, payloadLength);
+                Marshal.Copy(ptr + position, ownedPooledBuffer.Array, 0, payloadLength - tsSize);
 
-                value = Encoding.UTF8.GetString(ownedPooledBuffer.Array, 0, payloadLength);
+                value = Encoding.UTF8.GetString(ownedPooledBuffer.Array, 0, payloadLength - tsSize);
 
-                return payloadLength + 8;
+                return 8 + payloadLength;
             }
             finally
             {

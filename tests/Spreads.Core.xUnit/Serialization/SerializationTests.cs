@@ -2,16 +2,12 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-using Xunit;
-using Spreads.Buffers;
-using Spreads.Collections;
 using Spreads.Serialization;
+using Spreads.Serialization.Utf8Json;
 using System;
-using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
-using Spreads.Blosc;
-using Spreads.Serialization.Utf8Json;
+using Xunit;
 using Xunit.Abstractions;
 
 namespace Spreads.Core.Tests.Serialization
@@ -117,7 +113,7 @@ namespace Spreads.Core.Tests.Serialization
             var len = BinarySerializer.Write(arr, ref bytes);
 
             string[] arr2 = null;
-            var len2 = BinarySerializer.Read(bytes, out  arr2);
+            var len2 = BinarySerializer.Read(bytes, out arr2);
             Assert.Equal(len, len2);
             Assert.True(arr.SequenceEqual(arr2));
         }
@@ -227,7 +223,6 @@ namespace Spreads.Core.Tests.Serialization
             }
 
             Assert.True(source.SequenceEqual(destination));
-
         }
 
         [Fact]
@@ -260,19 +255,6 @@ namespace Spreads.Core.Tests.Serialization
             }
 
             Assert.True(source.SequenceEqual(destination));
-
-        }
-
-        [Fact]
-        public void CouldSerializeIMessage()
-        {
-            var ping = new PingMessage();
-            var ms = JsonSerializer.Serialize(ping);
-
-            var ping2 = JsonSerializer.Deserialize<IMessage>(ms);
-
-            Assert.Equal("ping", ping2.Type);
-            Assert.Equal(ping.Id, ping2.Id);
         }
     }
 }

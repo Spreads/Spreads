@@ -100,6 +100,7 @@ namespace Spreads.DataTypes
         ArrayBasedMap = 73,
 
         TaggedKeyValue = 74,
+        // ValueWithTimestamp = 75,
 
         // NB For opaque types such as JSON/FlatBuffers/Thrift the value of TypeEnum is mostly to dispatch
         // a value to correct second(app)-level deserializer. E.g. we have subtype slot in 

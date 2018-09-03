@@ -2,7 +2,6 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-using Newtonsoft.Json;
 using Spreads.Serialization;
 using System;
 using System.Diagnostics;
@@ -13,7 +12,6 @@ namespace Spreads.DataTypes
 {
     // Runtime representation of Variant type
 
-    [JsonConverter(typeof(VariantJsonConverter))]
     [StructLayout(LayoutKind.Explicit, Pack = 4)]
     public unsafe partial struct Variant : IEquatable<Variant>
     {

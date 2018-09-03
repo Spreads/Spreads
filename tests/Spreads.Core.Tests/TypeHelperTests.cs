@@ -8,6 +8,7 @@ using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using NUnit.Framework;
+using Spreads.DataTypes;
 using Spreads.Serialization;
 
 namespace Spreads.Tests
@@ -52,17 +53,19 @@ namespace Spreads.Tests
             public int Size => 0;
             public byte ConverterVersion => 1;
 
-            public int SizeOf(in MyPocoWithConvertor map, out MemoryStream temporaryStream, SerializationFormat format = SerializationFormat.Binary)
+            public int SizeOf(MyPocoWithConvertor map, out MemoryStream temporaryStream, 
+                SerializationFormat format = SerializationFormat.Binary, Timestamp timestamp = default)
             {
                 throw new NotImplementedException();
             }
 
-            public int Write(in MyPocoWithConvertor value, IntPtr destination, MemoryStream temporaryStream = null, SerializationFormat format = SerializationFormat.Binary)
+            public int Write(MyPocoWithConvertor value, IntPtr destination, MemoryStream temporaryStream = null, 
+                SerializationFormat format = SerializationFormat.Binary, Timestamp timestamp = default)
             {
                 throw new NotImplementedException();
             }
 
-            public int Read(IntPtr ptr, out MyPocoWithConvertor value)
+            public int Read(IntPtr ptr, out MyPocoWithConvertor value, out Timestamp timestamp)
             {
                 throw new NotImplementedException();
             }
@@ -133,7 +136,7 @@ namespace Spreads.Tests
             };
             TypeHelper<BlittableStruct1>.Write(myBlittableStruct1, (IntPtr)handle.Pointer);
 
-            TypeHelper<BlittableStruct1>.Read((IntPtr)handle.Pointer, out var newBlittableStruct1);
+            TypeHelper<BlittableStruct1>.Read((IntPtr)handle.Pointer, out var newBlittableStruct1, out _);
             Assert.AreEqual(myBlittableStruct1.Value1, newBlittableStruct1.Value1);
             handle.Dispose();
         }
@@ -165,7 +168,7 @@ namespace Spreads.Tests
 
             TypeHelper<int[]>.Write(myArray, (IntPtr)handle.Pointer);
 
-            TypeHelper<int[]>.Read((IntPtr)handle.Pointer, out var newArray);
+            TypeHelper<int[]>.Read((IntPtr)handle.Pointer, out var newArray, out _);
             Assert.IsTrue(myArray.SequenceEqual(newArray));
             handle.Dispose();
         }
@@ -223,7 +226,7 @@ namespace Spreads.Tests
             toPtrInt(42, (IntPtr)handle.Pointer);
 
             int temp;
-            TypeHelper<int>.Read(ptr, out temp);
+            TypeHelper<int>.Read(ptr, out temp, out _);
             Assert.AreEqual(42, temp);
 
             var sizeOfInt = TypeHelper.GetSizeOfDelegate(typeof(int));

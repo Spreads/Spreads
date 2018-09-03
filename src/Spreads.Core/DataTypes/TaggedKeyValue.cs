@@ -19,7 +19,8 @@ namespace Spreads.DataTypes
     [Serialization(PreferBlittable = true)] // when both types are blittable the struct is written in one operation
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     // NB cannot use JsonFormatter attribute, this is hardcoded in DynamicGenericResolverGetFormatterHelper
-    public readonly struct TaggedKeyValue<TKey, TValue> : IEquatable<TaggedKeyValue<TKey, TValue>>, IBinaryConverter<TaggedKeyValue<TKey, TValue>>
+    public readonly struct TaggedKeyValue<TKey, TValue> : IEquatable<TaggedKeyValue<TKey, TValue>>, 
+        IBinaryConverter<TaggedKeyValue<TKey, TValue>>
     {
         private static readonly int KeySize = TypeHelper<TKey>.Size;
         private static readonly int ValueSize = TypeHelper<TValue>.Size;
@@ -82,35 +83,38 @@ namespace Spreads.DataTypes
         // TODO for version 0 write using BS with double headers
         // TODO special treatment of TKey=DateTime, autolayout
 
-        public int SizeOf(in TaggedKeyValue<TKey, TValue> value, out MemoryStream temporaryStream, SerializationFormat format = SerializationFormat.Binary)
+        public int SizeOf(TaggedKeyValue<TKey, TValue> value, out MemoryStream temporaryStream, 
+            SerializationFormat format = SerializationFormat.Binary, 
+            Timestamp timestamp = default)
         {
             if (IsFixedSizeStatic)
             {
                 temporaryStream = default;
-                return FixedSizeStatic;
+                return FixedSizeStatic + (timestamp == default ? 0 : 8);
             }
 
             throw new NotImplementedException();
         }
 
-        public int Write(in TaggedKeyValue<TKey, TValue> value, IntPtr pinnedDestination, MemoryStream temporaryStream = null,
-            SerializationFormat format = SerializationFormat.Binary)
+        public int Write(TaggedKeyValue<TKey, TValue> value, IntPtr pinnedDestination, MemoryStream temporaryStream = null,
+            SerializationFormat format = SerializationFormat.Binary, 
+            Timestamp timestamp = default)
         {
             var fixedSize = TypeHelper<TaggedKeyValue<TKey, TValue>>.Size;
             if (fixedSize > 0)
             {
-                return BinarySerializer.WriteUnsafe(value, pinnedDestination, temporaryStream, format);
+                return BinarySerializer.WriteUnsafe(value, pinnedDestination, temporaryStream, format, timestamp);
             }
             // TODO write key + value
             throw new NotImplementedException();
         }
 
-        public int Read(IntPtr ptr, out TaggedKeyValue<TKey, TValue> value)
+        public int Read(IntPtr ptr, out TaggedKeyValue<TKey, TValue> value, out Timestamp timestamp)
         {
             var fixedSize = TypeHelper<TaggedKeyValue<TKey, TValue>>.Size;
             if (fixedSize > 0)
             {
-                return BinarySerializer.Read(ptr, out value);
+                return BinarySerializer.Read(ptr, out value, out timestamp);
             }
             throw new NotImplementedException();
         }
@@ -119,24 +123,21 @@ namespace Spreads.DataTypes
         public bool IsFixedSize
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return IsFixedSizeStatic; }
+            get => IsFixedSizeStatic;
         }
 
         [IgnoreDataMember]
         public int Size
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get
-            {
-                return IsFixedSizeStatic ? FixedSizeStatic : -1;
-            }
+            get => IsFixedSizeStatic ? FixedSizeStatic : -1;
         }
 
         [IgnoreDataMember]
         public byte ConverterVersion
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return 1; }
+            get => 1;
         }
 
         public static implicit operator KeyValuePair<TKey, TValue>(TaggedKeyValue<TKey, TValue> kv)
@@ -173,7 +174,7 @@ namespace Spreads.DataTypes
     }
 
 
-    // NB cannot use an attribute, this is hardcoded in DynamicGenericResolverGetFormatterHelper
+    // NB cannot use JsonFormatter attribute, this is hardcoded in DynamicGenericResolverGetFormatterHelper
     public class TaggedKeyValueFormatter<TKey, TValue> : IJsonFormatter<TaggedKeyValue<TKey, TValue>>
     {
         public void Serialize(ref JsonWriter writer, TaggedKeyValue<TKey, TValue> value, IJsonFormatterResolver formatterResolver)

@@ -2,15 +2,16 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-using System;
-using System.IO;
-using System.Linq;
-using System.Runtime.InteropServices;
 using NUnit.Framework;
 using Spreads.Blosc;
 using Spreads.Collections;
 using Spreads.Serialization;
 using Spreads.Serialization.Utf8Json;
+using System;
+using System.IO;
+using System.Linq;
+using System.Runtime.InteropServices;
+using Spreads.Utils;
 
 namespace Spreads.Core.Tests.Serialization
 {
@@ -162,7 +163,7 @@ namespace Spreads.Core.Tests.Serialization
         {
             var bytes = new byte[1000];
             var str = "This is string";
-            var len = BinarySerializer.Write(str, ref bytes);
+            var len = BinarySerializer.Write(str, ref bytes, timestamp:TimeService.Default.CurrentTime);
             string str2 = null;
             var len2 = BinarySerializer.Read(bytes, out str2);
             Assert.AreEqual(len, len2);
@@ -203,7 +204,7 @@ namespace Spreads.Core.Tests.Serialization
             {
                 if (i != 2)
                 {
-                    sm.Add(DateTime.Today.AddHours(i), (decimal) Math.Round(i + rng.NextDouble(), 2));
+                    sm.Add(DateTime.Today.AddHours(i), (decimal)Math.Round(i + rng.NextDouble(), 2));
                 }
             }
             var len = BinarySerializer.Write(sm, ref buffer, format: SerializationFormat.BinaryZstd);
@@ -288,7 +289,6 @@ namespace Spreads.Core.Tests.Serialization
             Assert.IsTrue(sm2.Values.SequenceEqual(sm.Values));
         }
 
-
         [Test]
         public unsafe void CouldSerializeSortedMapWithStrings()
         {
@@ -327,18 +327,6 @@ namespace Spreads.Core.Tests.Serialization
         }
 
         [Test]
-        public void CouldSerializeIMessage()
-        {
-            var ping = new PingMessage();
-            var ms = JsonSerializer.Serialize(ping);
-
-            var ping2 = JsonSerializer.Deserialize<IMessage>(ms);
-
-            Assert.AreEqual("ping", ping2.Type);
-            Assert.AreEqual(ping.Id, ping2.Id);
-        }
-
-        [Test]
         public void CouldUseBloscCompression()
         {
             var count = 1000;
@@ -348,7 +336,7 @@ namespace Spreads.Core.Tests.Serialization
             source[0] = 123.4567M;
             for (var i = 1; i < count; i++)
             {
-                source[i] = source[i-1] + Math.Round((decimal)rng.NextDouble()*10, 4);
+                source[i] = source[i - 1] + Math.Round((decimal)rng.NextDouble() * 10, 4);
             }
 
             var len = BinarySerializer.Write(source, ref bytes, null,
@@ -369,7 +357,6 @@ namespace Spreads.Core.Tests.Serialization
             //}
 
             Assert.True(source.SequenceEqual(destination));
-
         }
 
         [Test]
@@ -403,7 +390,6 @@ namespace Spreads.Core.Tests.Serialization
             }
 
             Assert.True(source.SequenceEqual(destination));
-
         }
     }
 }

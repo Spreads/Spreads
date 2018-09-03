@@ -121,6 +121,21 @@ namespace Spreads.Serialization
             }
         }
 
+        [StructLayout(LayoutKind.Sequential, Pack = 1)]
+        internal struct PlaceholderTS
+        {
+            public readonly DataTypeHeader Header;
+            public Timestamp Timestamp;
+            public T Value;
+
+            public PlaceholderTS(DataTypeHeader header)
+            {
+                Header = header;
+                Timestamp = default;
+                Value = default;
+            }
+        }
+
         // ReSharper disable StaticMemberInGenericType
         private static bool _hasBinaryConverter;
 
@@ -183,6 +198,20 @@ namespace Spreads.Serialization
                 IsBinary = true,
                 IsDelta = false,
                 IsCompressed = false
+            },
+            TypeEnum = VariantHelper<T>.TypeEnum,
+            TypeSize = (Size > 0 && Size <= 255) ? (byte)Size : (byte)0
+        });
+
+        private static readonly PlaceholderTS _placeholderTs = new PlaceholderTS(new DataTypeHeader
+        {
+            VersionAndFlags =
+            {
+                Version = 0,
+                IsBinary = true,
+                IsDelta = false,
+                IsCompressed = false,
+                IsTimestamped = true
             },
             TypeEnum = VariantHelper<T>.TypeEnum,
             TypeSize = (Size > 0 && Size <= 255) ? (byte)Size : (byte)0
@@ -373,45 +402,76 @@ namespace Spreads.Serialization
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int Read(IntPtr ptr, out T value)
+        public static int Read(IntPtr ptr, out T value, out Timestamp timestamp)
         {
             if (_hasBinaryConverter)
             {
                 Debug.Assert(Size == -1);
-                return _converterInstance.Read(ptr, out value);
+                return _converterInstance.Read(ptr, out value, out timestamp);
             }
             if (Size >= 0)
             {
                 Debug.Assert(Size > 0);
-#if DEBUG
-                var header = ReadUnaligned<DataTypeHeader>((void*)ptr);
-                Debug.Assert(header.Equals(_placeholder.Header));
-#endif
-                value = ReadUnaligned<T>((void*)(ptr + DataTypeHeader.Size));
+                var header = ReadUnaligned<DataTypeHeader>((void*)(ptr));
+                var tsSize = 0;
+                if (header.VersionAndFlags.IsTimestamped)
+                {
+                    tsSize = Timestamp.Size;
+                    timestamp = ReadUnaligned<Timestamp>((void*)(ptr + DataTypeHeader.Size));
+                }
+                else
+                {
+                    timestamp = default;
+                }
+                value = ReadUnaligned<T>((void*)(ptr + DataTypeHeader.Size + tsSize));
                 return Size + DataTypeHeader.Size;
             }
             Debug.Assert(Size < 0);
-            ThrowHelper.FailFast("TypeHelper<T> doesn't support variable-size types. Code calling this method is incorrect, data corruption is possible.");
+            THFFCannotReadVarSize();
             value = default;
+            timestamp = default;
             return -1;
         }
 
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        // ReSharper disable once InconsistentNaming
+        private static void THFFCannotReadVarSize()
+        {
+            ThrowHelper.FailFast(
+                "TypeHelper<T> doesn't support variable-size types. Code calling this method is incorrect, data corruption is possible.");
+        }
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int Write(in T value, IntPtr destination, MemoryStream ms = null, SerializationFormat format = SerializationFormat.Binary)
+        public static int Write(in T value, IntPtr destination, MemoryStream ms = null,
+            SerializationFormat format = SerializationFormat.Binary,
+            Timestamp timestamp = default)
         {
             if (_hasBinaryConverter)
             {
-                return _converterInstance.Write(value, destination, ms, format);
+                return _converterInstance.Write(value, destination, ms, format, timestamp);
             }
             if (Size >= 0)
             {
+                var tsSize = 0;
+                if (timestamp != default)
+                {
+                    tsSize = Timestamp.Size;
+                    // copy by value
+                    var placeholder = _placeholderTs;
+                    placeholder.Timestamp = timestamp;
+                    placeholder.Value = value;
+                    WriteUnaligned((void*)(destination), placeholder);
+                }
+                else
+                {
+                    // copy by value
+                    var placeholder = _placeholder;
+                    placeholder.Value = value;
+                    WriteUnaligned((void*)(destination), placeholder);
+                }
                 Debug.Assert(Size > 0);
-                var len = DataTypeHeader.Size + Size;
-                // copy by value
-                var placeholder = _placeholder;
-                placeholder.Value = value;
-                WriteUnaligned((void*)(destination), placeholder);
-                // WriteUnaligned((void*)(destination + DataTypeHeader.Size), value);
+
+                var len = DataTypeHeader.Size + tsSize + Size;
                 return len;
             }
 
@@ -437,19 +497,22 @@ namespace Spreads.Serialization
         /// <param name="value"></param>
         /// <param name="memoryStream"></param>
         /// <param name="format"></param>
+        /// <param name="timestamp"></param>
         /// <returns></returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int SizeOf(T value, out MemoryStream memoryStream, SerializationFormat format)
+        public static int SizeOf(T value, out MemoryStream memoryStream,
+            SerializationFormat format,
+            Timestamp timestamp)
         {
             memoryStream = null;
             if (_hasBinaryConverter)
             {
                 Debug.Assert(Size == -1);
-                return _converterInstance.SizeOf(value, out memoryStream, format);
+                return _converterInstance.SizeOf(value, out memoryStream, format, timestamp);
             }
             if (Size >= 0)
             {
-                return DataTypeHeader.Size + Size;
+                return DataTypeHeader.Size + Size + (timestamp == default ? 0 : Timestamp.Size);
             }
             Debug.Assert(Size < 0);
             return -1;

@@ -27,6 +27,7 @@ open System.Reflection
 open Spreads
 open Spreads
 open Spreads.Buffers
+open Spreads.DataTypes
 open Spreads.Serialization
 open Spreads.Collections
 open Spreads.Utils
@@ -164,7 +165,9 @@ type SortedMap<'K,'V>
   static member internal Init() =
     let converter = {
       new ArrayBasedMapConverter<'K,'V, SortedMap<'K,'V>>() with
-        member __.Read(ptr : IntPtr, [<Out>]value: byref<SortedMap<'K,'V>> ) = 
+        member __.Read(ptr : IntPtr, [<Out>]value: byref<SortedMap<'K,'V>>, [<Out>]timestamp: byref<Timestamp> ) = 
+          ThrowHelper.ThrowNotImplementedException("TODO Headers & timestamp")
+          
           let version = Marshal.ReadByte(ptr)
           let totalSize = 8 + Marshal.ReadInt32(new IntPtr(ptr.ToInt64() + 4L))
           let mapSize = Marshal.ReadInt32(new IntPtr(ptr.ToInt64() + 8L))
@@ -177,7 +180,8 @@ type SortedMap<'K,'V>
               let ptr = new IntPtr(ptr.ToInt64() + 8L + 14L)
               let mutable keysArray = Unchecked.defaultof<'K[]>
               let mutable keysCount = 0
-              let keysLen = ArrayBinaryConverter<'K>.Instance.Read(ptr, &keysArray, &keysCount, false)
+              let mutable keysTs = Unchecked.defaultof<_>
+              let keysLen = ArrayBinaryConverter<'K>.Instance.Read(ptr, &keysArray, &keysCount, &keysTs, false)
               let keys = 
                 if isRegular then
                   let arr = Array.sub keysArray 0 2
@@ -189,7 +193,8 @@ type SortedMap<'K,'V>
               let ptr = new IntPtr(ptr.ToInt64() + (int64 keysLen))
               let mutable valuesArray = Unchecked.defaultof<'V[]>
               let mutable valuesCount = 0
-              let valuesLen = ArrayBinaryConverter<'V>.Instance.Read(ptr, &valuesArray, &valuesCount, false)
+              let mutable valuesTs = Unchecked.defaultof<_>
+              let valuesLen = ArrayBinaryConverter<'V>.Instance.Read(ptr, &valuesArray, &valuesCount, &valuesTs, false)
               Debug.Assert((totalSize = 8 + 14 + keysLen + valuesLen))
               let sm : SortedMap<'K,'V> = SortedMap.OfSortedKeysAndValues(keys, valuesArray, mapSize, KeyComparer<'K>.Default, false, isRegular)
               sm._version <- mapVersion

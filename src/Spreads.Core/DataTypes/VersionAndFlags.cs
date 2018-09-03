@@ -22,21 +22,20 @@ namespace Spreads.DataTypes
     {
         internal const int VersionBitsOffset = 4;
 
-        internal const int CompressedBitOffset = 0;
-
         internal const byte VersionMask = 0b_1111_0000;
         internal const byte BinaryFlagMask = 0b_0000_0001;
         internal const byte CompressedFlagMask = 0b_0000_0010;
         internal const byte DeltaFlagMask = 0b_0000_0100;
+        internal const byte TimestampFlagMask = 0b_0000_1000;
 
         private byte _value;
 
         public byte Version
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return (byte)(_value >> VersionBitsOffset); }
+            get => (byte)(_value >> VersionBitsOffset);
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            set { _value = (byte)((_value & ~VersionMask) | ((value << VersionBitsOffset) & VersionMask)); }
+            set => _value = (byte)((_value & ~VersionMask) | ((value << VersionBitsOffset) & VersionMask));
         }
 
         /// <summary>
@@ -45,7 +44,7 @@ namespace Spreads.DataTypes
         public bool IsCompressed
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return (_value & CompressedFlagMask) != 0; }
+            get => (_value & CompressedFlagMask) != 0;
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             set
             {
@@ -66,7 +65,7 @@ namespace Spreads.DataTypes
         public bool IsDelta
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return (_value & DeltaFlagMask) != 0; }
+            get => (_value & DeltaFlagMask) != 0;
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             set
             {
@@ -87,7 +86,7 @@ namespace Spreads.DataTypes
         public bool IsBinary
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return (_value & BinaryFlagMask) != 0; }
+            get => (_value & BinaryFlagMask) != 0;
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             set
             {
@@ -98,6 +97,24 @@ namespace Spreads.DataTypes
                 else
                 {
                     _value = (byte)(_value & ~BinaryFlagMask);
+                }
+            }
+        }
+
+        public bool IsTimestamped
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => (_value & TimestampFlagMask) != 0;
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            set
+            {
+                if (value)
+                {
+                    _value |= TimestampFlagMask;
+                }
+                else
+                {
+                    _value = (byte)(_value & ~TimestampFlagMask);
                 }
             }
         }
