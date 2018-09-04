@@ -6,7 +6,7 @@ using Spreads.DataTypes;
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Runtime.InteropServices;
+using System.Diagnostics.Contracts;
 using System.Threading.Tasks;
 
 namespace Spreads
@@ -118,26 +118,11 @@ namespace Spreads
         public static ulong MaxVersion = (1UL << 53) - 1UL;
     }
 
-    [StructLayout(LayoutKind.Auto)]
-    public readonly struct DataStreamEvent<T>
-    {
-        public DataStreamEvent(ulong version, Timestamp timestamp, T value)
-        {
-            Version = version;
-            Timestamp = timestamp;
-            Value = value;
-        }
-
-        public readonly ulong Version;
-        public readonly Timestamp Timestamp;
-        public readonly T Value;
-    }
-
     /// <summary>
     /// DataStreams are unbounded sequences of data items, either recorded or arriving in real-time.
     /// DataStreams have sequential keys.
     /// </summary>
-    public interface IDataStream<T> : IAsyncEnumerable<DataStreamEvent<T>>
+    public interface IDataStream<T> : ISeries<ulong, Timestamped<T>>
     {
         // NB we do not implement specialized IDataStream<T,TCursor>/ISpecializedEnumerator yet.
         // It's only for data consumption/production so interface call at couple of hundreds MOPS
@@ -151,7 +136,9 @@ namespace Spreads
         /// </summary>
         bool IsCompleted { get; }
 
-        Opt<DataStreamEvent<T>> Last { get; }
+        Opt<KeyValuePair<ulong, Timestamped<T>>> Last { get; }
+
+        // Series<Timestamp, T> AsTimeSeries();
     }
 
     public interface IMutableDataStream<T> : IDataStream<T>
@@ -356,6 +343,7 @@ namespace Spreads
         /// <remarks>
         /// This method must work on disposed instances of <see cref="ISpecializedCursor{TKey, TValue, TCursor}"/>.
         /// </remarks>
+        [Pure]
         TCursor Initialize();
 
         /// <summary>

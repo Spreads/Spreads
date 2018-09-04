@@ -2,38 +2,41 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-using Spreads.Serialization.Utf8Json;
-using System.Runtime.InteropServices;
 using Spreads.Serialization;
-
-// ReSharper disable PrivateFieldCanBeConvertedToLocalVariable
+using Spreads.Serialization.Utf8Json;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 
 namespace Spreads.DataTypes
 {
-
     /// <summary>
-    /// 
+    /// A value with a timestamp.
     /// </summary>
-    /// <typeparam name="T"></typeparam>
     [Serialization(PreferBlittable = true)]
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     // NB cannot use JsonFormatter attribute, this is hardcoded in DynamicGenericResolverGetFormatterHelper
-    public readonly struct ValueWithTimestamp<T>
+    public readonly struct Timestamped<T>
     {
         public readonly Timestamp Timestamp;
         public readonly T Value;
 
-        public ValueWithTimestamp(T value, Timestamp timestamp)
+        public Timestamped(T value, Timestamp timestamp)
         {
             Timestamp = timestamp;
             Value = value;
         }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static implicit operator T(Timestamped<T> timestamped)
+        {
+            return timestamped.Value;
+        }
     }
 
     // NB cannot use JsonFormatter attribute, this is hardcoded in DynamicGenericResolverGetFormatterHelper
-    public class ValueWithTimestampFormatter<T> : IJsonFormatter<ValueWithTimestamp<T>>
+    public class TimestampedFormatter<T> : IJsonFormatter<Timestamped<T>>
     {
-        public void Serialize(ref JsonWriter writer, ValueWithTimestamp<T> value, IJsonFormatterResolver formatterResolver)
+        public void Serialize(ref JsonWriter writer, Timestamped<T> value, IJsonFormatterResolver formatterResolver)
         {
             writer.WriteBeginArray();
 
@@ -46,7 +49,7 @@ namespace Spreads.DataTypes
             writer.WriteEndArray();
         }
 
-        public ValueWithTimestamp<T> Deserialize(ref JsonReader reader, IJsonFormatterResolver formatterResolver)
+        public Timestamped<T> Deserialize(ref JsonReader reader, IJsonFormatterResolver formatterResolver)
         {
             reader.ReadIsBeginArrayWithVerify();
 
@@ -58,7 +61,7 @@ namespace Spreads.DataTypes
 
             reader.ReadIsEndArrayWithVerify();
 
-            return new ValueWithTimestamp<T>(value, timestamp);
+            return new Timestamped<T>(value, timestamp);
         }
     }
 }

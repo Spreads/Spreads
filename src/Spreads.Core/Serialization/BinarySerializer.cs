@@ -368,7 +368,6 @@ namespace Spreads.Serialization
             return Read(buffer, out value, out _);
         }
 
-
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static unsafe int Read<T>(ReadOnlyMemory<byte> buffer, out T value, out Timestamp timestamp)
         {
@@ -420,6 +419,16 @@ namespace Spreads.Serialization
                     rms.Dispose();
                 }
             }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static unsafe Timestamp ReadTimestamp<T>(IntPtr ptr)
+        {
+            var header = ReadUnaligned<DataTypeHeader>((void*)ptr);
+            if (!header.VersionAndFlags.IsTimestamped) { return default; }
+            var offset = header.IsFixedSize ? 4 : 8;
+            var timestamp = ReadUnaligned<Timestamp>((void*)(ptr + offset));
+            return timestamp;
         }
     }
 
