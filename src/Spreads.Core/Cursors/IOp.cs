@@ -2,9 +2,13 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+using System;
 using Spreads.DataTypes;
 using System.Diagnostics.Contracts;
 using System.Runtime.CompilerServices;
+
+#pragma warning disable HAA0601 // Value type to reference type conversion causing boxing allocation
+
 // ReSharper disable InconsistentNaming
 
 // ReSharper disable CompareOfFloatsByEqualityOperator
@@ -51,6 +55,7 @@ namespace Spreads
 
     public readonly struct AddOp<T> : IOp<T>
     {
+        [Obsolete("Use ZipOp")]
         internal static T ZipSelector<TKey>(TKey key, (T, T) value)
         {
             return default(AddOp<T>).Apply(value);

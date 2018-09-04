@@ -11,6 +11,122 @@ using System.Threading.Tasks;
 // ReSharper disable once CheckNamespace
 namespace Spreads
 {
+    public struct ZipOp<TKey, TValue, TOp, TCursorLeft, TCursorRight>
+        : ISpecializedCursor<TKey, TValue, ZipOp<TKey, TValue, TOp, TCursorLeft, TCursorRight>>
+        where TCursorLeft : ISpecializedCursor<TKey, TValue, TCursorLeft>
+        where TCursorRight : ISpecializedCursor<TKey, TValue, TCursorRight>
+        where TOp : struct, IOp<TValue>
+    {
+        private Op2<TKey, TValue, TOp, Zip<TKey, TValue, TValue, TCursorLeft, TCursorRight>> _op;
+
+        public ZipOp(Zip<TKey, TValue, TValue, TCursorLeft, TCursorRight> zip)
+        {
+            var op = new Op2<TKey, TValue, TOp, Zip<TKey, TValue, TValue, TCursorLeft, TCursorRight>>(zip);
+            _op = op;
+        }
+
+        public ValueTask<bool> MoveNextAsync()
+        {
+            return _op.MoveNextAsync();
+        }
+
+        public bool MoveNext()
+        {
+            return _op.MoveNext();
+        }
+
+        public void Reset()
+        {
+            _op.Reset();
+        }
+
+        public KeyValuePair<TKey, TValue> Current => _op.Current;
+
+        object IEnumerator.Current => ((IEnumerator)_op).Current;
+
+        public void Dispose()
+        {
+            _op.Dispose();
+        }
+
+        public Task DisposeAsync()
+        {
+            return _op.DisposeAsync();
+        }
+
+        public CursorState State => _op.State;
+
+        public KeyComparer<TKey> Comparer => _op.Comparer;
+
+        public bool MoveAt(TKey key, Lookup direction)
+        {
+            return _op.MoveAt(key, direction);
+        }
+
+        public bool MoveFirst()
+        {
+            return _op.MoveFirst();
+        }
+
+        public bool MoveLast()
+        {
+            return _op.MoveLast();
+        }
+
+        public long MoveNext(long stride, bool allowPartial)
+        {
+            return _op.MoveNext(stride, allowPartial);
+        }
+
+        public bool MovePrevious()
+        {
+            return _op.MovePrevious();
+        }
+
+        public long MovePrevious(long stride, bool allowPartial)
+        {
+            return _op.MovePrevious(stride, allowPartial);
+        }
+
+        public TKey CurrentKey => _op.CurrentKey;
+
+        public TValue CurrentValue => _op.CurrentValue;
+
+#pragma warning disable HAA0601 // Value type to reference type conversion causing boxing allocation
+        ISeries<TKey, TValue> ICursor<TKey, TValue>.Source => Source;
+#pragma warning restore HAA0601 // Value type to reference type conversion causing boxing allocation
+
+        public Series<TKey, TValue, ZipOp<TKey, TValue, TOp, TCursorLeft, TCursorRight>> Source => new Series<TKey, TValue, ZipOp<TKey, TValue, TOp, TCursorLeft, TCursorRight>>(this);
+
+        public bool IsContinuous => _op.IsContinuous;
+
+        public ZipOp<TKey, TValue, TOp, TCursorLeft, TCursorRight> Initialize()
+        {
+            return new ZipOp<TKey, TValue, TOp, TCursorLeft, TCursorRight>(_op._cursor.Initialize());
+        }
+
+        ZipOp<TKey, TValue, TOp, TCursorLeft, TCursorRight> ISpecializedCursor<TKey, TValue, ZipOp<TKey, TValue, TOp, TCursorLeft, TCursorRight>>.Clone()
+        {
+            return new ZipOp<TKey, TValue, TOp, TCursorLeft, TCursorRight>(_op._cursor.Clone());
+        }
+
+        public bool IsIndexed => _op._cursor.IsIndexed;
+
+        public bool IsCompleted => _op._cursor.IsCompleted;
+
+        public IAsyncCompleter AsyncCompleter => _op._cursor.AsyncCompleter;
+
+        public ICursor<TKey, TValue> Clone()
+        {
+            return _op.Clone();
+        }
+
+        public bool TryGetValue(TKey key, out TValue value)
+        {
+            return _op.TryGetValue(key, out value);
+        }
+    }
+
     /// <summary>
     /// An <see cref="ISpecializedSeries{TKey,TValue,TCursor}"/> that applies an arithmetic operation
     /// <see cref="IOp{TValue}"/> to each value of its input series.
@@ -215,7 +331,7 @@ namespace Spreads
         [MethodImpl(MethodImplOptions.NoInlining)]
         public long MoveNext(long stride, bool allowPartial)
         {
-            throw new NotFiniteNumberException();
+            throw new NotSupportedException();
         }
 
         /// <inheritdoc />
@@ -232,8 +348,12 @@ namespace Spreads
             return _cursor.MovePrevious();
         }
 
+#pragma warning disable HAA0601 // Value type to reference type conversion causing boxing allocation
+
         /// <inheritdoc />
-        ISeries<TKey, TValue> ICursor<TKey, TValue>.Source => new Series<TKey, TValue, Op2<TKey, TValue, TOp, TCursor>>(this);
+        ISeries<TKey, TValue> ICursor<TKey, TValue>.Source => Source;
+
+#pragma warning restore HAA0601 // Value type to reference type conversion causing boxing allocation
 
         /// <summary>
         /// Get a <see cref="Series{TKey,TValue,TCursor}"/> based on this cursor.

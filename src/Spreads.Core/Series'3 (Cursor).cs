@@ -6,12 +6,11 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
-using System.Threading.Tasks;
 
 namespace Spreads
 {
     /// <summary>
-    /// A lightweight wrapper around a <see cref="ICursorSeries{TKey,TValue,TCursor}"/>
+    /// A fast lightweight wrapper around a <see cref="ISpecializedCursor{TKey,TValue,TCursor}"/>
     /// implementing <see cref="ISeries{TKey, TValue}"/> interface using the cursor.
     /// </summary>
 #pragma warning disable 660, 661
@@ -19,7 +18,7 @@ namespace Spreads
     // TODO review if we could keep cursor and not initialize every time
     public readonly struct Series<TKey, TValue, TCursor> : ISpecializedSeries<TKey, TValue, TCursor>, IAsyncCompleter
 #pragma warning restore 660, 661
-        where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
+        where TCursor : struct, ISpecializedCursor<TKey, TValue, TCursor>
     {
         // ReSharper disable once InconsistentNaming
         internal readonly TCursor _cursor;
@@ -87,14 +86,13 @@ namespace Spreads
         {
             // NB this property is repeatedly called from MNA
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return _cursor.IsCompleted; }
+            get => _cursor.IsCompleted;
         }
 
         TCursor ISpecializedSeries<TKey, TValue, TCursor>.GetCursor()
         {
             return GetEnumerator();
         }
-
 
         // TODO (perf) Review if initilize/dispose is too much overhead vs a cached navigation cursor.
 
@@ -477,99 +475,106 @@ namespace Spreads
 
         // BINARY ARITHMETIC
 
+        // save typing & boilerplate. TODO R# Inline this when done
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static ZipOp<TKey, TValue, TOp, TCursorLeft, TCursorRight> 
+            // ReSharper disable once UnusedParameter.Local
+            ZipOp<TOp, TCursorLeft, TCursorRight>(Zip<TKey, TValue, TValue, TCursorLeft, TCursorRight> zipCursor, TOp _)
+            where TOp : struct, IOp<TValue> where TCursorLeft : ISpecializedCursor<TKey, TValue, TCursorLeft>
+            where TCursorRight : ISpecializedCursor<TKey, TValue, TCursorRight>
+        {
+            return new ZipOp<TKey, TValue, TOp, TCursorLeft, TCursorRight>(zipCursor);
+        }
+
         /// <summary>
         /// Add operator.
         /// </summary>
-        public static Series<TKey, TValue, Map<TKey, (TValue, TValue), TValue, Zip<TKey, TValue, TValue, TCursor, TCursor>>> operator
+        public static Series<TKey, TValue, ZipOp<TKey, TValue, AddOp<TValue>, TCursor, TCursor>> operator
             +(Series<TKey, TValue, TCursor> series, Series<TKey, TValue, TCursor> other)
         {
             var c1 = series.GetEnumerator();
             var c2 = other.GetEnumerator();
-            Func<TKey, (TValue, TValue), TValue> selector = AddOp<TValue>.ZipSelector;
 
             var zipCursor = new Zip<TKey, TValue, TValue, TCursor, TCursor>(c1, c2);
-            return zipCursor.Map(selector).Source;
+            return ZipOp(zipCursor, default(AddOp<TValue>)).Source;
         }
 
-        public static Series<TKey, TValue, Map<TKey, (TValue, TValue), TValue, Zip<TKey, TValue, TValue, TCursor, Cursor<TKey, TValue>>>> operator
+        public static Series<TKey, TValue, ZipOp<TKey, TValue, AddOp<TValue>, TCursor, Cursor<TKey, TValue>>> operator
             +(Series<TKey, TValue, TCursor> series, Series<TKey, TValue, Cursor<TKey, TValue>> other)
         {
             var c1 = series.GetEnumerator();
             var c2 = other.GetEnumerator();
-            Func<TKey, (TValue, TValue), TValue> selector = AddOp<TValue>.ZipSelector;
 
             var zipCursor = new Zip<TKey, TValue, TValue, TCursor, Cursor<TKey, TValue>>(c1, c2);
-            return zipCursor.Map(selector).Source;
+            return ZipOp(zipCursor, default(AddOp<TValue>)).Source;
         }
 
         /// <summary>
         /// Add operator.
         /// </summary>
-        public static Series<TKey, TValue, Map<TKey, (TValue, TValue), TValue, Zip<TKey, TValue, TValue, Cursor<TKey, TValue>, TCursor>>> operator
+        public static Series<TKey, TValue, ZipOp<TKey, TValue, AddOp<TValue>, Cursor<TKey, TValue>, TCursor>> operator
             +(Series<TKey, TValue> series, Series<TKey, TValue, TCursor> other)
         {
             var c1 = series.GetWrapper();
             var c2 = other.GetEnumerator();
-            Func<TKey, (TValue, TValue), TValue> selector = AddOp<TValue>.ZipSelector;
 
             var zipCursor = new Zip<TKey, TValue, TValue, Cursor<TKey, TValue>, TCursor>(c1, c2);
-            return zipCursor.Map(selector).Source;
+            return ZipOp(zipCursor, default(AddOp<TValue>)).Source;
         }
 
         /// <summary>
         /// Add operator.
         /// </summary>
-        public static Series<TKey, TValue, Map<TKey, (TValue, TValue), TValue, Zip<TKey, TValue, TValue, TCursor, Cursor<TKey, TValue>>>> operator
+        public static Series<TKey, TValue, ZipOp<TKey, TValue, AddOp<TValue>, TCursor, Cursor<TKey, TValue>>> operator
             +(Series<TKey, TValue, TCursor> series, Series<TKey, TValue> other)
         {
             var c1 = series.GetEnumerator();
             var c2 = other.GetWrapper();
-            Func<TKey, (TValue, TValue), TValue> selector = AddOp<TValue>.ZipSelector;
 
             var zipCursor = new Zip<TKey, TValue, TValue, TCursor, Cursor<TKey, TValue>>(c1, c2);
-            return zipCursor.Map(selector).Source;
+            return ZipOp(zipCursor, default(AddOp<TValue>)).Source;
         }
 
         /// <summary>
         /// Subtract operator.
         /// </summary>
-        public static Series<TKey, TValue, Map<TKey, (TValue, TValue), TValue, Zip<TKey, TValue, TValue, TCursor, TCursor>>> operator
+        public static Series<TKey, TValue, ZipOp<TKey, TValue, SubtractOp<TValue>, TCursor, TCursor>> operator
             -(Series<TKey, TValue, TCursor> series, Series<TKey, TValue, TCursor> other)
         {
             var c1 = series.GetEnumerator();
             var c2 = other.GetEnumerator();
-            Func<TKey, (TValue, TValue), TValue> selector = SubtractOp<TValue>.ZipSelector;
 
             var zipCursor = new Zip<TKey, TValue, TValue, TCursor, TCursor>(c1, c2);
-            return zipCursor.Map(selector).Source;
+            return ZipOp(zipCursor, default(SubtractOp<TValue>)).Source;
         }
 
         /// <summary>
         /// Subtract operator.
         /// </summary>
-        public static Series<TKey, TValue, Map<TKey, (TValue, TValue), TValue, Zip<TKey, TValue, TValue, TCursor, Cursor<TKey, TValue>>>> operator
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Series<TKey, TValue, ZipOp<TKey, TValue, SubtractOp<TValue>, TCursor, Cursor<TKey, TValue>>> operator
             -(Series<TKey, TValue, TCursor> series, Series<TKey, TValue, Cursor<TKey, TValue>> other)
         {
             var c1 = series.GetEnumerator();
             var c2 = other.GetEnumerator();
-            Func<TKey, (TValue, TValue), TValue> selector = SubtractOp<TValue>.ZipSelector;
 
             var zipCursor = new Zip<TKey, TValue, TValue, TCursor, Cursor<TKey, TValue>>(c1, c2);
-            return zipCursor.Map(selector).Source;
+            var zipOp = ZipOp(zipCursor, default(SubtractOp<TValue>));
+            var src = zipOp.Source;
+            return src;
         }
 
         /// <summary>
         /// Subtract operator.
         /// </summary>
-        public static Series<TKey, TValue, Map<TKey, (TValue, TValue), TValue, Zip<TKey, TValue, TValue, Cursor<TKey, TValue>, TCursor>>> operator
+        public static Series<TKey, TValue, ZipOp<TKey, TValue, SubtractOp<TValue>, Cursor<TKey, TValue>, TCursor>> operator
             -(Series<TKey, TValue> series, Series<TKey, TValue, TCursor> other)
         {
             var c1 = series.GetWrapper();
             var c2 = other.GetEnumerator();
-            Func<TKey, (TValue, TValue), TValue> selector = SubtractOp<TValue>.ZipSelector;
 
             var zipCursor = new Zip<TKey, TValue, TValue, Cursor<TKey, TValue>, TCursor>(c1, c2);
-            return zipCursor.Map(selector).Source;
+            return ZipOp(zipCursor, default(SubtractOp<TValue>)).Source;
         }
 
         /// <summary>
