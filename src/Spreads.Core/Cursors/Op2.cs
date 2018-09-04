@@ -19,108 +19,169 @@ namespace Spreads
     {
         private Op2<TKey, TValue, TOp, Zip<TKey, TValue, TValue, TCursorLeft, TCursorRight>> _op;
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ZipOp(Zip<TKey, TValue, TValue, TCursorLeft, TCursorRight> zip)
         {
             var op = new Op2<TKey, TValue, TOp, Zip<TKey, TValue, TValue, TCursorLeft, TCursorRight>>(zip);
             _op = op;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ValueTask<bool> MoveNextAsync()
         {
             return _op.MoveNextAsync();
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool MoveNext()
         {
             return _op.MoveNext();
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Reset()
         {
             _op.Reset();
         }
 
-        public KeyValuePair<TKey, TValue> Current => _op.Current;
+        public KeyValuePair<TKey, TValue> Current
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => _op.Current;
+        }
 
-        object IEnumerator.Current => ((IEnumerator)_op).Current;
+#pragma warning disable HAA0601 // Value type to reference type conversion causing boxing allocation
+        object IEnumerator.Current => _op.Current;
+#pragma warning restore HAA0601 // Value type to reference type conversion causing boxing allocation
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Dispose()
         {
             _op.Dispose();
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Task DisposeAsync()
         {
             return _op.DisposeAsync();
         }
 
-        public CursorState State => _op.State;
+        public CursorState State
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => _op.State;
+        }
 
-        public KeyComparer<TKey> Comparer => _op.Comparer;
+        public KeyComparer<TKey> Comparer
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => _op.Comparer;
+        }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool MoveAt(TKey key, Lookup direction)
         {
             return _op.MoveAt(key, direction);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool MoveFirst()
         {
             return _op.MoveFirst();
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool MoveLast()
         {
             return _op.MoveLast();
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public long MoveNext(long stride, bool allowPartial)
         {
             return _op.MoveNext(stride, allowPartial);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool MovePrevious()
         {
             return _op.MovePrevious();
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public long MovePrevious(long stride, bool allowPartial)
         {
             return _op.MovePrevious(stride, allowPartial);
         }
 
-        public TKey CurrentKey => _op.CurrentKey;
+        public TKey CurrentKey
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => _op.CurrentKey;
+        }
 
-        public TValue CurrentValue => _op.CurrentValue;
+        public TValue CurrentValue
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => _op.CurrentValue;
+        }
 
 #pragma warning disable HAA0601 // Value type to reference type conversion causing boxing allocation
+
         ISeries<TKey, TValue> ICursor<TKey, TValue>.Source => Source;
+
 #pragma warning restore HAA0601 // Value type to reference type conversion causing boxing allocation
 
-        public Series<TKey, TValue, ZipOp<TKey, TValue, TOp, TCursorLeft, TCursorRight>> Source => new Series<TKey, TValue, ZipOp<TKey, TValue, TOp, TCursorLeft, TCursorRight>>(this);
+        public Series<TKey, TValue, ZipOp<TKey, TValue, TOp, TCursorLeft, TCursorRight>> Source
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => new Series<TKey, TValue, ZipOp<TKey, TValue, TOp, TCursorLeft, TCursorRight>>(this);
+        }
 
-        public bool IsContinuous => _op.IsContinuous;
+        public bool IsContinuous
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => _op.IsContinuous;
+        }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ZipOp<TKey, TValue, TOp, TCursorLeft, TCursorRight> Initialize()
         {
             return new ZipOp<TKey, TValue, TOp, TCursorLeft, TCursorRight>(_op._cursor.Initialize());
         }
 
-        ZipOp<TKey, TValue, TOp, TCursorLeft, TCursorRight> ISpecializedCursor<TKey, TValue, ZipOp<TKey, TValue, TOp, TCursorLeft, TCursorRight>>.Clone()
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public ZipOp<TKey, TValue, TOp, TCursorLeft, TCursorRight> Clone()
         {
             return new ZipOp<TKey, TValue, TOp, TCursorLeft, TCursorRight>(_op._cursor.Clone());
         }
 
-        public bool IsIndexed => _op._cursor.IsIndexed;
-
-        public bool IsCompleted => _op._cursor.IsCompleted;
-
-        public IAsyncCompleter AsyncCompleter => _op._cursor.AsyncCompleter;
-
-        public ICursor<TKey, TValue> Clone()
+        ICursor<TKey, TValue> ICursor<TKey, TValue>.Clone()
         {
+#pragma warning disable HAA0601 // Value type to reference type conversion causing boxing allocation
             return _op.Clone();
+#pragma warning restore HAA0601 // Value type to reference type conversion causing boxing allocation
         }
 
+        public bool IsIndexed
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => _op._cursor.IsIndexed;
+        }
+
+        public bool IsCompleted
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => _op._cursor.IsCompleted;
+        }
+
+        public IAsyncCompleter AsyncCompleter
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => _op._cursor.AsyncCompleter;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool TryGetValue(TKey key, out TValue value)
         {
             return _op.TryGetValue(key, out value);
@@ -136,7 +197,7 @@ namespace Spreads
         where TCursor : ISpecializedCursor<TKey, (TValue, TValue), TCursor>
         where TOp : struct, IOp<TValue>
     {
-        private static TOp _op = default(TOp);
+        private static TOp _op = default;
 
         #region Cursor state
 
@@ -206,7 +267,9 @@ namespace Spreads
 
         ICursor<TKey, TValue> ICursor<TKey, TValue>.Clone()
         {
+#pragma warning disable HAA0601 // Value type to reference type conversion causing boxing allocation
             return Clone();
+#pragma warning restore HAA0601 // Value type to reference type conversion causing boxing allocation
         }
 
         #endregion Lifetime management
@@ -217,60 +280,59 @@ namespace Spreads
         public KeyValuePair<TKey, TValue> Current
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new KeyValuePair<TKey, TValue>(CurrentKey, CurrentValue); }
+            get => new KeyValuePair<TKey, TValue>(CurrentKey, CurrentValue);
         }
 
         /// <inheritdoc />
         [MethodImpl(MethodImplOptions.NoInlining)]
         public long MovePrevious(long stride, bool allowPartial)
         {
-            throw new NotFiniteNumberException();
+            throw new NotSupportedException();
         }
 
         /// <inheritdoc />
         public TKey CurrentKey
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return _cursor.CurrentKey; }
+            get => _cursor.CurrentKey;
         }
 
         /// <inheritdoc />
         public TValue CurrentValue
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get
-            {
-                return _op.Apply(_cursor.CurrentValue);
-            }
+            get => _op.Apply(_cursor.CurrentValue);
         }
 
         public CursorState State
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return _cursor.State; }
+            get => _cursor.State;
         }
 
         /// <inheritdoc />
         public KeyComparer<TKey> Comparer
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return _cursor.Comparer; }
+            get => _cursor.Comparer;
         }
 
+#pragma warning disable HAA0601 // Value type to reference type conversion causing boxing allocation
         object IEnumerator.Current => Current;
+#pragma warning restore HAA0601 // Value type to reference type conversion causing boxing allocation
 
         /// <inheritdoc />
         public bool IsContinuous
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return _cursor.IsContinuous; }
+            get => _cursor.IsContinuous;
         }
 
         /// <inheritdoc />
         public bool IsIndexed
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return _cursor.IsIndexed; }
+            get => _cursor.IsIndexed;
         }
 
         /// <inheritdoc />
@@ -278,13 +340,13 @@ namespace Spreads
         {
             // NB this property is repeatedly called from MNA
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return _cursor.IsCompleted; }
+            get => _cursor.IsCompleted;
         }
 
         public IAsyncCompleter AsyncCompleter
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return _cursor.AsyncCompleter; }
+            get => _cursor.AsyncCompleter;
         }
 
         /// <inheritdoc />
@@ -358,7 +420,11 @@ namespace Spreads
         /// <summary>
         /// Get a <see cref="Series{TKey,TValue,TCursor}"/> based on this cursor.
         /// </summary>
-        public Series<TKey, TValue, Op2<TKey, TValue, TOp, TCursor>> Source => new Series<TKey, TValue, Op2<TKey, TValue, TOp, TCursor>>(this);
+        public Series<TKey, TValue, Op2<TKey, TValue, TOp, TCursor>> Source
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => new Series<TKey, TValue, Op2<TKey, TValue, TOp, TCursor>>(this);
+        }
 
         /// <inheritdoc />
         public ValueTask<bool> MoveNextAsync()

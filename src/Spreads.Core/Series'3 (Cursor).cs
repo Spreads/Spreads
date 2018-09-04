@@ -18,7 +18,7 @@ namespace Spreads
     // TODO review if we could keep cursor and not initialize every time
     public readonly struct Series<TKey, TValue, TCursor> : ISpecializedSeries<TKey, TValue, TCursor>, IAsyncCompleter
 #pragma warning restore 660, 661
-        where TCursor : struct, ISpecializedCursor<TKey, TValue, TCursor>
+        where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
     {
         // ReSharper disable once InconsistentNaming
         internal readonly TCursor _cursor;
