@@ -74,7 +74,7 @@ namespace Spreads
         public KeyValuePair<TKey, TValue> Current
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return _cursor.Current; }
+            get => _cursor.Current;
         }
 
         /// <inheritdoc />
@@ -98,7 +98,7 @@ namespace Spreads
         public KeyComparer<TKey> Comparer
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return _cursor.Comparer; }
+            get => _cursor.Comparer;
         }
 
         /// <inheritdoc />
@@ -147,21 +147,27 @@ namespace Spreads
         public TKey CurrentKey
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return _cursor.CurrentKey; }
+            get => _cursor.CurrentKey;
         }
 
         /// <inheritdoc />
         public TValue CurrentValue
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return _cursor.CurrentValue; }
+            get => _cursor.CurrentValue;
+        }
+
+        Series<TKey, TValue, Cursor<TKey, TValue>> ISpecializedCursor<TKey, TValue, Cursor<TKey, TValue>>.Source
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => new Series<TKey, TValue, Cursor<TKey, TValue>>(this);
         }
 
         /// <inheritdoc />
         public ISeries<TKey, TValue> Source
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return _cursor.Source; }
+            get => _cursor.Source;
         }
 
         /// <inheritdoc />
@@ -190,7 +196,7 @@ namespace Spreads
         public bool IsIndexed
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return _cursor.Source.IsIndexed; }
+            get => _cursor.Source.IsIndexed;
         }
 
         /// <inheritdoc />
@@ -198,19 +204,19 @@ namespace Spreads
         {
             // NB this property is repeatedly called from MNA
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return _cursor.Source.IsCompleted; }
+            get => _cursor.Source.IsCompleted;
         }
 
         public IAsyncCompleter AsyncCompleter
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return _cursor.Source as IAsyncCompleter; }
+            get => _cursor.Source as IAsyncCompleter;
         }
 
         public CursorState State
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return _cursor.State; }
+            get => _cursor.State;
         }
     }
 }

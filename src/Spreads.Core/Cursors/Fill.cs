@@ -224,8 +224,10 @@ namespace Spreads
             return _cursor.MovePrevious();
         }
 
-        /// <inheritdoc />
-        ISeries<TKey, TValue> ICursor<TKey, TValue>.Source => new Series<TKey, TValue, Fill<TKey, TValue, TCursor>>(this);
+#pragma warning disable HAA0601 // Value type to reference type conversion causing boxing allocation
+                               /// <inheritdoc />
+        ISeries<TKey, TValue> ICursor<TKey, TValue>.Source => Source;
+#pragma warning restore HAA0601 // Value type to reference type conversion causing boxing allocation
 
         /// <summary>
         /// Get a <see cref="Series{TKey,TValue,TCursor}"/> based on this cursor.
@@ -246,6 +248,7 @@ namespace Spreads
         /// A value used by TOp.
         /// </summary>
         public TValue Value => _value;
+
 
         #endregion Custom Properties
 

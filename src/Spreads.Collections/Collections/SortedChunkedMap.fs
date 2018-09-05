@@ -650,3 +650,4 @@ and
       member this.IsIndexed with get() = false
       member this.IsCompleted with get() = this.IsCompleted
       member this.AsyncCompleter with get() = this.AsyncCompleter
+      member this.Source with get() = new Series<_,_,_>(this)

@@ -241,7 +241,7 @@ namespace Spreads
         public Series<TKey, TResult, Map<TKey, TInput, TResult, TCursor>> Source
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return new Series<TKey, TResult, Map<TKey, TInput, TResult, TCursor>>(this); }
+            get => new Series<TKey, TResult, Map<TKey, TInput, TResult, TCursor>>(this);
         }
 
         /// <inheritdoc />

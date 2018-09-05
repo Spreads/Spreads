@@ -124,14 +124,10 @@ namespace Spreads
         private IEnumerator<KeyValuePair<TKey, TValue>> _innerBatchEnumerator;
         private IEnumerable<KeyValuePair<TKey, TValue>> _nextBatch;
 
-        public AsyncCursor(TCursor cursor, bool preferBatchMode = false)
+        internal AsyncCursor(TCursor cursor, bool preferBatchMode = false)
         {
             _innerCursor = cursor;
-            if (_innerCursor.Source == null)
-            {
-                Environment.FailFast("Source is null");
-            }
-
+            
             _preferBatchMode = preferBatchMode;
 
             if (_preferBatchMode)
@@ -159,7 +155,7 @@ namespace Spreads
         public TCursor InnerCursor
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return _innerCursor; }
+            get => _innerCursor;
         }
 
         #region Async synchronization
@@ -720,7 +716,7 @@ namespace Spreads
         public KeyValuePair<TKey, TValue> Current
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return _isInBatch ? _innerBatchEnumerator.Current : _innerCursor.Current; }
+            get => _isInBatch ? _innerBatchEnumerator.Current : _innerCursor.Current;
         }
 
         object IEnumerator.Current => ((IEnumerator)_innerCursor).Current;
@@ -728,7 +724,7 @@ namespace Spreads
         public CursorState State
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return _innerCursor.State; }
+            get => _innerCursor.State;
         }
 
         public KeyComparer<TKey> Comparer => _innerCursor.Comparer;
@@ -796,43 +792,45 @@ namespace Spreads
         public TKey CurrentKey
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return _isInBatch ? _innerBatchEnumerator.Current.Key : _innerCursor.CurrentKey; }
+            get => _isInBatch ? _innerBatchEnumerator.Current.Key : _innerCursor.CurrentKey;
         }
 
         public TValue CurrentValue
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return _isInBatch ? _innerBatchEnumerator.Current.Value : _innerCursor.CurrentValue; }
+            get => _isInBatch ? _innerBatchEnumerator.Current.Value : _innerCursor.CurrentValue;
         }
 
-        public ISeries<TKey, TValue> Source
+        public Series<TKey, TValue, TCursor> Source => _innerCursor.Source;
+
+        ISeries<TKey, TValue> ICursor<TKey, TValue>.Source
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return _innerCursor.Source; }
+            get => _innerCursor.Source;
         }
 
         public bool IsContinuous
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return _innerCursor.IsContinuous; }
+            get => _innerCursor.IsContinuous;
         }
 
         public bool IsIndexed
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return _innerCursor.IsIndexed; }
+            get => _innerCursor.IsIndexed;
         }
 
         public bool IsCompleted
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return _innerCursor.IsCompleted; }
+            get => _innerCursor.IsCompleted;
         }
 
         public IAsyncCompleter AsyncCompleter
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return _innerCursor.AsyncCompleter; }
+            get => _innerCursor.AsyncCompleter;
         }
 
         public TCursor Initialize()

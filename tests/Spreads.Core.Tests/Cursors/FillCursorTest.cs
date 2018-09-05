@@ -115,6 +115,13 @@ namespace Spreads.Core.Tests.Cursors
                 { 5, 4 }
             };
 
+
+
+            var src = (sm.GetEnumerator() as ISpecializedCursor<int, double, SortedMapCursor<int, double>>).Source;
+            var filled = src.Fill(0);
+            var filled2 = (src as ISpecializedSeries<int, double, SortedMapCursor<int, double>>).Fill(0);
+            var filled3 = sm.Fill(0);
+
             var fc = new Fill<int, double, Cursor<int, double>>(sm.GetWrapper(), 41).Initialize();
             var c = (fc.Source + 1).GetEnumerator();
 

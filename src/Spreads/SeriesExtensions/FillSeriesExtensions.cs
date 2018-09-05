@@ -21,16 +21,28 @@ namespace Spreads
 
         #region ISeries
 
-        public static Series<TKey, TValue, Fill<TKey, TValue, Cursor<TKey, TValue>>> Fill<TKey, TValue>(
-            this ISeries<TKey, TValue> series, TValue value)
-        {
-            var cursor = new Fill<TKey, TValue, Cursor<TKey, TValue>>(series.GetSpecializedCursor(), value);
-            return cursor.Source;
-        }
+        //public static Series<TKey, TValue, Fill<TKey, TValue, Cursor<TKey, TValue>>> Fill<TKey, TValue>(
+        //    this ISeries<TKey, TValue> series, TValue value)
+        //{
+        //    var cursor = new Fill<TKey, TValue, Cursor<TKey, TValue>>(series.GetSpecializedCursor(), value);
+        //    return cursor.Source;
+        //}
 
         #endregion ISeries
 
-        #region Generic CursorSeries
+        #region ISpecializedSeries
+
+        public static Series<TKey, TValue, Fill<TKey, TValue, TCursor>> Fill<TKey, TValue, TCursor>(
+            this ISpecializedSeries<TKey, TValue, TCursor> series, TValue value)
+            where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
+        {
+            var cursor = new Fill<TKey, TValue, TCursor>(series.GetSpecializedCursor(), value);
+            return cursor.Source;
+        }
+
+        #endregion ISpecializedSeries
+
+        #region Series'3
 
         public static Series<TKey, TValue, Fill<TKey, TValue, TCursor>> Fill<TKey, TValue, TCursor>(
             this Series<TKey, TValue, TCursor> series, TValue value)
@@ -40,6 +52,6 @@ namespace Spreads
             return cursor.Source;
         }
 
-        #endregion Generic CursorSeries
+        #endregion Series'3
     }
 }

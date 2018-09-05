@@ -248,7 +248,7 @@ namespace Spreads.Core.Tests.Cursors
             var cnt = 0;
             var t2 = Task.Run(async () =>
             {
-                var c = zipMap.GetCursor();
+                var c = zipMap.GetSpecializedCursor();
                 
                 while (await c.MoveNextAsync())
                 {

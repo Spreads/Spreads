@@ -130,7 +130,7 @@ namespace Spreads.Core.Tests.Cursors
 
             //Assert.AreEqual(1, range.First.Value);
 
-            var cursor = range.GetCursor();
+            var cursor = range.GetSpecializedCursor();
 
             var source = cursor.Source;
 
@@ -162,7 +162,7 @@ namespace Spreads.Core.Tests.Cursors
 
             //Assert.AreEqual(1, range.First.Value);
 
-            var cursor = range.GetCursor();
+            var cursor = range.GetSpecializedCursor();
 
             var source = cursor.Source;
 

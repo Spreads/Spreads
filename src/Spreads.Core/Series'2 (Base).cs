@@ -81,7 +81,7 @@ namespace Spreads
             return GetEnumerator();
         }
 
-        Cursor<TKey, TValue> ISpecializedSeries<TKey, TValue, Cursor<TKey, TValue>>.GetCursor()
+        Cursor<TKey, TValue> ISpecializedSeries<TKey, TValue, Cursor<TKey, TValue>>.GetSpecializedCursor()
         {
             return GetWrapper();
         }
@@ -972,6 +972,7 @@ namespace Spreads
 
         internal long Locker;
 
+        [Obsolete("TODO replace with GetSpecializedCursor")]
         internal abstract TCursor GetContainerCursor();
 
         /// <inheritdoc />
@@ -994,6 +995,7 @@ namespace Spreads
             return c;
         }
 
+        // TODO should be nonvirt method with concrete type, try to rework parent
         public sealed override IEnumerator<KeyValuePair<TKey, TValue>> GetEnumerator()
         {
             return GetContainerCursor();
@@ -1159,7 +1161,8 @@ namespace Spreads
             }
         }
 
-        TCursor ISpecializedSeries<TKey, TValue, TCursor>.GetCursor()
+        // TODO replace GetContainerSeries
+        public TCursor GetSpecializedCursor()
         {
             return GetContainerCursor();
         }

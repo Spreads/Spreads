@@ -487,7 +487,7 @@ namespace Spreads.Tests.DataTypes
                     Console.WriteLine(ex.Message);
                 }
             });
-            var c = rs.GetCursor();
+            var c = rs.GetSpecializedCursor();
             while (await c.MoveNextAsync())
             {
                 sum += c.CurrentValue.Get<int>();

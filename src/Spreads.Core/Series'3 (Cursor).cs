@@ -89,7 +89,7 @@ namespace Spreads
         /// <inheritdoc />
         [Pure]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        ICursor<TKey, TValue> ISeries<TKey, TValue>.GetCursor()
+        public ICursor<TKey, TValue> GetCursor()
         {
             // Async support. ICursorSeries implementations do not implement MNA
             return new AsyncCursor<TKey, TValue, TCursor>(_cursor.Initialize());
@@ -97,7 +97,7 @@ namespace Spreads
 
         [Pure]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public TCursor GetCursor()
+        public TCursor GetSpecializedCursor()
         {
             return GetEnumerator();
         }

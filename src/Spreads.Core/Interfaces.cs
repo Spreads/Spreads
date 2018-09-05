@@ -187,7 +187,10 @@ namespace Spreads
         /// Get a strongly typed cursor that implements the <see cref="ISpecializedCursor{TKey,TValue,TCursor}"/> interface.
         /// </summary>
         /// <returns></returns>
-        new TCursor GetCursor();
+        TCursor GetSpecializedCursor();
+
+        // NB new name and not `new` keyword because this cursor does not implement MoveNextAsync,
+        // but is used to build efficient computation tree without interface calls.
     }
 
     /// <summary>
@@ -278,7 +281,7 @@ namespace Spreads
     /// </summary>
     // ReSharper disable once TypeParameterCanBeVariant
     public interface ISpecializedCursor<TKey, TValue, TCursor> : ICursor<TKey, TValue>
-        where TCursor : ICursor<TKey, TValue>
+        where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
     {
         /// <summary>
         /// Returns an initialized (ready to move) instance of <typeparamref name="TCursor"/>.
@@ -307,6 +310,8 @@ namespace Spreads
         bool IsCompleted { get; }
 
         IAsyncCompleter AsyncCompleter { get; }
+
+        new Series<TKey, TValue, TCursor> Source { get; }
     }
 
     /// <summary>
