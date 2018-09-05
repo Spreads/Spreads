@@ -200,6 +200,10 @@
       <Generator>TextTemplatingFileGenerator</Generator>
       <LastGenOutput>Symbol.cs</LastGenOutput>
     </None>
+    <None Update="Series%273 %28Operators%29.tt">
+      <Generator>TextTemplatingFileGenerator</Generator>
+      <LastGenOutput>Series'3 (Operators).cs</LastGenOutput>
+    </None>
     <None Update="Spreads.Core.licenseheader">
       <Generator>TextTemplatingFileGenerator</Generator>
       <LastGenOutput>Spreads.Core.cs</LastGenOutput>
@@ -217,6 +221,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="Cursors\Readme.md" />
+    <None Include="Series'3 (Operators).cs" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="Microsoft.IO.RecyclableMemoryStream">
@@ -225,6 +230,20 @@
     <Reference Include="System.Data.SqlXml">
       <HintPath>..\..\..\..\..\..\..\Program Files (x86)\Reference Assemblies\Microsoft\Framework\.NETFramework\v4.7.1\System.Data.SqlXml.dll</HintPath>
     </Reference>
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Update="Series%273 %28Operators%29.cs">
+      <DesignTime>True</DesignTime>
+      <AutoGen>True</AutoGen>
+      <DependentUpon>Series'3 (Operators).tt</DependentUpon>
+    </Compile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Update="Series%273 %28Operators%29.cs">
+      <DesignTime>True</DesignTime>
+      <AutoGen>True</AutoGen>
+      <DependentUpon>Series'3 (Operators).tt</DependentUpon>
+    </None>
   </ItemGroup>
 
 </Project>
