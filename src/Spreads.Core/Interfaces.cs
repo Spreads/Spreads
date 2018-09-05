@@ -106,61 +106,6 @@ namespace Spreads
         IDisposable Subscribe(IAsyncCompletable subscriber);
     }
 
-    public class DataStream
-    {
-        private DataStream()
-        {
-        }
-
-        /// <summary>
-        /// 2**53 ought to be enough for anybody. It's 285 years of microseconds.
-        /// </summary>
-        public static ulong MaxVersion = (1UL << 53) - 1UL;
-    }
-
-    /// <summary>
-    /// DataStreams are unbounded sequences of data items, either recorded or arriving in real-time.
-    /// DataStreams have sequential keys.
-    /// </summary>
-    public interface IDataStream<T> : ISeries<ulong, Timestamped<T>>
-    {
-        // NB we do not implement specialized IDataStream<T,TCursor>/ISpecializedEnumerator yet.
-        // It's only for data consumption/production so interface call at couple of hundreds MOPS
-        // is fine. For cursors it was important because they *transform* numeric data online (not in batches)
-        // and method call could be more expensive than the operation itself. E.g. Map()'s delegate call
-        // is more expensive than some simple arithmetic operation on values.
-
-        /// <summary>
-        /// False if the underlying collection could be changed, true if the underlying collection is immutable or is complete
-        /// for adding (e.g. after OnCompleted in Rx) or IsCompleted in terms of ICollectio/IDictionary or has fixed keys/values (all 4 definitions are the same).
-        /// </summary>
-        bool IsCompleted { get; }
-
-        Opt<KeyValuePair<ulong, Timestamped<T>>> Last { get; }
-
-        // Series<Timestamp, T> AsTimeSeries();
-    }
-
-    public interface IMutableDataStream<T> : IDataStream<T>
-    {
-        /// <summary>
-        /// Returns false if the version is not the next one after the current one (atomic check) or if the stream is completed.
-        /// Similar to CAS logic when new values depend on previous ones and concurrent writes are possible.
-        /// </summary>
-        Task<bool> TryAddLast(ulong version, T value);
-
-        Task<bool> TryAddLast(ulong version, T value, Timestamp timestamp);
-
-        /// <summary>
-        /// Atomically increments version for the added value. Returns version of the added value or zero if the stream is completed.
-        /// </summary>
-        ValueTask<ulong> TryAddLast(T value);
-
-        ValueTask<ulong> TryAddLast(T value, Timestamp timestamp);
-
-        Task Complete();
-    }
-
     /// <summary>
     /// Series are navigable ordered data streams of key-value pairs.
     /// </summary>

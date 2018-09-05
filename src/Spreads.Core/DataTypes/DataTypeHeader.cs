@@ -1,4 +1,4 @@
-﻿using System.Drawing;
+﻿using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
@@ -55,8 +55,10 @@ namespace Spreads.DataTypes
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
+                // TODO review
                 // LE, if equal than this is unknown but fixed size
-                return (int)TypeEnum <= Variant.KnownSmallTypesLimit;
+                Debug.Assert((int)TypeEnum <= Variant.KnownSmallTypesLimit);
+                return TypeSize > 0; // (int)TypeEnum <= Variant.KnownSmallTypesLimit;
             }
         }
     }

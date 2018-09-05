@@ -261,14 +261,7 @@ namespace Spreads.Utils.Bootstrap
         public Bootstrapper()
         {
             //_assemblyDirectory = GetAssemblyDirectory();
-#if NET451
-            _baseFolder = //Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-                Environment.UserInteractive
-                    ? Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData)
-                    : Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData);
-#else
-            _baseFolder = "~";
-#endif
+            _baseFolder = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
             _dataFolder = Path.Combine(_baseFolder, rootFolder, dataSubFolder);
 
             if (!Directory.Exists(AppFolder))

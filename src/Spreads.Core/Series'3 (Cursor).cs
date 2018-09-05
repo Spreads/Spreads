@@ -5,6 +5,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics.Contracts;
 using System.Runtime.CompilerServices;
 
 namespace Spreads
@@ -23,6 +24,7 @@ namespace Spreads
         // ReSharper disable once InconsistentNaming
         internal readonly TCursor _cursor;
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal Series(TCursor cursor)
         {
             _cursor = cursor;
@@ -36,6 +38,7 @@ namespace Spreads
         /// <summary>
         /// Get strongly-typed enumerator.
         /// </summary>
+        [Pure]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public TCursor GetEnumerator()
         {
@@ -45,6 +48,7 @@ namespace Spreads
         /// <summary>
         /// Get strongly-typed async enumerator.
         /// </summary>
+        [Pure]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public TCursor GetAsyncEnumerator()
         {
@@ -55,31 +59,55 @@ namespace Spreads
 
         IAsyncEnumerator<KeyValuePair<TKey, TValue>> IAsyncEnumerable<KeyValuePair<TKey, TValue>>.GetAsyncEnumerator()
         {
+#pragma warning disable HAA0601 // Value type to reference type conversion causing boxing allocation
             return _cursor.Initialize();
+#pragma warning restore HAA0601 // Value type to reference type conversion causing boxing allocation
         }
 
         IEnumerator<KeyValuePair<TKey, TValue>> IEnumerable<KeyValuePair<TKey, TValue>>.GetEnumerator()
         {
+#pragma warning disable HAA0601 // Value type to reference type conversion causing boxing allocation
             return _cursor.Initialize();
+#pragma warning restore HAA0601 // Value type to reference type conversion causing boxing allocation
         }
 
         IEnumerator IEnumerable.GetEnumerator()
         {
+#pragma warning disable HAA0601 // Value type to reference type conversion causing boxing allocation
             return _cursor.Initialize();
+#pragma warning restore HAA0601 // Value type to reference type conversion causing boxing allocation
         }
 
         /// <inheritdoc />
-        public KeyComparer<TKey> Comparer => _cursor.Comparer;
+
+        public KeyComparer<TKey> Comparer
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => _cursor.Comparer;
+        }
 
         /// <inheritdoc />
-        public ICursor<TKey, TValue> GetCursor()
+        [Pure]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        ICursor<TKey, TValue> ISeries<TKey, TValue>.GetCursor()
         {
             // Async support. ICursorSeries implementations do not implement MNA
             return new AsyncCursor<TKey, TValue, TCursor>(_cursor.Initialize());
         }
 
+        [Pure]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public TCursor GetCursor()
+        {
+            return GetEnumerator();
+        }
+
         /// <inheritdoc />
-        public bool IsIndexed => _cursor.IsIndexed;
+        public bool IsIndexed
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => _cursor.IsIndexed;
+        }
 
         /// <inheritdoc />
         public bool IsCompleted
@@ -89,16 +117,14 @@ namespace Spreads
             get => _cursor.IsCompleted;
         }
 
-        TCursor ISpecializedSeries<TKey, TValue, TCursor>.GetCursor()
-        {
-            return GetEnumerator();
-        }
+        
 
         // TODO (perf) Review if initilize/dispose is too much overhead vs a cached navigation cursor.
 
         /// <inheritdoc />
         public Opt<KeyValuePair<TKey, TValue>> First
         {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
                 using (var c = _cursor.Initialize())
@@ -111,6 +137,7 @@ namespace Spreads
         /// <inheritdoc />
         public Opt<KeyValuePair<TKey, TValue>> Last
         {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
                 using (var c = _cursor.Initialize())
@@ -120,6 +147,8 @@ namespace Spreads
             }
         }
 
+        [Pure]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool TryGetValue(TKey key, out TValue value)
         {
             // TODO (!) review, reuse cursor
@@ -130,6 +159,8 @@ namespace Spreads
         }
 
         /// <inheritdoc />
+        [Pure]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool TryGetAt(long idx, out KeyValuePair<TKey, TValue> kvp)
         {
             // NB call to this.NavCursor.Source.TryGetAt(idx) is recursive (=> SO) and is logically wrong
@@ -158,6 +189,8 @@ namespace Spreads
         }
 
         /// <inheritdoc />
+        [Pure]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool TryFindAt(TKey key, Lookup direction, out KeyValuePair<TKey, TValue> kvp)
         {
             using (var c = _cursor.Initialize())
@@ -176,6 +209,7 @@ namespace Spreads
         /// <inheritdoc />
         public IEnumerable<TKey> Keys
         {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
                 using (var c = _cursor.Initialize())
@@ -191,6 +225,7 @@ namespace Spreads
         /// <inheritdoc />
         public IEnumerable<TValue> Values
         {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
                 using (var c = _cursor.Initialize())
@@ -206,6 +241,7 @@ namespace Spreads
         /// <inheritdoc />
         public TValue this[TKey key]
         {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
                 using (var c = _cursor.Initialize())
@@ -229,6 +265,7 @@ namespace Spreads
         /// <summary>
         /// Add operator.
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Series<TKey, TValue, Op<TKey, TValue, AddOp<TValue>, TCursor>> operator
             +(Series<TKey, TValue, TCursor> series, TValue constant)
         {
@@ -239,6 +276,7 @@ namespace Spreads
         /// <summary>
         /// Add operator.
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Series<TKey, TValue, Op<TKey, TValue, AddOp<TValue>, TCursor>> operator
             +(TValue constant, Series<TKey, TValue, TCursor> series)
         {
@@ -250,6 +288,7 @@ namespace Spreads
         /// <summary>
         /// Negate operator.
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Series<TKey, TValue, Op<TKey, TValue, NegateOp<TValue>, TCursor>> operator
             -(Series<TKey, TValue, TCursor> series)
         {
@@ -260,6 +299,7 @@ namespace Spreads
         /// <summary>
         /// Unary plus operator.
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Series<TKey, TValue, Op<TKey, TValue, PlusOp<TValue>, TCursor>> operator
             +(Series<TKey, TValue, TCursor> series)
         {
@@ -270,6 +310,7 @@ namespace Spreads
         /// <summary>
         /// Subtract operator.
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Series<TKey, TValue, Op<TKey, TValue, SubtractOp<TValue>, TCursor>> operator
             -(Series<TKey, TValue, TCursor> series, TValue constant)
         {
@@ -280,6 +321,7 @@ namespace Spreads
         /// <summary>
         /// Subtract operator.
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Series<TKey, TValue, Op<TKey, TValue, SubtractReverseOp<TValue>, TCursor>> operator
             -(TValue constant, Series<TKey, TValue, TCursor> series)
         {
@@ -290,6 +332,7 @@ namespace Spreads
         /// <summary>
         /// Multiply operator.
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Series<TKey, TValue, Op<TKey, TValue, MultiplyOp<TValue>, TCursor>> operator
             *(Series<TKey, TValue, TCursor> series, TValue constant)
         {
@@ -300,6 +343,7 @@ namespace Spreads
         /// <summary>
         /// Multiply operator.
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Series<TKey, TValue, Op<TKey, TValue, MultiplyOp<TValue>, TCursor>> operator
             *(TValue constant, Series<TKey, TValue, TCursor> series)
         {
@@ -311,6 +355,7 @@ namespace Spreads
         /// <summary>
         /// Divide operator.
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Series<TKey, TValue, Op<TKey, TValue, DivideOp<TValue>, TCursor>> operator
             /(Series<TKey, TValue, TCursor> series, TValue constant)
         {
@@ -321,6 +366,7 @@ namespace Spreads
         /// <summary>
         /// Divide operator.
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Series<TKey, TValue, Op<TKey, TValue, DivideReverseOp<TValue>, TCursor>> operator
             /(TValue constant, Series<TKey, TValue, TCursor> series)
         {
@@ -331,6 +377,7 @@ namespace Spreads
         /// <summary>
         /// Modulo operator.
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Series<TKey, TValue, Op<TKey, TValue, ModuloOp<TValue>, TCursor>> operator
             %(Series<TKey, TValue, TCursor> series, TValue constant)
         {
@@ -341,6 +388,7 @@ namespace Spreads
         /// <summary>
         /// Modulo operator.
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Series<TKey, TValue, Op<TKey, TValue, ModuloReverseOp<TValue>, TCursor>> operator
             %(TValue constant, Series<TKey, TValue, TCursor> series)
         {
@@ -353,6 +401,7 @@ namespace Spreads
         /// <summary>
         /// Values equal operator. Use ReferenceEquals or SequenceEquals for other cases.
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Series<TKey, bool, Comparison<TKey, TValue, TCursor>> operator
             ==(Series<TKey, TValue, TCursor> series, TValue comparand)
         {
@@ -363,6 +412,7 @@ namespace Spreads
         /// <summary>
         /// Values equal operator. Use ReferenceEquals or SequenceEquals for other cases.
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Series<TKey, bool, Comparison<TKey, TValue, TCursor>> operator
             ==(TValue comparand, Series<TKey, TValue, TCursor> series)
         {
@@ -373,6 +423,7 @@ namespace Spreads
         /// <summary>
         /// Values not equal operator. Use !ReferenceEquals or !SequenceEquals for other cases.
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Series<TKey, bool, Comparison<TKey, TValue, TCursor>> operator
             !=(Series<TKey, TValue, TCursor> series, TValue comparand)
         {
@@ -383,6 +434,7 @@ namespace Spreads
         /// <summary>
         /// Values not equal operator. Use !ReferenceEquals or !SequenceEquals for other cases.
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Series<TKey, bool, Comparison<TKey, TValue, TCursor>> operator
             !=(TValue comparand, Series<TKey, TValue, TCursor> series)
         {
@@ -393,6 +445,7 @@ namespace Spreads
         /// <summary>
         /// Comparison operator.
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Series<TKey, bool, Comparison<TKey, TValue, TCursor>> operator
             <(Series<TKey, TValue, TCursor> series, TValue comparand)
         {
@@ -403,6 +456,7 @@ namespace Spreads
         /// <summary>
         /// Comparison operator.
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Series<TKey, bool, Comparison<TKey, TValue, TCursor>> operator
             <(TValue comparand, Series<TKey, TValue, TCursor> series)
         {
@@ -413,6 +467,7 @@ namespace Spreads
         /// <summary>
         /// Comparison operator.
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Series<TKey, bool, Comparison<TKey, TValue, TCursor>> operator
             >(Series<TKey, TValue, TCursor> series, TValue comparand)
         {
@@ -423,6 +478,7 @@ namespace Spreads
         /// <summary>
         /// Comparison operator.
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Series<TKey, bool, Comparison<TKey, TValue, TCursor>> operator
             >(TValue comparand, Series<TKey, TValue, TCursor> series)
         {
@@ -433,6 +489,7 @@ namespace Spreads
         /// <summary>
         /// Comparison operator.
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Series<TKey, bool, Comparison<TKey, TValue, TCursor>> operator
             <=(Series<TKey, TValue, TCursor> series, TValue comparand)
         {
@@ -443,6 +500,7 @@ namespace Spreads
         /// <summary>
         /// Comparison operator.
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Series<TKey, bool, Comparison<TKey, TValue, TCursor>> operator
             <=(TValue comparand, Series<TKey, TValue, TCursor> series)
         {
@@ -453,6 +511,7 @@ namespace Spreads
         /// <summary>
         /// Comparison operator.
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Series<TKey, bool, Comparison<TKey, TValue, TCursor>> operator >=(Series<TKey, TValue, TCursor> series, TValue comparand)
         {
             var cursor = new Comparison<TKey, TValue, TCursor>(series.GetEnumerator(), comparand, GEOp<TValue>.Instance);
@@ -462,6 +521,7 @@ namespace Spreads
         /// <summary>
         /// Comparison operator.
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Series<TKey, bool, Comparison<TKey, TValue, TCursor>> operator
             >=(TValue comparand, Series<TKey, TValue, TCursor> series)
         {
@@ -475,9 +535,11 @@ namespace Spreads
 
         // BINARY ARITHMETIC
 
+        // TODO [MethodImpl(MethodImplOptions.AggressiveInlining)] on all
+
         // save typing & boilerplate. TODO R# Inline this when done
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static ZipOp<TKey, TValue, TOp, TCursorLeft, TCursorRight> 
+        private static ZipOp<TKey, TValue, TOp, TCursorLeft, TCursorRight>
             // ReSharper disable once UnusedParameter.Local
             ZipOp<TOp, TCursorLeft, TCursorRight>(Zip<TKey, TValue, TValue, TCursorLeft, TCursorRight> zipCursor, TOp _)
             where TOp : struct, IOp<TValue> where TCursorLeft : ISpecializedCursor<TKey, TValue, TCursorLeft>
@@ -1105,19 +1167,27 @@ namespace Spreads
         /// with <see cref="Cursor{TKey,TValue}"/> as <typeparamref name="TCursor"/>.
         /// using <see cref="Cursor{TKey,TValue}"/> wrapper.
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static implicit operator Series<TKey, TValue, Cursor<TKey, TValue>>(Series<TKey, TValue, TCursor> series)
         {
+#pragma warning disable HAA0601 // Value type to reference type conversion causing boxing allocation
             var c = new Cursor<TKey, TValue>(series._cursor);
+#pragma warning restore HAA0601 // Value type to reference type conversion causing boxing allocation
             return new Series<TKey, TValue, Cursor<TKey, TValue>>(c);
         }
 
         /// <summary>
         /// Erase cursor type <typeparamref name="TCursor"/> to <see cref="Cursor{TKey,TValue}"/>.
         /// </summary>
-        public Series<TKey, TValue, Cursor<TKey, TValue>> Unspecialized => this;
+        public Series<TKey, TValue, Cursor<TKey, TValue>> Unspecialized
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => this;
+        }
 
         #endregion Implicit cast
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public IDisposable Subscribe(IAsyncCompletable subscriber)
         {
             return _cursor.AsyncCompleter?.Subscribe(subscriber);

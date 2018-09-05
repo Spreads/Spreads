@@ -117,7 +117,6 @@
     </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="JetBrains.Annotations" Version="11.1.0" />
     <PackageReference Include="Newtonsoft.Json" Version="11.0.2" />
     <PackageReference Include="Spreads.Unsafe" Version="1.0.0" />
     <PackageReference Include="System.Buffers" Version="4.5.0" />

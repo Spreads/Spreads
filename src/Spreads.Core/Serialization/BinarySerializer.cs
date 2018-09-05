@@ -46,7 +46,7 @@ namespace Spreads.Serialization
         /// Binary size of value T required for serialization.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int SizeOf<T>(in T value, out MemoryStream temporaryStream,
+        internal static int SizeOf<T>(in T value, out MemoryStream temporaryStream,
             SerializationFormat format = SerializationFormat.Binary,
             Timestamp timestamp = default)
         {
@@ -59,11 +59,11 @@ namespace Spreads.Serialization
                 }
             }
 
-            return SizeOfSlow(value, out temporaryStream, format, timestamp);
+            return SizeOfSlow(in value, out temporaryStream, format, timestamp);
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
-        private static int SizeOfSlow<T>(T value, out MemoryStream temporaryStream,
+        private static int SizeOfSlow<T>(in T value, out MemoryStream temporaryStream,
             SerializationFormat format, Timestamp timestamp)
         {
             var tsSize = timestamp == default ? 0 : Timestamp.Size;
@@ -157,7 +157,7 @@ namespace Spreads.Serialization
         /// Use Unsafe.WriteUnaligned() to write blittable types directly.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int WriteUnsafe<T>(in T value, IntPtr pinnedDestination,
+        internal static int WriteUnsafe<T>(in T value, IntPtr pinnedDestination,
             MemoryStream temporaryStream = null,
             SerializationFormat format = SerializationFormat.Binary,
             Timestamp timestamp = default)
@@ -232,13 +232,11 @@ namespace Spreads.Serialization
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe int Write<T>(in T value, ref Memory<byte> destination,
+        internal static unsafe int Write<T>(in T value, ref Memory<byte> destination,
             MemoryStream temporaryStream = null,
             SerializationFormat format = SerializationFormat.Binary,
             Timestamp timestamp = default)
         {
-            var tsSize = timestamp == default ? 0 : Timestamp.Size;
-
             var capacity = destination.Length;
 
             int size;
