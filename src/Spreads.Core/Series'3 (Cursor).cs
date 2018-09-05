@@ -50,18 +50,18 @@ namespace Spreads
         /// </summary>
         [Pure]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public TCursor GetAsyncEnumerator()
+        public AsyncCursor<TKey, TValue, TCursor> GetAsyncEnumerator()
         {
-            return _cursor.Initialize();
+            return new AsyncCursor<TKey, TValue, TCursor>(_cursor.Initialize(), true); // TODO review batch mode
         }
 
         #region ISeries members
 
         IAsyncEnumerator<KeyValuePair<TKey, TValue>> IAsyncEnumerable<KeyValuePair<TKey, TValue>>.GetAsyncEnumerator()
         {
-#pragma warning disable HAA0601 // Value type to reference type conversion causing boxing allocation
-            return _cursor.Initialize();
-#pragma warning restore HAA0601 // Value type to reference type conversion causing boxing allocation
+#pragma warning disable HAA0401 // Possible allocation of reference type enumerator
+            return GetAsyncEnumerator();
+#pragma warning restore HAA0401 // Possible allocation of reference type enumerator
         }
 
         IEnumerator<KeyValuePair<TKey, TValue>> IEnumerable<KeyValuePair<TKey, TValue>>.GetEnumerator()
@@ -116,8 +116,6 @@ namespace Spreads
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => _cursor.IsCompleted;
         }
-
-        
 
         // TODO (perf) Review if initilize/dispose is too much overhead vs a cached navigation cursor.
 

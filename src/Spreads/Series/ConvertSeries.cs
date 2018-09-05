@@ -98,12 +98,12 @@ namespace Spreads
         public override KeyComparer<TKey2> Comparer => _comparer;
         public override bool IsIndexed => Inner.IsIndexed;
 
-        public override IAsyncEnumerator<KeyValuePair<TKey2, TValue2>> GetAsyncEnumerator()
+        protected sealed override IAsyncEnumerator<KeyValuePair<TKey2, TValue2>> GetAsyncEnumeratorImpl()
         {
             return GetCursor();
         }
 
-        public override IEnumerator<KeyValuePair<TKey2, TValue2>> GetEnumerator()
+        protected sealed override IEnumerator<KeyValuePair<TKey2, TValue2>> GetEnumeratorImpl()
         {
             return GetCursor();
         }

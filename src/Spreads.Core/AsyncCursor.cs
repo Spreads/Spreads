@@ -17,7 +17,7 @@ using System.Threading.Tasks.Sources;
 
 namespace Spreads
 {
-    internal class AsyncCursor
+    public class AsyncCursor
     {
         protected static IDisposable _nullSubscriptionSentinel = new DummyDisposable();
 
@@ -92,7 +92,7 @@ namespace Spreads
         protected static readonly Action<object> SAvailableSentinel = s => throw new InvalidOperationException("Called available sentinel");
     }
 
-    internal sealed class AsyncCursor<TKey, TValue, TCursor> : AsyncCursor,
+    public sealed class AsyncCursor<TKey, TValue, TCursor> : AsyncCursor,
          ISpecializedCursor<TKey, TValue, TCursor>,
          IValueTaskSource<bool>, IAsyncCompletable
          where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
@@ -124,6 +124,7 @@ namespace Spreads
         private IEnumerator<KeyValuePair<TKey, TValue>> _innerBatchEnumerator;
         private IEnumerable<KeyValuePair<TKey, TValue>> _nextBatch;
 
+        // TODO review batch mode and all ctor usages
         internal AsyncCursor(TCursor cursor, bool preferBatchMode = false)
         {
             _innerCursor = cursor;

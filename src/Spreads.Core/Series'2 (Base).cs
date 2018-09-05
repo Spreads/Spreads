@@ -2,7 +2,6 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-using Spreads.Threading;
 using Spreads.Utils;
 using System;
 using System.Collections;
@@ -57,7 +56,7 @@ namespace Spreads
 #pragma warning disable 660, 661
 
     public abstract class Series<TKey, TValue> : BaseSeries,
-        ISpecializedSeries<TKey, TValue, Cursor<TKey, TValue>>
+        ISpecializedSeries<TKey, TValue, Cursor<TKey, TValue>>, IAsyncCompleter, IDisposable
 #pragma warning restore 660, 661
     {
         /// <inheritdoc />
@@ -72,13 +71,32 @@ namespace Spreads
         /// <inheritdoc />
         public abstract bool IsCompleted { get; }
 
-        public abstract IAsyncEnumerator<KeyValuePair<TKey, TValue>> GetAsyncEnumerator();
+        // Abstract members do not match enumerator patterns so that derived classes could have
+        // faster struct/strongly types enumerators
 
-        public abstract IEnumerator<KeyValuePair<TKey, TValue>> GetEnumerator();
+        protected abstract IAsyncEnumerator<KeyValuePair<TKey, TValue>> GetAsyncEnumeratorImpl();
+
+        IAsyncEnumerator<KeyValuePair<TKey, TValue>> IAsyncEnumerable<KeyValuePair<TKey, TValue>>.GetAsyncEnumerator()
+        {
+#pragma warning disable HAA0401 // Possible allocation of reference type enumerator
+            return GetAsyncEnumeratorImpl();
+#pragma warning restore HAA0401 // Possible allocation of reference type enumerator
+        }
+
+        protected abstract IEnumerator<KeyValuePair<TKey, TValue>> GetEnumeratorImpl();
+
+        IEnumerator<KeyValuePair<TKey, TValue>> IEnumerable<KeyValuePair<TKey, TValue>>.GetEnumerator()
+        {
+#pragma warning disable HAA0401 // Possible allocation of reference type enumerator
+            return GetEnumeratorImpl();
+#pragma warning restore HAA0401 // Possible allocation of reference type enumerator
+        }
 
         IEnumerator IEnumerable.GetEnumerator()
         {
-            return GetEnumerator();
+#pragma warning disable HAA0401 // Possible allocation of reference type enumerator
+            return GetEnumeratorImpl();
+#pragma warning restore HAA0401 // Possible allocation of reference type enumerator
         }
 
         Cursor<TKey, TValue> ISpecializedSeries<TKey, TValue, Cursor<TKey, TValue>>.GetSpecializedCursor()
@@ -114,7 +132,24 @@ namespace Spreads
         public abstract bool TryFindAt(TKey key, Lookup direction, out KeyValuePair<TKey, TValue> kvp);
 
         /// <inheritdoc />
-        public abstract bool TryGetAt(long idx, out KeyValuePair<TKey, TValue> kvp);
+        public virtual bool TryGetAt(long idx, out KeyValuePair<TKey, TValue> kvp)
+        {
+            if (idx < 0)
+            {
+                ThrowHelper.ThrowNotImplementedException("TODO Support negative indexes in TryGetAt");
+            }
+            // TODO (review) not so stupid and potentially throwing impl
+            try
+            {
+                kvp = this.Skip(Math.Max(0, checked((int)(idx)) - 1)).First();
+                return true;
+            }
+            catch
+            {
+                kvp = default;
+                return false;
+            }
+        }
 
         /// <inheritdoc />
         public virtual IEnumerable<TKey> Keys => this.Select(kvp => kvp.Key);
@@ -173,7 +208,7 @@ namespace Spreads
             -(Series<TKey, TValue> series)
         {
             var cursor =
-                new Op<TKey, TValue, NegateOp<TValue>, Cursor<TKey, TValue>>(series.GetWrapper(), default(TValue));
+                new Op<TKey, TValue, NegateOp<TValue>, Cursor<TKey, TValue>>(series.GetWrapper(), default);
             return cursor.Source;
         }
 
@@ -184,7 +219,7 @@ namespace Spreads
             +(Series<TKey, TValue> series)
         {
             var cursor =
-                new Op<TKey, TValue, PlusOp<TValue>, Cursor<TKey, TValue>>(series.GetWrapper(), default(TValue));
+                new Op<TKey, TValue, PlusOp<TValue>, Cursor<TKey, TValue>>(series.GetWrapper(), default);
             return cursor.Source;
         }
 
@@ -943,108 +978,50 @@ namespace Spreads
         }
 
         #endregion Binary Operators
-    }
 
-    /// <summary>
-    /// Base class for collections (containers).
-    /// </summary>
-#pragma warning disable 660, 661
-
-    public abstract class ContainerSeries<TKey, TValue, TCursor> : Series<TKey, TValue>,
-        ISpecializedSeries<TKey, TValue, TCursor>, IAsyncCompleter
-#pragma warning restore 660, 661
-        where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
-    {
-        private object _syncRoot;
-
-        // ReSharper disable InconsistentNaming
-        internal long _version;
-
-        internal long _nextVersion;
-
-        // ReSharper restore InconsistentNaming
-        internal bool _isSynchronized = true;
-
-        internal bool _isReadOnly;
+        #region Async cursor
 
         // Union of ContainerSubscription | ConcurrentHashSet<ContainerSubscription>
         private object _cursors;
 
-        internal long Locker;
-
-        [Obsolete("TODO replace with GetSpecializedCursor")]
-        internal abstract TCursor GetContainerCursor();
-
-        /// <inheritdoc />
-        public override bool IsCompleted
-        {
-            // NB this is set only inside write lock, no other locks are possible
-            // after this value is set so we do not need read lock. This is very
-            // hot path for MNA
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return Volatile.Read(ref _isReadOnly); }
-        }
-
-        public sealed override IAsyncEnumerator<KeyValuePair<TKey, TValue>> GetAsyncEnumerator()
-        {
-            if (IsCompleted)
-            {
-                return GetContainerCursor();
-            }
-            var c = new AsyncCursor<TKey, TValue, TCursor>(GetContainerCursor(), true);
-            return c;
-        }
-
-        // TODO should be nonvirt method with concrete type, try to rework parent
-        public sealed override IEnumerator<KeyValuePair<TKey, TValue>> GetEnumerator()
-        {
-            return GetContainerCursor();
-        }
-
-        public override ICursor<TKey, TValue> GetCursor()
-        {
-            if (IsCompleted)
-            {
-                return GetContainerCursor();
-            }
-            // NB subscribe from AsyncCursor
-            var c = new AsyncCursor<TKey, TValue, TCursor>(GetContainerCursor());
-            return c;
-        }
-
         private class ContainerSubscription : IAsyncSubscription
         {
-            private readonly ContainerSeries<TKey, TValue, TCursor> _container;
+            private readonly Series<TKey, TValue> _series;
             public readonly WeakReference<IAsyncCompletable> Wr;
 
             // Public interface exposes only IDisposable, only if subscription is IAsyncSubscription cursor knows what to do
             // Otherwise this number will stay at 1 and NotifyUpdate will send all updates
             private long _requests;
+
+            [Obsolete("Temp solution to keep strong ref while the async issue is not sorted out")]
+            // ReSharper disable once NotAccessedField.Local
             private IAsyncCompletable _sr;
 
             public long Requests
             {
                 [MethodImpl(MethodImplOptions.AggressiveInlining)]
-                get { return Volatile.Read(ref _requests); }
+                get => Volatile.Read(ref _requests);
             }
 
-            public ContainerSubscription(ContainerSeries<TKey, TValue, TCursor> container, WeakReference<IAsyncCompletable> wr)
+            public ContainerSubscription(Series<TKey, TValue> series, WeakReference<IAsyncCompletable> wr)
             {
-                _container = container;
+                _series = series;
                 Wr = wr;
                 if (wr.TryGetTarget(out var target))
                 {
+#pragma warning disable 618
                     _sr = target;
+#pragma warning restore 618
                 }
             }
 
             // ReSharper disable once UnusedParameter.Local
-            public void Dispose(bool disposing)
+            private void Dispose(bool disposing)
             {
                 try
                 {
                     Volatile.Write(ref _requests, 0);
-                    var existing = Interlocked.CompareExchange(ref _container._cursors, null, this);
+                    var existing = Interlocked.CompareExchange(ref _series._cursors, null, this);
                     if (existing == this)
                     {
                         return;
@@ -1161,48 +1138,165 @@ namespace Spreads
             }
         }
 
-        // TODO replace GetContainerSeries
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal void NotifyUpdate(bool force)
+        {
+            var cursors = _cursors;
+            if (cursors != null)
+            {
+                DoNotifyUpdate(force);
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private void DoNotifyUpdate(bool force)
+        {
+            var cursors = _cursors;
+
+            if (cursors is ContainerSubscription sub)
+            {
+                if ((sub.Requests > 0 || force) && sub.Wr.TryGetTarget(out var tg))
+                {
+                    // ReSharper disable once InconsistentlySynchronizedField
+                    DoNotifyUpdateSingleSync(tg);
+                    // SpreadsThreadPool.Default.UnsafeQueueCompletableItem(_doNotifyUpdateSingleSyncCallback, tg, true);
+                }
+            }
+            else if (cursors is HashSet<ContainerSubscription> hashSet)
+            {
+                lock (hashSet)
+                {
+                    foreach (var kvp in hashSet)
+                    {
+                        var sub1 = kvp;
+                        if ((sub1.Requests > 0 || force) && sub1.Wr.TryGetTarget(out var tg))
+                        {
+                            DoNotifyUpdateSingleSync(tg);
+                            // SpreadsThreadPool.Default.UnsafeQueueCompletableItem(_doNotifyUpdateSingleSyncCallback, tg, true);
+                        }
+                    }
+                }
+            }
+            else if (!(cursors is null))
+            {
+                ThrowHelper.FailFast("Wrong cursors subscriptions type");
+            }
+            else
+            {
+                Console.WriteLine("Cursors field is null");
+            }
+        }
+
+        // ReSharper disable once InconsistentNaming
+        // ReSharper disable once StaticMemberInGenericType
+        // private static readonly Action<object> _doNotifyUpdateSingleSyncCallback = DoNotifyUpdateSingleSync;
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static void DoNotifyUpdateSingleSync(object obj)
+        {
+            var cursor = (IAsyncCompletable)obj;
+            cursor.TryComplete(true, false);
+        }
+
+        #endregion Async cursor
+
+
+        protected virtual void Dispose(bool disposing)
+        { }
+
+        void IDisposable.Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+    }
+
+    /// <summary>
+    /// Base class for collections (containers).
+    /// </summary>
+#pragma warning disable 660, 661
+
+    public abstract class ContainerSeries<TKey, TValue, TCursor> : Series<TKey, TValue>,
+        ISpecializedSeries<TKey, TValue, TCursor>
+#pragma warning restore 660, 661
+        where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
+    {
+        internal long Locker;
+
+        // ReSharper disable InconsistentNaming
+        internal long _version;
+
+        internal long _nextVersion;
+
+        // ReSharper restore InconsistentNaming
+        internal bool _isSynchronized = true;
+
+        internal bool _isReadOnly;
+
+        /// <inheritdoc />
+        public override bool IsCompleted
+        {
+            // NB this is set only inside write lock, no other locks are possible
+            // after this value is set so we do not need read lock. This is very
+            // hot path for MNA
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => Volatile.Read(ref _isReadOnly);
+        }
+
+        protected sealed override IAsyncEnumerator<KeyValuePair<TKey, TValue>> GetAsyncEnumeratorImpl()
+        {
+            if (IsCompleted)
+            {
+#pragma warning disable HAA0601 // Value type to reference type conversion causing boxing allocation
+                return GetSpecializedCursor();
+#pragma warning restore HAA0601 // Value type to reference type conversion causing boxing allocation
+            }
+            var c = new AsyncCursor<TKey, TValue, TCursor>(GetSpecializedCursor(), true);
+            return c;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public AsyncCursor<TKey, TValue, TCursor> GetAsyncEnumerator()
+        {
+            var c = new AsyncCursor<TKey, TValue, TCursor>(GetSpecializedCursor(), true);
+            return c;
+        }
+
+        // TODO should be nonvirt method with concrete type, try to rework parent
+        protected sealed override IEnumerator<KeyValuePair<TKey, TValue>> GetEnumeratorImpl()
+        {
+#pragma warning disable HAA0601 // Value type to reference type conversion causing boxing allocation
+            return GetSpecializedCursor();
+#pragma warning restore HAA0601 // Value type to reference type conversion causing boxing allocation
+        }
+
+        public TCursor GetEnumerator()
+        {
+            return GetSpecializedCursor();
+        }
+
+        public override ICursor<TKey, TValue> GetCursor()
+        {
+            if (IsCompleted)
+            {
+#pragma warning disable HAA0601 // Value type to reference type conversion causing boxing allocation
+                return GetSpecializedCursor();
+#pragma warning restore HAA0601 // Value type to reference type conversion causing boxing allocation
+            }
+            // NB subscribe from AsyncCursor
+            var c = new AsyncCursor<TKey, TValue, TCursor>(GetSpecializedCursor());
+            return c;
+        }
+
+        internal abstract TCursor GetContainerCursor();
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public TCursor GetSpecializedCursor()
         {
             return GetContainerCursor();
         }
 
-        public override bool TryGetAt(long idx, out KeyValuePair<TKey, TValue> kvp)
-        {
-            if (idx < 0)
-            {
-                ThrowHelper.ThrowNotImplementedException("TODO Support negative indexes in TryGetAt");
-            }
-            // TODO (review) not so stupid and potentially throwing impl
-            try
-            {
-                kvp = this.Skip(Math.Max(0, checked((int)(idx)) - 1)).First();
-                return true;
-            }
-            catch
-            {
-                kvp = default;
-                return false;
-            }
-        }
-
         #region Synchronization
-
-        /// <summary>
-        /// An object for external synchronization.
-        /// </summary>
-        public object SyncRoot
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get
-            {
-                if (_syncRoot == null)
-                {
-                    Interlocked.CompareExchange(ref _syncRoot, new object(), null);
-                }
-                return _syncRoot;
-            }
-        }
 
         /// <summary>
         /// Takes a write lock, increments _nextVersion field and returns the current value of the _version field.
@@ -1339,8 +1433,7 @@ namespace Spreads
             return value;
         }
 
-        protected virtual void Dispose(bool disposing)
-        { }
+        
 
         internal Task DoComplete()
         {
@@ -1363,66 +1456,6 @@ namespace Spreads
             Interlocked.Exchange(ref Locker, 0L);
             NotifyUpdate(true);
             return Task.CompletedTask;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal void NotifyUpdate(bool force)
-        {
-            var cursors = _cursors;
-            if (cursors != null)
-            {
-                DoNotifyUpdate(force);
-            }
-        }
-
-        [MethodImpl(MethodImplOptions.NoInlining)]
-        private void DoNotifyUpdate(bool force)
-        {
-            var cursors = _cursors;
-
-            if (cursors is ContainerSubscription sub)
-            {
-                if ((sub.Requests > 0 || force) && sub.Wr.TryGetTarget(out var tg))
-                {
-                    // ReSharper disable once InconsistentlySynchronizedField
-                    DoNotifyUpdateSingleSync(tg);
-                    // SpreadsThreadPool.Default.UnsafeQueueCompletableItem(_doNotifyUpdateSingleSyncCallback, tg, true);
-                }
-            }
-            else if (cursors is HashSet<ContainerSubscription> hashSet)
-            {
-                lock (hashSet)
-                {
-                    foreach (var kvp in hashSet)
-                    {
-                        var sub1 = kvp;
-                        if ((sub1.Requests > 0 || force) && sub1.Wr.TryGetTarget(out var tg))
-                        {
-                            DoNotifyUpdateSingleSync(tg);
-                            // SpreadsThreadPool.Default.UnsafeQueueCompletableItem(_doNotifyUpdateSingleSyncCallback, tg, true);
-                        }
-                    }
-                }
-            }
-            else if (!(cursors is null))
-            {
-                ThrowHelper.FailFast("Wrong cursors subscriptions type");
-            }
-            else
-            {
-                Console.WriteLine("Cursors field is null");
-            }
-        }
-
-        // ReSharper disable once InconsistentNaming
-        // ReSharper disable once StaticMemberInGenericType
-        private static readonly Action<object> _doNotifyUpdateSingleSyncCallback = DoNotifyUpdateSingleSync;
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static void DoNotifyUpdateSingleSync(object obj)
-        {
-            var cursor = (IAsyncCompletable)obj;
-            cursor.TryComplete(true, false);
         }
 
         #endregion Synchronization
@@ -1458,7 +1491,7 @@ namespace Spreads
         public static Series<TKey, TValue, Op<TKey, TValue, NegateOp<TValue>, TCursor>> operator
             -(ContainerSeries<TKey, TValue, TCursor> series)
         {
-            var cursor = new Op<TKey, TValue, NegateOp<TValue>, TCursor>(series.GetContainerCursor(), default(TValue));
+            var cursor = new Op<TKey, TValue, NegateOp<TValue>, TCursor>(series.GetContainerCursor(), default);
             return cursor.Source;
         }
 
@@ -1468,7 +1501,7 @@ namespace Spreads
         public static Series<TKey, TValue, Op<TKey, TValue, PlusOp<TValue>, TCursor>> operator
             +(ContainerSeries<TKey, TValue, TCursor> series)
         {
-            var cursor = new Op<TKey, TValue, PlusOp<TValue>, TCursor>(series.GetContainerCursor(), default(TValue));
+            var cursor = new Op<TKey, TValue, PlusOp<TValue>, TCursor>(series.GetContainerCursor(), default);
             return cursor.Source;
         }
 
@@ -1752,6 +1785,24 @@ namespace Spreads
     {
         private bool _cursorIsSet;
         private TCursor _c;
+
+        private object _syncRoot;
+
+        /// <summary>
+        /// An object for external synchronization.
+        /// </summary>
+        public object SyncRoot
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get
+            {
+                if (_syncRoot == null)
+                {
+                    Interlocked.CompareExchange(ref _syncRoot, new object(), null);
+                }
+                return _syncRoot;
+            }
+        }
 
         private ref TCursor C
         {

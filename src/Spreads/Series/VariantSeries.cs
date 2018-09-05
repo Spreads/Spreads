@@ -104,12 +104,12 @@ namespace Spreads
         public sealed override KeyComparer<Variant> Comparer => _comparer;
         public sealed override bool IsIndexed => Inner.IsIndexed;
 
-        public sealed override IAsyncEnumerator<KeyValuePair<Variant, Variant>> GetAsyncEnumerator()
+        protected sealed override IAsyncEnumerator<KeyValuePair<Variant, Variant>> GetAsyncEnumeratorImpl()
         {
             return GetCursor();
         }
 
-        public sealed override IEnumerator<KeyValuePair<Variant, Variant>> GetEnumerator()
+        protected sealed override IEnumerator<KeyValuePair<Variant, Variant>> GetEnumeratorImpl()
         {
             return GetCursor();
         }
