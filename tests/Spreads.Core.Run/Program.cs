@@ -9,9 +9,9 @@ namespace Spreads.Core.Run
     {
         private static async Task Main(string[] args)
         {
-            var test = new Spreads.Core.Tests.Utils.TimeServiceTests();
+            var test = new Spreads.Core.Tests.Serialization.TimeStampSerializationTests();
             
-            test.TimeServiceProducesIncreasingValuesWithSpinner();
+            test.TestTimestampBranchlessRead();
 
             Console.WriteLine("Finished, press enter to exit...");
             Console.ReadLine();

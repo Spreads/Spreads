@@ -420,12 +420,18 @@ namespace Spreads.Serialization
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static unsafe Timestamp ReadTimestamp<T>(IntPtr ptr)
+        internal static unsafe Timestamp ReadTimestamp(byte* ptr, out int payloadOffset)
         {
-            var header = ReadUnaligned<DataTypeHeader>((void*)ptr);
-            if (!header.VersionAndFlags.IsTimestamped) { return default; }
-            var offset = header.IsFixedSize ? 4 : 8;
-            var timestamp = ReadUnaligned<Timestamp>((void*)(ptr + offset));
+            var isVarSize = *(ptr + 2) == 0;
+            var offset = DataTypeHeader.Size + (*(byte*)&isVarSize << 2); // 4 for varsize or 0 for fixed size
+            long tsLen = VersionAndFlags.TimestampFlagMask & *ptr;
+
+            var tsMask = ~((tsLen >> 3) - 1); // all 1s or 0s
+
+            // the only requirment if ptr + offset + 8 not causing segfault.
+            var timestamp = (Timestamp)(tsMask &  ReadUnaligned<long>(ptr + offset));
+
+            payloadOffset = offset + (int)tsLen;
             return timestamp;
         }
     }

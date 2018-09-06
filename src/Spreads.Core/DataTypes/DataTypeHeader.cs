@@ -61,5 +61,27 @@ namespace Spreads.DataTypes
                 return TypeSize > 0; // (int)TypeEnum <= Variant.KnownSmallTypesLimit;
             }
         }
+
+        public unsafe int FirstPayloadByteOffset
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get
+            {
+                var isVarSize = !IsFixedSize;
+                var offset = ((int)(*(byte*)&isVarSize) << 2); // 4 for varsize or 0 for fixed size
+                return Size + offset;
+            }
+        }
+
+        public unsafe int FirstPayloadByteOffsetExTimeStamp
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get
+            {
+                var tsLen = VersionAndFlags.TimestampFlagMask &
+                            *(byte*) System.Runtime.CompilerServices.Unsafe.AsPointer(ref this);
+                return FirstPayloadByteOffset + tsLen;
+            }
+        }
     }
 }
