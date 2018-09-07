@@ -54,13 +54,14 @@ namespace Spreads.Utils
 
             _lastUpdatedPtr = ptr;
 
+            *(long*) _lastUpdatedPtr = 0;
+
             UpdateTime();
 
             _timer = new Timer(o =>
             {
                 UpdateTime();
             }, null, 0, intervalMilliseconds);
-            UpdateTime();
         }
 
         public void Dispose()

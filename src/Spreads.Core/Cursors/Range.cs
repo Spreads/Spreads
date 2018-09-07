@@ -84,7 +84,7 @@ namespace Spreads
         {
             if (!isWindow && cursor.IsIndexed)
             {
-                throw new NotSupportedException("RangeSeries is not supported for indexed series, only for sorted ones.");
+                ThrowHelper.ThrowNotSupportedException("RangeSeries is not supported for indexed series, only for sorted ones.");
             }
 
             _cmp = cursor.Comparer;

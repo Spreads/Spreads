@@ -95,7 +95,7 @@ namespace Spreads.Serialization
                     rms.WriteAsPtr(timestamp);
                 }
 
-                rms.Position = 0;
+                rms.PositionInternal = 0;
                 temporaryStream = rms;
                 return checked((int)rms.Length);
             }
@@ -116,7 +116,7 @@ namespace Spreads.Serialization
 
                 using (var compressor = new DeflateStream(compressedStream, CompressionLevel.Optimal, true))
                 {
-                    rms.Position = 0;
+                    rms.PositionInternal = 0;
                     rms.CopyTo(compressor);
                     compressor.Dispose();
                 }
@@ -137,12 +137,12 @@ namespace Spreads.Serialization
                     TypeEnum = VariantHelper<T>.TypeEnum
                 };
 
-                compressedStream.Position = 0;
+                compressedStream.PositionInternal = 0;
                 compressedStream.WriteAsPtr(header);
 
                 compressedStream.WriteAsPtr(checked((int)compressedStream.Length - 8));
 
-                compressedStream.Position = 0;
+                compressedStream.PositionInternal = 0;
 
                 temporaryStream = compressedStream;
                 return (checked((int)compressedStream.Length));
@@ -185,7 +185,7 @@ namespace Spreads.Serialization
             {
                 Debug.Assert(temporaryStream.Position == 0);
 #if DEBUG
-                var checkSize = SizeOf(value, out MemoryStream tmp, format);
+                var checkSize = SizeOf(value, out MemoryStream tmp, format, timestamp);
                 Debug.Assert(checkSize == temporaryStream.Length, "Memory stream length must be equal to the SizeOf");
                 tmp?.Dispose();
 #endif
@@ -339,7 +339,7 @@ namespace Spreads.Serialization
 
             CopyBlockUnaligned(ref buffer[0], ref *(byte*)(ptr + DataTypeHeader.Size + 4 + tsSize), (uint)(payloadSize - tsSize));
             var comrpessedStream = RecyclableMemoryStream.Create(RecyclableMemoryStreamManager.Default, null,
-                payloadSize, buffer, payloadSize);
+                payloadSize, buffer, payloadSize - tsSize);
 
             RecyclableMemoryStream decompressedStream =
                 RecyclableMemoryStreamManager.Default.GetStream();

@@ -27,17 +27,16 @@ namespace Spreads.Serialization
                 ThrowHelper.ThrowInvalidOperationException("This method should only be used for writing fixed-size types to a stream");
             }
 
-            if (stream is RecyclableMemoryStream rms && rms.IsSingleChunk && rms.CapacityInternal - rms.PositionInternal > size)
+            long posInternal;
+            if (stream is RecyclableMemoryStream rms && rms.IsSingleChunk && rms.CapacityInternal - (posInternal = rms.PositionInternal) > size)
             {
-                WriteUnaligned(ref rms.SingleChunk[rms.PositionInternal], value);
-                if (rms.PositionInternal + size > rms.LengthInternal)
+                WriteUnaligned(ref rms.SingleChunk[posInternal], value);
+                if (posInternal + size > rms.LengthInternal)
                 {
-                    rms.SetLengthInternal(rms.PositionInternal + size);
+                    rms.SetLengthInternal(posInternal + size);
                 }
-                else
-                {
-                    rms.PositionInternal = rms.PositionInternal + size;
-                }
+
+                rms.PositionInternal = posInternal + size;
             }
             else
             {

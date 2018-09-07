@@ -424,7 +424,7 @@ namespace Spreads.Serialization
                     timestamp = default;
                 }
                 value = ReadUnaligned<T>((void*)(ptr + DataTypeHeader.Size + tsSize));
-                return Size + DataTypeHeader.Size;
+                return DataTypeHeader.Size + tsSize + Size;
             }
             Debug.Assert(Size < 0);
             THFFCannotReadVarSize();

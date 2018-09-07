@@ -43,7 +43,19 @@ namespace Spreads.DataTypes
         public long Nanos
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return _nanos; }
+            get => _nanos;
+        }
+
+        public long Micros
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => _nanos / 1000;
+        }
+
+        public long Millis
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => _nanos / 1000_000;
         }
 
         public TimeSpan TimeSpan
@@ -54,8 +66,8 @@ namespace Spreads.DataTypes
                 // Due to TimeService implementation we often have small nanos,
                 // but zero means equality. One tick is as small as one nano for
                 // most practical purposes when we do not work with nano resolution.
-                var ticks = Nanos / 100;
-                if (ticks == 0 && Nanos > 0)
+                var ticks = _nanos / 100;
+                if (ticks == 0 && _nanos > 0)
                 {
                     ticks = 1;
                 }
@@ -168,7 +180,7 @@ namespace Spreads.DataTypes
             return x.CompareTo(y) <= 0;
         }
 
-        internal class Formatter : IJsonFormatter<Timestamp>
+        public class Formatter : IJsonFormatter<Timestamp>
         {
             // NB we use WriteInt64/ReadInt64 directly in types that have TS as a member.
             // If we decide to chenge this layout then those types should resolve to this formatter
@@ -176,14 +188,27 @@ namespace Spreads.DataTypes
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public void Serialize(ref JsonWriter writer, Timestamp value, IJsonFormatterResolver formatterResolver)
             {
-                writer.WriteInt64((long)value);
+                writer.WriteString(((long)value).ToString());
             }
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public Timestamp Deserialize(ref JsonReader reader, IJsonFormatterResolver formatterResolver)
             {
-                var timestamp = reader.ReadInt64();
-                return (Timestamp)timestamp;
+                var token = reader.GetCurrentJsonToken();
+                if (token == JsonToken.String)
+                {
+                    var timestamp = long.Parse(reader.ReadString());
+                    return (Timestamp)timestamp;
+                }
+                else if (token == JsonToken.Number)
+                {
+                    var timestamp = reader.ReadInt64();
+                    // TODO we could detect millis (all values are in jan 1971 as nanos) or micros (~<=1972)
+                    // But the problem is with deltas
+                    return (Timestamp)timestamp;
+                }
+                ThrowHelper.ThrowInvalidOperationException("Wrong timestamp token");
+                return default;
             }
         }
     }

@@ -5,13 +5,14 @@
 using NUnit.Framework;
 using Spreads.Blosc;
 using Spreads.Collections;
+using Spreads.DataTypes;
 using Spreads.Serialization;
 using Spreads.Serialization.Utf8Json;
+using Spreads.Utils;
 using System;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
-using Spreads.Utils;
 
 namespace Spreads.Core.Tests.Serialization
 {
@@ -163,7 +164,7 @@ namespace Spreads.Core.Tests.Serialization
         {
             var bytes = new byte[1000];
             var str = "This is string";
-            var len = BinarySerializer.Write(str, ref bytes, timestamp:TimeService.Default.CurrentTime);
+            var len = BinarySerializer.Write(str, ref bytes, timestamp: TimeService.Default.CurrentTime);
             string str2 = null;
             var len2 = BinarySerializer.Read(bytes, out str2);
             Assert.AreEqual(len, len2);
@@ -390,6 +391,106 @@ namespace Spreads.Core.Tests.Serialization
             }
 
             Assert.True(source.SequenceEqual(destination));
+        }
+
+        public struct Dummy
+        {
+            public long ValL;
+            public string ValS;
+            public Timestamp Timestamp;
+        }
+
+        [Test]
+        public void CouldSerializeTimestampAsAFieldDummyStruct()
+        {
+            var ptr = Marshal.AllocHGlobal(1000);
+
+            var val = new Dummy()
+            {
+                Timestamp = TimeService.Default.CurrentTime,
+                ValL = 123,
+                ValS = "foo"
+            };
+            var ts = val.Timestamp;
+
+            var serializationFormats = Enum.GetValues(typeof(SerializationFormat)).Cast<SerializationFormat>();
+
+            var tss = new[] { default, ts };
+
+            foreach (var timestamp in tss)
+            {
+                foreach (var serializationFormat in serializationFormats)
+                {
+                    var len = BinarySerializer.SizeOf(val, out var stream, serializationFormat, timestamp);
+                    var len2 = BinarySerializer.WriteUnsafe(val, ptr, stream, serializationFormat,
+                        timestamp);
+
+                    Assert.AreEqual(len, len2);
+
+                    var len3 = BinarySerializer.Read(ptr, out Dummy val2, out var ts2);
+
+                    Assert.AreEqual(len, len3);
+                    Assert.AreEqual(val.Timestamp, val2.Timestamp);
+                    Assert.AreEqual(val.ValL, val2.ValL);
+                    Assert.AreEqual(val.ValS, val2.ValS);
+                    Assert.AreEqual(timestamp, ts2);
+                }
+            }
+
+            var str = JsonSerializer.ToJsonString(val);
+            Console.WriteLine(str);
+
+            var str2 = JsonSerializer.ToJsonString(val.Timestamp);
+            Console.WriteLine(str2);
+        }
+
+        [StructLayout(LayoutKind.Sequential, Size = 16)]
+        public struct DummyBlittable
+        {
+            public long ValL;
+            public Timestamp Timestamp;
+        }
+
+        [Test]
+        public void CouldSerializeTimestampAsAFieldDummyBlittableStruct()
+        {
+            var ptr = Marshal.AllocHGlobal(1000);
+
+            var val = new DummyBlittable()
+            {
+                Timestamp = TimeService.Default.CurrentTime,
+                ValL = 123,
+            };
+            var ts = val.Timestamp;
+
+            var serializationFormats = Enum.GetValues(typeof(SerializationFormat)).Cast<SerializationFormat>();
+
+            var tss = new[] { default, ts };
+
+            foreach (var timestamp in tss)
+            {
+                foreach (var serializationFormat in serializationFormats)
+                {
+                    var len = BinarySerializer.SizeOf(val, out var stream, serializationFormat, timestamp);
+                    var len2 = BinarySerializer.WriteUnsafe(val, ptr, stream, serializationFormat,
+                        timestamp);
+
+                    Assert.AreEqual(len, len2);
+
+                    var len3 = BinarySerializer.Read(ptr, out DummyBlittable val2, out var ts2);
+
+                    Assert.AreEqual(len, len3);
+                    Assert.AreEqual(val.Timestamp, val2.Timestamp);
+                    Assert.AreEqual(val.ValL, val2.ValL);
+                    Assert.AreEqual(timestamp, ts2);
+                }
+            }
+
+            var str = JsonSerializer.ToJsonString(val);
+            Console.WriteLine(str);
+
+            var str2 = JsonSerializer.ToJsonString(val.Timestamp);
+            Console.WriteLine(str2);
         }
     }
 }
