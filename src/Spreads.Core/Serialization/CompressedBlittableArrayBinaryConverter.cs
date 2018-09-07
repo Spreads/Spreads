@@ -46,7 +46,7 @@ namespace Spreads.Serialization
         {
             if (ItemSize > 0)
             {
-                var tsSize = timestamp == default ? 0 : Timestamp.Size;
+                var tsSize = (long)timestamp == default ? 0 : Timestamp.Size;
                 var maxSize = 8 + tsSize + (16 + BloscMethods.ProcessorCount * 4) + ItemSize * valueCount;
                 var buffer = BufferPool<byte>.Rent(maxSize); // RecyclableMemoryStreamManager.Default.GetLargeBuffer(maxSize, String.Empty);
                 int totalSize;

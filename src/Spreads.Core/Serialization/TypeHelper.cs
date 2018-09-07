@@ -512,7 +512,7 @@ namespace Spreads.Serialization
             }
             if (Size >= 0)
             {
-                return DataTypeHeader.Size + Size + (timestamp == default ? 0 : Timestamp.Size);
+                return DataTypeHeader.Size + Size + ((long)timestamp == default ? 0 : Timestamp.Size);
             }
             Debug.Assert(Size < 0);
             return -1;

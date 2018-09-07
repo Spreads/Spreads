@@ -52,7 +52,7 @@ namespace Spreads.Serialization
                 format = SerializationFormat.BinaryZstd;
             }
 
-            var tsSize = timestamp == default ? 0 : Timestamp.Size;
+            var tsSize = (long)timestamp == default ? 0 : Timestamp.Size;
 
             // headers
             var size = 8 + tsSize + 14;

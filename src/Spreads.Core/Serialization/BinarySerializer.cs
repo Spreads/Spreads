@@ -50,7 +50,7 @@ namespace Spreads.Serialization
             SerializationFormat format = SerializationFormat.Binary,
             Timestamp timestamp = default)
         {
-            if ((int)format < 100)
+            if ((int)format < 100) // try binary if possible, TH will return -1 for var size without converter
             {
                 var size = TypeHelper<T>.SizeOf(value, out temporaryStream, format, timestamp);
                 if (size >= 0)
@@ -66,7 +66,7 @@ namespace Spreads.Serialization
         private static int SizeOfSlow<T>(in T value, out MemoryStream temporaryStream,
             SerializationFormat format, Timestamp timestamp)
         {
-            var tsSize = timestamp == default ? 0 : Timestamp.Size;
+            var tsSize = (long)timestamp == default ? 0 : Timestamp.Size;
 
             // NB when we request binary uncompressed but items are not fixed size we use uncompressed
             // JSON so that we could iterate over values as byte Spans/DirectBuffers without uncompressing
@@ -285,7 +285,7 @@ namespace Spreads.Serialization
         {
             var header = ReadUnaligned<DataTypeHeader>((void*)ptr);
 
-            if (header.VersionAndFlags.IsBinary || TypeHelper<T>.HasBinaryConverter)
+            if (header.VersionAndFlags.IsBinary)
             {
                 Debug.Assert(TypeHelper<T>.Size >= 0 || TypeHelper<T>.HasBinaryConverter);
                 return TypeHelper<T>.Read(ptr, out value, out timestamp);
@@ -420,6 +420,14 @@ namespace Spreads.Serialization
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static unsafe int TsSize(Timestamp ts)
+        {
+            var isNonDefault = (long)ts != default;
+            var size = ((int)(*(byte*)&isNonDefault) << 3); // 1 << 3 = 8 or zero
+            return size;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static unsafe Timestamp ReadTimestamp(byte* ptr, out int payloadOffset)
         {
             var isVarSize = *(ptr + 2) == 0;
@@ -429,7 +437,7 @@ namespace Spreads.Serialization
             var tsMask = ~((tsLen >> 3) - 1); // all 1s or 0s
 
             // the only requirment if ptr + offset + 8 not causing segfault.
-            var timestamp = (Timestamp)(tsMask &  ReadUnaligned<long>(ptr + offset));
+            var timestamp = (Timestamp)(tsMask & ReadUnaligned<long>(ptr + offset));
 
             payloadOffset = offset + (int)tsLen;
             return timestamp;

@@ -206,7 +206,7 @@ namespace Spreads.Tests
 
         //}
 
-        [Test]
+        [Test, Ignore("non-generic not used")]
         public unsafe void CouldCreateNongenericDelegates()
         {
             var dest = (Memory<byte>)new byte[1024];
@@ -245,7 +245,7 @@ namespace Spreads.Tests
             Assert.AreEqual(4, TypeHelper<int>.Size);
             Assert.AreEqual(8, TypeHelper<DateTime>.Size);
             Assert.AreEqual(16, TypeHelper<decimal>.Size);
-            Assert.AreEqual(-1, TypeHelper<char>.Size);
+            Assert.AreEqual(2, TypeHelper<char>.Size);
             Assert.AreEqual(-1, TypeHelper<MyPocoWithConvertor>.Size);
             TypeHelper<MyPocoWithConvertor>.RegisterConverter(new MyPocoWithConvertor(), true);
             Assert.AreEqual(-1, TypeHelper<MyPocoWithConvertor>.Size);

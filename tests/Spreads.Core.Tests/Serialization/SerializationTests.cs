@@ -492,5 +492,160 @@ namespace Spreads.Core.Tests.Serialization
             var str2 = JsonSerializer.ToJsonString(val.Timestamp);
             Console.WriteLine(str2);
         }
+
+        [Test]
+        public void CouldSerializeStringWithTimeStamp()
+        {
+            var ptr = Marshal.AllocHGlobal(1000);
+
+            var val = "bar";
+            var ts = TimeService.Default.CurrentTime;
+
+            var serializationFormats = new[] {SerializationFormat.Json}; // Enum.GetValues(typeof(SerializationFormat)).Cast<SerializationFormat>();
+
+            var tss = new[] { default, ts };
+
+            foreach (var timestamp in tss)
+            {
+                foreach (var serializationFormat in serializationFormats)
+                {
+                    var len = BinarySerializer.SizeOf(val, out var stream, serializationFormat, timestamp);
+                    var len2 = BinarySerializer.WriteUnsafe(val, ptr, stream, serializationFormat,
+                        timestamp);
+
+                    Assert.AreEqual(len, len2);
+
+                    var len3 = BinarySerializer.Read(ptr, out string val2, out var ts2);
+
+                    Assert.AreEqual(len, len3);
+                    Assert.AreEqual(val, val2);
+                    Assert.AreEqual(timestamp, ts2);
+                }
+            }
+        }
+
+        [Test]
+        public void CouldSerializePrimitiveWithTimeStamp()
+        {
+            var ptr = Marshal.AllocHGlobal(1000);
+
+            var val = "bar";
+            var ts = TimeService.Default.CurrentTime;
+
+            var serializationFormats = new[] { SerializationFormat.Json }; // Enum.GetValues(typeof(SerializationFormat)).Cast<SerializationFormat>();
+
+            var tss = new[] { default, ts };
+
+            foreach (var timestamp in tss)
+            {
+                foreach (var serializationFormat in serializationFormats)
+                {
+                    var len = BinarySerializer.SizeOf(val, out var stream, serializationFormat, timestamp);
+                    var len2 = BinarySerializer.WriteUnsafe(val, ptr, stream, serializationFormat,
+                        timestamp);
+
+                    Assert.AreEqual(len, len2);
+
+                    var len3 = BinarySerializer.Read(ptr, out string val2, out var ts2);
+
+                    Assert.AreEqual(len, len3);
+                    Assert.AreEqual(val, val2);
+                    Assert.AreEqual(timestamp, ts2);
+                }
+            }
+        }
+
+        [Test]
+        public void CouldSerializePrimitiveArrayWithTimeStamp()
+        {
+            var ptr = Marshal.AllocHGlobal(1000);
+
+            var val = new[] {1, 2, 3};
+            var ts = TimeService.Default.CurrentTime;
+
+            var serializationFormats = Enum.GetValues(typeof(SerializationFormat)).Cast<SerializationFormat>();
+
+            var tss = new[] { default, ts };
+
+            foreach (var timestamp in tss)
+            {
+                foreach (var serializationFormat in serializationFormats)
+                {
+                    var len = BinarySerializer.SizeOf(val, out var stream, serializationFormat, timestamp);
+                    var len2 = BinarySerializer.WriteUnsafe(val, ptr, stream, serializationFormat,
+                        timestamp);
+
+                    Assert.AreEqual(len, len2);
+
+                    var len3 = BinarySerializer.Read(ptr, out int[] val2, out var ts2);
+
+                    Assert.AreEqual(len, len3);
+                    Assert.IsTrue(val.SequenceEqual(val2));
+                    Assert.AreEqual(timestamp, ts2);
+                }
+            }
+        }
+
+        [Test]
+        public void CouldSerializeDummyArrayWithTimeStamp()
+        {
+            var ptr = Marshal.AllocHGlobal(1000);
+
+            var val = new[] { new Dummy() {ValL = 1}, new Dummy() { ValL = 2 }};
+            var ts = TimeService.Default.CurrentTime;
+
+            var serializationFormats = Enum.GetValues(typeof(SerializationFormat)).Cast<SerializationFormat>();
+
+            var tss = new[] { default, ts };
+
+            foreach (var timestamp in tss)
+            {
+                foreach (var serializationFormat in serializationFormats)
+                {
+                    var len = BinarySerializer.SizeOf(val, out var stream, serializationFormat, timestamp);
+                    var len2 = BinarySerializer.WriteUnsafe(val, ptr, stream, serializationFormat,
+                        timestamp);
+
+                    Assert.AreEqual(len, len2);
+
+                    var len3 = BinarySerializer.Read(ptr, out Dummy[] val2, out var ts2);
+
+                    Assert.AreEqual(len, len3);
+                    Assert.IsTrue(val.SequenceEqual(val2));
+                    Assert.AreEqual(timestamp, ts2);
+                }
+            }
+        }
+
+        [Test]
+        public void CouldSerializeTKVWithTimeStamp()
+        {
+            var ptr = Marshal.AllocHGlobal(1000);
+
+            var val = new TaggedKeyValue<int, long>(1, 2, 1);
+            var ts = TimeService.Default.CurrentTime;
+
+            var serializationFormats = Enum.GetValues(typeof(SerializationFormat)).Cast<SerializationFormat>();
+
+            var tss = new[] { default, ts };
+
+            foreach (var timestamp in tss)
+            {
+                foreach (var serializationFormat in serializationFormats)
+                {
+                    var len = BinarySerializer.SizeOf(val, out var stream, serializationFormat, timestamp);
+                    var len2 = BinarySerializer.WriteUnsafe(val, ptr, stream, serializationFormat,
+                        timestamp);
+
+                    Assert.AreEqual(len, len2);
+
+                    var len3 = BinarySerializer.Read(ptr, out TaggedKeyValue<int, long> val2, out var ts2);
+
+                    Assert.AreEqual(len, len3);
+                    Assert.AreEqual(val, val2);
+                    Assert.AreEqual(timestamp, ts2);
+                }
+            }
+        }
     }
 }

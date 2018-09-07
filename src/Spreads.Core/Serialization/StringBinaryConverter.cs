@@ -22,7 +22,7 @@ namespace Spreads.Serialization
             SerializationFormat format = SerializationFormat.Binary,
             Timestamp timestamp = default)
         {
-            var tsSize = timestamp == default ? 0 : Timestamp.Size;
+            var tsSize = (long)timestamp == default ? 0 : Timestamp.Size;
             fixed (char* charPtr = value)
             {
                 var totalLength = 8 + tsSize + Encoding.UTF8.GetByteCount(charPtr, value.Length);
@@ -37,7 +37,7 @@ namespace Spreads.Serialization
         {
             if (temporaryStream == null)
             {
-                var tsSize = timestamp == default ? 0 : Timestamp.Size;
+                var tsSize = (long)timestamp == default ? 0 : Timestamp.Size;
 
                 fixed (char* charPtr = value)
                 {

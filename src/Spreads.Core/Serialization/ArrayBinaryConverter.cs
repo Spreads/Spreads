@@ -63,7 +63,7 @@ namespace Spreads.Serialization
                 ThrowHelper.ThrowArgumentOutOfRangeException();
             }
 
-            var tsSize = timestamp == default ? 0 : Timestamp.Size;
+            var tsSize = (long)timestamp == default ? 0 : Timestamp.Size;
 
             if ((int)format < 100)
             {
@@ -114,7 +114,7 @@ namespace Spreads.Serialization
                     {
                         // if (temporaryStream != null) throw new NotSupportedException("Uncompressed ArrayBinaryConverter does not work with temp streams.");
 
-                        var tsSize = timestamp == default ? 0 : Timestamp.Size;
+                        var tsSize = (long)timestamp == default ? 0 : Timestamp.Size;
 
                         var payloadSize = tsSize + ItemSize * valueCount;
 

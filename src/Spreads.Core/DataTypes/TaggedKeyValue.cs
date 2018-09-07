@@ -90,7 +90,7 @@ namespace Spreads.DataTypes
             if (IsFixedSizeStatic)
             {
                 temporaryStream = default;
-                return FixedSizeStatic + (timestamp == default ? 0 : 8);
+                return FixedSizeStatic + ((long)timestamp == default ? 0 : Timestamp.Size);
             }
 
             throw new NotImplementedException();
