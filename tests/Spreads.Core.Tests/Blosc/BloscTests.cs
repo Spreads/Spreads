@@ -8,7 +8,11 @@ using Spreads.Buffers;
 using Spreads.Serialization;
 using Spreads.Utils;
 using System;
+using System.IO;
+using System.IO.Compression;
 using System.Runtime.InteropServices;
+using Utf8Json;
+using RecyclableMemoryStreamManager = Microsoft.IO.RecyclableMemoryStreamManager;
 
 namespace Spreads.Core.Tests.Blosc
 {
@@ -18,7 +22,7 @@ namespace Spreads.Core.Tests.Blosc
         [Test, Explicit("long running")]
         public void CouldShuffleUnshuffle()
         {
-            var bufferLen = 1000000;
+            var bufferLen = 1_000_000;
             var originalPtr = Marshal.AllocHGlobal(bufferLen);
             var compressedPtr = Marshal.AllocHGlobal(bufferLen);
             var decompressedPtr = Marshal.AllocHGlobal(bufferLen);
@@ -27,7 +31,7 @@ namespace Spreads.Core.Tests.Blosc
             var compressedDB = new DirectBuffer(bufferLen, compressedPtr);
             var decompressedDB = new DirectBuffer(bufferLen, decompressedPtr);
 
-            var itemCount = 10;
+            var itemCount = 1000;
             byte itemSize = 255;
             var srcLen = itemCount * itemSize;
             //var bytes = new byte[255 * itemCount];
@@ -43,8 +47,24 @@ namespace Spreads.Core.Tests.Blosc
                 }
             }
 
-            BinarySerializer.Shuffle(originalDB.Slice(0, srcLen), compressedDB, itemSize);
-            BinarySerializer.Unshuffle(compressedDB.Slice(0, srcLen), decompressedDB, itemSize);
+
+            var iterations = 100_000L;
+            using (Benchmark.Run("Shuffle", iterations * srcLen, true))
+            {
+                for (int i = 0; i < iterations; i++)
+                {
+                    BinarySerializer.Shuffle(originalDB.Slice(0, srcLen), compressedDB, itemSize);
+                }
+            }
+            using (Benchmark.Run("Unshuffle", iterations * srcLen, true))
+            {
+                for (int i = 0; i < iterations; i++)
+                {
+                    BinarySerializer.Unshuffle(compressedDB.Slice(0, srcLen), decompressedDB, itemSize);
+                }
+            }
+
+            Benchmark.Dump();
 
             Assert.IsTrue(originalDB.Slice(0, srcLen).Span.SequenceEqual(decompressedDB.Slice(0, srcLen).Span));
         }
@@ -314,5 +334,154 @@ namespace Spreads.Core.Tests.Blosc
             Benchmark.Dump();
         }
 
+        [Test, Explicit("long running")]
+        public void DeflateBenchmark()
+        {
+            // R2 has some strange very slow read perf on this data when count is small
+            // R3 is balanced, good compr and fast enough
+
+            var count = 100;
+            var values = new TestValue[count];
+            for (int i = 0; i < count; i++)
+            {
+                values[i] = new TestValue()
+                {
+                    // Dec = (((decimal)i + 1M / (decimal)(i + 1))),
+                    Dbl = (double)i + 1 / (double)(i + 1),
+                    Dbl1 = (double)i + 1 / (double)(i + 1),
+                    Num = i,
+                    Num1 = i,
+                    Num2 = i,
+                    Str = i.ToString(),
+                    Str1 = ((double)i + 1 / (double)(i + 1)).ToString(),
+                    Boo = i % 2 == 0
+                };
+            }
+
+            var bufferLen = 1000_000;
+            var originalPtr = Marshal.AllocHGlobal(bufferLen);
+            var compressedPtr = Marshal.AllocHGlobal(bufferLen);
+            var decompressedPtr = Marshal.AllocHGlobal(bufferLen);
+
+            var originalDB = new DirectBuffer(bufferLen, originalPtr);
+            var compressedDB = new DirectBuffer(bufferLen, compressedPtr);
+            var decompressedDB = new DirectBuffer(bufferLen, decompressedPtr);
+
+            var originalLen = BinarySerializer.WriteUnsafe(values, originalPtr, null, SerializationFormat.Json);
+            Console.WriteLine("Original len: " + originalLen);
+
+            for (int level = 1; level < 10; level++)
+            {
+                Settings.ZlibCompressionLevel = level;
+
+                var compressedLen = BinarySerializer.WriteDeflate(originalDB.Slice(0, originalLen), compressedDB);
+                //Console.WriteLine("Compressed len: " + compressedLen);
+
+                var decompressedLen = BinarySerializer.ReadInflate(compressedDB.Slice(0, compressedLen), decompressedDB);
+                //Console.WriteLine("Decompressed len: " + decompressedLen);
+
+                Console.WriteLine($"Level: {Settings.ZlibCompressionLevel}, ratio: {1.0 * decompressedLen / compressedLen}");
+
+                Assert.AreEqual(originalLen, decompressedLen);
+            }
+
+            Console.WriteLine("-------------------------------");
+
+            var rounds = 10;
+            var iterations = 1000;
+            for (int r = 0; r < rounds; r++)
+            {
+                for (int level = 1; level < 5; level++)
+                {
+                    Settings.ZlibCompressionLevel = level;
+                    int compressedLen = 0;
+                    using (Benchmark.Run($"Deflate W{level}", originalLen * iterations, true))
+                    {
+                        for (int i = 0; i < iterations; i++)
+                        {
+                            compressedLen = BinarySerializer.WriteDeflate(originalDB.Slice(0, originalLen), compressedDB);
+                        }
+                    }
+
+                    using (Benchmark.Run($"Deflate R{level}", originalLen * iterations, true))
+                    {
+                        for (int i = 0; i < iterations; i++)
+                        {
+                            BinarySerializer.ReadInflate(compressedDB.Slice(0, compressedLen), decompressedDB);
+                        }
+                    }
+                }
+            }
+
+            Benchmark.Dump();
+        }
+
+        [Test, Explicit("long running")]
+        public void ZlibDeflateStreamCompat()
+        {
+            var count = 100;
+
+            var bufferLen = 1000000;
+            var originalPtr = Marshal.AllocHGlobal(bufferLen);
+            var compressedPtr = Marshal.AllocHGlobal(bufferLen);
+
+            var compressedDB = new DirectBuffer(bufferLen, originalPtr);
+            var destinationDB = new DirectBuffer(bufferLen, compressedPtr);
+
+            var rms = RecyclableMemoryStream.Create(Spreads.Buffers.RecyclableMemoryStreamManager.Default);
+
+            for (int i = 0; i < count; i++)
+            {
+                rms.WriteAsPtr((long) i);
+            }
+
+            var originalLen = rms.Length;
+            var cbuffer = rms.SingleChunk;
+            var cmem = (Memory<byte>)cbuffer;
+            var ch = cmem.Pin();
+            var cptr = ch.Pointer;
+
+            var writeSize =
+                BinarySerializer.WriteDeflate(new DirectBuffer(rms.Length, (IntPtr)cptr), compressedDB);
+
+            var compressedStream = RecyclableMemoryStream.Create(Spreads.Buffers.RecyclableMemoryStreamManager.Default);
+            using (var compressor = new DeflateStream(compressedStream, CompressionLevel.Optimal, true))
+            {
+                rms.PositionInternal = 0;
+                rms.CopyTo(compressor);
+                compressor.Dispose();
+            }
+
+            var buffer = compressedStream.SingleChunk;
+            var mem = (Memory<byte>) buffer;
+            var h = mem.Pin();
+            var ptr = h.Pointer;
+
+            var readSize =
+                BinarySerializer.ReadInflate(new DirectBuffer(compressedStream.Length, (IntPtr) ptr), destinationDB);
+            var readSize2 =
+                BinarySerializer.ReadInflate(compressedDB, destinationDB);
+
+            var zlibCompressed = compressedDB.Span.ToArray();
+
+            var ms = new MemoryStream(zlibCompressed);
+
+            var decompressedStream =
+                Spreads.Buffers.RecyclableMemoryStreamManager.Default.GetStream();
+
+            using (var decompressor = new GZipStream(ms, CompressionMode.Decompress, true))
+            {
+                decompressor.CopyTo(decompressedStream);
+                decompressor.Dispose();
+            }
+
+            var readSize3 = decompressedStream.Length;
+
+            Assert.AreEqual(readSize, originalLen);
+            Assert.AreEqual(readSize, readSize2);
+            Assert.AreEqual(readSize, readSize3);
+
+            Console.WriteLine(readSize);
+        }
     }
 }

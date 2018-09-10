@@ -22,9 +22,12 @@ namespace Spreads.Core.Run
             test.ZstdBenchmark();
             Console.WriteLine("----------- Zlib -----------");
             test.ZlibBenchmark();
-            //Console.WriteLine("----------- Brotli -----------");
-            //new Spreads.Core.Tests.Serialization.BrotliTests().BrotliBenchmark();
-
+            Console.WriteLine("----------- Deflate -----------");
+            test.DeflateBenchmark();
+//#if NETCOREAPP2_1
+//            Console.WriteLine("----------- Brotli -----------");
+//            new Spreads.Core.Tests.Serialization.BrotliTests().BrotliBenchmark();
+//#endif
             Console.WriteLine("Finished, press enter to exit...");
             Console.ReadLine();
         }

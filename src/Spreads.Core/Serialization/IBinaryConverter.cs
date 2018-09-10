@@ -41,7 +41,7 @@ namespace Spreads.Serialization
 
         // TODO -1 for variable-length types, zero is a valid length
         /// <summary>
-        /// Positive value for fixed-size types, -1 for variable-length types.
+        /// Positive value for fixed-size types, -1 for variable-length types. Zero is invalid. Values > 255 are treated as variable size.
         /// </summary>
         int Size { get; }
 

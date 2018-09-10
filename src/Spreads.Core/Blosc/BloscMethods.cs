@@ -5,19 +5,18 @@
 using Spreads.Serialization;
 using System;
 using System.Diagnostics;
-using System.IO.Compression;
-using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using Spreads.Buffers;
+using System.Security;
 
 // ReSharper disable InconsistentNaming
+#pragma warning disable IDE1006 // Naming Styles
 
 namespace Spreads.Blosc
 {
     /// <summary>
     /// Blosc settings.
     /// </summary>
-    public  static class BloscSettings
+    internal static class BloscSettings
     {
         internal static string DefaultCompressionMethod = "zstd";
 
@@ -38,12 +37,8 @@ namespace Spreads.Blosc
         }
     }
 
-#if NET451
-
     [SuppressUnmanagedCodeSecurity]
-#endif
-
-    public unsafe class BloscMethods
+    internal unsafe class BloscMethods
     {
         public const string BloscLibraryName = "libblosc";
 
@@ -93,7 +88,7 @@ namespace Spreads.Blosc
             }
         }
 
-        // 1 - 1 
+        // 1 - 1
         // 2 - 1
         // 3 - 2
         // 4 - 2
@@ -102,11 +97,11 @@ namespace Spreads.Blosc
         // 9 - 4
         // 12 - 5
         // 16 - 6
-        public static readonly int ProcessorCount = 1 + Environment.ProcessorCount / 3;
+        internal static readonly int ProcessorCount = 1 + Environment.ProcessorCount / 3;
 
         #region Blosc
 
-        public static int blosc_compress_ctx(IntPtr clevel, IntPtr doshuffle,
+        internal static int blosc_compress_ctx(IntPtr clevel, IntPtr doshuffle,
             UIntPtr typesize, UIntPtr nbytes, IntPtr src, IntPtr dest,
             UIntPtr destsize, [MarshalAs(UnmanagedType.LPStr)] string compressor,
             UIntPtr blocksize, int numinternalthreads)
@@ -115,12 +110,12 @@ namespace Spreads.Blosc
                 destsize, compressor, blocksize, numinternalthreads);
         }
 
-        public static int blosc_decompress_ctx(IntPtr src, IntPtr dest, UIntPtr destsize, int numinternalthreads)
+        internal static int blosc_decompress_ctx(IntPtr src, IntPtr dest, UIntPtr destsize, int numinternalthreads)
         {
             return native_blosc_decompress_ctx(src, dest, destsize, numinternalthreads);
         }
 
-        public static int blosc_cbuffer_sizes(IntPtr cbuffer, ref UIntPtr nbytes,
+        internal static int blosc_cbuffer_sizes(IntPtr cbuffer, ref UIntPtr nbytes,
             ref UIntPtr cbytes, ref UIntPtr blocksize)
         {
             return native_blosc_cbuffer_sizes(cbuffer, ref nbytes, ref cbytes, ref blocksize);
@@ -128,11 +123,11 @@ namespace Spreads.Blosc
 
         #endregion Blosc
 
-
         #region Blosc Internals
 
         [DllImport(BloscLibraryName, CallingConvention = CallingConvention.Cdecl)]
-        internal static extern int compress_lz4(byte* source, IntPtr sourceLength, 
+
+        internal static extern int compress_lz4(byte* source, IntPtr sourceLength,
                             byte* destination, IntPtr destinationLength, int clevel);
 
         [DllImport(BloscLibraryName, CallingConvention = CallingConvention.Cdecl)]
@@ -155,6 +150,13 @@ namespace Spreads.Blosc
         internal static extern int decompress_zlib(byte* source, IntPtr sourceLength,
             byte* destination, IntPtr destinationLength);
 
+        [DllImport(BloscLibraryName, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int compress_deflate(byte* source, IntPtr sourceLength,
+            byte* destination, IntPtr destinationLength, int clevel);
+
+        [DllImport(BloscLibraryName, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int decompress_inflate(byte* source, IntPtr sourceLength,
+            byte* destination, IntPtr destinationLength);
 
         [DllImport(BloscLibraryName, CallingConvention = CallingConvention.Cdecl)]
         internal static extern void shuffle(IntPtr typeSize, IntPtr blockSize, byte* source, byte* destination);
@@ -162,9 +164,6 @@ namespace Spreads.Blosc
         [DllImport(BloscLibraryName, CallingConvention = CallingConvention.Cdecl)]
         internal static extern void unshuffle(IntPtr typeSize, IntPtr blockSize, byte* source, byte* destination);
 
-        #endregion
-
-
-        
+        #endregion Blosc Internals
     }
 }

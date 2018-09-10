@@ -84,6 +84,18 @@ namespace Spreads.Serialization
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static int WriteDeflate(DirectBuffer source, DirectBuffer destination)
+        {
+            return BloscMethods.compress_deflate(source._data, source._length, destination._data, destination._length, Settings.ZlibCompressionLevel);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static int ReadInflate(DirectBuffer source, DirectBuffer destination)
+        {
+            return BloscMethods.decompress_inflate(source._data, source._length, destination._data, destination._length);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static void Shuffle(DirectBuffer source, DirectBuffer destination, byte typeSize)
         {
             BloscMethods.shuffle((IntPtr)typeSize, source._length, source._data, destination._data);
