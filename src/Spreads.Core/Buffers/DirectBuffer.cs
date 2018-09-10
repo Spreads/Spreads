@@ -22,7 +22,7 @@ namespace Spreads.Buffers
     {
         public static DirectBuffer Invalid = new DirectBuffer(-1, (byte*)IntPtr.Zero);
 
-        private readonly IntPtr _length;
+        internal readonly IntPtr _length;
         internal readonly byte* _data;
 
         /// <summary>

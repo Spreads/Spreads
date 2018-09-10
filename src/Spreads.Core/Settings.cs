@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Diagnostics;
+using System.Runtime.CompilerServices;
 using Spreads.Serialization;
 
 namespace Spreads
@@ -88,9 +90,14 @@ namespace Spreads
 
         internal static int _zstdCompressionLevel = 5;
 
+        internal static int _zlibCompressionLevel = 5;
+
+        internal static int _brotliCompressionLevel = 3;
+
         // ReSharper disable once InconsistentNaming
         public static int LZ4CompressionLevel
         {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => _lz4CompressionLevel;
             set
             {
@@ -104,6 +111,7 @@ namespace Spreads
 
         public static int ZstdCompressionLevel
         {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => _zstdCompressionLevel;
             set
             {
@@ -112,6 +120,39 @@ namespace Spreads
                     ThrowHelper.ThrowArgumentOutOfRangeException();
                 }
                 _zstdCompressionLevel = value;
+            }
+        }
+
+        public static int ZlibCompressionLevel
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => _zlibCompressionLevel;
+            set
+            {
+                if (value < 0 || value >= 10)
+                {
+                    ThrowHelper.ThrowArgumentOutOfRangeException();
+                }
+                _zlibCompressionLevel = value;
+            }
+        }
+
+        public static int BrotliCompressionLevel
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => _brotliCompressionLevel;
+            set
+            {
+                if (value < 0 || value >= 10)
+                {
+                    ThrowHelper.ThrowArgumentOutOfRangeException();
+                }
+
+                if (value > 4)
+                {
+                    Trace.TraceWarning("Setting BrotliCompressionLevel > 4 could be very slow without much gain in compression ratio. Check performance on real data.");
+                }
+                _brotliCompressionLevel = value;
             }
         }
 

@@ -5,7 +5,10 @@
 using Spreads.Serialization;
 using System;
 using System.Diagnostics;
+using System.IO.Compression;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using Spreads.Buffers;
 
 // ReSharper disable InconsistentNaming
 
@@ -14,7 +17,7 @@ namespace Spreads.Blosc
     /// <summary>
     /// Blosc settings.
     /// </summary>
-    public static class BloscSettings
+    public  static class BloscSettings
     {
         internal static string DefaultCompressionMethod = "zstd";
 
@@ -40,7 +43,7 @@ namespace Spreads.Blosc
     [SuppressUnmanagedCodeSecurity]
 #endif
 
-    public class BloscMethods
+    public unsafe class BloscMethods
     {
         public const string BloscLibraryName = "libblosc";
 
@@ -124,5 +127,44 @@ namespace Spreads.Blosc
         }
 
         #endregion Blosc
+
+
+        #region Blosc Internals
+
+        [DllImport(BloscLibraryName, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int compress_lz4(byte* source, IntPtr sourceLength, 
+                            byte* destination, IntPtr destinationLength, int clevel);
+
+        [DllImport(BloscLibraryName, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int decompress_lz4(byte* source, IntPtr sourceLength,
+            byte* destination, IntPtr destinationLength);
+
+        [DllImport(BloscLibraryName, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int compress_zstd(byte* source, IntPtr sourceLength,
+            byte* destination, IntPtr destinationLength, int clevel);
+
+        [DllImport(BloscLibraryName, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int decompress_zstd(byte* source, IntPtr sourceLength,
+            byte* destination, IntPtr destinationLength);
+
+        [DllImport(BloscLibraryName, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int compress_zlib(byte* source, IntPtr sourceLength,
+            byte* destination, IntPtr destinationLength, int clevel);
+
+        [DllImport(BloscLibraryName, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int decompress_zlib(byte* source, IntPtr sourceLength,
+            byte* destination, IntPtr destinationLength);
+
+
+        [DllImport(BloscLibraryName, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern void shuffle(IntPtr typeSize, IntPtr blockSize, byte* source, byte* destination);
+
+        [DllImport(BloscLibraryName, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern void unshuffle(IntPtr typeSize, IntPtr blockSize, byte* source, byte* destination);
+
+        #endregion
+
+
+        
     }
 }

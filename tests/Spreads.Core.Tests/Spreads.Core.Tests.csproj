@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
     <Import Project="..\..\build\common.props" />
     <PropertyGroup>
-        <TargetFrameworks>netcoreapp2.1</TargetFrameworks>
+        <TargetFrameworks>net471;netcoreapp2.1</TargetFrameworks>
         <AssemblyName>Spreads.Core.Tests</AssemblyName>
         <RootNamespace>Spreads.Core.Tests</RootNamespace>
         <LangVersion>7.2</LangVersion>
@@ -41,15 +41,5 @@
       <ProjectReference Include="..\..\src\Spreads\Spreads.csproj" />
     </ItemGroup>
 
-
-    <ItemGroup>
-      <Reference Include="System.Runtime.CompilerServices.Unsafe">
-        <HintPath>..\..\bin\net451\System.Runtime.CompilerServices.Unsafe.dll</HintPath>
-      </Reference>
-    </ItemGroup>
-
-    <ItemGroup>
-        <Service Include="{82a7f48d-3b50-4b1e-b82e-3ada8210c358}" />
-    </ItemGroup>
 
 </Project>
