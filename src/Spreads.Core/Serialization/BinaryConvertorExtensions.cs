@@ -21,7 +21,7 @@ namespace Spreads.Serialization
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static unsafe int WriteAsPtr<T>(this MemoryStream stream, T value)
         {
-            var size = TypeHelper<T>.Size;
+            var size = TypeHelper<T>.FixedSize;
             if (size <= 0)
             {
                 ThrowHelper.ThrowInvalidOperationException("This method should only be used for writing fixed-size types to a stream");

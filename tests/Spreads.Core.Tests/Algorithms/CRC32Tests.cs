@@ -24,7 +24,7 @@ namespace Spreads.Core.Tests.Algorithms
                 var handle = memory.Pin();
                 var ptr = (byte*)handle.Pointer;
                 var rng = new Random(42);
-                rng.NextBytes(memory.Span);
+                rng.NextBytes(arr);
                 var count = 1_00_000_000;
                 var cnt = count / len;
                 var sum = 0UL;
@@ -109,7 +109,7 @@ namespace Spreads.Core.Tests.Algorithms
                 var copyTarget = (byte*)handleDest.Pointer;
 
                 var rng = new Random(42);
-                rng.NextBytes(memory.Span);
+                rng.NextBytes(arr);
                 var count = 1_000_000_000;
                 var cnt = count / len;
                 var sum = 0UL;

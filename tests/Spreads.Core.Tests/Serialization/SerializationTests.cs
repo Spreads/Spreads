@@ -86,7 +86,7 @@ namespace Spreads.Core.Tests.Serialization
         [Test]
         public void CouldSerializeDecimalArray()
         {
-            Assert.AreEqual(16, TypeHelper<decimal>.Size);
+            Assert.AreEqual(16, TypeHelper<decimal>.FixedSize);
             var bytes = new byte[1000];
             var decimals = new decimal[2];
             decimals[0] = 123;

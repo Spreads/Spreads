@@ -36,7 +36,7 @@ namespace Spreads.Serialization
 #pragma warning disable 618
         public byte ConverterVersion => 0;
 
-        private static readonly int ItemSize = TypeHelper<TElement>.Size;
+        private static readonly int ItemSize = TypeHelper<TElement>.FixedSize;
 #pragma warning restore 618
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

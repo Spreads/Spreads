@@ -4,6 +4,8 @@
 
 using System;
 using System.Diagnostics;
+using System.IO;
+using System.Runtime.InteropServices;
 
 namespace Spreads.Utils.Bootstrap
 {
@@ -18,8 +20,13 @@ namespace Spreads.Utils.Bootstrap
             _path = path;
             _loader = loader;
             _handle = loader.LoadLibrary(path);
+            //if (!File.Exists(path))
+            //{
+            //    ThrowHelper.FailFast("");
+            //}
             if (_handle == IntPtr.Zero)
             {
+                int error = Marshal.GetLastWin32Error();
                 Trace.TraceError("NativeLibrary handle == IntPtr.Zero");
                 throw new DllNotFoundException(path);
             }

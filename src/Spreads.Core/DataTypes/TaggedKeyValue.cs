@@ -22,10 +22,10 @@ namespace Spreads.DataTypes
     public readonly struct TaggedKeyValue<TKey, TValue> : IEquatable<TaggedKeyValue<TKey, TValue>>, 
         IBinaryConverter<TaggedKeyValue<TKey, TValue>>
     {
-        private static readonly int KeySize = TypeHelper<TKey>.Size;
-        private static readonly int ValueSize = TypeHelper<TValue>.Size;
-        private static readonly bool IsFixedSizeStatic = TypeHelper<TKey>.Size > 0 && TypeHelper<TValue>.Size > 0;
-        private static readonly int FixedSizeStatic = 4 + TypeHelper<TKey>.Size + TypeHelper<TValue>.Size;
+        private static readonly int KeySize = TypeHelper<TKey>.FixedSize;
+        private static readonly int ValueSize = TypeHelper<TValue>.FixedSize;
+        private static readonly bool IsFixedSizeStatic = TypeHelper<TKey>.FixedSize > 0 && TypeHelper<TValue>.FixedSize > 0;
+        private static readonly int FixedSizeStatic = 4 + TypeHelper<TKey>.FixedSize + TypeHelper<TValue>.FixedSize;
 
         private static DataTypeHeader _defaultHeader = new DataTypeHeader
         {
@@ -100,7 +100,7 @@ namespace Spreads.DataTypes
             SerializationFormat format = SerializationFormat.Binary, 
             Timestamp timestamp = default)
         {
-            var fixedSize = TypeHelper<TaggedKeyValue<TKey, TValue>>.Size;
+            var fixedSize = TypeHelper<TaggedKeyValue<TKey, TValue>>.FixedSize;
             if (fixedSize > 0)
             {
                 return BinarySerializer.WriteUnsafe(value, pinnedDestination, temporaryStream, format, timestamp);
@@ -111,7 +111,7 @@ namespace Spreads.DataTypes
 
         public int Read(IntPtr ptr, out TaggedKeyValue<TKey, TValue> value, out Timestamp timestamp)
         {
-            var fixedSize = TypeHelper<TaggedKeyValue<TKey, TValue>>.Size;
+            var fixedSize = TypeHelper<TaggedKeyValue<TKey, TValue>>.FixedSize;
             if (fixedSize > 0)
             {
                 return BinarySerializer.Read(ptr, out value, out timestamp);

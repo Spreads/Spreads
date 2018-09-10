@@ -1,21 +1,19 @@
 ﻿using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
-namespace Spreads.DataTypes
+namespace Spreads.Serialization
 {
     /// <summary>
     /// Version and flags
     /// 0
     /// 0 1 2 3 4 5 6 7 8
     /// +-+-+-+-+-+-+-+-+
-    /// |  Ver  |R|D|C|B|
+    /// |  Ver  |T|D|C|B|
     /// +---------------+
     /// C - compressed
-    /// D - diffed (if a type implements <see cref="IDelta{T}"/>)
-    /// B - binary format. If not set then the payload is JSON,
-    /// if set then payload is custom binary (payload could have
-    /// it's own headers e.g. Blosc)
-    /// R - reserved
+    /// D - diffed for binary (if a type implements <see cref="IDelta{T}"/>) or Deflate for compressed 
+    /// B - binary format. If not set then the payload is JSON, if set then payload is blittable or custom binary (payload could have it's own headers e.g. Blosc).
+    /// T - value has Timestamp as the first element of payload for binary case or Timestamp field on JSON object.
     /// </summary>
     [StructLayout(LayoutKind.Sequential, Pack = 1, Size = 1)]
     public struct VersionAndFlags
@@ -25,7 +23,7 @@ namespace Spreads.DataTypes
         internal const byte VersionMask = 0b_1111_0000;
         internal const byte BinaryFlagMask = 0b_0000_0001;
         internal const byte CompressedFlagMask = 0b_0000_0010;
-        internal const byte DeltaFlagMask = 0b_0000_0100;
+        internal const byte DeltaOrDeflateFlagMask = 0b_0000_0100;
         internal const byte TimestampFlagMask = 0b_0000_1000;
 
         private byte _value;
@@ -65,17 +63,17 @@ namespace Spreads.DataTypes
         public bool IsDelta
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => (_value & DeltaFlagMask) != 0;
+            get => (_value & DeltaOrDeflateFlagMask) != 0;
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             set
             {
                 if (value)
                 {
-                    _value |= DeltaFlagMask;
+                    _value |= DeltaOrDeflateFlagMask;
                 }
                 else
                 {
-                    _value = (byte)(_value & ~DeltaFlagMask);
+                    _value = (byte)(_value & ~DeltaOrDeflateFlagMask);
                 }
             }
         }

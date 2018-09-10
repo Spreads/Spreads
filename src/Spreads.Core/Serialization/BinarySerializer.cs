@@ -11,6 +11,7 @@ using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
 using System.Runtime.CompilerServices;
+using System.Threading;
 using static System.Runtime.CompilerServices.Unsafe;
 
 #pragma warning disable 0618
@@ -21,7 +22,7 @@ namespace Spreads.Serialization
     /// Binary Serializer that tries to serialize objects to their blittable representation whenever possible
     /// and falls back to JSON.NET for non-blittable types. It supports versioning and custom binary converters.
     /// </summary>
-    public static class BinarySerializer
+    public static partial class BinarySerializer
     {
         /// <summary>
         /// Positive number for fixed-size types, zero for types with a custom binary converters, negative for all other types.
@@ -31,7 +32,7 @@ namespace Spreads.Serialization
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int Size<T>()
         {
-            return TypeHelper<T>.Size;
+            return TypeHelper<T>.FixedSize;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -114,7 +115,7 @@ namespace Spreads.Serialization
                     compressedStream.WriteAsPtr(timestamp);
                 }
 
-                using (var compressor = new DeflateStream(compressedStream, CompressionLevel.Optimal, true))
+                using (var compressor = new GZipStream(compressedStream, CompressionLevel.Optimal, true))
                 {
                     rms.PositionInternal = 0;
                     rms.CopyTo(compressor);
@@ -162,7 +163,7 @@ namespace Spreads.Serialization
             SerializationFormat format = SerializationFormat.Binary,
             Timestamp timestamp = default)
         {
-            if (TypeHelper<T>.Size >= 0 && (int)format < 100)
+            if (TypeHelper<T>.FixedSize >= 0 && (int)format < 100)
             {
                 Debug.Assert(temporaryStream == null, "For primitive types MemoryStream should not be used");
                 return TypeHelper<T>.Write(value, pinnedDestination, null, format, timestamp);
@@ -197,7 +198,7 @@ namespace Spreads.Serialization
 
             if ((int)format < 100)
             {
-                if (TypeHelper<T>.Size > 0 || TypeHelper<T>.HasBinaryConverter)
+                if (TypeHelper<T>.FixedSize > 0 || TypeHelper<T>.HasBinaryConverter)
                 {
                     return TypeHelper<T>.Write(value, pinnedDestination, null, format, timestamp);
                 }
@@ -287,7 +288,7 @@ namespace Spreads.Serialization
 
             if (header.VersionAndFlags.IsBinary)
             {
-                Debug.Assert(TypeHelper<T>.Size >= 0 || TypeHelper<T>.HasBinaryConverter);
+                Debug.Assert(TypeHelper<T>.FixedSize >= 0 || TypeHelper<T>.HasBinaryConverter);
                 return TypeHelper<T>.Read(ptr, out value, out timestamp);
             }
 
@@ -344,7 +345,7 @@ namespace Spreads.Serialization
             RecyclableMemoryStream decompressedStream =
                 RecyclableMemoryStreamManager.Default.GetStream();
 
-            using (var decompressor = new DeflateStream(comrpessedStream, CompressionMode.Decompress, true))
+            using (var decompressor = new GZipStream(comrpessedStream, CompressionMode.Decompress, true))
             {
                 decompressor.CopyTo(decompressedStream);
                 decompressor.Dispose();
@@ -441,6 +442,46 @@ namespace Spreads.Serialization
 
             payloadOffset = offset + (int)tsLen;
             return timestamp;
+        }
+
+        [ThreadStatic]
+        private static decimal placeHolder;
+
+        [ThreadStatic]
+        private static unsafe void* sharedPtr = BufferPool.StaticBufferMemory.Pointer;
+
+        [Obsolete]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static unsafe Timestamp ReadTimestamp2(byte* ptr, out int payloadOffset)
+        {
+            var x = System.Runtime.CompilerServices.Unsafe.AsPointer(ref placeHolder);
+            // store pointers in the first 16 bytes of the shared thread-static buffer
+            //var bptr = default(decimal);
+            //var sharedPtr = (void*)&bptr;
+            //if (sharedPtr == (void*) IntPtr.Zero)
+            //{
+            //    sharedPtr = BufferPool.StaticBufferMemory.Pointer;
+            //}
+            var ptrXX = (byte**)x; // (byte**)sharedPtr;
+            long ts = default;
+            // ()ptrXX = &ts
+
+            // var ptrX = stackalloc Timestamp*[2];
+            // we need ANY pointer that does not segfault on read
+            *ptrXX = (byte*)(x) + 8; // (byte*)&ts;
+
+            var isVarSize = *(ptr + 2) == 0;
+            var offset = 4 << *(int*)(byte*)&isVarSize; // + (*(byte*)&isVarSize << 2); // 4 for varsize or 0 for fixed size
+            long tsLen = VersionAndFlags.TimestampFlagMask & *ptr;
+
+            *(ptrXX + 8) = (byte*)(ptr + offset);
+
+            var hasTs = tsLen;
+            var ptrToDeref = *(ptrXX + hasTs);
+            ts = Volatile.Read(ref *(long*)(ptrToDeref));
+
+            payloadOffset = offset + (int)tsLen;
+            return (Timestamp)ts;
         }
     }
 

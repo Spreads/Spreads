@@ -87,7 +87,7 @@ namespace Spreads.Serialization
         // used by reflection below
         private static int Size<T>()
         {
-            return TypeHelper<T>.Size;
+            return TypeHelper<T>.FixedSize;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -142,11 +142,7 @@ namespace Spreads.Serialization
         public static bool HasBinaryConverter
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get
-            {
-                // Debug.Assert(_hasBinaryConverter ? Size == -1 : Size > -1);
-                return _hasBinaryConverter;
-            }
+            get => _hasBinaryConverter;
         }
 
         /// <summary>
@@ -156,14 +152,14 @@ namespace Spreads.Serialization
         /// This is more relaxed than Marshal.SizeOf, but still doesn't cover cases such as
         /// an array of KVP[DateTime,double], which has contiguous layout in memory.
         /// </summary>
-        public static readonly int Size = InitChecked();
+        public static readonly int FixedSize = InitChecked();
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int EnsureFixedSize()
         {
-            if (Size > 0)
+            if (FixedSize > 0)
             {
-                return Size;
+                return FixedSize;
             }
 
             ThrowTypeIsNotFixedSize();
@@ -176,15 +172,13 @@ namespace Spreads.Serialization
             throw new ApplicationException($"Type {typeof(T).Name} is not fixed size. Either add Size parameter to StructLayout attribute or use Spreads.Serialization attribute to explicitly opt-in to treat non-primitive user-defined structs as fixed-size.");
         }
 
-        /// <summary>
-        /// Cache call to typeof(T).GetTypeInfo().IsValueType so it is JIT-time constant.
-        /// </summary>
-        public static bool IsValueType = typeof(T).GetTypeInfo().IsValueType;
+        internal static readonly bool IsValueType = typeof(T).GetTypeInfo().IsValueType;
+        internal static readonly bool IsIDelta = typeof(IDelta<T>).GetTypeInfo().IsAssignableFrom(typeof(T));
 
         /// <summary>
         /// True if an array T[] could be pinned in memory.
         /// </summary>
-        public static readonly bool IsPinnable = Size > 0 && typeof(T) != typeof(DateTime);
+        internal static readonly bool IsPinnable = FixedSize > 0 && typeof(T) != typeof(DateTime);
 
         private static IBinaryConverter<T> _converterInstance;
         private static TypeParams _typeParams;
@@ -200,7 +194,7 @@ namespace Spreads.Serialization
                 IsCompressed = false
             },
             TypeEnum = VariantHelper<T>.TypeEnum,
-            TypeSize = (Size > 0 && Size <= 255) ? (byte)Size : (byte)0
+            TypeSize = (FixedSize > 0 && FixedSize <= 255) ? (byte)FixedSize : (byte)0
         });
 
         private static readonly PlaceholderTS _placeholderTs = new PlaceholderTS(new DataTypeHeader
@@ -214,7 +208,7 @@ namespace Spreads.Serialization
                 IsTimestamped = true
             },
             TypeEnum = VariantHelper<T>.TypeEnum,
-            TypeSize = (Size > 0 && Size <= 255) ? (byte)Size : (byte)0
+            TypeSize = (FixedSize > 0 && FixedSize <= 255) ? (byte)FixedSize : (byte)0
         });
 
         // ReSharper restore StaticMemberInGenericType
@@ -371,7 +365,7 @@ namespace Spreads.Serialization
                 }
                 if (converter.ConverterVersion <= 0)
                 {
-                    Environment.FailFast("IBinaryConverter<T> implementation for a type T should have a positive version.");
+                    Environment.FailFast("User IBinaryConverter<T> implementation for a type T should have a positive version.");
                 }
                 _converterInstance = converter;
                 _hasBinaryConverter = true;
@@ -406,12 +400,12 @@ namespace Spreads.Serialization
         {
             if (_hasBinaryConverter)
             {
-                Debug.Assert(Size == -1);
+                Debug.Assert(FixedSize == -1);
                 return _converterInstance.Read(ptr, out value, out timestamp);
             }
-            if (Size >= 0)
+            if (FixedSize >= 0)
             {
-                Debug.Assert(Size > 0);
+                Debug.Assert(FixedSize > 0);
                 var header = ReadUnaligned<DataTypeHeader>((void*)(ptr));
                 var tsSize = 0;
                 if (header.VersionAndFlags.IsTimestamped)
@@ -424,9 +418,9 @@ namespace Spreads.Serialization
                     timestamp = default;
                 }
                 value = ReadUnaligned<T>((void*)(ptr + DataTypeHeader.Size + tsSize));
-                return DataTypeHeader.Size + tsSize + Size;
+                return DataTypeHeader.Size + tsSize + FixedSize;
             }
-            Debug.Assert(Size < 0);
+            Debug.Assert(FixedSize < 0);
             THFFCannotReadVarSize();
             value = default;
             timestamp = default;
@@ -450,7 +444,7 @@ namespace Spreads.Serialization
             {
                 return _converterInstance.Write(value, destination, ms, format, timestamp);
             }
-            if (Size >= 0)
+            if (FixedSize >= 0)
             {
                 var tsSize = 0;
                 if (timestamp != default)
@@ -469,13 +463,13 @@ namespace Spreads.Serialization
                     placeholder.Value = value;
                     WriteUnaligned((void*)(destination), placeholder);
                 }
-                Debug.Assert(Size > 0);
+                Debug.Assert(FixedSize > 0);
 
-                var len = DataTypeHeader.Size + tsSize + Size;
+                var len = DataTypeHeader.Size + tsSize + FixedSize;
                 return len;
             }
 
-            Debug.Assert(Size < 0);
+            Debug.Assert(FixedSize < 0);
             ThrowHelper.FailFast("TypeHelper<T> doesn't support variable-size types. Code calling this method is incorrect, data corruption is possible.");
             return -1;
         }
@@ -483,7 +477,7 @@ namespace Spreads.Serialization
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static int WriteFixedSize(in T value, IntPtr destination)
         {
-            var len = DataTypeHeader.Size + Size;
+            var len = DataTypeHeader.Size + FixedSize;
             // copy by value
             var placeholder = _placeholder;
             placeholder.Value = value;
@@ -494,46 +488,48 @@ namespace Spreads.Serialization
         /// <summary>
         /// Returns binary size of the value with header
         /// </summary>
-        /// <param name="value"></param>
-        /// <param name="memoryStream"></param>
-        /// <param name="format"></param>
-        /// <param name="timestamp"></param>
-        /// <returns></returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int SizeOf(T value, out MemoryStream memoryStream,
             SerializationFormat format,
-            Timestamp timestamp)
+            Timestamp timestamp = default)
         {
             memoryStream = null;
             if (_hasBinaryConverter)
             {
-                Debug.Assert(Size == -1);
+                Debug.Assert(FixedSize == -1);
                 return _converterInstance.SizeOf(value, out memoryStream, format, timestamp);
             }
-            if (Size >= 0)
+            if (FixedSize >= 0)
             {
-                return DataTypeHeader.Size + Size + ((long)timestamp == default ? 0 : Timestamp.Size);
+                return DataTypeHeader.Size + FixedSize + ((long)timestamp == default ? 0 : Timestamp.Size);
             }
-            Debug.Assert(Size < 0);
+            Debug.Assert(FixedSize < 0);
             return -1;
         }
 
-        public static byte ConverterVersion => _hasBinaryConverter ? _converterInstance.ConverterVersion : (byte)0;
-
-        public static void RegisterConverter(IBinaryConverter<T> converter, bool overrideExisting = false)
+        public static byte ConverterVersion
         {
-            if (converter == null) throw new ArgumentNullException(nameof(converter));
-            if (Size >= 0) throw new InvalidOperationException("Cannot register a custom converter for pinnable types");
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => _hasBinaryConverter ? _converterInstance.ConverterVersion : (byte) 0;
+        }
+
+        public static void RegisterConverter(IBinaryConverter<T> converter,
+            bool overrideExisting = false)
+        {
+            if (converter == null) { throw new ArgumentNullException(nameof(converter)); }
+            if (FixedSize >= 0) { throw new InvalidOperationException("Cannot register a custom converter for pinnable types"); }
 
             // NB TypeHelper is internal, we could provide some hooks later e.g. for char or bool
-            if (converter.ConverterVersion == 0)
+            if (converter.ConverterVersion == 0 || converter.ConverterVersion > 15)
             {
-                Trace.TraceWarning("Adding a converter with version zero");
+                throw new ArgumentException("User-implemented converter version must be in the range 1-15.");
             }
 
             if (_hasBinaryConverter && !overrideExisting)
+            {
                 throw new InvalidOperationException(
                     $"Type {typeof(T)} already implements IBinaryConverter<{typeof(T)}> interface. Use versioning to add a new converter (not supported yet)");
+            }
 
             if (_typeParams.IsBlittable)
             {

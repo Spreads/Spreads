@@ -39,16 +39,21 @@
         Binary = 0,
 
         /// <summary>
+        /// Fast compression, larger size.
+        /// </summary>
+        /// <remarks>
         /// Use blittable reprezentation, byteshuffle with Blosc where possibe,
         /// fallback to JSON for non-blittable types and compress with BinaryLz4.
-        /// </summary>
-        // ReSharper disable once InconsistentNaming
+        /// </remarks>
         BinaryLz4 = 1,
 
         /// <summary>
+        /// Good compression ratio, slower speed.
+        /// </summary>
+        /// <remarks>
         /// Use blittable reprezentation, byteshuffle with Blosc where possibe,
         /// fallback to JSON for non-blittable types and compress with BinaryZstd.
-        /// </summary>
+        /// </remarks>
         BinaryZstd = 2,
 
         // NB we use check < 100 in some places to detect binary

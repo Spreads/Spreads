@@ -1,8 +1,9 @@
 ﻿using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using Spreads.DataTypes;
 
-namespace Spreads.DataTypes
+namespace Spreads.Serialization
 {
     // TODO Fixed size TypeSize could use the 4th byte and max size could be 127 * 256 if we encode as simple varint
     // or just as short - for this case SubTypeEnum is always unused

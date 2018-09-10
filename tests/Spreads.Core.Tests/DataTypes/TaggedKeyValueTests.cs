@@ -25,8 +25,8 @@ namespace Spreads.Core.Tests.DataTypes
         public void DateTimeDoubleIsTreatedAsBlittable()
         {
             var kv = new TaggedKeyValue<long, double>(DateTime.Now.Ticks, 123.45, 255);
-            Assert.AreEqual(20, TypeHelper<TaggedKeyValue<long, double>>.Size);
-            Console.WriteLine(TypeHelper<TaggedKeyValue<long, double>>.Size);
+            Assert.AreEqual(20, TypeHelper<TaggedKeyValue<long, double>>.FixedSize);
+            Console.WriteLine(TypeHelper<TaggedKeyValue<long, double>>.FixedSize);
 
             var tgt = new byte[20 + 4];
 

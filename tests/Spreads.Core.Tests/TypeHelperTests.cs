@@ -116,13 +116,13 @@ namespace Spreads.Tests
         [Test]
         public void CouldGetSizeOfDoubleArray()
         {
-            Console.WriteLine(TypeHelper<double[]>.Size);
+            Console.WriteLine(TypeHelper<double[]>.FixedSize);
         }
 
         [Test]
         public void CouldGetSizeOfReferenceType()
         {
-            Console.WriteLine(TypeHelper<string>.Size);
+            Console.WriteLine(TypeHelper<string>.FixedSize);
         }
 
         [Test]
@@ -242,21 +242,21 @@ namespace Spreads.Tests
         [Test]
         public void CouldGetSizeOfPrimitivesDateTimeAndDecimal()
         {
-            Assert.AreEqual(4, TypeHelper<int>.Size);
-            Assert.AreEqual(8, TypeHelper<DateTime>.Size);
-            Assert.AreEqual(16, TypeHelper<decimal>.Size);
-            Assert.AreEqual(2, TypeHelper<char>.Size);
-            Assert.AreEqual(-1, TypeHelper<MyPocoWithConvertor>.Size);
+            Assert.AreEqual(4, TypeHelper<int>.FixedSize);
+            Assert.AreEqual(8, TypeHelper<DateTime>.FixedSize);
+            Assert.AreEqual(16, TypeHelper<decimal>.FixedSize);
+            Assert.AreEqual(2, TypeHelper<char>.FixedSize);
+            Assert.AreEqual(-1, TypeHelper<MyPocoWithConvertor>.FixedSize);
             TypeHelper<MyPocoWithConvertor>.RegisterConverter(new MyPocoWithConvertor(), true);
-            Assert.AreEqual(-1, TypeHelper<MyPocoWithConvertor>.Size);
+            Assert.AreEqual(-1, TypeHelper<MyPocoWithConvertor>.FixedSize);
         }
 
         [Test]
         public void BlittableAttributesAreHonored()
         {
-            Assert.AreEqual(-1, TypeHelper<NonBlittableStruct>.Size);
-            Assert.AreEqual(4, TypeHelper<BlittableStruct1>.Size);
-            Assert.AreEqual(4, TypeHelper<BlittableStruct2>.Size);
+            Assert.AreEqual(-1, TypeHelper<NonBlittableStruct>.FixedSize);
+            Assert.AreEqual(4, TypeHelper<BlittableStruct1>.FixedSize);
+            Assert.AreEqual(4, TypeHelper<BlittableStruct2>.FixedSize);
 
             // this will cause Environment.FailFast
             //Assert.AreEqual(4, TypeHelper<BlittableStructWrong>.Size);

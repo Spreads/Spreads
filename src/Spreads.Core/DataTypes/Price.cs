@@ -12,6 +12,9 @@ using System.Runtime.InteropServices;
 
 namespace Spreads.DataTypes
 {
+
+    // TODO missing/invalid price. Mantissa zero while exponent is not zero or minus zero. Useful for absense of price, e.g. on illiquid markets
+
     /// <summary>
     /// A blittable structure to store price values with decimal precision up to 15 digits.
     /// </summary>

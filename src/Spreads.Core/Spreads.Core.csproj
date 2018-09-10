@@ -103,15 +103,15 @@
     <Compile Include="Cursors\Zip.cs" />
   </ItemGroup>
   <ItemGroup>
-    <EmbeddedResource Include="..\..\lib\libblosc\w64\libblosc.dll">
+    <EmbeddedResource Include="..\..\lib\libblosc\w64\libblosc.dll.compressed">
       <Link>native\w64\libblosc.dll</Link>
       <LogicalName>win.x64.libblosc.dll</LogicalName>
     </EmbeddedResource>
-    <EmbeddedResource Include="..\..\lib\libblosc\w32\libblosc.dll">
+    <EmbeddedResource Include="..\..\lib\libblosc\w32\libblosc.dll.compressed">
       <Link>native\w32\libblosc.dll</Link>
       <LogicalName>win.x32.libblosc.dll</LogicalName>
     </EmbeddedResource>
-    <EmbeddedResource Include="..\..\lib\libblosc\l64\libblosc.so">
+    <EmbeddedResource Include="..\..\lib\libblosc\l64\libblosc.compressed">
       <Link>native\l64\libblosc.so</Link>
       <LogicalName>lin.x64.libblosc.so</LogicalName>
     </EmbeddedResource>

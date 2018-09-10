@@ -379,7 +379,7 @@ namespace Spreads.Collections.Generic
         // Clears the contents of RefList.
         public void Clear()
         {
-            if (TypeHelper<T>.Size <= 0)
+            if (TypeHelper<T>.FixedSize <= 0)
             {
                 int size = _size;
                 _size = 0;
@@ -1049,7 +1049,7 @@ namespace Spreads.Collections.Generic
                 }
             }
 
-            if (TypeHelper<T>.Size <= 0)
+            if (TypeHelper<T>.FixedSize <= 0)
             {
                 Array.Clear(_items, freeIndex, _size - freeIndex); // Clear the elements so that the gc can reclaim the references.
             }
@@ -1075,7 +1075,7 @@ namespace Spreads.Collections.Generic
             {
                 Array.Copy(_items, index + 1, _items, index, _size - index);
             }
-            if (TypeHelper<T>.Size <= 0)
+            if (TypeHelper<T>.FixedSize <= 0)
             {
                 _items[_size] = default(T);
             }
@@ -1109,7 +1109,7 @@ namespace Spreads.Collections.Generic
                 }
 
                 _version++;
-                if (TypeHelper<T>.Size <= 0)
+                if (TypeHelper<T>.FixedSize <= 0)
                 {
                     Array.Clear(_items, _size, count);
                 }

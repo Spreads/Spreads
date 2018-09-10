@@ -45,7 +45,10 @@ namespace Spreads.Core.Tests.Serialization
                         if (header.VersionAndFlags.IsTimestamped && header.IsFixedSize)
                         {
                             var ts = *(Timestamp*)(ptrI + 4);
-                            tsSumIf += (long)ts;
+                            unchecked
+                            {
+                                tsSumIf += (long)ts;
+                            }
                         }
                     }
                     Assert.AreEqual(tsSum, tsSumIf);
@@ -58,9 +61,11 @@ namespace Spreads.Core.Tests.Serialization
                     {
                         var ptrI = ptr + i * 16;
 
-                        var ts = BinarySerializer.ReadTimestamp(ptrI, out _);
-
-                        tsSumBrl += (long)ts;
+                        var ts = BinarySerializer.ReadTimestamp2(ptrI, out _);
+                        unchecked
+                        {
+                            tsSumBrl += (long)ts;
+                        }
                     }
                     Assert.AreEqual(tsSum, tsSumBrl);
                 }
@@ -139,17 +144,20 @@ namespace Spreads.Core.Tests.Serialization
                         var header = *(DataTypeHeader*)ptrI;
                         if (header.VersionAndFlags.IsTimestamped)
                         {
-                            if (header.IsFixedSize)
+                            unchecked
                             {
-                                var ts = *(Timestamp*)(ptrI + 4);
-                                tsSumIf += (long)ts;
-                                valSumIf += *(int*)(ptrI + 12);
-                            }
-                            else
-                            {
-                                var ts = *(Timestamp*)(ptrI + 8);
-                                tsSumIf += (long)ts;
-                                valSumIf += *(int*)(ptrI + 16);
+                                if (header.IsFixedSize)
+                                {
+                                    var ts = *(Timestamp*)(ptrI + 4);
+                                    tsSumIf += (long)ts;
+                                    valSumIf += *(int*)(ptrI + 12);
+                                }
+                                else
+                                {
+                                    var ts = *(Timestamp*)(ptrI + 8);
+                                    tsSumIf += (long)ts;
+                                    valSumIf += *(int*)(ptrI + 16);
+                                }
                             }
                         }
                     }
@@ -165,10 +173,13 @@ namespace Spreads.Core.Tests.Serialization
                     {
                         var ptrI = ptr + i * itemMaxSize;
 
-                        var ts = BinarySerializer.ReadTimestamp(ptrI, out var offset);
+                        var ts = BinarySerializer.ReadTimestamp2(ptrI, out var offset);
                         var val = *(int*)(ptrI + offset);
-                        valSumBrl += val;
-                        tsSumBrl += (long)ts;
+                        unchecked
+                        {
+                            valSumBrl += val;
+                            tsSumBrl += (long)ts;
+                        }
                     }
                     Assert.AreEqual(tsSum, tsSumBrl, "3");
                     Assert.AreEqual(valSum, valSumBrl, "4");

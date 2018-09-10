@@ -533,7 +533,7 @@ namespace Spreads.Tests
                 var handle = buffer.Pin();
             });
             Assert.False(TypeHelper<string>.IsPinnable);
-            Assert.True(TypeHelper<string>.Size <= 0);
+            Assert.True(TypeHelper<string>.FixedSize <= 0);
         }
 
         //[Test, Explicit("long running")]

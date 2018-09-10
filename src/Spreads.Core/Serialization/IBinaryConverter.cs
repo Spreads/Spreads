@@ -14,13 +14,13 @@ namespace Spreads.Serialization
     }
 
     /// <summary>
-    /// Convert a generic object T to a pointer prefixed with version and length.
+    /// Serialize a generic object T to a pointer, prefixed with version and length.
     /// </summary>
     /// <remarks>
     /// 0                   1                   2                   3
     /// 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
     /// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-    /// |  Ver  |T|D|C|B|    TypeEnum   |  TypeSize     | SubTypeEnum   |
+    /// |  Ver  |T|D|C|B|    TypeEnum   |    TypeSize   | SubTypeEnum   |
     /// +---------------------------------------------------------------+
     /// |R|     Payload Length (if VarLen/TypeSize is negative )        |
     /// +---------------------------------------------------------------+

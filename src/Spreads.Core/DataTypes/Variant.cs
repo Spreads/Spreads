@@ -363,7 +363,7 @@ namespace Spreads.DataTypes
                     TypeEnum = TypeEnum.Array,
                     ElementTypeEnum = VariantHelper<T>.TypeEnum,
 #pragma warning disable 618
-                    TypeSize = TypeHelper<T>.Size >= 0 ? checked((byte)TypeHelper<T>.Size) : (byte)0 // TODO review
+                    TypeSize = TypeHelper<T>.FixedSize >= 0 ? checked((byte)TypeHelper<T>.FixedSize) : (byte)0 // TODO review
 #pragma warning restore 618
                 }
             };

@@ -278,7 +278,7 @@ namespace Spreads.Serialization
             return default;
         }
 
-        private static readonly int ItemSize = TypeHelper<TElement>.Size;
+        private static readonly int ItemSize = TypeHelper<TElement>.FixedSize;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public int SizeOf(TElement[] value, out MemoryStream temporaryStream,
