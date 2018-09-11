@@ -15,10 +15,7 @@ namespace Spreads.Serialization
 #if NETCOREAPP2_1
         internal static readonly bool IsBrotliSupported = true;
 #else
-
-        //
         internal static readonly bool IsBrotliSupported = false;
-
 #endif
 
 #if NETCOREAPP2_1
@@ -105,6 +102,19 @@ namespace Spreads.Serialization
         internal static void Unshuffle(DirectBuffer source, DirectBuffer destination, byte typeSize)
         {
             BloscMethods.unshuffle((IntPtr)typeSize, source._length, source._data, destination._data);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static int WriteZlibXX(DirectBuffer source, DirectBuffer destination)
+        {
+            return UnsafeEx.CalliCompress(source._data, source._length, destination._data, destination._length,
+                Settings.ZlibCompressionLevel, BloscMethods.compress_zlib_ptr);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static int ReadZlibXX(DirectBuffer source, DirectBuffer destination)
+        {
+            return UnsafeEx.CalliDecompress(source._data, source._length, destination._data, destination._length, BloscMethods.decompress_zlib_ptr);
         }
     }
 }

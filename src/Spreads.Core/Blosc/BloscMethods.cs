@@ -60,6 +60,9 @@ namespace Spreads.Blosc
 
         private static BloscCbufferSizes native_blosc_cbuffer_sizes;
 
+        internal static IntPtr compress_zlib_ptr;
+        internal static IntPtr decompress_zlib_ptr;
+
         static BloscMethods()
         {
             try
@@ -78,6 +81,8 @@ namespace Spreads.Blosc
                             (library._loader.FindFunction(handle, "blosc_decompress_ctx"));
                         native_blosc_cbuffer_sizes = Marshal.GetDelegateForFunctionPointer<BloscCbufferSizes>
                             (library._loader.FindFunction(handle, "blosc_cbuffer_sizes"));
+                        compress_zlib_ptr = library._loader.FindFunction(handle, "compress_zlib");
+                        decompress_zlib_ptr = library._loader.FindFunction(handle, "decompress_zlib");
                     },
                     () => { });
             }

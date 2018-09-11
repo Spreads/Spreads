@@ -266,7 +266,7 @@ namespace Spreads
             // doesn't work, e.g. AOT. See discussion #100.
             if (IsIComparable)
             {
-                return Unsafe.CompareToConstrained(ref x, ref y);
+                return UnsafeEx.CompareToConstrained(ref x, ref y);
             }
 
             return CompareSlow(x, y);

@@ -3,6 +3,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 using System;
+using System.Runtime.CompilerServices;
 using NUnit.Framework;
 
 namespace Spreads.Tests
@@ -88,8 +89,8 @@ namespace Spreads.Tests
 
             var delta = new IntDelta { Value = 456 - 123 };
 
-            Assert.AreEqual(delta, Unsafe.GetDeltaConstrained(ref first, ref second));
-            Assert.AreEqual(second, Unsafe.AddDeltaConstrained(ref first, ref delta));
+            Assert.AreEqual(delta, UnsafeEx.GetDeltaConstrained(ref first, ref second));
+            Assert.AreEqual(second, UnsafeEx.AddDeltaConstrained(ref first, ref delta));
         }
 
         [Test]
@@ -100,15 +101,15 @@ namespace Spreads.Tests
 
             var diff = 456 - 123;
 
-            Assert.AreEqual(diff, Unsafe.DiffLongConstrained(ref first, ref second));
-            Assert.AreEqual(second, Unsafe.AddLongConstrained(ref first, diff));
+            Assert.AreEqual(diff, UnsafeEx.DiffLongConstrained(ref first, ref second));
+            Assert.AreEqual(second, UnsafeEx.AddLongConstrained(ref first, diff));
         }
 
         [Test]
         public void CouldUseIDisposableMethods()
         {
             var disposable = new TestDisposable();
-            Unsafe.DisposeConstrained(ref disposable);
+            UnsafeEx.DisposeConstrained(ref disposable);
 
             Assert.True(disposable.Disposed);
         }
@@ -117,12 +118,12 @@ namespace Spreads.Tests
         public void CouldUseGetHashCodeMethods()
         {
             var v = 1;
-            var vh = Unsafe.GetHashCodeConstrained(ref v);
+            var vh = UnsafeEx.GetHashCodeConstrained(ref v);
 
             Assert.AreEqual(v, vh);
 
             var d = new TestDisposable();
-            var dh = Unsafe.GetHashCodeConstrained(ref d);
+            var dh = UnsafeEx.GetHashCodeConstrained(ref d);
             Assert.AreEqual(42, dh);
         }
 
@@ -133,13 +134,13 @@ namespace Spreads.Tests
             var v2 = new CompEq(2);
             var v3 = new CompEq(2);
 
-            Assert.AreEqual(-1, Unsafe.CompareToConstrained(ref v1, ref v2));
-            Assert.AreEqual(1, Unsafe.CompareToConstrained(ref v2, ref v1));
-            Assert.AreEqual(0, Unsafe.CompareToConstrained(ref v2, ref v3));
-            Assert.AreEqual(1, Unsafe.CompareToConstrained(ref v3, ref v1));
+            Assert.AreEqual(-1, UnsafeEx.CompareToConstrained(ref v1, ref v2));
+            Assert.AreEqual(1, UnsafeEx.CompareToConstrained(ref v2, ref v1));
+            Assert.AreEqual(0, UnsafeEx.CompareToConstrained(ref v2, ref v3));
+            Assert.AreEqual(1, UnsafeEx.CompareToConstrained(ref v3, ref v1));
 
-            Assert.True(Unsafe.EqualsConstrained(ref v2, ref v3));
-            Assert.False(Unsafe.EqualsConstrained(ref v1, ref v3));
+            Assert.True(UnsafeEx.EqualsConstrained(ref v2, ref v3));
+            Assert.False(UnsafeEx.EqualsConstrained(ref v1, ref v3));
         }
 
         public static void Dispose<T>(ref T disposable) where T : IDisposable

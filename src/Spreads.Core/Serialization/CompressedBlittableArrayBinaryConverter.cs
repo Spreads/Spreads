@@ -192,7 +192,7 @@ namespace Spreads.Serialization
                         Unsafe.WriteUnaligned(ref buffer[0], first);
                         for (var i = 1; i < valueCount; i++)
                         {
-                            var diff = Unsafe.GetDeltaConstrained(ref first, ref value[valueOffset + i]);
+                            var diff = UnsafeEx.GetDeltaConstrained(ref first, ref value[valueOffset + i]);
                             Unsafe.WriteUnaligned(ref buffer[i * ItemSize], diff);
                         }
                         fixed (byte* srcPtr = &buffer[0])
@@ -419,7 +419,7 @@ namespace Spreads.Serialization
                         for (var i = 1; i < arraySize; i++)
                         {
                             var currentDelta = Unsafe.Read<TElement>(destination + i * ItemSize);
-                            var current = Unsafe.AddDeltaConstrained(ref first, ref currentDelta);
+                            var current = UnsafeEx.AddDeltaConstrained(ref first, ref currentDelta);
                             targetArray[i] = current;
                         }
                     }

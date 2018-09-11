@@ -41,7 +41,7 @@ namespace Spreads
         {
             if (IsIEquatable)
             {
-                return Unsafe.EqualsConstrained(ref x, ref y);
+                return UnsafeEx.EqualsConstrained(ref x, ref y);
             }
 
             return EqualityComparer<T>.Default.Equals(x, y);
@@ -61,7 +61,7 @@ namespace Spreads
         {
             if (IsIEquatable)
             {
-                return Unsafe.GetHashCodeConstrained(ref x);
+                return UnsafeEx.GetHashCodeConstrained(ref x);
             }
 
             return EqualityComparer<T>.Default.GetHashCode(x);

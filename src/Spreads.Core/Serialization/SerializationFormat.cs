@@ -8,10 +8,9 @@
     /// MIME type.
     /// </summary>
     /// <remarks>
-    /// JsonDeflate:
-    /// Objects are converted to JSON and compressed with raw deflate method
-    /// if compression gives smaller size. This format is compatible with raw
-    /// http payload with 'Accept-encoding: deflate' headers past the 8 bytes header.
+    /// JsonGZip:
+    /// Objects are converted to JSON and compressed with JsonGZip method. This format is compatible with raw
+    /// http payload with 'Accept-encoding: gzip' headers past the 8 bytes header.
     ///
     /// BinaryLz4/Zstd:
     /// Binary is stored as blittable representation with Blosc byteshuffle for arrays with fixed-size elements.
@@ -24,7 +23,7 @@
     /// with diffing performed before byteshuffling and the header must have such flag as well.
     ///
     /// SerializationFormat should not be confused with Transport/Protocol format:
-    /// * Text trasport/protocol supports only JSON and the payload is plain or deflated JSON that
+    /// * Text trasport/protocol supports only JSON and the payload is plain or gzipped JSON that
     ///   could be consumed by browsers or http servers (with headers indicating the actual format - compressed or not).
     /// * Binary trasport/protocol cannot be consumed directly by browsers or http servers. The exact data layout of payload
     ///   depends on data type and is encoded in a 4 (+ optional 4 bytes length for variable sized data) bytes header.
@@ -64,12 +63,8 @@
         Json = 100,
 
         /// <summary>
-        /// Serialize to JSON and compress with raw deflate method.
+        /// Serialize to JSON and compress with GZip method.
         /// </summary>
-        JsonDeflate = 101,
-
-//#if NETCOREAPP2_1
-//        JsonBrotli = 102
-//#endif
+        JsonGZip = 101,
     }
 }

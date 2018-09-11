@@ -19,6 +19,8 @@ namespace Spreads.Core.Tests.Blosc
     [TestFixture]
     public unsafe class BloscTests
     {
+        public const int itemCount = 10;
+
         [Test, Explicit("long running")]
         public void CouldShuffleUnshuffle()
         {
@@ -92,7 +94,7 @@ namespace Spreads.Core.Tests.Blosc
             // R2 has some strange very slow read perf on this data when count is small
             // R3 is balanced, good compr and fast enough
 
-            var count = 100;
+            var count = itemCount;
             var values = new TestValue[count];
             for (int i = 0; i < count; i++)
             {
@@ -100,12 +102,12 @@ namespace Spreads.Core.Tests.Blosc
                 {
                     // Dec = (((decimal)i + 1M / (decimal)(i + 1))),
                     Dbl = (double)i + 1 / (double)(i + 1),
-                    Dbl1 = (double)i + 1 / (double)(i + 1),
+                    //Dbl1 = (double)i + 1 / (double)(i + 1),
                     Num = i,
                     Num1 = i,
                     Num2 = i,
                     Str = i.ToString(),
-                    Str1 = ((double)i + 1 / (double)(i + 1)).ToString(),
+                    //Str1 = ((double)i + 1 / (double)(i + 1)).ToString(),
                     Boo = i % 2 == 0
                 };
             }
@@ -140,7 +142,7 @@ namespace Spreads.Core.Tests.Blosc
             Console.WriteLine("-------------------------------");
 
             var rounds = 10;
-            var iterations = 1000;
+            var iterations = 100000 / itemCount;
             for (int r = 0; r < rounds; r++)
             {
                 for (int level = 1; level < 10; level++)
@@ -175,7 +177,7 @@ namespace Spreads.Core.Tests.Blosc
             // R2 has some strange very slow read perf on this data when count is small
             // R3 is balanced, good compr and fast enough
 
-            var count = 100;
+            var count = itemCount;
             var values = new TestValue[count];
             for (int i = 0; i < count; i++)
             {
@@ -183,12 +185,12 @@ namespace Spreads.Core.Tests.Blosc
                 {
                     // Dec = (((decimal)i + 1M / (decimal)(i + 1))),
                     Dbl = (double)i + 1 / (double)(i + 1),
-                    Dbl1 = (double)i + 1 / (double)(i + 1),
+                    //Dbl1 = (double)i + 1 / (double)(i + 1),
                     Num = i,
                     Num1 = i,
                     Num2 = i,
                     Str = i.ToString(),
-                    Str1 = ((double)i + 1 / (double)(i + 1)).ToString(),
+                    // Str1 = ((double)i + 1 / (double)(i + 1)).ToString(),
                     Boo = i % 2 == 0
                 };
             }
@@ -223,7 +225,7 @@ namespace Spreads.Core.Tests.Blosc
             Console.WriteLine("-------------------------------");
 
             var rounds = 10;
-            var iterations = 1000;
+            var iterations = 100000 / itemCount;
             for (int r = 0; r < rounds; r++)
             {
                 for (int level = 1; level < 5; level++)
@@ -258,7 +260,7 @@ namespace Spreads.Core.Tests.Blosc
             // R2 has some strange very slow read perf on this data when count is small
             // R3 is balanced, good compr and fast enough
 
-            var count = 100;
+            var count = itemCount;
             var values = new TestValue[count];
             for (int i = 0; i < count; i++)
             {
@@ -266,12 +268,12 @@ namespace Spreads.Core.Tests.Blosc
                 {
                     // Dec = (((decimal)i + 1M / (decimal)(i + 1))),
                     Dbl = (double)i + 1 / (double)(i + 1),
-                    Dbl1 = (double)i + 1 / (double)(i + 1),
+                    //Dbl1 = (double)i + 1 / (double)(i + 1),
                     Num = i,
                     Num1 = i,
                     Num2 = i,
                     Str = i.ToString(),
-                    Str1 = ((double)i + 1 / (double)(i + 1)).ToString(),
+                    //Str1 = ((double)i + 1 / (double)(i + 1)).ToString(),
                     Boo = i % 2 == 0
                 };
             }
@@ -295,6 +297,9 @@ namespace Spreads.Core.Tests.Blosc
                 var compressedLen = BinarySerializer.WriteZlib(originalDB.Slice(0, originalLen), compressedDB);
                 //Console.WriteLine("Compressed len: " + compressedLen);
 
+                var compressedLenXX = BinarySerializer.WriteZlibXX(originalDB.Slice(0, originalLen), compressedDB);
+                //Console.WriteLine("Compressed len: " + compressedLen);
+
                 var decompressedLen = BinarySerializer.ReadZlib(compressedDB.Slice(0, compressedLen), decompressedDB);
                 //Console.WriteLine("Decompressed len: " + decompressedLen);
 
@@ -306,18 +311,34 @@ namespace Spreads.Core.Tests.Blosc
             Console.WriteLine("-------------------------------");
 
             var rounds = 10;
-            var iterations = 1000;
+            var iterations = 10*100000 / itemCount;
             for (int r = 0; r < rounds; r++)
             {
                 for (int level = 1; level < 5; level++)
                 {
-                    Settings.ZlibCompressionLevel = level;
+                    Settings.ZlibCompressionLevel = 0; // level;
                     int compressedLen = 0;
+                    using (Benchmark.Run($"ZlibXX W{level}", originalLen * iterations, true))
+                    {
+                        for (int i = 0; i < iterations; i++)
+                        {
+                            compressedLen = BinarySerializer.WriteZlibXX(originalDB.Slice(0, originalLen), compressedDB);
+                        }
+                    }
+
                     using (Benchmark.Run($"Zlib W{level}", originalLen * iterations, true))
                     {
                         for (int i = 0; i < iterations; i++)
                         {
                             compressedLen = BinarySerializer.WriteZlib(originalDB.Slice(0, originalLen), compressedDB);
+                        }
+                    }
+
+                    using (Benchmark.Run($"ZlibXX R{level}", originalLen * iterations, true))
+                    {
+                        for (int i = 0; i < iterations; i++)
+                        {
+                            BinarySerializer.ReadZlibXX(compressedDB.Slice(0, compressedLen), decompressedDB);
                         }
                     }
 
@@ -340,7 +361,7 @@ namespace Spreads.Core.Tests.Blosc
             // R2 has some strange very slow read perf on this data when count is small
             // R3 is balanced, good compr and fast enough
 
-            var count = 100;
+            var count = itemCount;
             var values = new TestValue[count];
             for (int i = 0; i < count; i++)
             {
@@ -348,12 +369,12 @@ namespace Spreads.Core.Tests.Blosc
                 {
                     // Dec = (((decimal)i + 1M / (decimal)(i + 1))),
                     Dbl = (double)i + 1 / (double)(i + 1),
-                    Dbl1 = (double)i + 1 / (double)(i + 1),
+                    //Dbl1 = (double)i + 1 / (double)(i + 1),
                     Num = i,
                     Num1 = i,
                     Num2 = i,
                     Str = i.ToString(),
-                    Str1 = ((double)i + 1 / (double)(i + 1)).ToString(),
+                    //Str1 = ((double)i + 1 / (double)(i + 1)).ToString(),
                     Boo = i % 2 == 0
                 };
             }
@@ -388,7 +409,7 @@ namespace Spreads.Core.Tests.Blosc
             Console.WriteLine("-------------------------------");
 
             var rounds = 10;
-            var iterations = 1000;
+            var iterations = 100000 / itemCount;
             for (int r = 0; r < rounds; r++)
             {
                 for (int level = 1; level < 5; level++)
@@ -419,7 +440,7 @@ namespace Spreads.Core.Tests.Blosc
         [Test, Explicit("long running")]
         public void ZlibDeflateStreamCompat()
         {
-            var count = 100;
+            var count = 10;
 
             var bufferLen = 1000000;
             var originalPtr = Marshal.AllocHGlobal(bufferLen);
@@ -440,9 +461,13 @@ namespace Spreads.Core.Tests.Blosc
             var cmem = (Memory<byte>)cbuffer;
             var ch = cmem.Pin();
             var cptr = ch.Pointer;
+            Settings.ZlibCompressionLevel = 9;
+
+            var writeSizeXX =
+                BinarySerializer.WriteZlibXX(new DirectBuffer(rms.Length, (IntPtr)cptr), compressedDB);
 
             var writeSize =
-                BinarySerializer.WriteDeflate(new DirectBuffer(rms.Length, (IntPtr)cptr), compressedDB);
+                BinarySerializer.WriteZlib(new DirectBuffer(rms.Length, (IntPtr)cptr), compressedDB);
 
             var compressedStream = RecyclableMemoryStream.Create(Spreads.Buffers.RecyclableMemoryStreamManager.Default);
             using (var compressor = new DeflateStream(compressedStream, CompressionLevel.Optimal, true))

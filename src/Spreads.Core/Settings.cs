@@ -52,7 +52,7 @@ namespace Spreads
         /// <summary>
         /// Get or set default compression method: BinaryLz4 (default) or BinaryZstd).
         /// </summary>
-        public static SerializationFormat DefaultSerializationFormat { get; set; } = SerializationFormat.JsonDeflate;
+        public static SerializationFormat DefaultSerializationFormat { get; set; } = SerializationFormat.JsonGZip;
 
         // TODO when/if used often benchmark its effect and if significant then set default to false
         private static bool _doAdditionalCorrectnessChecks = true;
@@ -86,13 +86,11 @@ namespace Spreads
         internal static int SCMDefaultChunkLength = 4096;
 
         // See e.g. https://gregoryszorc.com/blog/2017/03/07/better-compression-with-zstandard/
-        internal static int _lz4CompressionLevel = 4;
+        internal static int _lz4CompressionLevel = 5;
 
-        internal static int _zstdCompressionLevel = 5;
+        internal static int _zstdCompressionLevel = 1;
 
-        internal static int _zlibCompressionLevel = 5;
-
-        internal static int _brotliCompressionLevel = 3;
+        internal static int _zlibCompressionLevel = 3;
 
         // ReSharper disable once InconsistentNaming
         public static int LZ4CompressionLevel
@@ -137,6 +135,8 @@ namespace Spreads
             }
         }
 
+#if NETCOREAPP2_1
+        internal static int _brotliCompressionLevel = 3;
         public static int BrotliCompressionLevel
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -155,6 +155,7 @@ namespace Spreads
                 _brotliCompressionLevel = value;
             }
         }
+#endif
 
         /// <summary>
         /// Set this property before accessing ChaosMonkey or types that use it.
@@ -162,5 +163,8 @@ namespace Spreads
         /// optimized away by JIT without any performance impact.
         /// </summary>
         public static bool EnableChaosMonkey { get; set; } = false;
+
+
+
     }
 }

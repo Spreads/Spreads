@@ -4,6 +4,8 @@ EXPOSE 80
 
 FROM microsoft/dotnet:2.1-sdk AS build
 WORKDIR /src
+COPY NuGet.config .
+COPY build/common.props build/
 COPY tests/Spreads.Core.Run/Spreads.Core.Run.csproj tests/Spreads.Core.Run/
 COPY src/Spreads.Core/Spreads.Core.csproj src/Spreads.Core/
 COPY tests/Spreads.Core.Tests/Spreads.Core.Tests.csproj tests/Spreads.Core.Tests/

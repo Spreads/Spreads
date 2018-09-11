@@ -191,7 +191,7 @@ namespace Spreads.Buffers
             for (int i = offset; i < offset + len; i++)
             {
                 // TODO test it!
-                Unsafe.DisposeConstrained(ref array[i]); // ((IDisposable)array[i]).Dispose();
+                UnsafeEx.DisposeConstrained(ref array[i]); // ((IDisposable)array[i]).Dispose();
             }
         }
 
