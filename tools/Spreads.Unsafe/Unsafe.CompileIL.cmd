@@ -17,4 +17,4 @@ if not defined VisualStudioVersion (
 :Rewrite
 @echo on
 %~dp0..\ilasm.exe /quiet /pdb /dll /key:../SpreadsKey.snk /output:out/Spreads.Unsafe.dll /nologo Spreads.Unsafe.il
-nuget pack Spreads.Unsafe.nuspec -Version 1.0.1 -OutputDirectory C:/tools/LocalNuget
+nuget pack Spreads.Unsafe.nuspec -Version 1.0.5 -OutputDirectory C:/tools/LocalNuget

@@ -60,8 +60,26 @@ namespace Spreads.Blosc
 
         private static BloscCbufferSizes native_blosc_cbuffer_sizes;
 
+        internal static IntPtr compress_lz4_ptr;
+        internal static IntPtr decompress_lz4_ptr;
+
+        internal static IntPtr compress_zstd_ptr;
+        internal static IntPtr decompress_zstd_ptr;
+
         internal static IntPtr compress_zlib_ptr;
         internal static IntPtr decompress_zlib_ptr;
+
+        internal static IntPtr compress_deflate_ptr;
+        internal static IntPtr decompress_deflate_ptr;
+
+        internal static IntPtr compress_gzip_ptr;
+        internal static IntPtr decompress_gzip_ptr;
+
+        internal static IntPtr shuffle_ptr;
+        internal static IntPtr unshuffle_ptr;
+
+        internal static IntPtr compress_copy_ptr = UnsafeEx.CopyCompressMethod();
+        internal static IntPtr decompress_copy_ptr = UnsafeEx.CopyDecompressMethod();
 
         static BloscMethods()
         {
@@ -72,17 +90,31 @@ namespace Spreads.Blosc
                     BloscLibraryName,
                     null,
                     () => { },
-                    (library) =>
+                    library =>
                     {
-                        var handle = library._handle;
-                        native_blosc_compress_ctx = Marshal.GetDelegateForFunctionPointer<BloscCompressCtxDelegate>
-                            (library._loader.FindFunction(handle, "blosc_compress_ctx"));
-                        native_blosc_decompress_ctx = Marshal.GetDelegateForFunctionPointer<BloscDecompressCtxDelegate>
-                            (library._loader.FindFunction(handle, "blosc_decompress_ctx"));
-                        native_blosc_cbuffer_sizes = Marshal.GetDelegateForFunctionPointer<BloscCbufferSizes>
-                            (library._loader.FindFunction(handle, "blosc_cbuffer_sizes"));
-                        compress_zlib_ptr = library._loader.FindFunction(handle, "compress_zlib");
-                        decompress_zlib_ptr = library._loader.FindFunction(handle, "decompress_zlib");
+                        native_blosc_compress_ctx = library.GetFunction<BloscCompressCtxDelegate>("blosc_compress_ctx");
+
+                        native_blosc_decompress_ctx = library.GetFunction<BloscDecompressCtxDelegate>("blosc_decompress_ctx");
+
+                        native_blosc_cbuffer_sizes = library.GetFunction<BloscCbufferSizes>("blosc_cbuffer_sizes");
+
+                        compress_lz4_ptr = library.GetFunctionPtr("compress_lz4");
+                        decompress_lz4_ptr = library.GetFunctionPtr("decompress_lz4");
+
+                        compress_zstd_ptr = library.GetFunctionPtr("compress_zstd");
+                        decompress_zstd_ptr = library.GetFunctionPtr("decompress_zstd");
+
+                        compress_zlib_ptr = library.GetFunctionPtr("compress_zlib");
+                        decompress_zlib_ptr = library.GetFunctionPtr("decompress_zlib");
+
+                        compress_deflate_ptr = library.GetFunctionPtr("compress_deflate");
+                        decompress_deflate_ptr = library.GetFunctionPtr("decompress_deflate");
+
+                        compress_gzip_ptr = library.GetFunctionPtr("compress_gzip");
+                        decompress_gzip_ptr = library.GetFunctionPtr("decompress_gzip");
+
+                        shuffle_ptr = library.GetFunctionPtr("shuffle");
+                        unshuffle_ptr = library.GetFunctionPtr("unshuffle");
                     },
                     () => { });
             }
@@ -131,7 +163,6 @@ namespace Spreads.Blosc
         #region Blosc Internals
 
         [DllImport(BloscLibraryName, CallingConvention = CallingConvention.Cdecl)]
-
         internal static extern int compress_lz4(byte* source, IntPtr sourceLength,
                             byte* destination, IntPtr destinationLength, int clevel);
 
@@ -160,7 +191,15 @@ namespace Spreads.Blosc
             byte* destination, IntPtr destinationLength, int clevel);
 
         [DllImport(BloscLibraryName, CallingConvention = CallingConvention.Cdecl)]
-        internal static extern int decompress_inflate(byte* source, IntPtr sourceLength,
+        internal static extern int decompress_deflate(byte* source, IntPtr sourceLength,
+            byte* destination, IntPtr destinationLength);
+
+        [DllImport(BloscLibraryName, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int compress_gzip(byte* source, IntPtr sourceLength,
+            byte* destination, IntPtr destinationLength, int clevel);
+
+        [DllImport(BloscLibraryName, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int decompress_gzip(byte* source, IntPtr sourceLength,
             byte* destination, IntPtr destinationLength);
 
         [DllImport(BloscLibraryName, CallingConvention = CallingConvention.Cdecl)]

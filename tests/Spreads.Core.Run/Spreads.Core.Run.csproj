@@ -11,6 +11,10 @@
     <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
 
+  <PropertyGroup>
+    <PlatformTarget>AnyCPU</PlatformTarget>
+  </PropertyGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\..\src\Spreads.Core\Spreads.Core.csproj" />
     <ProjectReference Include="..\Spreads.Core.Tests\Spreads.Core.Tests.csproj" />

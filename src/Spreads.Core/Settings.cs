@@ -104,6 +104,7 @@ namespace Spreads
                     ThrowHelper.ThrowArgumentOutOfRangeException();
                 }
                 _lz4CompressionLevel = value;
+                BinarySerializer.UpdateLevels();
             }
         }
 
@@ -118,6 +119,7 @@ namespace Spreads
                     ThrowHelper.ThrowArgumentOutOfRangeException();
                 }
                 _zstdCompressionLevel = value;
+                BinarySerializer.UpdateLevels();
             }
         }
 
@@ -132,6 +134,7 @@ namespace Spreads
                     ThrowHelper.ThrowArgumentOutOfRangeException();
                 }
                 _zlibCompressionLevel = value;
+                BinarySerializer.UpdateLevels();
             }
         }
 
@@ -164,7 +167,7 @@ namespace Spreads
         /// </summary>
         public static bool EnableChaosMonkey { get; set; } = false;
 
-
+        internal static bool PreferCalli { get; set; } = IntPtr.Size == 8;
 
     }
 }

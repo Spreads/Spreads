@@ -33,7 +33,7 @@
                 F3 63 30 C9 A0 1F 41 83 55 9F 1B EF 24 CC 29 17   // .c0...A.U...$.).
                 C6 D9 13 E3 A5 41 33 3A 1D 05 D9 BE D2 2B 38 CB ) // .....A3:.....+8.
   .hash algorithm 0x00008004
-  .ver 1:0:1:0
+  .ver 1:0:5:0
 }
 .module Spreads.Unsafe.dll
 // MVID: {1044402A-C66E-4306-A842-AE8CEEB0AAEB}
@@ -51,7 +51,52 @@
        extends [System.Runtime]System.Object
 {
   
-  .method public hidebysig static int32 CalliCompress(uint8* source, native int sourceLength, uint8* destination, native int destinationLength, int32 clevel, native int functionPtr) cil managed aggressiveinlining
+  .method private hidebysig static int32 CopyWrapper(void* source, native int sourceLength, void* destination, native int destinationLength, int32 clevel) cil managed aggressiveinlining
+  {
+        .custom instance void System.Runtime.Versioning.NonVersionableAttribute::.ctor() = ( 01 00 00 00 )
+        .maxstack 3
+        ldarg.2
+		ldarg.0
+        ldarg.1
+        call int32 [mscorlib]System.IntPtr::op_Explicit(native int)
+		conv.ovf.u4
+        unaligned. 0x1
+        cpblk
+		ldarg.1
+		call int32 [mscorlib]System.IntPtr::op_Explicit(native int)
+        ret
+  }
+
+  .method private hidebysig static int32 CopyWrapper2(void* source, native int sourceLength, void* destination, native int destinationLength) cil managed aggressiveinlining
+  {
+        .custom instance void System.Runtime.Versioning.NonVersionableAttribute::.ctor() = ( 01 00 00 00 )
+        .maxstack 3
+        ldarg.2
+		ldarg.0
+        ldarg.1
+        call int32 [mscorlib]System.IntPtr::op_Explicit(native int)
+		conv.ovf.u4
+        unaligned. 0x1
+        cpblk
+		ldarg.1
+		call int32 [mscorlib]System.IntPtr::op_Explicit(native int)
+        ret
+  } 
+
+  // same signature as for CalliCompress
+  .method public hidebysig static native int CopyCompressMethod() cil managed aggressiveinlining
+  {
+		ldftn int32 class Spreads.UnsafeEx::CopyWrapper (void* source, native int sourceLength, void* destination, native int destinationLength, int32 clevel)
+		ret	
+  }
+
+  .method public hidebysig static native int CopyDecompressMethod() cil managed aggressiveinlining
+  {
+		ldftn int32 class Spreads.UnsafeEx::CopyWrapper2 (void* source, native int sourceLength, void* destination, native int destinationLength)
+		ret	
+  }
+
+  .method public hidebysig static int32 CalliCompress(void* source, native int sourceLength, void* destination, native int destinationLength, int32 clevel, native int functionPtr) cil managed aggressiveinlining
   {
     .custom instance void System.Runtime.Versioning.NonVersionableAttribute::.ctor()
              = {}
@@ -63,11 +108,42 @@
     ldarg.3
 	ldarg 4
 	ldarg 5
-	calli unmanaged cdecl int32 (uint8* source, native int sourceLength, uint8* destination, native int destinationLength, int32 clevel) 
+	calli int32 (uint8* source, native int sourceLength, uint8* destination, native int destinationLength, int32 clevel) 
 	ret
   }
 
-  .method public hidebysig static int32 CalliDecompress(uint8* source, native int sourceLength, uint8* destination, native int destinationLength, native int functionPtr) cil managed aggressiveinlining
+  .method public hidebysig static int32 CalliCompressUnmanagedCdecl(void* source, native int sourceLength, void* destination, native int destinationLength, int32 clevel, native int functionPtr) cil managed aggressiveinlining
+  {
+    .custom instance void System.Runtime.Versioning.NonVersionableAttribute::.ctor()
+             = {}
+    // 
+    .maxstack  6
+	ldarg.0
+    ldarg.1
+    ldarg.2
+    ldarg.3
+	ldarg 4
+	ldarg 5
+	calli unmanaged cdecl int32 (void* source, native int sourceLength, void* destination, native int destinationLength, int32 clevel) 
+	ret
+  }
+
+  .method public hidebysig static int32 CalliDecompress(void* source, native int sourceLength, void* destination, native int destinationLength, native int functionPtr) cil managed aggressiveinlining
+  {
+    .custom instance void System.Runtime.Versioning.NonVersionableAttribute::.ctor()
+             = {}
+    // 
+    .maxstack  5
+	ldarg.0
+    ldarg.1
+    ldarg.2
+    ldarg.3
+	ldarg 4
+	calli int32 (uint8* source, native int sourceLength, uint8* destination, native int destinationLength) 
+	ret
+  }
+
+  .method public hidebysig static int32 CalliDecompressUnmanagedCdecl(void* source, native int sourceLength, void* destination, native int destinationLength, native int functionPtr) cil managed aggressiveinlining
   {
     .custom instance void System.Runtime.Versioning.NonVersionableAttribute::.ctor()
              = {}
@@ -81,6 +157,140 @@
 	calli unmanaged cdecl int32 (uint8* source, native int sourceLength, uint8* destination, native int destinationLength) 
 	ret
   }
+
+  .method public hidebysig static void CalliShuffleUnshuffle(native int typeSize, native int blockSize, void* source, void* destination, native int functionPtr) cil managed aggressiveinlining
+  {
+    .custom instance void System.Runtime.Versioning.NonVersionableAttribute::.ctor()
+             = {}
+    // 
+    .maxstack 5
+	ldarg.0
+    ldarg.1
+    ldarg.2
+    ldarg.3
+	ldarg 4
+	calli void (native int typeSize, native int blockSize, uint8* source, uint8* destination) 
+	ret
+  }
+
+  
+  .method public hidebysig static int32 CalliIntPtrPtrUintPptr(void* ptr1, void* ptr2, uint32 uint1, void** pptr1, native int functionPtr) cil managed aggressiveinlining
+  {
+    .custom instance void System.Runtime.Versioning.NonVersionableAttribute::.ctor()
+             = {}
+    // 
+    .maxstack 5
+	ldarg.0
+    ldarg.1
+    ldarg.2
+    ldarg.3
+	ldarg 4
+	calli int32 (void* ptr1, void* ptr2, uint32 uint1, void** pptr1) 
+	ret
+  }
+
+  
+  .method public hidebysig static int32 CalliIntPtrUintPtrPtr(void* ptr1, uint32 uint1, void* ptr2, void* ptr3, native int functionPtr) cil managed aggressiveinlining
+  {
+    .custom instance void System.Runtime.Versioning.NonVersionableAttribute::.ctor()
+             = {}
+    // 
+    .maxstack 5
+	ldarg.0
+    ldarg.1
+    ldarg.2
+    ldarg.3
+	ldarg 4
+	calli int32 (void* ptr1, uint32 uint1, void* ptr2, void* ptr3) 
+	ret
+  }
+
+  .method public hidebysig static int32 CalliIntPtrUintPtrPtrUint(void* ptr1, uint32 uint1, void* ptr2, void* ptr3, uint32 uint2, native int functionPtr) cil managed aggressiveinlining
+  {
+    .custom instance void System.Runtime.Versioning.NonVersionableAttribute::.ctor()
+             = {}
+    // 
+    .maxstack 6
+	ldarg.0
+    ldarg.1
+    ldarg.2
+    ldarg.3
+	ldarg 4
+	ldarg 5
+	calli int32 (void* ptr1, uint32 uint1, void* ptr2, void* ptr3, uint32 uint2) 
+	ret
+  }
+
+  .method public hidebysig static void CalliVoidPtr(void* ptr1, native int functionPtr) cil managed aggressiveinlining
+  {
+    .custom instance void System.Runtime.Versioning.NonVersionableAttribute::.ctor()
+             = {}
+    // 
+    .maxstack 2
+	ldarg.0
+    ldarg.1
+	calli void (void* ptr1) 
+	ret
+  }
+
+  .method public hidebysig static int32 CalliIntPtr(void* ptr1, native int functionPtr) cil managed aggressiveinlining
+  {
+    .custom instance void System.Runtime.Versioning.NonVersionableAttribute::.ctor()
+             = {}
+    // 
+    .maxstack 2
+	ldarg.0
+    ldarg.1
+	calli int32 (void* ptr1) 
+	ret
+  }
+
+  .method public hidebysig static int32 CalliIntPtrPtr(void* ptr1, void* ptr2, native int functionPtr) cil managed aggressiveinlining
+  {
+    .custom instance void System.Runtime.Versioning.NonVersionableAttribute::.ctor()
+             = {}
+    // 
+    .maxstack 3
+	ldarg.0
+    ldarg.1
+    ldarg.2
+	calli int32 (void* ptr1, void* ptr2) 
+	ret
+  }
+
+  .method public hidebysig static int32 CalliIntPtrPtrPtrInt(void* ptr1, void* ptr2, void* ptr3, int32 int1, native int functionPtr) cil managed aggressiveinlining
+  {
+    .custom instance void System.Runtime.Versioning.NonVersionableAttribute::.ctor()
+             = {}
+    // 
+    .maxstack 5
+	ldarg.0
+    ldarg.1
+    ldarg.2
+	ldarg.3
+	ldarg 4
+	calli int32 (void* ptr1, void* ptr2, void* ptr3, int32 int1) 
+	ret
+  }
+
+  .method public hidebysig static int32 CalliIntPtrPtrPtrUint(void* ptr1, void* ptr2, void* ptr3, uint32 uint1, native int functionPtr) cil managed aggressiveinlining
+  {
+    .custom instance void System.Runtime.Versioning.NonVersionableAttribute::.ctor()
+             = {}
+    // 
+    .maxstack 5
+	ldarg.0
+    ldarg.1
+    ldarg.2
+	ldarg.3
+	ldarg 4
+	calli int32 (void* ptr1, void* ptr2, void* ptr3, uint32 uint1)
+	ret
+  }
+
+
+  ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 
   .method public hidebysig static int32  CompareToConstrained<T>(!!T& left,
                                                                  !!T& right) cil managed aggressiveinlining

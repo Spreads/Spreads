@@ -389,7 +389,7 @@ namespace Spreads.Utils.Bootstrap
             Action<NativeLibrary> postCopyAction = null,
             Action disposeAction = null)
         {
-            if (preCopyAction != null) preCopyAction.Invoke();
+            preCopyAction?.Invoke();
 
             NativeLibrary nativeLibrary = null;
             if (nativeLibraryName != null)
@@ -410,7 +410,7 @@ namespace Spreads.Utils.Bootstrap
                 }
             }
 
-            if (postCopyAction != null) postCopyAction.Invoke(nativeLibrary);
+            postCopyAction?.Invoke(nativeLibrary);
 
             DisposeActions.Add(disposeAction);
         }

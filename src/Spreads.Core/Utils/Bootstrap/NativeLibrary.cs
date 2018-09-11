@@ -4,7 +4,6 @@
 
 using System;
 using System.Diagnostics;
-using System.IO;
 using System.Runtime.InteropServices;
 
 namespace Spreads.Utils.Bootstrap
@@ -36,24 +35,32 @@ namespace Spreads.Utils.Bootstrap
         {
             IntPtr function = _loader.FindFunction(_handle, name);
             if (function == IntPtr.Zero)
-#if NET451
-                throw new EntryPointNotFoundException(name);
-#else
-                throw new Exception(name);
-#endif
-            return System.Runtime.InteropServices.Marshal.GetDelegateForFunctionPointer(function, type);
+                if (function == IntPtr.Zero)
+                {
+                    throw new EntryPointNotFoundException(name);
+                }
+            return Marshal.GetDelegateForFunctionPointer(function, type);
         }
 
         public TDelegate GetFunction<TDelegate>(string name)
         {
             IntPtr function = _loader.FindFunction(_handle, name);
             if (function == IntPtr.Zero)
-#if NET451
+            {
                 throw new EntryPointNotFoundException(name);
-#else
-                throw new Exception(name);
-#endif
-            return System.Runtime.InteropServices.Marshal.GetDelegateForFunctionPointer<TDelegate>(function);
+            }
+            return Marshal.GetDelegateForFunctionPointer<TDelegate>(function);
+        }
+
+        public IntPtr GetFunctionPtr(string name)
+        {
+            IntPtr function = _loader.FindFunction(_handle, name);
+            if (function == IntPtr.Zero)
+            {
+                throw new EntryPointNotFoundException(name);
+            }
+
+            return function;
         }
 
         public void Dispose()
@@ -64,12 +71,12 @@ namespace Spreads.Utils.Bootstrap
 
         private void Dispose(bool disposing)
         {
-            if (this._handle != IntPtr.Zero)
+            if (_handle != IntPtr.Zero)
             {
-                this._loader.UnloadLibrary(this._handle);
-                this._handle = IntPtr.Zero;
+                _loader.UnloadLibrary(_handle);
+                _handle = IntPtr.Zero;
             }
-            if (this._path != null)
+            if (_path != null)
             {
                 try
                 {
@@ -78,7 +85,7 @@ namespace Spreads.Utils.Bootstrap
                 catch
                 {
                 }
-                this._path = null;
+                _path = null;
             }
         }
 

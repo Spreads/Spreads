@@ -17,7 +17,7 @@ namespace Spreads.Serialization
     /// B - Binary format (read as "Not JSON"). If not set then the payload is JSON, if set then payload is blittable or custom binary.
     /// ZLD - compression method (Zstd/Lz4/Deflate/None):
     ///     00 - not compressed
-    ///     01 - Raw Deflate
+    ///     01 - GZip
     ///     10 - Lz4
     ///     11 - Zstd
     /// T - Timestamped. A value has Timestamp (8 bytes) as the first element of payload. It is included in payload length for varsized types.
