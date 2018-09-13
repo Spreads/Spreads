@@ -1,4 +1,5 @@
 ﻿using System;
+using Spreads.Core.Tests.Serialization;
 
 namespace Spreads.Core.Run
 {
@@ -6,10 +7,17 @@ namespace Spreads.Core.Run
     {
         private static void Main(string[] args)
         {
-            CompressionBenchmark();
+
+            SerializationBenchmark();
 
             Console.WriteLine("Finished, press enter to exit...");
             Console.ReadLine();
+        }
+
+        private static void SerializationBenchmark()
+        {
+            var test = new Utf8JsonTests();
+            test.CompareUtf8JsonWithBinarySerializer();
         }
 
         private static void CompressionBenchmark()

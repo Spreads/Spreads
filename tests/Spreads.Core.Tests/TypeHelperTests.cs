@@ -9,6 +9,7 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using NUnit.Framework;
+using Spreads.Buffers;
 using Spreads.DataTypes;
 using Spreads.Serialization;
 
@@ -51,8 +52,22 @@ namespace Spreads.Tests
             public string String { get; set; }
             public long Long { get; set; }
             public bool IsFixedSize => false;
-            public int Size => 0;
+            public int FixedSize => 0;
             public byte ConverterVersion => 1;
+            public int SizeOf(MyPocoWithConvertor value, out ArraySegment<byte> temporaryBuffer)
+            {
+                throw new NotImplementedException();
+            }
+
+            public int Write(MyPocoWithConvertor value, DirectBuffer destination)
+            {
+                throw new NotImplementedException();
+            }
+
+            public int Read(DirectBuffer source, out MyPocoWithConvertor value)
+            {
+                throw new NotImplementedException();
+            }
 
             public int SizeOf(MyPocoWithConvertor map, out MemoryStream temporaryStream, 
                 SerializationFormat format = SerializationFormat.Binary, Timestamp timestamp = default)
@@ -129,17 +144,25 @@ namespace Spreads.Tests
         [Test]
         public unsafe void CouldWriteBlittableStruct1()
         {
-            var dest = (Memory<byte>)new byte[1024];
-            var handle = dest.Pin();
-            var myBlittableStruct1 = new BlittableStruct1
-            {
-                Value1 = 12345
-            };
-            TypeHelper<BlittableStruct1>.Write(myBlittableStruct1, (IntPtr)handle.Pointer);
+            throw new NotImplementedException();
+            //var dest = (Memory<byte>)new byte[1024];
+            //var handle = dest.Pin();
+            //var myBlittableStruct1 = new BlittableStruct1
+            //{
+            //    Value1 = 12345
+            //};
+            //TypeHelper<BlittableStruct1>.Write(myBlittableStruct1, (IntPtr)handle.Pointer);
 
-            TypeHelper<BlittableStruct1>.Read((IntPtr)handle.Pointer, out var newBlittableStruct1, out _);
-            Assert.AreEqual(myBlittableStruct1.Value1, newBlittableStruct1.Value1);
-            handle.Dispose();
+            //TypeHelper<BlittableStruct1>.Read((IntPtr)handle.Pointer, out var newBlittableStruct1, out _);
+            //Assert.AreEqual(myBlittableStruct1.Value1, newBlittableStruct1.Value1);
+            //handle.Dispose();
+        }
+
+
+        [Test]
+        public void BoolIsFizedSizeOfOne()
+        {
+            Assert.AreEqual(1, TypeHelper<bool>.FixedSize);
         }
 
         // TODO extension method for T
@@ -161,17 +184,18 @@ namespace Spreads.Tests
         [Test]
         public unsafe void CouldWriteArray()
         {
-            var dest = (Memory<byte>)new byte[1024];
-            var handle = dest.Pin();
-            var myArray = new int[2];
-            myArray[0] = 123;
-            myArray[1] = 456;
+            throw new NotImplementedException();
+            //var dest = (Memory<byte>)new byte[1024];
+            //var handle = dest.Pin();
+            //var myArray = new int[2];
+            //myArray[0] = 123;
+            //myArray[1] = 456;
 
-            TypeHelper<int[]>.Write(myArray, (IntPtr)handle.Pointer);
+            //TypeHelper<int[]>.Write(myArray, (IntPtr)handle.Pointer);
 
-            TypeHelper<int[]>.Read((IntPtr)handle.Pointer, out var newArray, out _);
-            Assert.IsTrue(myArray.SequenceEqual(newArray));
-            handle.Dispose();
+            //TypeHelper<int[]>.Read((IntPtr)handle.Pointer, out var newArray, out _);
+            //Assert.IsTrue(myArray.SequenceEqual(newArray));
+            //handle.Dispose();
         }
 
         // TODO Extension method for Write<T>
@@ -210,34 +234,36 @@ namespace Spreads.Tests
         [Test, Ignore("non-generic not used")]
         public unsafe void CouldCreateNongenericDelegates()
         {
-            var dest = (Memory<byte>)new byte[1024];
-            var buffer = dest;
-            var handle = buffer.Pin();
-            var ptr = (IntPtr)handle.Pointer;
+            throw new NotImplementedException();
 
-            var fromPtrInt = TypeHelper.GetFromPtrDelegate(typeof(int));
+            //var dest = (Memory<byte>)new byte[1024];
+            //var buffer = dest;
+            //var handle = buffer.Pin();
+            //var ptr = (IntPtr)handle.Pointer;
 
-            TypeHelper<int>.Write(12345, (IntPtr)handle.Pointer);
+            //var fromPtrInt = TypeHelper.GetFromPtrDelegate(typeof(int));
 
-            object res;
-            fromPtrInt(ptr, out res);
-            Assert.AreEqual((int)res, 12345);
+            //TypeHelper<int>.Write(12345, (IntPtr)handle.Pointer);
 
-            var toPtrInt = TypeHelper.GetToPtrDelegate(typeof(int));
-            toPtrInt(42, (IntPtr)handle.Pointer);
+            //object res;
+            //fromPtrInt(ptr, out res);
+            //Assert.AreEqual((int)res, 12345);
 
-            int temp;
-            TypeHelper<int>.Read(ptr, out temp, out _);
-            Assert.AreEqual(42, temp);
+            //var toPtrInt = TypeHelper.GetToPtrDelegate(typeof(int));
+            //toPtrInt(42, (IntPtr)handle.Pointer);
 
-            var sizeOfInt = TypeHelper.GetSizeOfDelegate(typeof(int));
-            MemoryStream tmp;
-            Assert.AreEqual(sizeOfInt(42, out tmp), 4);
-            Assert.IsNull(tmp);
+            //int temp;
+            //TypeHelper<int>.Read(ptr, out temp, out _);
+            //Assert.AreEqual(42, temp);
 
-            Assert.AreEqual(4, TypeHelper.GetSize(typeof(int)));
-            Assert.AreEqual(-1, TypeHelper.GetSize(typeof(string)));
-            Assert.AreEqual(-1, TypeHelper.GetSize(typeof(LinkedList<int>)));
+            //var sizeOfInt = TypeHelper.GetSizeOfDelegate(typeof(int));
+            //MemoryStream tmp;
+            //Assert.AreEqual(sizeOfInt(42, out tmp), 4);
+            //Assert.IsNull(tmp);
+
+            //Assert.AreEqual(4, TypeHelper.GetSize(typeof(int)));
+            //Assert.AreEqual(-1, TypeHelper.GetSize(typeof(string)));
+            //Assert.AreEqual(-1, TypeHelper.GetSize(typeof(LinkedList<int>)));
         }
 
         [Test]

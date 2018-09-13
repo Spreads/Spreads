@@ -10,6 +10,7 @@ using System.IO;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Runtime.Serialization;
+using Spreads.Buffers;
 
 // ReSharper disable PrivateFieldCanBeConvertedToLocalVariable
 
@@ -27,18 +28,18 @@ namespace Spreads.DataTypes
         private static readonly bool IsFixedSizeStatic = TypeHelper<TKey>.FixedSize > 0 && TypeHelper<TValue>.FixedSize > 0;
         private static readonly int FixedSizeStatic = 4 + TypeHelper<TKey>.FixedSize + TypeHelper<TValue>.FixedSize;
 
-        private static DataTypeHeader _defaultHeader = new DataTypeHeader
-        {
-            VersionAndFlags =
-            {
-                Version = 1,
-                IsBinary = true,
-                IsDelta = false,
-                IsCompressed = false
-            },
-            TypeEnum = VariantHelper<TaggedKeyValue<TKey, TValue>>.TypeEnum,
-            TypeSize = IsFixedSizeStatic ? (byte)FixedSizeStatic : (byte)0
-        };
+        //private static DataTypeHeader _defaultHeader = new DataTypeHeader
+        //{
+        //    VersionAndFlags =
+        //    {
+        //        ConverterVersion = 1,
+        //        IsBinary = true,
+        //        IsDelta = false,
+        //        IsCompressed = false
+        //    },
+        //    TypeEnum = VariantHelper<TaggedKeyValue<TKey, TValue>>.TypeEnum,
+        //    TypeSize = IsFixedSizeStatic ? (byte)FixedSizeStatic : (byte)0
+        //};
 
         // for blittable case all this is written in one operation,
         // for var size case will manually write with two headers
@@ -100,22 +101,22 @@ namespace Spreads.DataTypes
             SerializationFormat format = SerializationFormat.Binary, 
             Timestamp timestamp = default)
         {
-            var fixedSize = TypeHelper<TaggedKeyValue<TKey, TValue>>.FixedSize;
-            if (fixedSize > 0)
-            {
-                return BinarySerializer.WriteUnsafe(value, pinnedDestination, temporaryStream, format, timestamp);
-            }
-            // TODO write key + value
+            //var fixedSize = TypeHelper<TaggedKeyValue<TKey, TValue>>.FixedSize;
+            //if (fixedSize > 0)
+            //{
+            //    return BinarySerializer.WriteUnsafe(value, pinnedDestination, temporaryStream, format, timestamp);
+            //}
+            //// TODO write key + value
             throw new NotImplementedException();
         }
 
         public int Read(IntPtr ptr, out TaggedKeyValue<TKey, TValue> value, out Timestamp timestamp)
         {
-            var fixedSize = TypeHelper<TaggedKeyValue<TKey, TValue>>.FixedSize;
-            if (fixedSize > 0)
-            {
-                return BinarySerializer.Read(ptr, out value, out timestamp);
-            }
+            //var fixedSize = TypeHelper<TaggedKeyValue<TKey, TValue>>.FixedSize;
+            //if (fixedSize > 0)
+            //{
+            //    return BinarySerializer.Read(ptr, out value, out timestamp);
+            //}
             throw new NotImplementedException();
         }
 
@@ -127,7 +128,7 @@ namespace Spreads.DataTypes
         }
 
         [IgnoreDataMember]
-        public int Size
+        public int FixedSize
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => IsFixedSizeStatic ? FixedSizeStatic : -1;
@@ -138,6 +139,21 @@ namespace Spreads.DataTypes
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => 1;
+        }
+
+        public int SizeOf(TaggedKeyValue<TKey, TValue> value, out ArraySegment<byte> temporaryBuffer)
+        {
+            throw new NotImplementedException();
+        }
+
+        public int Write(TaggedKeyValue<TKey, TValue> value, DirectBuffer destination)
+        {
+            throw new NotImplementedException();
+        }
+
+        public int Read(DirectBuffer source, out TaggedKeyValue<TKey, TValue> value)
+        {
+            throw new NotImplementedException();
         }
 
         public static implicit operator KeyValuePair<TKey, TValue>(TaggedKeyValue<TKey, TValue> kv)

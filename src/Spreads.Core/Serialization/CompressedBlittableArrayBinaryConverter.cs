@@ -9,6 +9,7 @@ using Spreads.Utils;
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Net.NetworkInformation;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -83,386 +84,389 @@ namespace Spreads.Serialization
             SerializationFormat format = SerializationFormat.Binary,
             Timestamp timestamp = default)
         {
-            // NB Blosc calls below are visually large - many LOCs with comments, but this is only a single method call
-            if (value == null)
-            {
-                ThrowHelper.ThrowArgumentNullException(nameof(value));
-                return default;
-            }
+            throw new NotImplementedException();
 
-            if (temporaryStream != null)
-            {
-                var len = temporaryStream.Length;
-                temporaryStream.WriteToRef(ref AsRef<byte>((void*)pinnedDestination));
-                temporaryStream.Dispose();
-                return checked((int)len);
-            }
-            if (!(format == SerializationFormat.BinaryLz4 || format == SerializationFormat.BinaryZstd))
-            {
-                ThrowHelper.ThrowArgumentOutOfRangeException(nameof(format));
-            }
+            //// NB Blosc calls below are visually large - many LOCs with comments, but this is only a single method call
+            //if (value == null)
+            //{
+            //    ThrowHelper.ThrowArgumentNullException(nameof(value));
+            //    return default;
+            //}
 
-            var compressionMethod = format == SerializationFormat.BinaryLz4 ? "lz4" : "zstd";
-            var compressionLevel = format == SerializationFormat.BinaryLz4
-                ? Settings._lz4CompressionLevel
-                : Settings._zstdCompressionLevel;
+            //if (temporaryStream != null)
+            //{
+            //    var len = temporaryStream.Length;
+            //    temporaryStream.WriteToRef(ref AsRef<byte>((void*)pinnedDestination));
+            //    temporaryStream.Dispose();
+            //    return checked((int)len);
+            //}
+            //if (!(format == SerializationFormat.BinaryLz4 || format == SerializationFormat.BinaryZstd))
+            //{
+            //    ThrowHelper.ThrowArgumentOutOfRangeException(nameof(format));
+            //}
 
-            var isDelta = IsIDelta;
+            //var compressionMethod = format == SerializationFormat.BinaryLz4 ? "lz4" : "zstd";
+            //var compressionLevel = format == SerializationFormat.BinaryLz4
+            //    ? Settings._lz4CompressionLevel
+            //    : Settings._zstdCompressionLevel;
 
-            var position = 8;
+            //var isDelta = IsIDelta;
 
-            var tsSize = 0;
-            if (timestamp != default)
-            {
-                tsSize = Timestamp.Size;
-                WriteUnaligned((void*)(pinnedDestination + position), timestamp);
-                position += Timestamp.Size;
-            }
+            //var position = 8;
 
-            if (valueCount > 0)
-            {
-                var inputSize = valueCount * ItemSize;
-                var compressedSize = 0;
-                if (ItemSize > 0)
-                {
-                    var maxSize = 8 + tsSize + (16 + BloscMethods.ProcessorCount * 4) + ItemSize * valueCount;
+            //var tsSize = 0;
+            //if (timestamp != default)
+            //{
+            //    tsSize = Timestamp.Size;
+            //    WriteUnaligned((void*)(pinnedDestination + position), timestamp);
+            //    position += Timestamp.Size;
+            //}
 
-                    if (typeof(TElement) == typeof(DateTime))
-                    {
-                        isDelta = true;
+            //if (valueCount > 0)
+            //{
+            //    var inputSize = valueCount * ItemSize;
+            //    var compressedSize = 0;
+            //    if (ItemSize > 0)
+            //    {
+            //        var maxSize = 8 + tsSize + (16 + BloscMethods.ProcessorCount * 4) + ItemSize * valueCount;
 
-                        // NB thread-static buffer, no thread switches/async here!
-                        var buffer = BufferPool.StaticBuffer.Array.Length >= inputSize
-                            ? BufferPool.StaticBuffer.Array
-                            : BufferPool<byte>.Rent(inputSize);
-                        var dtArray = (DateTime[])(object)value;
-                        var longArray = Unsafe.As<long[]>(dtArray);
+            //        if (typeof(TElement) == typeof(DateTime))
+            //        {
+            //            isDelta = true;
 
-                        // NB For DateTime we calculate delta not from the first but
-                        // from the previous value. This is a special case for the
-                        // fact that DT[] is usually increasing by a similar (regular) step
-                        // and the deltas are always positive, small and close to each other.
-                        // In contrast, Price/Decimal could fluctuate in a small range
-                        // and delta from previous could often change its sign, which
-                        // leads to a very different bits and significantly reduces
-                        // the Blosc shuffling benefits. For stationary time series
-                        // deltas from the first value are also stationary and their sign
-                        // changes less frequently than the sign of deltas from previous.
+            //            // NB thread-static buffer, no thread switches/async here!
+            //            var buffer = BufferPool.StaticBuffer.Array.Length >= inputSize
+            //                ? BufferPool.StaticBuffer.Array
+            //                : BufferPool<byte>.Rent(inputSize);
+            //            var dtArray = (DateTime[])(object)value;
+            //            var longArray = Unsafe.As<long[]>(dtArray);
 
-                        // TODO Review, use Unsafe.Add
-                        var previousLong = longArray[valueOffset];
+            //            // NB For DateTime we calculate delta not from the first but
+            //            // from the previous value. This is a special case for the
+            //            // fact that DT[] is usually increasing by a similar (regular) step
+            //            // and the deltas are always positive, small and close to each other.
+            //            // In contrast, Price/Decimal could fluctuate in a small range
+            //            // and delta from previous could often change its sign, which
+            //            // leads to a very different bits and significantly reduces
+            //            // the Blosc shuffling benefits. For stationary time series
+            //            // deltas from the first value are also stationary and their sign
+            //            // changes less frequently than the sign of deltas from previous.
 
-                        Unsafe.WriteUnaligned(ref buffer[0], previousLong);
-                        for (var i = 1; i < valueCount; i++)
-                        {
-                            var currentLong = longArray[i + valueOffset];
-                            var diff = currentLong - previousLong;
-                            Unsafe.WriteUnaligned(ref buffer[i * ItemSize], diff);
-                            previousLong = currentLong;
-                        }
+            //            // TODO Review, use Unsafe.Add
+            //            var previousLong = longArray[valueOffset];
 
-                        fixed (byte* srcPtr = &buffer[0])
-                        {
-                            compressedSize = BloscMethods.blosc_compress_ctx(
-                                new IntPtr(compressionLevel),
-                                new IntPtr(1), // do byte shuffle 1
-                                new UIntPtr((uint)ItemSize), // type size
-                                new UIntPtr((uint)inputSize), // number of input bytes
-                                (IntPtr)srcPtr,
-                                pinnedDestination + position, // destination
-                                new UIntPtr((uint)maxSize), // destination length
-                                compressionMethod,
-                                new UIntPtr(0), // default block size
-                                BloscMethods.ProcessorCount //
-                            );
-                        }
+            //            Unsafe.WriteUnaligned(ref buffer[0], previousLong);
+            //            for (var i = 1; i < valueCount; i++)
+            //            {
+            //                var currentLong = longArray[i + valueOffset];
+            //                var diff = currentLong - previousLong;
+            //                Unsafe.WriteUnaligned(ref buffer[i * ItemSize], diff);
+            //                previousLong = currentLong;
+            //            }
 
-                        if (BufferPool.StaticBuffer.Array.Length < inputSize)
-                        {
-                            BufferPool<byte>.Return(buffer);
-                        }
-                    }
-                    else if (IsIDelta)
-                    {
-                        var first = value[valueOffset];
-                        var buffer = BufferPool.StaticBuffer.Array.Length >= inputSize
-                            ? BufferPool.StaticBuffer.Array
-                            : BufferPool<byte>.Rent(inputSize);
+            //            fixed (byte* srcPtr = &buffer[0])
+            //            {
+            //                compressedSize = BloscMethods.blosc_compress_ctx(
+            //                    new IntPtr(compressionLevel),
+            //                    new IntPtr(1), // do byte shuffle 1
+            //                    new UIntPtr((uint)ItemSize), // type size
+            //                    new UIntPtr((uint)inputSize), // number of input bytes
+            //                    (IntPtr)srcPtr,
+            //                    pinnedDestination + position, // destination
+            //                    new UIntPtr((uint)maxSize), // destination length
+            //                    compressionMethod,
+            //                    new UIntPtr(0), // default block size
+            //                    BloscMethods.ProcessorCount //
+            //                );
+            //            }
 
-                        Unsafe.WriteUnaligned(ref buffer[0], first);
-                        for (var i = 1; i < valueCount; i++)
-                        {
-                            var diff = UnsafeEx.GetDeltaConstrained(ref first, ref value[valueOffset + i]);
-                            Unsafe.WriteUnaligned(ref buffer[i * ItemSize], diff);
-                        }
-                        fixed (byte* srcPtr = &buffer[0])
-                        {
-                            compressedSize = BloscMethods.blosc_compress_ctx(
-                                new IntPtr(compressionLevel), // max format 9
-                                new IntPtr(1), // do byte shuffle 1
-                                new UIntPtr((uint)ItemSize), // type size
-                                new UIntPtr((uint)(valueCount * ItemSize)), // number of input bytes
-                                (IntPtr)srcPtr,
-                                pinnedDestination + position, // destination
-                                new UIntPtr((uint)maxSize), // destination length
-                                compressionMethod,
-                                new UIntPtr(0), // default block size
-                                BloscMethods.ProcessorCount //
-                            );
-                        }
-                        if (BufferPool.StaticBuffer.Array.Length < inputSize)
-                        {
-                            BufferPool<byte>.Return(buffer);
-                        }
-                    }
-                    else
-                    {
-                        var pinnedArray = GCHandle.Alloc(value, GCHandleType.Pinned);
-                        var srcPtr = Marshal.UnsafeAddrOfPinnedArrayElement(value, valueOffset);
-                        compressedSize = BloscMethods.blosc_compress_ctx(
-                            new IntPtr(compressionLevel), // max format 9
-                            new IntPtr(1), // do byte shuffle 1
-                            new UIntPtr((uint)ItemSize), // type size
-                            new UIntPtr((uint)(valueCount * ItemSize)), // number of input bytes
-                            srcPtr,
-                            pinnedDestination + position, // destination
-                            new UIntPtr((uint)maxSize), // destination length
-                            compressionMethod,
-                            new UIntPtr(0), // default block size
-                            BloscMethods.ProcessorCount //
-                        );
-                        pinnedArray.Free();
-                    }
-                }
-                else if (BufferPoolRetainedMemoryHelper<TElement>.IsRetainedMemory)
-                {
-                    ThrowHelper.ThrowNotImplementedException();
-                }
-                else
-                {
-                    ThrowHelper.ThrowInvalidOperationException(
-                        "CompressedBlittableArrayBinaryConverter only supports blittable types");
-                }
+            //            if (BufferPool.StaticBuffer.Array.Length < inputSize)
+            //            {
+            //                BufferPool<byte>.Return(buffer);
+            //            }
+            //        }
+            //        else if (IsIDelta)
+            //        {
+            //            var first = value[valueOffset];
+            //            var buffer = BufferPool.StaticBuffer.Array.Length >= inputSize
+            //                ? BufferPool.StaticBuffer.Array
+            //                : BufferPool<byte>.Rent(inputSize);
 
-                if (compressedSize > 0)
-                {
-                    position += compressedSize;
-                }
-                else
-                {
-                    return (int)BinaryConverterErrorCode.NotEnoughCapacity;
-                }
-            }
+            //            Unsafe.WriteUnaligned(ref buffer[0], first);
+            //            for (var i = 1; i < valueCount; i++)
+            //            {
+            //                var diff = UnsafeEx.GetDeltaConstrained(ref first, ref value[valueOffset + i]);
+            //                Unsafe.WriteUnaligned(ref buffer[i * ItemSize], diff);
+            //            }
+            //            fixed (byte* srcPtr = &buffer[0])
+            //            {
+            //                compressedSize = BloscMethods.blosc_compress_ctx(
+            //                    new IntPtr(compressionLevel), // max format 9
+            //                    new IntPtr(1), // do byte shuffle 1
+            //                    new UIntPtr((uint)ItemSize), // type size
+            //                    new UIntPtr((uint)(valueCount * ItemSize)), // number of input bytes
+            //                    (IntPtr)srcPtr,
+            //                    pinnedDestination + position, // destination
+            //                    new UIntPtr((uint)maxSize), // destination length
+            //                    compressionMethod,
+            //                    new UIntPtr(0), // default block size
+            //                    BloscMethods.ProcessorCount //
+            //                );
+            //            }
+            //            if (BufferPool.StaticBuffer.Array.Length < inputSize)
+            //            {
+            //                BufferPool<byte>.Return(buffer);
+            //            }
+            //        }
+            //        else
+            //        {
+            //            var pinnedArray = GCHandle.Alloc(value, GCHandleType.Pinned);
+            //            var srcPtr = Marshal.UnsafeAddrOfPinnedArrayElement(value, valueOffset);
+            //            compressedSize = BloscMethods.blosc_compress_ctx(
+            //                new IntPtr(compressionLevel), // max format 9
+            //                new IntPtr(1), // do byte shuffle 1
+            //                new UIntPtr((uint)ItemSize), // type size
+            //                new UIntPtr((uint)(valueCount * ItemSize)), // number of input bytes
+            //                srcPtr,
+            //                pinnedDestination + position, // destination
+            //                new UIntPtr((uint)maxSize), // destination length
+            //                compressionMethod,
+            //                new UIntPtr(0), // default block size
+            //                BloscMethods.ProcessorCount //
+            //            );
+            //            pinnedArray.Free();
+            //        }
+            //    }
+            //    else if (BufferPoolRetainedMemoryHelper<TElement>.IsRetainedMemory)
+            //    {
+            //        ThrowHelper.ThrowNotImplementedException();
+            //    }
+            //    else
+            //    {
+            //        ThrowHelper.ThrowInvalidOperationException(
+            //            "CompressedBlittableArrayBinaryConverter only supports blittable types");
+            //    }
 
-            // version & flags
-            var header = new DataTypeHeader
-            {
-                VersionAndFlags = {
-                    Version = 0,
-                    IsBinary = true,
-                    IsDelta = isDelta,
-                    IsCompressed = true,
-                    IsTimestamped = tsSize > 0
-                },
-                TypeEnum = TypeEnum.Array,
-                TypeSize = (byte)ItemSize,
-                ElementTypeEnum = VariantHelper<TElement>.TypeEnum
-            };
-            WriteUnaligned((void*)(pinnedDestination), header);
-            // length
-            WriteUnaligned((void*)(pinnedDestination + 4), position - 8);
-            return position;
+            //    if (compressedSize > 0)
+            //    {
+            //        position += compressedSize;
+            //    }
+            //    else
+            //    {
+            //        return (int)BinaryConverterErrorCode.NotEnoughCapacity;
+            //    }
+            //}
+
+            //// version & flags
+            //var header = new DataTypeHeader
+            //{
+            //    VersionAndFlags = {
+            //        ConverterVersion = 0,
+            //        IsBinary = true,
+            //        IsDelta = isDelta,
+            //        IsCompressed = true,
+            //        IsTimestamped = tsSize > 0
+            //    },
+            //    TypeEnum = TypeEnum.Array,
+            //    TypeSize = (byte)ItemSize,
+            //    ElementTypeEnum = VariantHelper<TElement>.TypeEnum
+            //};
+            //WriteUnaligned((void*)(pinnedDestination), header);
+            //// length
+            //WriteUnaligned((void*)(pinnedDestination + 4), position - 8);
+            //return position;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public unsafe int Read(IntPtr ptr, out TElement[] value, out int length, out Timestamp timestamp, bool exactSize = false)
         {
-            var header = ReadUnaligned<DataTypeHeader>((void*)ptr);
-            var payloadSize = ReadUnaligned<int>((void*)(ptr + 4));
+            throw new NotImplementedException();
+//            var header = ReadUnaligned<DataTypeHeader>((void*)ptr);
+//            var payloadSize = ReadUnaligned<int>((void*)(ptr + 4));
 
-            if (!header.VersionAndFlags.IsCompressed)
-            {
-                ThrowHelper.ThrowInvalidOperationException("Wrong compressed flag. CompressedBlittableArrayBinaryConverter.Read works only with compressed data.");
-            }
+//            if (!header.VersionAndFlags.IsCompressed)
+//            {
+//                ThrowHelper.ThrowInvalidOperationException("Wrong compressed flag. CompressedBlittableArrayBinaryConverter.Read works only with compressed data.");
+//            }
 
-            if (header.VersionAndFlags.Version != ConverterVersion)
-            {
-                ThrowHelper.ThrowNotSupportedException($"CompressedBinaryConverter work only with version {ConverterVersion}");
-            }
-            if (ItemSize <= 0)
-            {
-                ThrowHelper.ThrowInvalidOperationException("ItemSize <= 0");
-            }
+//            if (header.VersionAndFlags.ConverterVersion != ConverterVersion)
+//            {
+//                ThrowHelper.ThrowNotSupportedException($"CompressedBinaryConverter work only with version {ConverterVersion}");
+//            }
+//            if (ItemSize <= 0)
+//            {
+//                ThrowHelper.ThrowInvalidOperationException("ItemSize <= 0");
+//            }
 
-            if (payloadSize <= 16)
-            {
-                value = EmptyArray<TElement>.Instance;
-                length = 0;
-                timestamp = default;
-                return payloadSize + 8;
-            }
+//            if (payloadSize <= 16)
+//            {
+//                value = EmptyArray<TElement>.Instance;
+//                length = 0;
+//                timestamp = default;
+//                return payloadSize + 8;
+//            }
 
-            var source = ptr + 8;
+//            var source = ptr + 8;
 
-            if (header.VersionAndFlags.IsTimestamped)
-            {
-                timestamp = ReadUnaligned<Timestamp>((void*)(ptr + 8));
-                source += 8;
-            }
-            else
-            {
-                timestamp = default;
-            }
+//            if (header.VersionAndFlags.IsTimestamped)
+//            {
+//                timestamp = ReadUnaligned<Timestamp>((void*)(ptr + 8));
+//                source += 8;
+//            }
+//            else
+//            {
+//                timestamp = default;
+//            }
 
-            // avoid additional P/Invoke call, read header directly
-            // https://github.com/Blosc/c-blosc/blob/master/README_HEADER.rst
-            var nbytes = *(int*)(source + 4);
-#if DEBUG
-                var blocksize = *(int*)(source + 8);
-                var cbytes = *(int*)(source + 12);
-                var nbytes2 = new UIntPtr();
-                var cbytes2 = new UIntPtr();
-                var blocksize2 = new UIntPtr();
-                BloscMethods.blosc_cbuffer_sizes(source, ref nbytes2, ref cbytes2, ref blocksize2);
-                Debug.Assert(nbytes == nbytes2.ToUInt32());
-                Debug.Assert(cbytes == cbytes2.ToUInt32());
-                Debug.Assert(blocksize == blocksize2.ToUInt32());
-#endif
-            var arraySize = nbytes / ItemSize;
-            TElement[] array;
-            if (BitUtil.IsPowerOfTwo(arraySize) || !exactSize)
-            {
-                array = BufferPool<TElement>.Rent(arraySize);
-                if (exactSize && array.Length != arraySize)
-                {
-                    BufferPool<TElement>.Return(array);
-                    array = new TElement[arraySize];
-                }
-            }
-            else
-            {
-                array = new TElement[arraySize];
-            }
+//            // avoid additional P/Invoke call, read header directly
+//            // https://github.com/Blosc/c-blosc/blob/master/README_HEADER.rst
+//            var nbytes = *(int*)(source + 4);
+//#if DEBUG
+//                var blocksize = *(int*)(source + 8);
+//                var cbytes = *(int*)(source + 12);
+//                var nbytes2 = new UIntPtr();
+//                var cbytes2 = new UIntPtr();
+//                var blocksize2 = new UIntPtr();
+//                BloscMethods.blosc_cbuffer_sizes(source, ref nbytes2, ref cbytes2, ref blocksize2);
+//                Debug.Assert(nbytes == nbytes2.ToUInt32());
+//                Debug.Assert(cbytes == cbytes2.ToUInt32());
+//                Debug.Assert(blocksize == blocksize2.ToUInt32());
+//#endif
+//            var arraySize = nbytes / ItemSize;
+//            TElement[] array;
+//            if (BitUtil.IsPowerOfTwo(arraySize) || !exactSize)
+//            {
+//                array = BufferPool<TElement>.Rent(arraySize);
+//                if (exactSize && array.Length != arraySize)
+//                {
+//                    BufferPool<TElement>.Return(array);
+//                    array = new TElement[arraySize];
+//                }
+//            }
+//            else
+//            {
+//                array = new TElement[arraySize];
+//            }
 
-            length = arraySize;
-            value = array;
+//            length = arraySize;
+//            value = array;
 
-            if (arraySize > 0)
-            {
-                var inputSize = arraySize * ItemSize;
-                if (typeof(TElement) == typeof(DateTime))
-                {
-                    var buffer = BufferPool.StaticBuffer.Array.Length >= inputSize
-                        ? BufferPool.StaticBuffer.Array
-                        : BufferPool<byte>.Rent(inputSize);
-                    var dtArray = As<DateTime[]>(array);
+//            if (arraySize > 0)
+//            {
+//                var inputSize = arraySize * ItemSize;
+//                if (typeof(TElement) == typeof(DateTime))
+//                {
+//                    var buffer = BufferPool.StaticBuffer.Array.Length >= inputSize
+//                        ? BufferPool.StaticBuffer.Array
+//                        : BufferPool<byte>.Rent(inputSize);
+//                    var dtArray = As<DateTime[]>(array);
 
-                    fixed (byte* tgtPtr = &buffer[0])
-                    {
-                        var destination = (IntPtr)tgtPtr;
-                        var decompSize = BloscMethods.blosc_decompress_ctx(
-                            source, destination, new UIntPtr((uint)nbytes), BloscMethods.ProcessorCount);
-                        if (decompSize <= 0) throw new ArgumentException("Invalid compressed input");
-                        Debug.Assert(decompSize == nbytes);
-                    }
-                    var longArray = Unsafe.As<long[]>(buffer);
-                    // NB a lot of data was stored without diff for DateTime,
-                    // should just check the flag
-                    if (header.VersionAndFlags.IsDelta)
-                    {
-                        var previousLong = longArray[0];
-                        var first = As<long, DateTime>(ref previousLong);
-                        dtArray[0] = first;
-                        for (var i = 1; i < arraySize; i++)
-                        {
-                            var deltaLong = longArray[i];
-                            var currentLong = previousLong + deltaLong;
-                            dtArray[i] = As<long, DateTime>(ref currentLong);
-                            previousLong = currentLong;
-                        }
-                    }
-                    else
-                    {
-                        for (var i = 0; i < arraySize; i++)
-                        {
-                            dtArray[i] = As<long, DateTime>(ref longArray[i]);
-                        }
-                    }
+//                    fixed (byte* tgtPtr = &buffer[0])
+//                    {
+//                        var destination = (IntPtr)tgtPtr;
+//                        var decompSize = BloscMethods.blosc_decompress_ctx(
+//                            source, destination, new UIntPtr((uint)nbytes), BloscMethods.ProcessorCount);
+//                        if (decompSize <= 0) throw new ArgumentException("Invalid compressed input");
+//                        Debug.Assert(decompSize == nbytes);
+//                    }
+//                    var longArray = Unsafe.As<long[]>(buffer);
+//                    // NB a lot of data was stored without diff for DateTime,
+//                    // should just check the flag
+//                    if (header.VersionAndFlags.IsDelta)
+//                    {
+//                        var previousLong = longArray[0];
+//                        var first = As<long, DateTime>(ref previousLong);
+//                        dtArray[0] = first;
+//                        for (var i = 1; i < arraySize; i++)
+//                        {
+//                            var deltaLong = longArray[i];
+//                            var currentLong = previousLong + deltaLong;
+//                            dtArray[i] = As<long, DateTime>(ref currentLong);
+//                            previousLong = currentLong;
+//                        }
+//                    }
+//                    else
+//                    {
+//                        for (var i = 0; i < arraySize; i++)
+//                        {
+//                            dtArray[i] = As<long, DateTime>(ref longArray[i]);
+//                        }
+//                    }
 
-                    if (BufferPool.StaticBuffer.Array.Length < inputSize)
-                    {
-                        BufferPool<byte>.Return(buffer);
-                    }
-                }
-                else if (header.VersionAndFlags.IsDelta)
-                {
-                    if (!IsIDelta)
-                    {
-                        ThrowHelper.ThrowInvalidOperationException("Delta flag is set for a type that does not implement IDelta interface.");
-                    }
+//                    if (BufferPool.StaticBuffer.Array.Length < inputSize)
+//                    {
+//                        BufferPool<byte>.Return(buffer);
+//                    }
+//                }
+//                else if (header.VersionAndFlags.IsDelta)
+//                {
+//                    if (!IsIDelta)
+//                    {
+//                        ThrowHelper.ThrowInvalidOperationException("Delta flag is set for a type that does not implement IDelta interface.");
+//                    }
 
-                    var buffer = BufferPool.StaticBuffer.Array.Length >= inputSize
-                        ? BufferPool.StaticBuffer.Array
-                        : BufferPool<byte>.Rent(inputSize);
-                    var targetArray = array;
+//                    var buffer = BufferPool.StaticBuffer.Array.Length >= inputSize
+//                        ? BufferPool.StaticBuffer.Array
+//                        : BufferPool<byte>.Rent(inputSize);
+//                    var targetArray = array;
 
-                    fixed (byte* tgtPtr = &buffer[0])
-                    {
-                        var destination = tgtPtr;
-                        var decompSize = BloscMethods.blosc_decompress_ctx(
-                            source, (IntPtr)destination, new UIntPtr((uint)nbytes), BloscMethods.ProcessorCount);
-                        if (decompSize <= 0) throw new ArgumentException("Invalid compressed input");
-                        Debug.Assert(decompSize == nbytes);
+//                    fixed (byte* tgtPtr = &buffer[0])
+//                    {
+//                        var destination = tgtPtr;
+//                        var decompSize = BloscMethods.blosc_decompress_ctx(
+//                            source, (IntPtr)destination, new UIntPtr((uint)nbytes), BloscMethods.ProcessorCount);
+//                        if (decompSize <= 0) throw new ArgumentException("Invalid compressed input");
+//                        Debug.Assert(decompSize == nbytes);
 
-                        var first = Unsafe.ReadUnaligned<TElement>(destination);
-                        targetArray[0] = first;
-                        for (var i = 1; i < arraySize; i++)
-                        {
-                            var currentDelta = Unsafe.Read<TElement>(destination + i * ItemSize);
-                            var current = UnsafeEx.AddDeltaConstrained(ref first, ref currentDelta);
-                            targetArray[i] = current;
-                        }
-                    }
+//                        var first = Unsafe.ReadUnaligned<TElement>(destination);
+//                        targetArray[0] = first;
+//                        for (var i = 1; i < arraySize; i++)
+//                        {
+//                            var currentDelta = Unsafe.Read<TElement>(destination + i * ItemSize);
+//                            var current = UnsafeEx.AddDeltaConstrained(ref first, ref currentDelta);
+//                            targetArray[i] = current;
+//                        }
+//                    }
 
-                    if (BufferPool.StaticBuffer.Array.Length < inputSize)
-                    {
-                        BufferPool<byte>.Return(buffer);
-                    }
-                }
-                else
-                {
-                    ref var asRefByte = ref Unsafe.As<TElement, byte>(ref array[0]);
+//                    if (BufferPool.StaticBuffer.Array.Length < inputSize)
+//                    {
+//                        BufferPool<byte>.Return(buffer);
+//                    }
+//                }
+//                else
+//                {
+//                    ref var asRefByte = ref Unsafe.As<TElement, byte>(ref array[0]);
 
-                    // TODO remove this try/catch and debugger stuff, it was used to catch an eror that disappeared after adding
-                    // try/catch.
-                    try
-                    {
-                        fixed (byte* pointer = &asRefByte)
-                        {
-                            var decompSize = BloscMethods.blosc_decompress_ctx(
-                                source, (IntPtr)pointer, new UIntPtr((uint)nbytes), BloscMethods.ProcessorCount);
-                            if (decompSize <= 0)
-                            {
-                                ThrowHelper.ThrowArgumentException("Invalid compressed input");
-                            }
-                            Debug.Assert(decompSize == nbytes);
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        Debugger.Launch();
-                        UIntPtr nb = UIntPtr.Zero;
-                        UIntPtr cb = UIntPtr.Zero;
-                        UIntPtr bl = UIntPtr.Zero;
+//                    // TODO remove this try/catch and debugger stuff, it was used to catch an eror that disappeared after adding
+//                    // try/catch.
+//                    try
+//                    {
+//                        fixed (byte* pointer = &asRefByte)
+//                        {
+//                            var decompSize = BloscMethods.blosc_decompress_ctx(
+//                                source, (IntPtr)pointer, new UIntPtr((uint)nbytes), BloscMethods.ProcessorCount);
+//                            if (decompSize <= 0)
+//                            {
+//                                ThrowHelper.ThrowArgumentException("Invalid compressed input");
+//                            }
+//                            Debug.Assert(decompSize == nbytes);
+//                        }
+//                    }
+//                    catch (Exception ex)
+//                    {
+//                        Debugger.Launch();
+//                        UIntPtr nb = UIntPtr.Zero;
+//                        UIntPtr cb = UIntPtr.Zero;
+//                        UIntPtr bl = UIntPtr.Zero;
 
-                        BloscMethods.blosc_cbuffer_sizes(source, ref nb, ref cb, ref bl);
-                        //}
-                        Trace.WriteLine($"Blosc error: nbytes: {nbytes}, nbytes2: {nb}, cbytes: {cb} arr size: {value.Length}, \n\r exeption: {ex.Message + Environment.NewLine + ex}");
-                        throw;
-                    }
-                }
-            }
-            return payloadSize + 8;
+//                        BloscMethods.blosc_cbuffer_sizes(source, ref nb, ref cb, ref bl);
+//                        //}
+//                        Trace.WriteLine($"Blosc error: nbytes: {nbytes}, nbytes2: {nb}, cbytes: {cb} arr size: {value.Length}, \n\r exeption: {ex.Message + Environment.NewLine + ex}");
+//                        throw;
+//                    }
+//                }
+//            }
+//            return payloadSize + 8;
         }
     }
 }

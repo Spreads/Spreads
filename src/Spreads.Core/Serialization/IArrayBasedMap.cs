@@ -5,10 +5,7 @@
 using Spreads.Buffers;
 using Spreads.DataTypes;
 using System;
-using System.Diagnostics;
-using System.IO;
 using System.Runtime.CompilerServices;
-using static System.Runtime.CompilerServices.Unsafe;
 
 namespace Spreads.Serialization
 {
@@ -30,7 +27,7 @@ namespace Spreads.Serialization
         //private static readonly int ValueSize = TypeHelper<TValue>.Size;
         public bool IsFixedSize => false;
 
-        public int Size => -1;
+        public int FixedSize => -1;
 
         public byte ConverterVersion
         {
@@ -38,127 +35,142 @@ namespace Spreads.Serialization
             get => 1;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public unsafe int SizeOf(T value, out MemoryStream temporaryStream,
-            SerializationFormat format = SerializationFormat.Binary,
-            Timestamp timestamp = default)
+        public int SizeOf(T value, out ArraySegment<byte> temporaryBuffer)
         {
-            if ((int)format >= 100)
-            {
-                ThrowHelper.ThrowInvalidOperationException("Invalid non-binary format for ArrayBasedMapConverter");
-            }
-            if (format == SerializationFormat.Binary)
-            {
-                format = SerializationFormat.BinaryZstd;
-            }
-
-            var tsSize = (long)timestamp == default ? 0 : Timestamp.Size;
-
-            // headers
-            var size = 8 + tsSize + 14;
-
-            // NB for regular keys, use keys array length
-            var keysSize = ArrayBinaryConverter<TKey>.Instance.SizeOf(value.Keys, 0, value.IsRegular ? value.Keys.Length : value.Length, out var keysStream, format);
-            var valuesSize = ArrayBinaryConverter<TValue>.Instance.SizeOf(value.Values, 0, value.Length, out var valuesStream, format);
-
-            Debug.Assert(keysStream != null && valuesStream != null);
-
-            size += keysSize;
-            size += valuesSize;
-
-            if (value.Length == 0)
-            {
-                temporaryStream = default;
-                return size; // empty map
-            }
-
-            var buffer = RecyclableMemoryStreamManager.Default.GetLargeBuffer(size, String.Empty);
-
-            ref var destination = ref buffer[0];
-
-            if (tsSize > 0)
-            {
-                WriteUnaligned(ref AddByteOffset(ref destination, (IntPtr)8), timestamp);
-            }
-
-            var position = 8 + tsSize;
-
-            // 14 - map header
-            WriteUnaligned(ref AddByteOffset(ref destination, (IntPtr)position), value.Length);
-            WriteUnaligned(ref AddByteOffset(ref destination, (IntPtr)position + 4), value.Version);
-            WriteUnaligned(ref AddByteOffset(ref destination, (IntPtr)position + 4 + 8), (byte)(value.IsRegular ? 1 : 0));
-            WriteUnaligned(ref AddByteOffset(ref destination, (IntPtr)position + 4 + 8 + 1), (byte)(value.IsCompleted ? 1 : 0));
-
-            position = position + 14;
-            if (keysStream != null)
-            {
-                keysStream.WriteToRef(ref AddByteOffset(ref destination, (IntPtr)position));
-            }
-            else
-            {
-                fixed (byte* keysPtr = &buffer[position])
-                {
-                    ArrayBinaryConverter<TKey>.Instance.Write(value.Keys, 0, value.IsRegular ? value.Keys.Length : value.Length,
-                        (IntPtr)keysPtr, null, format);
-                }
-            }
-            position += keysSize;
-
-            if (valuesStream != null)
-            {
-                valuesStream.WriteToRef(ref AddByteOffset(ref destination, (IntPtr)position));
-            }
-            else
-            {
-                fixed (byte* valuesPtr = &buffer[position])
-                {
-                    ArrayBinaryConverter<TValue>.Instance.Write(value.Values, 0, value.Length,
-                        (IntPtr)valuesPtr, null, format);
-                }
-            }
-            position += valuesSize;
-
-            // version
-            var header = new DataTypeHeader
-            {
-                VersionAndFlags = {
-                    Version = ConverterVersion,
-                    IsBinary = true,
-                    IsDelta = false,
-                    IsCompressed = true },
-                TypeEnum = TypeEnum.ArrayBasedMap
-            };
-            WriteUnaligned(ref destination, header);
-
-            // payload length
-            WriteUnaligned(ref AddByteOffset(ref destination, (IntPtr)4), position - 8);
-
-            temporaryStream = RecyclableMemoryStream.Create(RecyclableMemoryStreamManager.Default,
-                null,
-                position,
-                buffer,
-                position);
-            temporaryStream.Position = 0;
-            return position;
+            throw new NotImplementedException();
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public unsafe int Write(T value, IntPtr pinnedDestination, MemoryStream temporaryStream = null,
-            SerializationFormat format = SerializationFormat.Binary,
-            Timestamp timestamp = default)
+        public int Write(T value, DirectBuffer destination)
         {
-            if (temporaryStream == null)
-            {
-                SizeOf(value, out temporaryStream, format, timestamp);
-            }
-
-            Debug.Assert(temporaryStream.Position == 0);
-
-            var len = temporaryStream.Length;
-            temporaryStream.WriteToRef(ref AsRef<byte>((void*)pinnedDestination));
-            temporaryStream.Dispose();
-            return checked((int)len);
+            throw new NotImplementedException();
         }
+
+        public int Read(DirectBuffer source, out T value)
+        {
+            throw new NotImplementedException();
+        }
+
+        //[MethodImpl(MethodImplOptions.AggressiveInlining)]
+        //public unsafe int SizeOf(T value, out MemoryStream temporaryStream,
+        //    SerializationFormat format = SerializationFormat.Binary,
+        //    Timestamp timestamp = default)
+        //{
+        //    if ((int)format >= 100)
+        //    {
+        //        ThrowHelper.ThrowInvalidOperationException("Invalid non-binary format for ArrayBasedMapConverter");
+        //    }
+        //    if (format == SerializationFormat.Binary)
+        //    {
+        //        format = SerializationFormat.BinaryZstd;
+        //    }
+
+        //    var tsSize = (long)timestamp == default ? 0 : Timestamp.Size;
+
+        //    // headers
+        //    var size = 8 + tsSize + 14;
+
+        //    // NB for regular keys, use keys array length
+        //    var keysSize = ArrayBinaryConverter<TKey>.Instance.SizeOf(value.Keys, 0, value.IsRegular ? value.Keys.Length : value.Length, out var keysStream, format);
+        //    var valuesSize = ArrayBinaryConverter<TValue>.Instance.SizeOf(value.Values, 0, value.Length, out var valuesStream, format);
+
+        //    Debug.Assert(keysStream != null && valuesStream != null);
+
+        //    size += keysSize;
+        //    size += valuesSize;
+
+        //    if (value.Length == 0)
+        //    {
+        //        temporaryStream = default;
+        //        return size; // empty map
+        //    }
+
+        //    var buffer = RecyclableMemoryStreamManager.Default.GetLargeBuffer(size, String.Empty);
+
+        //    ref var destination = ref buffer[0];
+
+        //    if (tsSize > 0)
+        //    {
+        //        WriteUnaligned(ref AddByteOffset(ref destination, (IntPtr)8), timestamp);
+        //    }
+
+        //    var position = 8 + tsSize;
+
+        //    // 14 - map header
+        //    WriteUnaligned(ref AddByteOffset(ref destination, (IntPtr)position), value.Length);
+        //    WriteUnaligned(ref AddByteOffset(ref destination, (IntPtr)position + 4), value.Version);
+        //    WriteUnaligned(ref AddByteOffset(ref destination, (IntPtr)position + 4 + 8), (byte)(value.IsRegular ? 1 : 0));
+        //    WriteUnaligned(ref AddByteOffset(ref destination, (IntPtr)position + 4 + 8 + 1), (byte)(value.IsCompleted ? 1 : 0));
+
+        //    position = position + 14;
+        //    if (keysStream != null)
+        //    {
+        //        keysStream.WriteToRef(ref AddByteOffset(ref destination, (IntPtr)position));
+        //    }
+        //    else
+        //    {
+        //        fixed (byte* keysPtr = &buffer[position])
+        //        {
+        //            ArrayBinaryConverter<TKey>.Instance.Write(value.Keys, 0, value.IsRegular ? value.Keys.Length : value.Length,
+        //                (IntPtr)keysPtr, null, format);
+        //        }
+        //    }
+        //    position += keysSize;
+
+        //    if (valuesStream != null)
+        //    {
+        //        valuesStream.WriteToRef(ref AddByteOffset(ref destination, (IntPtr)position));
+        //    }
+        //    else
+        //    {
+        //        fixed (byte* valuesPtr = &buffer[position])
+        //        {
+        //            ArrayBinaryConverter<TValue>.Instance.Write(value.Values, 0, value.Length,
+        //                (IntPtr)valuesPtr, null, format);
+        //        }
+        //    }
+        //    position += valuesSize;
+
+        //    // version
+        //    var header = new DataTypeHeader
+        //    {
+        //        VersionAndFlags = {
+        //            ConverterVersion = ConverterVersion,
+        //            IsBinary = true,
+        //            IsDelta = false,
+        //            IsCompressed = true },
+        //        TypeEnum = TypeEnum.ArrayBasedMap
+        //    };
+        //    WriteUnaligned(ref destination, header);
+
+        //    // payload length
+        //    WriteUnaligned(ref AddByteOffset(ref destination, (IntPtr)4), position - 8);
+
+        //    temporaryStream = RecyclableMemoryStream.Create(RecyclableMemoryStreamManager.Default,
+        //        null,
+        //        position,
+        //        buffer,
+        //        position);
+        //    temporaryStream.Position = 0;
+        //    return position;
+        //}
+
+        //[MethodImpl(MethodImplOptions.AggressiveInlining)]
+        //public unsafe int Write(T value, IntPtr pinnedDestination, MemoryStream temporaryStream = null,
+        //    SerializationFormat format = SerializationFormat.Binary,
+        //    Timestamp timestamp = default)
+        //{
+        //    if (temporaryStream == null)
+        //    {
+        //        SizeOf(value, out temporaryStream, format, timestamp);
+        //    }
+
+        //    Debug.Assert(temporaryStream.Position == 0);
+
+        //    var len = temporaryStream.Length;
+        //    temporaryStream.WriteToRef(ref AsRef<byte>((void*)pinnedDestination));
+        //    temporaryStream.Dispose();
+        //    return checked((int)len);
+        //}
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public abstract int Read(IntPtr ptr, out T value, out Timestamp timestamp);

@@ -77,7 +77,8 @@ namespace Spreads.DataTypes
 
             public Json Deserialize(ref JsonReader reader, IJsonFormatterResolver formatterResolver)
             {
-                return new Json(reader.ReadNextBlockSegment());
+                throw new NotImplementedException();
+                // return new Json(reader.ReadNextBlockSegment());
             }
         }
     }

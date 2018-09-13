@@ -42,7 +42,7 @@ namespace Spreads.Tests
             Console.WriteLine($"Elapsed snapshot: {sw.ElapsedMilliseconds}");
             sw.Restart();
 
-            MemoryStream tmp;
+            ArraySegment<byte> tmp;
             var len = BinarySerializer.SizeOf(table, out tmp);
             Console.WriteLine($"Binary size: {len}");
             //var mem = BufferPool<byte>.Rent(len);

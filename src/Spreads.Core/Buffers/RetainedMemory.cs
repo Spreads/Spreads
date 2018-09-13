@@ -5,6 +5,7 @@
 using System;
 using System.Buffers;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 
 namespace Spreads.Buffers
 {
@@ -24,10 +25,11 @@ namespace Spreads.Buffers
     /// <see cref="RetainedMemory{T}"/> is the owner of <see cref="MemoryHandle"/> reservation.
     /// When it is passed to any method or added  to any collection the reservation ownership is transfered as well.
     /// The consuming method or collection must dispose the <see cref="MemoryHandle"/> reservation. If the caller
-    /// needs to retain the memory and must call <see cref="Clone"/> and pass the cloned memory.
+    /// needs to retain the memory it must call <see cref="Clone"/> and pass the cloned <see cref="RetainedMemory{T}"/>.
     ///
     /// Access to this struct is not thread-safe, only one thread could call its methods at a time.
     /// </remarks>
+    [StructLayout(LayoutKind.Auto)]
     public struct RetainedMemory<T> : IDisposable
     {
         // Could add Deconstruct method
@@ -94,7 +96,7 @@ namespace Spreads.Buffers
         public Memory<T> Memory
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return _memory; }
+            get => _memory;
         }
 
         /// <summary>
@@ -103,7 +105,7 @@ namespace Spreads.Buffers
         public Span<T> Span
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return Memory.Span; }
+            get => Memory.Span;
         }
 
         /// <summary>
@@ -113,7 +115,7 @@ namespace Spreads.Buffers
         public int Count
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return Memory.Length; }
+            get => Memory.Length;
         }
 
         /// <summary>
@@ -122,7 +124,7 @@ namespace Spreads.Buffers
         public int Length
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return Memory.Length; }
+            get => Memory.Length;
         }
 
         /// <summary>
@@ -131,7 +133,7 @@ namespace Spreads.Buffers
         public T this[int index]
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return Memory.Span[index]; }
+            get => Memory.Span[index];
         }
 
         /// <summary>
@@ -191,5 +193,14 @@ namespace Spreads.Buffers
 
         internal readonly PanicOnFinalize _finalizeChecker;
 #endif
+    }
+
+    public static class RetainedMemoryExtensions
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static bool TryGetArray(this RetainedMemory<byte> rm, out ArraySegment<byte> segment)
+        {
+            return MemoryMarshal.TryGetArray(rm.Memory, out segment);
+        }
     }
 }

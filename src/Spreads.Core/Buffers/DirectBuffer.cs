@@ -7,6 +7,7 @@ using System.Diagnostics;
 using System.Diagnostics.Contracts;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Text;
 using System.Threading;
 using static System.Runtime.CompilerServices.Unsafe;
 
@@ -22,7 +23,11 @@ namespace Spreads.Buffers
     {
         public static DirectBuffer Invalid = new DirectBuffer(-1, (byte*)IntPtr.Zero);
 
-        internal readonly IntPtr _length;
+        // NB this is used for Spreads.LMDB as MDB_val, where length is IntPtr. However, LMDB works normally only on x64
+        // if we even support x86 we will have to create a DTO with IntPtr length. But for x64 casting IntPtr to/from long
+        // is surprisingly expensive, e.g. Slice and ctor show up in profiler.
+
+        internal readonly long _length;
         internal readonly byte* _data;
 
         /// <summary>
@@ -41,7 +46,7 @@ namespace Spreads.Buffers
             {
                 ThrowHelper.ThrowArgumentException("Memory size must be > 0");
             }
-            _length = (IntPtr)length;
+            _length = length;
             _data = (byte*)data;
         }
 
@@ -51,21 +56,28 @@ namespace Spreads.Buffers
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public DirectBuffer(long length, byte* data)
         {
-            _length = (IntPtr)length;
+            _length = length;
             _data = data;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public DirectBuffer(RetainedMemory<byte> retainedMemory)
+        {
+            _length = retainedMemory.Length;
+            _data = (byte*)retainedMemory.Pointer;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public DirectBuffer(Span<byte> span)
         {
-            _length = (IntPtr)span.Length;
+            _length = span.Length;
             _data = (byte*)AsPointer(ref MemoryMarshal.GetReference(span));
         }
 
         public bool IsValid
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => (long)_length > 0 && (IntPtr)_data != IntPtr.Zero;
+            get => (long)_length > 0 && _data != null;
         }
 
         public Span<byte> Span
@@ -77,16 +89,22 @@ namespace Spreads.Buffers
         /// <summary>
         /// Capacity of the underlying buffer
         /// </summary>
-        public long Length
+        public int Length
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => (int)_length;
+        }
+
+        public long LongLength
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => (long)_length;
         }
 
-        public IntPtr Data
+        public byte* Data
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => (IntPtr)_data;
+            get => _data;
         }
 
         [Pure]
@@ -96,7 +114,7 @@ namespace Spreads.Buffers
             if (Settings.AdditionalCorrectnessChecks.Enabled)
             { Assert(0, start); }
 
-            return new DirectBuffer((long)_length - start, (byte*)(Data.ToInt64() + start));
+            return new DirectBuffer(_length - start, _data + start);
         }
 
         [Pure]
@@ -106,11 +124,11 @@ namespace Spreads.Buffers
             if (Settings.AdditionalCorrectnessChecks.Enabled)
             { Assert(start, length); }
 
-            return new DirectBuffer(length, (byte*)(Data.ToInt64() + start));
+            return new DirectBuffer(length, _data + start);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void Assert(long index, long length)
+        internal void Assert(long index, long length)
         {
             if (Settings.AdditionalCorrectnessChecks.Enabled)
             {
@@ -216,14 +234,16 @@ namespace Spreads.Buffers
                 {
                     Assert(index, 1);
                 }
-                return ReadUnaligned<byte>(_data + index);
+
+                return *(_data + index);
             }
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             set
             {
                 if (Settings.AdditionalCorrectnessChecks.Enabled)
                 { Assert(index, 1); }
-                WriteUnaligned(_data + index, value);
+
+                *(_data + index) = value;
             }
         }
 
@@ -287,7 +307,7 @@ namespace Spreads.Buffers
         {
             if (Settings.AdditionalCorrectnessChecks.Enabled)
             { Assert(index, 4); }
-            return Volatile.Read(ref *(int*)(new IntPtr(_data + index)));
+            return Volatile.Read(ref *(int*)(_data + index));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -295,7 +315,7 @@ namespace Spreads.Buffers
         {
             if (Settings.AdditionalCorrectnessChecks.Enabled)
             { Assert(index, 4); }
-            Volatile.Write(ref *(int*)(new IntPtr(_data + index)), value);
+            Volatile.Write(ref *(int*)(_data + index), value);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -304,7 +324,7 @@ namespace Spreads.Buffers
         {
             if (Settings.AdditionalCorrectnessChecks.Enabled)
             { Assert(index, 4); }
-            return Volatile.Read(ref *(uint*)(new IntPtr(_data + index)));
+            return Volatile.Read(ref *(uint*)(_data + index));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -312,7 +332,7 @@ namespace Spreads.Buffers
         {
             if (Settings.AdditionalCorrectnessChecks.Enabled)
             { Assert(index, 4); }
-            Volatile.Write(ref *(uint*)(new IntPtr(_data + index)), value);
+            Volatile.Write(ref *(uint*)(_data + index), value);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -321,7 +341,7 @@ namespace Spreads.Buffers
         {
             if (Settings.AdditionalCorrectnessChecks.Enabled)
             { Assert(index, 8); }
-            return Volatile.Read(ref *(long*)(new IntPtr(_data + index)));
+            return Volatile.Read(ref *(long*)(_data + index));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -329,7 +349,7 @@ namespace Spreads.Buffers
         {
             if (Settings.AdditionalCorrectnessChecks.Enabled)
             { Assert(index, 8); }
-            Volatile.Write(ref *(ulong*)(new IntPtr(_data + index)), value);
+            Volatile.Write(ref *(ulong*)(_data + index), value);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -338,7 +358,7 @@ namespace Spreads.Buffers
         {
             if (Settings.AdditionalCorrectnessChecks.Enabled)
             { Assert(index, 8); }
-            return Volatile.Read(ref *(ulong*)(new IntPtr(_data + index)));
+            return Volatile.Read(ref *(ulong*)(_data + index));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -346,7 +366,7 @@ namespace Spreads.Buffers
         {
             if (Settings.AdditionalCorrectnessChecks.Enabled)
             { Assert(index, 8); }
-            Volatile.Write(ref *(long*)(new IntPtr(_data + index)), value);
+            Volatile.Write(ref *(long*)(_data + index), value);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -355,7 +375,7 @@ namespace Spreads.Buffers
         {
             if (Settings.AdditionalCorrectnessChecks.Enabled)
             { Assert(index, 4); }
-            return Interlocked.Increment(ref *(int*)(new IntPtr(_data + index)));
+            return Interlocked.Increment(ref *(int*)(_data + index));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -364,7 +384,7 @@ namespace Spreads.Buffers
         {
             if (Settings.AdditionalCorrectnessChecks.Enabled)
             { Assert(index, 4); }
-            return Interlocked.Decrement(ref *(int*)(new IntPtr(_data + index)));
+            return Interlocked.Decrement(ref *(int*)(_data + index));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -373,7 +393,7 @@ namespace Spreads.Buffers
         {
             if (Settings.AdditionalCorrectnessChecks.Enabled)
             { Assert(index, 4); }
-            return Interlocked.Add(ref *(int*)(new IntPtr(_data + index)), value);
+            return Interlocked.Add(ref *(int*)(_data + index), value);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -382,7 +402,7 @@ namespace Spreads.Buffers
         {
             if (Settings.AdditionalCorrectnessChecks.Enabled)
             { Assert(index, 4); }
-            return Interlocked.Add(ref *(int*)(new IntPtr(_data + index)), 0);
+            return Interlocked.Add(ref *(int*)(_data + index), 0);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -391,7 +411,7 @@ namespace Spreads.Buffers
         {
             if (Settings.AdditionalCorrectnessChecks.Enabled)
             { Assert(index, 4); }
-            return Interlocked.CompareExchange(ref *(int*)(new IntPtr(_data + index)), value, comparand);
+            return Interlocked.CompareExchange(ref *(int*)(_data + index), value, comparand);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -400,7 +420,7 @@ namespace Spreads.Buffers
         {
             if (Settings.AdditionalCorrectnessChecks.Enabled)
             { Assert(index, 8); }
-            return Interlocked.Increment(ref *(long*)(new IntPtr(_data + index)));
+            return Interlocked.Increment(ref *(long*)(_data + index));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -409,7 +429,7 @@ namespace Spreads.Buffers
         {
             if (Settings.AdditionalCorrectnessChecks.Enabled)
             { Assert(index, 8); }
-            return Interlocked.Decrement(ref *(long*)(new IntPtr(_data + index)));
+            return Interlocked.Decrement(ref *(long*)(_data + index));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -418,7 +438,7 @@ namespace Spreads.Buffers
         {
             if (Settings.AdditionalCorrectnessChecks.Enabled)
             { Assert(index, 8); }
-            return Interlocked.Add(ref *(long*)(new IntPtr(_data + index)), value);
+            return Interlocked.Add(ref *(long*)(_data + index), value);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -427,7 +447,7 @@ namespace Spreads.Buffers
         {
             if (Settings.AdditionalCorrectnessChecks.Enabled)
             { Assert(index, 8); }
-            return Interlocked.Add(ref *(long*)(new IntPtr(_data + index)), 0);
+            return Interlocked.Add(ref *(long*)(_data + index), 0);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -436,7 +456,7 @@ namespace Spreads.Buffers
         {
             if (Settings.AdditionalCorrectnessChecks.Enabled)
             { Assert(index, 8); }
-            return Interlocked.CompareExchange(ref *(long*)(new IntPtr(_data + index)), value, comparand);
+            return Interlocked.CompareExchange(ref *(long*)(_data + index), value, comparand);
         }
 
         /// <summary>
@@ -606,9 +626,11 @@ namespace Spreads.Buffers
         [Pure]
         public T Read<T>(long index)
         {
-            var size = SizeOf<T>();
             if (Settings.AdditionalCorrectnessChecks.Enabled)
-            { Assert(index, size); }
+            {
+                var size = SizeOf<T>();
+                Assert(index, size);
+            }
             return ReadUnaligned<T>(_data + index);
         }
 
@@ -636,8 +658,8 @@ namespace Spreads.Buffers
         {
             if (Settings.AdditionalCorrectnessChecks.Enabled)
             { Assert(index, length); }
-            var destination = new IntPtr(_data + index);
-            Unsafe.InitBlockUnaligned((void*)destination, 0, (uint)length);
+            var destination = _data + index;
+            InitBlockUnaligned((void*)destination, 0, (uint)length);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -699,7 +721,7 @@ namespace Spreads.Buffers
 
             fixed (byte* destPtr = &MemoryMarshal.GetReference(destination.Span))
             {
-                CopyTo(index, (IntPtr)destPtr, length);
+                CopyTo(index, destPtr, length);
             }
         }
 
@@ -714,7 +736,7 @@ namespace Spreads.Buffers
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void CopyTo(long index, IntPtr destination, int length)
+        public void CopyTo(long index, byte* destination, int length)
         {
             if (Settings.AdditionalCorrectnessChecks.Enabled)
             { Assert(index, length); }
@@ -734,7 +756,7 @@ namespace Spreads.Buffers
 
             fixed (byte* srcPtr = &MemoryMarshal.GetReference(source.Span))
             {
-                CopyFrom(index, (IntPtr)srcPtr, length);
+                CopyFrom(index, srcPtr, length);
             }
         }
 
@@ -747,14 +769,14 @@ namespace Spreads.Buffers
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void CopyFrom(long index, IntPtr source, int length)
+        public void CopyFrom(long index, byte* source, int length)
         {
             if (Settings.AdditionalCorrectnessChecks.Enabled)
             {
                 Assert(index, length);
             }
 
-            CopyBlockUnaligned(_data + index, (byte*)source, checked((uint)length));
+            CopyBlockUnaligned(_data + index, source, checked((uint)length));
         }
 
         #region Debugger proxy class
@@ -769,7 +791,7 @@ namespace Spreads.Buffers
                 _db = db;
             }
 
-            public IntPtr Data => _db.Data;
+            public byte* Data => _db.Data;
 
             public long Length => _db.Length;
 
@@ -779,5 +801,13 @@ namespace Spreads.Buffers
         }
 
         #endregion Debugger proxy class
+    }
+
+    public static unsafe class DirectBufferExtensions
+    {
+        public static string GetString(this Encoding encoding, DirectBuffer buffer)
+        {
+            return encoding.GetString(buffer._data, buffer.Length);
+        }
     }
 }

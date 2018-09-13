@@ -182,11 +182,12 @@ namespace Spreads.Buffers
                 }
             }
 
+#if DEBUG
             if (rms._memoryManager.GenerateCallStacks)
             {
                 rms.AllocationStack = Environment.StackTrace;
             }
-
+#endif
             Events.Write.MemoryStreamCreated(rms._id, rms._tag, requestedSize);
             rms._memoryManager.ReportStreamCreated();
 
@@ -237,9 +238,9 @@ namespace Spreads.Buffers
             return Interlocked.Increment(ref _refCount);
         }
 
-        #endregion Constructors
+#endregion Constructors
 
-        #region Dispose and Finalize
+#region Dispose and Finalize
 
         ~RecyclableMemoryStream()
         {
@@ -275,12 +276,12 @@ namespace Spreads.Buffers
             }
 
             Events.Write.MemoryStreamDisposed(_id, _tag);
-
+#if DEBUG
             if (_memoryManager.GenerateCallStacks)
             {
                 DisposeStack = Environment.StackTrace;
             }
-
+#endif
             if (disposing)
             {
                 _memoryManager.ReportStreamDisposed();
@@ -346,9 +347,9 @@ namespace Spreads.Buffers
             Dispose(true);
         }
 
-        #endregion Dispose and Finalize
+#endregion Dispose and Finalize
 
-        #region MemoryStream overrides
+#region MemoryStream overrides
 
         /// <summary>
         /// Gets or sets the capacity
@@ -913,7 +914,7 @@ namespace Spreads.Buffers
             }
         }
 
-        #endregion MemoryStream overrides
+#endregion MemoryStream overrides
 
         public struct ChunksEnumerable : IEnumerable<ArraySegment<byte>>
         {
@@ -1077,7 +1078,7 @@ namespace Spreads.Buffers
             return false;
         }
 
-        #region Helper Methods
+#region Helper Methods
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void CheckDisposed()
@@ -1197,6 +1198,6 @@ namespace Spreads.Buffers
             _largeBuffer = null;
         }
 
-        #endregion Helper Methods
+#endregion Helper Methods
     }
 }

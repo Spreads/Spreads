@@ -5,11 +5,10 @@
 // using Newtonsoft.Json;
 using Spreads.Buffers;
 using Spreads.DataTypes;
-using Spreads.Serialization.Utf8Json;
 using System;
+using System.Buffers;
 using System.Diagnostics;
 using System.IO;
-using System.IO.Compression;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using static System.Runtime.CompilerServices.Unsafe;
@@ -18,348 +17,624 @@ using static System.Runtime.CompilerServices.Unsafe;
 
 namespace Spreads.Serialization
 {
+    // 3 serialization cases: fixed binary, custom converter and json
+    // compression is applied to the result of the later two
+
     /// <summary>
     /// Binary Serializer that tries to serialize objects to their blittable representation whenever possible
     /// and falls back to JSON.NET for non-blittable types. It supports versioning and custom binary converters.
     /// </summary>
-    public static partial class BinarySerializer
+    public static unsafe partial class BinarySerializer
     {
         /// <summary>
-        /// Positive number for fixed-size types, zero for types with a custom binary converters, negative for all other types.
+        /// Positive number for fixed-size types, negative for all other types. Zero is invalid.
         /// </summary>
         /// <typeparam name="T"></typeparam>
         /// <returns></returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int Size<T>()
+        public static int FixedSize<T>()
         {
             return TypeHelper<T>.FixedSize;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int SizeOf<T>(T value, out MemoryStream temporaryStream,
-            SerializationFormat format = SerializationFormat.Binary,
-            Timestamp timestamp = default)
+        public static int SizeOfRaw<T>(T value, out ArraySegment<byte> temporaryBuffer,
+            bool isBinary = false)
         {
-            return SizeOf(in value, out temporaryStream, format, timestamp);
+            return SizeOfRaw(in value, out temporaryBuffer, isBinary);
         }
 
-        /// <summary>
-        /// Binary size of value T required for serialization.
-        /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static int SizeOf<T>(in T value, out MemoryStream temporaryStream,
-            SerializationFormat format = SerializationFormat.Binary,
-            Timestamp timestamp = default)
+        internal static int SizeOfRaw<T>(in T value, out ArraySegment<byte> temporaryBuffer,
+            bool isBinary = false)
         {
-            if ((int)format < 100) // try binary if possible, TH will return -1 for var size without converter
+            temporaryBuffer = default;
+
+            if (isBinary)
             {
-                var size = TypeHelper<T>.SizeOf(value, out temporaryStream, format, timestamp);
-                if (size >= 0)
+                // fixed size binary is never compressed
+                if (TypeHelper<T>.IsFixedSize)
                 {
-                    return size;
+                    return TypeHelper<T>.FixedSize;
+                }
+
+                var bc = TypeHelper<T>.BinaryConverter;
+                if (bc != null)
+                {
+                    return bc.SizeOf(value, out temporaryBuffer);
                 }
             }
 
-            return SizeOfSlow(in value, out temporaryStream, format, timestamp);
+            return JsonBinaryConverter<T>.SizeOf(value, out temporaryBuffer);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int SizeOf<T>(T value, out ArraySegment<byte> temporaryBuffer,
+            SerializationFormat format = default,
+            Timestamp timestamp = default)
+        {
+            return SizeOf(in value, out temporaryBuffer, format, timestamp);
+        }
+
+        /// <summary>
+        /// With header + len + optional TS.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static int SizeOf<T>(in T value, out ArraySegment<byte> temporaryBuffer,
+            SerializationFormat format = default,
+            Timestamp timestamp = default)
+        {
+            var hasTs = (long)timestamp != default;
+            var tsSize = *(int*)(&hasTs) << 3;
+
+            var isBinary = ((int)format & 1) == 1;
+
+            // fixed size binary is never compressed
+            if (TypeHelper<T>.IsFixedSize)
+            {
+                if (isBinary)
+                {
+                    temporaryBuffer = default;
+                    return DataTypeHeader.Size + tsSize + TypeHelper<T>.FixedSize; // no len
+                }
+            }
+
+            return SizeOfVarSize(in value, out temporaryBuffer, format, timestamp);
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
-        private static int SizeOfSlow<T>(in T value, out MemoryStream temporaryStream,
+        private static int SizeOfVarSize<T>(in T value, out ArraySegment<byte> temporaryBuffer,
             SerializationFormat format, Timestamp timestamp)
         {
-            var tsSize = (long)timestamp == default ? 0 : Timestamp.Size;
+            temporaryBuffer = default;
+            var isBinary = ((int)format & 1) == 1;
+            var hasTs = (long)timestamp != default;
+            var tsSize = *(int*)(&hasTs) << 3;
 
-            // NB when we request binary uncompressed but items are not fixed size we use uncompressed
-            // JSON so that we could iterate over values as byte Spans/DirectBuffers without uncompressing
-            if (format == SerializationFormat.Json || format == SerializationFormat.Binary)
+            // there is some implicit dependency that if we reach here then
+
+            var rawSize = SizeOfRaw(in value, out var rawTemporaryBuffer, isBinary);
+
+            if (rawSize <= 0)
             {
-                var rms = JsonSerializer.SerializeWithOffset(value, DataTypeHeader.Size + 4 + tsSize);
-                rms.Position = 0;
-                var header = new DataTypeHeader
-                {
-                    VersionAndFlags =
-                    {
-                         Version = 0,
-                         IsBinary = false,
-                         IsDelta = false,
-                         IsCompressed = false,
-                        IsTimestamped = tsSize > 0
-                    },
-                    TypeEnum = VariantHelper<T>.TypeEnum
-                };
-                rms.WriteAsPtr(header);
+                return rawSize;
+            }
 
-                rms.WriteAsPtr(checked((int)rms.Length - 8));
+            var compressionMethod = format.CompressionMethod();
 
-                if (tsSize > 0)
-                {
-                    rms.WriteAsPtr(timestamp);
-                }
+            if (rawTemporaryBuffer.Count == 0 && compressionMethod == CompressionMethod.None)
+            {
+                // we know size without performing serialization yet and do not need compression
+                return DataTypeHeader.Size + 4 + tsSize + rawSize;
+            }
 
-                rms.PositionInternal = 0;
-                temporaryStream = rms;
-                return checked((int)rms.Length);
+            // now we need to form temporaryBuffer that is ready for copying to a final destination
+
+            IBinaryConverter<T> bc = null;
+
+            // first reuse the raw buffer or create one in rare case it is empty
+            var rawOffset = 16;
+            byte[] tmpArray = null;
+            MemoryHandle pin = default;
+            DirectBuffer tmpDestination;
+
+            if (rawTemporaryBuffer.Count == 0)
+            {
+                bc = TypeHelper<T>.BinaryConverter;
+                ThrowHelper.AssertFailFast(bc != null, "TypeHelper<T>.BinaryConverter != null, in other cases raw temp buffer should be present");
+                rawOffset = DataTypeHeader.Size + 4 + tsSize;
+                tmpArray = BufferPool<byte>.Rent(rawOffset + rawSize);
+                pin = ((Memory<byte>)tmpArray).Pin();
+                tmpDestination = new DirectBuffer(tmpArray.Length, (byte*)pin.Pointer);
+                bc.Write(value, tmpDestination.Slice(rawOffset));
+                // now tmpArray is the same as if if was returned from SizeOfNoHeader
             }
             else
             {
-                // NB: fallback for failed binary uses Json.Deflate
-                // uncompressed
-                var rms = JsonSerializer.SerializeWithOffset(value, 0);
-                var compressedStream =
-                    RecyclableMemoryStreamManager.Default.GetStream(null, checked((int)rms.Length));
-
-                compressedStream.WriteAsPtr(0L);
-
-                if (tsSize > 0)
-                {
-                    compressedStream.WriteAsPtr(timestamp);
-                }
-
-                using (var compressor = new GZipStream(compressedStream, CompressionLevel.Optimal, true))
-                {
-                    rms.PositionInternal = 0;
-                    rms.CopyTo(compressor);
-                    compressor.Dispose();
-                }
-
-                rms.Dispose();
-
-                var header = new DataTypeHeader
-                {
-                    VersionAndFlags =
-                    {
-                        // NB Do not assign defaults
-                        // Version = 0,
-                        // IsBinary = false,
-                        // IsDelta = false,
-                        IsCompressed = true,
-                        IsTimestamped = tsSize > 0
-                    },
-                    TypeEnum = VariantHelper<T>.TypeEnum
-                };
-
-                compressedStream.PositionInternal = 0;
-                compressedStream.WriteAsPtr(header);
-
-                compressedStream.WriteAsPtr(checked((int)compressedStream.Length - 8));
-
-                compressedStream.PositionInternal = 0;
-
-                temporaryStream = compressedStream;
-                return (checked((int)compressedStream.Length));
+                ThrowHelper.AssertFailFast(rawTemporaryBuffer.Offset == rawOffset, "rawTemporaryBuffer.Offset == 16");
+                rawOffset = rawTemporaryBuffer.Offset;
+                tmpArray = rawTemporaryBuffer.Array;
+                pin = ((Memory<byte>)tmpArray).Pin();
+                tmpDestination = new DirectBuffer(tmpArray.Length, (byte*)pin.Pointer);
             }
+
+            if (bc == null)
+            {
+                bc = JsonBinaryConverter<T>.Instance;
+            }
+
+            var header = TypeHelper<T>.DefaultBinaryHeader;
+            header.VersionAndFlags.ConverterVersion = bc.ConverterVersion;
+
+            // NB first step is to serialize, compressor could chose to copy (if small data or compressed is larger)
+            // not! header.VersionAndFlags.CompressionMethod = compressionMethod;
+
+            // NB binary is best effort
+            header.VersionAndFlags.IsBinary = bc != JsonBinaryConverter<T>.Instance; // not from format but what we are actually using now
+
+            var firstOffset = rawOffset - tsSize - 4 - DataTypeHeader.Size;
+
+            
+            if (hasTs)
+            {
+                header.VersionAndFlags.IsTimestamped = hasTs;
+                tmpDestination.Write(firstOffset + DataTypeHeader.Size + 4, timestamp);
+            }
+            
+            // NB: after header.VersionAndFlags.IsTimestamped = hasTs;
+            tmpDestination.Write(firstOffset, header);
+
+            var payloadLength = tsSize + rawSize;
+
+            tmpDestination.Write(firstOffset + DataTypeHeader.Size, payloadLength);
+
+            var totalLength = DataTypeHeader.Size + 4 + payloadLength;
+
+            var uncompressedBufferWithHeader =
+                tmpDestination.Slice(firstOffset, totalLength);
+            if (compressionMethod == CompressionMethod.None)
+            {
+                pin.Dispose();
+                temporaryBuffer = new ArraySegment<byte>(tmpArray, firstOffset, totalLength);
+                return totalLength;
+            }
+
+            byte[] tmpArray2 = null;
+            MemoryHandle pin2 = default;
+            tmpArray2 = BufferPool<byte>.Rent(checked((int)(uint)uncompressedBufferWithHeader.Length));
+            pin2 = ((Memory<byte>)tmpArray2).Pin();
+            var destination2 = new DirectBuffer(tmpArray2.Length, (byte*)pin2.Pointer).Slice(0, uncompressedBufferWithHeader.Length);
+
+            var compressedSize = CompressWithHeader(uncompressedBufferWithHeader, destination2, compressionMethod);
+
+            if (compressedSize > 0)
+            {
+                BufferPool<byte>.Return(tmpArray);
+                temporaryBuffer = new ArraySegment<byte>(tmpArray2, 0, compressedSize);
+                return compressedSize;
+            }
+
+            BufferPool<byte>.Return(tmpArray);
+            BufferPool<byte>.Return(tmpArray2);
+            pin2.Dispose();
+
+            return -1;
         }
 
-        /// <summary>
-        /// Destination must be pinned and have enough size.
-        /// Unless writing to an "endless" buffer SizeOf must be called
-        /// first to determine the size and prepare destination buffer.
-        /// For blittable types (Size >= 0) this method add 8 bytes header.
-        /// Use Unsafe.WriteUnaligned() to write blittable types directly.
-        /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static int WriteUnsafe<T>(in T value, IntPtr pinnedDestination,
-            MemoryStream temporaryStream = null,
-            SerializationFormat format = SerializationFormat.Binary,
+        internal static int Write<T>(in T value, DirectBuffer pinnedDestination,
+            ArraySegment<byte> temporaryBuffer = default,
+            SerializationFormat format = default,
             Timestamp timestamp = default)
         {
-            if (TypeHelper<T>.FixedSize >= 0 && (int)format < 100)
+            var hasTs = (long)timestamp != default;
+            var len = temporaryBuffer.Count;
+            if (len > 0)
             {
-                Debug.Assert(temporaryStream == null, "For primitive types MemoryStream should not be used");
-                return TypeHelper<T>.Write(value, pinnedDestination, null, format, timestamp);
+                // temporaryBuffer must be already fully packed according to format & timestamp,
+                // it is what SizeOf with format & timestamp overload returns.
+                if (Settings.AdditionalCorrectnessChecks.Enabled)
+                {
+                    // these are non-recoverable errors indicating wrong code using the methods
+
+                    // ReSharper disable once PossibleNullReferenceException
+                    // var firstByte = temporaryBuffer.Array[temporaryBuffer.Offset];
+                    //var versionFlags = *(VersionAndFlags*)(&firstByte);
+                    //ThrowHelper.AssertFailFast(format == versionFlags.SerializationFormat
+                    //                           && !(versionFlags.IsTimestamped ^ hasTs), "Wrong SerializationFormat in temporaryBuffer");
+
+                    ThrowHelper.AssertFailFast(len <= pinnedDestination.Length, "len > pinnedDestination.Length");
+
+                    ThrowHelper.AssertFailFast(len > DataTypeHeader.Size + 4, "Small temporaryBuffer");
+
+                    // TODO payload size check
+                }
+
+                ((Span<byte>)temporaryBuffer).CopyTo(pinnedDestination.Span);
+                BufferPool<byte>.Return(temporaryBuffer.Array);
+                return len;
             }
-            return WriteSlow(in value, pinnedDestination, temporaryStream, format, timestamp);
+
+            var isBinary = ((int)format & 1) == 1;
+
+            // var tempArray = BufferPool<byte>.Rent((int) pinnedDestination.Length);
+
+            IBinaryConverter<T> bc = null;
+
+            // if fixed & binary just write
+            if (isBinary)
+            {
+                // fixed size binary is never compressed
+                if (TypeHelper<T>.IsFixedSize)
+                {
+                    return TypeHelper<T>.WriteWithHeader(in value, pinnedDestination, timestamp);
+                }
+                // Use custom TypeHelper<T>.BinaryConverter only when asked for isBinary
+                bc = TypeHelper<T>.BinaryConverter ?? JsonBinaryConverter<T>.Instance;
+            }
+
+            return WriteVarSize(value, pinnedDestination, format, timestamp, bc, hasTs);
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
-        private static unsafe int WriteSlow<T>(in T value, IntPtr pinnedDestination,
-            MemoryStream temporaryStream = null,
-            SerializationFormat format = SerializationFormat.Binary,
-            Timestamp timestamp = default)
+        private static int WriteVarSize<T>(T value, DirectBuffer pinnedDestination, SerializationFormat format,
+            Timestamp timestamp, IBinaryConverter<T> bc, bool hasTs)
         {
-            if (value == null)
+            if (bc == null)
             {
-                ThrowHelper.ThrowArgumentNullException(nameof(value));
+                bc = JsonBinaryConverter<T>.Instance;
             }
 
-            if (temporaryStream != null)
-            {
-                Debug.Assert(temporaryStream.Position == 0);
-#if DEBUG
-                var checkSize = SizeOf(value, out MemoryStream tmp, format, timestamp);
-                Debug.Assert(checkSize == temporaryStream.Length, "Memory stream length must be equal to the SizeOf");
-                tmp?.Dispose();
-#endif
-                var size = checked((int)temporaryStream.Length);
-                temporaryStream.WriteToRef(ref AsRef<byte>((void*)pinnedDestination));
-                temporaryStream.Dispose();
-                return size;
-            }
+            var compressionMethod = format.CompressionMethod();
 
-            if ((int)format < 100)
+            var header = TypeHelper<T>.DefaultBinaryHeader;
+            header.VersionAndFlags.ConverterVersion = bc.ConverterVersion;
+
+            // NB first step is to serialize, compressor could chose to copy (if small data or compressed is larger)
+            // not! header.VersionAndFlags.CompressionMethod = compressionMethod;
+
+            // NB binary is best effort
+            header.VersionAndFlags.IsBinary = bc != JsonBinaryConverter<T>.Instance; // not from format but what we are actually using now
+
+            byte[] tmpArray = null;
+            MemoryHandle pin = default;
+            try
             {
-                if (TypeHelper<T>.FixedSize > 0 || TypeHelper<T>.HasBinaryConverter)
+                DirectBuffer destination2;
+                if (compressionMethod != CompressionMethod.None)
                 {
-                    return TypeHelper<T>.Write(value, pinnedDestination, null, format, timestamp);
+                    tmpArray = BufferPool<byte>.Rent(checked((int)(uint)pinnedDestination.Length));
+                    pin = ((Memory<byte>)tmpArray).Pin();
+                    destination2 = new DirectBuffer(tmpArray.Length, (byte*)pin.Pointer).Slice(0, pinnedDestination.Length);
                 }
-            }
-
-            SizeOf(in value, out temporaryStream, format, timestamp);
-            if (temporaryStream == null)
-            {
-                ThrowHelper.ThrowInvalidOperationException("Tempstream for Json or binary fallback must be returned from SizeOf");
-            }
-
-            return WriteSlow(in value, pinnedDestination, temporaryStream, format, timestamp);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int Write<T>(T value, ref byte[] destination,
-            MemoryStream temporaryStream = null,
-            SerializationFormat format = SerializationFormat.Binary,
-            Timestamp timestamp = default)
-        {
-            var asMemory = (Memory<byte>)destination;
-            return Write(in value, ref asMemory, temporaryStream, format, timestamp);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int Write<T>(T value, ref Memory<byte> destination,
-            MemoryStream temporaryStream = null,
-            SerializationFormat format = SerializationFormat.Binary,
-            Timestamp timestamp = default)
-        {
-            return Write(in value, ref destination, temporaryStream, format, timestamp);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static unsafe int Write<T>(in T value, ref Memory<byte> destination,
-            MemoryStream temporaryStream = null,
-            SerializationFormat format = SerializationFormat.Binary,
-            Timestamp timestamp = default)
-        {
-            var capacity = destination.Length;
-
-            int size;
-            if (temporaryStream == null)
-            {
-                size = SizeOf(in value, out temporaryStream, format, timestamp);
-            }
-            else
-            {
-                size = checked((int)temporaryStream.Length);
-                if (temporaryStream.Length > capacity)
+                else
                 {
-                    ThrowHelper.ThrowInvalidOperationException("desctination doesn't have enough size");
+                    destination2 = pinnedDestination;
                 }
 
-                temporaryStream.WriteToRef(ref destination.Span[0]);
-            }
+                var pos = 0;
 
-            if (size > capacity)
-            {
-                ThrowHelper.ThrowInvalidOperationException("desctination doesn't have enough size");
-            }
+                // IBinaryConverter cannot compress and write timestamp, but avoid copy if we do not need this
 
-            if (temporaryStream != null)
-            {
-                Debug.Assert(temporaryStream.Length == size);
-                temporaryStream.WriteToRef(ref destination.Span[0]);
-                temporaryStream.Dispose();
-                return size;
-            }
+                
+                pos += DataTypeHeader.Size + 4; // + payload length
+                var tsSize = 0;
+                if (hasTs)
+                {
+                    tsSize = 8;
+                    header.VersionAndFlags.IsTimestamped = true;
+                    destination2.Write(pos, timestamp);
+                    pos += 8;
+                }
 
-            fixed (void* ptr = &destination.Span[0])
+                // NB: after header.VersionAndFlags.IsTimestamped = true;
+                destination2.Write(0, header);
+
+                var rawPayloadLength = bc.Write(value, destination2.Slice(pos));
+
+                destination2.Write(DataTypeHeader.Size, tsSize + rawPayloadLength);
+
+                if (compressionMethod == CompressionMethod.None)
+                {
+                    return DataTypeHeader.Size + 4 + tsSize + rawPayloadLength;
+                }
+
+                return CompressWithHeader(destination2, pinnedDestination, compressionMethod);
+            }
+            finally
             {
-                return WriteUnsafe(value, (IntPtr)ptr, null, format, timestamp);
+                if (tmpArray != null)
+                {
+                    BufferPool<byte>.Return(tmpArray);
+                    pin.Dispose();
+                }
             }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int Read<T>(IntPtr ptr, out T value)
+        internal static int Write<T>(in T value, Memory<byte> buffer,
+            ArraySegment<byte> temporaryBuffer = default,
+            SerializationFormat format = default,
+            Timestamp timestamp = default)
         {
-            return Read(ptr, out value, out _);
+            using (var handle = buffer.Pin())
+            {
+                var db = new DirectBuffer(buffer.Length, (byte*)handle.Pointer);
+                return Write(in value, db, temporaryBuffer, format, timestamp);
+            }
+        }
+
+        //        /// <summary>
+        //        /// Destination must be pinned and have enough size.
+        //        /// Unless writing to an "endless" buffer SizeOf must be called
+        //        /// first to determine the size and prepare destination buffer.
+        //        /// For blittable types (Size >= 0) this method add 8 bytes header.
+        //        /// Use Unsafe.WriteUnaligned() to write blittable types directly.
+        //        /// </summary>
+        //        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        //        internal static int WriteUnsafe<T>(in T value, IntPtr pinnedDestination,
+        //            MemoryStream temporaryStream = null,
+        //            SerializationFormat format = SerializationFormat.Binary,
+        //            Timestamp timestamp = default)
+        //        {
+        //            if (TypeHelper<T>.FixedSize >= 0 && (int)format < 100)
+        //            {
+        //                Debug.Assert(temporaryStream == null, "For primitive types MemoryStream should not be used");
+        //                return TypeHelper<T>.Write(value, pinnedDestination, null, format, timestamp);
+        //            }
+        //            return WriteSlow(in value, pinnedDestination, temporaryStream, format, timestamp);
+        //        }
+
+        //        [MethodImpl(MethodImplOptions.NoInlining)]
+        //        private static unsafe int WriteSlow<T>(in T value, IntPtr pinnedDestination,
+        //            MemoryStream temporaryStream = null,
+        //            SerializationFormat format = SerializationFormat.Binary,
+        //            Timestamp timestamp = default)
+        //        {
+        //            if (value == null)
+        //            {
+        //                ThrowHelper.ThrowArgumentNullException(nameof(value));
+        //            }
+
+        //            if (temporaryStream != null)
+        //            {
+        //                Debug.Assert(temporaryStream.Position == 0);
+        //#if DEBUG
+        //                var checkSize = SizeOf(value, out MemoryStream tmp, format, timestamp);
+        //                Debug.Assert(checkSize == temporaryStream.Length, "Memory stream length must be equal to the SizeOf");
+        //                tmp?.Dispose();
+        //#endif
+        //                var size = checked((int)temporaryStream.Length);
+        //                temporaryStream.WriteToRef(ref AsRef<byte>((void*)pinnedDestination));
+        //                temporaryStream.Dispose();
+        //                return size;
+        //            }
+
+        //            if ((int)format < 100)
+        //            {
+        //                if (TypeHelper<T>.FixedSize > 0 || TypeHelper<T>.HasBinaryConverter)
+        //                {
+        //                    return TypeHelper<T>.Write(value, pinnedDestination, null, format, timestamp);
+        //                }
+        //            }
+
+        //            SizeOf(in value, out temporaryStream, format, timestamp);
+        //            if (temporaryStream == null)
+        //            {
+        //                ThrowHelper.ThrowInvalidOperationException("Tempstream for Json or binary fallback must be returned from SizeOf");
+        //            }
+
+        //            return WriteSlow(in value, pinnedDestination, temporaryStream, format, timestamp);
+        //        }
+
+        //        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        //        public static int Write<T>(T value, ref byte[] destination,
+        //            MemoryStream temporaryStream = null,
+        //            SerializationFormat format = SerializationFormat.Binary,
+        //            Timestamp timestamp = default)
+        //        {
+        //            var asMemory = (Memory<byte>)destination;
+        //            return Write(in value, ref asMemory, temporaryStream, format, timestamp);
+        //        }
+
+        //        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        //        public static int Write<T>(T value, ref Memory<byte> destination,
+        //            MemoryStream temporaryStream = null,
+        //            SerializationFormat format = SerializationFormat.Binary,
+        //            Timestamp timestamp = default)
+        //        {
+        //            return Write(in value, ref destination, temporaryStream, format, timestamp);
+        //        }
+
+        //        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        //        internal static unsafe int Write<T>(in T value, ref Memory<byte> destination,
+        //            MemoryStream temporaryStream = null,
+        //            SerializationFormat format = SerializationFormat.Binary,
+        //            Timestamp timestamp = default)
+        //        {
+        //            var capacity = destination.Length;
+
+        //            int size;
+        //            if (temporaryStream == null)
+        //            {
+        //                size = SizeOf(in value, out temporaryStream, format, timestamp);
+        //            }
+        //            else
+        //            {
+        //                size = checked((int)temporaryStream.Length);
+        //                if (temporaryStream.Length > capacity)
+        //                {
+        //                    ThrowHelper.ThrowInvalidOperationException("desctination doesn't have enough size");
+        //                }
+
+        //                temporaryStream.WriteToRef(ref destination.Span[0]);
+        //            }
+
+        //            if (size > capacity)
+        //            {
+        //                ThrowHelper.ThrowInvalidOperationException("desctination doesn't have enough size");
+        //            }
+
+        //            if (temporaryStream != null)
+        //            {
+        //                Debug.Assert(temporaryStream.Length == size);
+        //                temporaryStream.WriteToRef(ref destination.Span[0]);
+        //                temporaryStream.Dispose();
+        //                return size;
+        //            }
+
+        //            fixed (void* ptr = &destination.Span[0])
+        //            {
+        //                return WriteUnsafe(value, (IntPtr)ptr, null, format, timestamp);
+        //            }
+        //        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int Read<T>(DirectBuffer source, out T value)
+        {
+            return Read(source, out value, out _);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe int Read<T>(IntPtr ptr, out T value, out Timestamp timestamp)
+        public static int Read<T>(DirectBuffer source, out T value, out Timestamp timestamp)
         {
-            var header = ReadUnaligned<DataTypeHeader>((void*)ptr);
-
-            if (header.VersionAndFlags.IsBinary)
-            {
-                Debug.Assert(TypeHelper<T>.FixedSize >= 0 || TypeHelper<T>.HasBinaryConverter);
-                return TypeHelper<T>.Read(ptr, out value, out timestamp);
-            }
-
-            var payloadSize = ReadUnaligned<int>((void*)(ptr + DataTypeHeader.Size));
-            return ReadSlow(ptr, out value, header, payloadSize, out timestamp);
-        }
-
-        [MethodImpl(MethodImplOptions.NoInlining)]
-        private static unsafe int ReadSlow<T>(IntPtr ptr, out T value, DataTypeHeader header, int payloadSize, out Timestamp timestamp)
-        {
-            if (header.VersionAndFlags.Version != 0)
-            {
-                ThrowHelper.ThrowNotImplementedException(
-                    "Only version 0 is supported for unknown types that are serialized as JSON");
-                value = default;
-                timestamp = default;
-                return -1;
-            }
-
-            if (!header.VersionAndFlags.IsCompressed)
-            {
-                var tsSize = header.VersionAndFlags.IsTimestamped ? Timestamp.Size : 0;
-
-                var buffer = BufferPool<byte>.Rent(payloadSize);
-
-                CopyBlockUnaligned(ref buffer[0], ref *(byte*)(ptr + DataTypeHeader.Size + 4 + tsSize), (uint)(payloadSize - tsSize));
-
-                var rms = RecyclableMemoryStream.Create(RecyclableMemoryStreamManager.Default, null,
-                    payloadSize, buffer, payloadSize);
-
-                timestamp = tsSize > 0 ? ReadUnaligned<Timestamp>((void*)(ptr + DataTypeHeader.Size + 4)) : default;
-
-                value = JsonSerializer.Deserialize<T>(rms);
-                rms.Close();
-                return payloadSize + DataTypeHeader.Size + 4;
-            }
-            else
-            {
-                return ReadJsonCompressed(ptr, out value, header, payloadSize, out timestamp);
-            }
-        }
-
-        [MethodImpl(MethodImplOptions.NoInlining)]
-        private static unsafe int ReadJsonCompressed<T>(IntPtr ptr, out T value, DataTypeHeader header, int payloadSize, out Timestamp timestamp)
-        {
+            var header = source.Read<DataTypeHeader>(0);
             var tsSize = header.VersionAndFlags.IsTimestamped ? Timestamp.Size : 0;
+            var offset = DataTypeHeader.Size + 4 + tsSize;
 
-            var buffer = BufferPool<byte>.Rent(payloadSize - tsSize);
+            timestamp = tsSize > 0 ? source.Read<Timestamp>(DataTypeHeader.Size + 4) : default;
 
-            CopyBlockUnaligned(ref buffer[0], ref *(byte*)(ptr + DataTypeHeader.Size + 4 + tsSize), (uint)(payloadSize - tsSize));
-            var comrpessedStream = RecyclableMemoryStream.Create(RecyclableMemoryStreamManager.Default, null,
-                payloadSize, buffer, payloadSize - tsSize);
+            
+            var totalSourceSize = DataTypeHeader.Size + 4 + source.Read<int>(DataTypeHeader.Size);
 
-            RecyclableMemoryStream decompressedStream =
-                RecyclableMemoryStreamManager.Default.GetStream();
+            // this is how much we read from source, we return this value
+            var readSize = totalSourceSize;
 
-            using (var decompressor = new GZipStream(comrpessedStream, CompressionMode.Decompress, true))
+            byte[] tmpArray = null;
+            MemoryHandle pin = default;
+            try
             {
-                decompressor.CopyTo(decompressedStream);
-                decompressor.Dispose();
+                IBinaryConverter<T> bc = null;
+
+                if (header.VersionAndFlags.IsBinary)
+                {
+                    if (header.VersionAndFlags.IsBinary && header.IsFixedSize) // IsFixedSize not possible with compression
+                    {
+                        Debug.Assert(TypeHelper<T>.FixedSize >= 0);
+                        return TypeHelper<T>.ReadWithHeader(source.Data, out value, out timestamp);
+                    }
+
+                    bc = TypeHelper<T>.BinaryConverter;
+                }
+
+                if (header.VersionAndFlags.CompressionMethod != CompressionMethod.None)
+                {
+                    var uncompressedBufferSize = offset + source.Read<int>(offset);
+                    DirectBuffer sourceUncompressed;
+                    tmpArray = BufferPool<byte>.Rent(uncompressedBufferSize);
+                    pin = ((Memory<byte>)tmpArray).Pin();
+                    sourceUncompressed = new DirectBuffer(tmpArray.Length, (byte*)pin.Pointer).Slice(0, uncompressedBufferSize);
+                    // we must return readSize = this is how many bytes we have read from original source
+                    readSize = DecompressWithHeader(source, sourceUncompressed);
+                    // use sourceUncompressed as if there was no compression
+                    source = sourceUncompressed;
+                }
+
+                // TODO compression
+
+                if (bc == null)
+                {
+                    bc = JsonBinaryConverter<T>.Instance;
+                }
+
+                var readSize1 = offset + bc.Read(source.Slice(offset, readSize - offset), out value);
+                if (readSize > 0 && readSize1 != readSize)
+                {
+                    ThrowHelper.FailFast($"readSize > 0 && readSize1 != readSize");
+                }
+                return totalSourceSize;
+            }
+            finally
+            {
+                if (tmpArray != null)
+                {
+                    BufferPool<byte>.Return(tmpArray);
+                    pin.Dispose();
+                }
             }
 
-            comrpessedStream.Dispose();
-            decompressedStream.Position = 0;
-
-            timestamp = tsSize > 0 ? ReadUnaligned<Timestamp>((void*)(ptr + DataTypeHeader.Size + 4)) : default;
-
-            value = JsonSerializer.Deserialize<T>(decompressedStream);
-
-            return payloadSize + DataTypeHeader.Size + 4;
+            //var payloadSize = ReadUnaligned<int>((void*)(ptr + DataTypeHeader.Size));
+            //return ReadSlow(ptr, out value, header, payloadSize, out timestamp);
         }
+
+        //[MethodImpl(MethodImplOptions.NoInlining)]
+        //private static int ReadSlow<T>(IntPtr ptr, out T value, DataTypeHeader header, int payloadSize, out Timestamp timestamp)
+        //{
+        //    var tsSize = header.VersionAndFlags.IsTimestamped ? Timestamp.Size : 0;
+        //    if (header.VersionAndFlags.IsTimestamped)
+        //    {
+        //        timestamp = tsSize > 0 ? ReadUnaligned<Timestamp>((void*)(ptr + DataTypeHeader.Size + 4)) : default;
+        //    }
+
+        //    if (header.VersionAndFlags.ConverterVersion != 0)
+        //    {
+        //        ThrowHelper.ThrowNotImplementedException(
+        //            "Only version 0 is supported for unknown types that are serialized as JSON");
+        //        value = default;
+        //        timestamp = default;
+        //        return -1;
+        //    }
+
+        //    if (!header.VersionAndFlags.IsCompressed)
+        //    {
+        //        var buffer = BufferPool<byte>.Rent(payloadSize);
+
+        //        CopyBlockUnaligned(ref buffer[0], ref *(byte*)(ptr + DataTypeHeader.Size + 4 + tsSize), (uint)(payloadSize - tsSize));
+
+        //        var rms = RecyclableMemoryStream.Create(RecyclableMemoryStreamManager.Default, null,
+        //            payloadSize, buffer, payloadSize);
+
+        //        timestamp = tsSize > 0 ? ReadUnaligned<Timestamp>((void*)(ptr + DataTypeHeader.Size + 4)) : default;
+
+        //        value = JsonSerializer.Deserialize<T>(, rms);
+        //        rms.Close();
+        //        return payloadSize + DataTypeHeader.Size + 4;
+        //    }
+        //    else
+        //    {
+        //        return ReadJsonCompressed(ptr, out value, header, payloadSize, out timestamp);
+        //    }
+        //}
+
+        //[MethodImpl(MethodImplOptions.NoInlining)]
+        //private static unsafe int ReadJsonCompressed<T>(IntPtr ptr, out T value, DataTypeHeader header, int payloadSize, out Timestamp timestamp)
+        //{
+        //    var tsSize = header.VersionAndFlags.IsTimestamped ? Timestamp.Size : 0;
+
+        //    var buffer = BufferPool<byte>.Rent(payloadSize - tsSize);
+
+        //    CopyBlockUnaligned(ref buffer[0], ref *(byte*)(ptr + DataTypeHeader.Size + 4 + tsSize), (uint)(payloadSize - tsSize));
+        //    var comrpessedStream = RecyclableMemoryStream.Create(RecyclableMemoryStreamManager.Default, null,
+        //        payloadSize, buffer, payloadSize - tsSize);
+
+        //    RecyclableMemoryStream decompressedStream =
+        //        RecyclableMemoryStreamManager.Default.GetStream();
+
+        //    using (var decompressor = new GZipStream(comrpessedStream, CompressionMode.Decompress, true))
+        //    {
+        //        decompressor.CopyTo(decompressedStream);
+        //        decompressor.Dispose();
+        //    }
+
+        //    comrpessedStream.Dispose();
+        //    decompressedStream.Position = 0;
+
+        //    timestamp = tsSize > 0 ? ReadUnaligned<Timestamp>((void*)(ptr + DataTypeHeader.Size + 4)) : default;
+
+        //    value = JsonSerializer.Deserialize<T>(decompressedStream);
+
+        //    return payloadSize + DataTypeHeader.Size + 4;
+        //}
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int Read<T>(ReadOnlyMemory<byte> buffer, out T value)
@@ -368,11 +643,11 @@ namespace Spreads.Serialization
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe int Read<T>(ReadOnlyMemory<byte> buffer, out T value, out Timestamp timestamp)
+        public static int Read<T>(ReadOnlyMemory<byte> buffer, out T value, out Timestamp timestamp)
         {
             using (var handle = buffer.Pin())
             {
-                return Read((IntPtr)handle.Pointer, out value, out timestamp);
+                return Read(new DirectBuffer(buffer.Length, (byte*)handle.Pointer), out value, out timestamp);
             }
         }
 
@@ -420,8 +695,12 @@ namespace Spreads.Serialization
             }
         }
 
+        #region Experiments
+
+        // branchless reads
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static unsafe int TsSize(Timestamp ts)
+        internal static int TsSize(Timestamp ts)
         {
             var isNonDefault = (long)ts != default;
             var size = ((int)(*(byte*)&isNonDefault) << 3); // 1 << 3 = 8 or zero
@@ -429,7 +708,7 @@ namespace Spreads.Serialization
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static unsafe Timestamp ReadTimestamp(byte* ptr, out int payloadOffset)
+        internal static Timestamp ReadTimestamp(byte* ptr, out int payloadOffset)
         {
             var isVarSize = *(ptr + 2) == 0;
             var offset = DataTypeHeader.Size + (*(byte*)&isVarSize << 2); // 4 for varsize or 0 for fixed size
@@ -448,13 +727,13 @@ namespace Spreads.Serialization
         private static decimal placeHolder;
 
         [ThreadStatic]
-        private static unsafe void* sharedPtr = BufferPool.StaticBufferMemory.Pointer;
+        private static void* sharedPtr = BufferPool.StaticBufferMemory.Pointer;
 
         [Obsolete]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static unsafe Timestamp ReadTimestamp2(byte* ptr, out int payloadOffset)
+        internal static Timestamp ReadTimestamp2(byte* ptr, out int payloadOffset)
         {
-            var x = System.Runtime.CompilerServices.Unsafe.AsPointer(ref placeHolder);
+            var x = AsPointer(ref placeHolder);
             // store pointers in the first 16 bytes of the shared thread-static buffer
             //var bptr = default(decimal);
             //var sharedPtr = (void*)&bptr;
@@ -483,6 +762,8 @@ namespace Spreads.Serialization
             payloadOffset = offset + (int)tsLen;
             return (Timestamp)ts;
         }
+
+        #endregion Experiments
     }
 
 #pragma warning restore 0618

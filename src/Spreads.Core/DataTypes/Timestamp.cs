@@ -188,7 +188,10 @@ namespace Spreads.DataTypes
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public void Serialize(ref JsonWriter writer, Timestamp value, IJsonFormatterResolver formatterResolver)
             {
-                writer.WriteString(((long)value).ToString());
+                // need a string so that JS could string last 3 digits to get int53 as micros and not loose precision
+                writer.WriteQuotation();
+                writer.WriteInt64((long)value);
+                writer.WriteQuotation();
             }
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -197,17 +200,23 @@ namespace Spreads.DataTypes
                 var token = reader.GetCurrentJsonToken();
                 if (token == JsonToken.String)
                 {
-                    var timestamp = long.Parse(reader.ReadString());
+                    // TODO check that current byte is "
+                    reader.AdvanceOffset(1);
+                    var timestamp = reader.ReadInt64();
+                    reader.AdvanceOffset(1);
                     return (Timestamp)timestamp;
                 }
-                else if (token == JsonToken.Number)
+
+                if (token == JsonToken.Number)
                 {
                     var timestamp = reader.ReadInt64();
                     // TODO we could detect millis (all values are in jan 1971 as nanos) or micros (~<=1972)
                     // But the problem is with deltas
                     return (Timestamp)timestamp;
                 }
+
                 ThrowHelper.ThrowInvalidOperationException("Wrong timestamp token");
+
                 return default;
             }
         }

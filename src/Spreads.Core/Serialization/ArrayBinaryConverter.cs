@@ -40,7 +40,7 @@ namespace Spreads.Serialization
             get => false;
         }
 
-        public int Size
+        public int FixedSize
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => -1;
@@ -53,38 +53,56 @@ namespace Spreads.Serialization
             get => 0;
         }
 
+        public int SizeOf(TElement[] value, out ArraySegment<byte> temporaryBuffer)
+        {
+
+            throw new NotImplementedException();
+        }
+
+        public int Write(TElement[] value, DirectBuffer destination)
+        {
+            throw new NotImplementedException();
+        }
+
+        public int Read(DirectBuffer source, out TElement[] value)
+        {
+            throw new NotImplementedException();
+        }
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public int SizeOf(TElement[] value, int valueOffset, int valueCount, out MemoryStream temporaryStream,
             SerializationFormat format = SerializationFormat.Binary,
             Timestamp timestamp = default)
         {
-            if ((uint)valueOffset + (uint)valueCount > (uint)value.Length)
-            {
-                ThrowHelper.ThrowArgumentOutOfRangeException();
-            }
+            throw new NotImplementedException();
 
-            var tsSize = (long)timestamp == default ? 0 : Timestamp.Size;
+            //if ((uint)valueOffset + (uint)valueCount > (uint)value.Length)
+            //{
+            //    ThrowHelper.ThrowArgumentOutOfRangeException();
+            //}
 
-            if ((int)format < 100)
-            {
-                if (ItemSize > 0)
-                {
-                    if (format == SerializationFormat.Binary)
-                    {
-                        temporaryStream = null;
-                        return 8 + tsSize + ItemSize * valueCount;
-                    }
+            //var tsSize = (long)timestamp == default ? 0 : Timestamp.Size;
 
-                    if (format == SerializationFormat.BinaryLz4 || format == SerializationFormat.BinaryZstd)
-                    {
-                        return CompressedBlittableArrayBinaryConverter<TElement>.Instance.SizeOf(value, valueOffset,
-                            valueCount, out temporaryStream, format, timestamp);
-                    }
-                }
-            }
+            //if ((int)format < 100)
+            //{
+            //    if (ItemSize > 0)
+            //    {
+            //        if (format == SerializationFormat.Binary)
+            //        {
+            //            temporaryStream = null;
+            //            return 8 + tsSize + ItemSize * valueCount;
+            //        }
 
-            return BinarySerializer.SizeOf(new ArraySegment<TElement>(value, valueOffset, valueCount), out temporaryStream,
-                format, timestamp);
+            //        if (format == SerializationFormat.BinaryLz4 || format == SerializationFormat.BinaryZstd)
+            //        {
+            //            return CompressedBlittableArrayBinaryConverter<TElement>.Instance.SizeOf(value, valueOffset,
+            //                valueCount, out temporaryStream, format, timestamp);
+            //        }
+            //    }
+            //}
+
+            //return BinarySerializer.SizeOf(new ArraySegment<TElement>(value, valueOffset, valueCount), out temporaryStream,
+            //    format, timestamp);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -170,112 +188,113 @@ namespace Spreads.Serialization
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public unsafe int Read(IntPtr ptr, out TElement[] value, out int count, out Timestamp timestamp, bool exactSize = true)
         {
-            var header = ReadUnaligned<DataTypeHeader>((void*)ptr);
-            var payloadSize = ReadUnaligned<int>((void*)(ptr + DataTypeHeader.Size));
-            var position = 8;
+            throw new NotImplementedException();
+            //var header = ReadUnaligned<DataTypeHeader>((void*)ptr);
+            //var payloadSize = ReadUnaligned<int>((void*)(ptr + DataTypeHeader.Size));
+            //var position = 8;
 
-            if (header.VersionAndFlags.Version != ConverterVersion)
-            {
-                ThrowHelper.ThrowInvalidOperationException("ByteArrayBinaryConverter work only with version 0");
-            }
+            //if (header.VersionAndFlags.ConverterVersion != ConverterVersion)
+            //{
+            //    ThrowHelper.ThrowInvalidOperationException("ByteArrayBinaryConverter work only with version 0");
+            //}
 
-            if (header.VersionAndFlags.IsBinary && ItemSize > 0)
-            {
-                if (!header.VersionAndFlags.IsCompressed)
-                {
-                    if (header.VersionAndFlags.IsDelta)
-                    {
-                        ThrowHelper.ThrowNotSupportedException("Raw ByteArrayBinaryConverter does not support deltas");
-                    }
+            //if (header.VersionAndFlags.IsBinary && ItemSize > 0)
+            //{
+            //    if (!header.VersionAndFlags.IsCompressed)
+            //    {
+            //        if (header.VersionAndFlags.IsDelta)
+            //        {
+            //            ThrowHelper.ThrowNotSupportedException("Raw ByteArrayBinaryConverter does not support deltas");
+            //        }
 
-                    var tsSize = 0;
-                    if (header.VersionAndFlags.IsTimestamped)
-                    {
-                        tsSize = Timestamp.Size;
-                        timestamp = ReadUnaligned<Timestamp>((void*)(ptr + position));
-                        position += 8;
-                    }
-                    else
-                    {
-                        timestamp = default;
-                    }
+            //        var tsSize = 0;
+            //        if (header.VersionAndFlags.IsTimestamped)
+            //        {
+            //            tsSize = Timestamp.Size;
+            //            timestamp = ReadUnaligned<Timestamp>((void*)(ptr + position));
+            //            position += 8;
+            //        }
+            //        else
+            //        {
+            //            timestamp = default;
+            //        }
 
-                    var arraySize = (payloadSize - tsSize) / ItemSize;
-                    if (arraySize > 0)
-                    {
-                        if (header.TypeEnum != TypeEnum.Array)
-                        {
-                            ThrowHelper.ThrowInvalidOperationException("Wrong TypeEnum: expecting array");
-                        }
+            //        var arraySize = (payloadSize - tsSize) / ItemSize;
+            //        if (arraySize > 0)
+            //        {
+            //            if (header.TypeEnum != TypeEnum.Array)
+            //            {
+            //                ThrowHelper.ThrowInvalidOperationException("Wrong TypeEnum: expecting array");
+            //            }
 
-                        if (header.TypeSize != ItemSize)
-                        {
-                            ThrowHelper.ThrowInvalidOperationException("Wrong item size");
-                        }
+            //            if (header.TypeSize != ItemSize)
+            //            {
+            //                ThrowHelper.ThrowInvalidOperationException("Wrong item size");
+            //            }
 
-                        if (header.ElementTypeEnum != VariantHelper<TElement>.TypeEnum)
-                        {
-                            ThrowHelper.ThrowInvalidOperationException("Wrong SubTypeEnum");
-                        }
+            //            if (header.ElementTypeEnum != VariantHelper<TElement>.TypeEnum)
+            //            {
+            //                ThrowHelper.ThrowInvalidOperationException("Wrong SubTypeEnum");
+            //            }
 
-                        TElement[] array;
-                        if (BitUtil.IsPowerOfTwo(arraySize) || !exactSize)
-                        {
-                            array = BufferPool<TElement>.Rent(arraySize);
-                            if (exactSize && array.Length != arraySize)
-                            {
-                                BufferPool<TElement>.Return(array);
-                                array = new TElement[arraySize];
-                            }
-                        }
-                        else
-                        {
-                            array = new TElement[arraySize];
-                        }
+            //            TElement[] array;
+            //            if (BitUtil.IsPowerOfTwo(arraySize) || !exactSize)
+            //            {
+            //                array = BufferPool<TElement>.Rent(arraySize);
+            //                if (exactSize && array.Length != arraySize)
+            //                {
+            //                    BufferPool<TElement>.Return(array);
+            //                    array = new TElement[arraySize];
+            //                }
+            //            }
+            //            else
+            //            {
+            //                array = new TElement[arraySize];
+            //            }
 
-                        ref var dstRef = ref As<TElement, byte>(ref array[0]);
-                        ref var srcRef = ref AsRef<byte>((void*)(ptr + position));
+            //            ref var dstRef = ref As<TElement, byte>(ref array[0]);
+            //            ref var srcRef = ref AsRef<byte>((void*)(ptr + position));
 
-                        CopyBlockUnaligned(ref dstRef, ref srcRef, checked((uint)payloadSize));
+            //            CopyBlockUnaligned(ref dstRef, ref srcRef, checked((uint)payloadSize));
 
-                        value = array;
-                    }
-                    else
-                    {
-                        value = EmptyArray<TElement>.Instance;
-                    }
+            //            value = array;
+            //        }
+            //        else
+            //        {
+            //            value = EmptyArray<TElement>.Instance;
+            //        }
 
-                    count = arraySize;
-                    return 8 + payloadSize;
-                }
+            //        count = arraySize;
+            //        return 8 + payloadSize;
+            //    }
 
-                {
-                    var len = CompressedBlittableArrayBinaryConverter<TElement>.Instance.Read(ptr, out var tmp,
-                        out count, out timestamp, exactSize);
-                    if (Settings.AdditionalCorrectnessChecks.Enabled)
-                    {
-                        ThrowHelper.AssertFailFast(len == 8 + payloadSize,
-                            $"len {len} == 8 + payloadSize {payloadSize}");
-                    }
+            //    {
+            //        var len = CompressedBlittableArrayBinaryConverter<TElement>.Instance.Read(ptr, out var tmp,
+            //            out count, out timestamp, exactSize);
+            //        if (Settings.AdditionalCorrectnessChecks.Enabled)
+            //        {
+            //            ThrowHelper.AssertFailFast(len == 8 + payloadSize,
+            //                $"len {len} == 8 + payloadSize {payloadSize}");
+            //        }
 
-                    Debug.Assert(len == 8 + payloadSize);
-                    value = tmp;
-                    return len;
-                }
-            }
+            //        Debug.Assert(len == 8 + payloadSize);
+            //        value = tmp;
+            //        return len;
+            //    }
+            //}
 
-            var readLen = BinarySerializer.Read<TElement[]>(ptr, out var arr, out timestamp);
-            if (readLen > 0 && arr != null)
-            {
-                value = arr;
-                count = arr.Length;
-                return readLen;
-            }
+            //var readLen = BinarySerializer.Read<TElement[]>(ptr, out var arr, out timestamp);
+            //if (readLen > 0 && arr != null)
+            //{
+            //    value = arr;
+            //    count = arr.Length;
+            //    return readLen;
+            //}
 
-            ThrowHelper.ThrowInvalidOperationException("ArrayBinaryConverter cannot read array");
-            value = default;
-            count = 0;
-            return default;
+            //ThrowHelper.ThrowInvalidOperationException("ArrayBinaryConverter cannot read array");
+            //value = default;
+            //count = 0;
+            //return default;
         }
 
         private static readonly int ItemSize = TypeHelper<TElement>.FixedSize;

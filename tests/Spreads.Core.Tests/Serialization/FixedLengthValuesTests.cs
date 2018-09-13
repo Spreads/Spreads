@@ -16,14 +16,16 @@ namespace Spreads.Core.Tests.Serialization
         public void CouldSerializeInts()
         {
             var bytes = new byte[(4 + 4) * 100_000_000];
+            var mem = (Memory<byte>)bytes;
             using (Benchmark.Run("Int serialization", bytes.Length / 8))
             {
                 fixed (byte* ptr = &bytes[0])
                 {
                     for (int i = 0; i < bytes.Length / 8; i++)
                     {
-                        BinarySerializer.WriteUnsafe(i, (IntPtr)(ptr + i * 8), null, SerializationFormat.Binary);
-                        BinarySerializer.Read((IntPtr)(ptr + i * 8), out int j);
+                        var slice = mem.Slice(i * 8);
+                        BinarySerializer.Write(i, mem.Slice(i * 8), default, SerializationFormat.Binary);
+                        BinarySerializer.Read(slice, out int j);
                         if (i != j)
                         {
                             Assert.Fail();

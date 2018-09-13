@@ -2,9 +2,10 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+using Spreads.Buffers;
+using Spreads.Serialization.Utf8Json;
 using System;
-using System.IO;
-using Spreads.DataTypes;
+using System.Runtime.CompilerServices;
 
 namespace Spreads.Serialization
 {
@@ -35,54 +36,123 @@ namespace Spreads.Serialization
     public interface IBinaryConverter<T>
     {
         /// <summary>
-        /// Equivalent to check Size > 0
-        /// </summary>
-        bool IsFixedSize { get; }
-
-        // TODO -1 for variable-length types, zero is a valid length
-        /// <summary>
-        /// Positive value for fixed-size types, -1 for variable-length types. Zero is invalid. Values > 255 are treated as variable size.
-        /// </summary>
-        int Size { get; }
-
-        /// <summary>
         /// Version of the converter. 15 (4 bits) max.
         /// </summary>
         byte ConverterVersion { get; }
 
         /// <summary>
-        /// Returns the size of serialized bytes including the version+lenght header.
-        /// For types with non-fixed size this method could serialize value into a temporary stream if it is not
+        /// Returns the size of serialized bytes without the version+lenght header.
+        /// For types with non-fixed size this method could serialize value into a temporary buffer if it is not
         /// possible to calculate serialized bytes length without actually performing serialization.
-        /// The stream temporaryStream contains a header and its length is equal to the returned value.
+        /// The temporaryBuffer ArraySegment should use a buffer from <see cref="BufferPool{T}.Rent"/>
+        /// and start with offset 8, otherwise BinarySerialized will copy (not implemented and likely won't) or throw.
+        /// The buffer is owned by the caller, no other references to it should remain after the call.
         /// </summary>
         /// <param name="value">A value to serialize.</param>
-        /// <param name="temporaryStream">A stream a value is serialized into if it is not possible to calculate serialized buffer size
+        /// <param name="temporaryBuffer">A buffer where a value is serialized into if it is not possible to calculate serialized buffer size
         /// without actually performing serialization.</param>
-        /// <param name="format">Preferred serialization format.</param>
-        /// <param name="timestamp">Optional Timestamp to save with data.</param>
-        /// <returns></returns>
-        int SizeOf(T value, out MemoryStream temporaryStream, 
-            SerializationFormat format = SerializationFormat.Binary, Timestamp timestamp = default);
+        int SizeOf(T value, out ArraySegment<byte> temporaryBuffer);
 
         /// <summary>
-        /// Write serialized value to the buffer at offset if there is enough capacity.
+        /// Write serialized value to the destination. Use SizeOf to prepare destination of required size.
+        /// This method is called by <see cref="BinarySerializer"/> only when <see cref="SizeOf"/> returned
+        /// positive length with default/empty temporaryBuffer.
         /// </summary>
         /// <param name="value">A value to serialize.</param>
-        /// <param name="pinnedDestination">A pinned pointer to a buffer to serialize the value into. It must have at least number of bytes returned by SizeOf().</param>
-        /// <param name="temporaryStream">A stream that was returned by SizeOf method. If it is not null then its content is written to the buffer.</param>
-        /// <param name="format">Compression method.</param>
-        /// <param name="timestamp">Optional Timestamp to save with data.</param>
+        /// <param name="destination">A pinned pointer to a buffer to serialize the value into. It must have at least number of bytes returned by SizeOf().</param>
         /// <returns>Returns the number of bytes written to the destination buffer or a negative error code that corresponds to <see cref="BinaryConverterErrorCode"/>.</returns>
-        int Write(T value, IntPtr pinnedDestination, MemoryStream temporaryStream = null, 
-            SerializationFormat format = SerializationFormat.Binary, Timestamp timestamp = default);
+        int Write(T value, DirectBuffer destination);
 
         /// <summary>
         /// Reads new value or fill existing value with data from the pointer,
         /// returns number of bytes read including any header.
         /// If not IsFixedSize, checks that version from the pointer equals the Version property.
         /// </summary>
-        int Read(IntPtr ptr, out T value, out Timestamp timestamp);
+        int Read(DirectBuffer source, out T value);
+    }
 
+    public sealed class JsonBinaryConverter<T> : IBinaryConverter<T>
+    {
+        private JsonBinaryConverter()
+        {
+        }
+
+        // This is not a "binary" converter, but a fallback with the same interface
+        public static JsonBinaryConverter<T> Instance = new JsonBinaryConverter<T>();
+
+        public byte ConverterVersion
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => 0;
+        }
+
+        public static int SizeOf(T value, out ArraySegment<byte> temporaryBuffer)
+        {
+            // offset 16 to allow writing header + length + ts without copy
+            temporaryBuffer = JsonSerializer.SerializeToRentedBuffer(value, DataTypeHeader.Size + 4 + 8);
+            return temporaryBuffer.Count;
+        }
+
+        int IBinaryConverter<T>.SizeOf(T value, out ArraySegment<byte> temporaryBuffer)
+        {
+            return SizeOf(value, out temporaryBuffer);
+        }
+
+        public static int Write(T value, DirectBuffer destination)
+        {
+            var size = SizeOf(value, out var buffer);
+            try
+            {
+                // in general buffer could be empty/default if size is known, but not with Json
+                ThrowHelper.AssertFailFast(size == buffer.Count, "size == buffer.Count");
+
+                if (size > destination.Length)
+                {
+                    return (int)BinaryConverterErrorCode.NotEnoughCapacity;
+                }
+
+                ((Span<byte>)buffer).CopyTo(destination.Span);
+
+                return size;
+            }
+            finally
+            {
+                BufferPool<byte>.Return(buffer.Array);
+            }
+        }
+
+        int IBinaryConverter<T>.Write(T value, DirectBuffer destination)
+        {
+            return Write(value, destination);
+        }
+
+        public static int Read(DirectBuffer source, out T value)
+        {
+
+            //if (MemoryMarshal.TryGetArray(source, out var segment))
+            //{
+            //    var reader = new JsonReader(segment.Array, segment.Offset);
+            //    value = JsonSerializer.Deserialize<T>(ref reader);
+            //    return reader.GetCurrentOffsetUnsafe();
+            //}
+
+            // var buffer = BufferPool<byte>.Rent(checked((int)(uint)source.Length));
+            //try
+            //{
+                // source.Span.CopyTo(((Span<byte>)buffer));
+                var reader = new JsonReader(source);
+                value = JsonSerializer.Deserialize<T>(ref reader);
+                return reader.GetCurrentOffsetUnsafe();
+            //}
+            //finally
+            //{
+            //    BufferPool<byte>.Return(buffer);
+            //}
+        }
+
+        int IBinaryConverter<T>.Read(DirectBuffer source, out T value)
+        {
+            return Read(source, out value);
+        }
     }
 }

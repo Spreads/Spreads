@@ -137,17 +137,17 @@ namespace Spreads.Core.Tests.Blosc
             var compressedDB = new DirectBuffer(bufferLen, compressedPtr);
             var decompressedDB = new DirectBuffer(bufferLen, decompressedPtr);
 
-            var originalLen = BinarySerializer.WriteUnsafe(values, originalPtr, null, SerializationFormat.Json);
+            var originalLen = BinarySerializer.Write(values, originalDB, default, SerializationFormat.Json);
             Console.WriteLine("Original len: " + originalLen);
 
             for (int level = 1; level < 10; level++)
             {
                 Settings.LZ4CompressionLevel = level;
 
-                var compressedLen = BinarySerializer.Write(originalDB.Slice(0, originalLen), compressedDB, CompressionMethod.Lz4);
+                var compressedLen = BinarySerializer.Compress(originalDB.Slice(0, originalLen), compressedDB, CompressionMethod.Lz4);
                 //Console.WriteLine("Compressed len: " + compressedLen);
 
-                var decompressedLen = BinarySerializer.Read(compressedDB.Slice(0, compressedLen), decompressedDB, CompressionMethod.Lz4);
+                var decompressedLen = BinarySerializer.Decompress(compressedDB.Slice(0, compressedLen), decompressedDB, CompressionMethod.Lz4);
                 //Console.WriteLine("Decompressed len: " + decompressedLen);
 
                 Console.WriteLine($"Level: {Settings.LZ4CompressionLevel}, ratio: {1.0 * decompressedLen / compressedLen}");
@@ -169,7 +169,7 @@ namespace Spreads.Core.Tests.Blosc
                     {
                         for (int i = 0; i < iterations; i++)
                         {
-                            compressedLen = BinarySerializer.Write(originalDB.Slice(0, originalLen), compressedDB, CompressionMethod.Lz4);
+                            compressedLen = BinarySerializer.Compress(originalDB.Slice(0, originalLen), compressedDB, CompressionMethod.Lz4);
                         }
                     }
 
@@ -177,7 +177,7 @@ namespace Spreads.Core.Tests.Blosc
                     {
                         for (int i = 0; i < iterations; i++)
                         {
-                            BinarySerializer.Read(compressedDB.Slice(0, compressedLen), decompressedDB, CompressionMethod.Lz4);
+                            BinarySerializer.Decompress(compressedDB.Slice(0, compressedLen), decompressedDB, CompressionMethod.Lz4);
                         }
                     }
                 }
@@ -219,17 +219,17 @@ namespace Spreads.Core.Tests.Blosc
             var compressedDB = new DirectBuffer(bufferLen, compressedPtr);
             var decompressedDB = new DirectBuffer(bufferLen, decompressedPtr);
 
-            var originalLen = BinarySerializer.WriteUnsafe(values, originalPtr, null, SerializationFormat.Json);
+            var originalLen = BinarySerializer.Write(values, originalDB, default, SerializationFormat.Json);
             Console.WriteLine("Original len: " + originalLen);
 
             for (int level = 1; level < 10; level++)
             {
                 Settings.ZstdCompressionLevel = level;
 
-                var compressedLen = BinarySerializer.Write(originalDB.Slice(0, originalLen), compressedDB, CompressionMethod.Zstd);
+                var compressedLen = BinarySerializer.Compress(originalDB.Slice(0, originalLen), compressedDB, CompressionMethod.Zstd);
                 //Console.WriteLine("Compressed len: " + compressedLen);
 
-                var decompressedLen = BinarySerializer.Read(compressedDB.Slice(0, compressedLen), decompressedDB, CompressionMethod.Zstd);
+                var decompressedLen = BinarySerializer.Decompress(compressedDB.Slice(0, compressedLen), decompressedDB, CompressionMethod.Zstd);
                 //Console.WriteLine("Decompressed len: " + decompressedLen);
 
                 Console.WriteLine($"Level: {Settings.ZstdCompressionLevel}, ratio: {1.0 * decompressedLen / compressedLen}");
@@ -251,7 +251,7 @@ namespace Spreads.Core.Tests.Blosc
                     {
                         for (int i = 0; i < iterations; i++)
                         {
-                            compressedLen = BinarySerializer.Write(originalDB.Slice(0, originalLen), compressedDB, CompressionMethod.Zstd);
+                            compressedLen = BinarySerializer.Compress(originalDB.Slice(0, originalLen), compressedDB, CompressionMethod.Zstd);
                         }
                     }
 
@@ -259,7 +259,7 @@ namespace Spreads.Core.Tests.Blosc
                     {
                         for (int i = 0; i < iterations; i++)
                         {
-                            BinarySerializer.Read(compressedDB.Slice(0, compressedLen), decompressedDB, CompressionMethod.Zstd);
+                            BinarySerializer.Decompress(compressedDB.Slice(0, compressedLen), decompressedDB, CompressionMethod.Zstd);
                         }
                     }
                 }
@@ -301,17 +301,17 @@ namespace Spreads.Core.Tests.Blosc
             var compressedDB = new DirectBuffer(bufferLen, compressedPtr);
             var decompressedDB = new DirectBuffer(bufferLen, decompressedPtr);
 
-            var originalLen = BinarySerializer.WriteUnsafe(values, originalPtr, null, SerializationFormat.Json);
+            var originalLen = BinarySerializer.Write(values, originalDB, default, SerializationFormat.Json);
             Console.WriteLine("Original len: " + originalLen);
 
             for (int level = 1; level < 10; level++)
             {
                 Settings.ZlibCompressionLevel = level;
 
-                var compressedLen = BinarySerializer.Write(originalDB.Slice(0, originalLen), compressedDB, CompressionMethod.GZip);
+                var compressedLen = BinarySerializer.Compress(originalDB.Slice(0, originalLen), compressedDB, CompressionMethod.GZip);
                 //Console.WriteLine("Compressed len: " + compressedLen);
 
-                var decompressedLen = BinarySerializer.Read(compressedDB.Slice(0, compressedLen), decompressedDB, CompressionMethod.GZip);
+                var decompressedLen = BinarySerializer.Decompress(compressedDB.Slice(0, compressedLen), decompressedDB, CompressionMethod.GZip);
                 //Console.WriteLine("Decompressed len: " + decompressedLen);
 
                 Console.WriteLine($"Level: {Settings.ZlibCompressionLevel}, ratio: {1.0 * decompressedLen / compressedLen}");
@@ -334,7 +334,7 @@ namespace Spreads.Core.Tests.Blosc
                     {
                         for (int i = 0; i < iterations; i++)
                         {
-                            compressedLen = BinarySerializer.Write(originalDB.Slice(0, originalLen), compressedDB, CompressionMethod.GZip);
+                            compressedLen = BinarySerializer.Compress(originalDB.Slice(0, originalLen), compressedDB, CompressionMethod.GZip);
                         }
                     }
 
@@ -342,7 +342,7 @@ namespace Spreads.Core.Tests.Blosc
                     {
                         for (int i = 0; i < iterations; i++)
                         {
-                            BinarySerializer.Read(compressedDB.Slice(0, compressedLen), decompressedDB, CompressionMethod.GZip);
+                            BinarySerializer.Decompress(compressedDB.Slice(0, compressedLen), decompressedDB, CompressionMethod.GZip);
                         }
                     }
                 }
@@ -385,7 +385,7 @@ namespace Spreads.Core.Tests.Blosc
             var compressedDB = new DirectBuffer(bufferLen, compressedPtr);
             var decompressedDB = new DirectBuffer(bufferLen, decompressedPtr);
 
-            var originalLen = BinarySerializer.WriteUnsafe(values, originalPtr, null, SerializationFormat.Json);
+            var originalLen = BinarySerializer.Write(values, originalDB, default, SerializationFormat.Json);
             Console.WriteLine("Original len: " + originalLen);
 
 
@@ -402,7 +402,7 @@ namespace Spreads.Core.Tests.Blosc
                     {
                         for (int i = 0; i < iterations; i++)
                         {
-                            compressedLen = BinarySerializer.Write(originalDB.Slice(0, originalLen), compressedDB, CompressionMethod.None);
+                            compressedLen = BinarySerializer.Compress(originalDB.Slice(0, originalLen), compressedDB, CompressionMethod.None);
                         }
                     }
 
@@ -410,7 +410,7 @@ namespace Spreads.Core.Tests.Blosc
                     {
                         for (int i = 0; i < iterations; i++)
                         {
-                            BinarySerializer.Read(compressedDB.Slice(0, compressedLen), decompressedDB, CompressionMethod.None);
+                            BinarySerializer.Decompress(compressedDB.Slice(0, compressedLen), decompressedDB, CompressionMethod.None);
                         }
                     }
                 }
@@ -452,7 +452,7 @@ namespace Spreads.Core.Tests.Blosc
             var compressedDB = new DirectBuffer(bufferLen, compressedPtr);
             var decompressedDB = new DirectBuffer(bufferLen, decompressedPtr);
 
-            var originalLen = BinarySerializer.WriteUnsafe(values, originalPtr, null, SerializationFormat.Json);
+            var originalLen = BinarySerializer.Write(values, compressedDB, default, SerializationFormat.Json);
             Console.WriteLine("Original len: " + originalLen);
 
             for (int level = 1; level < 10; level++)
@@ -535,7 +535,7 @@ namespace Spreads.Core.Tests.Blosc
             var compressedDB = new DirectBuffer(bufferLen, compressedPtr);
             var decompressedDB = new DirectBuffer(bufferLen, decompressedPtr);
 
-            var originalLen = BinarySerializer.WriteUnsafe(values, originalPtr, null, SerializationFormat.Json);
+            var originalLen = BinarySerializer.Write(values, originalDB, null, SerializationFormat.Json);
             Console.WriteLine("Original len: " + originalLen);
 
             for (int level = 0; level < 10; level++)

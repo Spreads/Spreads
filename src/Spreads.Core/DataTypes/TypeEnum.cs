@@ -107,6 +107,8 @@ namespace Spreads.DataTypes
         // DataType header that could be used to store additional information on what application type is 
         // encoded using the given serialization scheme (if the payload itself does not contain such info).
 
+        // TODO this is a part of binary converter. Non-binary is Json and that is it, won't change. We have a flag for binary.
+        // Json should have TypeEnum and SubTypeEnum for dispatching to correct deserializer.
         Json = 100,
         JsonDeflate = 101,
         JsonBrotli = 102,

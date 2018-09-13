@@ -13,6 +13,10 @@ namespace Spreads.DataTypes
     {
         // ReSharper disable once StaticMemberInGenericType
         public static readonly TypeEnum TypeEnum = GetTypeEnum();
+
+        // ReSharper disable once StaticMemberInGenericType
+        public static readonly TypeEnum ElementTypeEnum = GetElementTypeEnum();
+
         // ReSharper disable once StaticMemberInGenericType
         public static readonly bool IsInline = (int)GetTypeEnum() < Variant.KnownSmallTypesLimit;
 
@@ -69,37 +73,40 @@ namespace Spreads.DataTypes
             // TODO known types, otherwise will fallback to fixed binary
 
             // TypeEnum is for known types only
-            // TODO Attrobute KnownType and 
+            // TODO Attrobute KnownType and
             //#pragma warning disable 618
             //            if (TypeHelper<T>.Size >= 0) return TypeEnum.FixedBinary;
             //#pragma warning restore 618
 
-            // TODO TypeEnum.Object is for Object with known subtype (runtime/app specific) - it is like a container 
+            // TODO TypeEnum.Object is for Object with known subtype (runtime/app specific) - it is like a container
             // but for a single object
             // return TypeEnum.Object;
 
             return TypeEnum.None;
         }
 
-        // ReSharper disable once StaticMemberInGenericType
-        private static int _elementType = -1;
-
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static TypeEnum GetElementTypeEnum()
         {
-            if (_elementType != -1)
-            {
-                return (TypeEnum)(byte)_elementType;
-            }
             var ty = typeof(T);
             if (ty.IsArray)
             {
                 var elTy = ty.GetElementType();
                 var elTypeEnum = VariantHelper.GetTypeEnum(elTy);
-                _elementType = (int)elTypeEnum;
                 return elTypeEnum;
             }
             return TypeEnum.None;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static byte GetElementTypeSizeForHeader()
+        {
+            var size = GetElementTypeSize();
+            if (size > 0 && size < 256)
+            {
+                return (byte)size;
+            }
+            return 0;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -108,7 +115,7 @@ namespace Spreads.DataTypes
             var ty = typeof(T);
             if (!ty.IsArray)
             {
-                ThrowHelper.ThrowInvalidOperationException_ForVariantTypeMissmatch();
+                return -1;
             }
             var elTy = ty.GetElementType();
 #pragma warning disable 618
@@ -175,6 +182,7 @@ namespace Spreads.DataTypes
 
             if ((int)typeEnum < Variant.KnownSmallTypesLimit)
             {
+                // TODO(?) lookup table
                 switch (typeEnum)
                 {
                     case TypeEnum.Bool:

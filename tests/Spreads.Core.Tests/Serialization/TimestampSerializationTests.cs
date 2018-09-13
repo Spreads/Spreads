@@ -8,6 +8,7 @@ using Spreads.Serialization;
 using Spreads.Utils;
 using System;
 using System.Runtime.InteropServices;
+using Spreads.Buffers;
 
 namespace Spreads.Core.Tests.Serialization
 {
@@ -19,18 +20,20 @@ namespace Spreads.Core.Tests.Serialization
         {
             var count = 10_000_000;
             var rounds = 10;
-            var ptr = (byte*)Marshal.AllocHGlobal(16 * count);
+            var rm = BufferPool.Retain(16 * count, true);
+            var db = new DirectBuffer(rm);
+            
 
             long tsSum = 0;
             var rng = new Random(42);
             for (int i = 0; i < count; i++)
             {
-                var ptrI = ptr + i * 16;
+                var ptrI = db.Slice( i * 16);
                 var x = rng.Next(0, 100) / 100.0;
                 var isTimestamped = x < 0.5; // This is perfectly predicted: (i & 1) == 0;
                 Timestamp ts = isTimestamped ? default : (Timestamp)i;
                 tsSum += (long)ts;
-                BinarySerializer.WriteUnsafe(in i, (IntPtr)ptrI, timestamp: ts);
+                BinarySerializer.Write(in i, ptrI, timestamp: ts);
             }
 
             for (int r = 0; r < rounds; r++)
@@ -40,11 +43,11 @@ namespace Spreads.Core.Tests.Serialization
                 {
                     for (int i = 0; i < count; i++)
                     {
-                        var ptrI = ptr + i * 16;
-                        var header = *(DataTypeHeader*)ptrI;
+                        var ptrI = db.Slice(i * 16);
+                        var header = ptrI.Read<DataTypeHeader>(0);
                         if (header.VersionAndFlags.IsTimestamped && header.IsFixedSize)
                         {
-                            var ts = *(Timestamp*)(ptrI + 4);
+                            var ts = ptrI.Read<Timestamp>(4);
                             unchecked
                             {
                                 tsSumIf += (long)ts;
@@ -59,9 +62,9 @@ namespace Spreads.Core.Tests.Serialization
                 {
                     for (int i = 0; i < count; i++)
                     {
-                        var ptrI = ptr + i * 16;
+                        var ptrI = db.Slice(i * 16);
 
-                        var ts = BinarySerializer.ReadTimestamp2(ptrI, out _);
+                        var ts = BinarySerializer.ReadTimestamp2((byte*)ptrI.Data, out _);
                         unchecked
                         {
                             tsSumBrl += (long)ts;

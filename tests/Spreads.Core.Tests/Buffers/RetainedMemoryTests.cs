@@ -2,22 +2,17 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-using System;
-using System.Diagnostics;
-using System.Runtime.InteropServices;
-using System.Threading;
 using NUnit.Framework;
 using Spreads.Buffers;
-using Spreads.Utils;
+using System;
 
 namespace Spreads.Core.Tests.Buffers
 {
     [TestFixture]
     public class RetainedMemoryTests
     {
-       
         [Test]
-        public unsafe void CouldUseRetainedmemory()
+        public void CouldUseRetainedmemory()
         {
             var bytes = new byte[100];
             var rm = BufferPool.Retain(123456, true); // new RetainedMemory<byte>(bytes, default);
@@ -33,6 +28,24 @@ namespace Spreads.Core.Tests.Buffers
             var b = mem.Span[0];
         }
 
+        [Test]
+        public void CouldCreateRetainedmemoryFromArray()
+        {
+            var array = new byte[100];
+            var rm = new RetainedMemory<byte>(array);
 
+            var rmc = rm.Clone();
+
+            rm.Dispose();
+
+            GC.Collect(2, GCCollectionMode.Forced, true);
+            GC.WaitForPendingFinalizers();
+            GC.Collect(2, GCCollectionMode.Forced, true);
+            GC.WaitForPendingFinalizers();
+
+            rmc.Span[1] = 1;
+
+            // Assert.AreEqual(1, array[1]);
+        }
     }
 }

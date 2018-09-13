@@ -36,6 +36,11 @@ namespace Spreads
             // value and this field will be JIT compile-time constant. If set to false checks such as
             // if(Settings.AdditionalCorrectnessChecks.Enabled) will be
             // completely eliminated by JIT.
+
+            // TODO review when this works, there is some issue/comment on ngened version, also AOT, etc.
+            // Could ifdef. Main purpose is to find code errors under load (multi threaded, etc.)
+            // After enough tests this should be disabled
+
             public static readonly bool Enabled = _doAdditionalCorrectnessChecks;
         }
 
@@ -169,5 +174,22 @@ namespace Spreads
 
         internal static bool PreferCalli { get; set; } = IntPtr.Size == 8;
 
+        internal static int _compressionLimit = 860;
+        /// <summary>
+        /// Minimum size to apply compression.
+        /// </summary>
+        public static int CompressionLimit
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => _compressionLimit;
+            set
+            {
+                if (value < 500)
+                {
+                    value = 500;
+                }
+                _compressionLimit = value;
+            }
+        }
     }
 }

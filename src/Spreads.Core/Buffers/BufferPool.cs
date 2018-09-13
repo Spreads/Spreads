@@ -28,6 +28,7 @@ namespace Spreads.Buffers
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void Return(T[] array, bool clearArray = false)
         {
+            // TODO cannot use without clear currently due to how Utf8Json works
             ArrayPool<T>.Shared.Return(array, clearArray);
         }
 

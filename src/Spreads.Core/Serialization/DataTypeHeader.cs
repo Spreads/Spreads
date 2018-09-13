@@ -14,7 +14,7 @@ namespace Spreads.Serialization
     /// 0                   1                   2                   3
     /// 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
     /// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-    /// |  Ver  |T|D|C|B|    TypeEnum   |  TypeSize     | SubTypeEnum   |
+    /// | Version+Flags |    TypeEnum   |    TypeSize   |  SubTypeEnum  |
     /// +---------------------------------------------------------------+
     /// </summary>
     /// <remarks>
@@ -54,13 +54,8 @@ namespace Spreads.Serialization
         public bool IsFixedSize
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get
-            {
-                // TODO review
-                // LE, if equal than this is unknown but fixed size
-                Debug.Assert((int)TypeEnum <= Variant.KnownSmallTypesLimit);
-                return TypeSize > 0; // (int)TypeEnum <= Variant.KnownSmallTypesLimit;
-            }
+            // LE, if equal than this is unknown but fixed size. TypeSize could be > 0 for containers (e.g. arrays), so need to check type enum
+            get => (int)TypeEnum <= Variant.KnownSmallTypesLimit;
         }
 
         public unsafe int FirstPayloadByteOffset

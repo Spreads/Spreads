@@ -12,7 +12,7 @@ using System.Runtime.InteropServices;
 namespace Spreads.Core.Tests.Serialization
 {
     [TestFixture]
-    public class BrotliTests
+    public class CompressionTests
     {
         [StructLayout(LayoutKind.Sequential)]
         public struct TestValue
@@ -31,6 +31,32 @@ namespace Spreads.Core.Tests.Serialization
             public bool Boo { get; set; }
         }
 
+        [Test]
+        public void CouldCompressWithHeader()
+        {
+            var rm = BufferPool.Retain(1000000);
+            var count = 1000;
+            var values = new TestValue[count];
+            for (int i = 0; i < count; i++)
+            {
+                values[i] = new TestValue()
+                {
+                    // Dec = (((decimal)i + 1M / (decimal)(i + 1))),
+                    Dbl = (double)i + 1 / (double)(i + 1),
+                    //Dbl1 = (double)i + 1 / (double)(i + 1),
+                    Num = i,
+                    Num1 = i,
+                    Num2 = i,
+                    Str = i.ToString(),
+                    //Str1 = ((double)i + 1 / (double)(i + 1)).ToString(),
+                    Boo = i % 2 == 0
+                };
+            }
+
+
+            // Spreads.Serialization.Utf8Json.JsonSerializer.Serialize()
+
+        }
 
     }
 }
