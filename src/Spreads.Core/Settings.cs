@@ -172,7 +172,11 @@ namespace Spreads
         /// </summary>
         public static bool EnableChaosMonkey { get; set; } = false;
 
-        internal static bool PreferCalli { get; set; } = IntPtr.Size == 8;
+        // Good to know that this works and could use later when calli becomes an intrinsic,
+        // but cannot use default calli for native calls: https://github.com/dotnet/coreclr/issues/19997
+        // With `unmanaged cdecl` performance is equal to DllImport. CoreClr/CoreFx use the same DllImport
+        // as user code so there is nothing better that that for native interop.
+        internal static readonly bool PreferCalli = false;
 
         internal static int _compressionLimit = 860;
         /// <summary>

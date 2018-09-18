@@ -6,7 +6,6 @@ using Spreads.Blosc;
 using Spreads.Buffers;
 using Spreads.DataTypes;
 using System;
-using System.Diagnostics;
 
 #if NETCOREAPP2_1
 using System.IO.Compression;
@@ -224,7 +223,7 @@ namespace Spreads.Serialization
                 var ptr = CompressionMethodPointers[methodIdx];
                 var level = CompressionMethodLevels[methodIdx];
 
-                return UnsafeEx.CalliCompress(source._data, (IntPtr)source._length, destination._data, (IntPtr)destination._length,
+                return UnsafeEx.CalliCompressUnmanagedCdecl(source._data, (IntPtr)source._length, destination._data, (IntPtr)destination._length,
                     level, ptr);
             }
 
@@ -269,7 +268,7 @@ namespace Spreads.Serialization
                 var methodIdx = (int)method;
                 var ptr = DecompressionMethodPointers[methodIdx];
 
-                return UnsafeEx.CalliDecompress(source._data, (IntPtr)source._length, destination._data, (IntPtr)destination._length,
+                return UnsafeEx.CalliDecompressUnmanagedCdecl(source._data, (IntPtr)source._length, destination._data, (IntPtr)destination._length,
                     ptr);
             }
 
@@ -290,7 +289,7 @@ namespace Spreads.Serialization
 
             if (method == CompressionMethod.None)
             {
-                var len = (int)source.Length;
+                var len = source.Length;
                 if (len > destination.Length)
                 {
                     return 0;
@@ -308,7 +307,7 @@ namespace Spreads.Serialization
         {
             if (UseCalli)
             {
-                return UnsafeEx.CalliCompress(source._data, (IntPtr)source._length, destination._data, (IntPtr)destination._length,
+                return UnsafeEx.CalliCompressUnmanagedCdecl(source._data, (IntPtr)source._length, destination._data, (IntPtr)destination._length,
                     Settings.ZlibCompressionLevel,
                     BloscMethods.compress_lz4_ptr);
             }
@@ -322,7 +321,7 @@ namespace Spreads.Serialization
         {
             if (UseCalli)
             {
-                return UnsafeEx.CalliDecompress(source._data, (IntPtr)source._length, destination._data, (IntPtr)destination._length,
+                return UnsafeEx.CalliDecompressUnmanagedCdecl(source._data, (IntPtr)source._length, destination._data, (IntPtr)destination._length,
                     BloscMethods.decompress_lz4_ptr);
             }
 
@@ -334,7 +333,7 @@ namespace Spreads.Serialization
         {
             if (UseCalli)
             {
-                return UnsafeEx.CalliCompress(source._data, (IntPtr)source._length, destination._data, (IntPtr)destination._length,
+                return UnsafeEx.CalliCompressUnmanagedCdecl(source._data, (IntPtr)source._length, destination._data, (IntPtr)destination._length,
                     Settings.ZlibCompressionLevel,
                     BloscMethods.compress_zstd_ptr);
             }
@@ -348,7 +347,7 @@ namespace Spreads.Serialization
         {
             if (UseCalli)
             {
-                return UnsafeEx.CalliDecompress(source._data, (IntPtr)source._length, destination._data, (IntPtr)destination._length,
+                return UnsafeEx.CalliDecompressUnmanagedCdecl(source._data, (IntPtr)source._length, destination._data, (IntPtr)destination._length,
                     BloscMethods.decompress_zstd_ptr);
             }
 
@@ -360,7 +359,7 @@ namespace Spreads.Serialization
         {
             if (UseCalli)
             {
-                return UnsafeEx.CalliCompress(source._data, (IntPtr)source._length, destination._data, (IntPtr)destination._length,
+                return UnsafeEx.CalliCompressUnmanagedCdecl(source._data, (IntPtr)source._length, destination._data, (IntPtr)destination._length,
                     Settings.ZlibCompressionLevel,
                     BloscMethods.compress_zlib_ptr);
             }
@@ -374,7 +373,7 @@ namespace Spreads.Serialization
         {
             if (UseCalli)
             {
-                return UnsafeEx.CalliDecompress(source._data, (IntPtr)source._length, destination._data, (IntPtr)destination._length,
+                return UnsafeEx.CalliDecompressUnmanagedCdecl(source._data, (IntPtr)source._length, destination._data, (IntPtr)destination._length,
                     BloscMethods.decompress_zlib_ptr);
             }
 
@@ -386,7 +385,7 @@ namespace Spreads.Serialization
         {
             if (UseCalli)
             {
-                return UnsafeEx.CalliCompress(source._data, (IntPtr)source._length, destination._data, (IntPtr)destination._length,
+                return UnsafeEx.CalliCompressUnmanagedCdecl(source._data, (IntPtr)source._length, destination._data, (IntPtr)destination._length,
                     Settings.ZlibCompressionLevel,
                     BloscMethods.compress_deflate_ptr);
             }
@@ -400,7 +399,7 @@ namespace Spreads.Serialization
         {
             if (UseCalli)
             {
-                return UnsafeEx.CalliDecompress(source._data, (IntPtr)source._length, destination._data, (IntPtr)destination._length,
+                return UnsafeEx.CalliDecompressUnmanagedCdecl(source._data, (IntPtr)source._length, destination._data, (IntPtr)destination._length,
                     BloscMethods.decompress_deflate_ptr);
             }
 
@@ -411,7 +410,7 @@ namespace Spreads.Serialization
         {
             if (UseCalli)
             {
-                return UnsafeEx.CalliCompress(source._data, (IntPtr)source._length, destination._data, (IntPtr)destination._length,
+                return UnsafeEx.CalliCompressUnmanagedCdecl(source._data, (IntPtr)source._length, destination._data, (IntPtr)destination._length,
                     Settings.ZlibCompressionLevel,
                     BloscMethods.compress_gzip_ptr);
             }
@@ -425,7 +424,7 @@ namespace Spreads.Serialization
         {
             if (UseCalli)
             {
-                return UnsafeEx.CalliDecompress(source._data, (IntPtr)source._length, destination._data, (IntPtr)destination._length,
+                return UnsafeEx.CalliDecompressUnmanagedCdecl(source._data, (IntPtr)source._length, destination._data, (IntPtr)destination._length,
                     BloscMethods.decompress_gzip_ptr);
             }
 
@@ -476,7 +475,7 @@ namespace Spreads.Serialization
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static int WriteZlibX(DirectBuffer source, DirectBuffer destination)
         {
-            return UnsafeEx.CalliCompress(source._data, (IntPtr)source._length, destination._data, (IntPtr)destination._length,
+            return UnsafeEx.CalliCompressUnmanagedCdecl(source._data, (IntPtr)source._length, destination._data, (IntPtr)destination._length,
                 Settings.ZlibCompressionLevel, BloscMethods.compress_zlib_ptr);
         }
 
@@ -484,7 +483,7 @@ namespace Spreads.Serialization
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static int ReadZlibX(DirectBuffer source, DirectBuffer destination)
         {
-            return UnsafeEx.CalliDecompress(source._data, (IntPtr)source._length, destination._data, (IntPtr)destination._length, BloscMethods.decompress_zlib_ptr);
+            return UnsafeEx.CalliDecompressUnmanagedCdecl(source._data, (IntPtr)source._length, destination._data, (IntPtr)destination._length, BloscMethods.decompress_zlib_ptr);
         }
     }
 }
