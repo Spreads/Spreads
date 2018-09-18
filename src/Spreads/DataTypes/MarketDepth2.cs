@@ -45,7 +45,7 @@ namespace Spreads.DataTypes
         public int LargeAskSize => _largeAsk.Volume;
 
         [DataMember(Order = 3)]
-        public int LargeAskOffset => _largeAsk._reserved;
+        public int LargeAskOffset => _largeAsk._tag;
 
         [DataMember(Order = 4)]
         public Price SmallAskPrice => _smallAsk.Price;
@@ -54,7 +54,7 @@ namespace Spreads.DataTypes
         public int SmallAskSize => _smallAsk.Volume;
 
         [DataMember(Order = 6)]
-        public int SmallAskOffset => _smallAsk._reserved;
+        public int SmallAskOffset => _smallAsk._tag;
 
         [DataMember(Order = 7)]
         public Price SmallBidPrice => _smallBid.Price;
@@ -63,7 +63,7 @@ namespace Spreads.DataTypes
         public int SmallBidSize => _smallBid.Volume;
 
         [DataMember(Order = 9)]
-        public int SmallBidOffset => _smallBid._reserved;
+        public int SmallBidOffset => _smallBid._tag;
 
         [DataMember(Order = 10)]
         public Price LargeBidPrice => _largeBid.Price;
@@ -72,10 +72,10 @@ namespace Spreads.DataTypes
         public int LargeBidSize => _largeBid.Volume;
 
         [DataMember(Order = 12)]
-        public int LargeBidOffset => _largeBid._reserved;
+        public int LargeBidOffset => _largeBid._tag;
 
-        public bool IsBestAsk => _smallAsk._reserved == 0;
-        public bool IsBestBid => _smallBid._reserved == 0;
+        public bool IsBestAsk => _smallAsk._tag == 0;
+        public bool IsBestBid => _smallBid._tag == 0;
 
         public MarketDepth2 GetDelta(MarketDepth2 next)
         {
