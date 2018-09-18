@@ -29,46 +29,6 @@ namespace Spreads.Core.Tests.Serialization
         public ulong Long;
     }
 
-    public class TargetClass
-    {
-        public sbyte Number1 { get; set; }
-
-        public short Number2 { get; set; }
-
-        public int Number3 { get; set; }
-
-        public long Number4 { get; set; }
-
-        public byte Number5 { get; set; }
-
-        public ushort Number6 { get; set; }
-
-        public uint Number7 { get; set; }
-
-        public ulong Number8 { get; set; }
-
-        public double Number9 { get; set; }
-
-        public static TargetClass Create(Random random)
-        {
-            unchecked
-            {
-                return new TargetClass
-                {
-                    Number1 = (sbyte)random.Next(),
-                    Number2 = (short)random.Next(),
-                    Number3 = (int)random.Next(),
-                    Number4 = (long)new LongUnion { Int1 = random.Next(), Int2 = random.Next() }.Long,
-                    Number5 = (byte)random.Next(),
-                    Number6 = (ushort)random.Next(),
-                    Number7 = (uint)random.Next(),
-                    Number8 = (ulong)new LongUnion { Int1 = random.Next(), Int2 = random.Next() }.Long,
-                    Number9 = random.NextDouble()*1000,
-                };
-            }
-        }
-    }
-
     [TestFixture]
     public class Utf8JsonTests
     {
@@ -102,10 +62,10 @@ namespace Spreads.Core.Tests.Serialization
             var h = mem.Pin();
             var db = new DirectBuffer(bytes.Length, (byte*)h.Pointer);
 
-            var values = new TargetClass[count];
+            var values = new Serialization.TestValue[count];
             for (int i = 0; i < count; i++)
             {
-                values[i] = TargetClass.Create(rand);
+                values[i] = Serialization.TestValue.Create(rand);
             }
 
             for (int r = 0; r < 20; r++)
@@ -132,7 +92,7 @@ namespace Spreads.Core.Tests.Serialization
                     {
                         //var writer = new Spreads.Serialization.Utf8Json.JsonWriter(bytes);
                         //Spreads.Serialization.Utf8Json.JsonSerializer.Serialize(ref writer, values[i]);
-                        var val = Spreads.Serialization.Utf8Json.JsonSerializer.Deserialize<TargetClass>(db);
+                        var val = Spreads.Serialization.Utf8Json.JsonSerializer.Deserialize<Serialization.TestValue>(db);
                         //if (val.Num != values[i].Num)
                         //{
                         //    // var val1 = Utf8Json.JsonSerializer.Deserialize<TestValue>(bytes);
@@ -166,7 +126,7 @@ namespace Spreads.Core.Tests.Serialization
                     {
                         //var writer = new Utf8Json.JsonWriter(bytes);
                         //Utf8Json.JsonSerializer.Serialize(ref writer, values[i]);
-                        var val = Utf8Json.JsonSerializer.Deserialize<TargetClass>(bytes);
+                        var val = Utf8Json.JsonSerializer.Deserialize<Serialization.TestValue>(bytes);
                         //if (val.Num != values[i].Num)
                         //{
                         //    Console.WriteLine($"val.Num {val.Num} != values[i].Num {values[i].Num} for i={i}");

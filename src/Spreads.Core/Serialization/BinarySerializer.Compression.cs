@@ -91,7 +91,7 @@ namespace Spreads.Serialization
         /// and do not use Blosc's high-level functions e.g. for Span-based maps.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static int CompressWithHeader(DirectBuffer source, DirectBuffer destination, CompressionMethod method)
+        internal static int CompressWithHeader(in DirectBuffer source, in DirectBuffer destination, CompressionMethod method)
         {
             var srcLen = checked((int)(uint)source.Length);
             var header = source.Read<DataTypeHeader>(0);
@@ -132,7 +132,7 @@ namespace Spreads.Serialization
                 if (compressedLength <= 0)
                 {
 #if DEBUG
-                    Trace.TraceWarning("Compression is not effective.");
+                    System.Diagnostics.Trace.TraceWarning("Compression is not effective.");
 #endif
                     goto COPY;
                 }
@@ -156,7 +156,7 @@ namespace Spreads.Serialization
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static int DecompressWithHeader(DirectBuffer source, DirectBuffer destination)
+        internal static int DecompressWithHeader(in DirectBuffer source, in DirectBuffer destination)
         {
             var header = source.Read<DataTypeHeader>(0);
             var method = header.VersionAndFlags.CompressionMethod;
@@ -184,7 +184,7 @@ namespace Spreads.Serialization
 
             var compressedPayload = source.Slice(DataTypeHeader.Size + 4 + tsSize + 4, compressedLength);
             var decompressedDestination = destination.Slice(DataTypeHeader.Size + 4 + tsSize);
-            var uncompressedLength = Decompress(compressedPayload, decompressedDestination, method);
+            var uncompressedLength = Decompress(in compressedPayload, in decompressedDestination, method);
             if (uncompressedLength <= 0)
             {
                 ThrowHelper.ThrowArgumentException("Corrupted compressed data");
@@ -196,11 +196,8 @@ namespace Spreads.Serialization
             return DataTypeHeader.Size + 4 + tsSize + uncompressedLength;
         }
 
-        /// <summary>
-        /// Buffers are payload after headers.
-        /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static int Compress(DirectBuffer source, DirectBuffer destination, CompressionMethod method)
+        internal static int Compress(in DirectBuffer source, in DirectBuffer destination, CompressionMethod method)
         {
             //if (Settings.AdditionalCorrectnessChecks.Enabled)
             //{
@@ -229,22 +226,22 @@ namespace Spreads.Serialization
 
             if (method == CompressionMethod.GZip)
             {
-                return WriteGZip(source, destination);
+                return WriteGZip(in source, in destination);
             }
 
             if (method == CompressionMethod.Lz4)
             {
-                return WriteLz4(source, destination);
+                return WriteLz4(in source, in destination);
             }
 
             if (method == CompressionMethod.Zstd)
             {
-                return WriteZstd(source, destination);
+                return WriteZstd(in source, in destination);
             }
 
             if (method == CompressionMethod.None)
             {
-                var len = (int)source.Length;
+                var len = source.Length;
                 if (len > destination.Length)
                 {
                     return 0;
@@ -258,10 +255,13 @@ namespace Spreads.Serialization
         }
 
         /// <summary>
-        /// Buffers are payload after headers.
+        /// Source must be of exact compressed payload size, which must be stored somewhere (e.g. in custom header). Use Slice() to trim source to the exact size.
+        /// Destination must have enough size for uncompressed payload.
+        /// This method returns number of uncompressed bytes written to the destination buffer.
+        /// Non-positive return value means an error, exact value if opaque as of now (impl. detail: it returns native error code for GZip/LZ4, but that could change).
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static int Decompress(DirectBuffer source, DirectBuffer destination, CompressionMethod method)
+        internal static int Decompress(in DirectBuffer source, in DirectBuffer destination, CompressionMethod method)
         {
             if (UseCalli)
             {
@@ -303,7 +303,7 @@ namespace Spreads.Serialization
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static int WriteLz4(DirectBuffer source, DirectBuffer destination)
+        internal static int WriteLz4(in DirectBuffer source, in DirectBuffer destination)
         {
             if (UseCalli)
             {
@@ -317,7 +317,7 @@ namespace Spreads.Serialization
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static int ReadLz4(DirectBuffer source, DirectBuffer destination)
+        internal static int ReadLz4(in DirectBuffer source, in DirectBuffer destination)
         {
             if (UseCalli)
             {
@@ -329,7 +329,7 @@ namespace Spreads.Serialization
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static int WriteZstd(DirectBuffer source, DirectBuffer destination)
+        internal static int WriteZstd(in DirectBuffer source, in DirectBuffer destination)
         {
             if (UseCalli)
             {
@@ -343,7 +343,7 @@ namespace Spreads.Serialization
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static int ReadZstd(DirectBuffer source, DirectBuffer destination)
+        internal static int ReadZstd(in DirectBuffer source, in DirectBuffer destination)
         {
             if (UseCalli)
             {
@@ -355,7 +355,7 @@ namespace Spreads.Serialization
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static int WriteZlib(DirectBuffer source, DirectBuffer destination)
+        internal static int WriteZlib(in DirectBuffer source, in DirectBuffer destination)
         {
             if (UseCalli)
             {
@@ -369,7 +369,7 @@ namespace Spreads.Serialization
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static int ReadZlib(DirectBuffer source, DirectBuffer destination)
+        internal static int ReadZlib(in DirectBuffer source, in DirectBuffer destination)
         {
             if (UseCalli)
             {
@@ -381,7 +381,7 @@ namespace Spreads.Serialization
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static int WriteDeflate(DirectBuffer source, DirectBuffer destination)
+        internal static int WriteDeflate(in DirectBuffer source, in DirectBuffer destination)
         {
             if (UseCalli)
             {
@@ -395,7 +395,7 @@ namespace Spreads.Serialization
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static int ReadDeflate(DirectBuffer source, DirectBuffer destination)
+        internal static int ReadDeflate(in DirectBuffer source, in DirectBuffer destination)
         {
             if (UseCalli)
             {
@@ -406,7 +406,7 @@ namespace Spreads.Serialization
             return BloscMethods.decompress_deflate(source._data, (IntPtr)source._length, destination._data, (IntPtr)destination._length);
         }
 
-        internal static int WriteGZip(DirectBuffer source, DirectBuffer destination)
+        internal static int WriteGZip(in DirectBuffer source, in DirectBuffer destination)
         {
             if (UseCalli)
             {
@@ -420,7 +420,7 @@ namespace Spreads.Serialization
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static int ReadGZip(DirectBuffer source, DirectBuffer destination)
+        internal static int ReadGZip(in DirectBuffer source, in DirectBuffer destination)
         {
             if (UseCalli)
             {
@@ -432,7 +432,7 @@ namespace Spreads.Serialization
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static void Shuffle(DirectBuffer source, DirectBuffer destination, byte typeSize)
+        internal static void Shuffle(in DirectBuffer source, in DirectBuffer destination, byte typeSize)
         {
             if (UseCalli)
             {
@@ -445,7 +445,7 @@ namespace Spreads.Serialization
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static void Unshuffle(DirectBuffer source, DirectBuffer destination, byte typeSize)
+        internal static void Unshuffle(in DirectBuffer source, in DirectBuffer destination, byte typeSize)
         {
             if (UseCalli)
             {
@@ -455,35 +455,6 @@ namespace Spreads.Serialization
             {
                 BloscMethods.unshuffle((IntPtr)typeSize, (IntPtr)source._length, source._data, destination._data);
             }
-        }
-
-        [Obsolete("TODO remove")]
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static void ShuffleX(DirectBuffer source, DirectBuffer destination, byte typeSize)
-        {
-            UnsafeEx.CalliShuffleUnshuffle((IntPtr)typeSize, (IntPtr)source._length, source._data, destination._data, BloscMethods.shuffle_ptr);
-        }
-
-        [Obsolete("TODO remove")]
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static void UnshuffleX(DirectBuffer source, DirectBuffer destination, byte typeSize)
-        {
-            UnsafeEx.CalliShuffleUnshuffle((IntPtr)typeSize, (IntPtr)source._length, source._data, destination._data, BloscMethods.unshuffle_ptr);
-        }
-
-        [Obsolete("TODO remove")]
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static int WriteZlibX(DirectBuffer source, DirectBuffer destination)
-        {
-            return UnsafeEx.CalliCompressUnmanagedCdecl(source._data, (IntPtr)source._length, destination._data, (IntPtr)destination._length,
-                Settings.ZlibCompressionLevel, BloscMethods.compress_zlib_ptr);
-        }
-
-        [Obsolete("TODO remove")]
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static int ReadZlibX(DirectBuffer source, DirectBuffer destination)
-        {
-            return UnsafeEx.CalliDecompressUnmanagedCdecl(source._data, (IntPtr)source._length, destination._data, (IntPtr)destination._length, BloscMethods.decompress_zlib_ptr);
         }
     }
 }

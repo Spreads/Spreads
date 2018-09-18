@@ -1,7 +1,9 @@
-﻿using System;
+﻿using Spreads.Serialization;
+using System;
+#if NETCOREAPP2_1
 using System.Diagnostics;
+#endif
 using System.Runtime.CompilerServices;
-using Spreads.Serialization;
 
 namespace Spreads
 {
@@ -40,8 +42,11 @@ namespace Spreads
             // TODO review when this works, there is some issue/comment on ngened version, also AOT, etc.
             // Could ifdef. Main purpose is to find code errors under load (multi threaded, etc.)
             // After enough tests this should be disabled
-
+#if DEBUG
+            public static readonly bool Enabled = true;
+#else
             public static readonly bool Enabled = _doAdditionalCorrectnessChecks;
+#endif
         }
 
         /// <summary>
@@ -60,6 +65,7 @@ namespace Spreads
         public static SerializationFormat DefaultSerializationFormat { get; set; } = SerializationFormat.JsonGZip;
 
         // TODO when/if used often benchmark its effect and if significant then set default to false
+        // ReSharper disable once NotAccessedField.Local
         private static bool _doAdditionalCorrectnessChecks = true;
 
         /// <summary>
@@ -80,7 +86,7 @@ namespace Spreads
         /// in buffer management and other cases that could generate a lot of garbage and
         /// induce GC latency. For the later cases `#if DEBUG` is used.
         /// </remarks>
-        [Obsolete("For JIT to work, use internal Settings.AdditionalCorrectnessChecks.Enabled static readonly field.")]
+        [Obsolete("For JIT magic to work, use internal static readonly field directly in if: `if(Settings.AdditionalCorrectnessChecks.Enabled)`.")]
         public static bool DoAdditionalCorrectnessChecks
         {
             get => AdditionalCorrectnessChecks.Enabled;
@@ -179,6 +185,7 @@ namespace Spreads
         internal static readonly bool PreferCalli = false;
 
         internal static int _compressionLimit = 860;
+
         /// <summary>
         /// Minimum size to apply compression.
         /// </summary>

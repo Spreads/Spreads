@@ -77,7 +77,7 @@ namespace Spreads.Buffers
         public bool IsValid
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => (long)_length > 0 && _data != null;
+            get => _length > 0 && _data != null;
         }
 
         public Span<byte> Span
@@ -92,13 +92,13 @@ namespace Spreads.Buffers
         public int Length
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => (int)_length;
+            get => checked((int)_length);
         }
 
         public long LongLength
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => (long)_length;
+            get => _length;
         }
 
         public byte* Data
@@ -659,7 +659,7 @@ namespace Spreads.Buffers
             if (Settings.AdditionalCorrectnessChecks.Enabled)
             { Assert(index, length); }
             var destination = _data + index;
-            InitBlockUnaligned((void*)destination, 0, (uint)length);
+            InitBlockUnaligned(destination, 0, (uint)length);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -726,7 +726,7 @@ namespace Spreads.Buffers
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void CopyTo(long index, DirectBuffer destination, int destinationOffset, int length)
+        public void CopyTo(long index, in DirectBuffer destination, int destinationOffset, int length)
         {
             if (Settings.AdditionalCorrectnessChecks.Enabled)
             {
@@ -740,7 +740,7 @@ namespace Spreads.Buffers
         {
             if (Settings.AdditionalCorrectnessChecks.Enabled)
             { Assert(index, length); }
-            CopyBlockUnaligned((byte*)destination, _data + index, checked((uint)length));
+            CopyBlockUnaligned(destination, _data + index, checked((uint)length));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -761,7 +761,7 @@ namespace Spreads.Buffers
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void CopyFrom(long index, DirectBuffer source, int sourceOffset, int length)
+        public void CopyFrom(long index, in DirectBuffer source, int sourceOffset, int length)
         {
             if (Settings.AdditionalCorrectnessChecks.Enabled)
             { source.Assert(sourceOffset, length); }
@@ -805,7 +805,7 @@ namespace Spreads.Buffers
 
     public static unsafe class DirectBufferExtensions
     {
-        public static string GetString(this Encoding encoding, DirectBuffer buffer)
+        public static string GetString(this Encoding encoding, in DirectBuffer buffer)
         {
             return encoding.GetString(buffer._data, buffer.Length);
         }

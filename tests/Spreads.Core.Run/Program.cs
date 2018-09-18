@@ -7,11 +7,18 @@ namespace Spreads.Core.Run
     {
         private static void Main(string[] args)
         {
+            Settings.DoAdditionalCorrectnessChecks = false;
 
-            SerializationBenchmark();
+            PackWithHeaderBenchmark();
 
             Console.WriteLine("Finished, press enter to exit...");
             Console.ReadLine();
+        }
+
+        private static void PackWithHeaderBenchmark()
+        {
+            var test = new CompressionTests();
+            test.CouldPackWithHeaderBenchmark();
         }
 
         private static void SerializationBenchmark()
