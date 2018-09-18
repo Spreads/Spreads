@@ -10,16 +10,16 @@ using System;
 using System.IO;
 using System.IO.Compression;
 using System.Runtime.InteropServices;
-using Spreads.Core.Tests.Serialization;
 
 namespace Spreads.Core.Tests.Blosc
 {
     [TestFixture]
     public unsafe class BloscTests
     {
+        public const long Iterations = 1_000;
         public const int itemCount = 20;
 
-        [Test, Explicit("long running")]
+        [Test]
         public void CouldShuffleUnshuffle()
         {
             var bufferLen = 1_000_000;
@@ -47,7 +47,8 @@ namespace Spreads.Core.Tests.Blosc
                 }
             }
 
-            var iterations = 1000_000L;
+            var iterations = Iterations;
+
             var rounds = 10;
             for (int r = 0; r < rounds; r++)
             {
@@ -104,7 +105,7 @@ namespace Spreads.Core.Tests.Blosc
             public bool Boo { get; set; }
         }
 
-        [Test, Explicit("long running")]
+        [Test]
         public void Lz4Benchmark()
         {
             // R2 has some strange very slow read perf on this data when count is small
@@ -158,7 +159,7 @@ namespace Spreads.Core.Tests.Blosc
             Console.WriteLine("-------------------------------");
 
             var rounds = 10;
-            var iterations = 100000 / itemCount;
+            var iterations = Iterations / itemCount;
             for (int r = 0; r < rounds; r++)
             {
                 for (int level = 1; level < 10; level++)
@@ -186,7 +187,7 @@ namespace Spreads.Core.Tests.Blosc
             Benchmark.Dump();
         }
 
-        [Test, Explicit("long running")]
+        [Test]
         public void ZstdBenchmark()
         {
             // R2 has some strange very slow read perf on this data when count is small
@@ -240,7 +241,7 @@ namespace Spreads.Core.Tests.Blosc
             Console.WriteLine("-------------------------------");
 
             var rounds = 10;
-            var iterations = 100000 / itemCount;
+            var iterations = Iterations / itemCount;
             for (int r = 0; r < rounds; r++)
             {
                 for (int level = 1; level < 5; level++)
@@ -268,7 +269,7 @@ namespace Spreads.Core.Tests.Blosc
             Benchmark.Dump();
         }
 
-        [Test, Explicit("long running")]
+        [Test]
         public void GZipBenchmark()
         {
             // R2 has some strange very slow read perf on this data when count is small
@@ -322,14 +323,14 @@ namespace Spreads.Core.Tests.Blosc
             Console.WriteLine("-------------------------------");
 
             var rounds = 10;
-            var iterations = 100000 / itemCount;
+            var iterations = Iterations / itemCount;
             for (int r = 0; r < rounds; r++)
             {
                 for (int level = 1; level < 5; level++)
                 {
                     Settings.ZlibCompressionLevel = level;
                     int compressedLen = 0;
-                   
+
                     using (Benchmark.Run($"Zlib W{level}", originalLen * iterations, true))
                     {
                         for (int i = 0; i < iterations; i++)
@@ -351,8 +352,7 @@ namespace Spreads.Core.Tests.Blosc
             Benchmark.Dump();
         }
 
-
-        [Test, Explicit("long running")]
+        [Test]
         public void CopyViaCalliBenchmark()
         {
             // R2 has some strange very slow read perf on this data when count is small
@@ -388,9 +388,8 @@ namespace Spreads.Core.Tests.Blosc
             var originalLen = BinarySerializer.Write(values, originalDB, default, SerializationFormat.Json);
             Console.WriteLine("Original len: " + originalLen);
 
-
             var rounds = 10;
-            var iterations = 100 * 100000 / itemCount;
+            var iterations = 100 * Iterations / itemCount;
             for (int r = 0; r < rounds; r++)
             {
                 for (int level = 1; level < 5; level++)
@@ -419,7 +418,7 @@ namespace Spreads.Core.Tests.Blosc
             Benchmark.Dump();
         }
 
-        [Test, Explicit("long running")]
+        [Test]
         public void DeflateBenchmark()
         {
             // R2 has some strange very slow read perf on this data when count is small
@@ -473,7 +472,7 @@ namespace Spreads.Core.Tests.Blosc
             Console.WriteLine("-------------------------------");
 
             var rounds = 10;
-            var iterations = 100000 / itemCount;
+            var iterations = Iterations / itemCount;
             for (int r = 0; r < rounds; r++)
             {
                 for (int level = 1; level < 5; level++)
@@ -502,7 +501,8 @@ namespace Spreads.Core.Tests.Blosc
         }
 
 #if NETCOREAPP2_1
-        [Test, Explicit("long running")]
+
+        [Test]
         public void BrotliBenchmark()
         {
             // R2 has some strange very slow read perf on this data when count is small
@@ -556,7 +556,7 @@ namespace Spreads.Core.Tests.Blosc
             Console.WriteLine("-------------------------------");
 
             var rounds = 10;
-            var iterations = 100000 / itemCount;
+            var iterations = Iterations / itemCount;
             for (int r = 0; r < rounds; r++)
             {
                 for (int level = 1; level < 5; level++)
@@ -583,6 +583,7 @@ namespace Spreads.Core.Tests.Blosc
 
             Benchmark.Dump();
         }
+
 #endif
 
         [Test]
@@ -615,7 +616,7 @@ namespace Spreads.Core.Tests.Blosc
                 BinarySerializer.WriteGZip(new DirectBuffer(rms.Length, (IntPtr)cptr), compressedDB);
 
             var compressedStream = RecyclableMemoryStream.Create(Spreads.Buffers.RecyclableMemoryStreamManager.Default);
-            using (var compressor = new GZipStream(compressedStream, CompressionLevel.Optimal, true) )
+            using (var compressor = new GZipStream(compressedStream, CompressionLevel.Optimal, true))
             {
                 rms.PositionInternal = 0;
                 rms.CopyTo(compressor);
