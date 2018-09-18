@@ -55,7 +55,7 @@ namespace Spreads.Serialization
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             // LE, if equal than this is unknown but fixed size. TypeSize could be > 0 for containers (e.g. arrays), so need to check type enum
-            get => (int)TypeEnum <= Variant.KnownSmallTypesLimit;
+            get => unchecked((uint)(TypeEnum - 1)) < Variant.KnownSmallTypesLimit;
         }
 
         public unsafe int FirstPayloadByteOffset
