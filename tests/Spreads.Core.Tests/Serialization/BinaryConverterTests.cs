@@ -32,13 +32,13 @@ namespace Spreads.Core.Tests.Serialization
                 return 4;
             }
 
-            public int Write(DummyStruct value, DirectBuffer destination)
+            public int Write(DummyStruct value, ref DirectBuffer destination)
             {
                 destination.WriteInt32(0, value._value);
                 return 4;
             }
 
-            public int Read(DirectBuffer source, out DummyStruct value)
+            public int Read(ref DirectBuffer source, out DummyStruct value)
             {
                 var val = source.ReadInt32(0);
                 value = new DummyStruct(val);
@@ -117,7 +117,7 @@ namespace Spreads.Core.Tests.Serialization
                         var value = values[i];
                         var size = BinarySerializer.SizeOf(in value, out var tmpBuffer, SerializationFormat.Binary);
 
-                        var written = BinarySerializer.Write(in value, dest, tmpBuffer, SerializationFormat.Binary);
+                        var written = BinarySerializer.Write(in value, ref dest, tmpBuffer, SerializationFormat.Binary);
 
                         if (size != written)
                         {
@@ -139,7 +139,7 @@ namespace Spreads.Core.Tests.Serialization
 
                     for (int i = 0; i < count; i++)
                     {
-                        var read = BinarySerializer.Read(readSource, out DummyStruct value1);
+                        var read = BinarySerializer.Read(ref readSource, out DummyStruct value1);
                         readSource = readSource.Slice(read);
                         var expected = values[i];
                         if (!value1.Equals(expected))
@@ -164,7 +164,7 @@ namespace Spreads.Core.Tests.Serialization
             var rm = BufferPool.Retain(100_000_000);
             var db = new DirectBuffer(rm.Span);
 
-            var count = 100_000;
+            var count = 1000_000;
             var rounds = 10;
 
             var rng = new Random(0);
@@ -191,7 +191,7 @@ namespace Spreads.Core.Tests.Serialization
                         var value = values[i];
                         var size = BinarySerializer.SizeOf(in value, out var tmpBuffer, SerializationFormat.Json);
 
-                        var written = BinarySerializer.Write(in value, dest, tmpBuffer, SerializationFormat.Json);
+                        var written = BinarySerializer.Write(in value, ref dest, tmpBuffer, SerializationFormat.Json);
 
                         if (size != written)
                         {
@@ -213,7 +213,7 @@ namespace Spreads.Core.Tests.Serialization
 
                     for (int i = 0; i < count; i++)
                     {
-                        var read = BinarySerializer.Read(readSource, out DummyStruct value1);
+                        var read = BinarySerializer.Read(ref readSource, out DummyStruct value1);
                         readSource = readSource.Slice(read);
                         var expected = values[i];
                         if (!value1.Equals(expected))

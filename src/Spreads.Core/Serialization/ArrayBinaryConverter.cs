@@ -59,12 +59,12 @@ namespace Spreads.Serialization
             throw new NotImplementedException();
         }
 
-        public int Write(TElement[] value, DirectBuffer destination)
+        public int Write(TElement[] value, ref DirectBuffer destination)
         {
             throw new NotImplementedException();
         }
 
-        public int Read(DirectBuffer source, out TElement[] value)
+        public int Read(ref DirectBuffer source, out TElement[] value)
         {
             throw new NotImplementedException();
         }

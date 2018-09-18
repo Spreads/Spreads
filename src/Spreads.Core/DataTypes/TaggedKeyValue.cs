@@ -146,12 +146,12 @@ namespace Spreads.DataTypes
             throw new NotImplementedException();
         }
 
-        public int Write(TaggedKeyValue<TKey, TValue> value, DirectBuffer destination)
+        public int Write(TaggedKeyValue<TKey, TValue> value, ref DirectBuffer destination)
         {
             throw new NotImplementedException();
         }
 
-        public int Read(DirectBuffer source, out TaggedKeyValue<TKey, TValue> value)
+        public int Read(ref DirectBuffer source, out TaggedKeyValue<TKey, TValue> value)
         {
             throw new NotImplementedException();
         }

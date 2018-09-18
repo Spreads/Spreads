@@ -146,7 +146,8 @@ namespace Spreads.Serialization
                 tmpArray = BufferPool<byte>.Rent(rawOffset + rawSize);
                 pin = ((Memory<byte>)tmpArray).Pin();
                 tmpDestination = new DirectBuffer(tmpArray.Length, (byte*)pin.Pointer);
-                bc.Write(value, tmpDestination.Slice(rawOffset));
+                var sl = tmpDestination.Slice(rawOffset);
+                bc.Write(value, ref sl);
                 // now tmpArray is the same as if if was returned from SizeOfNoHeader
             }
             else
@@ -222,7 +223,7 @@ namespace Spreads.Serialization
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static int Write<T>(in T value, DirectBuffer pinnedDestination,
+        internal static int Write<T>(in T value, ref DirectBuffer pinnedDestination,
             ArraySegment<byte> temporaryBuffer = default,
             SerializationFormat format = default,
             Timestamp timestamp = default)
@@ -273,11 +274,11 @@ namespace Spreads.Serialization
                 bc = TypeHelper<T>.BinaryConverter ?? JsonBinaryConverter<T>.Instance;
             }
 
-            return WriteVarSize(value, pinnedDestination, format, timestamp, bc, hasTs);
+            return WriteVarSize(value, ref pinnedDestination, format, timestamp, bc, hasTs);
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
-        private static int WriteVarSize<T>(T value, DirectBuffer pinnedDestination, SerializationFormat format,
+        private static int WriteVarSize<T>(T value, ref DirectBuffer pinnedDestination, SerializationFormat format,
             Timestamp timestamp, IBinaryConverter<T> bc, bool hasTs)
         {
             if (bc == null)
@@ -329,8 +330,8 @@ namespace Spreads.Serialization
 
                 // NB: after header.VersionAndFlags.IsTimestamped = true;
                 destination2.Write(0, header);
-
-                var rawPayloadLength = bc.Write(value, destination2.Slice(pos));
+                var sl = destination2.Slice(pos);
+                var rawPayloadLength = bc.Write(value, ref sl);
 
                 destination2.Write(DataTypeHeader.Size, tsSize + rawPayloadLength);
 
@@ -360,7 +361,7 @@ namespace Spreads.Serialization
             using (var handle = buffer.Pin())
             {
                 var db = new DirectBuffer(buffer.Length, (byte*)handle.Pointer);
-                return Write(in value, db, temporaryBuffer, format, timestamp);
+                return Write(in value, ref db, temporaryBuffer, format, timestamp);
             }
         }
 
@@ -490,13 +491,13 @@ namespace Spreads.Serialization
         //        }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int Read<T>(DirectBuffer source, out T value)
+        public static int Read<T>(ref DirectBuffer source, out T value)
         {
-            return Read(source, out value, out _);
+            return Read(ref source, out value, out _);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int Read<T>(DirectBuffer source, out T value, out Timestamp timestamp)
+        public static int Read<T>(ref DirectBuffer source, out T value, out Timestamp timestamp)
         {
             var header = source.Read<DataTypeHeader>(0);
             var tsSize = header.VersionAndFlags.IsTimestamped ? Timestamp.Size : 0;
@@ -546,8 +547,8 @@ namespace Spreads.Serialization
                 {
                     bc = JsonBinaryConverter<T>.Instance;
                 }
-
-                var readSize1 = offset + bc.Read(source.Slice(offset, readSize - offset), out value);
+                var sl = source.Slice(offset, readSize - offset);
+                var readSize1 = offset + bc.Read(ref sl, out value);
                 if (readSize > 0 && readSize1 != readSize)
                 {
                     ThrowHelper.FailFast($"readSize > 0 && readSize1 != readSize");
@@ -647,7 +648,8 @@ namespace Spreads.Serialization
         {
             using (var handle = buffer.Pin())
             {
-                return Read(new DirectBuffer(buffer.Length, (byte*)handle.Pointer), out value, out timestamp);
+                var db = new DirectBuffer(buffer.Length, (byte*) handle.Pointer);
+                return Read(ref db, out value, out timestamp);
             }
         }
 

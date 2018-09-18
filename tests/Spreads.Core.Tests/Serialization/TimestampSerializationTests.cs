@@ -33,7 +33,7 @@ namespace Spreads.Core.Tests.Serialization
                 var isTimestamped = x < 0.5; // This is perfectly predicted: (i & 1) == 0;
                 Timestamp ts = isTimestamped ? default : (Timestamp)i;
                 tsSum += (long)ts;
-                BinarySerializer.Write(in i, ptrI, timestamp: ts);
+                BinarySerializer.Write(in i, ref ptrI, timestamp: ts);
             }
 
             for (int r = 0; r < rounds; r++)

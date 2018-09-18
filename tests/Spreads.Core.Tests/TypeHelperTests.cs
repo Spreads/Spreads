@@ -59,12 +59,12 @@ namespace Spreads.Tests
                 throw new NotImplementedException();
             }
 
-            public int Write(MyPocoWithConvertor value, DirectBuffer destination)
+            public int Write(MyPocoWithConvertor value, ref DirectBuffer destination)
             {
                 throw new NotImplementedException();
             }
 
-            public int Read(DirectBuffer source, out MyPocoWithConvertor value)
+            public int Read(ref DirectBuffer source, out MyPocoWithConvertor value)
             {
                 throw new NotImplementedException();
             }

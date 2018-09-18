@@ -61,14 +61,14 @@ namespace Spreads.Serialization
         /// <param name="value">A value to serialize.</param>
         /// <param name="destination">A pinned pointer to a buffer to serialize the value into. It must have at least number of bytes returned by SizeOf().</param>
         /// <returns>Returns the number of bytes written to the destination buffer or a negative error code that corresponds to <see cref="BinaryConverterErrorCode"/>.</returns>
-        int Write(T value, DirectBuffer destination);
+        int Write(T value, ref DirectBuffer destination);
 
         /// <summary>
         /// Reads new value or fill existing value with data from the pointer,
         /// returns number of bytes read including any header.
         /// If not IsFixedSize, checks that version from the pointer equals the Version property.
         /// </summary>
-        int Read(DirectBuffer source, out T value);
+        int Read(ref DirectBuffer source, out T value);
     }
 
     public sealed class JsonBinaryConverter<T> : IBinaryConverter<T>
@@ -98,7 +98,7 @@ namespace Spreads.Serialization
             return SizeOf(value, out temporaryBuffer);
         }
 
-        public static int Write(T value, DirectBuffer destination)
+        public static int Write(T value, ref DirectBuffer destination)
         {
             var size = SizeOf(value, out var buffer);
             try
@@ -121,12 +121,12 @@ namespace Spreads.Serialization
             }
         }
 
-        int IBinaryConverter<T>.Write(T value, DirectBuffer destination)
+        int IBinaryConverter<T>.Write(T value, ref DirectBuffer destination)
         {
-            return Write(value, destination);
+            return Write(value, ref destination);
         }
 
-        public static int Read(DirectBuffer source, out T value)
+        public static int Read(ref DirectBuffer source, out T value)
         {
 
             //if (MemoryMarshal.TryGetArray(source, out var segment))
@@ -150,9 +150,9 @@ namespace Spreads.Serialization
             //}
         }
 
-        int IBinaryConverter<T>.Read(DirectBuffer source, out T value)
+        int IBinaryConverter<T>.Read(ref DirectBuffer source, out T value)
         {
-            return Read(source, out value);
+            return Read(ref source, out value);
         }
     }
 }

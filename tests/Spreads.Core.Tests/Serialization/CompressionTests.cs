@@ -66,7 +66,7 @@ namespace Spreads.Core.Tests.Serialization
                 values[i] = value;
                 var size = BinarySerializer.SizeOf(in value, out var tmpBuffer, SerializationFormat.Json, ts);
 
-                var written = BinarySerializer.Write(in value, dest, tmpBuffer, SerializationFormat.Json, ts);
+                var written = BinarySerializer.Write(in value, ref dest, tmpBuffer, SerializationFormat.Json, ts);
 
                 if (size != written)
                 {
@@ -102,7 +102,7 @@ namespace Spreads.Core.Tests.Serialization
 
                 for (int i = 0; i < count; i++)
                 {
-                    var read = BinarySerializer.Read(db2, out TestValue value1);
+                    var read = BinarySerializer.Read(ref db2, out TestValue value1);
                     db2 = db2.Slice(read);
                     var expected = values[i];
                     if (!value1.Equals(expected))
@@ -150,7 +150,7 @@ namespace Spreads.Core.Tests.Serialization
                         var value = values[i];
                         var size = BinarySerializer.SizeOf(in value, out var tmpBuffer, SerializationFormat.Json, ts);
 
-                        var written = BinarySerializer.Write(in value, dest, tmpBuffer, SerializationFormat.Json, ts);
+                        var written = BinarySerializer.Write(in value, ref dest, tmpBuffer, SerializationFormat.Json, ts);
 
                         if (size != written)
                         {
@@ -172,7 +172,7 @@ namespace Spreads.Core.Tests.Serialization
 
                     for (int i = 0; i < count; i++)
                     {
-                        var read = BinarySerializer.Read(readSource, out TestValue value1);
+                        var read = BinarySerializer.Read(ref readSource, out TestValue value1);
                         readSource = readSource.Slice(read);
                         var expected = values[i];
                         if (!value1.Equals(expected))
