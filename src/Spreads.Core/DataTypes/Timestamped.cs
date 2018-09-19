@@ -12,7 +12,7 @@ namespace Spreads.DataTypes
     /// <summary>
     /// A value with a timestamp.
     /// </summary>
-    [Serialization(PreferBlittable = true)]
+    [BinarySerialization(preferBlittable: true)]
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     // NB cannot use JsonFormatter attribute, this is hardcoded in DynamicGenericResolverGetFormatterHelper
     public readonly struct Timestamped<T>

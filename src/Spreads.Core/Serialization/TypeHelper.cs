@@ -167,6 +167,25 @@ namespace Spreads.Serialization
         // ReSharper disable once StaticMemberInGenericType
         public static readonly bool IsFixedSize = FixedSize > 0;
 
+        private static TypeEnum InitTypeEnum()
+        {
+            if (VariantHelper<T>.TypeEnum == 0)
+            {
+                if (FixedSize > 0 && FixedSize <= 255)
+                {
+                    return TypeEnum.FixedBinary;
+                }
+            }
+            return VariantHelper<T>.TypeEnum;
+        }
+
+        private static byte InitTypeSize()
+        {
+            return (FixedSize > 0 && FixedSize <= 255)
+                ? (byte)FixedSize
+                : VariantHelper<T>.GetElementTypeSizeForHeader();
+        }
+
         internal static readonly DataTypeHeader DefaultBinaryHeader = new DataTypeHeader
         {
             VersionAndFlags =
@@ -175,10 +194,8 @@ namespace Spreads.Serialization
                 IsBinary = true,
                 CompressionMethod = CompressionMethod.None
             },
-            TypeEnum = VariantHelper<T>.TypeEnum,
-            TypeSize = (FixedSize > 0 && FixedSize <= 255) 
-                ? (byte)FixedSize 
-                : VariantHelper<T>.GetElementTypeSizeForHeader(),
+            TypeEnum = InitTypeEnum(),
+            TypeSize = InitTypeSize(),
             ElementTypeEnum = VariantHelper<T>.ElementTypeEnum
         };
 
@@ -191,10 +208,8 @@ namespace Spreads.Serialization
                 CompressionMethod = CompressionMethod.None,
                 IsTimestamped = true
             },
-            TypeEnum = VariantHelper<T>.TypeEnum,
-            TypeSize = (FixedSize > 0 && FixedSize <= 255)
-                ? (byte)FixedSize
-                : VariantHelper<T>.GetElementTypeSizeForHeader(),
+            TypeEnum = InitTypeEnum(),
+            TypeSize = InitTypeSize(),
             ElementTypeEnum = VariantHelper<T>.ElementTypeEnum
         };
 
@@ -257,6 +272,8 @@ namespace Spreads.Serialization
 
             var pinnedSize = PinnedSize();
 
+            var sa = BinarySerializationAttribute.GetSerializationAttribute(typeof(T));
+
             if (pinnedSize > 0)
             {
                 if (typeof(T).GetTypeInfo().IsPrimitive && typeof(T) != typeof(char))
@@ -265,20 +282,26 @@ namespace Spreads.Serialization
                 }
 
                 // for a non-primitive type to be blittable, it must have an attribute
-                var sa = SerializationAttribute.GetSerializationAttribute(typeof(T));
+
                 var hasSizeAttribute = false;
                 if (sa != null && sa.BlittableSize > 0)
                 {
                     if (pinnedSize != sa.BlittableSize)
                     {
-                        ThrowHelper.FailFast(
-                            $"Size of type {typeof(T).Name} defined in SerializationAttribute {sa.BlittableSize} differs from calculated size {pinnedSize}.");
+                        Environment.FailFast(
+                            $"Size of type {typeof(T).FullName} defined in SerializationAttribute {sa.BlittableSize} differs from calculated size {pinnedSize}.");
+                    }
+
+                    if (sa.ConverterType != null)
+                    {
+                        Environment.FailFast(
+                            $"Cannot define BlittableSize and ConverterType at the same time in Serialization attribute of type {typeof(T).FullName}.");
                     }
                     hasSizeAttribute = true;
                 }
                 else
                 {
-                    var sla = SerializationAttribute.GetStructLayoutAttribute(typeof(T));
+                    var sla = BinarySerializationAttribute.GetStructLayoutAttribute(typeof(T));
                     if (sla != null && sla.Size > 0)
                     {
                         if (pinnedSize != sla.Size || sla.Value == LayoutKind.Auto)
@@ -311,13 +334,35 @@ namespace Spreads.Serialization
 
             // by this line the type is not blittable
 
+            IBinaryConverter<T> converter = null;
+
+            if (sa != null && sa.ConverterType != null)
+            {
+                if (!typeof(IBinaryConverter<T>).IsAssignableFrom(sa.ConverterType))
+                {
+                    Environment.FailFast($"ConverterType `{sa.ConverterType.FullName}` in Serialization attribute does not implement IBinaryConverter<T> for the type `{typeof(T).FullName}`");
+                }
+
+                try
+                {
+                    converter = (IBinaryConverter<T>)Activator.CreateInstance(sa.ConverterType);
+                }
+                catch
+                {
+                    Environment.FailFast($"ConverterType `{sa.ConverterType.FullName}` must have a parameterless constructor.");
+                }
+            }
+
             // NB we try to check interface as a last step, because some generic types
             // could implement IBinaryConverter<T> but still be blittable for certain types,
             // e.g. DateTime vs long in PersistentMap<K,V>.Entry
             //if (tmp is IBinaryConverter<T>) {
             if (typeof(IBinaryConverter<T>).IsAssignableFrom(typeof(T)))
             {
-                IBinaryConverter<T> converter = null;
+                if (converter != null)
+                {
+                    Environment.FailFast($"Converter `{converter.GetType().FullName}` is already set via Serialization attribute. The type `{typeof(T).FullName}` should not implement IBinaryConverter<T> interface or the attribute should not include ConverterType property.");
+                }
                 try
                 {
                     converter = (IBinaryConverter<T>)Activator.CreateInstance<T>();
@@ -331,15 +376,19 @@ namespace Spreads.Serialization
                 {
                     Environment.FailFast("User IBinaryConverter<T> implementation for a type T should have a positive version.");
                 }
-
-                BinaryConverter = converter;
             }
-            // NB: string is UTF8 Json is enough
+
+            // NB: string as UTF8 Json is OK
             // /else if (typeof(T) == typeof(string))
             // /{
             // /    BinaryConverter = (IBinaryConverter<T>)(new StringBinaryConverter());
             // /}
-            //else if (typeof(T).IsArray)
+
+            // TODO
+            if (typeof(T).IsArray)
+            {
+                throw new NotImplementedException("TODO refactor existing code");
+            }
             //{
             //    var elementType = typeof(T).GetElementType();
             //    var elementSize = TypeHelper.GetSize(elementType);
@@ -353,7 +402,10 @@ namespace Spreads.Serialization
             //    }
             //}
 
-            // Do not add Json converter it is not "binary"
+            // Do not add Json converter as fallback, it is not "binary", it implements the interface for
+            // simpler implementation in BinarySerializer and fallback happens there
+
+            BinaryConverter = converter;
 
             return -1;
         }
@@ -381,8 +433,8 @@ namespace Spreads.Serialization
                 {
                     destination.Assert(0, pos + FixedSize);
                 }
-                WriteUnaligned((void*)(destination.Data), DefaultBinaryHeaderWithTs);
-                WriteUnaligned((void*)(destination.Data + DataTypeHeader.Size), timestamp);
+                WriteUnaligned(destination.Data, DefaultBinaryHeaderWithTs);
+                WriteUnaligned(destination.Data + DataTypeHeader.Size, timestamp);
             }
             else
             {
@@ -391,10 +443,10 @@ namespace Spreads.Serialization
                 {
                     destination.Assert(0, pos + FixedSize);
                 }
-                WriteUnaligned((void*)(destination.Data), DefaultBinaryHeader);
+                WriteUnaligned(destination.Data, DefaultBinaryHeader);
             }
 
-            WriteUnaligned((void*)(destination.Data + pos), value);
+            WriteUnaligned(destination.Data + pos, value);
 
             var len = pos + FixedSize;
             return len;
@@ -403,7 +455,7 @@ namespace Spreads.Serialization
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int ReadWithHeader(byte* ptr, out T value, out Timestamp timestamp)
         {
-            var header = ReadUnaligned<DataTypeHeader>((void*)(ptr));
+            var header = ReadUnaligned<DataTypeHeader>(ptr);
 
             var versionAndFlags = header.VersionAndFlags;
 
@@ -425,13 +477,13 @@ namespace Spreads.Serialization
             if (versionAndFlags.IsTimestamped)
             {
                 tsSize = Timestamp.Size;
-                timestamp = ReadUnaligned<Timestamp>((void*)(ptr + DataTypeHeader.Size));
+                timestamp = ReadUnaligned<Timestamp>(ptr + DataTypeHeader.Size);
             }
             else
             {
                 timestamp = default;
             }
-            value = ReadUnaligned<T>((void*)(ptr + DataTypeHeader.Size + tsSize));
+            value = ReadUnaligned<T>(ptr + DataTypeHeader.Size + tsSize);
             return DataTypeHeader.Size + tsSize + FixedSize;
         }
 

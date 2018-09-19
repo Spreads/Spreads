@@ -7,7 +7,7 @@ namespace Spreads.Serialization
     /// Diffable wrapper for decimal type
     /// </summary>
     [StructLayout(LayoutKind.Sequential, Size = 16)]
-    [Serialization(BlittableSize = 16)]
+    [BinarySerialization(blittableSize: 16)]
     internal unsafe struct DecimalDelta : IDelta<DecimalDelta>
     {
         public long v1;

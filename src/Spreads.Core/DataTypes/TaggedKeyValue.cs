@@ -17,7 +17,7 @@ using Spreads.Buffers;
 namespace Spreads.DataTypes
 {
 
-    [Serialization(PreferBlittable = true)] // when both types are blittable the struct is written in one operation
+    [BinarySerialization(preferBlittable: true)] // when both types are blittable the struct is written in one operation
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     // NB cannot use JsonFormatter attribute, this is hardcoded in DynamicGenericResolverGetFormatterHelper
     public readonly struct TaggedKeyValue<TKey, TValue> : IEquatable<TaggedKeyValue<TKey, TValue>>, 

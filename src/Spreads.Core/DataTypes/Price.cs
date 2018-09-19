@@ -30,7 +30,7 @@ namespace Spreads.DataTypes
     /// R - reserved
     /// </remarks>
     [StructLayout(LayoutKind.Sequential, Pack = 8, Size = 8)]
-    [Serialization(BlittableSize = 8)]
+    [BinarySerialization(Size)]
     [DebuggerDisplay("{" + nameof(ToString) + "()}")]
     [JsonFormatter(typeof(Formatter))]
     public readonly struct Price : IComparable<Price>, IEquatable<Price>, IConvertible
@@ -44,6 +44,8 @@ namespace Spreads.DataTypes
                 Environment.FailFast("BigEndian is not supported");
             }
         }
+
+        public const int Size = 8;
 
         public static Price Zero = default(Price);
 

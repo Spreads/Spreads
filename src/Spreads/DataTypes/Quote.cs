@@ -39,7 +39,7 @@ namespace Spreads.DataTypes
     /// processing somewhat faster (at least in theory).
     /// </remarks>
     [StructLayout(LayoutKind.Sequential, Pack = 4, Size = 16)]
-    [Serialization(BlittableSize = 16)]
+    [BinarySerialization(blittableSize: 16)]
     [JsonFormatter(typeof(Formatter))]
     public readonly struct Quote : IEquatable<Quote>, IQuote, IDelta<Quote>
     {

@@ -15,7 +15,7 @@ namespace Spreads.DataTypes
     /// A blittable structure for bars.
     /// </summary>
     [StructLayout(LayoutKind.Sequential, Pack = 4, Size = 24)]
-    [Serialization(BlittableSize = 24)]
+    [BinarySerialization(BlittableSize = 24)]
     [DataContract]
     public struct OHLCV : IDelta<OHLCV>
     {
@@ -111,7 +111,7 @@ namespace Spreads.DataTypes
     /// A blittable structure for bars with additional info.
     /// </summary>
     [StructLayout(LayoutKind.Sequential, Pack = 4, Size = 48)]
-    [Serialization(BlittableSize = 48)]
+    [BinarySerialization(BlittableSize = 48)]
     [DataContract]
     public struct OHLCFull
     {

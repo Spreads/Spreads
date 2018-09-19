@@ -45,8 +45,7 @@ namespace Spreads.Serialization
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static int SizeOfRaw<T>(in T value, out ArraySegment<byte> temporaryBuffer,
-            bool isBinary = false)
+        internal static int SizeOfRaw<T>(in T value, out ArraySegment<byte> temporaryBuffer, bool isBinary = false)
         {
             temporaryBuffer = default;
 
@@ -110,8 +109,6 @@ namespace Spreads.Serialization
             var isBinary = ((int)format & 1) == 1;
             var hasTs = (long)timestamp != default;
             var tsSize = *(int*)(&hasTs) << 3;
-
-            // there is some implicit dependency that if we reach here then
 
             var rawSize = SizeOfRaw(in value, out var rawTemporaryBuffer, isBinary);
 

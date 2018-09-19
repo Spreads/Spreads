@@ -16,7 +16,7 @@ namespace Spreads.DataTypes
     /// Offset equalt to zero indicates that this is the best bid/ask.
     /// </summary>
     [StructLayout(LayoutKind.Sequential, Pack = 4, Size = 32)]
-    [Serialization(BlittableSize = 32)]
+    [BinarySerialization(BlittableSize = 32)]
     [DataContract(Name = "MarketDepth")]
     public struct MarketDepth : IDelta<MarketDepth>
     {

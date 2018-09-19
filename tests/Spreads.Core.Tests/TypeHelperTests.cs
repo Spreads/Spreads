@@ -23,7 +23,7 @@ namespace Spreads.Tests
             public int Value1;
         }
 
-        [Serialization(BlittableSize = 4)]
+        [BinarySerialization(4)]
         public struct BlittableStruct1
         {
             public int Value1;
@@ -41,7 +41,7 @@ namespace Spreads.Tests
             public long Long { get; set; }
         }
 
-        [Serialization(BlittableSize = 5)]
+        [BinarySerialization(5)]
         public struct BlittableStructWrong
         {
             public int Value1;

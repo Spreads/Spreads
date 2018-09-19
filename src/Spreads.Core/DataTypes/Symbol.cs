@@ -21,7 +21,7 @@ namespace Spreads.DataTypes
     /// </summary>
     [DebuggerDisplay("{" + nameof(ToString) + "()}")]
     [StructLayout(LayoutKind.Sequential, Size = Size)]
-    [Serialization(BlittableSize = Size)]
+    [BinarySerialization(Size)]
     public unsafe struct Symbol : IEquatable<Symbol>
     {
         private const int Size = 16;
@@ -143,7 +143,7 @@ namespace Spreads.DataTypes
     /// </summary>
     [DebuggerDisplay("{" + nameof(ToString) + "()}")]
     [StructLayout(LayoutKind.Sequential, Size = Size)]
-    [Serialization(BlittableSize = Size)]
+    [BinarySerialization(Size)]
     public unsafe struct Symbol32 : IEquatable<Symbol32>
     {
         private const int Size = 32;
@@ -264,7 +264,7 @@ namespace Spreads.DataTypes
     /// </summary>
     [DebuggerDisplay("{" + nameof(ToString) + "()}")]
     [StructLayout(LayoutKind.Sequential, Size = Size)]
-    [Serialization(BlittableSize = Size)]
+    [BinarySerialization(Size)]
     public unsafe struct Symbol64 : IEquatable<Symbol64>
     {
         private const int Size = 64;
@@ -385,7 +385,7 @@ namespace Spreads.DataTypes
     /// </summary>
     [DebuggerDisplay("{" + nameof(ToString) + "()}")]
     [StructLayout(LayoutKind.Sequential, Size = Size)]
-    [Serialization(BlittableSize = Size)]
+    [BinarySerialization(Size)]
     public unsafe struct Symbol128 : IEquatable<Symbol128>
     {
         private const int Size = 128;
@@ -506,7 +506,7 @@ namespace Spreads.DataTypes
     /// </summary>
     [DebuggerDisplay("{" + nameof(ToString) + "()}")]
     [StructLayout(LayoutKind.Sequential, Size = Size)]
-    [Serialization(BlittableSize = Size)]
+    [BinarySerialization(Size)]
     public unsafe struct Symbol256 : IEquatable<Symbol256>
     {
         private const int Size = 256;

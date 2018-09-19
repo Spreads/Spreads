@@ -10,11 +10,11 @@ using System.Runtime.InteropServices;
 namespace Spreads.Serialization
 {
     [AttributeUsage(AttributeTargets.Class | AttributeTargets.Struct, AllowMultiple = false)]
-    public class SerializationAttribute : Attribute
+    public class BinarySerializationAttribute : Attribute
     {
-        internal static SerializationAttribute GetSerializationAttribute(Type type)
+        internal static BinarySerializationAttribute GetSerializationAttribute(Type type)
         {
-            var attr = type.GetTypeInfo().GetCustomAttributes<SerializationAttribute>(true).FirstOrDefault();
+            var attr = type.GetTypeInfo().GetCustomAttributes<BinarySerializationAttribute>(true).FirstOrDefault();
             return attr;
         }
 
@@ -23,12 +23,30 @@ namespace Spreads.Serialization
             return type.GetTypeInfo().StructLayoutAttribute;
         }
 
+        //public BinarySerializationAttribute()
+        //{ }
+
+        public BinarySerializationAttribute(int blittableSize = 0, bool preferBlittable = false)
+        {
+            if (blittableSize <= 0 || blittableSize > 255)
+            {
+                Environment.FailFast("SerializationAttribute: blittableSize <= 0 || blittableSize > 255");
+            }
+            BlittableSize = blittableSize;
+            PreferBlittable = preferBlittable;
+        }
+
+        public BinarySerializationAttribute(Type converterType)
+        {
+            ConverterType = converterType;
+        }
+
         /// <summary>
         /// Prefer blittable layout if possible. Sometimes a generic type could implement (or have registered) IBinaryConverter interface
         /// but for certain concrete types still be blittable. When this property is true, we
         /// ignore the IBinaryConverter interface when a generic type is blittable but implements that interface (or has it registered).
         /// </summary>
-        public bool PreferBlittable { get; set; }
+        internal bool PreferBlittable { get; set; }
 
         /// <summary>
         /// When this property is positive, the type must be blittable with the specified size,
@@ -37,6 +55,9 @@ namespace Spreads.Serialization
         /// <remarks>
         /// StructLayout.Size has the same behavior.
         /// </remarks>
-        public int BlittableSize { get; set; }
+        internal int BlittableSize { get; set; }
+
+
+        internal Type ConverterType { get; set; }
     }
 }

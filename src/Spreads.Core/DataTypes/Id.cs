@@ -19,7 +19,7 @@ namespace Spreads.DataTypes
     /// Useful for preventing wrong usage of some index as an Id or for method overloading.
     /// </remarks>
     [StructLayout(LayoutKind.Sequential, Pack = 4, Size = 4)]
-    [Serialization(BlittableSize = 4)]
+    [BinarySerialization(4)]
     public readonly struct Id : IEquatable<Id>, IConvertible
     {
         /// <summary>

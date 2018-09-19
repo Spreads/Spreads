@@ -16,7 +16,7 @@ namespace Spreads.DataTypes
     /// Allows to recover those absolute best bid/ask levels with known price step or estimate market impact.
     /// </summary>
     [StructLayout(LayoutKind.Sequential, Pack = 4, Size = 64)]
-    [Serialization(BlittableSize = 64)]
+    [BinarySerialization(BlittableSize = 64)]
     [DataContract(Name = "MarketDepth2")]
     public struct MarketDepth2 : IDelta<MarketDepth2>
     {

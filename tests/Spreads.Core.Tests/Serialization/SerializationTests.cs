@@ -26,7 +26,7 @@ namespace Spreads.Core.Tests.Serialization
 
         public static Timestamp[] Tss = new[] { default(Timestamp), TimeService.Default.CurrentTime };
 
-        [Serialization(BlittableSize = 12)]
+        [BinarySerialization(blittableSize: 12)]
         [StructLayout(LayoutKind.Sequential, Pack = 4)]
         public struct BlittableStruct
         {

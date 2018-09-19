@@ -21,7 +21,7 @@ namespace Spreads.DataTypes
     /// 292 years of nanos in 2^63 is ought to be enough for everyone (except JavaScript).
     /// </summary>
     [StructLayout(LayoutKind.Sequential, Size = Size)]
-    [Serialization(BlittableSize = 8)]
+    [BinarySerialization(Size)]
     [DebuggerDisplay("{" + nameof(ToString) + "()}")]
     [JsonFormatter(typeof(Formatter))]
     public readonly struct Timestamp : IComparable<Timestamp>, IEquatable<Timestamp>

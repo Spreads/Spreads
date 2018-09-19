@@ -11,9 +11,10 @@ namespace Spreads.DataTypes
     /// A known type to represent an error code as a wrapper over Int64.
     /// </summary>
     [StructLayout(LayoutKind.Sequential, Pack = 8, Size = 8)]
-    [Serialization(BlittableSize = 8)]
+    [BinarySerialization(Size)]
     public struct ErrorCode
     {
+        public const int Size = 8;
         public long Code;
     }
 }
