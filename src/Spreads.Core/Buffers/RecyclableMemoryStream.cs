@@ -65,6 +65,7 @@ namespace Spreads.Buffers
     /// are maintained in the stream until the stream is disposed (unless AggressiveBufferReturn is enabled in the stream manager).
     ///
     /// </remarks>
+    [Obsolete("Try to use ReadOnlySequence, Pipelines or just simple ArraySegment/RetainedMemory")]
     public sealed class RecyclableMemoryStream : MemoryStream
     {
         private static readonly ObjectPool<RecyclableMemoryStream> Pool = new ObjectPool<RecyclableMemoryStream>(() => new RecyclableMemoryStream(), Environment.ProcessorCount * 16);
