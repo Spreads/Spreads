@@ -21,7 +21,7 @@ namespace Spreads.Core.Tests.Serialization
             this.output = output;
         }
 
-        [BinarySerialization(BlittableSize = 12)]
+        [BinarySerialization(12)]
         [StructLayout(LayoutKind.Sequential, Pack = 4)]
         public struct BlittableStruct
         {

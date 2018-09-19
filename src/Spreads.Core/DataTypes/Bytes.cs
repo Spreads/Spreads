@@ -4,7 +4,7 @@ using System.Runtime.InteropServices;
 namespace Spreads.DataTypes
 {
     [StructLayout(LayoutKind.Sequential, Size = Size)]
-    [BinarySerialization(Size)]
+    [BinarySerialization(TypeEnum.FixedBinary, Size)]
     public unsafe struct Bytes16
     {
         private const int Size = 16;
@@ -12,7 +12,7 @@ namespace Spreads.DataTypes
     }
 
     [StructLayout(LayoutKind.Sequential, Size = Size)]
-    [BinarySerialization(Size)]
+    [BinarySerialization(TypeEnum.FixedBinary, Size)]
     public unsafe struct Bytes32
     {
         private const int Size = 32;
@@ -20,7 +20,7 @@ namespace Spreads.DataTypes
     }
 
     [StructLayout(LayoutKind.Sequential, Size = Size)]
-    [BinarySerialization(Size)]
+    [BinarySerialization(TypeEnum.FixedBinary, Size)]
     public unsafe struct Bytes64
     {
         private const int Size = 32;

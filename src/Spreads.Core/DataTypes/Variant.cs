@@ -182,15 +182,6 @@ namespace Spreads.DataTypes
                     case TypeEnum.Timestamp:
                         return Create((Timestamp)value);
 
-                    case TypeEnum.Date:
-                        throw new NotImplementedException();
-                    case TypeEnum.Time:
-                        throw new NotImplementedException();
-                    case TypeEnum.Complex32:
-                        throw new NotImplementedException();
-                    case TypeEnum.Complex64:
-                        throw new NotImplementedException();
-
                     case TypeEnum.Bool:
                         return Create((bool)value);
 
@@ -318,14 +309,6 @@ namespace Spreads.DataTypes
                     case TypeEnum.Timestamp:
                         return Get<Timestamp>();
 
-                    case TypeEnum.Date:
-                        throw new NotImplementedException();
-                    case TypeEnum.Time:
-                        throw new NotImplementedException();
-                    case TypeEnum.Complex32:
-                        throw new NotImplementedException();
-                    case TypeEnum.Complex64:
-                        throw new NotImplementedException();
                     case TypeEnum.Bool:
                         return Get<bool>();
 

@@ -72,15 +72,6 @@ namespace Spreads.DataTypes
                     case TypeEnum.Timestamp:
                         return (Get<Timestamp>()).CompareTo(other.Get<Timestamp>());
 
-                    case TypeEnum.Date:
-                        ThrowHelper.ThrowNotImplementedException(); return 0;
-
-                    case TypeEnum.Time:
-                        ThrowHelper.ThrowNotImplementedException(); return 0;
-                    case TypeEnum.Complex32:
-                        ThrowHelper.ThrowNotImplementedException(); return 0;
-                    case TypeEnum.Complex64:
-                        ThrowHelper.ThrowNotImplementedException(); return 0;
                     case TypeEnum.Bool:
                         return (Get<bool>()).CompareTo(other.Get<bool>());
 

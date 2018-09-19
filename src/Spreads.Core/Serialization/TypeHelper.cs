@@ -169,12 +169,30 @@ namespace Spreads.Serialization
 
         private static TypeEnum InitTypeEnum()
         {
+            // re-read, happens once per type
+            var sa = BinarySerializationAttribute.GetSerializationAttribute(typeof(T));
+
             if (VariantHelper<T>.TypeEnum == 0)
             {
+                if (sa != null && sa.TypeEnum != TypeEnum.None)
+                {
+                    if ((int) sa.TypeEnum > Variant.KnownSmallTypesLimit && (FixedSize > 0 && FixedSize <= 25))
+                    {
+                        // Internal
+                        Environment.FailFast("(int) sa.TypeEnum > Variant.KnownSmallTypesLimit && (FixedSize > 0 && FixedSize <= 25)");
+                    }
+                    return sa.TypeEnum;
+                }
                 if (FixedSize > 0 && FixedSize <= 255)
                 {
                     return TypeEnum.FixedBinary;
                 }
+            }
+
+            if (sa != null && sa.TypeEnum != TypeEnum.None)
+            {
+                // Internal
+                Environment.FailFast("Do not provide TypeEnum for pre-defined types in Spreads.Core assembly.");
             }
             return VariantHelper<T>.TypeEnum;
         }
@@ -196,7 +214,7 @@ namespace Spreads.Serialization
             },
             TypeEnum = InitTypeEnum(),
             TypeSize = InitTypeSize(),
-            ElementTypeEnum = VariantHelper<T>.ElementTypeEnum
+            ElementTypeEnum = VariantHelper<T>.ElementTypeEnum // TODO if TypeEnum == None | FixedBinary, check KnownTypeId
         };
 
         internal static readonly DataTypeHeader DefaultBinaryHeaderWithTs = new DataTypeHeader
@@ -208,9 +226,9 @@ namespace Spreads.Serialization
                 CompressionMethod = CompressionMethod.None,
                 IsTimestamped = true
             },
-            TypeEnum = InitTypeEnum(),
-            TypeSize = InitTypeSize(),
-            ElementTypeEnum = VariantHelper<T>.ElementTypeEnum
+            TypeEnum = DefaultBinaryHeader.TypeEnum,
+            TypeSize = DefaultBinaryHeader.TypeSize,
+            ElementTypeEnum = DefaultBinaryHeader.ElementTypeEnum
         };
 
         private static int InitChecked()

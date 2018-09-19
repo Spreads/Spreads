@@ -1,7 +1,6 @@
-﻿using System.Diagnostics;
+﻿using Spreads.DataTypes;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using Spreads.DataTypes;
 
 namespace Spreads.Serialization
 {
@@ -10,7 +9,7 @@ namespace Spreads.Serialization
 
     /// <summary>
     /// DataType header
-    /// 
+    ///
     /// 0                   1                   2                   3
     /// 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
     /// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -19,7 +18,7 @@ namespace Spreads.Serialization
     /// </summary>
     /// <remarks>
     /// In some places we access the elements directly by byte, without dereferencing the entire struct
-    /// Also this is already in a lot of persisted data, no chance to change this. Version slot applies 
+    /// Also this is already in a lot of persisted data, no chance to change this. Version slot applies
     /// only to data layout *after* this header.
     /// </remarks>
     [StructLayout(LayoutKind.Explicit, Pack = 1, Size = Size)]
@@ -75,7 +74,7 @@ namespace Spreads.Serialization
             get
             {
                 var tsLen = VersionAndFlags.TimestampFlagMask &
-                            *(byte*) System.Runtime.CompilerServices.Unsafe.AsPointer(ref this);
+                            *(byte*)System.Runtime.CompilerServices.Unsafe.AsPointer(ref this);
                 return FirstPayloadByteOffset + tsLen;
             }
         }

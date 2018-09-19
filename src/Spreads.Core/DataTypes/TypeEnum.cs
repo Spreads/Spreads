@@ -2,8 +2,19 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+using System;
+
 namespace Spreads.DataTypes
 {
+
+    // TODO Values < 64 used for Variant with 16 bytes limit, but Variant is not used currently much 
+    // and there is not so many 16-byte predefined types. Limit 16-byte types to <32, from 32 to 63 could 
+    // be types with size up to 255 bytes. Above 64 we have a lot of space to define any containers and 
+    // other var-size types.
+    // 64 is for user-defined blittable types, they could have subtype with known type id (WIP, TODO)
+    // Should limit Spreads type to < 127, the other half should go to DS types.
+    // None type is opaque var-sized, it could have known type at app level.
+
     /// <summary>
     /// Known types and containers enumeration.
     /// </summary>
@@ -13,9 +24,10 @@ namespace Spreads.DataTypes
 
         // NB Enum values themselves should never be used directly, only the array below should depend on them
         // However, for non-.NET clients they should stabilize rather sooner than later
+        
+        None = 0,
 
         // Fixed-length known types - their length is defined by code
-        None = 0,
 
         Int8 = 1,
         Int16 = 2,
@@ -48,31 +60,29 @@ namespace Spreads.DataTypes
         /// </summary>
         Timestamp = 15,
 
-        // TODO Need strong definition of what it is,
-        // otherwise for app-specific definition one could use just Int family
-        Date = 16,
+        [Obsolete("Free to redefine, was never used")]
+        Unused16 = 16,
 
-        Time = 17,
+        [Obsolete("Free to redefine, was never used")]
+        Unused17 = 17,
 
-        /// <summary>
-        /// Real + imaginary Float32 values (total size 8 bytes)
-        /// </summary>
-        Complex32 = 18,
+        [Obsolete("Free to redefine, was never used")]
+        Unused18 = 18,
 
-        /// <summary>
-        /// Real + imaginary Float64 values (total size 16 bytes)
-        /// </summary>
-        Complex64 = 19,
+        [Obsolete("Free to redefine, was never used")]
+        Unused19 = 19,
 
         Bool = 20,
 
         Id = 21,
-        Symbol = 22,
+
+        Symbol = 22, // we have several implementations, but all fixed. example when same fixed TypeEnum has different sizes. TODO Should we support this?
         // ReSharper disable once InconsistentNaming
         UUID = 23,
 
         Int128 = 24,
         UInt128 = 25,
+
         ErrorCode = 63,
 
         // ----------------------------------------------------------------
@@ -87,10 +97,12 @@ namespace Spreads.DataTypes
         // Variable size types
         
         String = 66,
+        Json = 65,
         Binary = 67,
 
         Variant = 68, // for sub-type in containers, must throw for scalars
 
+        [Obsolete("None + KnownTypeId should work. If KTI is 0 then payload is just opaque bytes")]
         Object = 69, // custom object, TODO the type must have a KnownType attribute
 
         Array = 70,
@@ -100,38 +112,17 @@ namespace Spreads.DataTypes
         ArrayBasedMap = 73,
 
         TaggedKeyValue = 74,
-        // ValueWithTimestamp = 75,
+        
+        // Up to 127 are reserved for Spreads hard-coded types
 
-        // NB For opaque types such as JSON/FlatBuffers/Thrift the value of TypeEnum is mostly to dispatch
-        // a value to correct second(app)-level deserializer. E.g. we have subtype slot in 
-        // DataType header that could be used to store additional information on what application type is 
-        // encoded using the given serialization scheme (if the payload itself does not contain such info).
-
-        // TODO this is a part of binary converter. Non-binary is Json and that is it, won't change. We have a flag for binary.
-        // Json should have TypeEnum and SubTypeEnum for dispatching to correct deserializer.
-        Json = 100,
-        JsonDeflate = 101,
-        JsonBrotli = 102,
-        FlatBuffers = 103,
-        Thrift = 104,
-        Sbe = 105,
-
-        // Protocol
-        EchoMessage = 110,
-        RequestStreamInfoMessage = 111,
-        ResponseStreamInfoMessage = 112,
-        RequestAppendDataToStreamMessage = 113,
-        ResponseAppendDataToStreamMessage = 114,
-
-        // Up to 127 are reserved for something hard-coded
-
-        // TODO(?) Reserve 128+ types as App-specific known ones that could be registered (e.g. via IBinaryConverter or separate attribute)
-        // 128 is a big number for a single app
+        
     }
 
     public partial struct Variant
     {
         #region Known Type Sizes
+
+        // TODO use Offheap buffer: byte[] has object header so this doesn't fit one cache line. Need to ensure alignment of offheap allocatoin as well
 
         // ReSharper disable once RedundantExplicitArraySize
         internal static readonly byte[] KnownTypeSizes = new byte[KnownSmallTypesLimit]
@@ -158,14 +149,15 @@ namespace Spreads.DataTypes
             
             8, // DateTime
             8, // 15 - Timestamp
-            4,
-            4,
 
-            // Complex
-            8,
-            16,
+            // Unused
+            0, // 16
+            0,
 
-            // Symbols
+            0,
+            0, // 19
+
+            
             1, // 20 - Bool
             4, // 21 - Id
             16, // 22 - Symbol

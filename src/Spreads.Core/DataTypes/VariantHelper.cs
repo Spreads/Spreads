@@ -246,14 +246,6 @@ namespace Spreads.DataTypes
                     case TypeEnum.ErrorCode:
                         return typeof(ErrorCode);
 
-                    case TypeEnum.Date:
-                        throw new NotImplementedException();
-                    case TypeEnum.Time:
-                        throw new NotImplementedException();
-                    case TypeEnum.Complex32:
-                        throw new NotImplementedException();
-                    case TypeEnum.Complex64:
-                        throw new NotImplementedException();
                     default:
                         throw new ArgumentOutOfRangeException();
                 }

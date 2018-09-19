@@ -9,6 +9,7 @@ using Spreads.Serialization.Utf8Json;
 using Spreads.Utils;
 using System;
 using System.Runtime.CompilerServices;
+using Spreads.DataTypes;
 
 namespace Spreads.Core.Tests.Serialization
 {
@@ -17,7 +18,7 @@ namespace Spreads.Core.Tests.Serialization
     [TestFixture]
     public class BinaryConverterTests
     {
-        [BinarySerialization(typeof(Converter))]
+        [BinarySerialization(converterType: typeof(Converter),  KnownTypeId = 123)]
         [JsonFormatter(typeof(Formatter))]
         public struct SampleStruct : IEquatable<SampleStruct>
         {
@@ -136,7 +137,7 @@ namespace Spreads.Core.Tests.Serialization
             var rm = BufferPool.Retain(100_000_000);
             var db = new DirectBuffer(rm.Span);
 
-            var count = 5_000_000;
+            var count = 500_000;
             var rounds = 10;
 
             var values = new SampleStruct[count];
@@ -206,7 +207,7 @@ namespace Spreads.Core.Tests.Serialization
             var rm = BufferPool.Retain(100_000_000);
             var db = new DirectBuffer(rm.Span);
 
-            var count = 1000_000;
+            var count = 100_000;
             var rounds = 10;
 
             var values = new SampleStruct[count];

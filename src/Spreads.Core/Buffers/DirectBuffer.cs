@@ -107,6 +107,12 @@ namespace Spreads.Buffers
             get => _data;
         }
 
+        public IntPtr DataPtr
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => (IntPtr)_data;
+        }
+
         [Pure]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public DirectBuffer Slice(long start)

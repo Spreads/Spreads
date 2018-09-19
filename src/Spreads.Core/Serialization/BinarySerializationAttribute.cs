@@ -6,6 +6,7 @@ using System;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.InteropServices;
+using Spreads.DataTypes;
 
 namespace Spreads.Serialization
 {
@@ -41,6 +42,18 @@ namespace Spreads.Serialization
             ConverterType = converterType;
         }
 
+        internal BinarySerializationAttribute(TypeEnum typeEnum, int blittableSize = 0, bool preferBlittable = false, Type converterType = null)
+        {
+            if (typeEnum != TypeEnum.None && (int) typeEnum <= Variant.KnownSmallTypesLimit && converterType != null)
+            {
+                Environment.FailFast("Cannot use Converter for fixed-sized types");
+            }
+            BlittableSize = blittableSize;
+            PreferBlittable = preferBlittable;
+            ConverterType = converterType;
+            TypeEnum = typeEnum;
+        }
+
         /// <summary>
         /// Prefer blittable layout if possible. Sometimes a generic type could implement (or have registered) IBinaryConverter interface
         /// but for certain concrete types still be blittable. When this property is true, we
@@ -59,5 +72,12 @@ namespace Spreads.Serialization
 
 
         internal Type ConverterType { get; set; }
+
+        public byte KnownTypeId { get; set; }
+
+        /// <summary>
+        /// Need this override for Spreads types defined outside this assembly
+        /// </summary>
+        internal TypeEnum TypeEnum { get; set; }
     }
 }
