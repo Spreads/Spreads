@@ -8,7 +8,7 @@ using System.Buffers;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Threading;
-using SRCSUnsafe = System.Runtime.CompilerServices.Unsafe;
+using Unsafe = System.Runtime.CompilerServices.Unsafe;
 
 namespace Spreads.Buffers
 {
@@ -26,25 +26,25 @@ namespace Spreads.Buffers
         internal T[] Array
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return _array; }
+            get => _array;
         }
 
         public int Length
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return _array.Length; }
+            get => _array.Length;
         }
 
         public bool IsDisposed
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return _array == null; }
+            get => _array == null;
         }
 
         public bool IsRetained
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return _referenceCount > 0; }
+            get => _referenceCount > 0;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -86,19 +86,25 @@ namespace Spreads.Buffers
 
             if (_referenceCount < 0)
             {
-                ThrowHelper.FailFast("OwnedPooledArray.Dispose: _referenceCount < 0");
+                FailNegativeRefCount();
             }
 
             var array = Interlocked.Exchange(ref _array, null);
             if (array == null)
             {
-                ThrowHelper.ThrowObjectDisposedException(nameof(OwnedPooledArray<T>));
+                ThrowObjectDisposedException();
             }
-            BufferPool<T>.Return(array, true);
+            BufferPool<T>.Return(array, false);
             if (disposing)
             {
                 Pool.Free(this);
             }
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static void FailNegativeRefCount()
+        {
+            ThrowHelper.FailFast("OwnedPooledArray.Dispose: _referenceCount < 0");
         }
 
         ~OwnedPooledArray()
@@ -134,7 +140,7 @@ namespace Spreads.Buffers
 
                 var handle = GCHandle.Alloc(_array, GCHandleType.Pinned);
 
-                var pointer = SRCSUnsafe.Add<T>((void*)handle.AddrOfPinnedObject(), elementIndex);
+                var pointer = Unsafe.Add<T>((void*)handle.AddrOfPinnedObject(), elementIndex);
 
                 return new MemoryHandle(pointer, handle, this);
             }
@@ -147,11 +153,11 @@ namespace Spreads.Buffers
             if (_referenceCount == int.MinValue) { return; }
 
             var newRefCount = Interlocked.Decrement(ref _referenceCount);
-            if (newRefCount < 0) { ThrowHelper.FailFast("Buffer refcount was already zero before unpin."); }
             if (newRefCount == 0)
             {
                 Dispose(true);
             }
+            if (newRefCount < 0) { ThrowHelper.FailFast("Buffer refcount was already zero before unpin."); }
         }
 
         /// <summary>
@@ -190,9 +196,12 @@ namespace Spreads.Buffers
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private RetainedMemory<T> RetainImpl(int start = -1, int length = -1)
+        private RetainedMemory<T> RetainImpl(int start = 0, int length = -1)
         {
-            if (IsDisposed) { ThrowHelper.ThrowObjectDisposedException(nameof(OwnedPooledArray<T>)); }
+            if (IsDisposed)
+            {
+                ThrowObjectDisposedException();
+            }
 
             if (_referenceCount != int.MinValue)
             {
@@ -205,14 +214,17 @@ namespace Spreads.Buffers
                 // keeps MH with it and could decrement refcount of this object when disposed.
                 // We sometimes need to keep a reference to underlying buffer and avoid returning
                 // it to a BufferPool.
+
                 var handle = new MemoryHandle((void*)IntPtr.Zero, default, this);
-                if (length < 0) return new RetainedMemory<T>(Memory, handle);
-                if (start >= 0)
-                {
-                    return new RetainedMemory<T>(CreateMemory(start, length), handle);
-                }
-                return new RetainedMemory<T>(CreateMemory(length), handle);
+                var mem = length < 0 ? Memory : CreateMemory(start, length);
+                return new RetainedMemory<T>(mem, handle);
             }
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static void ThrowObjectDisposedException()
+        {
+            ThrowHelper.ThrowObjectDisposedException(nameof(OwnedPooledArray<T>));
         }
     }
 }

@@ -3,6 +3,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 using System;
+using System.Buffers;
 using System.Diagnostics;
 using System.Diagnostics.Contracts;
 using System.Runtime.CompilerServices;
@@ -71,7 +72,7 @@ namespace Spreads.Buffers
         public DirectBuffer(Span<byte> span)
         {
             _length = span.Length;
-            _data = (byte*)AsPointer(ref MemoryMarshal.GetReference(span));
+            _data = (byte*)AsPointer(ref span.GetPinnableReference());
         }
 
         public bool IsValid
@@ -107,7 +108,8 @@ namespace Spreads.Buffers
             get => _data;
         }
 
-        public IntPtr DataPtr
+        // for cases when unsafe is not allowed, e.g. async
+        public IntPtr DataIntPtr
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => (IntPtr)_data;
@@ -814,6 +816,17 @@ namespace Spreads.Buffers
         public static string GetString(this Encoding encoding, in DirectBuffer buffer)
         {
             return encoding.GetString(buffer._data, buffer.Length);
+        }
+
+        /// <summary>
+        /// For usage: using (array.AsDirectBuffer(out var db)) { ... }
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static MemoryHandle AsDirectBuffer(this byte[] array, out DirectBuffer buffer)
+        {
+            var mh = ((Memory<byte>) array).Pin();
+            buffer = new DirectBuffer(array.Length, (byte*)mh.Pointer);
+            return mh;
         }
     }
 }

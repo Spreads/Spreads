@@ -9,6 +9,8 @@ using System.Runtime.Serialization;
 
 namespace Spreads.DataTypes
 {
+    // TODO TypeEnum, review if this type is needed at all, time is a key in series, non needed as a part of value.
+
     /// <summary>
     /// ITick interface.
     /// </summary>
@@ -24,7 +26,6 @@ namespace Spreads.DataTypes
     /// A blittable structure to store ticks.
     /// </summary>
     [StructLayout(LayoutKind.Sequential, Pack = 4, Size = 24)]
-    [BinarySerialization(BlittableSize = 24)]
     [DataContract]
     public struct Tick : IEquatable<Tick>, ITick, IDelta<Tick>
     {

@@ -131,8 +131,8 @@ namespace Spreads.Serialization
 
             // first reuse the raw buffer or create one in rare case it is empty
             var rawOffset = 16;
-            byte[] tmpArray = null;
-            MemoryHandle pin = default;
+            byte[] tmpArray;
+            MemoryHandle pin;
             DirectBuffer tmpDestination;
 
             if (rawTemporaryBuffer.Count == 0)
@@ -144,6 +144,7 @@ namespace Spreads.Serialization
                 pin = ((Memory<byte>)tmpArray).Pin();
                 tmpDestination = new DirectBuffer(tmpArray.Length, (byte*)pin.Pointer);
                 var sl = tmpDestination.Slice(rawOffset);
+                // ReSharper disable once PossibleNullReferenceException
                 bc.Write(value, ref sl);
                 // now tmpArray is the same as if if was returned from SizeOfNoHeader
             }
@@ -153,6 +154,7 @@ namespace Spreads.Serialization
                 rawOffset = rawTemporaryBuffer.Offset;
                 tmpArray = rawTemporaryBuffer.Array;
                 pin = ((Memory<byte>)tmpArray).Pin();
+                // ReSharper disable once PossibleNullReferenceException
                 tmpDestination = new DirectBuffer(tmpArray.Length, (byte*)pin.Pointer);
             }
 
@@ -197,8 +199,8 @@ namespace Spreads.Serialization
                 return totalLength;
             }
 
-            byte[] tmpArray2 = null;
-            MemoryHandle pin2 = default;
+            byte[] tmpArray2;
+            MemoryHandle pin2;
             tmpArray2 = BufferPool<byte>.Rent(checked((int)(uint)uncompressedBufferWithHeader.Length));
             pin2 = ((Memory<byte>)tmpArray2).Pin();
             var destination2 = new DirectBuffer(tmpArray2.Length, (byte*)pin2.Pointer).Slice(0, uncompressedBufferWithHeader.Length);
@@ -702,7 +704,7 @@ namespace Spreads.Serialization
         internal static int TsSize(Timestamp ts)
         {
             var isNonDefault = (long)ts != default;
-            var size = ((int)(*(byte*)&isNonDefault) << 3); // 1 << 3 = 8 or zero
+            var size = (*(byte*)&isNonDefault << 3); // 1 << 3 = 8 or zero
             return size;
         }
 

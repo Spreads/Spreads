@@ -9,13 +9,14 @@ using System.Runtime.Serialization;
 
 namespace Spreads.DataTypes
 {
+    // TODO TypeEnum
+
     // NB zero fields are almost free to store due to Blosc shuffling + compression
 
     /// <summary>
     /// A blittable structure for bars.
     /// </summary>
     [StructLayout(LayoutKind.Sequential, Pack = 4, Size = 24)]
-    [BinarySerialization(BlittableSize = 24)]
     [DataContract]
     public struct OHLCV : IDelta<OHLCV>
     {
@@ -111,7 +112,6 @@ namespace Spreads.DataTypes
     /// A blittable structure for bars with additional info.
     /// </summary>
     [StructLayout(LayoutKind.Sequential, Pack = 4, Size = 48)]
-    [BinarySerialization(BlittableSize = 48)]
     [DataContract]
     public struct OHLCFull
     {

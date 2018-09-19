@@ -206,6 +206,18 @@ namespace Spreads
             return cursor.Source;
         }
 
+        // TODO Use span to protect from copying reused array outside Zip
+        [Obsolete]
+        public delegate TResult ZipNSelector<TKey,TValue, TResult>(TKey key, Span<TValue> values);
+
+        [Obsolete]
+        public static Series<TKey, TResult, Map<TKey, TValue[], TResult, Cursor<TKey, TValue[]>>> Zip<TKey, TValue, TResult>(
+            this ISeries<TKey, TValue>[] series, ZipNSelector<TKey, TValue, TResult> selector, bool reuseArray = false)
+        {
+            throw new NotImplementedException();
+        }
+
+
         public static Series<TKey, TResult, Map<TKey, TValue[], TResult, Cursor<TKey, TValue[]>>> Zip<TKey, TValue, TResult>(
             this ISeries<TKey, TValue>[] series, Func<TKey, TValue[], TResult> selector, bool reuseArray = false)
         {

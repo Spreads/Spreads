@@ -10,12 +10,12 @@ using System.Runtime.InteropServices;
 
 namespace Spreads.Core.Tests.Serialization
 {
-
     [StructLayout(LayoutKind.Explicit, Pack = 1)]
     public struct LongUnion
     {
         [FieldOffset(0)]
         public int Int1;
+
         [FieldOffset(1)]
         public int Int2;
 
@@ -147,6 +147,47 @@ namespace Spreads.Core.Tests.Serialization
                 //        BinarySerializer.Write(values[i], bytes, stream, SerializationFormat.Json);
                 //        BinarySerializer.Read<TestValue>(bytes, out var value);
                 //        lenSum += size;
+                //    }
+                //}
+            }
+            Benchmark.Dump();
+        }
+
+        [Test, Explicit("long running")]
+        public void SerializeToRetainedMemoryOverhead()
+        {
+#pragma warning disable 618
+            Settings.DoAdditionalCorrectnessChecks = false;
+#pragma warning restore 618
+
+            var count = 1000_000;
+            
+            for (int r = 0; r < 50; r++)
+            {
+                //using (Benchmark.Run("To Rented Array", count))
+                //{
+                //    for (int i = 0; i < count; i++)
+                //    {
+                //        var segment = Spreads.Serialization.Utf8Json.JsonSerializer.SerializeToRentedBuffer(i);
+                //        BufferPool<byte>.Return(segment.Array);
+                //    }
+                //}
+
+                using (Benchmark.Run("To RM", count))
+                {
+                    for (int i = 0; i < count; i++)
+                    {
+                        var rm = Spreads.Serialization.Utf8Json.JsonSerializer.SerializeToRetainedMemory(i);
+                        rm.Dispose();
+                    }
+                }
+
+                //using (Benchmark.Run("RM", count))
+                //{
+                //    for (int i = 0; i < count; i++)
+                //    {
+                //        var rm = BufferPool.Retain(32);
+                //        rm.Dispose();
                 //    }
                 //}
             }

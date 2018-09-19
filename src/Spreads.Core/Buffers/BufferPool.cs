@@ -12,12 +12,12 @@ namespace Spreads.Buffers
 {
     public static class BufferPool<T>
     {
-        // private static readonly ArrayPool<T> PoolImpl = new DefaultArrayPool<T>();
+        private static readonly ArrayPool<T> ArrayPoolImpl = ArrayPool<T>.Shared;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static T[] Rent(int minLength)
         {
-            return ArrayPool<T>.Shared.Rent(minLength);
+            return ArrayPoolImpl.Rent(minLength);
         }
 
         /// <summary>
@@ -28,8 +28,7 @@ namespace Spreads.Buffers
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void Return(T[] array, bool clearArray = false)
         {
-            // TODO cannot use without clear currently due to how Utf8Json works
-            ArrayPool<T>.Shared.Return(array, clearArray);
+            ArrayPoolImpl.Return(array, clearArray);
         }
 
         //[MethodImpl(MethodImplOptions.AggressiveInlining)]

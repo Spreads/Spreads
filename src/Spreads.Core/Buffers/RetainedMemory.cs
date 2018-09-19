@@ -105,7 +105,7 @@ namespace Spreads.Buffers
         public Span<T> Span
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => Memory.Span;
+            get => _memory.Span;
         }
 
         /// <summary>
@@ -115,7 +115,7 @@ namespace Spreads.Buffers
         public int Count
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => Memory.Length;
+            get => _memory.Length;
         }
 
         /// <summary>
@@ -124,7 +124,7 @@ namespace Spreads.Buffers
         public int Length
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => Memory.Length;
+            get => _memory.Length;
         }
 
         /// <summary>
@@ -133,7 +133,7 @@ namespace Spreads.Buffers
         public T this[int index]
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => Memory.Span[index];
+            get => _memory.Span[index];
         }
 
         /// <summary>

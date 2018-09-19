@@ -5,12 +5,24 @@
 using NUnit.Framework;
 using Spreads.Buffers;
 using System;
+using System.Buffers;
+using System.Net.Http;
+using System.Runtime.CompilerServices;
 
 namespace Spreads.Core.Tests.Buffers
 {
     [TestFixture]
     public class RetainedMemoryTests
     {
+
+        [Test]
+        public void SizeOfMemoryStructs()
+        {
+            Console.WriteLine("Memory: " +  Unsafe.SizeOf<Memory<byte>>());
+            Console.WriteLine("MemoryHandle: " +  Unsafe.SizeOf<MemoryHandle>());
+            Console.WriteLine("RetainedMemory: " +  Unsafe.SizeOf<RetainedMemory<byte>>());
+        }
+
         [Test]
         public void CouldUseRetainedmemory()
         {
@@ -44,8 +56,16 @@ namespace Spreads.Core.Tests.Buffers
             GC.WaitForPendingFinalizers();
 
             rmc.Span[1] = 1;
-
+            
             // Assert.AreEqual(1, array[1]);
+        }
+
+        [Test]
+        public void CouldUseRetainedMemoryForHttpContent()
+        {
+            var b = new byte[1];
+
+            HttpContent content = new ByteArrayContent(b);
         }
     }
 }

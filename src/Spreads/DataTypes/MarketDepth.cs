@@ -4,6 +4,8 @@ using Spreads.Serialization;
 
 namespace Spreads.DataTypes
 {
+    // TODO TypeEnum
+
     /// <summary>
     /// A structure to represent "Small" best bids and asks.
     /// Often best bids and asks have very small volume, which could create noise.
@@ -16,7 +18,6 @@ namespace Spreads.DataTypes
     /// Offset equalt to zero indicates that this is the best bid/ask.
     /// </summary>
     [StructLayout(LayoutKind.Sequential, Pack = 4, Size = 32)]
-    [BinarySerialization(BlittableSize = 32)]
     [DataContract(Name = "MarketDepth")]
     public struct MarketDepth : IDelta<MarketDepth>
     {
