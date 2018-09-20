@@ -182,15 +182,15 @@ namespace Spreads.Core.Tests.Serialization
                     }
                 }
 
-                //using (Benchmark.Run("To RMS", count))
-                //{
-                //    for (int i = 0; i < count; i++)
-                //    {
-                //        var rms = RecyclableMemoryStreamManager.Default.GetStream();
-                //        Spreads.Serialization.Utf8Json.JsonSerializer.Serialize(rms, i);
-                //        rms.Dispose();
-                //    }
-                //}
+                using (Benchmark.Run("To RMS", count))
+                {
+                    for (int i = 0; i < count; i++)
+                    {
+                        var rms = RecyclableMemoryStreamManager.Default.GetStream();
+                        Spreads.Serialization.Utf8Json.JsonSerializer.Serialize(rms, i);
+                        rms.Dispose();
+                    }
+                }
 
                 using (Benchmark.Run("RM", count))
                 {

@@ -1,6 +1,9 @@
 ﻿// This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
+#if DEBUG
+#define DETECT_LEAKS
+#endif
 
 using System;
 using System.Buffers;
@@ -49,6 +52,16 @@ namespace Spreads.Buffers
 #endif
         }
 
+        internal RetainedMemory(T[] bytes)
+        {
+            _memory = (Memory<T>)bytes;
+            _memoryHandle = default;
+            // We do not need to Pin arrays, they do not have ref count. Will be pinned when Pointer is accessed.
+#if DETECT_LEAKS
+            _finalizeChecker = new PanicOnFinalize();
+#endif
+        }
+
         /// <summary>
         /// Used internally with "fake" handle, that could unpin owned buffer but
         /// does not hold a pinned GCHandle. However, any existing MemoryHandle
@@ -71,9 +84,15 @@ namespace Spreads.Buffers
             {
                 unsafe
                 {
-                    return _memoryHandle.Pointer != (void*)IntPtr.Zero;
+                    return _memoryHandle.Pointer != null;
                 }
             }
+        }
+
+        public bool IsEmpty
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => _memory.IsEmpty;
         }
 
         public unsafe void* Pointer
@@ -81,7 +100,8 @@ namespace Spreads.Buffers
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
-                if (IsPinned) return _memoryHandle.Pointer;
+                var ptr = _memoryHandle.Pointer;
+                if (ptr != null) return ptr;
                 // replace handles
                 var newHandle = Memory.Pin();
                 _memoryHandle.Dispose();
@@ -125,15 +145,6 @@ namespace Spreads.Buffers
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => _memory.Length;
-        }
-
-        /// <summary>
-        /// Gets the element at the specified index in the RetainedMemory.
-        /// </summary>
-        public T this[int index]
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => _memory.Span[index];
         }
 
         /// <summary>

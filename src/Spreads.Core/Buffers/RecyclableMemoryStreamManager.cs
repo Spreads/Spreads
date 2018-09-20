@@ -248,21 +248,6 @@ namespace Spreads.Buffers
         }
 
         /// <summary>
-        /// Whether dirty buffers can be immediately returned to the buffer pool. E.g. when GetBuffer() is called on
-        /// a stream and creates a single large buffer, if this setting is enabled, the other blocks will be returned
-        /// to the buffer pool immediately.
-        /// Note when enabling this setting that the user is responsible for ensuring that any buffer previously
-        /// retrieved from a stream which is subsequently modified is not used after modification (as it may no longer
-        /// be valid).
-        /// </summary>
-        public bool AggressiveBufferReturn
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get;
-            set;
-        } = true;
-
-        /// <summary>
         /// Removes and returns a single block from the pool.
         /// </summary>
         /// <returns>A byte[] array</returns>

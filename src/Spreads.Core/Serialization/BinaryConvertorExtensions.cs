@@ -30,7 +30,7 @@ namespace Spreads.Serialization
             long posInternal;
             if (stream is RecyclableMemoryStream rms && rms.IsSingleChunk && rms.CapacityInternal - (posInternal = rms.PositionInternal) > size)
             {
-                WriteUnaligned(ref rms.SingleChunk[posInternal], value);
+                WriteUnaligned(ref rms.SingleChunk.Span[checked((int)posInternal)], value);
                 if (posInternal + size > rms.LengthInternal)
                 {
                     rms.SetLengthInternal(posInternal + size);
@@ -89,7 +89,7 @@ namespace Spreads.Serialization
                 if (rms.IsSingleChunk)
                 {
                     CopyBlockUnaligned(ref destination,
-                        ref rms.SingleChunk[0], checked((uint)rms.LengthInternal));
+                        ref rms.SingleChunk.Span[0], checked((uint)rms.LengthInternal));
                 }
                 else
                 {
@@ -98,8 +98,8 @@ namespace Spreads.Serialization
                     {
                         CopyBlockUnaligned(ref AddByteOffset(ref destination, (IntPtr)position),
                             // ReSharper disable once PossibleNullReferenceException
-                            ref segment.Array[segment.Offset], checked((uint)segment.Count));
-                        position += segment.Count;
+                            ref segment.Span[0], checked((uint)segment.Length));
+                        position += segment.Length;
                     }
                 }
             }

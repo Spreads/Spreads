@@ -65,14 +65,13 @@ namespace Spreads.Buffers
     /// are maintained in the stream until the stream is disposed (unless AggressiveBufferReturn is enabled in the stream manager).
     ///
     /// </remarks>
-    [Obsolete("Try to use ReadOnlySequence, Pipelines or just simple ArraySegment/RetainedMemory")]
     public sealed class RecyclableMemoryStream : MemoryStream
     {
         private static readonly ObjectPool<RecyclableMemoryStream> Pool = new ObjectPool<RecyclableMemoryStream>(() => new RecyclableMemoryStream(), Environment.ProcessorCount * 16);
 
         private const long MaxStreamLength = int.MaxValue;
 
-        private static readonly byte[] EmptyArray = new byte[0];
+        private static readonly byte[] EmptyArray = Array.Empty<byte>();
 
         /// <summary>
         /// All of these blocks must be the same size
@@ -86,31 +85,47 @@ namespace Spreads.Buffers
         /// <remarks>If this field is non-null, it contains the concatenation of the bytes found in the individual
         /// blocks. Once it is created, this (or a larger) largeBuffer will be used for the life of the stream.
         /// </remarks>
-        private byte[] _largeBuffer;
+        private RetainedMemory<byte> _largeBuffer;
 
-        /// <summary>
-        /// This list is used to store buffers once they're replaced by something larger.
-        /// This is for the cases where you have users of this class that may hold onto the buffers longer
-        /// than they should and you want to prevent race conditions which could corrupt the data.
-        /// </summary>
-        private List<byte[]> _dirtyBuffers;
-
+#if DEBUG
         private static long _lastId;
         private long _id;
+        private string _tag;
+#endif
 
         /// <summary>
         /// Unique identifier for this stream across it's entire lifetime
         /// </summary>
         /// <exception cref="ObjectDisposedException">Object has been disposed</exception>
-        internal long Id { get { CheckDisposed(); return _id; } }
-
-        private string _tag;
+        internal long Id
+        {
+            get
+            {
+                CheckDisposed();
+#if DEBUG
+                return _id;
+#else
+                return 0;
+#endif
+            }
+        }
 
         /// <summary>
         /// A temporary identifier for the current usage of this stream.
         /// </summary>
         /// <exception cref="ObjectDisposedException">Object has been disposed</exception>
-        internal string Tag { get { CheckDisposed(); return _tag; } }
+        internal string Tag
+        {
+            get
+            {
+                CheckDisposed();
+#if DEBUG
+                return _tag;
+#else
+                return null;
+#endif
+            }
+        }
 
         private RecyclableMemoryStreamManager _memoryManager;
 
@@ -143,30 +158,25 @@ namespace Spreads.Buffers
 
         #region Constructors
 
-        /// <summary>
-        /// Allocate a new RecyclableMemoryStream object
-        /// </summary>
-        /// <param name="memoryManager">The memory manager</param>
-        /// <param name="tag">A string identifying this stream for logging and debugging purposes</param>
-        /// <param name="requestedSize">The initial requested size to prevent future allocations</param>
-        /// <param name="initialLargeBuffer">An initial buffer to use. This buffer will be owned by the stream and returned to the memory manager upon Dispose.</param>
-        /// <param name="length">Set length if initialLargeBuffer has data.</param>
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static RecyclableMemoryStream Create(RecyclableMemoryStreamManager memoryManager, string tag, int requestedSize,
-            byte[] initialLargeBuffer, int length = 0)
+        internal static RecyclableMemoryStream Create(RecyclableMemoryStreamManager memoryManager, string tag,
+            int requestedSize,
+            RetainedMemory<byte> initialLargeBuffer, int length = 0)
         {
             var rms = Pool.Allocate();
             rms._refCount = 1;
             rms._memoryManager = memoryManager;
+#if DEBUG
             rms._id = Interlocked.Increment(ref _lastId);
             rms._tag = tag;
-
+#endif
             if (requestedSize < memoryManager.BlockSize)
             {
                 requestedSize = memoryManager.BlockSize;
             }
 
-            if (initialLargeBuffer == null)
+            if (initialLargeBuffer.IsEmpty)
             {
                 rms.EnsureCapacity(requestedSize);
             }
@@ -188,11 +198,26 @@ namespace Spreads.Buffers
             {
                 rms.AllocationStack = Environment.StackTrace;
             }
-#endif
             Events.Write.MemoryStreamCreated(rms._id, rms._tag, requestedSize);
+#endif
             rms._memoryManager.ReportStreamCreated();
 
             return rms;
+        }
+
+        /// <summary>
+        /// Allocate a new RecyclableMemoryStream object
+        /// </summary>
+        /// <param name="memoryManager">The memory manager</param>
+        /// <param name="tag">A string identifying this stream for logging and debugging purposes</param>
+        /// <param name="requestedSize">The initial requested size to prevent future allocations</param>
+        /// <param name="initialLargeBuffer">An initial buffer to use. This buffer will be owned by the stream and returned to the memory manager upon Dispose.</param>
+        /// <param name="length">Set length if initialLargeBuffer has data.</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static RecyclableMemoryStream Create(RecyclableMemoryStreamManager memoryManager, string tag, int requestedSize,
+            byte[] initialLargeBuffer, int length = 0)
+        {
+            return Create(memoryManager, tag, requestedSize, initialLargeBuffer == null ? default : new RetainedMemory<byte>(initialLargeBuffer), length);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -270,14 +295,15 @@ namespace Spreads.Buffers
                 {
                     doubleDisposeStack = Environment.StackTrace;
                 }
-
+#if DEBUG
                 Events.Write.MemoryStreamDoubleDispose(_id, _tag, AllocationStack, DisposeStack,
                     doubleDisposeStack);
+#endif
                 return;
             }
 
-            Events.Write.MemoryStreamDisposed(_id, _tag);
 #if DEBUG
+            Events.Write.MemoryStreamDisposed(_id, _tag);
             if (_memoryManager.GenerateCallStacks)
             {
                 DisposeStack = Environment.StackTrace;
@@ -293,7 +319,9 @@ namespace Spreads.Buffers
             else
             {
                 // We're being finalized.
+#if DEBUG
                 Events.Write.MemoryStreamFinalized(_id, _tag, AllocationStack);
+#endif
                 if (AppDomain.CurrentDomain.IsFinalizingForUnload())
                 {
                     // If we're being finalized because of a shutdown, don't go any further.
@@ -307,31 +335,24 @@ namespace Spreads.Buffers
 
             _memoryManager.ReportStreamLength(_length);
 
-            if (_largeBuffer != null)
+            if (!_largeBuffer.IsEmpty)
             {
-                _memoryManager.ReturnLargeBuffer(_largeBuffer, _tag);
-                _largeBuffer = null;
+                _largeBuffer.Dispose();
+                _largeBuffer = default;
             }
-
-            if (_dirtyBuffers != null)
-            {
-                foreach (var buffer in _dirtyBuffers)
-                {
-                    _memoryManager.ReturnLargeBuffer(buffer, _tag);
-                }
-                _dirtyBuffers.Clear();
-                _dirtyBuffers = null;
-            }
-
+#if DEBUG
             _memoryManager.ReturnBlocks(_blocks, _tag);
+#else
+            _memoryManager.ReturnBlocks(_blocks, null);
+#endif
             _blocks.Clear();
-
-            _id = 0;
 
             _length = 0;
             _position = 0;
+#if DEBUG
+            _id = 0;
             _tag = null;
-
+#endif
             _memoryManager = null;
 
             base.Dispose(disposing);
@@ -381,7 +402,7 @@ namespace Spreads.Buffers
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
-                if (_largeBuffer != null)
+                if (!_largeBuffer.IsEmpty)
                 {
                     return _largeBuffer.Length;
                 }
@@ -495,11 +516,16 @@ namespace Spreads.Buffers
         /// <exception cref="ObjectDisposedException">Object has been disposed</exception>
         public override byte[] GetBuffer()
         {
+            throw new NotSupportedException("Use GetMemory");
+        }
+
+        public Memory<byte> GetMemory()
+        {
             CheckDisposed();
 
-            if (_largeBuffer != null)
+            if (!_largeBuffer.IsEmpty)
             {
-                return _largeBuffer;
+                return _largeBuffer.Memory.Slice(checked((int)_length));
             }
 
             if (_blocks.Count == 1)
@@ -511,20 +537,28 @@ namespace Spreads.Buffers
             // it's possible that people will manipulate the buffer directly
             // and set the length afterward. Capacity sets the expectation
             // for the size of the buffer.
+#if DEBUG
             var newBuffer = _memoryManager.GetLargeBuffer(Capacity, _tag);
+#else
+            var newBuffer = _memoryManager.GetLargeBuffer(Capacity, null);
+#endif
 
             // InternalRead will check for existence of largeBuffer, so make sure we
             // don't set it until after we've copied the data.
             InternalRead(newBuffer, 0, _length, 0);
-            _largeBuffer = newBuffer;
+            _largeBuffer = new RetainedMemory<byte>(newBuffer);
 
-            if (_blocks.Count > 0 && _memoryManager.AggressiveBufferReturn)
+            if (_blocks.Count > 0)
             {
+#if DEBUG
                 _memoryManager.ReturnBlocks(_blocks, _tag);
+#else
+                _memoryManager.ReturnBlocks(_blocks, null);
+#endif
                 _blocks.Clear();
             }
 
-            return _largeBuffer;
+            return _largeBuffer.Memory.Slice(checked((int)_length));
         }
 
         /// <summary>
@@ -543,7 +577,11 @@ namespace Spreads.Buffers
 
             InternalRead(newBuffer, 0, _length, 0);
             var stack = _memoryManager.GenerateCallStacks ? Environment.StackTrace : null;
+#if DEBUG
             Events.Write.MemoryStreamToArray(_id, _tag, stack, 0);
+#else
+            Events.Write.MemoryStreamToArray(0, null, stack, 0);
+#endif
             _memoryManager.ReportStreamToArray();
 
             return newBuffer;
@@ -674,7 +712,7 @@ namespace Spreads.Buffers
 
             EnsureCapacity((int)end);
 
-            if (_largeBuffer == null)
+            if (_largeBuffer.IsEmpty)
             {
                 var bytesRemaining = count;
                 var bytesWritten = 0;
@@ -697,8 +735,7 @@ namespace Spreads.Buffers
             }
             else
             {
-                System.Runtime.CompilerServices.Unsafe
-                    .CopyBlockUnaligned(ref _largeBuffer[_position], ref buffer[offset], (uint)count);
+                Unsafe.CopyBlockUnaligned(ref _largeBuffer.Span[checked((int)_position)], ref buffer[offset], (uint)count);
             }
             _position = (int)end;
             _length = Math.Max(_position, _length);
@@ -740,7 +777,7 @@ namespace Spreads.Buffers
 
             EnsureCapacity((int)end);
 
-            if (_largeBuffer == null)
+            if (_largeBuffer.IsEmpty)
             {
                 var blockAndOffset = GetBlockAndRelativeOffset(_position);
 
@@ -750,7 +787,7 @@ namespace Spreads.Buffers
             }
             else
             {
-                _largeBuffer[_position] = value;
+                _largeBuffer.Span[checked((int)_position)] = value;
             }
             _position = (int)end;
             _length = Math.Max(_position, _length);
@@ -781,14 +818,14 @@ namespace Spreads.Buffers
                 return -1;
             }
             byte value;
-            if (_largeBuffer == null)
+            if (_largeBuffer.IsEmpty)
             {
                 var blockAndOffset = GetBlockAndRelativeOffset(streamPosition);
                 value = _blocks[blockAndOffset.Block][blockAndOffset.Offset];
             }
             else
             {
-                value = _largeBuffer[streamPosition];
+                value = _largeBuffer.Span[checked((int)streamPosition)];
             }
             streamPosition++;
             return value;
@@ -890,7 +927,7 @@ namespace Spreads.Buffers
                 throw new ArgumentNullException("stream");
             }
 
-            if (_largeBuffer == null)
+            if (_largeBuffer.IsEmpty)
             {
                 var currentBlock = 0;
                 var bytesRemaining = _length;
@@ -911,13 +948,26 @@ namespace Spreads.Buffers
                 {
                     ThrowHelper.ThrowNotImplementedException("Large arrays are not implemented yet in RMS");
                 }
-                stream.Write(_largeBuffer, 0, checked((int)_length)); // TODO we could write in chunks
+#if NETCOREAPP2_1
+                stream.Write(_largeBuffer.Span.Slice(0, checked((int)_length)));
+#else
+                if (_largeBuffer.TryGetArray(out var segment))
+                {
+                    stream.Write(segment.Array, segment.Offset, checked((int)_length));
+                }
+                else
+                {
+                    var array = _largeBuffer.Memory.ToArray();
+                    stream.Write(array, 0, checked((int)_length));
+                }
+               
+#endif
             }
         }
 
 #endregion MemoryStream overrides
 
-        public struct ChunksEnumerable : IEnumerable<ArraySegment<byte>>
+        public struct ChunksEnumerable : IEnumerable<Memory<byte>>
         {
             private RecyclableMemoryStream _rms;
 
@@ -928,10 +978,10 @@ namespace Spreads.Buffers
             }
 
             [Obsolete("Hide API")]
-            public byte[] LargeBuffer
+            public Memory<byte> LargeBuffer
             {
                 [MethodImpl(MethodImplOptions.AggressiveInlining)]
-                get { return _rms._largeBuffer; }
+                get { return _rms._largeBuffer.Memory; }
             }
 
             [Obsolete("Hide API")]
@@ -941,7 +991,7 @@ namespace Spreads.Buffers
                 get { return _rms._blocks; }
             }
 
-            public struct ChunksEnumerator : IEnumerator<ArraySegment<byte>>
+            public struct ChunksEnumerator : IEnumerator<Memory<byte>>
             {
                 private int _idx;
                 private RecyclableMemoryStream _rms;
@@ -949,7 +999,7 @@ namespace Spreads.Buffers
                 [MethodImpl(MethodImplOptions.AggressiveInlining)]
                 public ChunksEnumerator(RecyclableMemoryStream rms)
                 {
-                    if (rms._largeBuffer != null)
+                    if (!rms._largeBuffer.IsEmpty)
                     {
                         _idx = int.MinValue;
                     }
@@ -964,12 +1014,11 @@ namespace Spreads.Buffers
                 [MethodImpl(MethodImplOptions.AggressiveInlining)]
                 public bool MoveNext()
                 {
-                    if (_rms._largeBuffer != null)
+                    if (!_rms._largeBuffer.IsEmpty)
                     {
                         if (_idx == Int32.MinValue)
                         {
-                            Current = new ArraySegment<byte>(_rms._largeBuffer, 0,
-                                checked((int)_rms._length)); // AS doesn't support long, will throw
+                            Current = _rms._largeBuffer.Memory.Slice(0, checked((int)_rms._length)); // AS doesn't support long, will throw
                             _idx = Int32.MaxValue;
                             return true;
                         }
@@ -998,7 +1047,7 @@ namespace Spreads.Buffers
                 [MethodImpl(MethodImplOptions.AggressiveInlining)]
                 public void Reset()
                 {
-                    if (_rms._largeBuffer != null)
+                    if (!_rms._largeBuffer.IsEmpty)
                     {
                         _idx = int.MinValue;
                     }
@@ -1008,7 +1057,7 @@ namespace Spreads.Buffers
                     }
                 }
 
-                public ArraySegment<byte> Current { [MethodImpl(MethodImplOptions.AggressiveInlining)]get; [MethodImpl(MethodImplOptions.AggressiveInlining)]private set; }
+                public Memory<byte> Current { [MethodImpl(MethodImplOptions.AggressiveInlining)]get; [MethodImpl(MethodImplOptions.AggressiveInlining)]private set; }
 
                 object IEnumerator.Current => Current;
 
@@ -1029,7 +1078,7 @@ namespace Spreads.Buffers
                 return GetEnumerator();
             }
 
-            IEnumerator<ArraySegment<byte>> IEnumerable<ArraySegment<byte>>.GetEnumerator()
+            IEnumerator<Memory<byte>> IEnumerable<Memory<byte>>.GetEnumerator()
             {
                 return GetEnumerator();
             }
@@ -1041,15 +1090,15 @@ namespace Spreads.Buffers
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
-                return (_largeBuffer != null || _blocks.Count == 1) && _length > 0;
+                return (!_largeBuffer.IsEmpty || _blocks.Count == 1) && _length > 0;
             }
         }
 
         [Obsolete("Hide API")]
-        public byte[] SingleChunk
+        public Memory<byte> SingleChunk
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return IsSingleChunk ? _largeBuffer ?? _blocks[0] : null; }
+            get { return IsSingleChunk ? (_largeBuffer.IsEmpty ? _blocks[0] : _largeBuffer.Memory) : Memory<byte>.Empty; }
         }
 
         /// <summary>
@@ -1067,14 +1116,6 @@ namespace Spreads.Buffers
 
         public override bool TryGetBuffer(out ArraySegment<byte> buffer)
         {
-            if (IsSingleChunk)
-            {
-#pragma warning disable 618
-                buffer = new ArraySegment<byte>(SingleChunk, 0, checked((int)_length));
-#pragma warning restore 618
-                return true;
-            }
-
             buffer = default;
             return false;
         }
@@ -1086,7 +1127,11 @@ namespace Spreads.Buffers
         {
             if (IntPtr.Size == 8 ? Volatile.Read(ref _refCount) == 0 : Interlocked.Read(ref _refCount) == 0)
             {
-                ThrowHelper.ThrowObjectDisposedException(string.Format("The stream with Id {0} and Tag {1} is disposed.", _id, _tag));
+#if DEBUG
+                ThrowHelper.ThrowObjectDisposedException($"The stream with Id {_id} and Tag {_tag} is disposed.");
+#else
+                ThrowHelper.ThrowObjectDisposedException($"The stream is disposed.");
+#endif
             }
         }
 
@@ -1097,7 +1142,7 @@ namespace Spreads.Buffers
             {
                 return 0;
             }
-            if (_largeBuffer == null)
+            if (_largeBuffer.IsEmpty)
             {
                 var blockAndOffset = GetBlockAndRelativeOffset(fromPosition);
                 var bytesWritten = 0L;
@@ -1121,8 +1166,7 @@ namespace Spreads.Buffers
             else
             {
                 var amountToCopy = Math.Min(count, _length - fromPosition);
-                System.Runtime.CompilerServices.Unsafe
-                    .CopyBlockUnaligned(ref buffer[offset], ref _largeBuffer[fromPosition], (uint)amountToCopy);
+                Unsafe.CopyBlockUnaligned(ref buffer[offset], ref _largeBuffer.Span[checked((int)fromPosition)], (uint)amountToCopy);
                 return amountToCopy;
             }
         }
@@ -1153,18 +1197,26 @@ namespace Spreads.Buffers
         {
             if (newCapacity > _memoryManager.MaximumStreamCapacity && _memoryManager.MaximumStreamCapacity > 0)
             {
+#if DEBUG
                 Events.Write.MemoryStreamOverCapacity(newCapacity, _memoryManager.MaximumStreamCapacity, _tag, AllocationStack);
+#else
+                Events.Write.MemoryStreamOverCapacity(newCapacity, _memoryManager.MaximumStreamCapacity, null, AllocationStack);
+#endif
                 ThrowHelper.ThrowInvalidOperationException("Requested capacity is too large: " + newCapacity + ". Limit is " + _memoryManager.MaximumStreamCapacity);
             }
 
-            if (_largeBuffer != null)
+            if (!_largeBuffer.IsEmpty)
             {
                 if (newCapacity > _largeBuffer.Length)
                 {
+#if DEBUG
                     var newBuffer = _memoryManager.GetLargeBuffer(newCapacity, _tag);
+#else
+                    var newBuffer = _memoryManager.GetLargeBuffer(newCapacity, null);
+#endif
                     InternalRead(newBuffer, 0, _length, 0);
-                    ReleaseLargeBuffer();
-                    _largeBuffer = newBuffer;
+                    _largeBuffer.Dispose();
+                    _largeBuffer = new RetainedMemory<byte>(newBuffer);
                 }
             }
             else
@@ -1174,29 +1226,6 @@ namespace Spreads.Buffers
                     _blocks.Add((_memoryManager.GetBlock()));
                 }
             }
-        }
-
-        /// <summary>
-        /// Release the large buffer (either stores it for eventual release or returns it immediately).
-        /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void ReleaseLargeBuffer()
-        {
-            if (_memoryManager.AggressiveBufferReturn)
-            {
-                _memoryManager.ReturnLargeBuffer(_largeBuffer, _tag);
-            }
-            else
-            {
-                if (_dirtyBuffers == null)
-                {
-                    // We most likely will only ever need space for one
-                    _dirtyBuffers = new List<byte[]>(1);
-                }
-                _dirtyBuffers.Add(_largeBuffer);
-            }
-
-            _largeBuffer = null;
         }
 
 #endregion Helper Methods
