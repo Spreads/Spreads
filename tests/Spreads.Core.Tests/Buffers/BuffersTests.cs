@@ -97,7 +97,7 @@ namespace Spreads.Tests.Buffers
                     for (var i = 0; i < count; i++)
                     {
                         // var wrapper = BufferPool.StaticBuffer;
-                        using (var wrapper = BufferPool.UseTempBuffer(BufferPool.StaticBufferSize))
+                        using (var wrapper = BufferPool.StaticBufferMemory )
                         {
                             wrapper.Memory.Span[0] = 123;
                             sum += wrapper.Memory.Span[0] + wrapper.Memory.Span[1];

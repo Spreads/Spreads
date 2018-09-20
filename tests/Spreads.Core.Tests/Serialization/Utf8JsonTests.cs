@@ -162,16 +162,16 @@ namespace Spreads.Core.Tests.Serialization
 
             var count = 1000_000;
             
-            for (int r = 0; r < 50; r++)
+            for (int r = 0; r < 20; r++)
             {
-                //using (Benchmark.Run("To Rented Array", count))
-                //{
-                //    for (int i = 0; i < count; i++)
-                //    {
-                //        var segment = Spreads.Serialization.Utf8Json.JsonSerializer.SerializeToRentedBuffer(i);
-                //        BufferPool<byte>.Return(segment.Array);
-                //    }
-                //}
+                using (Benchmark.Run("To Rented Array", count))
+                {
+                    for (int i = 0; i < count; i++)
+                    {
+                        var segment = Spreads.Serialization.Utf8Json.JsonSerializer.SerializeToRentedBuffer(i);
+                        BufferPool<byte>.Return(segment.Array);
+                    }
+                }
 
                 using (Benchmark.Run("To RM", count))
                 {
@@ -182,14 +182,24 @@ namespace Spreads.Core.Tests.Serialization
                     }
                 }
 
-                //using (Benchmark.Run("RM", count))
+                //using (Benchmark.Run("To RMS", count))
                 //{
                 //    for (int i = 0; i < count; i++)
                 //    {
-                //        var rm = BufferPool.Retain(32);
-                //        rm.Dispose();
+                //        var rms = RecyclableMemoryStreamManager.Default.GetStream();
+                //        Spreads.Serialization.Utf8Json.JsonSerializer.Serialize(rms, i);
+                //        rms.Dispose();
                 //    }
                 //}
+
+                using (Benchmark.Run("RM", count))
+                {
+                    for (int i = 0; i < count; i++)
+                    {
+                        var rm = BufferPool.Retain(16);
+                        rm.Dispose();
+                    }
+                }
             }
             Benchmark.Dump();
         }

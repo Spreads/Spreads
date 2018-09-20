@@ -29,7 +29,7 @@ namespace Spreads
         // when noone is using it.
 
         // NB at least 85k for LOH
-        internal const int ThreadStaticPinnedBufferSize = 128 * 1024;
+        internal const int ThreadStaticPinnedBufferSize = 90 * 1024;
 
         internal class AdditionalCorrectnessChecks
         {

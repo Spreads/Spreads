@@ -30,26 +30,23 @@ namespace Spreads.Buffers
         {
             ArrayPoolImpl.Return(array, clearArray);
         }
-
-        //[MethodImpl(MethodImplOptions.AggressiveInlining)]
-        //internal static OwnedPooledArray<T> RentOwnedPooledArray(int minLength)
-        //{
-        //    return ArrayMemoryPool<T>.Shared.RentCore(minLength);
-        //}
     }
 
-    public static class BufferPool
+    public class BufferPool
     {
+        internal static BufferPool Shared = new BufferPool();
+
         // max pooled array size
         internal const int SharedBufferSize = 4096;
 
-        internal const int StaticBufferSize = 16 * 1024;
+        internal const int StaticBufferSize = Settings.ThreadStaticPinnedBufferSize;
 
         /// <summary>
         /// Shared buffers are for slicing of small PreservedBuffers
         /// </summary>
         [ThreadStatic]
         private static OwnedPooledArray<byte> _sharedBuffer;
+
         [ThreadStatic]
         private static RetainedMemory<byte> _sharedBufferMemory;
 
@@ -64,6 +61,30 @@ namespace Spreads.Buffers
 
         [ThreadStatic]
         private static RetainedMemory<byte> _threadStaticMemory;
+
+        private int _smallTreshhold = 16;
+
+        internal BufferPool()
+        { }
+
+        protected internal int SmallTreshhold
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => _smallTreshhold;
+            set
+            {
+                if (value > SharedBufferSize)
+                {
+                    value = SharedBufferSize;
+                }
+
+                if (value < 16)
+                {
+                    value = 16;
+                }
+                _smallTreshhold = value;
+            }
+        }
 
         /// <summary>
         /// Thread-static <see cref="OwnedPooledArray{T}"/> with size of <see cref="StaticBufferSize"/>.
@@ -86,10 +107,7 @@ namespace Spreads.Buffers
         [MethodImpl(MethodImplOptions.NoInlining)]
         private static OwnedPooledArray<byte> CreateThreadStaticBuffer()
         {
-            _threadStaticBuffer =
-                OwnedPooledArray<byte>.Create(
-                    new byte[Settings
-                        .ThreadStaticPinnedBufferSize]);
+            _threadStaticBuffer = OwnedPooledArray<byte>.Create(new byte[StaticBufferSize]);
             _threadStaticBuffer._referenceCount = int.MinValue;
             // NB Pin in LOH if ThreadStaticPinnedBufferSize > 85k, limit impact on compaction (see Slab in Kestrel)
             _threadStaticMemory = new RetainedMemory<byte>(_threadStaticBuffer.Memory);
@@ -109,19 +127,13 @@ namespace Spreads.Buffers
             }
         }
 
-        /// <summary>
-        /// Return a contiguous segment of memory backed by a pooled array
-        /// </summary>
-        /// <param name="length"></param>
-        /// <param name="requireExact"></param>
-        /// <returns></returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static RetainedMemory<byte> Retain(int length, bool requireExact = true)
+        public virtual RetainedMemory<byte> RetainMemory(int length, bool requireExact = true)
         {
             // https://github.com/dotnet/corefx/blob/master/src/System.Buffers/src/System/Buffers/DefaultArrayPool.cs#L35
             // DefaultArrayPool has a minimum size of 16
-            const int smallTreshhold = 16;
-            if (length <= smallTreshhold)
+
+            if (length <= _smallTreshhold)
             {
                 if (_sharedBuffer == null)
                 {
@@ -159,24 +171,15 @@ namespace Spreads.Buffers
             // RetainedMemory.Clone()
             var ownedPooledArray = OwnedPooledArray<byte>.Create(length);
             return requireExact ? ownedPooledArray.Retain(length) : ownedPooledArray.Retain();
-
         }
 
-
-
         /// <summary>
-        /// Use a thread-static buffer as a temporary placeholder. One must only call this method and use the returned value
-        /// from a single thread (no async/await, etc.).
+        /// Return a contiguous segment of memory backed by a pooled memory.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        [Obsolete]
-        internal static OwnedPooledArray<byte> UseTempBuffer(int minimumSize)
+        public static RetainedMemory<byte> Retain(int length, bool requireExact = true)
         {
-            if (minimumSize <= StaticBufferSize)
-            {
-                return StaticBuffer;
-            }
-            return OwnedPooledArray<byte>.Create(minimumSize); //BufferPool<byte>.RentOwnedPooledArray(minimumSize);
+            return Shared.RetainMemory(length, requireExact);
         }
     }
 
