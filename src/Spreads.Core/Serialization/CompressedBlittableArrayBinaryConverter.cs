@@ -55,11 +55,9 @@ namespace Spreads.Serialization
                 {
                     totalSize = Write(value, valueOffset, valueCount, (IntPtr)ptr, null, format, timestamp);
                 }
-                temporaryStream = RecyclableMemoryStream.Create(RecyclableMemoryStreamManager.Default,
-                    null,
-                    totalSize,
+                temporaryStream = RecyclableMemoryStream.Create(totalSize,
                     buffer,
-                    totalSize);
+                    totalSize, null, RecyclableMemoryStreamManager.Default);
                 return totalSize;
             }
 

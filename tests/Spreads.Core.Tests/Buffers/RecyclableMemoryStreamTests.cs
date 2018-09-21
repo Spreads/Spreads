@@ -8,11 +8,19 @@ using NUnit.Framework;
 using Spreads.Buffers;
 using Spreads.Utils;
 
-namespace Spreads.Tests.Buffers
+namespace Spreads.Core.Tests.Buffers
 {
     [TestFixture]
     public class RecyclableMemoryStreamTests
     {
+
+        [Test, Explicit("long running")]
+        public void CouldPassRetainedMameoryToRMS()
+        {
+            var rm = BufferPool.Retain(1000);
+            var rms = RecyclableMemoryStream.Create();
+        }
+
         [Test, Explicit("long running")]
         public void CouldUseSafeWriteReadByte()
         {

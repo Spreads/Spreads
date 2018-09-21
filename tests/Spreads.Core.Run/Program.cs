@@ -1,5 +1,6 @@
-﻿using System;
+﻿using Spreads.Core.Tests.Buffers;
 using Spreads.Core.Tests.Serialization;
+using System;
 
 namespace Spreads.Core.Run
 {
@@ -9,10 +10,16 @@ namespace Spreads.Core.Run
         {
             Settings.DoAdditionalCorrectnessChecks = false;
 
-            PackWithHeaderBenchmark();
+            RmsBenchmark();
 
             Console.WriteLine("Finished, press enter to exit...");
             Console.ReadLine();
+        }
+
+        private static void RmsBenchmark()
+        {
+            var test = new RecyclableMemoryStreamTests();
+            test.CouldGetMemoryAfterWritingChunksBench();
         }
 
         private static void PackWithHeaderBenchmark()

@@ -158,12 +158,41 @@ namespace Spreads.Buffers
 
         #region Constructors
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static RecyclableMemoryStream Create(int requestedSize)
+        {
+            return Create(requestedSize, default(RetainedMemory<byte>), -1);
+        }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static RecyclableMemoryStream Create(RecyclableMemoryStreamManager memoryManager, string tag,
-            int requestedSize,
-            RetainedMemory<byte> initialLargeBuffer, int length = 0)
+        internal static RecyclableMemoryStream Create(RetainedMemory<byte> initialLargeBuffer)
         {
+            return Create(0, initialLargeBuffer, initialLargeBuffer.Length);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static RecyclableMemoryStream Create(Memory<byte> initialLargeBuffer)
+        {
+            var rm = new RetainedMemory<byte>(initialLargeBuffer, default);
+            return Create(0, rm, rm.Length);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static RecyclableMemoryStream Create(RetainedMemory<byte> initialLargeBuffer, int length)
+        {
+            if ((uint) length > (uint) initialLargeBuffer.Length)
+            {
+                ThrowHelper.ThrowArgumentException(nameof(length));
+            }
+            return Create(0, initialLargeBuffer, length);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static RecyclableMemoryStream Create(int requestedSize,
+            RetainedMemory<byte> initialLargeBuffer, int length = -1, string tag = null,
+            RecyclableMemoryStreamManager memoryManager = null)
+        {
+            memoryManager = memoryManager ?? RecyclableMemoryStreamManager.Default;
             var rms = Pool.Allocate();
             rms._refCount = 1;
             rms._memoryManager = memoryManager;
@@ -208,21 +237,26 @@ namespace Spreads.Buffers
         /// <summary>
         /// Allocate a new RecyclableMemoryStream object
         /// </summary>
-        /// <param name="memoryManager">The memory manager</param>
-        /// <param name="tag">A string identifying this stream for logging and debugging purposes</param>
         /// <param name="requestedSize">The initial requested size to prevent future allocations</param>
         /// <param name="initialLargeBuffer">An initial buffer to use. This buffer will be owned by the stream and returned to the memory manager upon Dispose.</param>
         /// <param name="length">Set length if initialLargeBuffer has data.</param>
+        /// <param name="tag">A string identifying this stream for logging and debugging purposes</param>
+        /// <param name="memoryManager">The memory manager</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static RecyclableMemoryStream Create(RecyclableMemoryStreamManager memoryManager, string tag, int requestedSize,
-            byte[] initialLargeBuffer, int length = 0)
+        internal static RecyclableMemoryStream Create(int requestedSize, byte[] initialLargeBuffer, int length = -1, string tag = null, RecyclableMemoryStreamManager memoryManager = null)
         {
-            return Create(memoryManager, tag, requestedSize, initialLargeBuffer == null ? default : new RetainedMemory<byte>(initialLargeBuffer), length);
+            return Create(requestedSize, initialLargeBuffer == null ? default : new RetainedMemory<byte>(initialLargeBuffer), length, tag, memoryManager);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private RecyclableMemoryStream() : base(EmptyArray)
         {
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static RecyclableMemoryStream Create()
+        {
+            return Create(0, default(RetainedMemory<byte>), -1, null, null);
         }
 
         /// <summary>
@@ -232,7 +266,7 @@ namespace Spreads.Buffers
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static RecyclableMemoryStream Create(RecyclableMemoryStreamManager memoryManager)
         {
-            return Create(memoryManager, null, 0, null);
+            return Create(0, null, -1, null, memoryManager);
         }
 
         /// <summary>
@@ -243,19 +277,20 @@ namespace Spreads.Buffers
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static RecyclableMemoryStream Create(RecyclableMemoryStreamManager memoryManager, string tag)
         {
-            return Create(memoryManager, tag, 0, null);
+            return Create(0, null, -1, tag, memoryManager);
         }
 
         /// <summary>
         /// Allocate a new RecyclableMemoryStream object
         /// </summary>
-        /// <param name="memoryManager">The memory manager</param>
-        /// <param name="tag">A string identifying this stream for logging and debugging purposes</param>
         /// <param name="requestedSize">The initial requested size to prevent future allocations</param>
+        /// <param name="tag">A string identifying this stream for logging and debugging purposes</param>
+        /// <param name="memoryManager">The memory manager</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static RecyclableMemoryStream Create(RecyclableMemoryStreamManager memoryManager, string tag, int requestedSize)
+        public static RecyclableMemoryStream Create(int requestedSize, string tag,
+            RecyclableMemoryStreamManager memoryManager)
         {
-            return Create(memoryManager, tag, requestedSize, null);
+            return Create(requestedSize, null, -1, tag, memoryManager);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -525,7 +560,7 @@ namespace Spreads.Buffers
 
             if (!_largeBuffer.IsEmpty)
             {
-                return _largeBuffer.Memory.Slice(checked((int)_length));
+                return _largeBuffer.Memory.Slice(0, checked((int)_length));
             }
 
             if (_blocks.Count == 1)
@@ -546,7 +581,7 @@ namespace Spreads.Buffers
             // InternalRead will check for existence of largeBuffer, so make sure we
             // don't set it until after we've copied the data.
             InternalRead(newBuffer, 0, _length, 0);
-            _largeBuffer = new RetainedMemory<byte>(newBuffer);
+            _largeBuffer = OwnedPooledArray<byte>.Create(newBuffer).Retain();
 
             if (_blocks.Count > 0)
             {
@@ -558,7 +593,7 @@ namespace Spreads.Buffers
                 _blocks.Clear();
             }
 
-            return _largeBuffer.Memory.Slice(checked((int)_length));
+            return _largeBuffer.Memory.Slice(0, checked((int)_length));
         }
 
         /// <summary>
@@ -723,8 +758,7 @@ namespace Spreads.Buffers
                     var currentBlock = _blocks[blockAndOffset.Block];
                     var remainingInBlock = blockSize - blockAndOffset.Offset;
                     var amountToWriteInBlock = Math.Min(remainingInBlock, bytesRemaining);
-                    System.Runtime.CompilerServices.Unsafe
-                        .CopyBlockUnaligned(ref currentBlock[blockAndOffset.Offset], ref buffer[offset + bytesWritten], (uint)amountToWriteInBlock);
+                    Unsafe.CopyBlockUnaligned(ref currentBlock[blockAndOffset.Offset], ref buffer[offset + bytesWritten], (uint)amountToWriteInBlock);
 
                     bytesRemaining -= amountToWriteInBlock;
                     bytesWritten += amountToWriteInBlock;
@@ -736,6 +770,61 @@ namespace Spreads.Buffers
             else
             {
                 Unsafe.CopyBlockUnaligned(ref _largeBuffer.Span[checked((int)_position)], ref buffer[offset], (uint)count);
+            }
+            _position = (int)end;
+            _length = Math.Max(_position, _length);
+        }
+
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void SafeWrite(Memory<byte> buffer)
+        {
+            CheckDisposed();
+            if (buffer.IsEmpty)
+            {
+                return;
+            }
+
+            var blockSize = _memoryManager.BlockSize;
+            var end = _position + buffer.Length;
+            // Check for overflow
+            if (end > MaxStreamLength)
+            {
+                ThrowHelper.ThrowIOException("Maximum capacity exceeded");
+            }
+
+            var requiredBuffers = (end + blockSize - 1) / blockSize;
+
+            if (requiredBuffers * blockSize > MaxStreamLength)
+            {
+                ThrowHelper.ThrowIOException("Maximum capacity exceeded");
+            }
+
+            EnsureCapacity((int)end);
+
+            if (_largeBuffer.IsEmpty)
+            {
+                var bytesRemaining = buffer.Length;
+                var bytesWritten = 0;
+                var blockAndOffset = GetBlockAndRelativeOffset(_position);
+
+                while (bytesRemaining > 0)
+                {
+                    var currentBlock = _blocks[blockAndOffset.Block];
+                    var remainingInBlock = blockSize - blockAndOffset.Offset;
+                    var amountToWriteInBlock = Math.Min(remainingInBlock, bytesRemaining);
+                    Unsafe.CopyBlockUnaligned(ref currentBlock[blockAndOffset.Offset], ref buffer.Span[bytesWritten], (uint)amountToWriteInBlock);
+
+                    bytesRemaining -= amountToWriteInBlock;
+                    bytesWritten += amountToWriteInBlock;
+
+                    ++blockAndOffset.Block;
+                    blockAndOffset.Offset = 0;
+                }
+            }
+            else
+            {
+                Unsafe.CopyBlockUnaligned(ref _largeBuffer.Span[checked((int)_position)], ref buffer.Span[0], (uint)buffer.Length);
             }
             _position = (int)end;
             _length = Math.Max(_position, _length);

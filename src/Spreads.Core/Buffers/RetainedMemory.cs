@@ -7,8 +7,10 @@
 
 using System;
 using System.Buffers;
+using System.IO;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Threading.Tasks;
 
 namespace Spreads.Buffers
 {
@@ -32,12 +34,14 @@ namespace Spreads.Buffers
     ///
     /// Access to this struct is not thread-safe, only one thread could call its methods at a time.
     /// </remarks>
-    [StructLayout(LayoutKind.Auto)]
+    [StructLayout(LayoutKind.Sequential)]
     public struct RetainedMemory<T> : IDisposable
     {
         // Could add Deconstruct method
         internal MemoryHandle _memoryHandle;
         internal Memory<T> _memory;
+
+        // Could add up to 24 fields to still fir in one cache line.
 
         /// <summary>
         /// Create a new RetainedMemory from Memory and pins it.
@@ -148,6 +152,14 @@ namespace Spreads.Buffers
         }
 
         /// <summary>
+        /// Slice in-place, keep ownership.
+        /// </summary>
+        public void Trim(int start, int length)
+        {
+            _memory = _memory.Slice(start, length);
+        }
+
+        /// <summary>
         /// Release a reference of the underlying OwnedBuffer.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -213,5 +225,90 @@ namespace Spreads.Buffers
         {
             return MemoryMarshal.TryGetArray(rm.Memory, out segment);
         }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static ValueTask<RetainedMemory<byte>> ToRetainedMemory(this Stream stream, int initialSize = 16 * 1024, int limit = 0)
+        {
+            RetainedMemory<byte> rm;
+            var knownSize = -1;
+            if (stream.CanSeek)
+            {
+                knownSize = checked((int) stream.Length);
+                rm = BufferPool.Retain(knownSize);
+            }
+            else
+            {
+                rm = BufferPool.Retain(initialSize);
+            }
+#if NETCOREAPP2_1
+            var t = stream.ReadAsync(rm.Memory);
+            if (t.IsCompletedSuccessfully && knownSize >= 0 && t.Result == knownSize)
+            {
+                // Do not need to trim rm, it is exactly of knownSize
+                return new ValueTask<RetainedMemory<byte>>(rm);
+            }
+            return ToRetainedMemoryAsync(t);
+#else
+            return ToRetainedMemoryAsync(default);
+#endif
+
+            async ValueTask<RetainedMemory<byte>> ToRetainedMemoryAsync(ValueTask<int> started)
+            {
+                var memory = rm.Memory;
+                var totalRead = 0;
+                int read;
+                if (started != default)
+                {
+                    read = await started;
+                    if (knownSize >= 0 && read == knownSize)
+                    {
+                        // Do not need to trim rm, it is exactly of knownSize
+                        return rm;
+                    }
+
+                    totalRead += read;
+                    memory = memory.Slice(read);
+                    if (totalRead == rm.Length)
+                    {
+                        var rm2 = BufferPool.Retain(rm.Length * 2);
+                        rm.Memory.CopyTo(rm2.Memory);
+                        memory = rm2.Memory.Slice(totalRead);
+                        rm = rm2;
+                    }
+                }
+#if NETCOREAPP2_1
+                while ((read = await stream.ReadAsync(memory)) > 0)
+                {
+#else
+                var buffer = BufferPool<byte>.Rent(initialSize);
+                while ((read = await stream.ReadAsync(buffer, 0, buffer.Length)) > 0)
+                {
+                    ((Memory<byte>)buffer).Slice(0, read).CopyTo(memory);
+#endif
+                    totalRead += read;
+
+                    if (limit > 0 & totalRead > limit)
+                    {
+                        ThrowHelper.ThrowInvalidOperationException($"Reached Stream.ToRetainedMemory limit {limit}.");
+                    }
+
+                    memory = memory.Slice(read);
+                    if (totalRead == rm.Length)
+                    {
+                        var rm2 = BufferPool.Retain(rm.Length * 2);
+                        rm.Memory.CopyTo(rm2.Memory);
+                        memory = rm2.Memory.Slice(totalRead);
+                        rm = rm2;
+                    }
+                }
+#if !NETCOREAPP2_1
+                BufferPool<byte>.Return(buffer);
+#endif
+                rm.Trim(0, totalRead);
+                return rm;
+
+            }
+        }
+
     }
 }

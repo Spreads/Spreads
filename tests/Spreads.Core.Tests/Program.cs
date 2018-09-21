@@ -4,6 +4,7 @@
 
 using System;
 using System.Diagnostics;
+using Spreads.Core.Tests.Buffers;
 using Spreads.Tests.Buffers;
 
 namespace Spreads.Tests

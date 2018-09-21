@@ -526,7 +526,7 @@ namespace Spreads.Buffers
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public RecyclableMemoryStream GetStream(string tag, int requiredSize)
         {
-            return RecyclableMemoryStream.Create(this, tag, requiredSize);
+            return RecyclableMemoryStream.Create(requiredSize, tag, this);
         }
 
         /// <summary>
@@ -549,7 +549,7 @@ namespace Spreads.Buffers
                 return GetStream(tag, requiredSize);
             }
 
-            return RecyclableMemoryStream.Create(this, tag, requiredSize, GetLargeBuffer(requiredSize, tag));
+            return RecyclableMemoryStream.Create(requiredSize, GetLargeBuffer(requiredSize, tag), -1, tag, this);
         }
 
         /// <summary>
@@ -565,7 +565,7 @@ namespace Spreads.Buffers
         [SuppressMessage("Microsoft.Reliability", "CA2000:Dispose objects before losing scope")]
         public RecyclableMemoryStream GetStream(string tag, byte[] buffer, int offset, int count)
         {
-            var stream = RecyclableMemoryStream.Create(this, tag, count);
+            var stream = RecyclableMemoryStream.Create(count, tag, this);
             stream.Write(buffer, offset, count);
             stream.Position = 0;
             return stream;
