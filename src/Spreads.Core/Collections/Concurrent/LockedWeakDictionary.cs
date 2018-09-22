@@ -72,7 +72,7 @@ namespace Spreads.Collections.Concurrent
 
             var found = _inner.TryGetValue(key, out var h);
 
-            if (found) // TODO what is GC between the lines?
+            if (found) // TODO what if GC between the lines?
             {
                 if (h.IsAllocated)
                 {

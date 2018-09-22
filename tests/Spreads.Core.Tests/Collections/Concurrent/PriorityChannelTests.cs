@@ -18,7 +18,7 @@ namespace Spreads.Core.Tests.Collections.Concurrent
         public void PriorityChannelBenchmark()
         {
             var count = 100_000_000;
-            var pc = new PriorityChannel<long>();
+            var pc = new PriorityChannel<ushort>();
 
             var wt = Task.Run(() =>
             {
@@ -26,7 +26,7 @@ namespace Spreads.Core.Tests.Collections.Concurrent
                 {
                     for (var i = 0; i < count; i++)
                     {
-                        pc.Add(i); //, i >> 3 == 0);
+                        pc.Add((ushort)(i % ushort.MaxValue)); //, i >> 3 == 0);
                     }
                 }
             });

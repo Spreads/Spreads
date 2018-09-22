@@ -1,6 +1,7 @@
 ﻿using Spreads.Core.Tests.Buffers;
 using Spreads.Core.Tests.Serialization;
 using System;
+using Spreads.Core.Tests.Collections.Concurrent;
 
 namespace Spreads.Core.Run
 {
@@ -10,16 +11,16 @@ namespace Spreads.Core.Run
         {
             Settings.DoAdditionalCorrectnessChecks = false;
 
-            RmsBenchmark();
+            IlwdBenchmark();
 
             Console.WriteLine("Finished, press enter to exit...");
             Console.ReadLine();
         }
 
-        private static void RmsBenchmark()
+        private static void IlwdBenchmark()
         {
-            var test = new RecyclableMemoryStreamTests();
-            test.CouldGetMemoryAfterWritingChunksBench();
+            var test = new IndexedLockedWeakDictionaryTests();
+            test.ILWDLookupBench();
         }
 
         private static void PackWithHeaderBenchmark()
