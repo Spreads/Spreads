@@ -86,7 +86,7 @@ namespace Spreads.Utils
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void UpdateTime()
         {
-            if (_spinnerThread != null)
+            if (_spinnerThread != null || _lastUpdatedPtr == IntPtr.Zero)
             {
                 return;
             }

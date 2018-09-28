@@ -762,10 +762,25 @@ namespace Spreads.Threading
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
-                // This is not thread safe and has side effects. Should be accessed on startup.
-                return _default ?? (_default = new SpreadsThreadPool(
-                    new ThreadPoolSettings(DefaultDedicatedWorkerThreads,
-                        "DefaultSpinningThreadPool"), true));
+                if (_default == null)
+                {
+                    InitDefault();
+                }
+                return _default;
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static void InitDefault()
+        {
+            lock (typeof(SpreadsThreadPool))
+            {
+                if (_default == null)
+                {
+                    _default = new SpreadsThreadPool(
+                        new ThreadPoolSettings(DefaultDedicatedWorkerThreads,
+                            "DefaultSpinningThreadPool"), true);
+                }
             }
         }
 

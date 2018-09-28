@@ -1070,7 +1070,6 @@ namespace Spreads
 
         public IDisposable Subscribe(IAsyncCompletable subscriber)
         {
-            Console.WriteLine("Subscribing");
             var wr = new WeakReference<IAsyncCompletable>(subscriber);
             var subscription = new ContainerSubscription(this, wr);
             try

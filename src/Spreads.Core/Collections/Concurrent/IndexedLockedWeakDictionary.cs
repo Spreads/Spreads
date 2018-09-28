@@ -99,6 +99,8 @@ namespace Spreads.Collections.Concurrent
 
         private void GrowIndexArray()
         {
+            // TODO RMS-style, append chunks, no need to copy
+
             // Indexes remain valid, only writers could grow the array when adding a new index value.
             // This happens inside a lock and on a thread that can allow to wait.
             // TryGet by key is not affected (and it is locked anyways), TryGet by index should not

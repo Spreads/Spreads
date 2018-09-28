@@ -22,7 +22,7 @@ namespace Spreads.Buffers
     [StructLayout(LayoutKind.Sequential)]
     public readonly unsafe struct DirectBuffer
     {
-        public static DirectBuffer Invalid = new DirectBuffer(-1, (byte*)IntPtr.Zero);
+        public static DirectBuffer Invalid = new DirectBuffer(0, (byte*)IntPtr.Zero);
 
         // NB this is used for Spreads.LMDB as MDB_val, where length is IntPtr. However, LMDB works normally only on x64
         // if we even support x86 we will have to create a DTO with IntPtr length. But for x64 casting IntPtr to/from long
@@ -78,7 +78,7 @@ namespace Spreads.Buffers
         public bool IsValid
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => _length > 0 && _data != null;
+            get => _data != null;
         }
 
         public Span<byte> Span

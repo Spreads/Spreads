@@ -75,7 +75,7 @@ namespace Spreads.Core.Tests.Collections.Concurrent
         [Test]
         public void ILWDLookupBench()
         {
-            var count = 10_000;
+            var count = 10_000_000;
             var values = new List<IndexedStorageValue>(count);
             var ilwd = new IndexedLockedWeakDictionary<long, IndexedStorageValue>();
 
@@ -93,7 +93,7 @@ namespace Spreads.Core.Tests.Collections.Concurrent
 
                 wt.Wait();
 
-                var rounds = 10000L;
+                var rounds = 10L;
 
                 using (Benchmark.Run("By key", rounds * count))
                 {
