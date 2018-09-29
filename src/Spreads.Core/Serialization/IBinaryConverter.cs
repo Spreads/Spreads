@@ -9,6 +9,16 @@ using System.Runtime.CompilerServices;
 
 namespace Spreads.Serialization
 {
+    // TODO Settings.ProtectedCopy to write first to a temp buffer for custom binary converters
+    // Impl always checks SizeOf, then allocates buffer and then gives that buffer to the Write
+    // method. That is fine for blittables and JSON, we know their impl is correct by construction.
+    // Actually, all converters that return temp buffer are checked, if temp buffer size is wrong
+    // the write will fail. We only need to protect writes that do not return temp buffer
+    // (subject to Write just uses it and do not calls Converter's Write, this is true now and
+    // should not change). This should be on by default and a separate setting, not a part of
+    // AdditionalCorrectnessCheck, which protects from wrong usage of DirectBuffer API, but not
+    // from direct pointer write overruns.
+
     public enum BinaryConverterErrorCode
     {
         NotEnoughCapacity = -1
@@ -128,7 +138,6 @@ namespace Spreads.Serialization
 
         public static int Read(ref DirectBuffer source, out T value)
         {
-
             //if (MemoryMarshal.TryGetArray(source, out var segment))
             //{
             //    var reader = new JsonReader(segment.Array, segment.Offset);
@@ -139,10 +148,10 @@ namespace Spreads.Serialization
             // var buffer = BufferPool<byte>.Rent(checked((int)(uint)source.Length));
             //try
             //{
-                // source.Span.CopyTo(((Span<byte>)buffer));
-                var reader = new JsonReader(source);
-                value = JsonSerializer.Deserialize<T>(ref reader);
-                return reader.GetCurrentOffsetUnsafe();
+            // source.Span.CopyTo(((Span<byte>)buffer));
+            var reader = new JsonReader(source);
+            value = JsonSerializer.Deserialize<T>(ref reader);
+            return reader.GetCurrentOffsetUnsafe();
             //}
             //finally
             //{

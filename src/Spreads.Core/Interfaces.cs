@@ -86,6 +86,11 @@ namespace Spreads
 
     public interface IAsyncCompletable
     {
+        /// <summary>
+        /// Caller of this method completes an outstanding async operation.
+        /// </summary>
+        /// <param name="runAsync">Run completion asynchronously.</param>
+        /// <param name="cancel">Cancel completion. Causes OperationCancelledException in awaiters.</param>
         void TryComplete(bool runAsync, bool cancel);
     }
 
@@ -96,7 +101,7 @@ namespace Spreads
         // a single notification will succeed and there is no risk of missing
         // un update. However, this matters for a hot loop with several MOPS
         // For real-world data with so many updates we just spin and do not
-        // use async machinery, this is for les sfrequent but important data
+        // use async machinery, this is for less frequent but important data
         // that we cannot miss but should not spin.
         void RequestNotification(int count);
     }
@@ -394,7 +399,7 @@ namespace Spreads
         ValueTask<Opt<KeyValuePair<TKey, TValue>>> TryRemoveLast();
 
         /// <summary>
-        /// Removes all keys from the given key towards the given direction and return the nearest removed key.
+        /// Removes all keys from the given key towards the given direction and returns the nearest removed key.
         /// </summary>
         ValueTask<Opt<KeyValuePair<TKey, TValue>>> TryRemoveMany(TKey key, Lookup direction);
 
@@ -402,17 +407,17 @@ namespace Spreads
         /// Update value at key and remove other elements according to direction.
         /// Value of updatedAtKey could be invalid (e.g. null for reference types) and ignored,
         /// i.e. there is no guarantee that the given key is present after calling this method.
-        /// This method is only used for atomic RemoveMany operation in SCM and could n
+        /// This method is only used for atomic RemoveMany operation in SCM and could be not implemented/supported.
         /// </summary>
         Task<bool> TryRemoveMany(TKey key, TValue updatedAtKey, Lookup direction);
 
         /// <summary>
-        /// And values from appendMap to the end of this map.
+        /// Add values from appendMap to the end of this map.
         /// </summary>
         ValueTask<long> TryAppend(ISeries<TKey, TValue> appendMap, AppendOption option = AppendOption.RejectOnOverlap);
 
         /// <summary>
-        /// Make the map read-only and disable all Add/Remove/Set methods (they will throw)
+        /// Make the map read-only and disable all subsequent Add/Remove/Set methods (they will throw InvalidOperationException)
         /// </summary>
         Task Complete();
     }

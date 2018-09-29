@@ -227,6 +227,29 @@ namespace Spreads.Serialization
             SerializationFormat format = default,
             Timestamp timestamp = default)
         {
+            var isBinary = ((int)format & 1) == 1;
+
+            IBinaryConverter<T> bc = null;
+
+            // if fixed & binary just write
+            if (isBinary)
+            {
+                // fixed size binary is never compressed
+                if (TypeHelper<T>.IsFixedSize)
+                {
+                    return TypeHelper<T>.WriteWithHeader(in value, pinnedDestination, timestamp);
+                }
+                // Use custom TypeHelper<T>.BinaryConverter only when asked for isBinary
+                bc = TypeHelper<T>.BinaryConverter ?? JsonBinaryConverter<T>.Instance;
+            }
+
+            return WriteVarSize(value, ref pinnedDestination, temporaryBuffer, format, timestamp, bc);
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static int WriteVarSize<T>(T value, ref DirectBuffer pinnedDestination, ArraySegment<byte> temporaryBuffer, SerializationFormat format,
+            Timestamp timestamp, IBinaryConverter<T> bc)
+        {
             var hasTs = (long)timestamp != default;
             var len = temporaryBuffer.Count;
             if (len > 0)
@@ -255,31 +278,6 @@ namespace Spreads.Serialization
                 return len;
             }
 
-            var isBinary = ((int)format & 1) == 1;
-
-            // var tempArray = BufferPool<byte>.Rent((int) pinnedDestination.Length);
-
-            IBinaryConverter<T> bc = null;
-
-            // if fixed & binary just write
-            if (isBinary)
-            {
-                // fixed size binary is never compressed
-                if (TypeHelper<T>.IsFixedSize)
-                {
-                    return TypeHelper<T>.WriteWithHeader(in value, pinnedDestination, timestamp);
-                }
-                // Use custom TypeHelper<T>.BinaryConverter only when asked for isBinary
-                bc = TypeHelper<T>.BinaryConverter ?? JsonBinaryConverter<T>.Instance;
-            }
-
-            return WriteVarSize(value, ref pinnedDestination, format, timestamp, bc, hasTs);
-        }
-
-        [MethodImpl(MethodImplOptions.NoInlining)]
-        private static int WriteVarSize<T>(T value, ref DirectBuffer pinnedDestination, SerializationFormat format,
-            Timestamp timestamp, IBinaryConverter<T> bc, bool hasTs)
-        {
             if (bc == null)
             {
                 bc = JsonBinaryConverter<T>.Instance;
