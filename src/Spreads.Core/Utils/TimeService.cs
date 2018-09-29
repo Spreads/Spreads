@@ -84,11 +84,11 @@ namespace Spreads.Utils
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void UpdateTime()
+        public long UpdateTime()
         {
             if (_spinnerThread != null || _lastUpdatedPtr == IntPtr.Zero)
             {
-                return;
+                return (long)(Timestamp)DateTime.UtcNow;
             }
             while (true)
             {
@@ -98,17 +98,17 @@ namespace Spreads.Utils
                 {
                     if (last == Interlocked.CompareExchange(ref *(long*)_lastUpdatedPtr, current, last))
                     {
-                        break;
+                        return current;
                     }
                 }
                 else
                 {
                     // Tight loop with Interlocked.Add cannot keep up with nanos
-                    // This is just in case. Strictly monotonic is important:
+                    // This branch could happen if we update too often and DateTime.UtcNow has not changed.
+                    // Strictly monotonic is important:
                     // just ignore non-monotomic updates and CurrentTime will keep
                     // incrementing on every access.
-                    Trace.TraceWarning("Current time is below or equal last recorded time.");
-                    break;
+                    return last;
                 }
             }
         }
