@@ -17,7 +17,7 @@ namespace Spreads.Core.Tests.Collections.Concurrent
         [Test, Explicit("long running")]
         public void PriorityChannelBenchmark()
         {
-            var count = 100_000_000;
+            var count = 200_000_000;
             var pc = new PriorityChannel<ushort>();
 
             var wt = Task.Run(() =>
@@ -26,10 +26,12 @@ namespace Spreads.Core.Tests.Collections.Concurrent
                 {
                     for (var i = 0; i < count; i++)
                     {
-                        pc.Add((ushort)(i % ushort.MaxValue)); //, i >> 3 == 0);
+                        pc.TryAdd((ushort)(i % ushort.MaxValue)); //, i >> 3 == 0);
                     }
                 }
             });
+
+            
 
             var rt = Task.Run(() =>
             {
@@ -39,7 +41,7 @@ namespace Spreads.Core.Tests.Collections.Concurrent
 
                     while (c < count)
                     {
-                        var i = pc.Take(out var isPriority);
+                        pc.TryTake(out var i, out var isPriority);
                         //if (i >> 3 == 0 && !isPriority)
                         //{
                         //    Assert.Fail("i >> 8 == 0 && !isPriority");
@@ -49,9 +51,9 @@ namespace Spreads.Core.Tests.Collections.Concurrent
                     }
                 }
             });
-            rt.Wait();
 
             wt.Wait();
+            rt.Wait();
 
             Benchmark.Dump();
         }
@@ -68,7 +70,7 @@ namespace Spreads.Core.Tests.Collections.Concurrent
                 {
                     for (var i = 0; i < count; i++)
                     {
-                        pc.Add(i); //, i >> 3 == 0);
+                        pc.TryAdd(i); //, i >> 3 == 0);
                         Thread.SpinWait(1);
                     }
                 }
@@ -82,7 +84,7 @@ namespace Spreads.Core.Tests.Collections.Concurrent
 
                     while (c < count)
                     {
-                        var i = pc.Take(out var isPriority);
+                        pc.TryTake(out var i, out var isPriority);
                         //if (i >> 3 == 0 && !isPriority)
                         //{
                         //    Assert.Fail("i >> 8 == 0 && !isPriority");
@@ -114,7 +116,7 @@ namespace Spreads.Core.Tests.Collections.Concurrent
 
                     while (c < count)
                     {
-                        var i = pc.Take(out var isPriority);
+                        pc.TryTake(out var i, out var isPriority);
                         //if (i >> 3 == 0 && !isPriority)
                         //{
                         //    Assert.Fail("i >> 8 == 0 && !isPriority");
@@ -133,7 +135,7 @@ namespace Spreads.Core.Tests.Collections.Concurrent
                 {
                     for (var i = 0; i < count; i++)
                     {
-                        pc.Add(i); //, i >> 3 == 0);
+                        pc.TryAdd(i); //, i >> 3 == 0);
                     }
                 }
             });

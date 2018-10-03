@@ -2,6 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Threading;
 
@@ -13,14 +14,16 @@ namespace Spreads.Collections.Concurrent
     /// </summary>
     public sealed class PriorityChannel<T>
     {
+        private readonly CancellationToken _ct;
         private volatile bool _isWaiting;
         private readonly SemaphoreSlim _semaphore = new SemaphoreSlim(0, int.MaxValue);
         private readonly SingleProducerSingleConsumerQueue<T> _items = new SingleProducerSingleConsumerQueue<T>();
         private readonly SingleProducerSingleConsumerQueue<T> _priorityItems = new SingleProducerSingleConsumerQueue<T>();
         private readonly SingleProducerSingleConsumerQueue<T>[] _queues = new SingleProducerSingleConsumerQueue<T>[2];
 
-        public PriorityChannel()
+        public PriorityChannel(CancellationToken ct = default)
         {
+            _ct = ct;
             _queues[0] = _items;
             _queues[1] = _priorityItems;
         }
@@ -44,8 +47,12 @@ namespace Spreads.Collections.Concurrent
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public unsafe void Add(T item, bool isPriority = false)
+        public unsafe bool TryAdd(T item, bool isPriority = false)
         {
+            if (IsCancelled)
+            {
+                return false;
+            }
             // branchless choice of queue
             var idx = *(int*)&isPriority & 1;
             _queues[idx].Enqueue(item);
@@ -54,29 +61,47 @@ namespace Spreads.Collections.Concurrent
             {
                 _semaphore.Release();
             }
+
+            return true;
+        }
+
+        public bool IsCancelled
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => _ct.IsCancellationRequested;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public T Take(out bool isPriority, CancellationToken ct = default)
+        public bool TryTake(out T item, out bool isPriority, CancellationToken ct = default)
         {
             var spinner = new SpinWait();
             while (true)
             {
-                if (!_priorityItems.IsEmpty && _priorityItems.TryDequeue(out var item))
+                if (_priorityItems.IsEmpty)
                 {
-                    isPriority = true;
-                    return item;
+                    if (_items.TryDequeue(out item))
+                    {
+                        isPriority = false;
+                        return true;
+                    }
                 }
-
-                if (_items.TryDequeue(out item))
+                else
                 {
-                    isPriority = false;
-                    return item;
+                    var taken = _priorityItems.TryDequeue(out item);
+                    Debug.Assert(taken);
+                    isPriority = true;
+                    return true;
                 }
 
                 spinner.SpinOnce();
                 if (spinner.NextSpinWillYield)
                 {
+                    if (_ct.IsCancellationRequested)
+                    {
+                        item = default;
+                        isPriority = false;
+                        return false;
+                    }
                     _isWaiting = true;
                     _semaphore.Wait(ct);
                     _isWaiting = false;

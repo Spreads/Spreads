@@ -5,6 +5,7 @@
 using Spreads.Collections.Generic;
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -100,11 +101,11 @@ namespace Spreads.Collections.Concurrent
         private void GrowIndexArray()
         {
             // TODO RMS-style, append chunks, no need to copy
-
+            
             // Indexes remain valid, only writers could grow the array when adding a new index value.
             // This happens inside a lock and on a thread that can allow to wait.
             // TryGet by key is not affected (and it is locked anyways), TryGet by index should not
-            // see new values before add exits. If reader gets an older array there should be all values
+            // see new values before add exits. If a reader gets an older array there should be all values
             // it might know exist.
             var newArray = new GCHandle[_index.Length * 2];
             _index.CopyTo(newArray, 0);
@@ -242,20 +243,7 @@ namespace Spreads.Collections.Concurrent
             var incr = Interlocked.Increment(ref _locker);
             if (incr != 1L)
             {
-                var sw = new SpinWait();
-                while (true)
-                {
-                    var existing = Interlocked.CompareExchange(ref _locker, 1, 0);
-                    if (existing == 0)
-                    {
-                        break;
-                    }
-                    sw.SpinOnce();
-                    if (sw.NextSpinWillYield)
-                    {
-                        sw.Reset();
-                    }
-                }
+                EnterWriteLock();
             }
 
             var found = _inner.TryGetValue(key, out var h);
