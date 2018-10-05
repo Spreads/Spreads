@@ -145,6 +145,7 @@ namespace Spreads.DataTypes
             get { return Mantissa * DoubleFractions10[Exponent]; }
         }
 
+        // TODO internal?
         public SmallDecimal(int exponent, long mantissaValue)
         {
             if ((ulong)exponent > 15)
