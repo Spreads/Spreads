@@ -15,12 +15,12 @@ namespace Spreads.Tests.DataTypes
         [Test]
         public void CouldAddDecimalPrice()
         {
-            var first = new Price(12345.6M);
+            var first = new SmallDecimal(12345.6M);
             var fd = (decimal)first;
 
             Assert.AreEqual(12345.6M, fd);
 
-            var second = new Price(12340.6M);
+            var second = new SmallDecimal(12340.6M);
             var sd = (decimal)second;
 
             Assert.AreEqual(12340.6M, sd);
@@ -37,12 +37,12 @@ namespace Spreads.Tests.DataTypes
         [Test]
         public void CouldAddDoublePrice()
         {
-            var first = new Price(12345.6);
+            var first = new SmallDecimal(12345.6);
             var fd = (double)first;
 
             Assert.AreEqual(12345.6, fd);
 
-            var second = new Price(12340.6);
+            var second = new SmallDecimal(12340.6);
             var sd = (double)second;
 
             Assert.AreEqual(12340.6, sd);
@@ -59,7 +59,7 @@ namespace Spreads.Tests.DataTypes
         [Test]
         public void CouldNegatePrice()
         {
-            var first = new Price(12345.6);
+            var first = new SmallDecimal(12345.6);
             var second = -first;
             Assert.AreEqual(-(decimal)first, (decimal)second);
         }
@@ -75,7 +75,7 @@ namespace Spreads.Tests.DataTypes
                 {
                     for (int i = 0; i < count; i++)
                     {
-                        var price = new Price((double)i);
+                        var price = new SmallDecimal((double)i);
                         var dyn = (dynamic)price;
                         var dbl = (double)dyn;
                         sum += dbl;
@@ -86,7 +86,7 @@ namespace Spreads.Tests.DataTypes
                 {
                     for (int i = 0; i < count; i++)
                     {
-                        var price = new Price((double)i);
+                        var price = new SmallDecimal((double)i);
                         var dbl = Convert.ToDouble(price);
                         sum += dbl;
                     }
@@ -96,7 +96,7 @@ namespace Spreads.Tests.DataTypes
                 {
                     for (int i = 0; i < count; i++)
                     {
-                        var price = new Price((double)i);
+                        var price = new SmallDecimal((double)i);
                         var dbl = Convert.ToDouble((object)price); // (double)dyn;
                         sum += dbl;
                     }
@@ -106,7 +106,7 @@ namespace Spreads.Tests.DataTypes
                 {
                     for (int i = 0; i < count; i++)
                     {
-                        var price = new Price((double)i);
+                        var price = new SmallDecimal((double)i);
                         var dbl = DoubleUtil.GetDouble(price); // (double)dyn;
                         sum += dbl;
                     }
@@ -116,7 +116,7 @@ namespace Spreads.Tests.DataTypes
                 {
                     for (int i = 0; i < count; i++)
                     {
-                        var price = new Price((double)i);
+                        var price = new SmallDecimal((double)i);
                         var dbl = DoubleUtil.GetDouble((object)price); // (double)dyn;
                         sum += dbl;
                     }
@@ -126,7 +126,7 @@ namespace Spreads.Tests.DataTypes
                 {
                     for (int i = 0; i < count; i++)
                     {
-                        var price = new Price((double)i);
+                        var price = new SmallDecimal((double)i);
                         var dbl = price.AsDouble;
                         sum += dbl;
                     }

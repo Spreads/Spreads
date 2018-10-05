@@ -2,14 +2,34 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-using Spreads.Serialization;
+using Spreads.Serialization.Utf8Json;
 using System;
 using System.Runtime.InteropServices;
-using Spreads.Serialization.Utf8Json;
+using System.Runtime.Serialization;
 
 namespace Spreads.DataTypes
 {
-    
+    /// <summary>
+    /// Simple and lazy DTO for OrderBook.
+    /// </summary>
+    [StructLayout(LayoutKind.Auto)]
+    public readonly struct OrderBagDecimal
+    {
+        [DataMember(Name = "ts")]
+        public readonly Timestamp Timestamp;
+        [DataMember(Name = "bids")]
+        public readonly QuoteDecimal[] Bids;
+        [DataMember(Name = "asks")]
+        public readonly QuoteDecimal[] Asks;
+
+        public OrderBagDecimal(QuoteDecimal[] bids, QuoteDecimal[] asks, Timestamp ts = default)
+        {
+            Bids = bids;
+            Asks = asks;
+            Timestamp = ts;
+        }
+    }
+
     // TODO WIP
 
     // NB OB could be a persistent tree for "fast" lookup and versioning, but in reality several arrays will be faster and smaller.

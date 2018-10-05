@@ -8,6 +8,7 @@ using Spreads.Collections.Generic;
 using Spreads.Utils;
 using System;
 using System.Collections.Concurrent;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
 namespace Spreads.Core.Tests.Collections.Concurrent
@@ -15,6 +16,18 @@ namespace Spreads.Core.Tests.Collections.Concurrent
     [TestFixture]
     public class LockedWeakDictionaryTests
     {
+
+        public class Dummy : IStorageIndexed
+        {
+            public int StorageIndex
+            {
+                [MethodImpl(MethodImplOptions.AggressiveInlining)]
+                get;
+                [MethodImpl(MethodImplOptions.AggressiveInlining)]
+                set;
+            }
+        }
+
         [Test]
         public void WeakReferenceLookup()
         {
@@ -22,6 +35,7 @@ namespace Spreads.Core.Tests.Collections.Concurrent
 
             var d = new FastDictionary<long, object>();
             var lockedWeakDictionary = new LockedWeakDictionary<long>();
+            var indexedLockedWeakDictionary = new IndexedLockedWeakDictionary<long, Dummy>();
             var cd = new ConcurrentDictionary<long, object>();
             var wcd = new ConcurrentDictionary<long, WeakReference<object>>();
             //var wcd2 = new ConcurrentDictionary<long, WeakReference>();
@@ -33,7 +47,7 @@ namespace Spreads.Core.Tests.Collections.Concurrent
 
             for (int i = 0; i < count; i++)
             {
-                var obj = (object)i;
+                var obj = (object)new Dummy();
                 d.Add(i, obj);
                 cd.TryAdd(i, obj);
                 wcd.TryAdd(i, new WeakReference<object>(obj));
@@ -41,6 +55,7 @@ namespace Spreads.Core.Tests.Collections.Concurrent
 
                 var h = GCHandle.Alloc(obj, GCHandleType.Weak);
                 wcd3.TryAdd(i, h);
+                lockedWeakDictionary.TryAdd(i, obj);
                 lockedWeakDictionary.TryAdd(i, obj);
             }
 
@@ -53,7 +68,7 @@ namespace Spreads.Core.Tests.Collections.Concurrent
                 {
                     if (cd.TryGetValue(i / mult, out var obj))
                     {
-                        sum1 += (int)obj;
+                        //sum1 += (int)obj;
                     }
                     else
                     {
@@ -72,7 +87,7 @@ namespace Spreads.Core.Tests.Collections.Concurrent
                     wcd.TryGetValue(i / mult, out var wr);
                     if (wr.TryGetTarget(out var tgt))
                     {
-                        sum2 += (int)tgt;
+                        //sum2 += (int)tgt;
                     }
                     else
                     {
@@ -111,9 +126,9 @@ namespace Spreads.Core.Tests.Collections.Concurrent
                 {
                     wcd3.TryGetValue(i / mult, out var wr2);
 
-                    if (wr2.Target is int val)
+                    if (wr2.Target is Dummy val)
                     {
-                        sum5 += val;
+                        //sum5 += val;
                     }
                     //else
                     //{
@@ -149,7 +164,27 @@ namespace Spreads.Core.Tests.Collections.Concurrent
                 {
                     if (lockedWeakDictionary.TryGetValue(i / mult, out var val))
                     {
-                        sum6 += (int)val;
+                        //sum6 += (int)val;
+                    }
+                    else
+                    {
+                        Assert.Fail();
+                    }
+                }
+            }
+
+            var sum7 = 0.0;
+            using (Benchmark.Run("ILWD", count * mult))
+            {
+                for (int i = 0; i < count * mult; i++)
+                {
+                    if (indexedLockedWeakDictionary.TryGetValue(i / mult, out var val))
+                    {
+                        //sum7 += (int)val.StorageIndex;
+                    }
+                    else
+                    {
+                        Assert.Fail();
                     }
                 }
             }

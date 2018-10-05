@@ -14,11 +14,19 @@ using System.Threading.Tasks;
 
 namespace Spreads.Collections.Concurrent
 {
+    /// <summary>
+    /// An interface for an object that could be retrieved by an int index.
+    /// <see cref="StorageIndex"/> is set by <see cref="IndexedLockedWeakDictionary{TKey, TValue}"/>
+    /// on addition and then could be used for lookup using <see cref="IndexedLockedWeakDictionary{TKey,TValue}.TryGetByIndex"/> method.
+    /// </summary>
     public interface IStorageIndexed
     {
         int StorageIndex { get; set; }
     }
 
+    /// <summary>
+    /// An example and potentially base class for values in <see cref="IndexedLockedWeakDictionary{TKey, TValue}"/>.
+    /// </summary>
     public abstract class IndexedLookup<TKey, TValue> : IDisposable, IStorageIndexed where TValue : IndexedLookup<TKey, TValue>
     {
         public int StorageIndex { get; set; }
@@ -78,16 +86,20 @@ namespace Spreads.Collections.Concurrent
         }
     }
 
+
+    // TODO Make LockedWeakDictionary base class
+
     /// <summary>
     /// Long-term storage where added items could be retrieved by ushort index.
     /// Pessimized write operations in favor of fast reads. Scenario is for
     /// a lot of objects stored as weak references and cleaned when no used,
     /// ensuring that an async cleanup is
     /// </summary>
-    public sealed class IndexedLockedWeakDictionary<TKey, TValue> where TValue : class, IStorageIndexed
+    public sealed class IndexedLockedWeakDictionary<TKey, TValue> 
+        where TValue : class, IStorageIndexed
     {
 #pragma warning disable CS0618 // Type or member is obsolete
-        private FastDictionary<TKey, GCHandle> _inner = new FastDictionary<TKey, GCHandle>();
+        private readonly FastDictionary<TKey, GCHandle> _inner = new FastDictionary<TKey, GCHandle>();
 #pragma warning restore CS0618 // Type or member is obsolete
         private long _locker;
 
@@ -114,6 +126,7 @@ namespace Spreads.Collections.Concurrent
             _index = newArray;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool TryAdd(TKey key, TValue value)
         {
             if (value.StorageIndex != 0)
@@ -238,6 +251,7 @@ namespace Spreads.Collections.Concurrent
             ThrowHelper.ThrowArgumentException("StorageIndex must be zero before adding value to IndexedLockedWeakDictionary");
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool TryGetValue(TKey key, out TValue value)
         {
             var incr = Interlocked.Increment(ref _locker);

@@ -60,7 +60,7 @@ namespace Spreads.DataTypes
                         return (Get<decimal>()).CompareTo(other.Get<decimal>());
 
                     case TypeEnum.Price:
-                        return (Get<Price>()).CompareTo(other.Get<Price>());
+                        return (Get<SmallDecimal>()).CompareTo(other.Get<SmallDecimal>());
 
                     case TypeEnum.Money:
                         ThrowHelper.ThrowNotImplementedException(); return 0;

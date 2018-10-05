@@ -96,6 +96,37 @@ namespace Spreads.Core.Tests.Serialization
             }
         }
 
+
+        [Test]
+        public void CouldSerializeOrderBag()
+        {
+            QuoteDecimal[] bids = new QuoteDecimal[10];
+            bids[0] = new QuoteDecimal(new SmallDecimal(15000000.45M, 8), new SmallDecimal(0.00123456M, 8));
+            bids[1] = new QuoteDecimal(new SmallDecimal(123.67M, 8), new SmallDecimal(0.00265987M, 8));
+            bids[2] = new QuoteDecimal(new SmallDecimal(123.67M, 8), new SmallDecimal(0.00265987M, 8));
+            bids[3] = new QuoteDecimal(new SmallDecimal(123.67M, 8), new SmallDecimal(0.00265987M, 8));
+            bids[4] = new QuoteDecimal(new SmallDecimal(123.67M, 8), new SmallDecimal(0.00265987M, 8));
+            bids[5] = new QuoteDecimal(new SmallDecimal(123.67M, 8), new SmallDecimal(0.00265987M, 8));
+            bids[6] = new QuoteDecimal(new SmallDecimal(123.67M, 8), new SmallDecimal(0.00265987M, 8));
+            bids[7] = new QuoteDecimal(new SmallDecimal(123.67M, 8), new SmallDecimal(0.00265987M, 8));
+            bids[8] = new QuoteDecimal(new SmallDecimal(123.67M, 8), new SmallDecimal(0.00265987M, 8));
+            bids[9] = new QuoteDecimal(new SmallDecimal(123.67M, 8), new SmallDecimal(0.00265987M, 8));
+
+            QuoteDecimal[] asks = new QuoteDecimal[2];
+            asks[0] = new QuoteDecimal(new SmallDecimal(123.89M, 2), new SmallDecimal(0.00159748M, 8));
+            asks[1] = new QuoteDecimal(new SmallDecimal(123.99M, 2), new SmallDecimal(0.00128948M, 8));
+
+            var ob = new OrderBagDecimal(bids, asks);
+
+            var str = JsonSerializer.ToJsonString(ob);
+
+            Console.WriteLine(str);
+
+            // var ob2 = JsonSerializer.Deserialize<OrderBagX>(str);
+
+        }
+
+
         public void CouldSerializeBlittable<T>(T value) where T : IEquatable<T>
         {
             var bytes = BufferPool<byte>.Rent(1000);

@@ -2,6 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+using System.Runtime.CompilerServices;
 using Spreads.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Threading;
@@ -15,6 +16,7 @@ namespace Spreads.Collections.Concurrent
 #pragma warning restore CS0618 // Type or member is obsolete
         private long _locker;
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool TryAdd(TKey key, object obj)
         {
             // prefer reader
@@ -49,6 +51,7 @@ namespace Spreads.Collections.Concurrent
             return added;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool TryGetValue(TKey key, out object value)
         {
             var incr = Interlocked.Increment(ref _locker);

@@ -772,20 +772,9 @@ namespace Spreads.Core.Tests.Cursors
                 sm3.Add(i, 3 * i);
             }
 
-            var sumSeries = new[] { sm1, sm2, sm3 }.Zip((k, varr) =>
-            {
-                var s = 0.0;
-                for (int i = 0; i < varr.Length; i++)
-                {
-                    s += varr[i];
-                }
-                return s;
-                //return varr.Sum(); // this allocates
-            }, true);
+            throw new NotImplementedException();
 
-            var count = sm1.Count;
-
-            //var sumSeries2 = new[] { sm1, sm2, sm3 }.ZipOld((k, varr) =>
+            //var sumSeries = new[] { sm1, sm2, sm3 }.Zip((k, varr) =>
             //{
             //    var s = 0.0;
             //    for (int i = 0; i < varr.Length; i++)
@@ -794,35 +783,48 @@ namespace Spreads.Core.Tests.Cursors
             //    }
             //    return s;
             //    //return varr.Sum(); // this allocates
-            //});
+            //}, true);
 
-            for (int i = 0; i < 20; i++)
-            {
-                double actual = 0.0;
+            //var count = sm1.Count;
 
-                using (Benchmark.Run("Zip", count * 3))
-                {
-                    foreach (var kvp in sumSeries)
-                    {
-                        actual += kvp.Value;
-                    }
-                }
+            ////var sumSeries2 = new[] { sm1, sm2, sm3 }.ZipOld((k, varr) =>
+            ////{
+            ////    var s = 0.0;
+            ////    for (int i = 0; i < varr.Length; i++)
+            ////    {
+            ////        s += varr[i];
+            ////    }
+            ////    return s;
+            ////    //return varr.Sum(); // this allocates
+            ////});
 
-                Assert.AreEqual(expected, actual);
+            //for (int i = 0; i < 20; i++)
+            //{
+            //    double actual = 0.0;
+
+            //    using (Benchmark.Run("Zip", count * 3))
+            //    {
+            //        foreach (var kvp in sumSeries)
+            //        {
+            //            actual += kvp.Value;
+            //        }
+            //    }
+
+            //    Assert.AreEqual(expected, actual);
 
 
-                //actual = 0.0;
-                //using (Benchmark.Run("ZipN old", count * 3))
-                //{
-                //    foreach (var kvp in sumSeries2)
-                //    {
-                //        actual += kvp.Value;
-                //    }
-                //}
-                //Assert.AreEqual(expected, actual);
-            }
+            //    //actual = 0.0;
+            //    //using (Benchmark.Run("ZipN old", count * 3))
+            //    //{
+            //    //    foreach (var kvp in sumSeries2)
+            //    //    {
+            //    //        actual += kvp.Value;
+            //    //    }
+            //    //}
+            //    //Assert.AreEqual(expected, actual);
+            //}
 
-            Benchmark.Dump();
+            //Benchmark.Dump();
         }
     }
 }

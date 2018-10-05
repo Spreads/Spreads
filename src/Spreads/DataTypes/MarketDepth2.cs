@@ -26,10 +26,10 @@ namespace Spreads.DataTypes
         internal Quote _smallBid;
         internal Quote _largeBid;
 
-        public MarketDepth2(Price largeAskPrice, int largeAskSize, int largeAskOffset,
-                            Price smallAskPrice, int smallAskSize, int smallAskOffset,
-                            Price smallBidPrice, int smallBidSize, int smallBidOffset,
-                            Price largeBidPrice, int largeBidSize, int largeBidOffset)
+        public MarketDepth2(SmallDecimal largeAskPrice, int largeAskSize, int largeAskOffset,
+                            SmallDecimal smallAskPrice, int smallAskSize, int smallAskOffset,
+                            SmallDecimal smallBidPrice, int smallBidSize, int smallBidOffset,
+                            SmallDecimal largeBidPrice, int largeBidSize, int largeBidOffset)
         {
             _largeAsk = new Quote(largeAskPrice, largeAskSize, largeAskOffset);
             _smallAsk = new Quote(smallAskPrice, smallAskSize, smallAskOffset);
@@ -40,7 +40,7 @@ namespace Spreads.DataTypes
         // NB Order of properties matched binary layout, do not change
 
         [DataMember(Order = 1)]
-        public Price LargeAskPrice => _largeAsk.Price;
+        public SmallDecimal LargeAskPrice => _largeAsk.Price;
 
         [DataMember(Order = 2)]
         public int LargeAskSize => _largeAsk.Volume;
@@ -49,7 +49,7 @@ namespace Spreads.DataTypes
         public int LargeAskOffset => _largeAsk._tag;
 
         [DataMember(Order = 4)]
-        public Price SmallAskPrice => _smallAsk.Price;
+        public SmallDecimal SmallAskPrice => _smallAsk.Price;
 
         [DataMember(Order = 5)]
         public int SmallAskSize => _smallAsk.Volume;
@@ -58,7 +58,7 @@ namespace Spreads.DataTypes
         public int SmallAskOffset => _smallAsk._tag;
 
         [DataMember(Order = 7)]
-        public Price SmallBidPrice => _smallBid.Price;
+        public SmallDecimal SmallBidPrice => _smallBid.Price;
 
         [DataMember(Order = 8)]
         public int SmallBidSize => _smallBid.Volume;
@@ -67,7 +67,7 @@ namespace Spreads.DataTypes
         public int SmallBidOffset => _smallBid._tag;
 
         [DataMember(Order = 10)]
-        public Price LargeBidPrice => _largeBid.Price;
+        public SmallDecimal LargeBidPrice => _largeBid.Price;
 
         [DataMember(Order = 11)]
         public int LargeBidSize => _largeBid.Volume;

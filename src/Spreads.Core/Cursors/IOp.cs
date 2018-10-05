@@ -107,9 +107,9 @@ namespace Spreads
                 return (T)(object)((decimal)(object)v1 + (decimal)(object)v2);
             }
 
-            if (typeof(T) == typeof(Price))
+            if (typeof(T) == typeof(SmallDecimal))
             {
-                return (T)(object)((Price)(object)v1 + (Price)(object)v2);
+                return (T)(object)((SmallDecimal)(object)v1 + (SmallDecimal)(object)v2);
             }
 
             return ApplyDynamic(v1, v2);
@@ -664,9 +664,9 @@ namespace Spreads
                 return (decimal)(object)v1 < (decimal)(object)v2;
             }
 
-            if (typeof(T) == typeof(Price))
+            if (typeof(T) == typeof(SmallDecimal))
             {
-                return (Price)(object)v1 < (Price)(object)v2;
+                return (SmallDecimal)(object)v1 < (SmallDecimal)(object)v2;
             }
 
             return ApplyDynamic(v1, v2);
@@ -720,9 +720,9 @@ namespace Spreads
                 return (decimal)(object)v1 < (decimal)(object)v2;
             }
 
-            if (typeof(T) == typeof(Price))
+            if (typeof(T) == typeof(SmallDecimal))
             {
-                return (Price)(object)v1 < (Price)(object)v2;
+                return (SmallDecimal)(object)v1 < (SmallDecimal)(object)v2;
             }
 
             return ApplyDynamic(v1, v2);
@@ -781,9 +781,9 @@ namespace Spreads
                 return (decimal)(object)v1 <= (decimal)(object)v2;
             }
 
-            if (typeof(T) == typeof(Price))
+            if (typeof(T) == typeof(SmallDecimal))
             {
-                return (Price)(object)v1 <= (Price)(object)v2;
+                return (SmallDecimal)(object)v1 <= (SmallDecimal)(object)v2;
             }
 
             return ApplyDynamic(v1, v2);
@@ -837,9 +837,9 @@ namespace Spreads
                 return (decimal)(object)v1 <= (decimal)(object)v2;
             }
 
-            if (typeof(T) == typeof(Price))
+            if (typeof(T) == typeof(SmallDecimal))
             {
-                return (Price)(object)v1 <= (Price)(object)v2;
+                return (SmallDecimal)(object)v1 <= (SmallDecimal)(object)v2;
             }
 
             return ApplyDynamic(v1, v2);
@@ -898,9 +898,9 @@ namespace Spreads
                 return (decimal)(object)v1 > (decimal)(object)v2;
             }
 
-            if (typeof(T) == typeof(Price))
+            if (typeof(T) == typeof(SmallDecimal))
             {
-                return (Price)(object)v1 > (Price)(object)v2;
+                return (SmallDecimal)(object)v1 > (SmallDecimal)(object)v2;
             }
 
             return ApplyDynamic(v1, v2);
@@ -954,9 +954,9 @@ namespace Spreads
                 return (decimal)(object)v1 > (decimal)(object)v2;
             }
 
-            if (typeof(T) == typeof(Price))
+            if (typeof(T) == typeof(SmallDecimal))
             {
-                return (Price)(object)v1 > (Price)(object)v2;
+                return (SmallDecimal)(object)v1 > (SmallDecimal)(object)v2;
             }
 
             return ApplyDynamic(v1, v2);
@@ -1015,9 +1015,9 @@ namespace Spreads
                 return (decimal)(object)v1 >= (decimal)(object)v2;
             }
 
-            if (typeof(T) == typeof(Price))
+            if (typeof(T) == typeof(SmallDecimal))
             {
-                return (Price)(object)v1 >= (Price)(object)v2;
+                return (SmallDecimal)(object)v1 >= (SmallDecimal)(object)v2;
             }
 
             return ApplyDynamic(v1, v2);
@@ -1071,9 +1071,9 @@ namespace Spreads
                 return (decimal)(object)v1 >= (decimal)(object)v2;
             }
 
-            if (typeof(T) == typeof(Price))
+            if (typeof(T) == typeof(SmallDecimal))
             {
-                return (Price)(object)v1 >= (Price)(object)v2;
+                return (SmallDecimal)(object)v1 >= (SmallDecimal)(object)v2;
             }
 
             return ApplyDynamic(v1, v2);
@@ -1132,9 +1132,9 @@ namespace Spreads
                 return (decimal)(object)v1 == (decimal)(object)v2;
             }
 
-            if (typeof(T) == typeof(Price))
+            if (typeof(T) == typeof(SmallDecimal))
             {
-                return (Price)(object)v1 == (Price)(object)v2;
+                return (SmallDecimal)(object)v1 == (SmallDecimal)(object)v2;
             }
 
             return ApplyDynamic(v1, v2);
@@ -1193,9 +1193,9 @@ namespace Spreads
                 return (decimal)(object)v1 != (decimal)(object)v2;
             }
 
-            if (typeof(T) != typeof(Price))
+            if (typeof(T) != typeof(SmallDecimal))
             {
-                return (Price)(object)v1 != (Price)(object)v2;
+                return (SmallDecimal)(object)v1 != (SmallDecimal)(object)v2;
             }
 
             return ApplyDynamic(v1, v2);

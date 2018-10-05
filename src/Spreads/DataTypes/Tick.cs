@@ -40,7 +40,7 @@ namespace Spreads.DataTypes
 
         /// <inheritdoc />
         [DataMember(Order = 2)]
-        public Price Price => _quote.Price;
+        public SmallDecimal Price => _quote.Price;
 
         /// <inheritdoc />
         [DataMember(Order = 3)]
@@ -49,7 +49,7 @@ namespace Spreads.DataTypes
         /// <summary>
         /// Tick constructor.
         /// </summary>
-        public Tick(DateTime dateTimeUtc, Price price, int volume)
+        public Tick(DateTime dateTimeUtc, SmallDecimal price, int volume)
         {
             // TODO (docs) need to document this behavior
             if (dateTimeUtc.Kind == DateTimeKind.Local) throw new ArgumentException(@"dateTime kind must be UTC or unspecified", nameof(dateTimeUtc));

@@ -74,9 +74,9 @@ namespace Spreads.Utils
                 return (double)((decimal)(object)value);
             }
 
-            if (typeof(TValue) == typeof(Price))
+            if (typeof(TValue) == typeof(SmallDecimal))
             {
-                return ((Price)(object)value).AsDouble;
+                return ((SmallDecimal)(object)value).AsDouble;
             }
 
             return GetDoubleDynamic(value);
@@ -120,9 +120,9 @@ namespace Spreads.Utils
                 return (double)((decimal)(object)value);
             }
 
-            if (value is Price)
+            if (value is SmallDecimal)
             {
-                return ((Price)(object)value).AsDouble;
+                return ((SmallDecimal)(object)value).AsDouble;
             }
 
             return (double)((dynamic)value);

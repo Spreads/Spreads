@@ -11,7 +11,10 @@ namespace Spreads.Core.Run
         {
             Settings.DoAdditionalCorrectnessChecks = false;
 
-            IlwdBenchmark();
+            var test = new SerializationTests();
+            test.CouldSerializeOrderBag();
+
+            //IlwdBenchmark();
 
             Console.WriteLine("Finished, press enter to exit...");
             Console.ReadLine();

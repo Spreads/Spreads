@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
     <Import Project="..\..\build\common.props" />
     <PropertyGroup>
-        <TargetFrameworks>netcoreapp2.1;net471</TargetFrameworks>
+        <TargetFrameworks>netcoreapp2.1</TargetFrameworks>
         <AssemblyName>Spreads.Core.Tests</AssemblyName>
         <RootNamespace>Spreads.Core.Tests</RootNamespace>
         <LangVersion>7.2</LangVersion>
@@ -24,7 +24,6 @@
         <PackageReference Include="CRC32C.Standard" Version="1.0.0" />
         <PackageReference Include="Microsoft.CSharp" Version="4.5.0" />
         <PackageReference Include="Microsoft.IO.RecyclableMemoryStream" Version="1.2.2" />
-        <PackageReference Include="Spreads" Version="1.0.0-build1809101654R" />
         <PackageReference Include="System.Numerics.Vectors" Version="4.5.0" />
         <PackageReference Include="Microsoft.NET.Test.Sdk" Version="15.8.0" />
         <PackageReference Include="NUnit" Version="3.10.1" />
@@ -37,6 +36,7 @@
 
     <ItemGroup>
       <ProjectReference Include="..\..\src\Spreads.Core\Spreads.Core.csproj" />
+      <ProjectReference Include="..\..\src\Spreads\Spreads.csproj" />
     </ItemGroup>
 
     <ItemGroup>

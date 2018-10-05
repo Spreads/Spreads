@@ -170,7 +170,7 @@ namespace Spreads.DataTypes
                         return Create((decimal)value);
 
                     case TypeEnum.Price:
-                        return Create((Price)value);
+                        return Create((SmallDecimal)value);
 
                     case TypeEnum.Money:
                         throw new NotImplementedException();
@@ -297,7 +297,7 @@ namespace Spreads.DataTypes
                         return Get<decimal>();
 
                     case TypeEnum.Price:
-                        return Get<Price>();
+                        return Get<SmallDecimal>();
 
                     case TypeEnum.Money:
                         throw new NotImplementedException();

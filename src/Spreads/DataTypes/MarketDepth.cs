@@ -24,8 +24,8 @@ namespace Spreads.DataTypes
         internal Quote _smallAsk;
         internal Quote _smallBid;
 
-        public MarketDepth(Price smallAskPrice, int smallAskSize, int smallAskOffset,
-                            Price smallBidPrice, int smallBidSize, int smallBidOffset)
+        public MarketDepth(SmallDecimal smallAskPrice, int smallAskSize, int smallAskOffset,
+                            SmallDecimal smallBidPrice, int smallBidSize, int smallBidOffset)
         {
             _smallAsk = new Quote(smallAskPrice, smallAskSize, smallAskOffset);
             _smallBid = new Quote(smallBidPrice, smallBidSize, smallBidOffset);
@@ -34,7 +34,7 @@ namespace Spreads.DataTypes
         // NB Order of properties matched binary layout, do not change
 
         [DataMember(Order = 1)]
-        public Price SmallAskPrice => _smallAsk.Price;
+        public SmallDecimal SmallAskPrice => _smallAsk.Price;
 
         [DataMember(Order = 2)]
         public int SmallAskSize => _smallAsk.Volume;
@@ -43,7 +43,7 @@ namespace Spreads.DataTypes
         public int SmallAskOffset => _smallAsk._tag;
 
         [DataMember(Order = 4)]
-        public Price SmallBidPrice => _smallBid.Price;
+        public SmallDecimal SmallBidPrice => _smallBid.Price;
 
         [DataMember(Order = 5)]
         public int SmallBidSize => _smallBid.Volume;

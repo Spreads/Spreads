@@ -23,7 +23,7 @@ namespace Spreads.DataTypes
         // Uses 8 + 4*4 = 24 instead of 4*16 + 4 = 68 bytes for decimals + int
         // NB do not change field order
         // Close goes first to keep 8-bytes alignment
-        internal Price _close;
+        internal SmallDecimal _close;
 
         internal int _open;
         internal int _high;
@@ -34,25 +34,25 @@ namespace Spreads.DataTypes
         /// Open.
         /// </summary>
         [DataMember(Order = 1)]
-        public Price Open => new Price(_close.Exponent, _open + _close.Mantissa);
+        public SmallDecimal Open => new SmallDecimal(_close.Exponent, _open + _close.Mantissa);
 
         /// <summary>
         /// High.
         /// </summary>
         [DataMember(Order = 2)]
-        public Price High => new Price(_close.Exponent, _high + _close.Mantissa);
+        public SmallDecimal High => new SmallDecimal(_close.Exponent, _high + _close.Mantissa);
 
         /// <summary>
         /// Low.
         /// </summary>
         [DataMember(Order = 3)]
-        public Price Low => new Price(_close.Exponent, _low + _close.Mantissa);
+        public SmallDecimal Low => new SmallDecimal(_close.Exponent, _low + _close.Mantissa);
 
         /// <summary>
         /// Close.
         /// </summary>
         [DataMember(Order = 4)]
-        public Price Close => _close;
+        public SmallDecimal Close => _close;
 
         /// <summary>
         /// Volume.
@@ -63,7 +63,7 @@ namespace Spreads.DataTypes
         /// <summary>
         /// OHLCV constructor.
         /// </summary>
-        public OHLCV(Price open, Price high, Price low, Price close, int volume)
+        public OHLCV(SmallDecimal open, SmallDecimal high, SmallDecimal low, SmallDecimal close, int volume)
         {
             checked
             {
@@ -84,7 +84,7 @@ namespace Spreads.DataTypes
         /// OHLCV constructor.
         /// </summary>
         public OHLCV(decimal open, decimal high, decimal low, decimal close, int volume = 0, int precision = 6)
-            : this(new Price(open, precision), new Price(high, precision), new Price(low, precision), new Price(close, precision), volume) { }
+            : this(new SmallDecimal(open, precision), new SmallDecimal(high, precision), new SmallDecimal(low, precision), new SmallDecimal(close, precision), volume) { }
 
         /// <inheritdoc />
         public OHLCV GetDelta(OHLCV next)
@@ -124,25 +124,25 @@ namespace Spreads.DataTypes
         /// Open.
         /// </summary>
         [DataMember(Order = 1)]
-        public Price Open => _ohlcv.Open;
+        public SmallDecimal Open => _ohlcv.Open;
 
         /// <summary>
         /// High.
         /// </summary>
         [DataMember(Order = 2)]
-        public Price High => _ohlcv.High;
+        public SmallDecimal High => _ohlcv.High;
 
         /// <summary>
         /// Low.
         /// </summary>
         [DataMember(Order = 3)]
-        public Price Low => _ohlcv.Low;
+        public SmallDecimal Low => _ohlcv.Low;
 
         /// <summary>
         /// Close.
         /// </summary>
         [DataMember(Order = 4)]
-        public Price Close => _ohlcv.Close;
+        public SmallDecimal Close => _ohlcv.Close;
 
         /// <summary>
         /// Volume.
@@ -176,7 +176,7 @@ namespace Spreads.DataTypes
         /// <summary>
         /// OHLCFull constructor.
         /// </summary>
-        public OHLCFull(Price open, Price high, Price low, Price close, int volume = 0, decimal moneyVolume = 0M, int tradeCount = 0, int openInterest = 0)
+        public OHLCFull(SmallDecimal open, SmallDecimal high, SmallDecimal low, SmallDecimal close, int volume = 0, decimal moneyVolume = 0M, int tradeCount = 0, int openInterest = 0)
         {
             _ohlcv = new OHLCV(open, high, low, close, volume);
             _value = moneyVolume;

@@ -13,10 +13,10 @@ using System.Runtime.InteropServices;
 namespace Spreads.DataTypes
 {
 
-    // TODO missing/invalid price. Mantissa zero while exponent is not zero or minus zero. Useful for absense of price, e.g. on illiquid markets
+    // TODO missing/invalid value. Mantissa zero while exponent is not zero or minus zero. Useful for absense of price, e.g. on illiquid markets
 
     /// <summary>
-    /// A blittable structure to store price values with decimal precision up to 15 digits.
+    /// A blittable structure to store small(ish) fixed-point decimal values with precision up to 15 digits.
     /// </summary>
     /// <remarks>
     ///  0                   1                   2                   3
@@ -33,9 +33,9 @@ namespace Spreads.DataTypes
     [BinarySerialization(Size)]
     [DebuggerDisplay("{" + nameof(ToString) + "()}")]
     [JsonFormatter(typeof(Formatter))]
-    public readonly struct Price : IComparable<Price>, IEquatable<Price>, IConvertible
+    public readonly struct SmallDecimal : IComparable<SmallDecimal>, IEquatable<SmallDecimal>, IConvertible
     {
-        static Price()
+        static SmallDecimal()
         {
             if (!BitConverter.IsLittleEndian)
             {
@@ -47,7 +47,7 @@ namespace Spreads.DataTypes
 
         public const int Size = 8;
 
-        public static Price Zero = default(Price);
+        public static SmallDecimal Zero = default(SmallDecimal);
 
         /// <summary>
         /// 4-7 bits
@@ -145,7 +145,7 @@ namespace Spreads.DataTypes
             get { return Mantissa * DoubleFractions10[Exponent]; }
         }
 
-        public Price(int exponent, long mantissaValue)
+        public SmallDecimal(int exponent, long mantissaValue)
         {
             if ((ulong)exponent > 15)
             {
@@ -173,7 +173,7 @@ namespace Spreads.DataTypes
             }
         }
 
-        public Price(decimal value, int precision = 5)
+        public SmallDecimal(decimal value, int precision = 5)
         {
             if ((ulong)precision > 15)
             {
@@ -201,7 +201,7 @@ namespace Spreads.DataTypes
             }
         }
 
-        public Price(double value, int precision = 5)
+        public SmallDecimal(double value, int precision = 5)
         {
             if ((ulong)precision > 15)
             {
@@ -233,30 +233,30 @@ namespace Spreads.DataTypes
         // there are no conversions to other direction, only ctor
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static explicit operator double(Price price)
+        public static explicit operator double(SmallDecimal price)
         {
             return price.Mantissa * DoubleFractions10[price.Exponent];
         }
 
-        public static explicit operator float(Price price)
+        public static explicit operator float(SmallDecimal price)
         {
             //Unsafe.Add(ref DoubleFractions10[0], price.Exponent);
             return (float)(price.Mantissa * DoubleFractions10[price.Exponent]);
         }
 
-        public static implicit operator decimal(Price price)
+        public static implicit operator decimal(SmallDecimal price)
         {
             return price.Mantissa * DecimalFractions10[price.Exponent];
         }
 
-        public static implicit operator Price(int value)
+        public static implicit operator SmallDecimal(int value)
         {
-            return new Price(0, (long)value);
+            return new SmallDecimal(0, (long)value);
         }
 
         /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public int CompareTo(Price other)
+        public int CompareTo(SmallDecimal other)
         {
             var c = (int)this.Exponent - (int)other.Exponent;
             if (c == 0)
@@ -275,7 +275,7 @@ namespace Spreads.DataTypes
 
         /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool Equals(Price other)
+        public bool Equals(SmallDecimal other)
         {
             if (_value == other._value)
             {
@@ -302,73 +302,73 @@ namespace Spreads.DataTypes
         public override bool Equals(object obj)
         {
             if (ReferenceEquals(null, obj)) return false;
-            return obj is Price && Equals((Price)obj);
+            return obj is SmallDecimal && Equals((SmallDecimal)obj);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool operator ==(Price x, Price y)
+        public static bool operator ==(SmallDecimal x, SmallDecimal y)
         {
             return x.Equals(y);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool operator !=(Price x, Price y)
+        public static bool operator !=(SmallDecimal x, SmallDecimal y)
         {
             return !x.Equals(y);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool operator >(Price x, Price y)
+        public static bool operator >(SmallDecimal x, SmallDecimal y)
         {
             return x.CompareTo(y) > 0;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool operator <(Price x, Price y)
+        public static bool operator <(SmallDecimal x, SmallDecimal y)
         {
             return x.CompareTo(y) < 0;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool operator >=(Price x, Price y)
+        public static bool operator >=(SmallDecimal x, SmallDecimal y)
         {
             return x.CompareTo(y) >= 0;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool operator <=(Price x, Price y)
+        public static bool operator <=(SmallDecimal x, SmallDecimal y)
         {
             return x.CompareTo(y) <= 0;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Price operator -(Price x)
+        public static SmallDecimal operator -(SmallDecimal x)
         {
-            var newPrice = new Price(x.Exponent, -x.Mantissa);
+            var newPrice = new SmallDecimal(x.Exponent, -x.Mantissa);
             return newPrice;
         }
 
-        public static Price operator +(Price x, Price y)
+        public static SmallDecimal operator +(SmallDecimal x, SmallDecimal y)
         {
             if (x.Exponent == y.Exponent)
             {
-                return new Price((int)x.Exponent, (long)(x.Mantissa + y.Mantissa));
+                return new SmallDecimal((int)x.Exponent, (long)(x.Mantissa + y.Mantissa));
             }
-            return new Price((decimal)x + (decimal)y, (int)Math.Max(x.Exponent, y.Exponent));
+            return new SmallDecimal((decimal)x + (decimal)y, (int)Math.Max(x.Exponent, y.Exponent));
         }
 
-        public static Price operator -(Price x, Price y)
+        public static SmallDecimal operator -(SmallDecimal x, SmallDecimal y)
         {
             if (x.Exponent == y.Exponent)
             {
-                return new Price((int)x.Exponent, (long)(x.Mantissa - y.Mantissa));
+                return new SmallDecimal((int)x.Exponent, (long)(x.Mantissa - y.Mantissa));
             }
-            return new Price((decimal)x - (decimal)y, (int)Math.Max(x.Exponent, y.Exponent));
+            return new SmallDecimal((decimal)x - (decimal)y, (int)Math.Max(x.Exponent, y.Exponent));
         }
 
-        public static Price operator *(Price x, int y)
+        public static SmallDecimal operator *(SmallDecimal x, int y)
         {
-            return new Price((int)x.Exponent, (long)(x.Mantissa * y));
+            return new SmallDecimal((int)x.Exponent, (long)(x.Mantissa * y));
         }
 
         /// <inheritdoc />
@@ -490,9 +490,9 @@ namespace Spreads.DataTypes
 
         #endregion IConvertible
 
-        internal class Formatter : IJsonFormatter<Price>
+        internal class Formatter : IJsonFormatter<SmallDecimal>
         {
-            public void Serialize(ref JsonWriter writer, Price value, IJsonFormatterResolver formatterResolver)
+            public void Serialize(ref JsonWriter writer, SmallDecimal value, IJsonFormatterResolver formatterResolver)
             {
                 writer.WriteBeginArray();
 
@@ -505,7 +505,7 @@ namespace Spreads.DataTypes
                 writer.WriteEndArray();
             }
 
-            public Price Deserialize(ref JsonReader reader, IJsonFormatterResolver formatterResolver)
+            public SmallDecimal Deserialize(ref JsonReader reader, IJsonFormatterResolver formatterResolver)
             {
                 reader.ReadIsBeginArrayWithVerify();
 
@@ -517,7 +517,7 @@ namespace Spreads.DataTypes
 
                 reader.ReadIsEndArrayWithVerify();
 
-                return new Price(exponent, mantissa); ;
+                return new SmallDecimal(exponent, mantissa); ;
             }
         }
     }

@@ -72,7 +72,7 @@ namespace Spreads.Collections.Concurrent
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool TryTake(out T item, out bool isPriority, CancellationToken ct = default)
+        public bool Take(out T item, out bool isPriority)
         {
             var spinner = new SpinWait();
             while (true)
@@ -87,6 +87,7 @@ namespace Spreads.Collections.Concurrent
                 }
                 else
                 {
+                    // ReSharper disable once RedundantAssignment
                     var taken = _priorityItems.TryDequeue(out item);
                     Debug.Assert(taken);
                     isPriority = true;
@@ -103,10 +104,35 @@ namespace Spreads.Collections.Concurrent
                         return false;
                     }
                     _isWaiting = true;
-                    _semaphore.Wait(ct);
+                    _semaphore.Wait(_ct);
                     _isWaiting = false;
                 }
             }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public bool TryTake(out T item, out bool isPriority)
+        {
+            if (_priorityItems.IsEmpty)
+            {
+                if (_items.TryDequeue(out item))
+                {
+                    isPriority = false;
+                    return true;
+                }
+            }
+            else
+            {
+                // ReSharper disable once RedundantAssignment
+                var taken = _priorityItems.TryDequeue(out item);
+                Debug.Assert(taken);
+                isPriority = true;
+                return true;
+            }
+
+            item = default;
+            isPriority = false;
+            return false;
         }
     }
 }

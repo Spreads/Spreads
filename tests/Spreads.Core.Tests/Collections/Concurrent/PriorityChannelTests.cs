@@ -31,8 +31,6 @@ namespace Spreads.Core.Tests.Collections.Concurrent
                 }
             });
 
-            
-
             var rt = Task.Run(() =>
             {
                 using (Benchmark.Run("Read", count, true))
@@ -41,7 +39,7 @@ namespace Spreads.Core.Tests.Collections.Concurrent
 
                     while (c < count)
                     {
-                        pc.TryTake(out var i, out var isPriority);
+                        pc.Take(out var i, out var isPriority);
                         //if (i >> 3 == 0 && !isPriority)
                         //{
                         //    Assert.Fail("i >> 8 == 0 && !isPriority");
@@ -84,7 +82,7 @@ namespace Spreads.Core.Tests.Collections.Concurrent
 
                     while (c < count)
                     {
-                        pc.TryTake(out var i, out var isPriority);
+                        pc.Take(out var i, out var isPriority);
                         //if (i >> 3 == 0 && !isPriority)
                         //{
                         //    Assert.Fail("i >> 8 == 0 && !isPriority");
@@ -101,6 +99,49 @@ namespace Spreads.Core.Tests.Collections.Concurrent
             Benchmark.Dump();
         }
 
+        [Test, Explicit("long running")]
+        public void PriorityChannelBenchmarkWriteThenReadNoWait()
+        {
+            var count = 200_000_000;
+            var pc = new PriorityChannel<ushort>();
+
+            var wt = Task.Run(() =>
+            {
+                using (Benchmark.Run("Write", count, true))
+                {
+                    for (var i = 0; i < count; i++)
+                    {
+                        pc.TryAdd((ushort)(i % ushort.MaxValue)); //, i >> 3 == 0);
+                    }
+                }
+            });
+
+            wt.Wait();
+
+            var rt = Task.Run(() =>
+            {
+                using (Benchmark.Run("Read", count, true))
+                {
+                    var c = 0;
+
+                    while (c < count)
+                    {
+                        pc.TryTake(out var i, out var isPriority);
+                        //if (i >> 3 == 0 && !isPriority)
+                        //{
+                        //    Assert.Fail("i >> 8 == 0 && !isPriority");
+                        //}
+
+                        c++;
+                    }
+                }
+            });
+
+            
+            rt.Wait();
+
+            Benchmark.Dump();
+        }
 
         [Test, Explicit("long running")]
         public void PriorityChannelBenchmarkReadFirst()

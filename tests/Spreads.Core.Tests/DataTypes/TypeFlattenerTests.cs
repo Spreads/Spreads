@@ -11,7 +11,7 @@ namespace Spreads.Tests.DataTypes
         [Test]
         public void CouldFlattenStructWithDataMembers()
         {
-            var tick = new Tick(DateTime.UtcNow.Date, new Price(123.45), 4242);
+            var tick = new Tick(DateTime.UtcNow.Date, new SmallDecimal(123.45), 4242);
             var flattener = new TypeFlattenner(tick.GetType());
             object[] values = null;
 
@@ -25,14 +25,14 @@ namespace Spreads.Tests.DataTypes
             Assert.AreEqual("Volume", flattener.Columns[2]);
 
             Assert.AreEqual(DateTime.UtcNow.Date, values[0]);
-            Assert.AreEqual(new Price(123.45), values[1]);
+            Assert.AreEqual(new SmallDecimal(123.45), values[1]);
             Assert.AreEqual(4242, values[2]);
         }
 
         [Test]
         public void CouldFlattenScalar()
         {
-            var price = new Price(123.45);
+            var price = new SmallDecimal(123.45);
             var flattener = new TypeFlattenner(price.GetType());
             object[] values = null;
 
@@ -41,7 +41,7 @@ namespace Spreads.Tests.DataTypes
             Console.WriteLine($"Columns: {flattener.Columns[0]} ");
 
             Assert.AreEqual("Price", flattener.Columns[0]);
-            Assert.AreEqual(new Price(123.45), values[0]);
+            Assert.AreEqual(new SmallDecimal(123.45), values[0]);
         }
 
         [Test]
@@ -63,7 +63,7 @@ namespace Spreads.Tests.DataTypes
         {
             public int Number { get; set; }
             public string Text { get; set; }
-            public Price Price { get; set; }
+            public SmallDecimal Price { get; set; }
         }
 
         public class TestTypeWithPartialOrder
@@ -75,13 +75,13 @@ namespace Spreads.Tests.DataTypes
             public string Text { get; set; }
 
             [DataMember]
-            public Price Price { get; set; }
+            public SmallDecimal Price { get; set; }
         }
 
         [Test]
         public void CouldFlattenCustomType()
         {
-            var value = new TestType { Number = 42, Text = "foo", Price = new Price(123.45) };
+            var value = new TestType { Number = 42, Text = "foo", Price = new SmallDecimal(123.45) };
             var flattener = new TypeFlattenner(value.GetType());
             object[] values = null;
 
@@ -94,14 +94,14 @@ namespace Spreads.Tests.DataTypes
             Assert.AreEqual("Text", flattener.Columns[2]);
 
             Assert.AreEqual(42, values[0]);
-            Assert.AreEqual(new Price(123.45), values[1]);
+            Assert.AreEqual(new SmallDecimal(123.45), values[1]);
             Assert.AreEqual("foo", values[2]);
         }
 
         [Test]
         public void CouldFlattenCustomTypeWithPartialOrder()
         {
-            var value = new TestTypeWithPartialOrder { Number = 42, Text = "foo", Price = new Price(123.45) };
+            var value = new TestTypeWithPartialOrder { Number = 42, Text = "foo", Price = new SmallDecimal(123.45) };
             var type = value.GetType();
             var flattener = new TypeFlattenner(type);
             object[] values = null;
@@ -116,7 +116,7 @@ namespace Spreads.Tests.DataTypes
 
             Assert.AreEqual("foo", values[0]);
             Assert.AreEqual(42, values[1]);
-            Assert.AreEqual(new Price(123.45), values[2]);
+            Assert.AreEqual(new SmallDecimal(123.45), values[2]);
         }
     }
 }
