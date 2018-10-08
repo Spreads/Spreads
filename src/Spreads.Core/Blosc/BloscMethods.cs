@@ -127,17 +127,21 @@ namespace Spreads.Blosc
 
         // 1 - 1
         // 2 - 1
-        // 3 - 2
+        // 3 - 1
         // 4 - 2
         // 5 - 2
-        // 6 - 3
-        // 9 - 4
-        // 12 - 5
-        // 16 - 6
-        internal static readonly int ProcessorCount = 1 + Environment.ProcessorCount / 3;
+        // 6 - 2
+        // 7 - 2
+        // 8 - 3
+        // 9 - 3
+        // 12 - 4
+        // 16 - 5
+        [Obsolete("Use raw methods and own packing")]
+        internal static readonly int ProcessorCount = 1 + Environment.ProcessorCount / 4;
 
         #region Blosc
 
+        [Obsolete("Use raw methods and own packing")]
         internal static int blosc_compress_ctx(IntPtr clevel, IntPtr doshuffle,
             UIntPtr typesize, UIntPtr nbytes, IntPtr src, IntPtr dest,
             UIntPtr destsize, [MarshalAs(UnmanagedType.LPStr)] string compressor,
@@ -147,11 +151,13 @@ namespace Spreads.Blosc
                 destsize, compressor, blocksize, numinternalthreads);
         }
 
+        [Obsolete("Use raw methods and own packing")]
         internal static int blosc_decompress_ctx(IntPtr src, IntPtr dest, UIntPtr destsize, int numinternalthreads)
         {
             return native_blosc_decompress_ctx(src, dest, destsize, numinternalthreads);
         }
 
+        [Obsolete("Use raw methods and own packing")]
         internal static int blosc_cbuffer_sizes(IntPtr cbuffer, ref UIntPtr nbytes,
             ref UIntPtr cbytes, ref UIntPtr blocksize)
         {

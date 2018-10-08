@@ -96,29 +96,35 @@ namespace Spreads.Core.Tests.Serialization
             }
         }
 
-
         [Test]
         public void CouldSerializeOrderBag()
         {
-            QuoteDecimal[] bids = new QuoteDecimal[10];
-            bids[0] = new QuoteDecimal(new SmallDecimal(15000000.45M, 8), new SmallDecimal(0.00123456M, 8));
-            bids[1] = new QuoteDecimal(new SmallDecimal(123.67M, 8), new SmallDecimal(0.00265987M, 8));
-            bids[2] = new QuoteDecimal(new SmallDecimal(123.67M, 8), new SmallDecimal(0.00265987M, 8));
-            bids[3] = new QuoteDecimal(new SmallDecimal(123.67M, 8), new SmallDecimal(0.00265987M, 8));
-            bids[4] = new QuoteDecimal(new SmallDecimal(123.67M, 8), new SmallDecimal(0.00265987M, 8));
-            bids[5] = new QuoteDecimal(new SmallDecimal(123.67M, 8), new SmallDecimal(0.00265987M, 8));
-            bids[6] = new QuoteDecimal(new SmallDecimal(123.67M, 8), new SmallDecimal(0.00265987M, 8));
-            bids[7] = new QuoteDecimal(new SmallDecimal(123.67M, 8), new SmallDecimal(0.00265987M, 8));
-            bids[8] = new QuoteDecimal(new SmallDecimal(123.67M, 8), new SmallDecimal(0.00265987M, 8));
-            bids[9] = new QuoteDecimal(new SmallDecimal(123.67M, 8), new SmallDecimal(0.00265987M, 8));
+            QuoteDecimal[] bids = new QuoteDecimal[10000];
+
+            for (int i = 0; i < bids.Length; i++)
+            {
+                bids[i] = new QuoteDecimal(new SmallDecimal(15000000.45, 8), new SmallDecimal((double)i, 8));
+            }
 
             QuoteDecimal[] asks = new QuoteDecimal[2];
-            asks[0] = new QuoteDecimal(new SmallDecimal(123.89M, 2), new SmallDecimal(0.00159748M, 8));
+            asks[0] = new QuoteDecimal(new SmallDecimal(123.89, 2), new SmallDecimal(0.00159748M, 8));
             asks[1] = new QuoteDecimal(new SmallDecimal(123.99M, 2), new SmallDecimal(0.00128948M, 8));
 
             var ob = new OrderBagDecimal(bids, asks);
+            var ts = TimeService.Default.CurrentTime;
+
+            var size = BinarySerializer.SizeOf(ob, out var segment, SerializationFormat.Json, ts);
+
+            var rm = BufferPool.Retain(size);
+
+            var written = BinarySerializer.Write(ob, rm.Memory, segment, SerializationFormat.Json, ts);
+
+            Assert.AreEqual(size, written);
 
             var str = JsonSerializer.ToJsonString(ob);
+
+            var ob2 = JsonSerializer.Deserialize<OrderBagDecimal>(str);
+
 
             Console.WriteLine(str);
 

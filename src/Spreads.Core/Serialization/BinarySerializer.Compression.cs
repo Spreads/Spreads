@@ -308,12 +308,12 @@ namespace Spreads.Serialization
             if (UseCalli)
             {
                 return UnsafeEx.CalliCompressUnmanagedCdecl(source._data, (IntPtr)source._length, destination._data, (IntPtr)destination._length,
-                    Settings.ZlibCompressionLevel,
+                    Settings.LZ4CompressionLevel,
                     BloscMethods.compress_lz4_ptr);
             }
 
             return BloscMethods.compress_lz4(source._data, (IntPtr)source._length, destination._data,
-                (IntPtr)destination._length, Settings.ZlibCompressionLevel);
+                (IntPtr)destination._length, Settings.LZ4CompressionLevel);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -334,12 +334,12 @@ namespace Spreads.Serialization
             if (UseCalli)
             {
                 return UnsafeEx.CalliCompressUnmanagedCdecl(source._data, (IntPtr)source._length, destination._data, (IntPtr)destination._length,
-                    Settings.ZlibCompressionLevel,
+                    Settings.ZstdCompressionLevel,
                     BloscMethods.compress_zstd_ptr);
             }
 
             return BloscMethods.compress_zstd(source._data, (IntPtr)source._length, destination._data,
-                (IntPtr)destination._length, Settings.ZlibCompressionLevel);
+                (IntPtr)destination._length, Settings.ZstdCompressionLevel);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
