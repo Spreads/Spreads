@@ -125,13 +125,67 @@ namespace Spreads.Core.Tests.Serialization
 
             var ob2 = JsonSerializer.Deserialize<OrderBagDecimal>(str);
 
-
             Console.WriteLine(str);
 
             // var ob2 = JsonSerializer.Deserialize<OrderBagX>(str);
-
         }
 
+        [Test]
+        public unsafe void CouldSerializeTickDecimal()
+        {
+            var count = 100_000;
+            var rounds = 10;
+            var rm = BufferPool.Retain(512);
+            var db = new DirectBuffer(rm.Length, (byte*)rm.Pointer);
+
+            var formats = new[] { SerializationFormat.Binary, SerializationFormat.Json };
+
+            for (int r = 0; r < rounds; r++)
+            {
+                foreach (var serializationFormat in formats)
+                {
+                    using (Benchmark.Run(serializationFormat.ToString(), count, true))
+                    {
+                        for (int i = 0; i < count; i++)
+                        {
+                            var tick = new TickDecimal((Timestamp)(long)(i + 1), new SmallDecimal((double)i, 8), new SmallDecimal((double)i, 8), i % 3 - 1, i);
+
+                            var size = BinarySerializer.SizeOf(in tick, out var segment, serializationFormat);
+                            if (serializationFormat == SerializationFormat.Binary && size != 32 + 4)
+                            {
+                                Assert.Fail("size != 32");
+                            }
+
+                            var written = BinarySerializer.Write(tick, ref db, segment, serializationFormat);
+
+                            if (size != written)
+                            {
+                                Assert.Fail("size != written");
+                            }
+
+                            var readSource = db.Slice(0, written);
+                            var readSize = BinarySerializer.Read<TickDecimal>(ref readSource, out var tick1);
+
+                            if (readSize != written)
+                            {
+                                Assert.Fail("readSize != written");
+                            }
+
+                            if (!tick1.Equals(tick))
+                            {
+                                Assert.Fail("!tick1.Equals(tick)");
+                            }
+                        }
+                    }
+                }
+            }
+            Benchmark.Dump();
+
+            var tick2 = new TickDecimal(TimeService.Default.CurrentTime, new SmallDecimal((double)123.45, 8), new SmallDecimal((double)56.789, 8), 123, 7894561253);
+            var str = JsonSerializer.ToJsonString(tick2);
+
+            Console.WriteLine(str);
+        }
 
         public void CouldSerializeBlittable<T>(T value) where T : IEquatable<T>
         {
@@ -210,7 +264,6 @@ namespace Spreads.Core.Tests.Serialization
             CouldSerializeBlittable((Timestamp)long.MaxValue);
 
             CouldSerializeBlittable(0.0);
-            
 
             var count = 10000;
             using (Benchmark.Run("CouldSerializeBlittables", count * (2 * 2 * 8) * 12))
