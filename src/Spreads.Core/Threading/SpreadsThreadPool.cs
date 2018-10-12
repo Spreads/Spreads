@@ -693,19 +693,22 @@ namespace Spreads.Threading
                                            string name = null,
                                            ApartmentState apartmentState = ApartmentState.Unknown,
                                            Action<Exception> exceptionHandler = null,
-                                           int threadMaxStackSize = 0)
-            : this(numThreads, DefaultThreadType, name, apartmentState, exceptionHandler, threadMaxStackSize)
+                                           int threadMaxStackSize = 0,
+                                            ThreadPriority threadPriority = ThreadPriority.Normal)
+            : this(numThreads, DefaultThreadType, name, apartmentState, exceptionHandler, threadMaxStackSize, threadPriority)
         { }
 
         public ThreadPoolSettings(int numThreads,
-                                           ThreadType threadType,
-                                           string name = null,
-                                           ApartmentState apartmentState = ApartmentState.Unknown,
-                                           Action<Exception> exceptionHandler = null,
-                                           int threadMaxStackSize = 0)
+                                   ThreadType threadType,
+                                   string name = null,
+                                   ApartmentState apartmentState = ApartmentState.Unknown,
+                                   Action<Exception> exceptionHandler = null,
+                                   int threadMaxStackSize = 0,
+                                   ThreadPriority threadPriority = ThreadPriority.Normal)
         {
             Name = name ?? ("DedicatedThreadPool-" + Guid.NewGuid());
             ThreadType = threadType;
+            ThreadPriority = threadPriority;
             NumThreads = numThreads;
             ApartmentState = apartmentState;
             ExceptionHandler = exceptionHandler ?? (ex =>
@@ -728,6 +731,8 @@ namespace Spreads.Threading
         /// </summary>
         public ThreadType ThreadType { get; }
 
+        public ThreadPriority ThreadPriority { get; }
+
         /// <summary>
         /// Apartment state for threads to run in this thread pool
         /// </summary>
@@ -748,7 +753,7 @@ namespace Spreads.Threading
     /// </summary>
     public class SpreadsThreadPool
     {
-        // it's shared and there is a cmment from MSFT that the number should
+        // it's shared and there is a comment from MSFT that the number should
         // be larger than intuition tells. By default ThreadPool has number
         // of workers equals to processor count.
         public static readonly int DefaultDedicatedWorkerThreads =
@@ -777,9 +782,10 @@ namespace Spreads.Threading
             {
                 if (_default == null)
                 {
-                    _default = new SpreadsThreadPool(
-                        new ThreadPoolSettings(DefaultDedicatedWorkerThreads,
-                            "DefaultSpinningThreadPool"), true);
+                    var settings = new ThreadPoolSettings(DefaultDedicatedWorkerThreads,
+                        "DefaultSpinningThreadPool");
+                    _default = new SpreadsThreadPool(settings);
+                    ThreadPool.SetMinThreads(settings.NumThreads, settings.NumThreads);
                 }
             }
         }
@@ -788,14 +794,15 @@ namespace Spreads.Threading
         public ThreadPoolSettings Settings { get; }
         private readonly PoolWorker[] _workers;
 
-        public SpreadsThreadPool(ThreadPoolSettings settings, bool adjustDefaultThreadpool = false)
+        public SpreadsThreadPool(ThreadPoolSettings settings)
         {
             workQueue = new ThreadPoolWorkQueue(this);
             Settings = settings;
-            _workers = Enumerable.Range(1, settings.NumThreads).Select(workerId => new PoolWorker(this, workerId)).ToArray();
-            if (adjustDefaultThreadpool)
+            _workers = new PoolWorker[settings.NumThreads];
+
+            for (int i = 0; i < settings.NumThreads; i++)
             {
-                ThreadPool.SetMinThreads(settings.NumThreads, settings.NumThreads);
+                _workers[i] = new PoolWorker(this, i);
             }
         }
 
@@ -946,18 +953,7 @@ namespace Spreads.Threading
 
                 thread.IsBackground = pool.Settings.ThreadType == ThreadType.Background;
 
-                // THEORY, need to validate:
-                // For Spreads the most critical path is completion of cursors that are wating
-                // on MoveNextAsync. On machines with small (v)CPUs count there could be a lot of
-                // activity on IO threads or other threads, but that could wait until we are
-                // performing actual calculations. We use Thread.Sleep(0) in UnfairSemaphore
-                // that yields only to threads with the same priority - this is good for this
-                // case - threads from this pool will continue to do work until they have it.
-                // Note that we do not stick to the pool threads and could often jump to the
-                // normal ThreadPool or start waiting from it. That's OK because if we have
-                // data available then those threads will just execute calculations. If they
-                // have to wait then we should wake consumers from higher-priority threads.
-                // Try: thread.Priority = Thread.CurrentThread.Priority + 1;
+                thread.Priority = pool.Settings.ThreadPriority;
 
                 if (pool.Settings.Name != null)
                     thread.Name = string.Format("{0}_{1}", pool.Settings.Name, workerId);
