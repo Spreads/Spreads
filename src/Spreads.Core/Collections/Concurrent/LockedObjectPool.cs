@@ -13,9 +13,10 @@ namespace Spreads.Collections.Concurrent
     /// This pool is intended for storage and should not drop objects if there is space available.
     /// Good for native resources as opposed to <see cref="ObjectPool{T}"/>, which is only good for reducing managed objects allocations.
     /// </summary>
-    public sealed class LockedObjectPool<T> where T : class
+    public sealed class LockedObjectPool<T> : IDisposable
+        where T : class
     {
-        private readonly Func<T> _factory;
+        private Func<T> _factory;
         private readonly T[] _objects;
         private SpinLock _lock; // do not make this readonly; it's a mutable struct
         private int _index;
@@ -51,7 +52,7 @@ namespace Spreads.Collections.Concurrent
 
             if (allocate)
             {
-                obj = _factory.Invoke();
+                obj = _factory?.Invoke();
             }
 
             return obj;
@@ -79,6 +80,19 @@ namespace Spreads.Collections.Concurrent
             }
 
             return pooled;
+        }
+
+        public void Dispose()
+        {
+            _factory = null;
+            T obj;
+            while ((obj = Rent()) != null)
+            {
+                if (obj is IDisposable idisp)
+                {
+                    idisp.Dispose();
+                }
+            }
         }
     }
 }

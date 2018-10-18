@@ -206,17 +206,18 @@ namespace Spreads.Serialization
 
             var compressedSize = CompressWithHeader(uncompressedBufferWithHeader, destination2, compressionMethod);
 
+            pin.Dispose();
+            pin2.Dispose();
+
+            BufferPool<byte>.Return(tmpArray);
+
             if (compressedSize > 0)
             {
-                BufferPool<byte>.Return(tmpArray);
                 temporaryBuffer = new ArraySegment<byte>(tmpArray2, 0, compressedSize);
                 return compressedSize;
             }
 
-            BufferPool<byte>.Return(tmpArray);
             BufferPool<byte>.Return(tmpArray2);
-            pin2.Dispose();
-
             return -1;
         }
 
