@@ -45,7 +45,7 @@ namespace Spreads.Core.Tests.Serialization
                     {
                         var ptrI = db.Slice(i * 16);
                         var header = ptrI.Read<DataTypeHeader>(0);
-                        if (header.VersionAndFlags.IsTimestamped && header.IsFixedSize)
+                        if (header.VersionAndFlags.IsTimestamped && header.IsTypeFixedSize)
                         {
                             var ts = ptrI.Read<Timestamp>(4);
                             unchecked
@@ -149,7 +149,7 @@ namespace Spreads.Core.Tests.Serialization
                         {
                             unchecked
                             {
-                                if (header.IsFixedSize)
+                                if (header.IsTypeFixedSize)
                                 {
                                     var ts = *(Timestamp*)(ptrI + 4);
                                     tsSumIf += (long)ts;

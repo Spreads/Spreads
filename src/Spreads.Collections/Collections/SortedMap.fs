@@ -167,49 +167,49 @@ type SortedMap<'K,'V>
       new ArrayBasedMapConverter<'K,'V, SortedMap<'K,'V>>() with
         member __.Read(ptr : IntPtr, [<Out>]value: byref<SortedMap<'K,'V>>, [<Out>]timestamp: byref<Timestamp> ) = 
           ThrowHelper.ThrowNotImplementedException("TODO Headers & timestamp")
+          -1
+          //let version = Marshal.ReadByte(ptr)
+          //let totalSize = 8 + Marshal.ReadInt32(new IntPtr(ptr.ToInt64() + 4L))
+          //let mapSize = Marshal.ReadInt32(new IntPtr(ptr.ToInt64() + 8L))
+          //let mapVersion = Marshal.ReadInt64(new IntPtr(ptr.ToInt64() + 12L))
+          //let isRegular = Marshal.ReadByte(new IntPtr(ptr.ToInt64() + 12L + 8L)) > 0uy
+          //let isReadOnly = Marshal.ReadByte(new IntPtr(ptr.ToInt64() + 12L + 8L + 1L)) > 0uy
           
-          let version = Marshal.ReadByte(ptr)
-          let totalSize = 8 + Marshal.ReadInt32(new IntPtr(ptr.ToInt64() + 4L))
-          let mapSize = Marshal.ReadInt32(new IntPtr(ptr.ToInt64() + 8L))
-          let mapVersion = Marshal.ReadInt64(new IntPtr(ptr.ToInt64() + 12L))
-          let isRegular = Marshal.ReadByte(new IntPtr(ptr.ToInt64() + 12L + 8L)) > 0uy
-          let isReadOnly = Marshal.ReadByte(new IntPtr(ptr.ToInt64() + 12L + 8L + 1L)) > 0uy
-          
-          value <- 
-            if mapSize > 0 then
-              let ptr = new IntPtr(ptr.ToInt64() + 8L + 14L)
-              let mutable keysArray = Unchecked.defaultof<'K[]>
-              let mutable keysCount = 0
-              let mutable keysTs = Unchecked.defaultof<_>
-              let keysLen = ArrayBinaryConverter<'K>.Instance.Read(ptr, &keysArray, &keysCount, &keysTs, false)
-              let keys = 
-                if isRegular then
-                  let arr = Array.sub keysArray 0 2
-                  try
-                    BufferPool<_>.Return keysArray |> ignore
-                  with | _ -> () // TODO this is temp solution for arrays that are not from pool
-                  arr
-                else keysArray
-              let ptr = new IntPtr(ptr.ToInt64() + (int64 keysLen))
-              let mutable valuesArray = Unchecked.defaultof<'V[]>
-              let mutable valuesCount = 0
-              let mutable valuesTs = Unchecked.defaultof<_>
-              let valuesLen = ArrayBinaryConverter<'V>.Instance.Read(ptr, &valuesArray, &valuesCount, &valuesTs, false)
-              Debug.Assert((totalSize = 8 + 14 + keysLen + valuesLen))
-              let sm : SortedMap<'K,'V> = SortedMap.OfSortedKeysAndValues(keys, valuesArray, mapSize, KeyComparer<'K>.Default, false, isRegular)
-              sm._version <- mapVersion
-              sm._nextVersion <- mapVersion
-              sm.orderVersion <- mapVersion
-              sm._isReadOnly <- isReadOnly
-              sm
-            else 
-              let sm = new SortedMap<'K,'V> ()
-              sm._version <- mapVersion
-              sm._nextVersion <- mapVersion
-              sm.orderVersion <- mapVersion
-              sm._isReadOnly <- isReadOnly
-              sm
-          totalSize
+          //value <- 
+          //  if mapSize > 0 then
+          //    let ptr = new IntPtr(ptr.ToInt64() + 8L + 14L)
+          //    let mutable keysArray = Unchecked.defaultof<'K[]>
+          //    let mutable keysCount = 0
+          //    let mutable keysTs = Unchecked.defaultof<_>
+          //    let keysLen = ArrayBinaryConverter<'K>.Instance.Read(ptr, &keysArray, &keysCount, &keysTs, false)
+          //    let keys = 
+          //      if isRegular then
+          //        let arr = Array.sub keysArray 0 2
+          //        try
+          //          BufferPool<_>.Return keysArray |> ignore
+          //        with | _ -> () // TODO this is temp solution for arrays that are not from pool
+          //        arr
+          //      else keysArray
+          //    let ptr = new IntPtr(ptr.ToInt64() + (int64 keysLen))
+          //    let mutable valuesArray = Unchecked.defaultof<'V[]>
+          //    let mutable valuesCount = 0
+          //    let mutable valuesTs = Unchecked.defaultof<_>
+          //    let valuesLen = ArrayBinaryConverter<'V>.Instance.Read(ptr, &valuesArray, &valuesCount, &valuesTs, false)
+          //    Debug.Assert((totalSize = 8 + 14 + keysLen + valuesLen))
+          //    let sm : SortedMap<'K,'V> = SortedMap.OfSortedKeysAndValues(keys, valuesArray, mapSize, KeyComparer<'K>.Default, false, isRegular)
+          //    sm._version <- mapVersion
+          //    sm._nextVersion <- mapVersion
+          //    sm.orderVersion <- mapVersion
+          //    sm._isReadOnly <- isReadOnly
+          //    sm
+          //  else 
+          //    let sm = new SortedMap<'K,'V> ()
+          //    sm._version <- mapVersion
+          //    sm._nextVersion <- mapVersion
+          //    sm.orderVersion <- mapVersion
+          //    sm._isReadOnly <- isReadOnly
+          //    sm
+          //totalSize
     }
     TypeHelper<SortedMap<'K,'V>>.RegisterConverter(converter, true);
   //#region Private & Internal members

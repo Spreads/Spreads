@@ -107,7 +107,7 @@ namespace Spreads.Serialization
                     ThrowHelper.FailFast($"destination.Length < source.Length. Must allocate enough space for unkown size.");
                 }
 
-                if (header.VersionAndFlags.IsBinary && header.IsFixedSize)
+                if (header.VersionAndFlags.IsBinary && header.IsTypeFixedSize)
                 {
                     ThrowHelper.FailFast($"Should not compress individual atomic types.");
                 }

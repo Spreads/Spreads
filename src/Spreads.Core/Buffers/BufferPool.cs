@@ -188,8 +188,14 @@ namespace Spreads.Buffers
             return Shared.RetainMemory(length, requireExact);
         }
 
+        /// <summary>
+        /// Note that requireExact is false, this method is for temp buffers
+        /// </summary>
+        /// <param name="length"></param>
+        /// <param name="requireExact"></param>
+        /// <returns></returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static RetainedMemory<byte> RetainNoLoh(int length, bool requireExact = true)
+        internal static RetainedMemory<byte> RetainNoLoh(int length, bool requireExact = false)
         {
             if (length >= Settings.LOH_LIMIT)
             {

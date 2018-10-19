@@ -41,6 +41,7 @@ namespace Spreads.Buffers
         internal MemoryHandle _memoryHandle;
         internal Memory<T> _memory;
 
+        private int _offset;
         // Could add up to 24 fields to still fir in one cache line.
 
         /// <summary>
@@ -51,6 +52,7 @@ namespace Spreads.Buffers
         {
             _memory = memory;
             _memoryHandle = memory.Pin();
+            _offset = 0;
 #if DETECT_LEAKS
             _finalizeChecker = new PanicOnFinalize();
 #endif
@@ -60,6 +62,7 @@ namespace Spreads.Buffers
         {
             _memory = (Memory<T>)bytes;
             _memoryHandle = default;
+            _offset = 0;
             // We do not need to Pin arrays, they do not have ref count. Will be pinned when Pointer is accessed.
 #if DETECT_LEAKS
             _finalizeChecker = new PanicOnFinalize();
@@ -76,6 +79,7 @@ namespace Spreads.Buffers
         {
             _memory = memory;
             _memoryHandle = handle;
+            _offset = 0;
 #if DETECT_LEAKS
             _finalizeChecker = new PanicOnFinalize();
 #endif
@@ -105,12 +109,12 @@ namespace Spreads.Buffers
             get
             {
                 var ptr = _memoryHandle.Pointer;
-                if (ptr != null) return ptr;
+                if (ptr != null) return (byte*)ptr + _offset;
                 // replace handles
                 var newHandle = Memory.Pin();
                 _memoryHandle.Dispose();
                 _memoryHandle = newHandle;
-                return _memoryHandle.Pointer;
+                return (byte*)_memoryHandle.Pointer + _offset;
             }
         }
 
@@ -154,10 +158,40 @@ namespace Spreads.Buffers
         /// <summary>
         /// Slice in-place, keep ownership.
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Trim(int start, int length)
         {
             _memory = _memory.Slice(start, length);
+            _offset = _offset + start;
+
+            // TODO review and remove if there is no better way than _offset
+            //if (typeof(T) == typeof(byte))
+            //{
+            //    var bmem = (Memory<byte>) (object) (_memory);
+            //    if (MemoryMarshal.TryGetMemoryManager<byte, UnmanagedMemory<byte>>(bmem, out var mng))
+            //    {
+            //        _memoryHandle = mng.GetHandleNoIncrement(start);
+            //        _memory = _memory.Slice(start, length);
+            //        return;
+            //    }
+            //}
+
+            //if(_memoryHandle.Pointer != null)
+            //{
+            //    _memory = _memory.Slice(start, length);
+            //    var h = _memoryHandle;
+            //    _memoryHandle = _memory.Pin();
+            //    h.Dispose();
+            //}
+
         }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static void ThrowTrimLength()
+        {
+            ThrowHelper.ThrowArgumentOutOfRangeException("start + length");
+        }
+
 
         /// <summary>
         /// Release a reference of the underlying OwnedBuffer.

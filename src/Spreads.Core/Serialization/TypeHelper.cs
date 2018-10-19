@@ -176,7 +176,7 @@ namespace Spreads.Serialization
             {
                 if (sa != null && sa.TypeEnum != TypeEnum.None)
                 {
-                    if ((int) sa.TypeEnum > Variant.KnownSmallTypesLimit && (FixedSize > 0 && FixedSize <= 25))
+                    if ((int)sa.TypeEnum > Variant.KnownSmallTypesLimit && (FixedSize > 0 && FixedSize <= 25))
                     {
                         // Internal
                         Environment.FailFast("(int) sa.TypeEnum > Variant.KnownSmallTypesLimit && (FixedSize > 0 && FixedSize <= 25)");
@@ -405,20 +405,13 @@ namespace Spreads.Serialization
             // TODO
             if (typeof(T).IsArray)
             {
-                throw new NotImplementedException("TODO refactor existing code");
+                var elementType = typeof(T).GetElementType();
+                var elementSize = TypeHelper.GetSize(elementType);
+                if (elementSize > 0)
+                { // only for blittable types
+                    converter = (IBinaryConverter<T>)ArrayConverterFactory.Create(elementType);
+                }
             }
-            //{
-            //    var elementType = typeof(T).GetElementType();
-            //    var elementSize = TypeHelper.GetSize(elementType);
-            //    if (elementSize > 0)
-            //    { // only for blittable types
-            //        var converter = (IBinaryConverter<T>)ArrayConverterFactory.Create(elementType);
-            //        if (converter != null)
-            //        {
-            //            BinaryConverter = converter;
-            //        }
-            //    }
-            //}
 
             // Do not add Json converter as fallback, it is not "binary", it implements the interface for
             // simpler implementation in BinarySerializer and fallback happens there

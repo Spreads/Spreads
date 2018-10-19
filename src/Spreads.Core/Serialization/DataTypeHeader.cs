@@ -50,7 +50,7 @@ namespace Spreads.Serialization
         [FieldOffset(ElementTypeEnumOffset)]
         public TypeEnum ElementTypeEnum;
 
-        public bool IsFixedSize
+        public bool IsTypeFixedSize
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             // LE, if equal than this is unknown but fixed size. TypeSize could be > 0 for containers (e.g. arrays), so need to check type enum
@@ -62,7 +62,7 @@ namespace Spreads.Serialization
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
-                var isVarSize = !IsFixedSize;
+                var isVarSize = !IsTypeFixedSize;
                 var offset = ((int)(*(byte*)&isVarSize) << 2); // 4 for varsize or 0 for fixed size
                 return Size + offset;
             }

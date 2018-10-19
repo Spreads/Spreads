@@ -104,7 +104,6 @@ namespace Spreads.Buffers
         public override RetainedMemory<byte> RetainMemory(int length, bool requireExact = true)
         {
             var mem = Rent(length);
-            mem.EnsureCapacity(length);
             if (requireExact)
             {
                 return mem.Retain(length);

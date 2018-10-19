@@ -32,7 +32,7 @@ namespace Spreads.Core.Tests.Buffers
         public void CouldUseRetainedmemory()
         {
             var bytes = new byte[100];
-            var rm = BufferPool.Retain(123456, true); // new RetainedMemory<byte>(bytes, default);
+            var rm = BufferPool.Retain(123456, true);
             // var ptr = rm.Pointer;
             var mem = rm.Memory;
             var clone = rm.Clone();
@@ -40,9 +40,16 @@ namespace Spreads.Core.Tests.Buffers
             var clone2 = clone.Clone();
             rm.Dispose();
             clone.Dispose();
-            clone1.Dispose();
             clone2.Dispose();
+            
             var b = mem.Span[0];
+
+            clone1.Dispose();
+            Assert.Throws<ObjectDisposedException>(() =>
+            {
+                var b2 = mem.Span[0];
+            });
+
         }
 
         [Test]
@@ -124,6 +131,28 @@ namespace Spreads.Core.Tests.Buffers
             rm = await nss.ToRetainedMemory(100);
 
             Assert.AreEqual(100, rm.Length);
+        }
+
+        [Test]
+        public unsafe void TrimUpdatesPointer()
+        {
+            var rm = BufferPool.Shared.RetainMemory(1000);
+
+            var initialPtr = (IntPtr)rm.Pointer;
+
+            rm.Trim(1, 100);
+
+            Assert.AreEqual(initialPtr.ToInt64() + 1, ((IntPtr)rm.Pointer).ToInt64());
+
+
+            rm = BufferPool.OffHeap.RetainMemory(1000);
+
+            initialPtr = (IntPtr)rm.Pointer;
+
+            rm.Trim(1, 100);
+
+            Assert.AreEqual(initialPtr.ToInt64() + 1, ((IntPtr)rm.Pointer).ToInt64());
+
         }
     }
 

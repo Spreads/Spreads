@@ -82,6 +82,12 @@ namespace Spreads.Buffers
             return new MemoryHandle(Unsafe.Add<byte>(InternalDirectBuffer.Data, elementIndex), default, this);
         }
 
+        internal MemoryHandle GetHandleNoIncrement(int elementIndex = 0)
+        {
+            if (elementIndex < 0 || elementIndex >= Capacity) throw new ArgumentOutOfRangeException(nameof(elementIndex));
+            return new MemoryHandle(Unsafe.Add<byte>(InternalDirectBuffer.Data, elementIndex), default, this);
+        }
+
         public override void Unpin()
         {
             Decrement();

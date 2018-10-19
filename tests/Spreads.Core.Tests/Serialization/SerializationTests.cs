@@ -133,7 +133,7 @@ namespace Spreads.Core.Tests.Serialization
         [Test]
         public unsafe void CouldSerializeTickDecimal()
         {
-            var count = 100_000;
+            var count = 1_000;
             var rounds = 10;
             var rm = BufferPool.Retain(512);
             var db = new DirectBuffer(rm.Length, (byte*)rm.Pointer);
@@ -265,7 +265,7 @@ namespace Spreads.Core.Tests.Serialization
 
             CouldSerializeBlittable(0.0);
 
-            var count = 100;
+            var count = 1_000;
             using (Benchmark.Run("CouldSerializeBlittables", count * (2 * 2 * 8) * 12))
             {
                 for (int i = 0; i < count; i++)
@@ -409,7 +409,7 @@ namespace Spreads.Core.Tests.Serialization
             dta[0] = DateTime.Today;
             dta[1] = DateTime.Today.AddDays(1);
             var len = BinarySerializer.Write(dta, bytes, format: SerializationFormat.Binary);
-            Assert.AreEqual(8 + 8 * 2, len);
+            Assert.AreEqual(8 + 4 + 8 * 2, len);
             DateTime[] dta2 = null;
             var len2 = BinarySerializer.Read(bytes, out dta2);
             Assert.AreEqual(len, len2);
@@ -423,8 +423,8 @@ namespace Spreads.Core.Tests.Serialization
             var ints = new int[2];
             ints[0] = 123;
             ints[1] = 456;
-            var len = BinarySerializer.Write(ints, bytes);
-            Assert.AreEqual(8 + 4 * 2, len);
+            var len = BinarySerializer.Write(ints, bytes, format: SerializationFormat.Binary);
+            Assert.AreEqual(8 + 4 + 4 * 2, len);
             int[] ints2 = null;
             var len2 = BinarySerializer.Read(bytes, out ints2);
             Assert.AreEqual(len, len2);
@@ -439,8 +439,8 @@ namespace Spreads.Core.Tests.Serialization
             var decimals = new decimal[2];
             decimals[0] = 123;
             decimals[1] = 456;
-            var len = BinarySerializer.Write(decimals, bytes);
-            Assert.AreEqual(8 + 16 * 2, len);
+            var len = BinarySerializer.Write(decimals, bytes, format:SerializationFormat.Binary);
+            Assert.AreEqual(8 +4 + 16 * 2, len);
             decimal[] decimals2 = null;
             var len2 = BinarySerializer.Read(bytes, out decimals2);
             Assert.IsTrue(decimals.SequenceEqual(decimals2));
@@ -477,8 +477,8 @@ namespace Spreads.Core.Tests.Serialization
                 Value1 = 456,
                 Value2 = 4560
             };
-            var len = BinarySerializer.Write(arr, bytes);
-            Assert.AreEqual(8 + 12 * 2, len);
+            var len = BinarySerializer.Write(arr, bytes, format: SerializationFormat.Binary);
+            Assert.AreEqual(8 + 4 + 12 * 2, len);
             BlittableStruct[] arr2 = null;
             var len2 = BinarySerializer.Read(bytes, out arr2);
             Assert.AreEqual(len, len2);
@@ -537,7 +537,7 @@ namespace Spreads.Core.Tests.Serialization
             Assert.AreEqual(3, newInts2[1]);
         }
 
-        [Test]
+        [Test, Ignore("not implemented")]
         public unsafe void CouldSerializeSortedMap()
         {
             SortedMap<DateTime, decimal>.Init();
@@ -571,7 +571,7 @@ namespace Spreads.Core.Tests.Serialization
             Assert.IsTrue(sm2.Values.SequenceEqual(sm.Values));
         }
 
-        [Test]
+        [Test, Ignore("SM not implemented")]
         public unsafe void CouldSerializeRegularSortedMapWithZstd()
         {
             BloscSettings.SerializationFormat = SerializationFormat.BinaryZstd;
@@ -639,7 +639,7 @@ namespace Spreads.Core.Tests.Serialization
         }
 
         [Test]
-        public unsafe void CouldSerializeSortedMapWithStrings()
+        public void CouldSerializeSortedMapWithStrings()
         {
             var rng = new Random();
 
@@ -676,69 +676,47 @@ namespace Spreads.Core.Tests.Serialization
         }
 
         [Test]
-        public void CouldUseBloscCompression()
+        public void CouldUseCompression()
         {
-            var count = 1000;
-            var rng = new Random(42);
-            Memory<byte> bytes = new byte[count * 16 + 20];
-            var source = new decimal[count];
-            source[0] = 123.4567M;
-            for (var i = 1; i < count; i++)
+            // this also tests write without SizeOf, but only happy path
+            // TODO unhappy path with corrupted data and small buffers
+
+            var formats = new[]
             {
-                source[i] = source[i - 1] + Math.Round((decimal)rng.NextDouble() * 10, 4);
-            }
-
-            var len = BinarySerializer.Write(source, bytes, default,
-                SerializationFormat.BinaryLz4);
-
-            Console.WriteLine($"Useful: {source.Length * 16}");
-            Console.WriteLine($"Total: {len}");
-
-            decimal[] destination = null;
-
-            var len2 = BinarySerializer.Read(bytes, out destination);
-
-            Console.WriteLine("len2: " + len2);
-            Console.WriteLine(destination.Length.ToString());
-            //foreach (var val in destination)
-            //{
-            //    Console.WriteLine(val.ToString());
-            //}
-
-            Assert.True(source.SequenceEqual(destination));
-        }
-
-        [Test]
-        public void CouldUseBloscCompressionZstd()
-        {
-            var count = 1000;
-            var rng = new Random();
-            Memory<byte> bytes = new byte[count * 16 + 20];
-            var source = new decimal[count];
-            source[0] = 123.4567M;
-            for (var i = 1; i < count; i++)
+                SerializationFormat.Binary, SerializationFormat.BinaryZstd, SerializationFormat.BinaryLz4,
+                SerializationFormat.BinaryGZip,
+                SerializationFormat.Json, SerializationFormat.JsonGZip, SerializationFormat.JsonLz4,
+                SerializationFormat.JsonZstd
+            };
+            foreach (var serializationFormat in formats)
             {
-                source[i] = source[i - 1] + Math.Round((decimal)rng.NextDouble() * 10, 4);
+                Console.WriteLine(serializationFormat);
+
+                var count = 10000;
+                var rng = new Random(42);
+                Memory<byte> bytes = new byte[count * 16 + 20];
+                var source = new decimal[count];
+                source[0] = 123.4567M;
+                for (var i = 1; i < count; i++)
+                {
+                    source[i] = source[i - 1] + Math.Round((decimal)rng.NextDouble() * 10, 4);
+                }
+
+                var len = BinarySerializer.Write(source, bytes, default,
+                    serializationFormat);
+
+                Console.WriteLine($"Useful: {source.Length * 16}");
+                Console.WriteLine($"Total: {len}");
+
+                decimal[] destination = null;
+
+                var len2 = BinarySerializer.Read(bytes, out destination);
+
+                Console.WriteLine("len2: " + len2);
+                Console.WriteLine(destination.Length.ToString());
+
+                Assert.True(source.SequenceEqual(destination));
             }
-
-            var len = BinarySerializer.Write(source, bytes, default,
-                SerializationFormat.BinaryZstd);
-
-            Console.WriteLine($"Useful: {source.Length * 16}");
-            Console.WriteLine($"Total: {len}");
-
-            decimal[] destination = null;
-
-            var len2 = BinarySerializer.Read(bytes, out destination);
-
-            Console.WriteLine("len2: " + len2);
-            Console.WriteLine(destination.Length.ToString());
-            foreach (var val in destination)
-            {
-                Console.WriteLine(val.ToString());
-            }
-
-            Assert.True(source.SequenceEqual(destination));
         }
 
         public struct Dummy
@@ -970,7 +948,7 @@ namespace Spreads.Core.Tests.Serialization
             }
         }
 
-        [Test]
+        [Test, Ignore("Not implemented")]
         public void CouldSerializeTKVWithTimeStamp()
         {
             var rm = BufferPool.Retain(1000);
