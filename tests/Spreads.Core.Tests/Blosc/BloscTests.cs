@@ -535,7 +535,7 @@ namespace Spreads.Core.Tests.Blosc
             var compressedDB = new DirectBuffer(bufferLen, compressedPtr);
             var decompressedDB = new DirectBuffer(bufferLen, decompressedPtr);
 
-            var originalLen = BinarySerializer.Write(values, ref originalDB, null, SerializationFormat.Json);
+            var originalLen = BinarySerializer.Write(values, ref originalDB, default, SerializationFormat.Json);
             Console.WriteLine("Original len: " + originalLen);
 
             for (int level = 0; level < 10; level++)

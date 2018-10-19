@@ -45,7 +45,7 @@ namespace Spreads.Buffers
         // max pooled array size
         internal const int SharedBufferSize = 4096;
 
-        internal const int StaticBufferSize = Settings.ThreadStaticPinnedBufferSize;
+        internal static readonly int StaticBufferSize = Settings.ThreadStaticPinnedBufferSize;
 
         /// <summary>
         /// Shared buffers are for slicing of small PreservedBuffers
@@ -185,6 +185,20 @@ namespace Spreads.Buffers
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static RetainedMemory<byte> Retain(int length, bool requireExact = true)
         {
+            return Shared.RetainMemory(length, requireExact);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static RetainedMemory<byte> RetainNoLoh(int length, bool requireExact = true)
+        {
+            if (length >= Settings.LOH_LIMIT)
+            {
+                if (OffHeap != null)
+                {
+                    return OffHeap.RetainMemory(length, requireExact);
+                }
+                ThrowHelper.ThrowInvalidOperationException("BufferPool.OffHeap is null while requesting RetainNoLoh");
+            }
             return Shared.RetainMemory(length, requireExact);
         }
     }

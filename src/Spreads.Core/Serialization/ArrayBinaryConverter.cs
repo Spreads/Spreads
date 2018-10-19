@@ -53,7 +53,7 @@ namespace Spreads.Serialization
             get => 0;
         }
 
-        public int SizeOf(TElement[] value, out ArraySegment<byte> temporaryBuffer)
+        public int SizeOf(TElement[] value, out RetainedMemory<byte> temporaryBuffer, out bool withPadding)
         {
 
             throw new NotImplementedException();

@@ -265,7 +265,7 @@ namespace Spreads.Core.Tests.Serialization
 
             CouldSerializeBlittable(0.0);
 
-            var count = 10000;
+            var count = 100;
             using (Benchmark.Run("CouldSerializeBlittables", count * (2 * 2 * 8) * 12))
             {
                 for (int i = 0; i < count; i++)
@@ -588,7 +588,7 @@ namespace Spreads.Core.Tests.Serialization
                 sm.Add(DateTime.Today.AddSeconds(i), (decimal)Math.Round(i + rng.NextDouble(), 2));
             }
 
-            ArraySegment<byte> tmp;
+            RetainedMemory<byte> tmp;
             var size = BinarySerializer.SizeOf(sm, out tmp);
             var len = BinarySerializer.Write(sm, dest, tmp);
             Console.WriteLine($"Useful: {sm.Count * 24}");
@@ -620,7 +620,7 @@ namespace Spreads.Core.Tests.Serialization
             {
                 sm.Add(i, i);
             }
-            ArraySegment<byte> temp;
+            RetainedMemory<byte> temp;
             var len = BinarySerializer.SizeOf(sm, out temp);
             var len2 = BinarySerializer.Write(sm, buffer, temp);
             Assert.AreEqual(len, len2);
@@ -656,7 +656,7 @@ namespace Spreads.Core.Tests.Serialization
                 valueLens += str.Length;
                 sm.Add(i, str);
             }
-            ArraySegment<byte> temp;
+            RetainedMemory<byte> temp;
             var len = BinarySerializer.SizeOf(sm, out temp);
             var len2 = BinarySerializer.Write(sm, buffer, temp);
             Assert.AreEqual(len, len2);

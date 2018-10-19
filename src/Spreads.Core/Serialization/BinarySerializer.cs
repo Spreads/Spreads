@@ -26,6 +26,9 @@ namespace Spreads.Serialization
     /// </summary>
     public static unsafe partial class BinarySerializer
     {
+        // ReSharper disable once InconsistentNaming
+        internal const int BC_PADDING = 16;
+
         /// <summary>
         /// Positive number for fixed-size types, negative for all other types. Zero is invalid.
         /// </summary>
@@ -38,17 +41,17 @@ namespace Spreads.Serialization
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int SizeOfRaw<T>(T value, out ArraySegment<byte> temporaryBuffer,
+        public static int SizeOfRaw<T>(T value, out RetainedMemory<byte> temporaryBuffer, out bool withPadding,
             bool isBinary = false)
         {
-            return SizeOfRaw(in value, out temporaryBuffer, isBinary);
+            return SizeOfRaw(in value, out temporaryBuffer, out withPadding, isBinary);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static int SizeOfRaw<T>(in T value, out ArraySegment<byte> temporaryBuffer, bool isBinary = false)
+        internal static int SizeOfRaw<T>(in T value, out RetainedMemory<byte> temporaryBuffer, out bool withPadding, bool isBinary = false)
         {
             temporaryBuffer = default;
-
+            withPadding = false;
             if (isBinary)
             {
                 // fixed size binary is never compressed
@@ -60,15 +63,15 @@ namespace Spreads.Serialization
                 var bc = TypeHelper<T>.BinaryConverter;
                 if (bc != null)
                 {
-                    return bc.SizeOf(value, out temporaryBuffer);
+                    return bc.SizeOf(value, out temporaryBuffer, out withPadding);
                 }
             }
 
-            return JsonBinaryConverter<T>.SizeOf(value, out temporaryBuffer);
+            return JsonBinaryConverter<T>.SizeOf(value, out temporaryBuffer, out withPadding);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int SizeOf<T>(T value, out ArraySegment<byte> temporaryBuffer,
+        public static int SizeOf<T>(T value, out RetainedMemory<byte> temporaryBuffer,
             SerializationFormat format = default,
             Timestamp timestamp = default)
         {
@@ -79,7 +82,7 @@ namespace Spreads.Serialization
         /// With header + len + optional TS.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static int SizeOf<T>(in T value, out ArraySegment<byte> temporaryBuffer,
+        internal static int SizeOf<T>(in T value, out RetainedMemory<byte> temporaryBuffer,
             SerializationFormat format = default,
             Timestamp timestamp = default)
         {
@@ -102,7 +105,7 @@ namespace Spreads.Serialization
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
-        private static int SizeOfVarSize<T>(in T value, out ArraySegment<byte> temporaryBuffer,
+        private static int SizeOfVarSize<T>(in T value, out RetainedMemory<byte> temporaryBuffer,
             SerializationFormat format, Timestamp timestamp)
         {
             temporaryBuffer = default;
@@ -110,16 +113,26 @@ namespace Spreads.Serialization
             var hasTs = (long)timestamp != default;
             var tsSize = *(int*)(&hasTs) << 3;
 
-            var rawSize = SizeOfRaw(in value, out var rawTemporaryBuffer, isBinary);
+            var rawSize = SizeOfRaw(in value, out var rawTemporaryBuffer, out var withPadding, isBinary);
 
             if (rawSize <= 0)
             {
                 return rawSize;
             }
 
+            if (Settings.AdditionalCorrectnessChecks.Enabled)
+            {
+                if (!rawTemporaryBuffer.IsEmpty &&
+                    rawSize != rawTemporaryBuffer.Length - (withPadding ? BC_PADDING : 0))
+                {
+                    ThrowHelper.FailFast("Wrong raw size");
+                }
+            }
+
             var compressionMethod = format.CompressionMethod();
 
-            if (rawTemporaryBuffer.Count == 0 && compressionMethod == CompressionMethod.None)
+            // first check because there is no header in the buffer from SizeOfRaw, only empty is OK
+            if (rawTemporaryBuffer.IsEmpty && compressionMethod == CompressionMethod.None)
             {
                 // we know size without performing serialization yet and do not need compression
                 return DataTypeHeader.Size + 4 + tsSize + rawSize;
@@ -129,33 +142,40 @@ namespace Spreads.Serialization
 
             IBinaryConverter<T> bc = null;
 
-            // first reuse the raw buffer or create one in rare case it is empty
-            var rawOffset = 16;
-            byte[] tmpArray;
-            MemoryHandle pin;
+            // reuse the raw buffer or create one in case it is empty or without padding.
+            var rawOffset = BC_PADDING;
+            RetainedMemory<byte> tmpArray;
             DirectBuffer tmpDestination;
 
-            if (rawTemporaryBuffer.Count == 0)
+            if (rawTemporaryBuffer.IsEmpty) // requested compression, empty is possible only when TypeHelper<T>.BinaryConverter != null
             {
                 bc = TypeHelper<T>.BinaryConverter;
+                Debug.Assert(bc != null);
                 ThrowHelper.AssertFailFast(bc != null, "TypeHelper<T>.BinaryConverter != null, in other cases raw temp buffer should be present");
                 rawOffset = DataTypeHeader.Size + 4 + tsSize;
-                tmpArray = BufferPool<byte>.Rent(rawOffset + rawSize);
-                pin = ((Memory<byte>)tmpArray).Pin();
-                tmpDestination = new DirectBuffer(tmpArray.Length, (byte*)pin.Pointer);
-                var sl = tmpDestination.Slice(rawOffset);
+                tmpArray = BufferPool.RetainNoLoh(rawOffset + rawSize);
+                tmpDestination = new DirectBuffer(tmpArray.Length, (byte*)tmpArray.Pointer);
+                var slice = tmpDestination.Slice(rawOffset);
                 // ReSharper disable once PossibleNullReferenceException
-                bc.Write(value, ref sl);
+                bc.Write(value, ref slice);
                 // now tmpArray is the same as if if was returned from SizeOfNoHeader
             }
             else
             {
-                ThrowHelper.AssertFailFast(rawTemporaryBuffer.Offset == rawOffset, "rawTemporaryBuffer.Offset == 16");
-                rawOffset = rawTemporaryBuffer.Offset;
-                tmpArray = rawTemporaryBuffer.Array;
-                pin = ((Memory<byte>)tmpArray).Pin();
-                // ReSharper disable once PossibleNullReferenceException
-                tmpDestination = new DirectBuffer(tmpArray.Length, (byte*)pin.Pointer);
+                if (withPadding)
+                {
+                    Debug.Assert(rawOffset == BC_PADDING);
+                    tmpArray = rawTemporaryBuffer;
+                    tmpDestination = new DirectBuffer(tmpArray.Length, (byte*) tmpArray.Pointer);
+                }
+                else
+                {
+                    rawOffset = DataTypeHeader.Size + 4 + tsSize;
+                    tmpArray = BufferPool.RetainNoLoh(rawOffset + rawSize);
+                    tmpDestination = new DirectBuffer(tmpArray.Length, (byte*) tmpArray.Pointer);
+                    var slice = tmpDestination.Slice(rawOffset);
+                    rawTemporaryBuffer.Span.CopyTo(slice.Span);
+                }
             }
 
             if (bc == null)
@@ -189,41 +209,37 @@ namespace Spreads.Serialization
 
             var totalLength = DataTypeHeader.Size + 4 + payloadLength;
 
-            var uncompressedBufferWithHeader =
-                tmpDestination.Slice(firstOffset, totalLength);
+            
             if (compressionMethod == CompressionMethod.None)
             {
-                pin.Dispose();
-                temporaryBuffer = new ArraySegment<byte>(tmpArray, firstOffset, totalLength);
+                tmpArray.Trim(firstOffset, tmpArray.Length - firstOffset);
+                temporaryBuffer = tmpArray;
                 return totalLength;
             }
 
-            byte[] tmpArray2;
-            MemoryHandle pin2;
-            tmpArray2 = BufferPool<byte>.Rent(checked((int)(uint)uncompressedBufferWithHeader.Length));
-            pin2 = ((Memory<byte>)tmpArray2).Pin();
-            var destination2 = new DirectBuffer(tmpArray2.Length, (byte*)pin2.Pointer).Slice(0, uncompressedBufferWithHeader.Length);
+            var uncompressedBufferWithHeader = tmpDestination.Slice(firstOffset, totalLength);
+
+            var tmpArray2 = BufferPool.RetainNoLoh(checked((int)(uint)uncompressedBufferWithHeader.Length));
+            var destination2 = new DirectBuffer(tmpArray2.Length, (byte*)tmpArray2.Pointer).Slice(0, uncompressedBufferWithHeader.Length);
 
             var compressedSize = CompressWithHeader(uncompressedBufferWithHeader, destination2, compressionMethod);
 
-            pin.Dispose();
-            pin2.Dispose();
-
-            BufferPool<byte>.Return(tmpArray);
+            tmpArray.Dispose();
 
             if (compressedSize > 0)
             {
-                temporaryBuffer = new ArraySegment<byte>(tmpArray2, 0, compressedSize);
+                tmpArray2.Trim(0, compressedSize);
+                temporaryBuffer = tmpArray2;
                 return compressedSize;
             }
 
-            BufferPool<byte>.Return(tmpArray2);
+            tmpArray2.Dispose();
             return -1;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static int Write<T>(in T value, ref DirectBuffer pinnedDestination,
-            ArraySegment<byte> temporaryBuffer = default,
+            RetainedMemory<byte> temporaryBuffer = default,
             SerializationFormat format = default,
             Timestamp timestamp = default)
         {
@@ -247,7 +263,7 @@ namespace Spreads.Serialization
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
-        private static int WriteVarSize<T>(T value, ref DirectBuffer pinnedDestination, ArraySegment<byte> temporaryBuffer, SerializationFormat format,
+        private static int WriteVarSize<T>(T value, ref DirectBuffer pinnedDestination, RetainedMemory<byte> temporaryBuffer, SerializationFormat format,
             Timestamp timestamp, IBinaryConverter<T> bc)
         {
             var hasTs = (long)timestamp != default;
@@ -273,8 +289,8 @@ namespace Spreads.Serialization
                     // TODO payload size check
                 }
 
-                ((Span<byte>)temporaryBuffer).CopyTo(pinnedDestination.Span);
-                BufferPool<byte>.Return(temporaryBuffer.Array);
+                temporaryBuffer.Span.CopyTo(pinnedDestination.Span);
+                temporaryBuffer.Dispose();
                 return len;
             }
 
@@ -350,7 +366,7 @@ namespace Spreads.Serialization
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static int Write<T>(in T value, Memory<byte> buffer,
-            ArraySegment<byte> temporaryBuffer = default,
+            RetainedMemory<byte> temporaryBuffer = default,
             SerializationFormat format = default,
             Timestamp timestamp = default)
         {
@@ -374,7 +390,7 @@ namespace Spreads.Serialization
 
             if (header.VersionAndFlags.IsBinary && header.IsFixedSize) // IsFixedSize not possible with compression
             {
-                if (TypeHelper<T>.FixedSize < 0 || DataTypeHeader.Size + TypeHelper<T>.FixedSize < source.Length)
+                if (TypeHelper<T>.FixedSize < 0 || DataTypeHeader.Size + TypeHelper<T>.FixedSize > source.Length)
                 {
                     value = default;
                     timestamp = default;

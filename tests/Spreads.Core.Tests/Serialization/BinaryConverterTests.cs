@@ -84,9 +84,10 @@ namespace Spreads.Core.Tests.Serialization
                 }
 
                 [MethodImpl(MethodImplOptions.AggressiveInlining)]
-                public int SizeOf(SampleStruct value, out ArraySegment<byte> temporaryBuffer)
+                public int SizeOf(SampleStruct value, out RetainedMemory<byte> temporaryBuffer, out bool withPadding)
                 {
                     temporaryBuffer = default;
+                    withPadding = default;
                     return 4;
                 }
 

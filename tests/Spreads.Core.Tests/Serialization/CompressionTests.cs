@@ -116,6 +116,8 @@ namespace Spreads.Core.Tests.Serialization
         [Test, Explicit("long-running")]
         public void CouldPackWithHeaderBenchmark()
         {
+            Settings.DoAdditionalCorrectnessChecks = false;
+
             var silent = true;
 
             var rm = BufferPool.Retain(100_000_000);

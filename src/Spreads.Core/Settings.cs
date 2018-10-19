@@ -4,6 +4,7 @@ using System;
 using System.Diagnostics;
 #endif
 using System.Runtime.CompilerServices;
+using Spreads.Utils;
 
 namespace Spreads
 {
@@ -12,6 +13,8 @@ namespace Spreads
     /// </summary>
     public static class Settings
     {
+        // ReSharper disable once InconsistentNaming
+        internal const int LOH_LIMIT = 85000;
         // TODO find best values
         /// <summary>
         ///
@@ -29,7 +32,7 @@ namespace Spreads
         // when noone is using it.
 
         // NB at least 85k for LOH
-        internal const int ThreadStaticPinnedBufferSize = 90 * 1024;
+        internal static readonly int ThreadStaticPinnedBufferSize = BitUtil.FindNextPositivePowerOfTwo(LOH_LIMIT);
 
         internal class AdditionalCorrectnessChecks
         {

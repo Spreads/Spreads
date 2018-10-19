@@ -54,7 +54,7 @@ namespace Spreads.Tests
             public bool IsFixedSize => false;
             public int FixedSize => 0;
             public byte ConverterVersion => 1;
-            public int SizeOf(MyPocoWithConvertor value, out ArraySegment<byte> temporaryBuffer)
+            public int SizeOf(MyPocoWithConvertor value, out RetainedMemory<byte> temporaryBuffer, out bool withPadding)
             {
                 throw new NotImplementedException();
             }

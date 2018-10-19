@@ -2,9 +2,9 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+using System.Diagnostics;
 using Spreads.Buffers;
 using Spreads.Serialization.Utf8Json;
-using System;
 using System.Runtime.CompilerServices;
 
 namespace Spreads.Serialization
@@ -61,7 +61,8 @@ namespace Spreads.Serialization
         /// <param name="value">A value to serialize.</param>
         /// <param name="temporaryBuffer">A buffer where a value is serialized into if it is not possible to calculate serialized buffer size
         /// without actually performing serialization.</param>
-        int SizeOf(T value, out ArraySegment<byte> temporaryBuffer);
+        /// <param name="withPadding">True if temporaryBuffer is padded with 16 bytes. This requires to avoid a copy. Try to pad the buffer if possible.</param>
+        int SizeOf(T value, out RetainedMemory<byte> temporaryBuffer, out bool withPadding);
 
         /// <summary>
         /// Write serialized value to the destination. Use SizeOf to prepare destination of required size.
@@ -83,6 +84,8 @@ namespace Spreads.Serialization
 
     public sealed class JsonBinaryConverter<T> : IBinaryConverter<T>
     {
+
+
         private JsonBinaryConverter()
         {
         }
@@ -96,38 +99,42 @@ namespace Spreads.Serialization
             get => 0;
         }
 
-        public static int SizeOf(T value, out ArraySegment<byte> temporaryBuffer)
+        public static int SizeOf(T value, out RetainedMemory<byte> temporaryBuffer, out bool withPadding)
         {
             // offset 16 to allow writing header + length + ts without copy
-            temporaryBuffer = JsonSerializer.SerializeToRentedBuffer(value, DataTypeHeader.Size + 4 + 8);
-            return temporaryBuffer.Count;
+            Debug.Assert(DataTypeHeader.Size + 4 + 8 == 16);
+            Debug.Assert(BinarySerializer.BC_PADDING == 16);
+            temporaryBuffer = JsonSerializer.SerializeToRetainedMemory(value, BinarySerializer.BC_PADDING);
+            withPadding = true;
+            return temporaryBuffer.Length - BinarySerializer.BC_PADDING;
         }
 
-        int IBinaryConverter<T>.SizeOf(T value, out ArraySegment<byte> temporaryBuffer)
+        int IBinaryConverter<T>.SizeOf(T value, out RetainedMemory<byte> temporaryBuffer, out bool withPadding)
         {
-            return SizeOf(value, out temporaryBuffer);
+            return SizeOf(value, out temporaryBuffer, out withPadding);
         }
 
         public static int Write(T value, ref DirectBuffer destination)
         {
-            var size = SizeOf(value, out var buffer);
+            var size = SizeOf(value, out var retainedMemory, out var withPadding);
+            Debug.Assert(withPadding);
             try
             {
                 // in general buffer could be empty/default if size is known, but not with Json
-                ThrowHelper.AssertFailFast(size == buffer.Count, "size == buffer.Count");
+                ThrowHelper.AssertFailFast(size == retainedMemory.Length - BinarySerializer.BC_PADDING, "size == buffer.Count");
 
                 if (size > destination.Length)
                 {
                     return (int)BinaryConverterErrorCode.NotEnoughCapacity;
                 }
 
-                ((Span<byte>)buffer).CopyTo(destination.Span);
+                retainedMemory.Span.Slice(BinarySerializer.BC_PADDING).CopyTo(destination.Span);
 
                 return size;
             }
             finally
             {
-                BufferPool<byte>.Return(buffer.Array);
+                retainedMemory.Dispose();
             }
         }
 

@@ -7,6 +7,7 @@ using System.Diagnostics;
 using System.IO;
 using Newtonsoft.Json;
 using NUnit.Framework;
+using Spreads.Buffers;
 using Spreads.DataTypes;
 using Spreads.Serialization;
 
@@ -42,7 +43,7 @@ namespace Spreads.Tests
             Console.WriteLine($"Elapsed snapshot: {sw.ElapsedMilliseconds}");
             sw.Restart();
 
-            ArraySegment<byte> tmp;
+            RetainedMemory<byte> tmp;
             var len = BinarySerializer.SizeOf(table, out tmp);
             Console.WriteLine($"Binary size: {len}");
             //var mem = BufferPool<byte>.Rent(len);

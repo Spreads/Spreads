@@ -141,7 +141,7 @@ namespace Spreads.DataTypes
             get => 1;
         }
 
-        public int SizeOf(TaggedKeyValue<TKey, TValue> value, out ArraySegment<byte> temporaryBuffer)
+        public int SizeOf(TaggedKeyValue<TKey, TValue> value, out RetainedMemory<byte> temporaryBuffer, out bool withPadding)
         {
             throw new NotImplementedException();
         }

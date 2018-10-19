@@ -15,7 +15,8 @@ namespace Spreads.Core.Tests.Serialization
         [Test, Explicit("long running")]
         public void CouldSerializeInts()
         {
-            var bytes = new byte[(4 + 4) * 100_000_000];
+            // this is low than expected due to using memory backed by array: Pin/Unpin etc
+            var bytes = new byte[(4 + 4) * 10_000_000];
             var mem = (Memory<byte>)bytes;
             using (Benchmark.Run("Int serialization", bytes.Length / 8))
             {
@@ -24,8 +25,12 @@ namespace Spreads.Core.Tests.Serialization
                     for (int i = 0; i < bytes.Length / 8; i++)
                     {
                         var slice = mem.Slice(i * 8);
-                        BinarySerializer.Write(i, mem.Slice(i * 8), default, SerializationFormat.Binary);
-                        BinarySerializer.Read(slice, out int j);
+                        var written = BinarySerializer.Write(i, slice, default, SerializationFormat.Binary);
+                        var read = BinarySerializer.Read(slice, out int j);
+                        if (written != read)
+                        {
+                            Assert.Fail($"written {written } != read {read}");
+                        }
                         if (i != j)
                         {
                             Assert.Fail();
