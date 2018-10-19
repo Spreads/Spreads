@@ -1,18 +1,36 @@
 ﻿using Spreads.Core.Tests.Buffers;
 using Spreads.Core.Tests.Serialization;
 using System;
+using System.Diagnostics;
 using Spreads.Core.Tests.Collections.Concurrent;
 
 namespace Spreads.Core.Run
 {
+    internal class ConsoleListener : TraceListener
+    {
+        public override void Write(string message)
+        {
+            Console.Write(message);
+        }
+
+        public override void WriteLine(string message)
+        {
+            Console.WriteLine(message);
+        }
+    }
+
     internal class Program
     {
         private static void Main(string[] args)
         {
-            Settings.DoAdditionalCorrectnessChecks = false;
+            Trace.Listeners.Add(new ConsoleListener());
 
-            var test = new SerializationTests();
-            test.CouldSerializeOrderBag();
+#pragma warning disable 618
+            Settings.DoAdditionalCorrectnessChecks = false;
+#pragma warning restore 618
+
+            var test = new OffHeapBufferTests();
+            test.OffHeapPoolRetainDisposePerformance();
 
             //IlwdBenchmark();
 

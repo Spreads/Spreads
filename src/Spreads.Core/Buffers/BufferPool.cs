@@ -36,6 +36,12 @@ namespace Spreads.Buffers
     {
         internal static BufferPool Shared = new BufferPool();
 
+        /// <summary>
+        /// Default OffHeap pool has capacity of 4. This static field could be changed to a new instance.
+        /// Please know what you are doing. Large buffers are bad.
+        /// </summary>
+        internal static BufferPool OffHeap = new OffHeapBufferPool(4);
+
         // max pooled array size
         internal const int SharedBufferSize = 4096;
 
@@ -174,7 +180,7 @@ namespace Spreads.Buffers
         }
 
         /// <summary>
-        /// Return a contiguous segment of memory backed by a pooled memory.
+        /// Return a contiguous segment of memory backed by a pooled memory from a shares array pool.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static RetainedMemory<byte> Retain(int length, bool requireExact = true)

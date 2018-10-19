@@ -11,17 +11,17 @@ namespace Spreads.Buffers
     /// <summary>
     /// Completely not thread-safe with possible segfaults if created/resized from different threads.
     /// </summary>
-    internal unsafe struct OffHeapBuffer<T> : IDisposable where T : unmanaged
+    public unsafe struct OffHeapBuffer<T> : IDisposable where T : unmanaged
     {
         private static readonly int DefaultMinLength = 16383;
-        
+
         /// <summary>
         /// Use only after EnsureCapacity call
         /// </summary>
         internal T* PointerUnsafe;
+
+        internal DirectBuffer _db;
         private int _itemLength;
-        private DirectBuffer _db;
-        private static readonly int SizeOf = Unsafe.SizeOf<T>();
 
         public OffHeapBuffer(int length)
         {
@@ -65,11 +65,11 @@ namespace Spreads.Buffers
         public Span<T> Span
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => new Span<T>(Pointer, SizeOf * _itemLength);
+            get => new Span<T>(Pointer, Unsafe.SizeOf<T>() * _itemLength);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void EnsureCapacity(int newLength)
+        internal void EnsureCapacity(int newLength)
         {
             if (newLength > _itemLength)
             {
@@ -87,12 +87,12 @@ namespace Spreads.Buffers
 
             if (PointerUnsafe == null)
             {
-                PointerUnsafe = (T*)Marshal.AllocHGlobal(SizeOf * newLength);
+                PointerUnsafe = (T*)Marshal.AllocHGlobal(Unsafe.SizeOf<T>() * newLength);
             }
             else
             {
                 PointerUnsafe = (T*)Marshal.ReAllocHGlobal((IntPtr)PointerUnsafe,
-                    (IntPtr)(SizeOf * newLength));
+                    (IntPtr)(Unsafe.SizeOf<T>() * newLength));
             }
             _itemLength = newLength;
             _db = new DirectBuffer(_itemLength, (byte*)PointerUnsafe);

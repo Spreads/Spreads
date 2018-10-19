@@ -17,9 +17,10 @@ namespace Spreads.Collections.Concurrent
         where T : class
     {
         private Func<T> _factory;
-        private readonly T[] _objects;
+        internal readonly T[] _objects;
         private SpinLock _lock; // do not make this readonly; it's a mutable struct
         private int _index;
+        internal bool TraceLowCapacityAllocation;
 
         internal LockedObjectPool(int numberOfObjects, Func<T> factory)
         {
@@ -50,8 +51,12 @@ namespace Spreads.Collections.Concurrent
                 if (lockTaken) _lock.Exit(false);
             }
 
-            if (allocate)
+            if (obj == null)
             {
+                if (TraceLowCapacityAllocation && !allocate)
+                {
+                    Trace.TraceWarning("Allocating new object in LockedObjectPool due to low capacity");
+                }
                 obj = _factory?.Invoke();
             }
 

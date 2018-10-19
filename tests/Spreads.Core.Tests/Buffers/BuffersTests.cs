@@ -61,12 +61,11 @@ namespace Spreads.Tests.Buffers
             }
         }
 
-
         [Test, Explicit("long running")]
         public void CouldGetArrayFromRetainedBuffer()
         {
             var retained = BufferPool.Retain(3456, false);
-            var mem = (ReadOnlyMemory<byte>) retained.Memory;
+            var mem = (ReadOnlyMemory<byte>)retained.Memory;
             if (!MemoryMarshal.TryGetArray(mem, out ArraySegment<byte> valuesSegment))
             {
                 throw new NotSupportedException("Currently only arrays-backed OwnedMemory is supported");
@@ -77,7 +76,6 @@ namespace Spreads.Tests.Buffers
         [Test, Explicit("long running")]
         public void ThreadStaticBufferVsSharedPool()
         {
-
             //Case | MOPS | Elapsed | GC0 | GC1 | GC2 | Memory
             //    ------------------------------------------ -| --------:| ---------:| ------:| ------:| ------:| --------:
             //Direct ArrayPool with StaticBufferSize +1 | 37.04 | 27 ms | 0.0 | 0.0 | 0.0 | 0.008 MB
@@ -97,7 +95,7 @@ namespace Spreads.Tests.Buffers
                     for (var i = 0; i < count; i++)
                     {
                         // var wrapper = BufferPool.StaticBuffer;
-                        using (var wrapper = BufferPool.StaticBufferMemory )
+                        using (var wrapper = BufferPool.StaticBufferMemory)
                         {
                             wrapper.Memory.Span[0] = 123;
                             sum += wrapper.Memory.Span[0] + wrapper.Memory.Span[1];
@@ -212,6 +210,27 @@ namespace Spreads.Tests.Buffers
             }
             sw.Stop();
             Console.WriteLine($"Interlocked {sw.ElapsedMilliseconds}");
+        }
+
+        [Test, Explicit("long running")]
+        public void SharedArrayPoolPerformance()
+        {
+            var sizesKb = new[] { 64, 128, 256, 512, 1024, 2048, 4096 };
+            var count = 1_00_000;
+
+            foreach (var size in sizesKb)
+            {
+                using (Benchmark.Run(size + " kb", count))
+                {
+                    for (int i = 0; i < count; i++)
+                    {
+                        var array = BufferPool<byte>.Rent(size * 1024);
+                        BufferPool<byte>.Return(array);
+                    }
+                }
+            }
+
+            Benchmark.Dump();
         }
     }
 }
