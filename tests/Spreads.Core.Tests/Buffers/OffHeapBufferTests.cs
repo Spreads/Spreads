@@ -65,7 +65,7 @@ namespace Spreads.Core.Tests.Buffers
             var rounds = 1_000;
             var count = 1_0_000;
 
-            OffHeapBuffer ob = default; // this just works
+            OffHeapBuffer<byte> ob = default; // this just works
             // OffHeapBuffer ob = new OffHeapBuffer(count * 4);
 
             var db = ob.DirectBuffer;
@@ -111,7 +111,7 @@ namespace Spreads.Core.Tests.Buffers
             var sizesKb = new[] { 32, 64, 128, 256, 512, 1024, 2048, 4096 };
             var count = 10_000_000;
 
-            var pool = new OffHeapBufferPool(2);
+            var pool = new OffHeapBufferPool<byte>(2);
 
             // warmup
             foreach (var size in sizesKb)
@@ -150,7 +150,7 @@ namespace Spreads.Core.Tests.Buffers
             var sizesKb = new[] { 32, 64, 128, 256, 512, 1024, 2048, 4096 };
             var count = 1_000_000;
             var maxSize = 2048 * 1024;
-            var pool = new OffHeapBufferPool(2, maxSize);
+            var pool = new OffHeapBufferPool<byte>(2, maxSize);
 
             // warmup
             foreach (var size in sizesKb)
@@ -196,7 +196,7 @@ namespace Spreads.Core.Tests.Buffers
         [Test]
         public void OffHeapPoolCannotDisposeRetained()
         {
-            var pool = new OffHeapBufferPool(1);
+            var pool = new OffHeapBufferPool<byte>(1);
             var offHeapMemory = pool.Rent(32 * 1024);
             var rm = offHeapMemory.Retain();
             Assert.Throws<InvalidOperationException>(() => { pool.Return(offHeapMemory); });
@@ -206,7 +206,7 @@ namespace Spreads.Core.Tests.Buffers
         [Test]
         public void OffHeapPoolCouldRentReturnWithOverCapacity()
         {
-            var pool = new OffHeapBufferPool(2);
+            var pool = new OffHeapBufferPool<byte>(2);
             var offHeapMemory = pool.Rent(32 * 1024);
             var offHeapMemory2 = pool.Rent(32 * 1024);
             var offHeapMemory3 = pool.Rent(32 * 1024);
@@ -219,7 +219,7 @@ namespace Spreads.Core.Tests.Buffers
         [Test]
         public void OffHeapPoolCouldDisposeRented()
         {
-            var pool = new OffHeapBufferPool(2);
+            var pool = new OffHeapBufferPool<byte>(2);
             var offHeapMemory = pool.Rent(32 * 1024);
             ((IDisposable)offHeapMemory).Dispose();
 

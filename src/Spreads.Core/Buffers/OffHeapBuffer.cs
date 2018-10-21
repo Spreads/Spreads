@@ -11,36 +11,41 @@ namespace Spreads.Buffers
     /// <summary>
     /// Completely not thread-safe with possible segfaults if created/resized from different threads.
     /// </summary>
-    public unsafe struct OffHeapBuffer<T> : IDisposable where T : unmanaged
+    public unsafe struct OffHeapBuffer<T> : IPinnedSpan<T> where T : struct
     {
         private static readonly int DefaultMinLength = 16383;
 
         /// <summary>
         /// Use only after EnsureCapacity call
         /// </summary>
-        internal T* PointerUnsafe;
+        internal void* _pointer;
 
-        internal DirectBuffer _db;
+        // internal DirectBuffer _db;
         private int _itemLength;
+
+        // cache it because it accessed a lot and OffHeapBuffers are intended
+        // to be alive for a long time and pooled so there are not too many of them
+        private DirectBuffer _directBuffer;
 
         public OffHeapBuffer(int length)
         {
             _itemLength = default;
-            PointerUnsafe = null;
-            _db = default;
-            EnsureCapacity(length);
+            _pointer = null;
+            _directBuffer = default;
+            // ReSharper disable once ExpressionIsAlwaysNull
+            EnsureCapacitySlow(length);
         }
 
-        public T* Pointer
+        public void* Data
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
-                if (PointerUnsafe == null)
+                if (_pointer == null)
                 {
                     CheckNullInitDefault();
                 }
-                return PointerUnsafe;
+                return _pointer;
             }
         }
 
@@ -50,22 +55,47 @@ namespace Spreads.Buffers
             EnsureCapacity(DefaultMinLength);
         }
 
+        /// <inheritdoc />
         public int Length
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => _itemLength;
         }
 
+        /// <inheritdoc />
+        public bool IsEmpty
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => _itemLength == 0;
+        }
+
+        /// <inheritdoc />
         public DirectBuffer DirectBuffer
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => _db;
+            get => _directBuffer;
+        }
+
+        /// <inheritdoc />
+        public ref T this[int index]
+        {
+            // TODO review. By construction all values should be aligned to the SizeOf<T>, but are there any benefits of ref return?
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => ref Unsafe.AsRef<T>(Unsafe.Add<T>(Data, index));
+            //[MethodImpl(MethodImplOptions.AggressiveInlining)]
+            //set => Unsafe.WriteUnaligned<T>(Unsafe.Add<T>(Pointer, index), value);
         }
 
         public Span<T> Span
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => new Span<T>(Pointer, Unsafe.SizeOf<T>() * _itemLength);
+            get => new Span<T>(Data, _itemLength);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public Span<TTo> GetSpan<TTo>() where TTo : struct
+        {
+            return MemoryMarshal.Cast<T, TTo>(Span);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -85,121 +115,25 @@ namespace Spreads.Buffers
                 newLength = _itemLength * 2;
             }
 
-            if (PointerUnsafe == null)
+            if (_pointer == null)
             {
-                PointerUnsafe = (T*)Marshal.AllocHGlobal(Unsafe.SizeOf<T>() * newLength);
+                _pointer = (void*)Marshal.AllocHGlobal(Unsafe.SizeOf<T>() * newLength);
             }
             else
             {
-                PointerUnsafe = (T*)Marshal.ReAllocHGlobal((IntPtr)PointerUnsafe,
+                _pointer = (void*)Marshal.ReAllocHGlobal((IntPtr)_pointer,
                     (IntPtr)(Unsafe.SizeOf<T>() * newLength));
             }
             _itemLength = newLength;
-            _db = new DirectBuffer(_itemLength, (byte*)PointerUnsafe);
+
+            _directBuffer = new DirectBuffer(_itemLength * Unsafe.SizeOf<T>(), (byte*) _pointer);
         }
 
         public void Dispose()
         {
-            if (PointerUnsafe != null)
+            if (_pointer != null)
             {
-                Marshal.FreeHGlobal((IntPtr)PointerUnsafe);
-            }
-        }
-    }
-
-    internal unsafe struct OffHeapBuffer : IDisposable
-    {
-        private static readonly int DefaultMinLength = 16383;
-        private byte* _bufferPtr;
-        private int _length;
-        private DirectBuffer _db;
-
-        public OffHeapBuffer(int length)
-        {
-            _length = default;
-            _bufferPtr = null;
-            _db = default;
-            EnsureCapacity(length);
-        }
-
-        public byte* Pointer
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get
-            {
-                if (_bufferPtr == null)
-                {
-                    CheckNullInitDefault();
-                }
-                return _bufferPtr;
-            }
-        }
-
-        [MethodImpl(MethodImplOptions.NoInlining)]
-        private void CheckNullInitDefault()
-        {
-            EnsureCapacity(DefaultMinLength);
-        }
-
-        public int Length
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => _length;
-        }
-
-        public DirectBuffer DirectBuffer
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => _db;
-        }
-
-        public Span<byte> Span
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => new Span<byte>(Pointer, _length);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Span<T> GetSpan<T>()
-        {
-            return new Span<T>(Pointer, _length);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void EnsureCapacity(int newLength)
-        {
-            if (newLength > _length)
-            {
-                EnsureCapacitySlow(newLength);
-            }
-        }
-
-        [MethodImpl(MethodImplOptions.NoInlining)]
-        private void EnsureCapacitySlow(int newLength)
-        {
-            if (newLength < _length * 2)
-            {
-                newLength = _length * 2;
-            }
-
-            if (_bufferPtr == null)
-            {
-                _bufferPtr = (byte*)Marshal.AllocHGlobal(newLength);
-            }
-            else
-            {
-                _bufferPtr = (byte*)Marshal.ReAllocHGlobal((IntPtr)_bufferPtr,
-                    (IntPtr)(newLength));
-            }
-            _length = newLength;
-            _db = new DirectBuffer(_length, _bufferPtr);
-        }
-
-        public void Dispose()
-        {
-            if (_bufferPtr != null)
-            {
-                Marshal.FreeHGlobal((IntPtr)_bufferPtr);
+                Marshal.FreeHGlobal((IntPtr)_pointer);
             }
         }
     }

@@ -31,7 +31,7 @@ namespace Spreads.Collections.Experimental
         {
             _array = null;
             _buffer = buffer;
-            _pointer = _buffer._data;
+            _pointer = _buffer._pointer;
         }
 
         public T this[int index]
@@ -82,7 +82,7 @@ namespace Spreads.Collections.Experimental
         {
             _array = null;
             _buffer = buffer;
-            _pointer = _buffer._data;
+            _pointer = _buffer._pointer;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

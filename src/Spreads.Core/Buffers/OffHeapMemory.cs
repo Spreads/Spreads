@@ -2,18 +2,37 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+using System.Buffers;
+
 namespace Spreads.Buffers
 {
-    public class OffHeapMemory<T> : UnmanagedMemory<T> where T : unmanaged
+    public unsafe class OffHeapMemory<T> : RetainableMemory<T> where T : struct
     {
         private OffHeapBuffer<T> _offHeapBuffer;
         private readonly OffHeapBufferPool<T> _pool;
 
-        internal OffHeapMemory(OffHeapBuffer<T> offHeapBuffer, OffHeapBufferPool<T> pool)
+        internal OffHeapMemory(OffHeapBuffer<T> offHeapBuffer, OffHeapBufferPool<T> pool) :
+            base(AtomicCounterService.AcquireCounter())
         {
             _offHeapBuffer = offHeapBuffer;
             _pool = pool;
-            InternalDirectBuffer = _offHeapBuffer._db;
+        }
+
+        public override MemoryHandle Pin(int elementIndex = 0)
+        {
+            Increment();
+            return new MemoryHandle(_offHeapBuffer._pointer, default, this);
+            //public override MemoryHandle Pin(int elementIndex = 0)
+            //{
+            //    Increment();
+            //    if (elementIndex < 0 || elementIndex > _capacity) throw new ArgumentOutOfRangeException(nameof(elementIndex));
+            //    return new MemoryHandle(Unsafe.Add<byte>(InternalDirectBuffer.Data, elementIndex), default, this);
+            //}
+        }
+
+        public override void Unpin()
+        {
+            Decrement();
         }
 
         protected override void OnNoReferences()
@@ -23,56 +42,20 @@ namespace Spreads.Buffers
 
         protected override void Dispose(bool disposing)
         {
+            // Dispose destructs this object and native buffer
             _offHeapBuffer.Dispose();
+            _counter.Dispose();
+            AtomicCounterService.ReleaseCounter(_counter);
             base.Dispose(disposing);
         }
 
         internal void EnsureCapacity(int minimumCapacity)
         {
-            _offHeapBuffer.EnsureCapacity(minimumCapacity);
-        }
-    }
-
-    public class OffHeapMemory : UnmanagedMemory<byte>
-    {
-        private OffHeapBuffer<byte> _offHeapBuffer;
-        private readonly OffHeapBufferPool _pool;
-
-        internal OffHeapMemory(OffHeapBuffer<byte> offHeapBuffer, OffHeapBufferPool pool)
-        {
-            _offHeapBuffer = offHeapBuffer;
-            _pool = pool;
-            InternalDirectBuffer = _offHeapBuffer._db;
-        }
-
-        protected override void OnNoReferences()
-        {
-            var pooled = _pool.Return(this);
-
-            if (!pooled)
+            if (IsRetained)
             {
-                if (!IsDisposed)
-                {
-                    ThrowHelper.ThrowInvalidOperationException("_pool.Return must dispose OffHeapMemory if no capacity or too big");
-                }
+                ThrowHelper.ThrowInvalidOperationException("Cannot change off-heap buffer capacity when retained.");
             }
-        }
-
-        protected override void Dispose(bool disposing)
-        {
-            _offHeapBuffer.Dispose();
-            base.Dispose(disposing);
-        }
-
-        internal void EnsureCapacity(int minimumCapacity)
-        {
             _offHeapBuffer.EnsureCapacity(minimumCapacity);
-            InternalDirectBuffer = _offHeapBuffer._db;
-        }
-
-        ~OffHeapMemory()
-        {
-            Dispose(false);
         }
     }
 }

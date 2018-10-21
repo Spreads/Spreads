@@ -34,14 +34,15 @@ namespace Spreads.Buffers
     ///
     /// Access to this struct is not thread-safe, only one thread could call its methods at a time.
     /// </remarks>
-    [StructLayout(LayoutKind.Sequential)]
+    [StructLayout(LayoutKind.Sequential, Pack = 1)]
     public struct RetainedMemory<T> : IDisposable
     {
+        internal Memory<T> _memory;
         // Could add Deconstruct method
         internal MemoryHandle _memoryHandle;
-        internal Memory<T> _memory;
-
         private int _offset;
+        internal int Tag;
+
         // Could add up to 24 fields to still fir in one cache line.
 
         /// <summary>
@@ -53,6 +54,7 @@ namespace Spreads.Buffers
             _memory = memory;
             _memoryHandle = memory.Pin();
             _offset = 0;
+            Tag = 0;
 #if DETECT_LEAKS
             _finalizeChecker = new PanicOnFinalize();
 #endif
@@ -63,6 +65,7 @@ namespace Spreads.Buffers
             _memory = (Memory<T>)bytes;
             _memoryHandle = default;
             _offset = 0;
+            Tag = 0;
             // We do not need to Pin arrays, they do not have ref count. Will be pinned when Pointer is accessed.
 #if DETECT_LEAKS
             _finalizeChecker = new PanicOnFinalize();
@@ -80,6 +83,7 @@ namespace Spreads.Buffers
             _memory = memory;
             _memoryHandle = handle;
             _offset = 0;
+            Tag = 0;
 #if DETECT_LEAKS
             _finalizeChecker = new PanicOnFinalize();
 #endif

@@ -205,5 +205,7 @@ namespace Spreads
                 _compressionLimit = value;
             }
         }
+
+        public static int AtomicCounterPoolBucketSize { get; set; } = 1024;
     }
 }

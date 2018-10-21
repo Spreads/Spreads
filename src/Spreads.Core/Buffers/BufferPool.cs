@@ -38,9 +38,11 @@ namespace Spreads.Buffers
 
         /// <summary>
         /// Default OffHeap pool has capacity of 4. This static field could be changed to a new instance.
-        /// Please know what you are doing. Large buffers are bad.
+        /// Buffer never cleared automatically and user must clear them when needed. Zeroing is a big cost
+        /// and even new[]-ing has to zero memory, this is why it is slow.
+        /// Please know what you are doing.
         /// </summary>
-        internal static BufferPool OffHeap = new OffHeapBufferPool(4);
+        internal static OffHeapBufferPool<byte> OffHeap = new OffHeapBufferPool<byte>(4);
 
         // max pooled array size
         internal const int SharedBufferSize = 4096;

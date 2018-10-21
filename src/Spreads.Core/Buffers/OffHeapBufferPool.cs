@@ -4,16 +4,18 @@
 
 using Spreads.Collections.Concurrent;
 using System;
-using System.Diagnostics;
 using System.Runtime.CompilerServices;
 
 namespace Spreads.Buffers
 {
     // HAA0301/HAA0302 only happens once per pool
 
-    public class OffHeapBufferPool<T> where T : unmanaged
+    public class OffHeapBufferPool<T> where T : struct
     {
-        private readonly LockedObjectPool<OffHeapMemory<T>> _pool;
+        /// <summary>
+        /// Internal for tests only, do not use in other place.
+        /// </summary>
+        internal readonly LockedObjectPool<OffHeapMemory<T>> _pool;
 
 #pragma warning disable HAA0302 // Display class allocation to capture closure
 
@@ -65,106 +67,105 @@ namespace Spreads.Buffers
             {
                 ((IDisposable)offHeapMemory).Dispose();
             }
-
             return pooled;
         }
     }
 
-    public class OffHeapBufferPool : BufferPool
-    {
-        private readonly int _maxLength;
-        internal readonly LockedObjectPool<OffHeapMemory> _pool;
-        private readonly Func<OffHeapMemory> _factory;
-#pragma warning disable HAA0302 // Display class allocation to capture closure
+    //    public class OffHeapBufferPool : BufferPool
+    //    {
+    //        private readonly int _maxLength;
+    //        internal readonly LockedObjectPool<OffHeapMemory> _pool;
+    //        private readonly Func<OffHeapMemory> _factory;
+    //#pragma warning disable HAA0302 // Display class allocation to capture closure
 
-        /// <param name="maxBuffersCount">Max number of buffers to pool.</param>
-        /// <param name="maxLength">Max size of a buffer.</param>
-        public OffHeapBufferPool(int maxBuffersCount, int maxLength = 16 * 1024 * 1024)
-#pragma warning restore HAA0302 // Display class allocation to capture closure
-        {
-            // First Pow2 in LOH
-            if (maxLength < 128 * 1024) // for other cases Array-based is OK
-            {
-                maxLength = 128 * 1024;
-            }
+    //        /// <param name="maxBuffersCount">Max number of buffers to pool.</param>
+    //        /// <param name="maxLength">Max size of a buffer.</param>
+    //        public OffHeapBufferPool(int maxBuffersCount, int maxLength = 16 * 1024 * 1024)
+    //#pragma warning restore HAA0302 // Display class allocation to capture closure
+    //        {
+    //            // First Pow2 in LOH
+    //            if (maxLength < 128 * 1024) // for other cases Array-based is OK
+    //            {
+    //                maxLength = 128 * 1024;
+    //            }
 
-            if (maxLength > 100 * 1024 * 1024) // currently 8Mb + 4032 is max use case
-            {
-                ThrowHelper.ThrowArgumentOutOfRangeException(nameof(maxLength));
-            }
+    //            if (maxLength > 100 * 1024 * 1024) // currently 8Mb + 4032 is max use case
+    //            {
+    //                ThrowHelper.ThrowArgumentOutOfRangeException(nameof(maxLength));
+    //            }
 
-            _maxLength = maxLength;
+    //            _maxLength = maxLength;
 
-            _factory = () => new OffHeapMemory(new OffHeapBuffer<byte>(), this);
-            _pool = new LockedObjectPool<OffHeapMemory>(maxBuffersCount, _factory);
-            _pool.TraceLowCapacityAllocation = true;
-        }
+    //            _factory = () => new OffHeapMemory(new OffHeapBuffer<byte>(), this);
+    //            _pool = new LockedObjectPool<OffHeapMemory>(maxBuffersCount, _factory);
+    //            _pool.TraceLowCapacityAllocation = true;
+    //        }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public override RetainedMemory<byte> RetainMemory(int length, bool requireExact = true)
-        {
-            var mem = Rent(length);
-            if (requireExact)
-            {
-                return mem.Retain(length);
-            }
-            return mem.Retain();
-        }
+    //        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    //        public override RetainedMemory<byte> RetainMemory(int length, bool requireExact = true)
+    //        {
+    //            var mem = Rent(length);
+    //            if (requireExact)
+    //            {
+    //                return mem.Retain(length);
+    //            }
+    //            return mem.Retain();
+    //        }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public OffHeapMemory Rent(int minimumCapacity)
-        {
-            OffHeapMemory mem;
-            if (minimumCapacity <= _maxLength)
-            {
-                mem = _pool.Rent();
-            }
-            else
-            {
-                Trace.TraceWarning($"Allocating large OffHeapMemory with minimumCapacity: {minimumCapacity}");
-                mem = _factory();
-            }
+    //        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    //        public OffHeapMemory Rent(int minimumCapacity)
+    //        {
+    //            OffHeapMemory mem;
+    //            if (minimumCapacity <= _maxLength)
+    //            {
+    //                mem = _pool.Rent();
+    //            }
+    //            else
+    //            {
+    //                Trace.TraceWarning($"Allocating large OffHeapMemory with minimumCapacity: {minimumCapacity}");
+    //                mem = _factory();
+    //            }
 
-            mem.EnsureCapacity(minimumCapacity);
-            return mem;
-        }
+    //            mem.EnsureCapacity(minimumCapacity);
+    //            return mem;
+    //        }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool Return(OffHeapMemory offHeapMemory)
-        {
-            if (offHeapMemory.IsRetained)
-            {
-                ThrowDisposingRetained();
-            }
+    //        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    //        public bool Return(OffHeapMemory offHeapMemory)
+    //        {
+    //            if (offHeapMemory.IsRetained)
+    //            {
+    //                ThrowDisposingRetained();
+    //            }
 
-            if (offHeapMemory.IsDisposed)
-            {
-                ThrowDisposed();
-            }
-            bool pooled = false;
-            if (offHeapMemory.Capacity <= _maxLength)
-            {
-                pooled = _pool.Return(offHeapMemory);
-            }
+    //            if (offHeapMemory.IsDisposed)
+    //            {
+    //                ThrowDisposed();
+    //            }
+    //            bool pooled = false;
+    //            if (offHeapMemory.Capacity <= _maxLength)
+    //            {
+    //                pooled = _pool.Return(offHeapMemory);
+    //            }
 
-            if (!pooled)
-            {
-                ((IDisposable)offHeapMemory).Dispose();
-            }
+    //            if (!pooled)
+    //            {
+    //                ((IDisposable)offHeapMemory).Dispose();
+    //            }
 
-            return pooled;
-        }
+    //            return pooled;
+    //        }
 
-        [MethodImpl(MethodImplOptions.NoInlining)]
-        private static void ThrowDisposed()
-        {
-            ThrowHelper.ThrowObjectDisposedException("OffHeapMemory");
-        }
+    //        [MethodImpl(MethodImplOptions.NoInlining)]
+    //        private static void ThrowDisposed()
+    //        {
+    //            ThrowHelper.ThrowObjectDisposedException("OffHeapMemory");
+    //        }
 
-        [MethodImpl(MethodImplOptions.NoInlining)]
-        private static void ThrowDisposingRetained()
-        {
-            ThrowHelper.ThrowInvalidOperationException("Cannot return retained OffHeapMemory");
-        }
-    }
+    //        [MethodImpl(MethodImplOptions.NoInlining)]
+    //        private static void ThrowDisposingRetained()
+    //        {
+    //            ThrowHelper.ThrowInvalidOperationException("Cannot return retained OffHeapMemory");
+    //        }
+    //    }
 }

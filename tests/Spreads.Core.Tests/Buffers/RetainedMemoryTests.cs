@@ -19,6 +19,15 @@ namespace Spreads.Core.Tests.Buffers
     [TestFixture]
     public class RetainedMemoryTests
     {
+        [StructLayout(LayoutKind.Sequential, Pack = 1)]
+        public struct RetainedMemory
+        {
+            internal Memory<byte> _memory;
+
+            // Could add Deconstruct method
+            internal MemoryHandle _memoryHandle;
+            private int _offset;
+        }
 
         [Test]
         public void SizeOfMemoryStructs()
@@ -26,6 +35,7 @@ namespace Spreads.Core.Tests.Buffers
             Console.WriteLine("Memory: " +  Unsafe.SizeOf<Memory<byte>>());
             Console.WriteLine("MemoryHandle: " +  Unsafe.SizeOf<MemoryHandle>());
             Console.WriteLine("RetainedMemory: " +  Unsafe.SizeOf<RetainedMemory<byte>>());
+            Console.WriteLine("RetainedMemory NonGeneric: " +  Unsafe.SizeOf<RetainedMemory>());
         }
 
         [Test]

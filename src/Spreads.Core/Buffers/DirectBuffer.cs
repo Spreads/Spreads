@@ -29,7 +29,7 @@ namespace Spreads.Buffers
         // is surprisingly expensive, e.g. Slice and ctor show up in profiler.
 
         internal readonly long _length;
-        internal readonly byte* _data;
+        internal readonly byte* _pointer;
 
         /// <summary>
         /// Attach a view to an unmanaged buffer owned by external code
@@ -48,43 +48,50 @@ namespace Spreads.Buffers
                 ThrowHelper.ThrowArgumentException("Memory size must be > 0");
             }
             _length = length;
-            _data = (byte*)data;
+            _pointer = (byte*)data;
         }
 
         /// <summary>
         /// Unsafe constructors performs no input checks.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public DirectBuffer(long length, byte* data)
+        public DirectBuffer(long length, byte* pointer)
         {
             _length = length;
-            _data = data;
+            _pointer = pointer;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public DirectBuffer(RetainedMemory<byte> retainedMemory)
         {
             _length = retainedMemory.Length;
-            _data = (byte*)retainedMemory.Pointer;
+            _pointer = (byte*)retainedMemory.Pointer;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public DirectBuffer(Span<byte> span)
         {
             _length = span.Length;
-            _data = (byte*)AsPointer(ref span.GetPinnableReference());
+            _pointer = (byte*)AsPointer(ref span.GetPinnableReference());
         }
 
         public bool IsValid
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => _data != null;
+            get => _pointer != null;
+        }
+
+        // TODO review: empty could be a result from Slice and perfectly valid, so it is not the same as IsValid which checks pointer.
+        public bool IsEmpty
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => _length == 0;
         }
 
         public Span<byte> Span
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => new Span<byte>(_data, (int)_length);
+            get => new Span<byte>(_pointer, (int)_length);
         }
 
         /// <summary>
@@ -105,14 +112,14 @@ namespace Spreads.Buffers
         public byte* Data
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => _data;
+            get => _pointer;
         }
 
         // for cases when unsafe is not allowed, e.g. async
-        public IntPtr DataIntPtr
+        public IntPtr IntPtr
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => (IntPtr)_data;
+            get => (IntPtr)_pointer;
         }
 
         [Pure]
@@ -122,7 +129,7 @@ namespace Spreads.Buffers
             if (Settings.AdditionalCorrectnessChecks.Enabled)
             { Assert(0, start); }
 
-            return new DirectBuffer(_length - start, _data + start);
+            return new DirectBuffer(_length - start, _pointer + start);
         }
 
         [Pure]
@@ -132,7 +139,7 @@ namespace Spreads.Buffers
             if (Settings.AdditionalCorrectnessChecks.Enabled)
             { Assert(start, length); }
 
-            return new DirectBuffer(length, _data + start);
+            return new DirectBuffer(length, _pointer + start);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -163,7 +170,7 @@ namespace Spreads.Buffers
         {
             if (Settings.AdditionalCorrectnessChecks.Enabled)
             { Assert(index, 2); }
-            return ReadUnaligned<char>(_data + index);
+            return ReadUnaligned<char>(_pointer + index);
         }
 
         /// <summary>
@@ -176,7 +183,7 @@ namespace Spreads.Buffers
         {
             if (Settings.AdditionalCorrectnessChecks.Enabled)
             { Assert(index, 2); }
-            WriteUnaligned(_data + index, value);
+            WriteUnaligned(_pointer + index, value);
         }
 
         /// <summary>
@@ -189,7 +196,7 @@ namespace Spreads.Buffers
         {
             if (Settings.AdditionalCorrectnessChecks.Enabled)
             { Assert(index, 1); }
-            return ReadUnaligned<sbyte>(_data + index);
+            return ReadUnaligned<sbyte>(_pointer + index);
         }
 
         /// <summary>
@@ -202,7 +209,7 @@ namespace Spreads.Buffers
         {
             if (Settings.AdditionalCorrectnessChecks.Enabled)
             { Assert(index, 1); }
-            WriteUnaligned(_data + index, value);
+            WriteUnaligned(_pointer + index, value);
         }
 
         /// <summary>
@@ -216,7 +223,7 @@ namespace Spreads.Buffers
         {
             if (Settings.AdditionalCorrectnessChecks.Enabled)
             { Assert(index, 1); }
-            return ReadUnaligned<byte>(_data + index);
+            return ReadUnaligned<byte>(_pointer + index);
         }
 
         /// <summary>
@@ -229,7 +236,7 @@ namespace Spreads.Buffers
         {
             if (Settings.AdditionalCorrectnessChecks.Enabled)
             { Assert(index, 1); }
-            WriteUnaligned(_data + index, value);
+            WriteUnaligned(_pointer + index, value);
         }
 
         [Pure]
@@ -243,7 +250,7 @@ namespace Spreads.Buffers
                     Assert(index, 1);
                 }
 
-                return *(_data + index);
+                return *(_pointer + index);
             }
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             set
@@ -251,7 +258,21 @@ namespace Spreads.Buffers
                 if (Settings.AdditionalCorrectnessChecks.Enabled)
                 { Assert(index, 1); }
 
-                *(_data + index) = value;
+                *(_pointer + index) = value;
+            }
+        }
+
+        [Pure]
+        public ref byte this[int index]
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get
+            {
+                if (Settings.AdditionalCorrectnessChecks.Enabled)
+                {
+                    Assert(index, 1);
+                }
+                return ref AsRef<byte>(*(_pointer + index));
             }
         }
 
@@ -266,7 +287,7 @@ namespace Spreads.Buffers
         {
             if (Settings.AdditionalCorrectnessChecks.Enabled)
             { Assert(index, 2); }
-            return ReadUnaligned<short>(_data + index);
+            return ReadUnaligned<short>(_pointer + index);
         }
 
         /// <summary>
@@ -279,7 +300,7 @@ namespace Spreads.Buffers
         {
             if (Settings.AdditionalCorrectnessChecks.Enabled)
             { Assert(index, 2); }
-            WriteUnaligned(_data + index, value);
+            WriteUnaligned(_pointer + index, value);
         }
 
         /// <summary>
@@ -293,7 +314,7 @@ namespace Spreads.Buffers
         {
             if (Settings.AdditionalCorrectnessChecks.Enabled)
             { Assert(index, 4); }
-            return ReadUnaligned<int>(_data + index);
+            return ReadUnaligned<int>(_pointer + index);
         }
 
         /// <summary>
@@ -306,7 +327,7 @@ namespace Spreads.Buffers
         {
             if (Settings.AdditionalCorrectnessChecks.Enabled)
             { Assert(index, 4); }
-            WriteUnaligned(_data + index, value);
+            WriteUnaligned(_pointer + index, value);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -315,7 +336,7 @@ namespace Spreads.Buffers
         {
             if (Settings.AdditionalCorrectnessChecks.Enabled)
             { Assert(index, 4); }
-            return Volatile.Read(ref *(int*)(_data + index));
+            return Volatile.Read(ref *(int*)(_pointer + index));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -323,7 +344,7 @@ namespace Spreads.Buffers
         {
             if (Settings.AdditionalCorrectnessChecks.Enabled)
             { Assert(index, 4); }
-            Volatile.Write(ref *(int*)(_data + index), value);
+            Volatile.Write(ref *(int*)(_pointer + index), value);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -332,7 +353,7 @@ namespace Spreads.Buffers
         {
             if (Settings.AdditionalCorrectnessChecks.Enabled)
             { Assert(index, 4); }
-            return Volatile.Read(ref *(uint*)(_data + index));
+            return Volatile.Read(ref *(uint*)(_pointer + index));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -340,7 +361,7 @@ namespace Spreads.Buffers
         {
             if (Settings.AdditionalCorrectnessChecks.Enabled)
             { Assert(index, 4); }
-            Volatile.Write(ref *(uint*)(_data + index), value);
+            Volatile.Write(ref *(uint*)(_pointer + index), value);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -349,7 +370,7 @@ namespace Spreads.Buffers
         {
             if (Settings.AdditionalCorrectnessChecks.Enabled)
             { Assert(index, 8); }
-            return Volatile.Read(ref *(long*)(_data + index));
+            return Volatile.Read(ref *(long*)(_pointer + index));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -357,7 +378,7 @@ namespace Spreads.Buffers
         {
             if (Settings.AdditionalCorrectnessChecks.Enabled)
             { Assert(index, 8); }
-            Volatile.Write(ref *(ulong*)(_data + index), value);
+            Volatile.Write(ref *(ulong*)(_pointer + index), value);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -366,7 +387,7 @@ namespace Spreads.Buffers
         {
             if (Settings.AdditionalCorrectnessChecks.Enabled)
             { Assert(index, 8); }
-            return Volatile.Read(ref *(ulong*)(_data + index));
+            return Volatile.Read(ref *(ulong*)(_pointer + index));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -374,7 +395,7 @@ namespace Spreads.Buffers
         {
             if (Settings.AdditionalCorrectnessChecks.Enabled)
             { Assert(index, 8); }
-            Volatile.Write(ref *(long*)(_data + index), value);
+            Volatile.Write(ref *(long*)(_pointer + index), value);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -383,7 +404,7 @@ namespace Spreads.Buffers
         {
             if (Settings.AdditionalCorrectnessChecks.Enabled)
             { Assert(index, 4); }
-            return Interlocked.Increment(ref *(int*)(_data + index));
+            return Interlocked.Increment(ref *(int*)(_pointer + index));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -392,7 +413,7 @@ namespace Spreads.Buffers
         {
             if (Settings.AdditionalCorrectnessChecks.Enabled)
             { Assert(index, 4); }
-            return Interlocked.Decrement(ref *(int*)(_data + index));
+            return Interlocked.Decrement(ref *(int*)(_pointer + index));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -401,7 +422,7 @@ namespace Spreads.Buffers
         {
             if (Settings.AdditionalCorrectnessChecks.Enabled)
             { Assert(index, 4); }
-            return Interlocked.Add(ref *(int*)(_data + index), value);
+            return Interlocked.Add(ref *(int*)(_pointer + index), value);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -410,7 +431,7 @@ namespace Spreads.Buffers
         {
             if (Settings.AdditionalCorrectnessChecks.Enabled)
             { Assert(index, 4); }
-            return Interlocked.Add(ref *(int*)(_data + index), 0);
+            return Interlocked.Add(ref *(int*)(_pointer + index), 0);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -419,7 +440,7 @@ namespace Spreads.Buffers
         {
             if (Settings.AdditionalCorrectnessChecks.Enabled)
             { Assert(index, 4); }
-            return Interlocked.CompareExchange(ref *(int*)(_data + index), value, comparand);
+            return Interlocked.CompareExchange(ref *(int*)(_pointer + index), value, comparand);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -428,7 +449,7 @@ namespace Spreads.Buffers
         {
             if (Settings.AdditionalCorrectnessChecks.Enabled)
             { Assert(index, 8); }
-            return Interlocked.Increment(ref *(long*)(_data + index));
+            return Interlocked.Increment(ref *(long*)(_pointer + index));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -437,7 +458,7 @@ namespace Spreads.Buffers
         {
             if (Settings.AdditionalCorrectnessChecks.Enabled)
             { Assert(index, 8); }
-            return Interlocked.Decrement(ref *(long*)(_data + index));
+            return Interlocked.Decrement(ref *(long*)(_pointer + index));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -446,7 +467,7 @@ namespace Spreads.Buffers
         {
             if (Settings.AdditionalCorrectnessChecks.Enabled)
             { Assert(index, 8); }
-            return Interlocked.Add(ref *(long*)(_data + index), value);
+            return Interlocked.Add(ref *(long*)(_pointer + index), value);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -455,7 +476,7 @@ namespace Spreads.Buffers
         {
             if (Settings.AdditionalCorrectnessChecks.Enabled)
             { Assert(index, 8); }
-            return Interlocked.Add(ref *(long*)(_data + index), 0);
+            return Interlocked.Add(ref *(long*)(_pointer + index), 0);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -464,7 +485,7 @@ namespace Spreads.Buffers
         {
             if (Settings.AdditionalCorrectnessChecks.Enabled)
             { Assert(index, 8); }
-            return Interlocked.CompareExchange(ref *(long*)(_data + index), value, comparand);
+            return Interlocked.CompareExchange(ref *(long*)(_pointer + index), value, comparand);
         }
 
         /// <summary>
@@ -478,7 +499,7 @@ namespace Spreads.Buffers
         {
             if (Settings.AdditionalCorrectnessChecks.Enabled)
             { Assert(index, 8); }
-            return ReadUnaligned<long>(_data + index);
+            return ReadUnaligned<long>(_pointer + index);
         }
 
         /// <summary>
@@ -491,7 +512,7 @@ namespace Spreads.Buffers
         {
             if (Settings.AdditionalCorrectnessChecks.Enabled)
             { Assert(index, 8); }
-            WriteUnaligned(_data + index, value);
+            WriteUnaligned(_pointer + index, value);
         }
 
         /// <summary>
@@ -505,7 +526,7 @@ namespace Spreads.Buffers
         {
             if (Settings.AdditionalCorrectnessChecks.Enabled)
             { Assert(index, 2); }
-            return ReadUnaligned<ushort>(_data + index);
+            return ReadUnaligned<ushort>(_pointer + index);
         }
 
         /// <summary>
@@ -518,7 +539,7 @@ namespace Spreads.Buffers
         {
             if (Settings.AdditionalCorrectnessChecks.Enabled)
             { Assert(index, 2); }
-            WriteUnaligned(_data + index, value);
+            WriteUnaligned(_pointer + index, value);
         }
 
         /// <summary>
@@ -532,7 +553,7 @@ namespace Spreads.Buffers
         {
             if (Settings.AdditionalCorrectnessChecks.Enabled)
             { Assert(index, 4); }
-            return ReadUnaligned<uint>(_data + index);
+            return ReadUnaligned<uint>(_pointer + index);
         }
 
         /// <summary>
@@ -545,7 +566,7 @@ namespace Spreads.Buffers
         {
             if (Settings.AdditionalCorrectnessChecks.Enabled)
             { Assert(index, 4); }
-            WriteUnaligned(_data + index, value);
+            WriteUnaligned(_pointer + index, value);
         }
 
         /// <summary>
@@ -559,7 +580,7 @@ namespace Spreads.Buffers
         {
             if (Settings.AdditionalCorrectnessChecks.Enabled)
             { Assert(index, 8); }
-            return ReadUnaligned<ulong>(_data + index);
+            return ReadUnaligned<ulong>(_pointer + index);
         }
 
         /// <summary>
@@ -573,7 +594,7 @@ namespace Spreads.Buffers
             {
                 Assert(index, 8);
             }
-            WriteUnaligned(_data + index, value);
+            WriteUnaligned(_pointer + index, value);
         }
 
         /// <summary>
@@ -587,7 +608,7 @@ namespace Spreads.Buffers
         {
             if (Settings.AdditionalCorrectnessChecks.Enabled)
             { Assert(index, 4); }
-            return ReadUnaligned<float>(_data + index);
+            return ReadUnaligned<float>(_pointer + index);
         }
 
         /// <summary>
@@ -600,7 +621,7 @@ namespace Spreads.Buffers
         {
             if (Settings.AdditionalCorrectnessChecks.Enabled)
             { Assert(index, 4); }
-            WriteUnaligned(_data + index, value);
+            WriteUnaligned(_pointer + index, value);
         }
 
         /// <summary>
@@ -614,7 +635,7 @@ namespace Spreads.Buffers
         {
             if (Settings.AdditionalCorrectnessChecks.Enabled)
             { Assert(index, 8); }
-            return ReadUnaligned<double>(_data + index);
+            return ReadUnaligned<double>(_pointer + index);
         }
 
         /// <summary>
@@ -627,7 +648,7 @@ namespace Spreads.Buffers
         {
             if (Settings.AdditionalCorrectnessChecks.Enabled)
             { Assert(index, 8); }
-            WriteUnaligned(_data + index, value);
+            WriteUnaligned(_pointer + index, value);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -639,7 +660,7 @@ namespace Spreads.Buffers
                 var size = SizeOf<T>();
                 Assert(index, size);
             }
-            return ReadUnaligned<T>(_data + index);
+            return ReadUnaligned<T>(_pointer + index);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -649,7 +670,7 @@ namespace Spreads.Buffers
             var size = SizeOf<T>();
             if (Settings.AdditionalCorrectnessChecks.Enabled)
             { Assert(index, size); }
-            value = ReadUnaligned<T>(_data + index);
+            value = ReadUnaligned<T>(_pointer + index);
             return size;
         }
 
@@ -658,7 +679,7 @@ namespace Spreads.Buffers
         {
             if (Settings.AdditionalCorrectnessChecks.Enabled)
             { Assert(index, SizeOf<T>()); }
-            WriteUnaligned(_data + index, value);
+            WriteUnaligned(_pointer + index, value);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -666,7 +687,7 @@ namespace Spreads.Buffers
         {
             if (Settings.AdditionalCorrectnessChecks.Enabled)
             { Assert(index, length); }
-            var destination = _data + index;
+            var destination = _pointer + index;
             InitBlockUnaligned(destination, 0, (uint)length);
         }
 
@@ -677,7 +698,7 @@ namespace Spreads.Buffers
         {
             if (Settings.AdditionalCorrectnessChecks.Enabled)
             { Assert(index, 16); }
-            return ReadUnaligned<UUID>(_data + index);
+            return ReadUnaligned<UUID>(_pointer + index);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -686,7 +707,7 @@ namespace Spreads.Buffers
         {
             if (Settings.AdditionalCorrectnessChecks.Enabled)
             { Assert(index, 16); }
-            WriteUnaligned(_data + index, value);
+            WriteUnaligned(_pointer + index, value);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -695,7 +716,7 @@ namespace Spreads.Buffers
         {
             if (Settings.AdditionalCorrectnessChecks.Enabled)
             { Assert(index, 1); }
-            return ReadUnaligned<byte>(_data + index) - '0';
+            return ReadUnaligned<byte>(_pointer + index) - '0';
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -703,88 +724,41 @@ namespace Spreads.Buffers
         {
             if (Settings.AdditionalCorrectnessChecks.Enabled)
             { Assert(index, 1); }
-            WriteUnaligned(_data + index, (byte)(value + '0'));
+            WriteUnaligned(_pointer + index, (byte)(value + '0'));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void VerifyAlignment(int alignment)
         {
-            if (0 != ((long)_data & (alignment - 1)))
+            if (0 != ((long)_pointer & (alignment - 1)))
             {
                 ThrowHelper.ThrowInvalidOperationException(
-                    $"DirectBuffer is not correctly aligned: addressOffset={(long)_data:D} in not divisible by {alignment:D}");
+                    $"DirectBuffer is not correctly aligned: addressOffset={(long)_pointer:D} in not divisible by {alignment:D}");
             }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void CopyTo(long index, Memory<byte> destination, int length)
+        public void CopyTo(ref Memory<byte> destination)
+        {
+            Span.CopyTo(destination.Span);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void CopyTo(in DirectBuffer destination)
         {
             if (Settings.AdditionalCorrectnessChecks.Enabled)
             {
-                if ((ulong)destination.Length < (ulong)length)
-                {
-                    ThrowHelper.ThrowArgumentOutOfRangeException();
-                }
+                destination.Assert(0, _length);
             }
-
-            fixed (byte* destPtr = &MemoryMarshal.GetReference(destination.Span))
-            {
-                CopyTo(index, destPtr, length);
-            }
+            CopyTo(0, destination.Data, (int)_length);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void CopyTo(long index, in DirectBuffer destination, int destinationOffset, int length)
-        {
-            if (Settings.AdditionalCorrectnessChecks.Enabled)
-            {
-                destination.Assert(destinationOffset, length);
-            }
-            CopyTo(index, destination.Data + destinationOffset, length);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void CopyTo(long index, byte* destination, int length)
+        public void CopyTo(long index, void* destination, int length)
         {
             if (Settings.AdditionalCorrectnessChecks.Enabled)
             { Assert(index, length); }
-            CopyBlockUnaligned(destination, _data + index, checked((uint)length));
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void CopyFrom(long index, ReadOnlyMemory<byte> source, int length)
-        {
-            if (Settings.AdditionalCorrectnessChecks.Enabled)
-            {
-                if ((ulong)source.Length < (ulong)length)
-                {
-                    ThrowHelper.ThrowArgumentOutOfRangeException();
-                }
-            }
-
-            fixed (byte* srcPtr = &MemoryMarshal.GetReference(source.Span))
-            {
-                CopyFrom(index, srcPtr, length);
-            }
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void CopyFrom(long index, in DirectBuffer source, int sourceOffset, int length)
-        {
-            if (Settings.AdditionalCorrectnessChecks.Enabled)
-            { source.Assert(sourceOffset, length); }
-            CopyFrom(index, source.Data + sourceOffset, length);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void CopyFrom(long index, byte* source, int length)
-        {
-            if (Settings.AdditionalCorrectnessChecks.Enabled)
-            {
-                Assert(index, length);
-            }
-
-            CopyBlockUnaligned(_data + index, source, checked((uint)length));
+            CopyBlockUnaligned(destination, _pointer + index, checked((uint)length));
         }
 
         #region Debugger proxy class
@@ -799,7 +773,7 @@ namespace Spreads.Buffers
                 _db = db;
             }
 
-            public byte* Data => _db.Data;
+            public void* Data => _db.Data;
 
             public long Length => _db.Length;
 
@@ -815,7 +789,7 @@ namespace Spreads.Buffers
     {
         public static string GetString(this Encoding encoding, in DirectBuffer buffer)
         {
-            return encoding.GetString(buffer._data, buffer.Length);
+            return encoding.GetString(buffer._pointer, buffer.Length);
         }
 
         /// <summary>
@@ -824,7 +798,7 @@ namespace Spreads.Buffers
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static MemoryHandle AsDirectBuffer(this byte[] array, out DirectBuffer buffer)
         {
-            var mh = ((Memory<byte>) array).Pin();
+            var mh = ((Memory<byte>)array).Pin();
             buffer = new DirectBuffer(array.Length, (byte*)mh.Pointer);
             return mh;
         }
