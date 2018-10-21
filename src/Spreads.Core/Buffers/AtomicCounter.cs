@@ -10,6 +10,12 @@ using System.Threading;
 
 namespace Spreads.Buffers
 {
+    // TODO Scan disposed but not released counters (value == -1)
+    // However we should rather guarantee release in finalizer even
+    // when counter > 0 if the object being finalized is exclusive owner.
+    // Owners should be pooled and such events should be quite rare.
+    // TODO logging and/or performanc counters for AC Acquire/Release.
+
     /// <summary>
     /// Counts non-negative value and stores it in provided pointer in pinned/native memory.
     /// </summary>
@@ -49,13 +55,20 @@ namespace Spreads.Buffers
                 var existing = Interlocked.CompareExchange(ref *Pointer, -1, 0);
                 if (existing != 0)
                 {
-                    ThrowHelper.FailFast("Incremented released or renewed AtomicCounter, possibly corrupted free list");
+                    // int overflow will be there, if reached int.Max then definitely fail fast
+                    IncrementFailReleased();
                 }
                 // Was disposed but not released. Should be recoverable and at least allow to owner finalizer to clean AC.
                 *Pointer = -1;
                 ThrowDisposed();
             }
             return value;
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static void IncrementFailReleased()
+        {
+            ThrowHelper.FailFast("Incrementing released or renewed AtomicCounter, possibly corrupted free list");
         }
 
         [System.Diagnostics.Contracts.Pure]
@@ -135,16 +148,6 @@ namespace Spreads.Buffers
         }
     }
 
-    //public static unsafe class AtomicCounterExtensions
-    //{
-    //    [System.Diagnostics.Contracts.Pure]
-    //    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    //    public static int Increment(ref this AtomicCounter counter)
-    //    {
-    //        return Interlocked.Increment(ref *counter.Pointer);
-    //    }
-    //}
-
     /// <summary>
     /// Pool of `AtomicCounter`s backed by native memory. Avoid long-living pinned buffer in managed heap.
     /// </summary>
@@ -199,6 +202,10 @@ namespace Spreads.Buffers
 
         public int FreeCount
         {
+            // TODO free counter is very expensive, consider removing it
+            // Current vision is that AC is owned by a pooled object so
+            // the cost is amortized. Already quite fast:
+            // 23 MOPS with free count vs 30 MOPS without.
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => _pinnedSpan.Length - _poolUsersCounter.Count - 1;
         }
@@ -230,7 +237,7 @@ namespace Spreads.Buffers
 
                 if (currentFreeIdx == 1)
                 {
-                    ThrowHelper.FailFast("Wrong implementation of TryAcquireCounter: free idx points to inner counter");
+                    TryAcquireCounterFailWrongImpl();
                 }
                 Debug.Assert(currentFreeIdx > 1);
 
@@ -250,14 +257,14 @@ namespace Spreads.Buffers
                     // but we FailFast there if could detect. But logic there is not
                     // tested yet in stress situations so FF there as well.
                     // Anyway this is badly broken user code so do not try any recovery.
-                    ThrowHelper.FailFast("Free list is broken");
+                    TryAcquireCounterFreeListIsBroken();
                 }
 
                 var existing = Interlocked.CompareExchange(ref *(int*)_pinnedSpan.Data, nextFreeLink, currentFreeLink);
 
                 if (existing == currentFreeLink)
                 {
-                    var _ = _poolUsersCounter.Increment();
+                    // var _ = _poolUsersCounter.Increment();
 
                     // *currentFreePointer = 0;
                     existing = Interlocked.CompareExchange(ref *currentFreePointer, 0, nextFreeLink);
@@ -272,18 +279,30 @@ namespace Spreads.Buffers
             }
         }
 
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static void TryAcquireCounterFailWrongImpl()
+        {
+            ThrowHelper.FailFast("Wrong implementation of TryAcquireCounter: free idx points to inner counter");
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static void TryAcquireCounterFreeListIsBroken()
+        {
+            ThrowHelper.FailFast("Free list is broken");
+        }
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void ReleaseCounter(AtomicCounter counter)
         {
-            if (!counter.IsDisposed)
+            if (counter.Count != -1)
             {
-                ThrowHelper.ThrowInvalidOperationException("Counter must be disposed before release.");
+                ReleaseCounterFailNotDisposed();
             }
             var p = (void*)counter.Pointer;
             var idx = checked((int)(((byte*)p - (byte*)_pinnedSpan.Data) >> 2)); // divide by 4
             if (idx < 1 || idx >= _pinnedSpan.Length)
             {
-                ThrowHelper.ThrowInvalidOperationException("Counter is not from this pool");
+                ReleaseCounterFailNotFromPool();
             }
             var spinner = new SpinWait();
             while (true)
@@ -299,6 +318,18 @@ namespace Spreads.Buffers
                 }
                 spinner.SpinOnce();
             }
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static void ReleaseCounterFailNotDisposed()
+        {
+            ThrowHelper.ThrowInvalidOperationException("Counter must be disposed before release.");
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static void ReleaseCounterFailNotFromPool()
+        {
+            ThrowHelper.ThrowInvalidOperationException($"Counter is not from pool");
         }
 
         //internal void ScanDroppped()
@@ -325,6 +356,7 @@ namespace Spreads.Buffers
             {
                 ThrowHelper.ThrowObjectDisposedException("AtomicCounterPool");
             }
+            GC.SuppressFinalize(this);
         }
 
         ~AtomicCounterPool()
@@ -341,9 +373,9 @@ namespace Spreads.Buffers
 
         // Better to adjust BucketSize so that there are never than 1 bucket, 4 max for safety so that the service always works.
         // Further increase could be slower.
-        internal static readonly int BucketSize = BitUtil.FindNextPositivePowerOfTwo(Settings.AtomicCounterPoolBucketSize);
+        internal static readonly int BucketSize = BitUtil.FindNextPositivePowerOfTwo(Math.Max(3, Settings.AtomicCounterPoolBucketSize));
 
-        // By trying it first we save array deref and null check.
+        // By trying it first we save array deref and null check. This is not created until first usage of the service.
         internal static readonly AtomicCounterPool<OffHeapBuffer<int>> FirstBucket =
             new AtomicCounterPool<OffHeapBuffer<int>>(new OffHeapBuffer<int>(BucketSize));
 

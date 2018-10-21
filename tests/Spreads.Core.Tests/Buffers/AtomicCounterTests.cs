@@ -6,8 +6,11 @@ using NUnit.Framework;
 using Spreads.Buffers;
 using Spreads.Utils;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
+
+// ReSharper disable ReturnValueOfPureMethodIsNotUsed
 
 namespace Spreads.Core.Tests.Buffers
 {
@@ -15,6 +18,7 @@ namespace Spreads.Core.Tests.Buffers
     public class AtomicCounterTests
     {
         [Test]
+        // ReSharper disable once InconsistentNaming
         public void CouldCreateACPoolAndAcquireRelease()
         {
             var pool = new AtomicCounterPool<OffHeapBuffer<int>>(new OffHeapBuffer<int>(4));
@@ -83,7 +87,6 @@ namespace Spreads.Core.Tests.Buffers
             pool.Dispose();
         }
 
-
         [Test]
         public void CouldRecoverCorruptedFreeList()
         {
@@ -135,6 +138,7 @@ namespace Spreads.Core.Tests.Buffers
                     {
                         Assert.Fail();
                     }
+
                     ac.Increment();
                     ac.Decrement();
                     ac.Dispose();
@@ -145,7 +149,7 @@ namespace Spreads.Core.Tests.Buffers
             pool.Dispose();
         }
 
-        private int field;
+        private int _field;
 
         [Test, Explicit("long running")]
         public void IncrementDecrementBenchmark()
@@ -154,14 +158,13 @@ namespace Spreads.Core.Tests.Buffers
 
             var pool = new AtomicCounterPool<OffHeapBuffer<int>>(new OffHeapBuffer<int>(4));
 
-            var count = 500_000_000;
-
-            var local = 0;
+            var count = 5_000_000;
 
             if (!pool.TryAcquireCounter(out var ac))
             {
                 Assert.Fail();
             }
+
             using (Benchmark.Run("Increment", count))
             {
                 for (int i = 0; i < count; i++)
@@ -169,6 +172,7 @@ namespace Spreads.Core.Tests.Buffers
                     ac.Increment();
                 }
             }
+
             using (Benchmark.Run("Decrement", count))
             {
                 for (int i = 0; i < count; i++)
@@ -176,26 +180,192 @@ namespace Spreads.Core.Tests.Buffers
                     ac.Decrement();
                 }
             }
-            
 
-            //using (Benchmark.Run("Increment field", count))
-            //{
-            //    for (int i = 0; i < count; i++)
-            //    {
-            //        Interlocked.Increment(ref field);
-            //    }
-            //}
-            //using (Benchmark.Run("Decrement field", count))
-            //{
-            //    for (int i = 0; i < count; i++)
-            //    {
-            //        Interlocked.Decrement(ref field);
-            //    }
-            //}
+            using (Benchmark.Run("Increment field", count))
+            {
+                for (int i = 0; i < count; i++)
+                {
+                    Interlocked.Increment(ref _field);
+                }
+            }
+            using (Benchmark.Run("Decrement field", count))
+            {
+                for (int i = 0; i < count; i++)
+                {
+                    Interlocked.Decrement(ref _field);
+                }
+            }
 
             ac.Dispose();
             pool.ReleaseCounter(ac);
             pool.Dispose();
+        }
+
+        [Test, Explicit("long running")]
+        public void IncrementDecrementBenchmarkManyTimes()
+        {
+            var rounds = 20;
+
+            for (int r = 0; r < rounds; r++)
+            {
+                IncrementDecrementBenchmark();
+            }
+        }
+
+        ////////////////////////////// SERVICE ///////////////////////////////////////
+
+        [Test]
+        // ReSharper disable once InconsistentNaming
+        public void ServiceCouldCreateACPoolAndAcquireRelease()
+        {
+            Settings.AtomicCounterPoolBucketSize = 4;
+            var ac = AtomicCounterService.AcquireCounter();
+            var ac1 = AtomicCounterService.AcquireCounter();
+
+            Assert.IsTrue(ac.IsValid);
+
+            Assert.AreEqual(1, ac.Increment());
+            Assert.AreEqual(0, ac.Decrement());
+            Assert.AreEqual(1, ac.Increment());
+
+            Assert.Throws<InvalidOperationException>(() => ac.Dispose());
+
+            Assert.AreEqual(0, ac.Decrement());
+
+            Assert.Throws<InvalidOperationException>(() => AtomicCounterService.ReleaseCounter(ac));
+
+            ac.Dispose();
+            ac1.Dispose();
+
+            Assert.Throws<ObjectDisposedException>(() => ac.Increment());
+            Assert.Throws<ObjectDisposedException>(() => ac1.Increment());
+
+            AtomicCounterService.ReleaseCounter(ac);
+        }
+
+        [Test]
+        public void ServiceCouldGrowBucketsWithoutResize()
+        {
+            // 2 counters per bucket
+            Settings.AtomicCounterPoolBucketSize = 4;
+
+            // 4 buckets initially
+            var count = 2 * 4;
+
+            var counters = new List<AtomicCounter>();
+
+            for (int i = 0; i < count; i++)
+            {
+                counters.Add(AtomicCounterService.AcquireCounter());
+            }
+
+            foreach (var atomicCounter in counters)
+            {
+                atomicCounter.Dispose();
+                AtomicCounterService.ReleaseCounter(atomicCounter);
+            }
+
+            Assert.AreEqual(4, AtomicCounterService.Buckets.Length);
+            Assert.AreEqual(4, AtomicCounterService.Buckets.Where(x => x != null).Count());
+        }
+
+        [Test]
+        public void ServiceCouldGrowBucketsWithResize()
+        {
+            // 2 counters per bucket
+            Settings.AtomicCounterPoolBucketSize = 4;
+
+            // 4 buckets initially
+            var count = 100;
+
+            var counters = new List<AtomicCounter>();
+
+            for (int i = 0; i < count; i++)
+            {
+                counters.Add(AtomicCounterService.AcquireCounter());
+            }
+
+            foreach (var atomicCounter in counters)
+            {
+                atomicCounter.Dispose();
+                AtomicCounterService.ReleaseCounter(atomicCounter);
+            }
+
+            Assert.AreEqual(64, AtomicCounterService.Buckets.Length);
+            Assert.AreEqual(50, AtomicCounterService.Buckets.Where(x => x != null).Count());
+            Assert.AreEqual(50 * 2, AtomicCounterService.Buckets.Where(x => x != null).Select(x => x.FreeCount).Sum());
+        }
+
+        [Test]
+        public void ServiceCouldGrowBucketsWithResizeManyTimes()
+        {
+            var rounds = 100;
+            for (int i = 0; i < rounds; i++)
+            {
+                ServiceCouldGrowBucketsWithResize();
+            }
+        }
+
+        [Test]
+        public void ServiceBenchmark()
+        {
+            var count = 10000;
+
+            Settings.AtomicCounterPoolBucketSize = count;
+
+            var rounds = 5000;
+            var counters = new List<AtomicCounter>();
+            using (Benchmark.Run("Service FullCycle", count * (long)rounds))
+            {
+                for (int r = 0; r < rounds; r++)
+                {
+                    for (int i = 0; i < count; i++)
+                    {
+                        counters.Add(AtomicCounterService.AcquireCounter());
+                    }
+
+                    for (int i = counters.Count - 1; i >= 0; i--)
+                    {
+                        var atomicCounter = counters[i];
+                        atomicCounter.Dispose();
+                        AtomicCounterService.ReleaseCounter(atomicCounter);
+                    }
+
+                    //foreach (var atomicCounter in counters)
+                    //{
+                    //    atomicCounter.Dispose();
+                    //    AtomicCounterService.ReleaseCounter(atomicCounter);
+                    //}
+
+                    counters.Clear();
+                }
+            }
+
+            Assert.AreEqual(4, AtomicCounterService.Buckets.Length);
+            Assert.AreEqual(1, AtomicCounterService.Buckets.Where(x => x != null).Count());
+        }
+
+        [Test]
+        public void ServiceBenchmarkNoRelease()
+        {
+            var count = 100000;
+
+            Settings.AtomicCounterPoolBucketSize = count;
+
+            var rounds = 50;
+            var counters = new List<AtomicCounter>();
+            using (Benchmark.Run("Service FullCycle", count * (long)rounds))
+            {
+                for (int r = 0; r < rounds; r++)
+                {
+                    for (int i = 0; i < count; i++)
+                    {
+                        counters.Add(AtomicCounterService.AcquireCounter());
+                    }
+
+                    counters.Clear();
+                }
+            }
         }
     }
 }
