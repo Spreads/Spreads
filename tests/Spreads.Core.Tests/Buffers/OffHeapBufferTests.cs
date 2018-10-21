@@ -14,26 +14,41 @@ namespace Spreads.Core.Tests.Buffers
     public class OffHeapBufferTests
     {
         [Test]
-        public void CouldUseOffHeapBuffer()
+        public unsafe void CouldUseOffHeapBuffer()
         {
 #pragma warning disable 618
             Settings.DoAdditionalCorrectnessChecks = false;
 #pragma warning restore 618
             var rounds = 1_000;
-            var count = 1_0_000;
+            var count = 1_00_000;
 
             OffHeapBuffer<int> ob = default; // this just works
             // OffHeapBuffer<int> ob = new OffHeapBuffer<int>(count);
 
             using (Benchmark.Run("OB with grow", count * rounds))
             {
+                ob.EnsureCapacity((count + 1) * 4);
                 for (int r = 0; r < rounds; r++)
                 {
                     for (int i = 0; i < count; i++)
                     {
-                        ob.EnsureCapacity((i + 1) * 4);
+                        // ob.EnsureCapacity((i + 1) * 4);
                         // Unsafe.WriteUnaligned(ob.Pointer + i, i);
-                        ob.DirectBuffer.Write(i * 4, i);
+                        // ob.DirectBuffer.Write(i * 4, i);
+                        ob[i] = i;
+                    }
+                }
+            }
+
+            using (Benchmark.Run("OB via pointer", count * rounds))
+            {
+                for (int r = 0; r < rounds; r++)
+                {
+                    for (int i = 0; i < count; i++)
+                    {
+                        // Unsafe.WriteUnaligned(ob.Pointer + i, i);
+                        // ob.DirectBuffer.Write(i * 4, i);
+                        ((int*)ob.Data)[i] = i;
                     }
                 }
             }
@@ -55,52 +70,7 @@ namespace Spreads.Core.Tests.Buffers
 
             ob.Dispose();
         }
-
-        [Test]
-        public void CouldUseOffHeapBufferNonGeneric()
-        {
-#pragma warning disable 618
-            Settings.DoAdditionalCorrectnessChecks = false;
-#pragma warning restore 618
-            var rounds = 1_000;
-            var count = 1_0_000;
-
-            OffHeapBuffer<byte> ob = default; // this just works
-            // OffHeapBuffer ob = new OffHeapBuffer(count * 4);
-
-            var db = ob.DirectBuffer;
-
-            using (Benchmark.Run("OB with grow", rounds * count))
-            {
-                for (int r = 0; r < rounds; r++)
-                {
-                    for (int i = 0; i < count; i++)
-                    {
-                        ob.EnsureCapacity((i + 1) * 4);
-                        // Unsafe.WriteUnaligned(ob.Pointer + i, i);
-                        ob.DirectBuffer.Write(i * 4, i);
-                    }
-                }
-            }
-
-            using (Benchmark.Run("Span read", rounds * count))
-            {
-                var sp = ob.GetSpan<int>();
-                for (int r = 0; r < rounds; r++)
-                {
-                    for (int i = 0; i < count; i++)
-                    {
-                        if (sp[i] != i)
-                        {
-                            Assert.Fail($"sp[i] {sp[i]} != i {i}");
-                        }
-                    }
-                }
-            }
-
-            ob.Dispose();
-        }
-
+        
         [Test, Explicit("long running")]
         public void OffHeapPoolRentReturnPerformance()
         {

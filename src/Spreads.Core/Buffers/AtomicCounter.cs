@@ -35,22 +35,38 @@ namespace Spreads.Buffers
             Pointer = pointer;
         }
 
+        // TODO wrap in AdditionalCorrectnessCheck when stable. Probably owners already check IsDisposed on every call.
+
         [System.Diagnostics.Contracts.Pure]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public int Increment()
         {
-            return Interlocked.Increment(ref *Pointer);
+            var value = Interlocked.Increment(ref *Pointer);
+            // check after is 170 MOPS vs 130 MOPS check disposed before increment
+            if (value <= 0)
+            {
+                // TODO we could corrupt free list, need to recover. -1 indicates disposed and points to free list
+                var existing = Interlocked.CompareExchange(ref *Pointer, -1, 0);
+                if (existing != 0)
+                {
+                    ThrowHelper.FailFast("Incremented released or renewed AtomicCounter, possibly corrupted free list");
+                }
+                // Was disposed but not released. Should be recoverable and at least allow to owner finalizer to clean AC.
+                *Pointer = -1;
+                ThrowDisposed();
+            }
+            return value;
         }
 
         [System.Diagnostics.Contracts.Pure]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public int Decrement()
         {
-            var value = Interlocked.Increment(ref *Pointer);
+            var value = Interlocked.Decrement(ref *Pointer);
             if (value < 0)
             {
                 // now in disposed state
-                ThowNegativeRefCount();
+                ThowNegativeRefCount(Count);
             }
             return value;
         }
@@ -64,7 +80,19 @@ namespace Spreads.Buffers
         public bool IsDisposed
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => Count < 0;
+        }
+
+        public bool IsReleased
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => Count < -1;
+        }
+
+        public bool IsValid
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => Pointer != null;
         }
 
         [System.Diagnostics.Contracts.Pure]
@@ -74,9 +102,9 @@ namespace Spreads.Buffers
             var existing = Interlocked.CompareExchange(ref *Pointer, -1, 0);
             if (existing > 0)
             {
-                ThowPositiveRefCount();
+                ThowPositiveRefCount(Count);
             }
-            if (existing == -1)
+            if (existing < 0)
             {
                 ThrowDisposed();
             }
@@ -95,24 +123,37 @@ namespace Spreads.Buffers
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
-        private void ThowNegativeRefCount()
+        private static void ThowNegativeRefCount(int count)
         {
-            ThrowHelper.ThrowInvalidOperationException($"AtomicCounter.Count {Count} < 0");
+            ThrowHelper.ThrowInvalidOperationException($"AtomicCounter.Count {count} < 0");
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
-        private void ThowPositiveRefCount()
+        private static void ThowPositiveRefCount(int count)
         {
-            ThrowHelper.ThrowInvalidOperationException($"AtomicCounter.Count {Count} > 0");
+            ThrowHelper.ThrowInvalidOperationException($"AtomicCounter.Count {count} > 0");
         }
     }
+
+    //public static unsafe class AtomicCounterExtensions
+    //{
+    //    [System.Diagnostics.Contracts.Pure]
+    //    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    //    public static int Increment(ref this AtomicCounter counter)
+    //    {
+    //        return Interlocked.Increment(ref *counter.Pointer);
+    //    }
+    //}
 
     /// <summary>
     /// Pool of `AtomicCounter`s backed by native memory. Avoid long-living pinned buffer in managed heap.
     /// </summary>
     internal unsafe class AtomicCounterPool<T> : IDisposable where T : IPinnedSpan<int>
     {
-        private readonly T _pinnedSpan;
+        /// <summary>
+        /// Internal for tests only, do not use
+        /// </summary>
+        internal readonly T _pinnedSpan;
 
         private AtomicCounter _poolUsersCounter;
 
@@ -125,13 +166,29 @@ namespace Spreads.Buffers
                 ThrowHelper.ThrowArgumentOutOfRangeException(nameof(pinnedSpan));
             }
             _pinnedSpan = pinnedSpan;
-            _pinnedSpan.Span.Slice(1).Fill(-1);
-            //length = BitUtil.FindNextPositivePowerOfTwo(length);
-            //OffHeapBuffer<int> buffer = new OffHeapBuffer<int>(length);
             Init();
-            ThrowHelper.AssertFailFast(TryAcquireCounter(out _poolUsersCounter), "First internal counter must always be acquired");
-            // this object is one of the users, it must decrement  the counter on dispose
+        }
+
+        internal void Init()
+        {
+            // we cannot acquire _poolUsersCounter via TryAcquireCounter because that method uses _poolUsersCounter
+            var poolCounterPtr = (int*)_pinnedSpan.Data + 1;
+            *poolCounterPtr = 0;
+            _poolUsersCounter = new AtomicCounter(poolCounterPtr);
             var _ = _poolUsersCounter.Increment();
+
+            var len = _pinnedSpan.Length;
+            for (int i = 2; i < len - 1; i++)
+            {
+                // ReSharper disable once PossibleStructMemberModificationOfNonVariableStruct
+                _pinnedSpan[i] = ~(i + 1);
+            }
+
+            // ReSharper disable once PossibleStructMemberModificationOfNonVariableStruct
+            _pinnedSpan[0] = ~2;
+
+            // ReSharper disable once PossibleStructMemberModificationOfNonVariableStruct
+            _pinnedSpan[len - 1] = ~0;
         }
 
         public int Capacity
@@ -152,18 +209,6 @@ namespace Spreads.Buffers
             get => (int*)_pinnedSpan.Data;
         }
 
-        internal void Init()
-        {
-            var len = _pinnedSpan.Length;
-            for (int i = 0; i < len - 1; i++)
-            {
-                ref var x = ref _pinnedSpan[i];
-                // 0 |> -2 |> 1 - first free is at index 1
-                // 1 |> -3 |> 2 - 1st free points to idx 2, etc.
-                x = -(i + 1);
-            }
-        }
-
         /// <summary>
         /// Return a new AtomicCounter backed by some slot in the pool.
         /// </summary>
@@ -176,19 +221,52 @@ namespace Spreads.Buffers
             {
                 var currentFreeLink = *(int*)_pinnedSpan.Data;
                 var currentFreeIdx = ~currentFreeLink;
-                Debug.Assert(currentFreeIdx > 0);
+                if (currentFreeIdx == 0)
+                {
+                    Debug.Assert(FreeCount == 0);
+                    counter = default;
+                    return false;
+                }
+
+                if (currentFreeIdx == 1)
+                {
+                    ThrowHelper.FailFast("Wrong implementation of TryAcquireCounter: free idx points to inner counter");
+                }
+                Debug.Assert(currentFreeIdx > 1);
 
                 // R# is stupid, without outer parenths the value will be completely different
                 // ReSharper disable once ArrangeRedundantParentheses
                 var currentFreePointer = (int*)_pinnedSpan.Data + currentFreeIdx;
+
                 var nextFreeLink = *currentFreePointer;
+
+                // ensure that the next free link is free
+                
+                // ReSharper disable once ArrangeRedundantParentheses
+                if (*((int*) _pinnedSpan.Data + ~nextFreeLink) >= 0)
+                {
+                    // The thing we want to put to the free list top is not free.
+                    // This is only possible if Increment() was called on released AC,
+                    // but we FailFast there if could detect. But logic there is not
+                    // tested yet in stress situations so FF there as well.
+                    // Anyway this is badly broken user code so do not try any recovery.
+                    ThrowHelper.FailFast("Free list is broken");
+                }
+
                 var existing = Interlocked.CompareExchange(ref *(int*)_pinnedSpan.Data, nextFreeLink, currentFreeLink);
+
                 if (existing == currentFreeLink)
                 {
                     var _ = _poolUsersCounter.Increment();
-                    *currentFreePointer = 0;
-                    counter = new AtomicCounter(currentFreePointer);
-                    return true;
+
+                    // *currentFreePointer = 0;
+                    existing = Interlocked.CompareExchange(ref *currentFreePointer, 0, nextFreeLink);
+
+                    if (existing == nextFreeLink)
+                    {
+                        counter = new AtomicCounter(currentFreePointer);
+                        return true;
+                    }
                 }
                 spinner.SpinOnce();
             }
@@ -223,13 +301,13 @@ namespace Spreads.Buffers
             }
         }
 
-        internal void ScanDroppped()
-        {
-            for (int i = 0; i < _pinnedSpan.Length; i++)
-            {
-                // TODO
-            }
-        }
+        //internal void ScanDroppped()
+        //{
+        //    for (int i = 0; i < _pinnedSpan.Length; i++)
+        //    {
+        //        // TODO
+        //    }
+        //}
 
         public void Dispose()
         {
@@ -241,11 +319,7 @@ namespace Spreads.Buffers
             }
             else if (remaining > 0)
             {
-                // ACP should be a field of an object that has AC as a field
-                // That object must be pooled and keep the AC in disposed state when pooled
-                // and dispose AC in its Dispose method. Then ACP could live only via references
-                // from pooled objects and will be released eventually via finalizer.
-                Trace.TraceWarning($"Cannot dipose AtomicCounterPool: there are {_poolUsersCounter} outstanding counters.");
+                ThrowHelper.ThrowInvalidOperationException($"Cannot dipose AtomicCounterPool: there are {_poolUsersCounter} outstanding counters.");
             }
             else
             {
@@ -274,8 +348,7 @@ namespace Spreads.Buffers
             new AtomicCounterPool<OffHeapBuffer<int>>(new OffHeapBuffer<int>(BucketSize));
 
         // Array object is Pow2 and less than 64 bytes with header.
-        internal static AtomicCounterPool<OffHeapBuffer<int>>[] Buckets =
-            new AtomicCounterPool<OffHeapBuffer<int>>[4] { FirstBucket, null, null, null };
+        internal static AtomicCounterPool<OffHeapBuffer<int>>[] Buckets = { FirstBucket, null, null, null };
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static AtomicCounter AcquireCounter()
@@ -353,7 +426,7 @@ namespace Spreads.Buffers
                 // linear search
                 var p = counter.Pointer;
                 var idx = p - bucket.Pointer;
-                if ((ulong) idx < (ulong) BucketSize)
+                if ((ulong)idx < (ulong)BucketSize)
                 {
                     bucket.ReleaseCounter(counter);
                     return;

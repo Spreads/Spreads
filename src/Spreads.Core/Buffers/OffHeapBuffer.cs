@@ -79,11 +79,8 @@ namespace Spreads.Buffers
         /// <inheritdoc />
         public ref T this[int index]
         {
-            // TODO review. By construction all values should be aligned to the SizeOf<T>, but are there any benefits of ref return?
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => ref Unsafe.AsRef<T>(Unsafe.Add<T>(Data, index));
-            //[MethodImpl(MethodImplOptions.AggressiveInlining)]
-            //set => Unsafe.WriteUnaligned<T>(Unsafe.Add<T>(Pointer, index), value);
         }
 
         public Span<T> Span
