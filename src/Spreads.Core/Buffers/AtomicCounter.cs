@@ -158,6 +158,8 @@ namespace Spreads.Buffers
         /// </summary>
         internal readonly T _pinnedSpan;
 
+        internal readonly int* _pointer;
+
         private AtomicCounter _poolUsersCounter;
 
         // TODO (low) OffHeapBuffer Append-only list-like API that never moves existing chunks but adds new if length exceeds current
@@ -169,6 +171,7 @@ namespace Spreads.Buffers
                 ThrowHelper.ThrowArgumentOutOfRangeException(nameof(pinnedSpan));
             }
             _pinnedSpan = pinnedSpan;
+            _pointer = (int*)pinnedSpan.Data;
             Init();
         }
 
@@ -213,7 +216,7 @@ namespace Spreads.Buffers
         internal int* Pointer
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => (int*)_pinnedSpan.Data;
+            get => _pointer;
         }
 
         /// <summary>
@@ -264,7 +267,7 @@ namespace Spreads.Buffers
 
                 if (existing == currentFreeLink)
                 {
-                    // var _ = _poolUsersCounter.Increment();
+                    var _ = _poolUsersCounter.Increment();
 
                     // *currentFreePointer = 0;
                     existing = Interlocked.CompareExchange(ref *currentFreePointer, 0, nextFreeLink);
@@ -369,10 +372,10 @@ namespace Spreads.Buffers
     {
         // NOTE: Service as static class not instance because any users of AC
         // will benefit from reusing slots in ACP and we save 8 byte field reference
-        // to the pool from every user (yet AC will have it TODO but we can find bucket by Ptr). We could find required bucket by pointer / length
+        // to the pool from every user.
 
-        // Better to adjust BucketSize so that there are never than 1 bucket, 4 max for safety so that the service always works.
-        // Further increase could be slower.
+        // Better to adjust BucketSize so that there are never more than 1 bucket, 4 max for safety so that the service always works.
+        // Further increase could be slower when AC owners churn a lot.
         internal static readonly int BucketSize = BitUtil.FindNextPositivePowerOfTwo(Math.Max(3, Settings.AtomicCounterPoolBucketSize));
 
         // By trying it first we save array deref and null check. This is not created until first usage of the service.
