@@ -118,8 +118,8 @@ namespace Spreads.Core.Tests.Buffers
 #pragma warning restore 618
 
             var sizesKb = new[] { 32, 64, 128, 256, 512, 1024, 2048, 4096 };
-            var count = 1_000_000;
-            var maxSize = 2048 * 1024;
+            var count = 5_000_000;
+            var maxSize = 4096 * 1024;
             var pool = new OffHeapBufferPool<byte>(2, maxSize);
 
             // warmup
@@ -180,9 +180,15 @@ namespace Spreads.Core.Tests.Buffers
             var offHeapMemory = pool.Rent(32 * 1024);
             var offHeapMemory2 = pool.Rent(32 * 1024);
             var offHeapMemory3 = pool.Rent(32 * 1024);
-            pool.Return(offHeapMemory);
-            pool.Return(offHeapMemory2);
-            pool.Return(offHeapMemory3);
+
+            ((IDisposable)offHeapMemory).Dispose();
+            ((IDisposable)offHeapMemory2).Dispose();
+            ((IDisposable)offHeapMemory3).Dispose();
+
+
+            Assert.Throws<ObjectDisposedException>(() => { pool.Return(offHeapMemory); });
+            Assert.Throws<ObjectDisposedException>(() => { pool.Return(offHeapMemory2); });
+            Assert.Throws<ObjectDisposedException>(() => { pool.Return(offHeapMemory3); });
             Assert.AreEqual(2, pool._pool._objects.Where(x => x != null).Count());
         }
 
@@ -195,7 +201,7 @@ namespace Spreads.Core.Tests.Buffers
 
             Assert.Throws<ObjectDisposedException>(() => { pool.Return(offHeapMemory); });
 
-            Assert.AreEqual(0, pool._pool._objects.Where(x => x != null).Count());
+            Assert.AreEqual(1, pool._pool._objects.Where(x => x != null).Count());
 
             var rm = pool.RetainMemory(32 * 1024);
             // ((IDisposable)offHeapMemory).Dispose();

@@ -251,9 +251,9 @@ namespace Spreads.Buffers
                 var nextFreeLink = *currentFreePointer;
 
                 // ensure that the next free link is free
-                
+
                 // ReSharper disable once ArrangeRedundantParentheses
-                if (*((int*) _pinnedSpan.Data + ~nextFreeLink) >= 0)
+                if (*((int*)_pinnedSpan.Data + ~nextFreeLink) >= 0)
                 {
                     // The thing we want to put to the free list top is not free.
                     // This is only possible if Increment() was called on released AC,

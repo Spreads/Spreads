@@ -4,6 +4,7 @@
 
 using System;
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
 using System.Threading;
 
 namespace Spreads.Collections.Concurrent
@@ -29,13 +30,16 @@ namespace Spreads.Collections.Concurrent
             _objects = new T[numberOfObjects];
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public T Rent()
         {
             var objects = _objects;
             T obj = null;
 
             bool lockTaken = false, allocate = false;
+#if !NETCOREAPP
             try
+#endif
             {
                 _lock.Enter(ref lockTaken);
 
@@ -46,7 +50,9 @@ namespace Spreads.Collections.Concurrent
                     allocate = obj == null;
                 }
             }
+#if !NETCOREAPP
             finally
+#endif
             {
                 if (lockTaken) _lock.Exit(false);
             }
@@ -55,19 +61,34 @@ namespace Spreads.Collections.Concurrent
             {
                 if (TraceLowCapacityAllocation && !allocate)
                 {
-                    Trace.TraceWarning("Allocating new object in LockedObjectPool due to low capacity");
+                    DoTrace();
                 }
-                obj = _factory?.Invoke();
+                obj = CreateNewObject();
             }
 
             return obj;
         }
 
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private T CreateNewObject()
+        {
+            return _factory?.Invoke();
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static void DoTrace()
+        {
+            Trace.TraceWarning("Allocating new object in LockedObjectPool due to low capacity");
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal bool Return(T obj)
         {
             var lockTaken = false;
             bool pooled;
+#if !NETCOREAPP
             try
+#endif
             {
                 _lock.Enter(ref lockTaken);
                 pooled = _index != 0;
@@ -76,7 +97,9 @@ namespace Spreads.Collections.Concurrent
                     _objects[--_index] = obj;
                 }
             }
+#if !NETCOREAPP
             finally
+#endif
             {
                 if (lockTaken)
                 {

@@ -5,6 +5,7 @@
 using System;
 using System.Buffers;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 
 namespace Spreads.Buffers
 {
@@ -15,33 +16,41 @@ namespace Spreads.Buffers
     /// </summary>
     public abstract unsafe class RetainableMemory<T> : MemoryManager<T>
     {
-        protected readonly AtomicCounter _counter;
+        internal AtomicCounter Counter;
         protected int _capacity;
         protected void* _pointer;
 
-        internal DirectBuffer DirectBuffer => new DirectBuffer(_capacity * Unsafe.SizeOf<T>(), (byte*)_pointer);
-
         protected RetainableMemory(AtomicCounter counter)
         {
-            _counter = counter;
+            if (counter.Count != 0)
+            {
+                ThrowHelper.ThrowArgumentException("counter.Count != 0");
+            }
+            Counter = counter;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal int Increment()
         {
-            return _counter.Increment();
+            return Counter.Increment();
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal bool Decrement()
         {
-            var newRefCount = _counter.Decrement();
+            var newRefCount = Counter.Decrement();
             if (newRefCount == 0)
             {
                 OnNoReferences();
                 return false;
             }
             return true;
+        }
+
+        internal DirectBuffer DirectBuffer
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => new DirectBuffer(_capacity * Unsafe.SizeOf<T>(), (byte*) _pointer);
         }
 
         internal void* Pointer
@@ -53,13 +62,13 @@ namespace Spreads.Buffers
         public bool IsRetained
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => _counter.Count > 0;
+            get => Counter.Count > 0;
         }
 
         public int ReferenceCount
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => _counter.Count;
+            get => Counter.Count;
         }
 
         protected virtual void OnNoReferences()
@@ -72,8 +81,10 @@ namespace Spreads.Buffers
         public bool IsDisposed
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => _counter.IsDisposed;
+            get => Counter.IsDisposed;
         }
+
+       
 
         public long Capacity
         {
@@ -86,23 +97,32 @@ namespace Spreads.Buffers
             return new Span<T>(_pointer, _capacity);
         }
 
-        //public override MemoryHandle Pin(int elementIndex = 0)
-        //{
-        //    Increment();
-        //    if (elementIndex < 0 || elementIndex > _capacity) throw new ArgumentOutOfRangeException(nameof(elementIndex));
-        //    return new MemoryHandle(Unsafe.Add<byte>(InternalDirectBuffer.Data, elementIndex), default, this);
-        //}
+        [MethodImpl(MethodImplOptions.AggressiveInlining)] // hope for devirt
+        public override MemoryHandle Pin(int elementIndex = 0)
+        {
+            Increment();
+            if(unchecked ((uint)elementIndex) >= _capacity) // if (elementIndex < 0 || elementIndex >= _capacity)
+            {
+                PinThrowIndexOutOfRange();
+            }
 
-        //internal MemoryHandle GetHandleNoIncrement(int elementIndex = 0)
-        //{
-        //    if (elementIndex < 0 || elementIndex >= Capacity) throw new ArgumentOutOfRangeException(nameof(elementIndex));
-        //    return new MemoryHandle(Unsafe.Add<byte>(InternalDirectBuffer.Data, elementIndex), default, this);
-        //}
+            // NOTE: even for the array-based memory handle is create when array is taken from pool
+            // and is stored in MemoryManager until the array is released back to the pool.
+            GCHandle handle = default;
+            return new MemoryHandle(Unsafe.Add<T>(_pointer, elementIndex), handle, this);
+        }
 
-        //public override void Unpin()
-        //{
-        //    Decrement();
-        //}
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static void PinThrowIndexOutOfRange()
+        {
+            ThrowHelper.ThrowArgumentOutOfRangeException("elementIndex");
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)] // hope for devirt
+        public override void Unpin()
+        {
+            Decrement();
+        }
 
         /// <summary>
         /// Retain buffer memory.
@@ -168,10 +188,16 @@ namespace Spreads.Buffers
             return new RetainedMemory<T>(memory, handle);
         }
 
-        protected override void Dispose(bool disposing)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal void ClearBeforePooling()
         {
             _pointer = null;
-            _counter.Dispose();
+            _capacity = default;    
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            Counter.Dispose();
             if (disposing)
             {
                 GC.SuppressFinalize(this);

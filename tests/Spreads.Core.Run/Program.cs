@@ -29,8 +29,8 @@ namespace Spreads.Core.Run
             Settings.DoAdditionalCorrectnessChecks = false;
 #pragma warning restore 618
 
-            var test = new AtomicCounterTests();
-            test.ServiceBenchmark();
+            var test = new OffHeapBufferTests();
+            test.OffHeapPoolRetainDisposePerformance();
 
             //IlwdBenchmark();
 
