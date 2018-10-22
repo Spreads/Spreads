@@ -4,41 +4,44 @@
 
 using Spreads.Collections.Concurrent;
 using System;
+using System.Buffers;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
+using static Spreads.Buffers.BuffersThrowHelper;
 
 namespace Spreads.Buffers
 {
     // HAA0301/HAA0302 only happens once per pool
 
-    public class OffHeapBufferPool<T> where T : struct
+
+    public class OffHeapMemoryPool<T> : MemoryPool<T> where T : struct
     {
         /// <summary>
         /// Internal for tests only, do not use in other places.
         /// </summary>
         internal readonly LockedObjectPool<OffHeapMemory<T>> _pool;
 
-        private readonly int _maxLength;
+        private readonly int _maxBufferSize;
 
 #pragma warning disable HAA0302 // Display class allocation to capture closure
 
         /// <param name="maxBuffersCount">Max number of buffers to pool.</param>
-        /// <param name="maxLength">Max size of a buffer.</param>
-        public OffHeapBufferPool(int maxBuffersCount, int maxLength = 16 * 1024 * 1024)
+        /// <param name="maxBufferSize">Max size of a buffer.</param>
+        public OffHeapMemoryPool(int maxBuffersCount, int maxBufferSize = 16 * 1024 * 1024)
 #pragma warning restore HAA0302 // Display class allocation to capture closure
         {
             // First Pow2 in LOH
-            if (maxLength < 128 * 1024) // for other cases Array-based is OK
+            if (maxBufferSize < 128 * 1024) // for other cases Array-based is OK
             {
-                maxLength = 128 * 1024;
+                maxBufferSize = 128 * 1024;
             }
 
-            if (maxLength > 100 * 1024 * 1024) // currently 8Mb + 4032 is max use case
+            if (maxBufferSize > 100 * 1024 * 1024) // currently 8Mb + 4032 is max use case
             {
-                ThrowHelper.ThrowArgumentOutOfRangeException(nameof(maxLength));
+                ThrowHelper.ThrowArgumentOutOfRangeException(nameof(maxBufferSize));
             }
 
-            _maxLength = maxLength;
+            _maxBufferSize = maxBufferSize;
 
             _pool = new LockedObjectPool<OffHeapMemory<T>>(maxBuffersCount,
 #pragma warning disable HAA0301 // Closure Allocation Source
@@ -51,7 +54,7 @@ namespace Spreads.Buffers
         {
             // for large buffers we prefer small number of them but increase the size on-demand
 
-            var mem = Rent(length);
+            var mem = RentImpl(length);
             if (requireExact)
             {
                 return mem.Retain(length);
@@ -61,20 +64,37 @@ namespace Spreads.Buffers
 
         // Rent -> OHM -> OHM.Dispose/Finalize/OnNoRef return to the pool, if cannot pool then destroy obj & counter
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public OffHeapMemory<T> Rent(int minimumCapacity)
+        protected override void Dispose(bool disposing)
         {
-            if (unchecked((uint)minimumCapacity) > _maxLength)
+            _pool.Dispose();
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public override IMemoryOwner<T> Rent(int minimumCapacity = -1)
+        {
+            if (minimumCapacity == -1)
+            {
+                minimumCapacity = 4096;
+            }
+
+            return RentImpl(minimumCapacity);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public OffHeapMemory<T> RentImpl(int minimumCapacity)
+        {
+            if (unchecked((uint)minimumCapacity) > _maxBufferSize)
             {
                 RentThrowArgumentOutOfRange();
             }
             var offHeapMemory = _pool.Rent();
             offHeapMemory._pool = this;
-            // mem.Counter.Revive();
             offHeapMemory.Init(minimumCapacity);
             Debug.Assert(!offHeapMemory.IsDisposed);
             return offHeapMemory;
         }
+
+        public override int MaxBufferSize => _maxBufferSize;
 
         [MethodImpl(MethodImplOptions.NoInlining)]
         private static void RentThrowArgumentOutOfRange()
@@ -86,47 +106,26 @@ namespace Spreads.Buffers
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal bool Return(OffHeapMemory<T> offHeapMemory)
         {
+            // offHeapMemory must be in the same state as it was after Rent so that Rent/Return work without any other requirements
+
             if (offHeapMemory.IsDisposed)
             {
-                ReturnThrowDisposed();
+                ThrowDisposed<OffHeapMemory<T>>();
             }
 
-            // offHeapMemory must be in the same state as it was after Rent so that Rent/Return work without any other requirements
             if (offHeapMemory.IsRetained)
             {
-                ReturnThrowRetained();
+                ThrowDisposingRetained<OffHeapMemory<T>>();
             }
 
-            // offHeapMemory.Counter.Dispose();
-
-            if (offHeapMemory._pool == null)
+            if (offHeapMemory._pool != this)
             {
-                ReturnThrowAlienOrAlreadyPooled();
+                ThrowAlienOrAlreadyPooled<OffHeapMemory<T>>();
             }
 
-            // OffHeapMemory finalizer knows what to do in the case the object is not
-            // disposed after false return here
             var pooled = _pool.Return(offHeapMemory);
             offHeapMemory._pool = null;
             return pooled;
-        }
-
-        [MethodImpl(MethodImplOptions.NoInlining)]
-        private static void ReturnThrowAlienOrAlreadyPooled()
-        {
-            ThrowHelper.ThrowObjectDisposedException("Cannot return to pool alien or already pooled buffer");
-        }
-
-        [MethodImpl(MethodImplOptions.NoInlining)]
-        private static void ReturnThrowRetained()
-        {
-            ThrowHelper.ThrowInvalidOperationException("Cannot return to pool retained buffer");
-        }
-
-        [MethodImpl(MethodImplOptions.NoInlining)]
-        private static void ReturnThrowDisposed()
-        {
-            ThrowHelper.ThrowObjectDisposedException("OffHeapMemory");
         }
     }
 }

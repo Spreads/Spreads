@@ -8,12 +8,11 @@ using System.Runtime.CompilerServices;
 
 namespace Spreads.Buffers
 {
-    public unsafe class OffHeapMemory<T> : RetainableMemory<T> where T : struct
+    public sealed unsafe class OffHeapMemory<T> : RetainableMemory<T> where T : struct
     {
         private OffHeapBuffer<T> _offHeapBuffer;
 
-        // TODO pool == null could be used as _pooled
-        internal OffHeapBufferPool<T> _pool;
+        internal OffHeapMemoryPool<T> _pool;
 
         // This object is pooled together with off-heap buffer in LockedObjectPool that
         // act like a storage and does not drop objects due to data races. The pool
@@ -34,7 +33,7 @@ namespace Spreads.Buffers
             Init(minLength);
         }
 
-        internal OffHeapMemory(OffHeapBufferPool<T> pool) :
+        internal OffHeapMemory(OffHeapMemoryPool<T> pool) :
             // NOTE: this object must release _counter when finalized or not pooled
             // Base class calls _counter.Dispose in it's dispose method and this is enough
             // for shared-memory backed counters. Base class doesn't know about ACS.
@@ -43,45 +42,31 @@ namespace Spreads.Buffers
             _pool = pool;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)] // hope for devirt
-        protected override void OnNoReferences()
-        {
-            Dispose(true);
-        }
-
-        //internal bool IsPooled
-        //{
-        //    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        //    get => _pool ;
-        //}
-
         protected override void Dispose(bool disposing)
         {
             Debug.Assert(Counter.Count == 0);
 
+            ClearBeforePooling();
+
             // disposing == false when finilizing and detected that non pooled
             if (disposing)
             {
-                // will call OnNoRef if last borrower
-                // Unpin();
-                ClearBeforePooling();
-
                 // try to pool
                 bool pooled = false;
                 if (_pool != null)
                 {
 #pragma warning disable 618
-                    
+
                     pooled = _pool.Return(this);
 #pragma warning restore 618
                 }
 
                 if (!pooled)
                 {
+                    // as if finalizing
                     GC.SuppressFinalize(this);
                     Dispose(false);
                 }
-
             }
             else
             {
@@ -95,28 +80,15 @@ namespace Spreads.Buffers
 
                 // either finalizing non-pooled or pool if full
                 AtomicCounterService.ReleaseCounter(Counter);
-                // Counter = default;
             }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal void Init(int minimumCapacity)
         {
-            //var newcount = Counter.Increment();
-            //if (newcount > 1)
-            //{
-            //    ThrowHelper.ThrowInvalidOperationException("Cannot change off-heap buffer capacity when retained.");
-            //}
-
-            //if (newcount <= 0)
-            //{
-            //    ThrowHelper.ThrowObjectDisposedException("OffHeapMemory");
-            //}
-
             _offHeapBuffer.EnsureCapacity(minimumCapacity);
-
             _pointer = _offHeapBuffer._pointer;
-            _capacity = _offHeapBuffer.Length;
+            _length = _offHeapBuffer.Length;
         }
     }
 }

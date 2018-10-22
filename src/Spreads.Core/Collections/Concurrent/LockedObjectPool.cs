@@ -18,14 +18,16 @@ namespace Spreads.Collections.Concurrent
         where T : class
     {
         private Func<T> _factory;
+        private readonly bool _allocateOnEmpty;
         internal readonly T[] _objects;
         private SpinLock _lock; // do not make this readonly; it's a mutable struct
         private int _index;
         internal bool TraceLowCapacityAllocation;
 
-        internal LockedObjectPool(int numberOfObjects, Func<T> factory)
+        internal LockedObjectPool(int numberOfObjects, Func<T> factory, bool allocateOnEmpty = true)
         {
             _factory = factory;
+            _allocateOnEmpty = allocateOnEmpty;
             _lock = new SpinLock(Debugger.IsAttached);
             _objects = new T[numberOfObjects];
         }
@@ -57,7 +59,7 @@ namespace Spreads.Collections.Concurrent
                 if (lockTaken) _lock.Exit(false);
             }
 
-            if (obj == null)
+            if (allocate || (obj == null && _allocateOnEmpty))
             {
                 if (TraceLowCapacityAllocation && !allocate)
                 {

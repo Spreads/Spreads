@@ -6,6 +6,7 @@ using System;
 using System.Buffers;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using static Spreads.Buffers.BuffersThrowHelper;
 
 namespace Spreads.Buffers
 {
@@ -17,7 +18,7 @@ namespace Spreads.Buffers
     public abstract unsafe class RetainableMemory<T> : MemoryManager<T>
     {
         internal AtomicCounter Counter;
-        protected int _capacity;
+        protected int _length;
         protected void* _pointer;
 
         protected RetainableMemory(AtomicCounter counter)
@@ -50,7 +51,7 @@ namespace Spreads.Buffers
         internal DirectBuffer DirectBuffer
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => new DirectBuffer(_capacity * Unsafe.SizeOf<T>(), (byte*) _pointer);
+            get => new DirectBuffer(_length * Unsafe.SizeOf<T>(), (byte*)_pointer);
         }
 
         internal void* Pointer
@@ -71,11 +72,12 @@ namespace Spreads.Buffers
             get => Counter.Count;
         }
 
-        protected virtual void OnNoReferences()
+        protected void OnNoReferences()
         {
             // Pooled implementation try to return object to pool
             // If not possible to tell if object is returned then rely on finalizer
             // In steady-state that should not be a big deal
+            Dispose(true);
         }
 
         public bool IsDisposed
@@ -84,38 +86,30 @@ namespace Spreads.Buffers
             get => Counter.IsDisposed;
         }
 
-       
-
-        public long Capacity
+        public int Length
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => _capacity;
+            get => _length;
         }
 
         public override Span<T> GetSpan()
         {
-            return new Span<T>(_pointer, _capacity);
+            return new Span<T>(_pointer, _length);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)] // hope for devirt
         public override MemoryHandle Pin(int elementIndex = 0)
         {
             Increment();
-            if(unchecked ((uint)elementIndex) >= _capacity) // if (elementIndex < 0 || elementIndex >= _capacity)
+            if (unchecked((uint)elementIndex) >= _length) // if (elementIndex < 0 || elementIndex >= _capacity)
             {
-                PinThrowIndexOutOfRange();
+                ThrowIndexOutOfRange();
             }
 
             // NOTE: even for the array-based memory handle is create when array is taken from pool
             // and is stored in MemoryManager until the array is released back to the pool.
             GCHandle handle = default;
             return new MemoryHandle(Unsafe.Add<T>(_pointer, elementIndex), handle, this);
-        }
-
-        [MethodImpl(MethodImplOptions.NoInlining)]
-        private static void PinThrowIndexOutOfRange()
-        {
-            ThrowHelper.ThrowArgumentOutOfRangeException("elementIndex");
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)] // hope for devirt
@@ -139,7 +133,7 @@ namespace Spreads.Buffers
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public RetainedMemory<T> Retain(int length)
         {
-            if ((uint)length > (uint)_capacity)
+            if ((uint)length > (uint)_length)
             {
                 ThrowBadLength();
             }
@@ -153,7 +147,7 @@ namespace Spreads.Buffers
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public RetainedMemory<T> Retain(int start, int length)
         {
-            if ((uint)start + (uint)length > (uint)_capacity)
+            if ((uint)start + (uint)length > (uint)_length)
             {
                 ThrowBadLength();
             }
@@ -165,7 +159,7 @@ namespace Spreads.Buffers
         {
             if (IsDisposed)
             {
-                ThrowDisposed();
+                ThrowDisposed<RetainedMemory<T>>();
             }
 
             Increment();
@@ -192,7 +186,7 @@ namespace Spreads.Buffers
         internal void ClearBeforePooling()
         {
             _pointer = null;
-            _capacity = default;    
+            _length = default;
         }
 
         protected override void Dispose(bool disposing)
@@ -208,35 +202,5 @@ namespace Spreads.Buffers
         {
             Dispose(false);
         }
-
-        #region ThrowHelpers
-
-        [MethodImpl(MethodImplOptions.NoInlining)]
-        private static void ThrowBadLength()
-        {
-            ThrowHelper.ThrowArgumentOutOfRangeException("length");
-        }
-
-        [MethodImpl(MethodImplOptions.NoInlining)]
-        private static void ThrowDisposed()
-        {
-            ThrowHelper.ThrowObjectDisposedException(nameof(RetainableMemory<T>));
-        }
-
-
-        // TODO delete
-        //[MethodImpl(MethodImplOptions.NoInlining)]
-        //private static void ThrowDisposingRetained()
-        //{
-        //    ThrowHelper.ThrowInvalidOperationException("Cannot dipose retained " + nameof(RetainableMemory<T>));
-        //}
-
-        //[MethodImpl(MethodImplOptions.NoInlining)]
-        //private static void ThowNegativeRefCount()
-        //{
-        //    ThrowHelper.ThrowInvalidOperationException("_referenceCount < 0");
-        //}
-
-        #endregion ThrowHelpers
     }
 }

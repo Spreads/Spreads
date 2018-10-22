@@ -42,7 +42,7 @@ namespace Spreads.Buffers
         /// and even new[]-ing has to zero memory, this is why it is slow.
         /// Please know what you are doing.
         /// </summary>
-        internal static OffHeapBufferPool<byte> OffHeap = new OffHeapBufferPool<byte>(4);
+        internal static OffHeapMemoryPool<byte> OffHeap = new OffHeapMemoryPool<byte>(4);
 
         // max pooled array size
         internal const int SharedBufferSize = 4096;
@@ -53,7 +53,7 @@ namespace Spreads.Buffers
         /// Shared buffers are for slicing of small PreservedBuffers
         /// </summary>
         [ThreadStatic]
-        private static OwnedPooledArray<byte> _sharedBuffer;
+        private static ArrayMemory<byte> _sharedBuffer;
 
         [ThreadStatic]
         private static RetainedMemory<byte> _sharedBufferMemory;
@@ -65,7 +65,7 @@ namespace Spreads.Buffers
         /// Temp storage e.g. for serialization
         /// </summary>
         [ThreadStatic]
-        private static OwnedPooledArray<byte> _threadStaticBuffer;
+        private static ArrayMemory<byte> _threadStaticBuffer;
 
         [ThreadStatic]
         private static RetainedMemory<byte> _threadStaticMemory;
@@ -95,10 +95,10 @@ namespace Spreads.Buffers
         }
 
         /// <summary>
-        /// Thread-static <see cref="OwnedPooledArray{T}"/> with size of <see cref="StaticBufferSize"/>.
+        /// Thread-static <see cref="ArrayMemory{T}"/> with size of <see cref="StaticBufferSize"/>.
         /// Never dispose it!
         /// </summary>
-        internal static OwnedPooledArray<byte> StaticBuffer
+        internal static ArrayMemory<byte> StaticBuffer
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
@@ -113,10 +113,11 @@ namespace Spreads.Buffers
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
-        private static OwnedPooledArray<byte> CreateThreadStaticBuffer()
+        private static ArrayMemory<byte> CreateThreadStaticBuffer()
         {
-            _threadStaticBuffer = OwnedPooledArray<byte>.Create(new byte[StaticBufferSize]);
-            _threadStaticBuffer._referenceCount = int.MinValue;
+            // TODO review this mess with externally owned
+            _threadStaticBuffer = ArrayMemory<byte>.Create(new byte[StaticBufferSize], true);
+            _threadStaticBuffer.Increment();
             // NB Pin in LOH if ThreadStaticPinnedBufferSize > 85k, limit impact on compaction (see Slab in Kestrel)
             _threadStaticMemory = new RetainedMemory<byte>(_threadStaticBuffer.Memory);
             return _threadStaticBuffer;
@@ -145,7 +146,7 @@ namespace Spreads.Buffers
             {
                 if (_sharedBuffer == null)
                 {
-                    _sharedBuffer = OwnedPooledArray<byte>.Create(SharedBufferSize);
+                    _sharedBuffer = ArrayMemory<byte>.Create(SharedBufferSize);
                     // NB we must create a reference or the first RetainedMemory could
                     // dispose _sharedBuffer on RetainedMemory disposal.
 
@@ -161,7 +162,7 @@ namespace Spreads.Buffers
                     // replace shared buffer, the old one will be disposed
                     // when all ReservedMemory views on it are disposed
                     var previous = _sharedBufferMemory;
-                    _sharedBuffer = OwnedPooledArray<byte>.Create(SharedBufferSize);
+                    _sharedBuffer = ArrayMemory<byte>.Create(SharedBufferSize);
 
                     _sharedBufferMemory = _sharedBuffer.Retain();
                     previous.Dispose(); // unpinning manually, now the buffer is free and it's retainers determine when it goes back to the pool
@@ -177,7 +178,7 @@ namespace Spreads.Buffers
             // NB here we exclusively own the buffer and disposal of RetainedMemory will cause
             // disposal and returning to pool of the ownedBuffer instance, unless references were added via
             // RetainedMemory.Clone()
-            var ownedPooledArray = OwnedPooledArray<byte>.Create(length);
+            var ownedPooledArray = ArrayMemory<byte>.Create(length);
             return requireExact ? ownedPooledArray.Retain(length) : ownedPooledArray.Retain();
         }
 

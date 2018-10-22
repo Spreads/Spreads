@@ -51,15 +51,13 @@ namespace Spreads.Buffers
             // check after is 170 MOPS vs 130 MOPS check disposed before increment
             if (value <= 0)
             {
-                // TODO we could corrupt free list, need to recover. -1 indicates disposed and points to free list
+                // Was disposed but not released. Should be recoverable and at least allow to owner finalizer to clean AC.
                 var existing = Interlocked.CompareExchange(ref *Pointer, -1, 0);
                 if (existing != 0)
                 {
                     // int overflow will be there, if reached int.Max then definitely fail fast
                     IncrementFailReleased();
                 }
-                // Was disposed but not released. Should be recoverable and at least allow to owner finalizer to clean AC.
-                *Pointer = -1;
                 ThrowDisposed();
             }
             return value;
@@ -78,10 +76,22 @@ namespace Spreads.Buffers
             var value = Interlocked.Decrement(ref *Pointer);
             if (value < 0)
             {
+                // had zero and noone (esp. Increment above) has changed this after wrong decrement
+                var existing = Interlocked.CompareExchange(ref *Pointer, 0, -1);
+                if (existing != 0)
+                {
+                    DecrementFailZeroCount();
+                }
                 // now in disposed state
                 ThowNegativeRefCount(Count);
             }
             return value;
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static void DecrementFailZeroCount()
+        {
+            ThrowHelper.FailFast("Decrementing counter with zero count");
         }
 
         public int Count

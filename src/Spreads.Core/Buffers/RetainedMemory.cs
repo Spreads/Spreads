@@ -21,7 +21,7 @@ namespace Spreads.Buffers
     /// Increases the ref count of underlying OwnedBuffer by one.
     /// Use this struct carefully: it must always be explicitly disposed, otherwise underlying MemoryManager implementation
     /// will never be returned to the pool and memory will leak.
-    /// Use <see cref="Clone"/> method to create a copy of this memory and to ensure that the underlying <see cref="Buffers.OwnedPooledArray{T}"/> is not returned to the pool.
+    /// Use <see cref="Clone"/> method to create a copy of this memory and to ensure that the underlying <see cref="ArrayMemory{T}"/> is not returned to the pool.
     /// When adding to a Spreads disposable collection (e.g. SortedMap) ownership is transfered to a collection and RetainedMemory
     /// will be disposed during disposal of that collection. To keep ownership outside the collection, use the <see cref="Clone"/> method and
     /// add a cloned RetainedMemory value to the collection.

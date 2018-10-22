@@ -10,7 +10,7 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Threading;
 
-namespace Spreads.Tests.Buffers
+namespace Spreads.Core.Tests.Buffers
 {
     [TestFixture]
     public class BuffersTests
@@ -65,6 +65,7 @@ namespace Spreads.Tests.Buffers
         public void CouldGetArrayFromRetainedBuffer()
         {
             var retained = BufferPool.Retain(3456, false);
+            Assert.AreEqual(4096, retained.Length);
             var mem = (ReadOnlyMemory<byte>)retained.Memory;
             if (!MemoryMarshal.TryGetArray(mem, out ArraySegment<byte> valuesSegment))
             {
@@ -215,8 +216,8 @@ namespace Spreads.Tests.Buffers
         [Test, Explicit("long running")]
         public void SharedArrayPoolPerformance()
         {
-            var sizesKb = new[] { 64, 128, 256, 512, 1024, 2048, 4096 };
-            var count = 1_00_000;
+            var sizesKb = new[] { 64, 128, 256, 512, 1024 };
+            var count = 10_000_000;
 
             foreach (var size in sizesKb)
             {
@@ -227,6 +228,23 @@ namespace Spreads.Tests.Buffers
                         var array = BufferPool<byte>.Rent(size * 1024);
                         BufferPool<byte>.Return(array);
                     }
+                }
+            }
+
+            Benchmark.Dump();
+        }
+
+        [Test, Explicit("long running")]
+        public void SharedArrayPoolPerformanceSingleSize()
+        {
+            var count = 10_000_000;
+
+            using (Benchmark.Run("SharedPoolSingle", count))
+            {
+                for (int i = 0; i < count; i++)
+                {
+                    var array = BufferPool<byte>.Rent(32 * 1024);
+                    BufferPool<byte>.Return(array);
                 }
             }
 

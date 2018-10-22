@@ -602,7 +602,7 @@ namespace Spreads.Tests
             }
         }
 
-        private ref T GetRef<T>(OwnedPooledArray<T> buffer)
+        private ref T GetRef<T>(ArrayMemory<T> buffer)
         {
             if (MemoryMarshal.TryGetArray((ReadOnlyMemory<T>)buffer.Memory, out var segment))
             {
@@ -615,7 +615,7 @@ namespace Spreads.Tests
             }
         }
 
-        private void UnsafeGenericWrite<T>(int count, OwnedPooledArray<T> buffer)
+        private void UnsafeGenericWrite<T>(int count, ArrayMemory<T> buffer)
         {
             var handle = buffer.Memory.Pin();
 
@@ -637,7 +637,7 @@ namespace Spreads.Tests
             Console.WriteLine($"Unsafe write {sw.MOPS(count * 50)}");
         }
 
-        private void UnsafeGenericRead<T>(int count, OwnedPooledArray<T> buffer)
+        private void UnsafeGenericRead<T>(int count, ArrayMemory<T> buffer)
         {
             var handle = buffer.Memory.Pin();
 
