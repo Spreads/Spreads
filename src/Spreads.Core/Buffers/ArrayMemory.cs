@@ -203,9 +203,6 @@ namespace Spreads.Buffers
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         protected override void Dispose(bool disposing)
         {
-            // special value that is not normally possible - to keep thread-static buffer undisposable
-            if (_externallyOwned) { return; }
-
             if (IsRetained)
             {
                 ThrowDisposingRetained<ArrayMemory<T>>();
@@ -218,7 +215,11 @@ namespace Spreads.Buffers
                 Debug.Assert(_handle.IsAllocated);
                 _handle.Free();
                 _handle = default;
-                BufferPool<T>.Return(array, !TypeHelper<T>.IsFixedSize);
+                // special value that is not normally possible - to keep thread-static buffer undisposable
+                if (!_externallyOwned)
+                {
+                    BufferPool<T>.Return(array, !TypeHelper<T>.IsFixedSize);
+                }
             }
 
             Debug.Assert(!_handle.IsAllocated);

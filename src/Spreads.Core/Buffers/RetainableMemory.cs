@@ -166,24 +166,17 @@ namespace Spreads.Buffers
                 ThrowDisposed<RetainedMemory<T>>();
             }
 
-            Increment();
-
-            var handle = new MemoryHandle(DirectBuffer.Data, default, this);
-            Memory<T> memory;
             if (length < 0)
             {
-                memory = Memory;
-            }
-            else if (start >= 0)
-            {
-                memory = CreateMemory(start, length);
-            }
-            else
-            {
-                memory = CreateMemory(length);
+                length = Length;
             }
 
-            return new RetainedMemory<T>(memory, handle);
+            if (start < 0)
+            {
+                start = 0;
+            }
+
+            return new RetainedMemory<T>(this, start, length, true);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

@@ -173,7 +173,8 @@ namespace Spreads.Buffers
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static RecyclableMemoryStream Create(Memory<byte> initialLargeBuffer)
         {
-            var rm = new RetainedMemory<byte>(initialLargeBuffer, default);
+            throw new NotImplementedException("After RM refactoring this needs review");
+            var rm = new RetainedMemory<byte>(initialLargeBuffer);
             return Create(0, rm, rm.Length);
         }
 

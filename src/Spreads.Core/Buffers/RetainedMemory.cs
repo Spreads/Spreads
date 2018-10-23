@@ -6,7 +6,7 @@
 #endif
 
 using System;
-using System.Buffers;
+using System.Diagnostics;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -14,132 +14,113 @@ using System.Threading.Tasks;
 
 namespace Spreads.Buffers
 {
-    // TODO (docs) refine the docs, merge summary and remarks with clearer wording. Remarks > summary.
-
     /// <summary>
-    /// A struct that wraps a <see cref="Memory{T}"/> and its <see cref="MemoryHandle"/> that is returned after calling <see cref="Memory{T}.Pin"/>.
-    /// Increases the ref count of underlying OwnedBuffer by one.
-    /// Use this struct carefully: it must always be explicitly disposed, otherwise underlying MemoryManager implementation
-    /// will never be returned to the pool and memory will leak.
-    /// Use <see cref="Clone"/> method to create a copy of this memory and to ensure that the underlying <see cref="ArrayMemory{T}"/> is not returned to the pool.
-    /// When adding to a Spreads disposable collection (e.g. SortedMap) ownership is transfered to a collection and RetainedMemory
-    /// will be disposed during disposal of that collection. To keep ownership outside the collection, use the <see cref="Clone"/> method and
-    /// add a cloned RetainedMemory value to the collection.
+    /// A borrowing of <see cref="RetainableMemory{T}"/> that owns a reference from it.
     /// </summary>
     /// <remarks>
-    /// <see cref="RetainedMemory{T}"/> is the owner of <see cref="MemoryHandle"/> reservation.
-    /// When it is passed to any method or added  to any collection the reservation ownership is transfered as well.
-    /// The consuming method or collection must dispose the <see cref="MemoryHandle"/> reservation. If the caller
-    /// needs to retain the memory it must call <see cref="Clone"/> and pass the cloned <see cref="RetainedMemory{T}"/>.
-    ///
+    /// Use this struct carefully: it must always be explicitly disposed, otherwise underlying MemoryManager implementation
+    /// will never be returned to the pool and memory will leak.
+    /// RULE: Ownership of <see cref="RetainedMemory{T}"/> is transfered in any method call without ref or in modifiers.
+    /// Use <see cref="Clone()"/> method or its Slice-like overloads to create a copy of this memory and to
+    /// ensure that the underlying <see cref="RetainableMemory{T}"/> is not returned to the pool.
     /// Access to this struct is not thread-safe, only one thread could call its methods at a time.
     /// </remarks>
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    public struct RetainedMemory<T> : IDisposable
+    public readonly struct RetainedMemory<T> : IDisposable
     {
-        internal Memory<T> _memory;
-
-        // Could add Deconstruct method
-        internal MemoryHandle _memoryHandle;
-
-        private int _offset;
-        internal int Tag;
-
-        // Could add up to 24 fields to still fir in one cache line.
+        private readonly RetainableMemory<T> _manager;
+        private readonly int _offset;
+        private readonly int _length;
 
         /// <summary>
         /// Create a new RetainedMemory from Memory and pins it.
         /// </summary>
         /// <param name="memory"></param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public RetainedMemory(Memory<T> memory)
         {
-            _memory = memory;
-            _memoryHandle = memory.Pin();
-            _offset = 0;
-            Tag = 0;
+            if (MemoryMarshal.TryGetMemoryManager<T, RetainableMemory<T>>(memory, out var manager))
+            {
+                manager.Increment();
+                _manager = manager;
+                _offset = 0;
+                _length = memory.Length;
+            }
+            else if (MemoryMarshal.TryGetArray<T>(memory, out var segment))
+            {
+                _manager = ArrayMemory<T>.Create(segment.Array, segment.Offset, segment.Count, true);
+                _manager.Increment();
+                _offset = 0;
+                _length = _manager.Length;
+            }
+            else
+            {
+                ThrowNotSupportedMemeoryType();
+                _manager = default;
+                _offset = 0;
+                _length = 0;
+            }
+
 #if DETECT_LEAKS
             _finalizeChecker = new PanicOnFinalize();
 #endif
         }
 
-        internal RetainedMemory(T[] bytes)
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static void ThrowNotSupportedMemeoryType()
         {
-            _memory = (Memory<T>)bytes;
-            _memoryHandle = default;
-            _offset = 0;
-            Tag = 0;
+            ThrowHelper.ThrowNotSupportedException("Only RetainableMemory<T> and array-backed Memory is supported");
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal RetainedMemory(RetainableMemory<T> memory, int offset, int length, bool borrow)
+        {
+            Debug.Assert(unchecked((uint)offset + (uint)length <= memory.Length));
+
+            if (borrow)
+            {
+                memory.Increment();
+            }
+
+            _manager = memory;
+            _offset = offset;
+            _length = length;
+
             // We do not need to Pin arrays, they do not have ref count. Will be pinned when Pointer is accessed.
 #if DETECT_LEAKS
             _finalizeChecker = new PanicOnFinalize();
 #endif
         }
 
-        /// <summary>
-        /// Used internally with "fake" handle, that could unpin owned buffer but
-        /// does not hold a pinned GCHandle. However, any existing MemoryHandle
-        /// should work and the dispose method of RetainedMemory will dispose
-        /// MemoryHandle (i.e. ownership of the handle is *transfered* into this ctor).
-        /// </summary>
-        internal RetainedMemory(Memory<T> memory, MemoryHandle handle)
-        {
-            _memory = memory;
-            _memoryHandle = handle;
-            _offset = 0;
-            Tag = 0;
-#if DETECT_LEAKS
-            _finalizeChecker = new PanicOnFinalize();
-#endif
-        }
-
+        [Obsolete("Always pinned")]
         public bool IsPinned
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get
-            {
-                unsafe
-                {
-                    return _memoryHandle.Pointer != null;
-                }
-            }
+            get => true;
         }
 
         public bool IsEmpty
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => _memory.IsEmpty;
+            get => _length == 0;
         }
 
         public unsafe void* Pointer
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get
-            {
-                var ptr = _memoryHandle.Pointer;
-                if (ptr != null) return (byte*)ptr + _offset;
-                // replace handles
-                var newHandle = Memory.Pin();
-                _memoryHandle.Dispose();
-                _memoryHandle = newHandle;
-                return (byte*)_memoryHandle.Pointer + _offset;
-            }
+            get => Unsafe.Add<T>(_manager.Pointer, _offset);
         }
 
-        /// <summary>
-        /// Memory.
-        /// </summary>
         public Memory<T> Memory
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => _memory;
+            get => _manager.Memory.Slice(_offset, _length);
         }
 
-        /// <summary>
-        /// A shortcut to Memory.Span property.
-        /// </summary>
         public Span<T> Span
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => _memory.Span;
+            get => _manager.GetSpan().Slice(_offset, _length);
         }
 
         /// <summary>
@@ -149,7 +130,7 @@ namespace Spreads.Buffers
         public int Count
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => _memory.Length;
+            get => _length;
         }
 
         /// <summary>
@@ -158,43 +139,48 @@ namespace Spreads.Buffers
         public int Length
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => _memory.Length;
+            get => _length;
         }
 
-        /// <summary>
-        /// Slice in-place, keep ownership.
-        /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Trim(int start, int length)
+        public RetainedMemory<T> Slice(int start)
         {
-            _memory = _memory.Slice(start, length);
-            _offset = _offset + start;
-
-            // TODO review and remove if there is no better way than _offset
-            //if (typeof(T) == typeof(byte))
-            //{
-            //    var bmem = (Memory<byte>) (object) (_memory);
-            //    if (MemoryMarshal.TryGetMemoryManager<byte, UnmanagedMemory<byte>>(bmem, out var mng))
-            //    {
-            //        _memoryHandle = mng.GetHandleNoIncrement(start);
-            //        _memory = _memory.Slice(start, length);
-            //        return;
-            //    }
-            //}
-
-            //if(_memoryHandle.Pointer != null)
-            //{
-            //    _memory = _memory.Slice(start, length);
-            //    var h = _memoryHandle;
-            //    _memoryHandle = _memory.Pin();
-            //    h.Dispose();
-            //}
+            return Slice(start, _length - start);
         }
 
-        [MethodImpl(MethodImplOptions.NoInlining)]
-        private static void ThrowTrimLength()
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public RetainedMemory<T> Slice(int start, int length)
         {
-            ThrowHelper.ThrowArgumentOutOfRangeException("start + length");
+            if (unchecked((uint)start + (uint)length <= _length))
+            {
+                return new RetainedMemory<T>(_manager, _offset + start, length, false);
+            }
+            BuffersThrowHelper.ThrowBadLength();
+            return default;
+        }
+
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public RetainedMemory<T> Clone()
+        {
+            return new RetainedMemory<T>(_manager, _offset, _length, true);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public RetainedMemory<T> Clone(int start)
+        {
+            return Clone(start, _length - start);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public RetainedMemory<T> Clone(int start, int length)
+        {
+            if (unchecked((uint)start + (uint)length <= _length))
+            {
+                return new RetainedMemory<T>(_manager, _offset + start, length, true);
+            }
+            BuffersThrowHelper.ThrowBadLength();
+            return default;
         }
 
         /// <summary>
@@ -206,24 +192,14 @@ namespace Spreads.Buffers
 #if DETECT_LEAKS
             _finalizeChecker.Dispose();
 #endif
-            _memoryHandle.Dispose();
-            _memory = default;
-        }
-
-        /// <summary>
-        /// Increment the underlying OwnedBuffer reference count and return a copy of this preserved memory.
-        /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public RetainedMemory<T> Clone()
-        {
-            return new RetainedMemory<T>(Memory);
+            _manager.Decrement();
         }
 
 #if DETECT_LEAKS
         internal class PanicOnFinalize : IDisposable
         {
             public bool Disposed;
-            public string Callstack = System.Environment.StackTrace;
+            public string Callstack = Environment.StackTrace;
 
             ~PanicOnFinalize()
             {
@@ -342,8 +318,8 @@ namespace Spreads.Buffers
 #if !NETCOREAPP2_1
                 BufferPool<byte>.Return(buffer);
 #endif
-                rm.Trim(0, totalRead);
-                return rm;
+                
+                return rm.Slice(0, totalRead);
             }
         }
     }

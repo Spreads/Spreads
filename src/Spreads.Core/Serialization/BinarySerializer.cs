@@ -211,7 +211,7 @@ namespace Spreads.Serialization
 
             if (compressionMethod == CompressionMethod.None)
             {
-                tmpArray.Trim(firstOffset, tmpArray.Length - firstOffset);
+                tmpArray = tmpArray.Slice(firstOffset, tmpArray.Length - firstOffset);
                 temporaryBuffer = tmpArray;
                 return totalLength;
             }
@@ -227,7 +227,7 @@ namespace Spreads.Serialization
 
             if (compressedSize > 0)
             {
-                tmpArray2.Trim(0, compressedSize);
+                tmpArray2 = tmpArray2.Slice(0, compressedSize);
                 temporaryBuffer = tmpArray2;
                 var headerx = new DirectBuffer(tmpArray2.Length, (byte*)tmpArray2.Pointer).Read<DataTypeHeader>(0);
                 return compressedSize;

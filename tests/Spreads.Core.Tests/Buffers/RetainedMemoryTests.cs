@@ -150,7 +150,7 @@ namespace Spreads.Core.Tests.Buffers
 
             var initialPtr = (IntPtr)rm.Pointer;
 
-            rm.Trim(1, 100);
+            rm = rm.Slice(1, 100);
 
             Assert.AreEqual(initialPtr.ToInt64() + 1, ((IntPtr)rm.Pointer).ToInt64());
 
@@ -159,7 +159,7 @@ namespace Spreads.Core.Tests.Buffers
 
             initialPtr = (IntPtr)rm.Pointer;
 
-            rm.Trim(1, 100);
+            rm = rm.Slice(1, 100);
 
             Assert.AreEqual(initialPtr.ToInt64() + 1, ((IntPtr)rm.Pointer).ToInt64());
 
