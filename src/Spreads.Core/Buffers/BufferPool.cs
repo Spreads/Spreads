@@ -36,13 +36,19 @@ namespace Spreads.Buffers
     {
         internal static BufferPool Shared = new BufferPool();
 
+        public static RetainableMemoryPool<byte,ArrayMemory<byte>> PinnedArrayMemoryPool = 
+            new RetainableMemoryPool<byte, ArrayMemory<byte>>(ArrayMemory<byte>.Create, 
+                2048, // < one page with array header
+                64 * 1024, // not in LOH
+                Environment.ProcessorCount*2, 2);
+
         /// <summary>
         /// Default OffHeap pool has capacity of 4. This static field could be changed to a new instance.
         /// Buffer never cleared automatically and user must clear them when needed. Zeroing is a big cost
         /// and even new[]-ing has to zero memory, this is why it is slow.
         /// Please know what you are doing.
         /// </summary>
-        internal static OffHeapMemoryPool<byte> OffHeap = new OffHeapMemoryPool<byte>(4);
+        public static OffHeapMemoryPool<byte> OffHeapMemoryPool = new OffHeapMemoryPool<byte>(4);
 
         // max pooled array size
         internal const int SharedBufferSize = 4096;
@@ -202,14 +208,27 @@ namespace Spreads.Buffers
         {
             if (length >= Settings.LOH_LIMIT)
             {
-                if (OffHeap != null)
+                if (OffHeapMemoryPool != null)
                 {
-                    return OffHeap.RetainMemory(length, requireExact);
+                    return OffHeapMemoryPool.RetainMemory(length, requireExact);
                 }
                 ThrowHelper.ThrowInvalidOperationException("BufferPool.OffHeap is null while requesting RetainNoLoh");
             }
             return Shared.RetainMemory(length, requireExact);
         }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static ArrayMemory<T> RentArrayMemory<T>(int minLength)
+        {
+            throw new NotImplementedException();
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static OffHeapMemory<T> RentOffHeapMemory<T>(int minLength) where T : struct
+        {
+            throw new NotImplementedException();
+        }
+
     }
 
     internal static class BufferPoolRetainedMemoryHelper<T>
@@ -220,6 +239,7 @@ namespace Spreads.Buffers
 
         public static void DisposeRetainedMemory(T[] array, int offset, int len)
         {
+            // TODO assert here
             for (int i = offset; i < offset + len; i++)
             {
                 // TODO test it!

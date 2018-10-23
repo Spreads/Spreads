@@ -180,7 +180,7 @@ namespace Spreads.Buffers
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static RecyclableMemoryStream Create(RetainedMemory<byte> initialLargeBuffer, int length)
         {
-            if ((uint) length > (uint) initialLargeBuffer.Length)
+            if ((uint)length > (uint)initialLargeBuffer.Length)
             {
                 ThrowHelper.ThrowArgumentException(nameof(length));
             }
@@ -299,9 +299,9 @@ namespace Spreads.Buffers
             return Interlocked.Increment(ref _refCount);
         }
 
-#endregion Constructors
+        #endregion Constructors
 
-#region Dispose and Finalize
+        #region Dispose and Finalize
 
         ~RecyclableMemoryStream()
         {
@@ -404,9 +404,9 @@ namespace Spreads.Buffers
             Dispose(true);
         }
 
-#endregion Dispose and Finalize
+        #endregion Dispose and Finalize
 
-#region MemoryStream overrides
+        #region MemoryStream overrides
 
         /// <summary>
         /// Gets or sets the capacity
@@ -775,7 +775,6 @@ namespace Spreads.Buffers
             _length = Math.Max(_position, _length);
         }
 
-
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void SafeWrite(Memory<byte> buffer)
         {
@@ -1049,12 +1048,12 @@ namespace Spreads.Buffers
                     var array = _largeBuffer.Memory.ToArray();
                     stream.Write(array, 0, checked((int)_length));
                 }
-               
+
 #endif
             }
         }
 
-#endregion MemoryStream overrides
+        #endregion MemoryStream overrides
 
         public struct ChunksEnumerable : IEnumerable<Memory<byte>>
         {
@@ -1209,7 +1208,7 @@ namespace Spreads.Buffers
             return false;
         }
 
-#region Helper Methods
+        #region Helper Methods
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void CheckDisposed()
@@ -1317,6 +1316,6 @@ namespace Spreads.Buffers
             }
         }
 
-#endregion Helper Methods
+        #endregion Helper Methods
     }
 }

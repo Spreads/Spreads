@@ -13,8 +13,7 @@ namespace Spreads.Buffers
 {
     // HAA0301/HAA0302 only happens once per pool
 
-
-    public class OffHeapMemoryPool<T> : MemoryPool<T> where T : struct
+    public class OffHeapMemoryPool<T> : MemoryPool<T> //where T : struct
     {
         /// <summary>
         /// Internal for tests only, do not use in other places.
@@ -54,7 +53,7 @@ namespace Spreads.Buffers
         {
             // for large buffers we prefer small number of them but increase the size on-demand
 
-            var mem = RentImpl(length);
+            var mem = RentMemory(length);
             if (requireExact)
             {
                 return mem.Retain(length);
@@ -77,11 +76,11 @@ namespace Spreads.Buffers
                 minimumCapacity = 4096;
             }
 
-            return RentImpl(minimumCapacity);
+            return RentMemory(minimumCapacity);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public OffHeapMemory<T> RentImpl(int minimumCapacity)
+        public OffHeapMemory<T> RentMemory(int minimumCapacity)
         {
             if (unchecked((uint)minimumCapacity) > _maxBufferSize)
             {

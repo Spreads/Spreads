@@ -8,7 +8,7 @@ using System.Runtime.CompilerServices;
 
 namespace Spreads.Buffers
 {
-    public sealed unsafe class OffHeapMemory<T> : RetainableMemory<T> where T : struct
+    public sealed unsafe class OffHeapMemory<T> : RetainableMemory<T> //where T : struct
     {
         private OffHeapBuffer<T> _offHeapBuffer;
 
@@ -63,7 +63,7 @@ namespace Spreads.Buffers
 
                 if (!pooled)
                 {
-                    // as if finalizing
+                    // as if finalizing, same as in ArrayMemorySlice
                     GC.SuppressFinalize(this);
                     Dispose(false);
                 }

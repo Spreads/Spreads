@@ -6,6 +6,7 @@ using NUnit.Framework;
 using Spreads.Buffers;
 using Spreads.Utils;
 using System;
+using System.Collections.Generic;
 
 namespace Spreads.Core.Tests.Buffers
 {
@@ -39,7 +40,7 @@ namespace Spreads.Core.Tests.Buffers
                 for (int i = 0; i < count; i++)
                 {
                     var memory = ArrayMemory<byte>.Create(32 * 1024);
-                    ((IDisposable) memory).Dispose();
+                    ((IDisposable)memory).Dispose();
                 }
             }
         }
@@ -49,19 +50,66 @@ namespace Spreads.Core.Tests.Buffers
         {
             var count = 100_000_000;
 
-            var pool = new RetainableMemoryPool<byte, ArrayMemory<byte>>(ArrayMemory<byte>.Create, 16,
+            var pool = new RetainableMemoryPool<byte, ArrayMemory<byte>>(null, 16,
                 1024 * 1024, 50, 2);
+
+            for (int i = 0; i < 1000; i++)
+            {
+                var memory = pool.RentMemory(32 * 1024);
+                //(memory.Pin(0)).Dispose();
+                //if (memory.IsDisposed || memory.IsRetained)
+                //{
+                //    Assert.Fail();
+                //}
+                pool.Return(memory);
+            }
 
             using (Benchmark.Run("FullCycle", count))
             {
                 for (int i = 0; i < count; i++)
                 {
-                    var memory = pool.Rent(32 * 1024);
+                    var memory = pool.RentMemory(32 * 1024);
+                    //(memory.Pin(0)).Dispose();
+                    //if (memory.IsDisposed || memory.IsRetained)
+                    //{
+                    //    Assert.Fail();
+                    //}
                     pool.Return(memory);
                 }
             }
 
-            pool.DisposeBuckets();
+            pool.Dispose();
+        }
+
+        [Test]
+        public void RentReturnBenchmarkRetainablePoolOverCapacity()
+        {
+            var count = 1_000_000;
+            var capacity = 25;
+            var batch = capacity * 2;
+            var pool = new RetainableMemoryPool<byte, ArrayMemory<byte>>(ArrayMemory<byte>.Create, 16,
+                1024 * 1024, capacity, 0);
+
+            var list = new List<ArrayMemory<byte>>(batch);
+
+            using (Benchmark.Run("FullCycle", count * batch))
+            {
+                for (int i = 0; i < count; i++)
+                {
+                    for (int j = 0; j < batch; j++)
+                    {
+                        list.Add(pool.RentMemory(32 * 1024));
+                    }
+
+                    foreach (var arrayMemory in list)
+                    {
+                        pool.Return(arrayMemory);
+                    }
+                    list.Clear();
+                }
+            }
+
+            pool.Dispose();
         }
 
         [Test]
@@ -85,6 +133,107 @@ namespace Spreads.Core.Tests.Buffers
                     }
                 }
             }
+        }
+
+        [Test]
+        public void RentReturnPinnedSlicesRetainablePool()
+        {
+            var maxBuffers = 128 / 64; // 2
+
+            var pool = new RetainableMemoryPool<byte, ArrayMemory<byte>>(null, 32 * 1024,
+                1024 * 1024, maxBuffers, 0);
+
+            var list = new List<ArrayMemory<byte>>();
+
+            using (Benchmark.Run("FullCycle"))
+            {
+                for (int i = 0; i < maxBuffers * 2; i++)
+                {
+                    list.Add(pool.RentMemory(64 * 1024));
+                }
+
+                for (int i = 0; i < maxBuffers; i++)
+                {
+                    ((IDisposable)list[i]).Dispose();
+                }
+
+                for (int i = 2; i < maxBuffers * 2; i++)
+                {
+                    pool.Return(list[i]);
+                }
+            }
+
+            pool.Dispose();
+        }
+
+        [Test]
+        public void RentReturnPinnedSlicesRetainablePoolBadBehavior()
+        {
+            // Rent many then return many
+
+            var maxBuffers = 32; // 2
+            var buffersToTake = 128;
+
+            var pool = new RetainableMemoryPool<byte, ArrayMemory<byte>>(null, 32 * 1024,
+                1024 * 1024, maxBuffers, 0);
+
+            var list = new List<ArrayMemory<byte>>();
+
+            using (Benchmark.Run("FullCycle"))
+            {
+                for (int i = 0; i < buffersToTake; i++)
+                {
+                    list.Add(pool.RentMemory(64 * 1024));
+                }
+
+                for (int i = 0; i < buffersToTake; i++)
+                {
+                    ((IDisposable)list[i]).Dispose();
+                }
+            }
+
+            Console.WriteLine("Disposing pool");
+            pool.Dispose();
+        }
+
+        [Test]
+        public void RentReturnPinnedSlicesRetainablePoolBadBehaviorDropped()
+        {
+            // Rent many then return many
+
+            var maxBuffers = 32; // 2
+            var buffersToTake = 1_000_000;
+
+            var pool = new RetainableMemoryPool<byte, ArrayMemory<byte>>(null, 32 * 1024,
+                1024 * 1024, maxBuffers, 0);
+
+            using (Benchmark.Run("FullCycle", buffersToTake))
+            {
+                for (int i = 0; i < buffersToTake; i++)
+                {
+                    var memory = pool.RentMemory(64 * 1024);
+                    // pool.Return(memory);
+                    //if (i % 100_000 == 0)
+                    //{
+                    //    Console.WriteLine(i);
+                    //}
+                    //if (i % 1000 == 0)
+                    //{
+                    //    GC.Collect(2, GCCollectionMode.Forced, true);
+                    //    GC.WaitForPendingFinalizers();
+                    //    GC.Collect(2, GCCollectionMode.Forced, true);
+                    //    GC.WaitForPendingFinalizers();
+                    //}
+                }
+
+                GC.Collect(2, GCCollectionMode.Forced, true);
+                GC.WaitForPendingFinalizers();
+                GC.Collect(2, GCCollectionMode.Forced, true);
+                GC.WaitForPendingFinalizers();
+            }
+
+            Console.WriteLine("Disposing pool");
+            pool.Dispose();
         }
     }
 }

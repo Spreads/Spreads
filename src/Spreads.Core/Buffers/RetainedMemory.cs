@@ -38,8 +38,10 @@ namespace Spreads.Buffers
     public struct RetainedMemory<T> : IDisposable
     {
         internal Memory<T> _memory;
+
         // Could add Deconstruct method
         internal MemoryHandle _memoryHandle;
+
         private int _offset;
         internal int Tag;
 
@@ -187,7 +189,6 @@ namespace Spreads.Buffers
             //    _memoryHandle = _memory.Pin();
             //    h.Dispose();
             //}
-
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
@@ -195,7 +196,6 @@ namespace Spreads.Buffers
         {
             ThrowHelper.ThrowArgumentOutOfRangeException("start + length");
         }
-
 
         /// <summary>
         /// Release a reference of the underlying OwnedBuffer.
@@ -271,7 +271,7 @@ namespace Spreads.Buffers
             var knownSize = -1;
             if (stream.CanSeek)
             {
-                knownSize = checked((int) stream.Length);
+                knownSize = checked((int)stream.Length);
                 rm = BufferPool.Retain(knownSize);
             }
             else
@@ -344,9 +344,7 @@ namespace Spreads.Buffers
 #endif
                 rm.Trim(0, totalRead);
                 return rm;
-
             }
         }
-
     }
 }

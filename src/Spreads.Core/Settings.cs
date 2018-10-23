@@ -207,5 +207,8 @@ namespace Spreads
         }
 
         public static int AtomicCounterPoolBucketSize { get; set; } = 1024;
+        public static bool LogMemoryPoolEvents { get; set; } = false;
+
+        internal const int SlabLength = 128 * 1024;
     }
 }

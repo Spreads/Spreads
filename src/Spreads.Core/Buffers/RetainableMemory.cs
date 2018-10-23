@@ -18,6 +18,10 @@ namespace Spreads.Buffers
     public abstract unsafe class RetainableMemory<T> : MemoryManager<T>
     {
         internal AtomicCounter Counter;
+
+        // [p*_______[idx<---len--->]___] we must only check capacity at construction and then work from pointer
+
+        protected int _offset;
         protected int _length;
         protected void* _pointer;
 
@@ -109,7 +113,7 @@ namespace Spreads.Buffers
             // NOTE: even for the array-based memory handle is create when array is taken from pool
             // and is stored in MemoryManager until the array is released back to the pool.
             GCHandle handle = default;
-            return new MemoryHandle(Unsafe.Add<T>(_pointer, elementIndex), handle, this);
+            return new MemoryHandle(Unsafe.Add<T>(_pointer, _offset + elementIndex), handle, this);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)] // hope for devirt
@@ -187,6 +191,7 @@ namespace Spreads.Buffers
         {
             _pointer = null;
             _length = default;
+            _offset = default;
         }
 
         protected override void Dispose(bool disposing)

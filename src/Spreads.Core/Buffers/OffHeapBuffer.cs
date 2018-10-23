@@ -11,7 +11,7 @@ namespace Spreads.Buffers
     /// <summary>
     /// Completely not thread-safe with possible segfaults if created/resized from different threads.
     /// </summary>
-    public unsafe struct OffHeapBuffer<T> : IPinnedSpan<T> where T : struct
+    public unsafe struct OffHeapBuffer<T> : IPinnedSpan<T> //where T : struct
     {
         private static readonly int DefaultMinLength = 16383;
 
@@ -90,12 +90,6 @@ namespace Spreads.Buffers
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Span<TTo> GetSpan<TTo>() where TTo : struct
-        {
-            return MemoryMarshal.Cast<T, TTo>(Span);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal void EnsureCapacity(int newLength)
         {
             if (newLength > _itemLength)
@@ -123,7 +117,7 @@ namespace Spreads.Buffers
             }
             _itemLength = newLength;
 
-            _directBuffer = new DirectBuffer(_itemLength * Unsafe.SizeOf<T>(), (byte*) _pointer);
+            _directBuffer = new DirectBuffer(_itemLength * Unsafe.SizeOf<T>(), (byte*)_pointer);
         }
 
         public void Dispose()

@@ -155,7 +155,7 @@ namespace Spreads.Core.Tests.Buffers
             Assert.AreEqual(initialPtr.ToInt64() + 1, ((IntPtr)rm.Pointer).ToInt64());
 
 
-            rm = BufferPool.OffHeap.RetainMemory(1000);
+            rm = BufferPool.OffHeapMemoryPool.RetainMemory(1000);
 
             initialPtr = (IntPtr)rm.Pointer;
 

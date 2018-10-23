@@ -30,7 +30,7 @@ namespace Spreads.Core.Run
 #pragma warning restore 618
 
             var test = new ArrayMemoryTests();
-            test.RentReturnBenchmarkRetainablePool();
+            test.RentReturnPinnedSlicesRetainablePoolBadBehaviorDropped();
 
             //IlwdBenchmark();
 

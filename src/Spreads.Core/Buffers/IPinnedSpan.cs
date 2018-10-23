@@ -10,7 +10,7 @@ namespace Spreads.Buffers
     /// Helper interface to simplify work with pinned/native memory without relying only on Span.
     /// </summary>
     /// <typeparam name="T">Unmanaged struct yet without C# 7.3 `unmanaged` constraint.</typeparam>
-    public unsafe interface IPinnedSpan<T> : IDisposable where T : struct
+    public unsafe interface IPinnedSpan<T> : IDisposable //where T : struct
     {
         /// <summary>
         /// Pointer to the first element.
