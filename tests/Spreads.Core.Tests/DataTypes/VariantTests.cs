@@ -5,7 +5,6 @@
 using System;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
-using System.Threading;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
 using NUnit.Framework;
@@ -13,7 +12,7 @@ using Spreads.Collections;
 using Spreads.DataTypes;
 using Spreads.Utils;
 
-namespace Spreads.Tests.DataTypes
+namespace Spreads.Core.Tests.DataTypes
 {
     [TestFixture]
     public class VariantTests

@@ -12,6 +12,7 @@ using System.Runtime.CompilerServices;
 
 namespace Spreads.Core.Tests.Serialization
 {
+    [Category("CI")]
     [TestFixture]
     public class BinarySerializerHeaderTests
     {
@@ -99,6 +100,7 @@ namespace Spreads.Core.Tests.Serialization
             var typeEnumByte = db[1];
 
             Assert.AreEqual(123, typeEnumByte);
+            rm.Dispose();
         }
 
         [Test]
@@ -121,6 +123,7 @@ namespace Spreads.Core.Tests.Serialization
             var typeEnumByte = db[1];
 
             Assert.AreEqual(123, typeEnumByte);
+            rm.Dispose();
         }
     }
 }

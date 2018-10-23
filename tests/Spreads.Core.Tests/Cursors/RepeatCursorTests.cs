@@ -9,6 +9,7 @@ using System.Linq;
 
 namespace Spreads.Core.Tests.Cursors
 {
+    [Category("CI")]
     [TestFixture]
     public class RepeatCursorTests
     {

@@ -14,7 +14,7 @@ using Spreads.Buffers;
 using Spreads.Serialization;
 using Spreads.Utils;
 
-namespace Spreads.Tests
+namespace Spreads.Core.Tests
 {
     [TestFixture]
     public unsafe class NanoOptimizationTests

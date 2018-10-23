@@ -214,7 +214,7 @@ namespace Spreads.Core.Tests.Buffers
 
         ////////////////////////////// SERVICE ///////////////////////////////////////
 
-        [Test]
+        [Test, Explicit("with static side effects")]
         // ReSharper disable once InconsistentNaming
         public void ServiceCouldCreateACPoolAndAcquireRelease()
         {
@@ -243,7 +243,7 @@ namespace Spreads.Core.Tests.Buffers
             AtomicCounterService.ReleaseCounter(ac);
         }
 
-        [Test]
+        [Test, Explicit("with static side effects")]
         public void ServiceCouldGrowBucketsWithoutResize()
         {
             // 2 counters per bucket
@@ -269,7 +269,7 @@ namespace Spreads.Core.Tests.Buffers
             Assert.AreEqual(4, AtomicCounterService.Buckets.Where(x => x != null).Count());
         }
 
-        [Test]
+        [Test, Explicit("long running")]
         public void ServiceCouldGrowBucketsWithResize()
         {
             // 2 counters per bucket
@@ -306,7 +306,7 @@ namespace Spreads.Core.Tests.Buffers
             }
         }
 
-        [Test]
+        [Test, Explicit("long running")]
         public void ServiceBenchmark()
         {
             var count = 10000;
@@ -345,7 +345,7 @@ namespace Spreads.Core.Tests.Buffers
             Assert.AreEqual(1, AtomicCounterService.Buckets.Where(x => x != null).Count());
         }
 
-        [Test]
+        [Test, Explicit("long running")]
         public void ServiceBenchmarkNoRelease()
         {
             var count = 100000;

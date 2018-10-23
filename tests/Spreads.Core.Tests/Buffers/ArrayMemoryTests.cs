@@ -10,6 +10,7 @@ using System.Collections.Generic;
 
 namespace Spreads.Core.Tests.Buffers
 {
+    [Category("CI")]
     [TestFixture]
     public class ArrayMemoryTests
     {
@@ -30,7 +31,7 @@ namespace Spreads.Core.Tests.Buffers
             Assert.Throws<ObjectDisposedException>(() => { ((IDisposable)memory).Dispose(); });
         }
 
-        [Test]
+        [Test, Explicit("long running")]
         public void RentReturnBenchmark()
         {
             var count = 100_000_000;
@@ -45,7 +46,7 @@ namespace Spreads.Core.Tests.Buffers
             }
         }
 
-        [Test]
+        [Test, Explicit("long running")]
         public void RentReturnBenchmarkRetainablePool()
         {
             var count = 100_000_000;
@@ -81,7 +82,7 @@ namespace Spreads.Core.Tests.Buffers
             pool.Dispose();
         }
 
-        [Test]
+        [Test, Explicit("long running")]
         public void RentReturnBenchmarkRetainablePoolOverCapacity()
         {
             var count = 1_000_000;
@@ -112,7 +113,7 @@ namespace Spreads.Core.Tests.Buffers
             pool.Dispose();
         }
 
-        [Test]
+        [Test, Explicit("long running")]
         public void RentReturnPinUnpinBenchmark()
         {
             var count = 10_000_000;
@@ -135,7 +136,7 @@ namespace Spreads.Core.Tests.Buffers
             }
         }
 
-        [Test]
+        [Test, Explicit("long running")]
         public void RentReturnPinnedSlicesRetainablePool()
         {
             var maxBuffers = 128 / 64; // 2
@@ -166,7 +167,7 @@ namespace Spreads.Core.Tests.Buffers
             pool.Dispose();
         }
 
-        [Test]
+        [Test, Explicit("long running")]
         public void RentReturnPinnedSlicesRetainablePoolBadBehavior()
         {
             // Rent many then return many
@@ -196,7 +197,7 @@ namespace Spreads.Core.Tests.Buffers
             pool.Dispose();
         }
 
-        [Test]
+        [Test, Explicit("long running")]
         public void RentReturnPinnedSlicesRetainablePoolBadBehaviorDropped()
         {
             // Rent many then return many

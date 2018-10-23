@@ -7,7 +7,7 @@ using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using NUnit.Framework;
 
-namespace Spreads.Tests
+namespace Spreads.Core.Tests
 {
     public class IdClass<T>
     {

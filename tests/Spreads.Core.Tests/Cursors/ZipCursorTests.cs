@@ -14,6 +14,7 @@ using Spreads.Utils;
 
 namespace Spreads.Core.Tests.Cursors
 {
+    [Category("CI")]
     [TestFixture]
     public class ZipCursorTests
     {
@@ -170,7 +171,7 @@ namespace Spreads.Core.Tests.Cursors
         [Test]
         public void CouldAddTwoSeriesWithDifferentKeys()
         {
-            var count = 1000000;
+            var count = 10000;
             var sm1 = new SortedMap<int, double>();
             var sm2 = new SortedMap<int, double>();
 
@@ -226,7 +227,7 @@ namespace Spreads.Core.Tests.Cursors
         [Test]
         public void CouldUseBaseSeriesAddOperator()
         {
-            var count = 1000000;
+            var count = 10000;
             var sm1 = new SortedMap<int, double>();
             var sm2 = new SortedMap<int, double>();
 
@@ -288,7 +289,7 @@ namespace Spreads.Core.Tests.Cursors
         [Test]
         public void CouldAddContinuousSeries()
         {
-            var count = 1000000; //0;
+            var count = 10000; //0;
             var sm1 = new SortedMap<int, double>();
             var sm2 = new SortedMap<int, double>();
 
@@ -445,7 +446,7 @@ namespace Spreads.Core.Tests.Cursors
             Benchmark.Dump();
         }
 
-        [Test]
+        [Test, Ignore("TODO old method not supported ")]
         public void DiscreteZipIsCorrectByRandomCheck()
         {
             var sm1 = new SortedMap<int, int>();
@@ -611,7 +612,7 @@ namespace Spreads.Core.Tests.Cursors
             Benchmark.Dump();
         }
 
-        [Test]
+        [Test, Ignore("TODO old method not supported ")]
         public void ContinuousZipIsCorrectByRandomCheck()
         {
             var sm1 = new SortedMap<int, int>();

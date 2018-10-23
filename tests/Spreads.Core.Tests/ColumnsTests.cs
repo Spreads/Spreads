@@ -10,7 +10,7 @@ using NUnit.Framework;
 using Spreads.DataTypes;
 using Spreads.Utils.FastMember;
 
-namespace Spreads.Tests
+namespace Spreads.Core.Tests
 {
     public class TestRow
     {

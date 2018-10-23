@@ -10,7 +10,7 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using NUnit.Framework;
 
-namespace Spreads.Tests.Algorithms
+namespace Spreads.Core.Tests.Algorithms
 {
     [TestFixture]
     public class AlgoTests

@@ -6,7 +6,7 @@ using System;
 using System.Diagnostics;
 using Spreads.Core.Tests.Buffers;
 
-namespace Spreads.Tests
+namespace Spreads.Core.Tests
 {
     internal class Program
     {

@@ -15,6 +15,7 @@ namespace Spreads.Core.Tests.Serialization
 {
     // TODO add this to docs, this is a smaple how to work with custom binary/Json serialization
 
+    [Category("CI")]
     [TestFixture]
     public class BinaryConverterTests
     {
@@ -138,7 +139,7 @@ namespace Spreads.Core.Tests.Serialization
             var rm = BufferPool.Retain(100_000_000);
             var db = new DirectBuffer(rm.Span);
 
-            var count = 500_000;
+            var count = 50_000;
             var rounds = 10;
 
             var values = new SampleStruct[count];
@@ -196,6 +197,7 @@ namespace Spreads.Core.Tests.Serialization
             }
 
             Benchmark.Dump();
+            rm.Dispose();
         }
 
         [Test]
@@ -208,8 +210,8 @@ namespace Spreads.Core.Tests.Serialization
             var rm = BufferPool.Retain(100_000_000);
             var db = new DirectBuffer(rm.Span);
 
-            var count = 100_000;
-            var rounds = 10;
+            var count = 1_000;
+            var rounds = 1;
 
             var values = new SampleStruct[count];
 
@@ -267,6 +269,7 @@ namespace Spreads.Core.Tests.Serialization
             }
 
             Benchmark.Dump();
+            rm.Dispose();
         }
     }
 }

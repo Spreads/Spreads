@@ -11,6 +11,7 @@ namespace Spreads.Collections.Experimental
         long Id { get; }
     }
 
+    [Obsolete("Delete this. Main idea is in LockedWeakDictionary.")]
     class LRUCache<T> where T : class, WithId
     {
         private int count;

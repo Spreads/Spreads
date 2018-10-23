@@ -229,7 +229,6 @@ namespace Spreads.Serialization
             {
                 tmpArray2 = tmpArray2.Slice(0, compressedSize);
                 temporaryBuffer = tmpArray2;
-                var headerx = new DirectBuffer(tmpArray2.Length, (byte*)tmpArray2.Pointer).Read<DataTypeHeader>(0);
                 return compressedSize;
             }
 
@@ -237,9 +236,21 @@ namespace Spreads.Serialization
             return -1;
         }
 
+
+#pragma warning disable EPS05 // Use in-modifier for a readonly struct: public method should support older C# versions
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int Write<T>(T value, ref DirectBuffer pinnedDestination,
+            RetainedMemory<byte> temporaryBuffer = default,
+            SerializationFormat format = default,
+            Timestamp timestamp = default)
+#pragma warning restore EPS05 // Use in-modifier for a readonly struct
+        {
+            return Write(in value, ref pinnedDestination, in temporaryBuffer, format, timestamp);
+        }
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static int Write<T>(in T value, ref DirectBuffer pinnedDestination,
-            RetainedMemory<byte> temporaryBuffer = default,
+            in RetainedMemory<byte> temporaryBuffer = default,
             SerializationFormat format = default,
             Timestamp timestamp = default)
         {
@@ -253,124 +264,140 @@ namespace Spreads.Serialization
                 // fixed size binary is never compressed
                 if (TypeHelper<T>.IsFixedSize)
                 {
+                    Debug.Assert(temporaryBuffer.IsEmpty);
                     return TypeHelper<T>.WriteWithHeader(in value, pinnedDestination, timestamp);
                 }
                 // Use custom TypeHelper<T>.BinaryConverter only when asked for isBinary
                 bc = TypeHelper<T>.BinaryConverter ?? JsonBinaryConverter<T>.Instance;
             }
 
-            return WriteVarSize(value, ref pinnedDestination, temporaryBuffer, format, timestamp, bc);
+            return WriteVarSize(value, ref pinnedDestination, in temporaryBuffer, format, timestamp, bc);
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
-        private static int WriteVarSize<T>(T value, ref DirectBuffer pinnedDestination, RetainedMemory<byte> temporaryBuffer, SerializationFormat format,
+        private static int WriteVarSize<T>(T value,
+            ref DirectBuffer pinnedDestination, 
+            in RetainedMemory<byte> temporaryBuffer, 
+            SerializationFormat format,
             Timestamp timestamp, IBinaryConverter<T> bc)
         {
-            var hasTs = (long)timestamp != default;
-            var sizeOf = 0;
-            if (temporaryBuffer.IsEmpty)
+            RetainedMemory<byte> rm = temporaryBuffer;
+            try
             {
-                sizeOf = SizeOf(in value, out temporaryBuffer, format, timestamp);
-                if (!temporaryBuffer.IsEmpty && sizeOf != temporaryBuffer.Length)
+                var hasTs = (long) timestamp != default;
+                var sizeOf = 0;
+                if (rm.IsEmpty)
                 {
-                    return int.MinValue;
+                    rm.Dispose();
+                    sizeOf = SizeOf(in value, out rm, format, timestamp);
+                    if (!rm.IsEmpty && sizeOf != rm.Length)
+                    {
+                        rm.Dispose();
+                        return int.MinValue;
+                    }
                 }
-            }
 
-            if (!temporaryBuffer.IsEmpty)
-            {
-                sizeOf = temporaryBuffer.Length;
-                if (sizeOf > pinnedDestination.Length || sizeOf < DataTypeHeader.Size + 4)
+                if (!rm.IsEmpty)
                 {
-                    // kind of error code with info
+                    sizeOf = rm.Length;
+                    if (sizeOf > pinnedDestination.Length || sizeOf < DataTypeHeader.Size + 4)
+                    {
+                        // kind of error code with info
+                        sizeOf = -sizeOf;
+                    }
+                    else
+                    {
+                        rm.Span.CopyTo(pinnedDestination.Span);
+                        // in finally: rm.Dispose();
+                    }
+                    return sizeOf;
+                }
+
+                var compressionMethod = format.CompressionMethod();
+                if (compressionMethod != CompressionMethod.None)
+                {
+                    ThrowHelper.FailFast("Compressed format must return non-empty temporaryBuffer");
+                }
+
+                if (sizeOf < DataTypeHeader.Size + 4)
+                {
+                    return int.MinValue + 2;
+                }
+
+                if (bc == null)
+                {
+                    bc = JsonBinaryConverter<T>.Instance;
+                }
+
+                var header = TypeHelper<T>.DefaultBinaryHeader;
+                header.VersionAndFlags.ConverterVersion = bc.ConverterVersion;
+
+                // NB first step is to serialize, compressor could chose to copy (if small data or compressed is larger)
+                // not! header.VersionAndFlags.CompressionMethod = compressionMethod;
+
+                // NB binary is best effort
+                header.VersionAndFlags.IsBinary =
+                    bc != JsonBinaryConverter<T>.Instance; // not from format but what we are actually using now
+
+                if (sizeOf > pinnedDestination.Length)
+                {
                     return -sizeOf;
                 }
 
-                // Not that if temporaryBuffer not empty, we are not in super hot path (Json/custom struct) and correctness
-                // is more important than avoiding some extra calls
+                var pos = 0;
 
-                //var tmpHeader = *(DataTypeHeader*)temporaryBuffer.Pointer;
-                //if ((tmpHeader.VersionAndFlags.IsBinary && tmpHeader.IsTypeFixedSize) 
-                //    || tmpHeader.VersionAndFlags.SerializationFormat != format)
-                //{
-                //    // TODO (low) other header checks
-                //    return int.MinValue + 1;
-                //}
+                pos += DataTypeHeader.Size + 4; // + payload length
+                var tsSize = 0;
+                if (hasTs)
+                {
+                    tsSize = 8;
+                    header.VersionAndFlags.IsTimestamped = true;
+                    pinnedDestination.Write(pos, timestamp);
+                    pos += 8;
+                }
 
-                temporaryBuffer.Span.CopyTo(pinnedDestination.Span);
-                temporaryBuffer.Dispose();
-                return sizeOf;
+                // NB: after header.VersionAndFlags.IsTimestamped = true;
+                pinnedDestination.Write(0, header);
+                var tmpDestinationSlice = pinnedDestination.Slice(pos);
+
+                // TODO protect from bad BC impl by default, it could write through the end of destination
+                var written = bc.Write(value, ref tmpDestinationSlice);
+
+                if (pos + written != sizeOf)
+                {
+                    ThrowHelper.FailFast($"Wrong binary converter: sizeOf {sizeOf} != written {written}");
+                }
+
+                pinnedDestination.Write(DataTypeHeader.Size, tsSize + written);
+
+                return DataTypeHeader.Size + 4 + tsSize + written;
             }
-
-            var compressionMethod = format.CompressionMethod();
-            if (compressionMethod != CompressionMethod.None)
+            finally
             {
-                ThrowHelper.FailFast("Compressed format must return non-empty temporaryBuffer");
+                rm.Dispose();
             }
-
-            if (sizeOf < DataTypeHeader.Size + 4)
-            {
-                return int.MinValue + 2;
-            }
-
-            if (bc == null)
-            {
-                bc = JsonBinaryConverter<T>.Instance;
-            }
-
-            var header = TypeHelper<T>.DefaultBinaryHeader;
-            header.VersionAndFlags.ConverterVersion = bc.ConverterVersion;
-
-            // NB first step is to serialize, compressor could chose to copy (if small data or compressed is larger)
-            // not! header.VersionAndFlags.CompressionMethod = compressionMethod;
-
-            // NB binary is best effort
-            header.VersionAndFlags.IsBinary = bc != JsonBinaryConverter<T>.Instance; // not from format but what we are actually using now
-
-            if (sizeOf > pinnedDestination.Length)
-            {
-                return -sizeOf;
-            }
-
-            var pos = 0;
-
-            pos += DataTypeHeader.Size + 4; // + payload length
-            var tsSize = 0;
-            if (hasTs)
-            {
-                tsSize = 8;
-                header.VersionAndFlags.IsTimestamped = true;
-                pinnedDestination.Write(pos, timestamp);
-                pos += 8;
-            }
-
-            // NB: after header.VersionAndFlags.IsTimestamped = true;
-            pinnedDestination.Write(0, header);
-            var tmpDestinationSlice = pinnedDestination.Slice(pos);
-
-            // TODO protect from bad BC impl by default, it could write through the end of destination
-            var written = bc.Write(value, ref tmpDestinationSlice);
-
-            if (pos + written != sizeOf)
-            {
-                ThrowHelper.FailFast($"Wrong binary converter: sizeOf {sizeOf} != written {written}");
-            }
-
-            pinnedDestination.Write(DataTypeHeader.Size, tsSize + written);
-
-            return DataTypeHeader.Size + 4 + tsSize + written;
+        }
+#pragma warning disable EPS05 // Use in-modifier for a readonly struct
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int Write<T>(T value, Memory<byte> buffer,
+            RetainedMemory<byte> temporaryBuffer = default,
+            SerializationFormat format = default,
+            Timestamp timestamp = default)
+#pragma warning restore EPS05 // Use in-modifier for a readonly struct
+        {
+            return Write(in value, buffer, temporaryBuffer, format, timestamp);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static int Write<T>(in T value, Memory<byte> buffer,
-            RetainedMemory<byte> temporaryBuffer = default,
+            in RetainedMemory<byte> temporaryBuffer,
             SerializationFormat format = default,
             Timestamp timestamp = default)
         {
             using (var handle = buffer.Pin())
             {
                 var db = new DirectBuffer(buffer.Length, (byte*)handle.Pointer);
-                return Write(in value, ref db, temporaryBuffer, format, timestamp);
+                return Write(in value, ref db, in temporaryBuffer, format, timestamp);
             }
         }
 

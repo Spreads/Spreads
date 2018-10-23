@@ -9,7 +9,7 @@ using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
-namespace Spreads.Tests
+namespace Spreads.Core.Tests
 {
     // NB for 2 writers, Spreads locking is c. 1250 vs 850, for a single writer Spreads locking is more than 2 times faster than
     // lock{} even with additional work with version/nextVersion increment.

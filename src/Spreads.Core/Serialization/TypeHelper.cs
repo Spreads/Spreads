@@ -294,7 +294,7 @@ namespace Spreads.Serialization
 
             if (pinnedSize > 0)
             {
-                if (typeof(T).GetTypeInfo().IsPrimitive && typeof(T) != typeof(char))
+                if (typeof(T).GetTypeInfo().IsPrimitive)
                 {
                     return pinnedSize;
                 }

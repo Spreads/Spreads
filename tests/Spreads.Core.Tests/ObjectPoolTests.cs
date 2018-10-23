@@ -11,7 +11,7 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Spreads.Collections.Concurrent;
 
-namespace Spreads.Tests
+namespace Spreads.Core.Tests
 {
     [TestFixture]
     public class ObjectPoolTests

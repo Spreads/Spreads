@@ -90,6 +90,9 @@ namespace Spreads.Buffers
             offHeapMemory._pool = this;
             offHeapMemory.Init(minimumCapacity);
             Debug.Assert(!offHeapMemory.IsDisposed);
+#if DEBUG
+            offHeapMemory._stackTrace = Environment.StackTrace;
+#endif
             return offHeapMemory;
         }
 

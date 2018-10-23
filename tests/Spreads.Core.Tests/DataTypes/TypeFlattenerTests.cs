@@ -3,8 +3,9 @@ using System.Runtime.Serialization;
 using NUnit.Framework;
 using Spreads.DataTypes;
 
-namespace Spreads.Tests.DataTypes
+namespace Spreads.Core.Tests.DataTypes
 {
+    [Category("CI")]
     [TestFixture]
     public class TypeFlattenerTests
     {
@@ -40,7 +41,7 @@ namespace Spreads.Tests.DataTypes
 
             Console.WriteLine($"Columns: {flattener.Columns[0]} ");
 
-            Assert.AreEqual("Price", flattener.Columns[0]);
+            Assert.AreEqual("SmallDecimal", flattener.Columns[0]);
             Assert.AreEqual(new SmallDecimal(123.45), values[0]);
         }
 

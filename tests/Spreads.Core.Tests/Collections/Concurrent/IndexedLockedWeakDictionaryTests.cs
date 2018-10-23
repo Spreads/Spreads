@@ -13,6 +13,7 @@ using System.Threading.Tasks;
 
 namespace Spreads.Core.Tests.Collections.Concurrent
 {
+    [Category("CI")]
     [TestFixture]
     public class IndexedLockedWeakDictionaryTests
     {
@@ -72,7 +73,7 @@ namespace Spreads.Core.Tests.Collections.Concurrent
             Assert.AreEqual(count, IndexedStorageValue.CleanUpCount);
         }
 
-        [Test]
+        [Test, Explicit("long running")]
         public void ILWDLookupBench()
         {
             var count = 10_000_000;

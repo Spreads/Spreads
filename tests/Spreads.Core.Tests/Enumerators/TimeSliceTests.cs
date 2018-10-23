@@ -9,8 +9,9 @@ using System.Linq;
 using NUnit.Framework;
 using Spreads.DataTypes;
 
-namespace Spreads.Tests.Enumerators
+namespace Spreads.Core.Tests.Enumerators
 {
+    [Category("CI")]
     [TestFixture]
     public class TimeSliceTests
     {

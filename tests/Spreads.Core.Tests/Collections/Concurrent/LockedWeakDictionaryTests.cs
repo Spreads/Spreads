@@ -28,7 +28,7 @@ namespace Spreads.Core.Tests.Collections.Concurrent
             }
         }
 
-        [Test]
+        [Test, Explicit("long running")]
         public void WeakReferenceLookup()
         {
             // How bad is WR lookup

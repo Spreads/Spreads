@@ -7,8 +7,9 @@ using NUnit.Framework;
 using Spreads.Algorithms.Optimization;
 using Spreads.Collections.Generic;
 
-namespace Spreads.Tests
+namespace Spreads.Core.Tests
 {
+    [Category("CI")]
     [TestFixture]
     public class ParameterTests
     {

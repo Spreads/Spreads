@@ -5,7 +5,6 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using NUnit.Framework;
@@ -13,8 +12,9 @@ using Spreads.Buffers;
 using Spreads.DataTypes;
 using Spreads.Serialization;
 
-namespace Spreads.Tests
+namespace Spreads.Core.Tests
 {
+    [Category("CI")]
     [TestFixture]
     public class TypeHelperTests
     {
@@ -142,24 +142,6 @@ namespace Spreads.Tests
         }
 
         [Test]
-        public unsafe void CouldWriteBlittableStruct1()
-        {
-            throw new NotImplementedException();
-            //var dest = (Memory<byte>)new byte[1024];
-            //var handle = dest.Pin();
-            //var myBlittableStruct1 = new BlittableStruct1
-            //{
-            //    Value1 = 12345
-            //};
-            //TypeHelper<BlittableStruct1>.Write(myBlittableStruct1, (IntPtr)handle.Pointer);
-
-            //TypeHelper<BlittableStruct1>.Read((IntPtr)handle.Pointer, out var newBlittableStruct1, out _);
-            //Assert.AreEqual(myBlittableStruct1.Value1, newBlittableStruct1.Value1);
-            //handle.Dispose();
-        }
-
-
-        [Test]
         public void BoolIsFizedSizeOfOne()
         {
             Assert.AreEqual(1, TypeHelper<bool>.FixedSize);
@@ -181,22 +163,6 @@ namespace Spreads.Tests
 
         //}
 
-        [Test]
-        public unsafe void CouldWriteArray()
-        {
-            throw new NotImplementedException();
-            //var dest = (Memory<byte>)new byte[1024];
-            //var handle = dest.Pin();
-            //var myArray = new int[2];
-            //myArray[0] = 123;
-            //myArray[1] = 456;
-
-            //TypeHelper<int[]>.Write(myArray, (IntPtr)handle.Pointer);
-
-            //TypeHelper<int[]>.Read((IntPtr)handle.Pointer, out var newArray, out _);
-            //Assert.IsTrue(myArray.SequenceEqual(newArray));
-            //handle.Dispose();
-        }
 
         // TODO Extension method for Write<T>
         //[Test]

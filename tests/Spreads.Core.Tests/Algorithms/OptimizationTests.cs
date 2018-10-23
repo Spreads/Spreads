@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Spreads.Algorithms.Optimization;
 
-namespace Spreads.Tests.Algorithms
+namespace Spreads.Core.Tests.Algorithms
 {
     [TestFixture]
     public class OptimizationTests

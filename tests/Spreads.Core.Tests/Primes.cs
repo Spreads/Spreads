@@ -6,7 +6,7 @@ using System;
 using System.Collections.Generic;
 using NUnit.Framework;
 
-namespace Spreads.Tests
+namespace Spreads.Core.Tests
 {
     [TestFixture]
     public class Primes

@@ -13,6 +13,7 @@ using System.Runtime.InteropServices;
 
 namespace Spreads.Core.Tests.Blosc
 {
+    [Category("CI")]
     [TestFixture]
     public unsafe class BloscTests
     {

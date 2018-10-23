@@ -7,8 +7,9 @@ using NUnit.Framework;
 using Spreads.DataTypes;
 using Spreads.Utils;
 
-namespace Spreads.Tests.DataTypes
+namespace Spreads.Core.Tests.DataTypes
 {
+    [Category("CI")]
     [TestFixture]
     public class PriceTests
     {

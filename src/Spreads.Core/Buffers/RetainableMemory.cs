@@ -1,8 +1,4 @@
-﻿// Licensed to the .NET Foundation under one or more agreements.
-// The .NET Foundation licenses this file to you under the MIT license.
-// See the LICENSE file in the project root for more information.
-
-using System;
+﻿using System;
 using System.Buffers;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -24,6 +20,10 @@ namespace Spreads.Buffers
         protected int _offset;
         protected int _length;
         protected void* _pointer;
+
+#if DEBUG
+        internal string _stackTrace = Environment.StackTrace;
+#endif
 
         protected RetainableMemory(AtomicCounter counter)
         {
@@ -198,8 +198,16 @@ namespace Spreads.Buffers
 
         ~RetainableMemory()
         {
+#if DEBUG
+            // always dies in Debug
+            if (IsRetained)
+            {
+                throw new ApplicationException("Finalizing retained RM: " + _stackTrace);
+            }
+#endif
+
             // TODO review current logic, we throw when finalizing dropped retained object
-            // If it is safe enough to tell that when finalized it always dropped then we 
+            // If it is safe enough to tell that when finalized it always dropped then we
             // could ignore IsRetained when finalizing. Before that failing is better.
             // https://docs.microsoft.com/en-us/dotnet/api/system.object.finalize?redirectedfrom=MSDN&view=netframework-4.7.2#System_Object_Finalize
             // If Finalize or an override of Finalize throws an exception, and

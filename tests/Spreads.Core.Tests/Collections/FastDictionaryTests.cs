@@ -9,7 +9,7 @@ using Spreads.Collections.Generic;
 using Spreads.DataTypes;
 using Spreads.Utils;
 
-namespace Spreads.Tests.Collections
+namespace Spreads.Core.Tests.Collections
 {
     [TestFixture]
     public class FastDictionaryTests

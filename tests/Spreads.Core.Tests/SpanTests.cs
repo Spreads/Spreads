@@ -11,7 +11,7 @@ using NUnit.Framework;
 using Spreads.Collections;
 using Spreads.Utils;
 
-namespace Spreads.Tests
+namespace Spreads.Core.Tests
 {
     [TestFixture]
     public class SpanTests

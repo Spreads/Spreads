@@ -9,7 +9,7 @@ using System.Linq;
 using NUnit.Framework;
 using Spreads.Collections;
 
-namespace Spreads.Tests
+namespace Spreads.Core.Tests
 {
     public static class SingleEumerable<T>
     {

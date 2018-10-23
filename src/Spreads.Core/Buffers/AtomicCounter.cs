@@ -19,6 +19,7 @@ namespace Spreads.Buffers
     /// <summary>
     /// Counts non-negative value and stores it in provided pointer in pinned/native memory.
     /// </summary>
+    [DebuggerDisplay("{" + nameof(Count) + "}")]
     public readonly unsafe struct AtomicCounter
     {
         /// <summary>
@@ -78,7 +79,7 @@ namespace Spreads.Buffers
             {
                 // had zero and noone (esp. Increment above) has changed this after wrong decrement
                 var existing = Interlocked.CompareExchange(ref *Pointer, 0, -1);
-                if (existing != 0)
+                if (existing != -1)
                 {
                     DecrementFailZeroCount();
                 }
@@ -471,7 +472,7 @@ namespace Spreads.Buffers
                 // linear search
                 var p = counter.Pointer;
                 var idx = p - bucket.Pointer;
-                if ((ulong)idx < (ulong)BucketSize)
+                if (unchecked ((ulong)idx) < (ulong)BucketSize)
                 {
                     bucket.ReleaseCounter(counter);
                     return;

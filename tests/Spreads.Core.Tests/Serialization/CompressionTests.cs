@@ -11,6 +11,7 @@ using System.Runtime.InteropServices;
 
 namespace Spreads.Core.Tests.Serialization
 {
+    [Category("CI")]
     [TestFixture]
     public class CompressionTests
     {
@@ -111,6 +112,10 @@ namespace Spreads.Core.Tests.Serialization
                     }
                 }
             }
+
+            rm.Dispose();
+            rm1.Dispose();
+            rm2.Dispose();
         }
 
         [Test, Explicit("long-running")]
@@ -186,6 +191,8 @@ namespace Spreads.Core.Tests.Serialization
             }
 
             Benchmark.Dump();
+
+            rm.Dispose();
         }
     }
 }

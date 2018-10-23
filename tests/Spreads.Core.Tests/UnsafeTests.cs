@@ -3,10 +3,9 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 using System;
-using System.Runtime.CompilerServices;
 using NUnit.Framework;
 
-namespace Spreads.Tests
+namespace Spreads.Core.Tests
 {
     public struct IntDelta : IDelta<IntDelta>
     {
@@ -78,6 +77,7 @@ namespace Spreads.Tests
         }
     }
 
+    [Category("CI")]
     [TestFixture]
     public class UnsafeTests
     {

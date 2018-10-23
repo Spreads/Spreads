@@ -20,7 +20,7 @@ namespace Spreads.Buffers
     /// <remarks>
     /// Use this struct carefully: it must always be explicitly disposed, otherwise underlying MemoryManager implementation
     /// will never be returned to the pool and memory will leak.
-    /// RULE: Ownership of <see cref="RetainedMemory{T}"/> is transfered in any method call without ref or in modifiers.
+    /// RULE: Ownership of <see cref="RetainedMemory{T}"/> is transfered in any method call without ref modifier (in modifier transfers ownership).
     /// Use <see cref="Clone()"/> method or its Slice-like overloads to create a copy of this memory and to
     /// ensure that the underlying <see cref="RetainableMemory{T}"/> is not returned to the pool.
     /// Access to this struct is not thread-safe, only one thread could call its methods at a time.
@@ -73,7 +73,11 @@ namespace Spreads.Buffers
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#if DETECT_LEAKS
+        internal RetainedMemory(RetainableMemory<T> memory, int offset, int length, bool borrow, PanicOnFinalize checker = null)
+#else
         internal RetainedMemory(RetainableMemory<T> memory, int offset, int length, bool borrow)
+#endif
         {
             Debug.Assert(unchecked((uint)offset + (uint)length <= memory.Length));
 
@@ -88,7 +92,7 @@ namespace Spreads.Buffers
 
             // We do not need to Pin arrays, they do not have ref count. Will be pinned when Pointer is accessed.
 #if DETECT_LEAKS
-            _finalizeChecker = new PanicOnFinalize();
+            _finalizeChecker = borrow ? new PanicOnFinalize() : checker;
 #endif
         }
 
@@ -97,6 +101,12 @@ namespace Spreads.Buffers
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => true;
+        }
+
+        public bool IsValid
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => _manager != null;
         }
 
         public bool IsEmpty
@@ -153,17 +163,24 @@ namespace Spreads.Buffers
         {
             if (unchecked((uint)start + (uint)length <= _length))
             {
+#if DETECT_LEAKS
+                return new RetainedMemory<T>(_manager, _offset + start, length, false, _finalizeChecker);
+#else
                 return new RetainedMemory<T>(_manager, _offset + start, length, false);
+#endif
             }
             BuffersThrowHelper.ThrowBadLength();
             return default;
         }
 
-
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public RetainedMemory<T> Clone()
         {
+#if DETECT_LEAKS
+            return new RetainedMemory<T>(_manager, _offset, _length, true, null);
+#else
             return new RetainedMemory<T>(_manager, _offset, _length, true);
+#endif
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -177,7 +194,11 @@ namespace Spreads.Buffers
         {
             if (unchecked((uint)start + (uint)length <= _length))
             {
+#if DETECT_LEAKS
+                return new RetainedMemory<T>(_manager, _offset + start, length, true, null);
+#else
                 return new RetainedMemory<T>(_manager, _offset + start, length, true);
+#endif
             }
             BuffersThrowHelper.ThrowBadLength();
             return default;
@@ -190,12 +211,13 @@ namespace Spreads.Buffers
         public void Dispose()
         {
 #if DETECT_LEAKS
-            _finalizeChecker.Dispose();
+            _finalizeChecker?.Dispose();
 #endif
-            _manager.Decrement();
+            _manager?.Decrement();
         }
 
 #if DETECT_LEAKS
+
         internal class PanicOnFinalize : IDisposable
         {
             public bool Disposed;
@@ -240,9 +262,13 @@ namespace Spreads.Buffers
             return MemoryMarshal.TryGetArray(rm.Memory, out segment);
         }
 
+        [Obsolete("Do not use streams if possible")]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static ValueTask<RetainedMemory<byte>> ToRetainedMemory(this Stream stream, int initialSize = 16 * 1024, int limit = 0)
         {
+            // We are capuring rm in async and cannot reason what is going on.
+            // Need to folow the RM RULE and pass ownership to async completely
+            throw new Exception("Dropping RM ref and async impl is messy");
             RetainedMemory<byte> rm;
             var knownSize = -1;
             if (stream.CanSeek)
@@ -287,6 +313,7 @@ namespace Spreads.Buffers
                         var rm2 = BufferPool.Retain(rm.Length * 2);
                         rm.Memory.CopyTo(rm2.Memory);
                         memory = rm2.Memory.Slice(totalRead);
+                        rm.Dispose();
                         rm = rm2;
                     }
                 }
@@ -312,13 +339,14 @@ namespace Spreads.Buffers
                         var rm2 = BufferPool.Retain(rm.Length * 2);
                         rm.Memory.CopyTo(rm2.Memory);
                         memory = rm2.Memory.Slice(totalRead);
+                        rm.Dispose();
                         rm = rm2;
                     }
                 }
 #if !NETCOREAPP2_1
                 BufferPool<byte>.Return(buffer);
 #endif
-                
+
                 return rm.Slice(0, totalRead);
             }
         }

@@ -44,8 +44,6 @@ namespace Spreads.Buffers
 
         protected override void Dispose(bool disposing)
         {
-            Debug.Assert(Counter.Count == 0);
-
             ClearBeforePooling();
 
             // disposing == false when finilizing and detected that non pooled
@@ -70,7 +68,6 @@ namespace Spreads.Buffers
             }
             else
             {
-                Debug.Assert(Counter.Count == 0);
                 // this calls _counter.Dispose() and clears _pointer & _capacity;
                 base.Dispose(false);
                 // Dispose destructs this object and native buffer

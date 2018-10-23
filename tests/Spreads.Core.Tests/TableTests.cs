@@ -4,14 +4,13 @@
 
 using System;
 using System.Diagnostics;
-using System.IO;
 using Newtonsoft.Json;
 using NUnit.Framework;
 using Spreads.Buffers;
 using Spreads.DataTypes;
 using Spreads.Serialization;
 
-namespace Spreads.Tests
+namespace Spreads.Core.Tests
 {
     [TestFixture]
     public class TableTests

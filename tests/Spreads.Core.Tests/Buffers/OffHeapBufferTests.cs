@@ -10,6 +10,7 @@ using System.Linq;
 
 namespace Spreads.Core.Tests.Buffers
 {
+    [Category("CI")]
     [TestFixture]
     public class OffHeapBufferTests
     {
@@ -70,7 +71,7 @@ namespace Spreads.Core.Tests.Buffers
 
             ob.Dispose();
         }
-        
+
         [Test, Explicit("long running")]
         public void OffHeapPoolRentReturnPerformance()
         {
@@ -171,6 +172,7 @@ namespace Spreads.Core.Tests.Buffers
             var rm = offHeapMemory.Retain();
             Assert.Throws<InvalidOperationException>(() => { pool.Return(offHeapMemory); });
             rm.Dispose();
+            pool.Dispose(); 
         }
 
         [Test]
@@ -184,7 +186,6 @@ namespace Spreads.Core.Tests.Buffers
             ((IDisposable)offHeapMemory).Dispose();
             ((IDisposable)offHeapMemory2).Dispose();
             ((IDisposable)offHeapMemory3).Dispose();
-
 
             Assert.Throws<ObjectDisposedException>(() => { pool.Return(offHeapMemory); });
             Assert.Throws<ObjectDisposedException>(() => { pool.Return(offHeapMemory2); });
@@ -202,6 +203,7 @@ namespace Spreads.Core.Tests.Buffers
             pool.Return(offHeapMemory);
             pool.Return(offHeapMemory2);
             Assert.AreEqual(2, pool._pool._objects.Where(x => x != null).Count());
+            pool.Dispose();
         }
 
         [Test]
@@ -221,8 +223,6 @@ namespace Spreads.Core.Tests.Buffers
             Assert.AreEqual(1, pool._pool._objects.Where(x => x != null).Count());
         }
 
-
-
         [Test]
         public void CouldDisposeNonPooledBuffer()
         {
@@ -237,11 +237,6 @@ namespace Spreads.Core.Tests.Buffers
             ((IDisposable)buffer).Dispose();
 
             Assert.Throws<ObjectDisposedException>(() => { ((IDisposable)buffer).Dispose(); });
-
-
-
         }
-
-
     }
 }

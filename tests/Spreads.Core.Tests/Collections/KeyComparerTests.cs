@@ -6,7 +6,7 @@ using System.Collections.Generic;
 using NUnit.Framework;
 using Spreads.Utils;
 
-namespace Spreads.Tests.Collections
+namespace Spreads.Core.Tests.Collections
 {
     [TestFixture]
     public class KeyComparerTests

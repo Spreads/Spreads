@@ -8,7 +8,7 @@ using NUnit.Framework;
 using Spreads.Algorithms.Online;
 using Spreads.Utils;
 
-namespace Spreads.Tests.Algorithms
+namespace Spreads.Core.Tests.Algorithms
 {
     [TestFixture]
     public class MovingMedianTests
