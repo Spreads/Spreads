@@ -1,6 +1,3 @@
-[![Linux Build Status](https://travis-ci.org/Spreads/Spreads.svg?branch=master)](https://travis-ci.org/Spreads/Spreads)
-
-
 # Spreads
 <img src="https://raw.githubusercontent.com/Spreads/Spreads.Docs/master/img/ZipN.png" alt="Spreads" width="200" align="right" />
 
