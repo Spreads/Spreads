@@ -7,8 +7,6 @@ using Spreads.Buffers;
 using System;
 using System.Buffers;
 using System.IO;
-using System.Net;
-using System.Net.Http;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Threading;
@@ -26,16 +24,17 @@ namespace Spreads.Core.Tests.Buffers
 
             // Could add Deconstruct method
             internal MemoryHandle _memoryHandle;
+
             private int _offset;
         }
 
         [Test]
         public void SizeOfMemoryStructs()
         {
-            Console.WriteLine("Memory: " +  Unsafe.SizeOf<Memory<byte>>());
-            Console.WriteLine("MemoryHandle: " +  Unsafe.SizeOf<MemoryHandle>());
-            Console.WriteLine("RetainedMemory: " +  Unsafe.SizeOf<RetainedMemory<byte>>());
-            Console.WriteLine("RetainedMemory NonGeneric: " +  Unsafe.SizeOf<RetainedMemory>());
+            Console.WriteLine("Memory: " + Unsafe.SizeOf<Memory<byte>>());
+            Console.WriteLine("MemoryHandle: " + Unsafe.SizeOf<MemoryHandle>());
+            Console.WriteLine("RetainedMemory: " + Unsafe.SizeOf<RetainedMemory<byte>>());
+            Console.WriteLine("RetainedMemory NonGeneric: " + Unsafe.SizeOf<RetainedMemory>());
         }
 
         [Test]
@@ -51,15 +50,14 @@ namespace Spreads.Core.Tests.Buffers
             rm.Dispose();
             clone.Dispose();
             clone2.Dispose();
-            
+
             var b = mem.Span[0];
 
             clone1.Dispose();
-            Assert.Throws<ObjectDisposedException>(() =>
+            Assert.Throws<ArgumentOutOfRangeException>(() =>
             {
                 var b2 = mem.Span[0];
             });
-
         }
 
         [Test]
@@ -68,9 +66,7 @@ namespace Spreads.Core.Tests.Buffers
             var array = new byte[100];
             var rm = new RetainedMemory<byte>(array);
 
-            var rmc = rm.Clone();
-
-            rm.Dispose();
+            var rmc = rm.Clone().Slice(10);
 
             GC.Collect(2, GCCollectionMode.Forced, true);
             GC.WaitForPendingFinalizers();
@@ -78,35 +74,11 @@ namespace Spreads.Core.Tests.Buffers
             GC.WaitForPendingFinalizers();
 
             rmc.Span[1] = 1;
-            
-            // Assert.AreEqual(1, array[1]);
+
+            Assert.AreEqual(1, array[11]);
+
+            rm.Dispose();
         }
-
-        //public class RMContent : HttpContent
-        //{
-        //    public RMContent()
-        //    {
-        //        ReadOnlySequence<byte> buffer = default;
-        //        buffer.TryGet()
-        //        _content = content;
-        //        if (MemoryMarshal.TryGetArray(content, out ArraySegment<byte> array))
-        //        {
-        //            // If we have an array, allow HttpClient to take optimized paths by just
-        //            // giving it the array content to use as its already buffered data.
-        //            SetBuffer(array.Array, array.Offset, array.Count);
-        //        }
-        //    }
-
-        //    protected override Task SerializeToStreamAsync(Stream stream, TransportContext context)
-        //    {
-        //        throw new NotImplementedException();
-        //    }
-
-        //    protected override bool TryComputeLength(out long length)
-        //    {
-        //        throw new NotImplementedException();
-        //    }
-        //}
 
         [Test]
         public async Task CouldReadStreamToRetainedMemory()
@@ -154,7 +126,6 @@ namespace Spreads.Core.Tests.Buffers
 
             Assert.AreEqual(initialPtr.ToInt64() + 1, ((IntPtr)rm.Pointer).ToInt64());
 
-
             rm = BufferPool.OffHeapMemoryPool.RetainMemory(1000);
 
             initialPtr = (IntPtr)rm.Pointer;
@@ -162,23 +133,25 @@ namespace Spreads.Core.Tests.Buffers
             rm = rm.Slice(1, 100);
 
             Assert.AreEqual(initialPtr.ToInt64() + 1, ((IntPtr)rm.Pointer).ToInt64());
-
         }
     }
 
-
     public class NonSeekableStream : Stream
     {
-        Stream _stream;
+        private Stream _stream;
+
         public NonSeekableStream(Stream baseStream)
         {
             _stream = baseStream;
         }
+
 #if NETCOREAPP2_1
+
         public override ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
         {
             return _stream.ReadAsync(buffer, cancellationToken);
         }
+
 #endif
 
         public override void Flush()

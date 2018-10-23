@@ -263,7 +263,7 @@ namespace Spreads.Serialization
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
-        private static unsafe int WriteVarSize<T>(T value, ref DirectBuffer pinnedDestination, RetainedMemory<byte> temporaryBuffer, SerializationFormat format,
+        private static int WriteVarSize<T>(T value, ref DirectBuffer pinnedDestination, RetainedMemory<byte> temporaryBuffer, SerializationFormat format,
             Timestamp timestamp, IBinaryConverter<T> bc)
         {
             var hasTs = (long)timestamp != default;

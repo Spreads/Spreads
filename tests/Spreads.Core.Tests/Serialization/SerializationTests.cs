@@ -18,6 +18,7 @@ using SerializationFormat = Spreads.Serialization.SerializationFormat;
 
 namespace Spreads.Core.Tests.Serialization
 {
+    [Category("Serialization")]
     [TestFixture]
     public unsafe class SerializationTests
     {
@@ -128,6 +129,8 @@ namespace Spreads.Core.Tests.Serialization
             Console.WriteLine(str);
 
             // var ob2 = JsonSerializer.Deserialize<OrderBagX>(str);
+
+            rm.Dispose();
         }
 
         [Test]
@@ -185,6 +188,7 @@ namespace Spreads.Core.Tests.Serialization
             var str = JsonSerializer.ToJsonString(tick2);
 
             Console.WriteLine(str);
+            rm.Dispose();
         }
 
         public void CouldSerializeBlittable<T>(T value) where T : IEquatable<T>
@@ -439,8 +443,8 @@ namespace Spreads.Core.Tests.Serialization
             var decimals = new decimal[2];
             decimals[0] = 123;
             decimals[1] = 456;
-            var len = BinarySerializer.Write(decimals, bytes, format:SerializationFormat.Binary);
-            Assert.AreEqual(8 +4 + 16 * 2, len);
+            var len = BinarySerializer.Write(decimals, bytes, format: SerializationFormat.Binary);
+            Assert.AreEqual(8 + 4 + 16 * 2, len);
             decimal[] decimals2 = null;
             var len2 = BinarySerializer.Read(bytes, out decimals2);
             Assert.IsTrue(decimals.SequenceEqual(decimals2));
@@ -818,6 +822,8 @@ namespace Spreads.Core.Tests.Serialization
 
             var str2 = JsonSerializer.ToJsonString(val.Timestamp);
             Console.WriteLine(str2);
+
+            rm.Dispose();
         }
 
         [Test]
@@ -850,6 +856,7 @@ namespace Spreads.Core.Tests.Serialization
                     Assert.AreEqual(timestamp, ts2);
                 }
             }
+            rm.Dispose();
         }
 
         [Test]
@@ -882,6 +889,7 @@ namespace Spreads.Core.Tests.Serialization
                     Assert.AreEqual(timestamp, ts2);
                 }
             }
+            rm.Dispose();
         }
 
         [Test]
@@ -914,6 +922,7 @@ namespace Spreads.Core.Tests.Serialization
                     Assert.AreEqual(timestamp, ts2);
                 }
             }
+            rm.Dispose();
         }
 
         [Test]
@@ -946,6 +955,7 @@ namespace Spreads.Core.Tests.Serialization
                     Assert.AreEqual(timestamp, ts2);
                 }
             }
+            rm.Dispose();
         }
 
         [Test, Ignore("Not implemented")]
@@ -978,6 +988,7 @@ namespace Spreads.Core.Tests.Serialization
                     Assert.AreEqual(timestamp, ts2);
                 }
             }
+            rm.Dispose();
         }
     }
 }

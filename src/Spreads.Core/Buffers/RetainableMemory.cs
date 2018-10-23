@@ -198,6 +198,15 @@ namespace Spreads.Buffers
 
         ~RetainableMemory()
         {
+            // TODO review current logic, we throw when finalizing dropped retained object
+            // If it is safe enough to tell that when finalized it always dropped then we 
+            // could ignore IsRetained when finalizing. Before that failing is better.
+            // https://docs.microsoft.com/en-us/dotnet/api/system.object.finalize?redirectedfrom=MSDN&view=netframework-4.7.2#System_Object_Finalize
+            // If Finalize or an override of Finalize throws an exception, and
+            // the runtime is not hosted by an application that overrides the
+            // default policy, the runtime terminates the process and no active
+            // try/finally blocks or finalizers are executed. This behavior
+            // ensures process integrity if the finalizer cannot free or destroy resources.
             Dispose(false);
         }
     }
