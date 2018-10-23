@@ -1,3 +1,5 @@
+[![Build Status](https://dev.azure.com/DataSpreads/Spreads/_apis/build/status/Spreads.Spreads)](https://dev.azure.com/DataSpreads/Spreads/_build/latest?definitionId=2)
+
 # Spreads
 <img src="https://raw.githubusercontent.com/Spreads/Spreads.Docs/master/img/ZipN.png" alt="Spreads" width="200" align="right" />
 
