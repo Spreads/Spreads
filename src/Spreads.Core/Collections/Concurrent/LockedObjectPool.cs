@@ -43,13 +43,11 @@ namespace Spreads.Collections.Concurrent
             try
 #endif
             {
-                do
+                var spinner = new SpinWait();
+                while (0 != Interlocked.CompareExchange(ref _locker, 1, 0))
                 {
-                    if (0 == Interlocked.CompareExchange(ref _locker, 1, 0))
-                    {
-                        break;
-                    }
-                } while (true);
+                    spinner.SpinOnce();
+                }
 
                 if (_index < objects.Length)
                 {
@@ -97,13 +95,11 @@ namespace Spreads.Collections.Concurrent
             try
 #endif
             {
-                do
+                var spinner = new SpinWait();
+                while (0 != Interlocked.CompareExchange(ref _locker, 1, 0))
                 {
-                    if (0 == Interlocked.CompareExchange(ref _locker, 1, 0))
-                    {
-                        break;
-                    }
-                } while (true);
+                    spinner.SpinOnce();
+                }
 
                 pooled = _index != 0;
                 if (pooled)

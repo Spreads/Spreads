@@ -246,7 +246,7 @@ namespace Spreads.Buffers
                 // Return the buffer to its bucket.  In the future, we might consider having Return return false
                 // instead of dropping a bucket, in which case we could try to return to a lower-sized bucket,
                 // just as how in Rent we allow renting from a higher-sized bucket.
-                memory.IsPooled = _buckets[bucket].Return(memory);
+                _buckets[bucket].Return(memory);
             }
 
             // Log that the buffer was returned
@@ -391,14 +391,11 @@ namespace Spreads.Buffers
 #endif
                 {
                     // _lock.Enter(ref lockTaken);
-
-                    do
+                    var spinner = new SpinWait();
+                    while (0 != Interlocked.CompareExchange(ref _locker, 1, 0))
                     {
-                        if (0 == Interlocked.CompareExchange(ref _locker, 1, 0))
-                        {
-                            break;
-                        }
-                    } while (true);
+                        spinner.SpinOnce();
+                    }
 
                     if (_index < buffers.Length)
                     {
@@ -446,7 +443,7 @@ namespace Spreads.Buffers
             /// will be returned.
             /// </summary>
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            internal bool Return(TImpl memory)
+            internal void Return(TImpl memory)
             {
                 // Check to see if the buffer is the correct size for this bucket
                 if (memory.Length != _bufferLength)
@@ -466,19 +463,17 @@ namespace Spreads.Buffers
 #endif
                 {
                     // _lock.Enter(ref lockTaken);
-
-                    do
+                    var spinner = new SpinWait();
+                    while (0 != Interlocked.CompareExchange(ref _locker, 1, 0))
                     {
-                        if (0 == Interlocked.CompareExchange(ref _locker, 1, 0))
-                        {
-                            break;
-                        }
-                    } while (true);
+                        spinner.SpinOnce();
+                    }
 
                     pooled = _index != 0;
                     if (pooled)
                     {
                         _buffers[--_index] = memory;
+                        memory.IsPooled = true;
                     }
                 }
 #if !NETCOREAPP
@@ -488,8 +483,6 @@ namespace Spreads.Buffers
                     Volatile.Write(ref _locker, 0);
                     // if (lockTaken) _lock.Exit(false);
                 }
-
-                return pooled;
             }
         }
 

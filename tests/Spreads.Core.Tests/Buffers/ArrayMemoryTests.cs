@@ -8,6 +8,8 @@ using Spreads.Utils;
 using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Spreads.Core.Tests.Buffers
 {
@@ -115,6 +117,57 @@ namespace Spreads.Core.Tests.Buffers
                     //}
                     pool.Return(memory);
                 }
+            }
+
+            pool.Dispose();
+        }
+
+        [Test, Explicit("long running")]
+        public void ConcurrentRentReturn()
+        {
+            var count = 100_000_000;
+
+            var pool = new RetainableMemoryPool<byte, ArrayMemory<byte>>(null, 16,
+                1024 * 1024, 50, 2);
+
+            var tasks = new List<Task>();
+            var taskCount = 1; // 6x2 cores
+
+
+            var mre = new ManualResetEventSlim(false);
+
+            Action action = () =>
+            {
+                mre.Wait();
+                for (int i = 0; i < count; i++)
+                {
+                    var memory = pool.RentMemory(32 * 1024);
+                    //(memory.Pin(0)).Dispose();
+                    //if (memory.IsDisposed || memory.IsRetained)
+                    //{
+                    //    Assert.Fail();
+                    //}
+                    pool.Return(memory);
+                    //if (i % 1000000 == 0)
+                    //{
+                    //    Console.WriteLine(i);
+                    //}
+                }
+            };
+
+            for (int i = 0; i < taskCount; i++)
+            {
+                tasks.Add(Task.Run(action));
+            }
+
+            //Console.WriteLine("Set affinity and press enter");
+            //Console.ReadLine();
+
+            using (Benchmark.Run("FullCycle", count * taskCount))
+            {
+                mre.Set();
+
+                Task.WhenAll(tasks).Wait();
             }
 
             pool.Dispose();
