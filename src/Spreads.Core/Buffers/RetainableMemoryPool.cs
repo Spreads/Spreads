@@ -303,8 +303,12 @@ namespace Spreads.Buffers
             internal readonly TImpl[] _buffers;
             private readonly int _poolId;
 
-            private SpinLock _lock; // do not make this readonly; it's a mutable struct
+            // TODO remove commented stuff related to SpinLock
+
+            // private SpinLock _lock; // do not make this readonly; it's a mutable struct
             private int _index;
+
+            private int _locker;
 
             private ArrayMemorySliceBucket<T> _sliceBucket;
 
@@ -313,7 +317,7 @@ namespace Spreads.Buffers
             /// </summary>
             internal Bucket(RetainableMemoryPool<T, TImpl> pool, Func<RetainableMemoryPool<T, TImpl>, int, TImpl> factory, int bufferLength, int numberOfBuffers, int poolId)
             {
-                _lock = new SpinLock(Debugger.IsAttached); // only enable thread tracking if debugger is attached; it adds non-trivial overheads to Enter/Exit
+                // _lock = new SpinLock(Debugger.IsAttached); // only enable thread tracking if debugger is attached; it adds non-trivial overheads to Enter/Exit
                 _buffers = new TImpl[numberOfBuffers];
 
                 _pool = pool;
@@ -380,12 +384,21 @@ namespace Spreads.Buffers
                 // update the index.  We do as little work as possible while holding the spin
                 // lock to minimize contention with other threads.  The try/finally is
                 // necessary to properly handle thread aborts on platforms which have them.
-                bool lockTaken = false, allocateBuffer = false;
+                // bool lockTaken = false;
+                bool allocateBuffer = false;
 #if !NETCOREAPP
                 try
 #endif
                 {
-                    _lock.Enter(ref lockTaken);
+                    // _lock.Enter(ref lockTaken);
+
+                    do
+                    {
+                        if (0 == Interlocked.CompareExchange(ref _locker, 1, 0))
+                        {
+                            break;
+                        }
+                    } while (true);
 
                     if (_index < buffers.Length)
                     {
@@ -398,7 +411,8 @@ namespace Spreads.Buffers
                 finally
 #endif
                 {
-                    if (lockTaken) _lock.Exit(false);
+                    Volatile.Write(ref _locker, 0);
+                    // if (lockTaken) _lock.Exit(false);
                 }
 
                 // While we were holding the lock, we grabbed whatever was at the next available index, if
@@ -444,13 +458,23 @@ namespace Spreads.Buffers
                 // put the buffer into the next available slot.  Otherwise, we just drop it.
                 // The try/finally is necessary to properly handle thread aborts on platforms
                 // which have them.
-                bool lockTaken = false;
+
+                // bool lockTaken = false;
                 bool pooled;
 #if !NETCOREAPP
                 try
 #endif
                 {
-                    _lock.Enter(ref lockTaken);
+                    // _lock.Enter(ref lockTaken);
+
+                    do
+                    {
+                        if (0 == Interlocked.CompareExchange(ref _locker, 1, 0))
+                        {
+                            break;
+                        }
+                    } while (true);
+
                     pooled = _index != 0;
                     if (pooled)
                     {
@@ -461,7 +485,8 @@ namespace Spreads.Buffers
                 finally
 #endif
                 {
-                    if (lockTaken) _lock.Exit(false);
+                    Volatile.Write(ref _locker, 0);
+                    // if (lockTaken) _lock.Exit(false);
                 }
 
                 return pooled;

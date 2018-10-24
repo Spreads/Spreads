@@ -21,15 +21,14 @@ namespace Spreads.Collections.Concurrent
 
         private Func<T> _factory;
         internal readonly T[] _objects;
-        private SpinLock _lock; // do not make this readonly; it's a mutable struct
         private int _index;
+        private int _locker;
         internal bool TraceLowCapacityAllocation;
 
         internal LockedObjectPool(int numberOfObjects, Func<T> factory, bool allocateOnEmpty = true)
         {
             _factory = factory;
             AllocateOnEmpty = allocateOnEmpty;
-            _lock = new SpinLock(Debugger.IsAttached);
             _objects = new T[numberOfObjects];
         }
 
@@ -39,12 +38,18 @@ namespace Spreads.Collections.Concurrent
             var objects = _objects;
             T obj = null;
 
-            bool lockTaken = false, allocate = false;
+            var allocate = false;
 #if !NETCOREAPP
             try
 #endif
             {
-                _lock.Enter(ref lockTaken);
+                do
+                {
+                    if (0 == Interlocked.CompareExchange(ref _locker, 1, 0))
+                    {
+                        break;
+                    }
+                } while (true);
 
                 if (_index < objects.Length)
                 {
@@ -57,7 +62,7 @@ namespace Spreads.Collections.Concurrent
             finally
 #endif
             {
-                if (lockTaken) _lock.Exit(false);
+                Volatile.Write(ref _locker, 0);
             }
 
             if (allocate || (obj == null && AllocateOnEmpty))
@@ -87,13 +92,19 @@ namespace Spreads.Collections.Concurrent
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal bool Return(T obj)
         {
-            var lockTaken = false;
             bool pooled;
 #if !NETCOREAPP
             try
 #endif
             {
-                _lock.Enter(ref lockTaken);
+                do
+                {
+                    if (0 == Interlocked.CompareExchange(ref _locker, 1, 0))
+                    {
+                        break;
+                    }
+                } while (true);
+
                 pooled = _index != 0;
                 if (pooled)
                 {
@@ -104,10 +115,7 @@ namespace Spreads.Collections.Concurrent
             finally
 #endif
             {
-                if (lockTaken)
-                {
-                    _lock.Exit(false);
-                }
+                Volatile.Write(ref _locker, 0);
             }
 
             return pooled;
