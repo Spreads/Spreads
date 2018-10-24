@@ -47,16 +47,23 @@ namespace Spreads.Buffers
             ThrowHelper.ThrowInvalidOperationException("Negative ref count");
         }
 
+        //[MethodImpl(MethodImplOptions.NoInlining)]
+        //internal static void ThrowAlienOrAlreadyPooled<T>()
+        //{
+        //    ThrowHelper.ThrowInvalidOperationException("Cannot return to pool alien or already pooled " + nameof(T));
+        //}
+
         [MethodImpl(MethodImplOptions.NoInlining)]
-        internal static void ThrowAlienOrAlreadyPooled<T>()
+        internal static void ThrowAlreadyPooled<T>()
         {
-            ThrowHelper.ThrowInvalidOperationException("Cannot return to pool alien or already pooled " + nameof(T));
+            ThrowHelper.ThrowInvalidOperationException("Cannot return to a pool an already pooled " + nameof(T));
         }
+
 
         [MethodImpl(MethodImplOptions.NoInlining)]
         internal static void ThrowNotFromPool<T>()
         {
-            ThrowHelper.ThrowArgumentException("Memory not from pool " + nameof(T));
+            ThrowHelper.ThrowInvalidOperationException("Memory not from pool " + nameof(T));
         }
     }
 }

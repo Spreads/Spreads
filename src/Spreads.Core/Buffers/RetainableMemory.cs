@@ -181,11 +181,6 @@ namespace Spreads.Buffers
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private RetainedMemory<T> RetainImpl(int start = -1, int length = -1)
         {
-            if (IsDisposed)
-            {
-                ThrowDisposed<RetainedMemory<T>>();
-            }
-
             if (length < 0)
             {
                 length = Length;
@@ -200,21 +195,21 @@ namespace Spreads.Buffers
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal void ClearBeforeDispose()
+        internal void ClearOnDispose()
         {
             _pointer = null;
             _length = default;
             _offset = default;
         }
 
-        protected override void Dispose(bool disposing)
-        {
-            Counter.Dispose();
-            if (disposing)
-            {
-                GC.SuppressFinalize(this);
-            }
-        }
+        //protected override void Dispose(bool disposing)
+        //{
+        //    Counter.Dispose();
+        //    if (disposing)
+        //    {
+        //        GC.SuppressFinalize(this);
+        //    }
+        //}
 
         ~RetainableMemory()
         {

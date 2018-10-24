@@ -76,15 +76,13 @@ namespace Spreads.Buffers
 #pragma warning disable 618
             _slab = slab;
             _slab.Increment();
+            _pointer = _slab.Pointer;
             _handle = GCHandle.Alloc(_slab);
 #pragma warning restore 618
             _slicesPool = slicesPool;
-
-            _pointer = _slab.Pointer;
             _offset = offset;
             _length = length;
             _array = slab._array;
-            
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -95,17 +93,11 @@ namespace Spreads.Buffers
                 ThrowHelper.ThrowNotSupportedException();
             }
 
-            var count = Counter.Count;
+            var count = Counter.IsValid ? Counter.Count : -1;
             if (count != 0)
             {
-                if (count > 0)
-                {
-                    ThrowDisposingRetained<ArrayMemorySlice<T>>();
-                }
-                else
-                {
-                    ThrowDisposed<ArrayMemorySlice<T>>();
-                }
+                if (count > 0) { ThrowDisposingRetained<ArrayMemorySlice<T>>(); }
+                else { ThrowDisposed<ArrayMemorySlice<T>>(); }
             }
 
             // disposing == false when finilizing and detected that non pooled
@@ -113,13 +105,10 @@ namespace Spreads.Buffers
             {
                 if (IsPooled)
                 {
-                    ThrowAlienOrAlreadyPooled<OffHeapMemory<T>>();
+                    ThrowAlreadyPooled<OffHeapMemory<T>>();
                 }
 
-                if (_pool != null)
-                {
-                    IsPooled = _pool.Return(this);
-                }
+                _pool?.ReturnNoChecks(this, clearArray:false); // this is pinned, we do not need to clean blittables
 
                 if (!IsPooled)
                 {
@@ -141,7 +130,7 @@ namespace Spreads.Buffers
                 var array = Interlocked.Exchange(ref _array, null);
                 if (array != null)
                 {
-                    ClearBeforeDispose();
+                    ClearOnDispose();
                     Debug.Assert(_handle.IsAllocated);
 #pragma warning disable 618
                     _slab.Decrement();
@@ -240,14 +229,8 @@ namespace Spreads.Buffers
             var count = Counter.IsValid ? Counter.Count : -1;
             if (count != 0)
             {
-                if (count > 0)
-                {
-                    ThrowDisposingRetained<ArrayMemorySlice<T>>();
-                }
-                else
-                {
-                    ThrowDisposed<ArrayMemorySlice<T>>();
-                }
+                if (count > 0) { ThrowDisposingRetained<ArrayMemorySlice<T>>(); }
+                else { ThrowDisposed<ArrayMemorySlice<T>>(); }
             }
 
             // disposing == false when finilizing and detected that non pooled
@@ -255,10 +238,10 @@ namespace Spreads.Buffers
             {
                 if (IsPooled)
                 {
-                    ThrowAlienOrAlreadyPooled<OffHeapMemory<T>>();
+                    ThrowAlreadyPooled<OffHeapMemory<T>>();
                 }
 
-                _pool?.Return(this);
+                _pool?.ReturnNoChecks(this, clearArray: false); // this is pinned, we do not need to clean blittables
 
                 if (!IsPooled)
                 {
@@ -271,10 +254,14 @@ namespace Spreads.Buffers
             }
             else
             {
+                Counter.Dispose();
+                AtomicCounterService.ReleaseCounter(Counter);
+                Counter = default;
+                ClearOnDispose();
+
                 var array = Interlocked.Exchange(ref _array, null);
                 if (array != null)
                 {
-                    ClearBeforeDispose();
                     Debug.Assert(_handle.IsAllocated);
                     _handle.Free();
                     _handle = default;
@@ -296,9 +283,6 @@ namespace Spreads.Buffers
                 // But if we tried to pool above then we called GC.SuppressFinalize(this)
                 // and finalizer won't be called if the object is dropped from ObjectPool.
                 ObjectPool.Free(this);
-                base.Dispose(false);
-                AtomicCounterService.ReleaseCounter(Counter);
-                Counter = default;
             }
         }
 

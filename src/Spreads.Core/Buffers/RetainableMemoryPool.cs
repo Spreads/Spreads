@@ -10,6 +10,7 @@
 using Spreads.Utils;
 using System;
 using System.Buffers;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.Tracing;
 using System.Runtime.CompilerServices;
@@ -31,7 +32,7 @@ namespace Spreads.Buffers
         }
     }
 
-    public sealed class RetainableMemoryPool<T, TImpl> : MemoryPool<T> where TImpl : RetainableMemory<T> // TODO
+    public class RetainableMemoryPool<T, TImpl> : MemoryPool<T> where TImpl : RetainableMemory<T> // TODO
     {
         private readonly Func<RetainableMemoryPool<T, TImpl>, int, TImpl> _factory;
         private readonly int _minBufferLength;
@@ -53,7 +54,8 @@ namespace Spreads.Buffers
         {
         }
 
-        internal RetainableMemoryPool(Func<RetainableMemoryPool<T, TImpl>, int, TImpl> factory, int minBufferLength, int maxArrayLength, int maxArraysPerBucket, int maxBucketsToTry = 2)
+        internal RetainableMemoryPool(Func<RetainableMemoryPool<T, TImpl>, int, TImpl> factory, int minLength,
+            int maxLength, int maxBuffersPerBucket, int maxBucketsToTry = 2)
         {
             _factory = factory;
             if (typeof(TImpl) != typeof(ArrayMemory<T>) && _factory == null)
@@ -61,11 +63,11 @@ namespace Spreads.Buffers
                 ThrowArgumentNull<Func<int, TImpl>>();
             }
 
-            if (minBufferLength <= 16)
+            if (minLength <= 16)
             {
-                minBufferLength = 16;
+                minLength = 16;
             }
-            _minBufferLength = BitUtil.FindNextPositivePowerOfTwo(minBufferLength);
+            _minBufferLength = BitUtil.FindNextPositivePowerOfTwo(minLength);
             _minBufferLengthPow2 = (int)Math.Log(_minBufferLength, 2);
 
             if (maxBucketsToTry < 0)
@@ -79,37 +81,37 @@ namespace Spreads.Buffers
 
             _maxBucketsToTry = maxBucketsToTry;
 
-            if (maxArrayLength <= 0)
+            if (maxLength <= 0)
             {
-                throw new ArgumentOutOfRangeException(nameof(maxArrayLength));
+                throw new ArgumentOutOfRangeException(nameof(maxLength));
             }
-            if (maxArraysPerBucket <= 0)
+            if (maxBuffersPerBucket <= 0)
             {
-                throw new ArgumentOutOfRangeException(nameof(maxArraysPerBucket));
+                throw new ArgumentOutOfRangeException(nameof(maxBuffersPerBucket));
             }
 
             // Our bucketing algorithm has a min length of 2^4 and a max length of 2^30.
             // Constrain the actual max used to those values.
             const int maximumArrayLength = 0x40000000;
 
-            if (maxArrayLength > maximumArrayLength)
+            if (maxLength > maximumArrayLength)
             {
-                maxArrayLength = maximumArrayLength;
+                maxLength = maximumArrayLength;
             }
-            else if (maxArrayLength < minBufferLength)
+            else if (maxLength < minLength)
             {
-                maxArrayLength = minBufferLength;
+                maxLength = minLength;
             }
 
-            _maxBufferLength = maxArrayLength;
+            _maxBufferLength = maxLength;
 
             // Create the buckets.
             int poolId = Id;
-            int maxBuckets = SelectBucketIndex(maxArrayLength);
+            int maxBuckets = SelectBucketIndex(maxLength);
             var buckets = new Bucket[maxBuckets + 1];
             for (int i = 0; i < buckets.Length; i++)
             {
-                buckets[i] = new Bucket(this, _factory, GetMaxSizeForBucket(i), maxArraysPerBucket, poolId);
+                buckets[i] = new Bucket(this, _factory, GetMaxSizeForBucket(i), maxBuffersPerBucket, poolId);
             }
             _buckets = buckets;
         }
@@ -137,6 +139,10 @@ namespace Spreads.Buffers
 
         public override IMemoryOwner<T> Rent(int minBufferSize = -1)
         {
+            if (minBufferSize == -1)
+            {
+                minBufferSize = _minBufferLength;
+            }
             return RentMemory(minBufferSize);
         }
 
@@ -201,22 +207,28 @@ namespace Spreads.Buffers
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal bool Return(TImpl memory, bool clearArray = false)
         {
-            if (_disposed)
-            {
-                return false;
-            }
             // These checks for internal code that could Return directly without Dispose on memory
             var count = memory.Counter.IsValid ? memory.Counter.Count : -1;
             if (count != 0)
             {
                 if (count > 0)
-                {
-                    ThrowDisposingRetained<ArrayMemorySlice<T>>();
-                }
-                else
-                {
-                    ThrowDisposed<ArrayMemorySlice<T>>();
-                }
+                { ThrowDisposingRetained<ArrayMemorySlice<T>>(); }
+                else { ThrowDisposed<ArrayMemorySlice<T>>(); }
+            }
+            if (memory.IsPooled)
+            {
+                ThrowAlreadyPooled<TImpl>();
+            }
+
+            return ReturnNoChecks(memory, clearArray);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal bool ReturnNoChecks(TImpl memory, bool clearArray = false)
+        {
+            if (_disposed)
+            {
+                return false;
             }
 
             // Determine with what bucket this array length is associated
@@ -265,6 +277,21 @@ namespace Spreads.Buffers
             }
         }
 
+        [Obsolete("For diagnostic only")]
+        internal IEnumerable<TImpl> InspectObjects()
+        {
+            foreach (var bucket in _buckets)
+            {
+                foreach (var buffer in bucket._buffers)
+                {
+                    if (buffer != null)
+                    {
+                        yield return buffer;
+                    }
+                }
+            }
+        }
+
         public override int MaxBufferSize => _maxBufferLength;
 
         /// <summary>Provides a thread-safe bucket containing buffers that can be Rent'd and Return'd.</summary>
@@ -289,13 +316,14 @@ namespace Spreads.Buffers
                 _lock = new SpinLock(Debugger.IsAttached); // only enable thread tracking if debugger is attached; it adds non-trivial overheads to Enter/Exit
                 _buffers = new TImpl[numberOfBuffers];
 
-                if (typeof(TImpl) != typeof(ArrayMemory<T>) && _factory == null)
+                _pool = pool;
+
+                if (typeof(TImpl) != typeof(ArrayMemory<T>) && factory == null)
                 {
                     ThrowArgumentNull<Func<int, TImpl>>();
                 }
-
-                _pool = pool;
                 _factory = factory;
+
                 _bufferLength = bufferLength;
                 _poolId = poolId;
             }

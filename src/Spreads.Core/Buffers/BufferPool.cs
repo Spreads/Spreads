@@ -205,11 +205,11 @@ namespace Spreads.Buffers
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static RetainedMemory<byte> RetainTemp(int length)
         {
-            if (length > Settings.LOH_BUFFER_LIMIT)
+            if (length > Settings.LARGE_BUFFER_LIMIT)
             {
                 if (OffHeapMemoryPool != null)
                 {
-                    return OffHeapMemoryPool.RetainMemory(length, false);
+                    return OffHeapMemoryPool.RentMemory(length).Retain();
                 }
 
                 ThrowOffHeapPoolIsNull();

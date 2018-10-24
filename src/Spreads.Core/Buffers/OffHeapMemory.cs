@@ -2,6 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+using Spreads.Utils;
 using System;
 using System.Runtime.CompilerServices;
 using static Spreads.Buffers.BuffersThrowHelper;
@@ -12,7 +13,7 @@ namespace Spreads.Buffers
     {
         private OffHeapBuffer<T> _offHeapBuffer;
 
-        internal OffHeapMemoryPool<T> _pool;
+        internal RetainableMemoryPool<T, OffHeapMemory<T>> _pool;
 
         // This object is pooled together with off-heap buffer in LockedObjectPool that
         // act like a storage and does not drop objects due to data races. The pool
@@ -21,40 +22,29 @@ namespace Spreads.Buffers
         // In that case we dispose this object and the counter. In normal pooling
         // case counter remains valid and is in disposed state together with the
         // pooled object.
-        // TODO Renewing counter is unsafe manual operation with its pointer
-        // and is not exposed as an API so far. AC service is implementation detail
-        // of RetainableMemory child implementations, it could be a shared memory as well.
 
         // TODO ctor with lengtgh, non-pooled case, test dispose/finalize works
 
-        public OffHeapMemory(int minLength) : this(null)
-        {
-            // Init must work on default struct of OffHeapBuffer
-            Init(minLength);
-        }
+        public OffHeapMemory(int minLength) : this(null, minLength)
+        { }
 
-        internal OffHeapMemory(OffHeapMemoryPool<T> pool) :
+        internal OffHeapMemory(RetainableMemoryPool<T, OffHeapMemory<T>> pool, int minLength) :
             // NOTE: this object must release _counter when finalized or not pooled
             // Base class calls _counter.Dispose in it's dispose method and this is enough
             // for shared-memory backed counters. Base class doesn't know about ACS.
             base(AtomicCounterService.AcquireCounter())
         {
             _pool = pool;
+            Init(minLength);
         }
 
         protected override void Dispose(bool disposing)
         {
-            var count = Counter.Count;
+            var count = Counter.IsValid ? Counter.Count : -1;
             if (count != 0)
             {
-                if (count > 0)
-                {
-                    ThrowDisposingRetained<OffHeapMemory<T>>();
-                }
-                else
-                {
-                    ThrowDisposed<OffHeapMemory<T>>();
-                }
+                if (count > 0) { ThrowDisposingRetained<OffHeapMemory<T>>(); }
+                else { ThrowDisposed<OffHeapMemory<T>>(); }
             }
 
             // disposing == false when finilizing and detected that non pooled
@@ -62,12 +52,10 @@ namespace Spreads.Buffers
             {
                 if (IsPooled)
                 {
-                    ThrowAlienOrAlreadyPooled<OffHeapMemory<T>>();
+                    ThrowAlreadyPooled<OffHeapMemory<T>>();
                 }
 
-#pragma warning disable 618
-                _pool?.Return(this);
-#pragma warning restore 618
+                _pool?.ReturnNoChecks(this, clearArray:false); // this is off-heap, we do not need to clean blittables
 
                 if (!IsPooled)
                 {
@@ -80,24 +68,22 @@ namespace Spreads.Buffers
             }
             else
             {
-                ClearBeforeDispose();
+                Counter.Dispose();
+                AtomicCounterService.ReleaseCounter(Counter);
+                Counter = default;
+                ClearOnDispose();
 
-                // this calls _counter.Dispose() and clears _pointer & _capacity;
-                base.Dispose(false);
                 // Dispose destructs this object and native buffer
                 _offHeapBuffer.Dispose();
                 // set all to default, increase chances to detect errors
                 _offHeapBuffer = default;
-
-                // either finalizing non-pooled or pool if full
-                AtomicCounterService.ReleaseCounter(Counter);
             }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal void Init(int minimumCapacity)
         {
-            _offHeapBuffer.EnsureCapacity(minimumCapacity);
+            _offHeapBuffer.EnsureCapacity(BitUtil.FindNextPositivePowerOfTwo(minimumCapacity));
             _pointer = _offHeapBuffer._pointer;
             _length = _offHeapBuffer.Length;
             _offset = 0;

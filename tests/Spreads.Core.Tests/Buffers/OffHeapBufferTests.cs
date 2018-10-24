@@ -108,7 +108,7 @@ namespace Spreads.Core.Tests.Buffers
 
             Benchmark.Dump();
 
-            Assert.AreEqual(1, pool._pool._objects.Where(x => x != null).Count());
+            Assert.AreEqual(1, pool.InspectObjects().Count());
         }
 
         [Test, Explicit("long running")]
@@ -141,7 +141,7 @@ namespace Spreads.Core.Tests.Buffers
                     {
                         for (int i = 0; i < count / 1_000; i++)
                         {
-                            var rm = pool.RetainMemory(size * 1024, requireExact: false);
+                            var rm = pool.RentMemory(size * 1024).Retain();
                             rm.Dispose();
                         }
                     }
@@ -152,7 +152,7 @@ namespace Spreads.Core.Tests.Buffers
                     {
                         for (int i = 0; i < count; i++)
                         {
-                            var rm = pool.RetainMemory(size * 1024, requireExact: false);
+                            var rm = pool.RentMemory(size * 1024).Retain();
                             rm.Dispose();
                         }
                     }
@@ -161,7 +161,7 @@ namespace Spreads.Core.Tests.Buffers
 
             Benchmark.Dump();
 
-            Assert.AreEqual(1, pool._pool._objects.Where(x => x != null).Count());
+            Assert.AreEqual(1, pool.InspectObjects().Count());
         }
 
         [Test]
@@ -172,7 +172,7 @@ namespace Spreads.Core.Tests.Buffers
             var rm = offHeapMemory.Retain();
             Assert.Throws<InvalidOperationException>(() => { pool.Return(offHeapMemory); });
             rm.Dispose();
-            pool.Dispose(); 
+            pool.Dispose();
         }
 
         [Test]
@@ -190,7 +190,7 @@ namespace Spreads.Core.Tests.Buffers
             Assert.Throws<InvalidOperationException>(() => { pool.Return(offHeapMemory); });
             Assert.Throws<InvalidOperationException>(() => { pool.Return(offHeapMemory2); });
             Assert.Throws<ObjectDisposedException>(() => { pool.Return(offHeapMemory3); });
-            Assert.AreEqual(2, pool._pool._objects.Where(x => x != null).Count());
+            Assert.AreEqual(2, pool.InspectObjects().Count());
         }
 
         [Test]
@@ -202,7 +202,7 @@ namespace Spreads.Core.Tests.Buffers
 
             pool.Return(offHeapMemory);
             pool.Return(offHeapMemory2);
-            Assert.AreEqual(2, pool._pool._objects.Where(x => x != null).Count());
+            Assert.AreEqual(2, pool.InspectObjects().Count());
             pool.Dispose();
         }
 
@@ -215,12 +215,14 @@ namespace Spreads.Core.Tests.Buffers
 
             Assert.Throws<InvalidOperationException>(() => { pool.Return(offHeapMemory); });
 
-            Assert.AreEqual(1, pool._pool._objects.Where(x => x != null).Count());
+            Assert.AreEqual(1, pool.InspectObjects().Count());
 
-            var rm = pool.RetainMemory(32 * 1024);
+            var rm = pool.RentMemory(32 * 1024).Retain();
             // ((IDisposable)offHeapMemory).Dispose();
             rm.Dispose();
-            Assert.AreEqual(1, pool._pool._objects.Where(x => x != null).Count());
+            Assert.AreEqual(1, pool.InspectObjects().Count());
+
+            pool.Dispose();
         }
 
         [Test]
