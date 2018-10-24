@@ -213,7 +213,25 @@ namespace Spreads.Buffers
 #if DETECT_LEAKS
             _finalizeChecker?.Dispose();
 #endif
-            _manager?.Decrement();
+            if (_manager is ArrayMemory<T> rmem)
+            {
+                // Because this struct borrows _manager
+                // we know that Counter is at least 1 and the memory is not pooled.
+                // This is 25% faster that trip via virtual Dispose.
+                if (rmem.Counter.Decrement() == 0)
+                {
+                    if (rmem._pool != null && rmem._pool.ReturnNoChecks(rmem, false))
+                    {
+                        return;
+                    }
+
+                    ((IDisposable)rmem).Dispose();
+                }
+            }
+            else
+            {
+                _manager?.Decrement();
+            }
         }
 
 #if DETECT_LEAKS
