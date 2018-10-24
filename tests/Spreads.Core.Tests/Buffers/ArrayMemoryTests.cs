@@ -49,7 +49,7 @@ namespace Spreads.Core.Tests.Buffers
         [Test, Explicit("long running")]
         public void RentReturnBenchmarkRetainablePool()
         {
-            var count = 100_000_000;
+            var count = 10_000_000;
 
             var pool = new RetainableMemoryPool<byte, ArrayMemory<byte>>(null, 16,
                 1024 * 1024, 50, 2);
@@ -57,12 +57,15 @@ namespace Spreads.Core.Tests.Buffers
             for (int i = 0; i < 1000; i++)
             {
                 var memory = pool.RentMemory(32 * 1024);
+                memory.Increment();
+                memory.Decrement();
+                // ((IDisposable)memory).Dispose();
                 //(memory.Pin(0)).Dispose();
                 //if (memory.IsDisposed || memory.IsRetained)
                 //{
                 //    Assert.Fail();
                 //}
-                pool.Return(memory);
+                // pool.Return(memory);
             }
 
             using (Benchmark.Run("FullCycle", count))
@@ -88,7 +91,13 @@ namespace Spreads.Core.Tests.Buffers
             var count = 1_000_000;
             var capacity = 25;
             var batch = capacity * 2;
-            var pool = new RetainableMemoryPool<byte, ArrayMemory<byte>>(ArrayMemory<byte>.Create, 16,
+            var pool = new RetainableMemoryPool<byte, ArrayMemory<byte>>((p,l) =>
+                {
+                    var am = ArrayMemory<byte>.Create(l);
+                    // Attach pool
+                    am._pool = p;
+                    return am;
+                }, 16,
                 1024 * 1024, capacity, 0);
 
             var list = new List<ArrayMemory<byte>>(batch);
@@ -136,7 +145,7 @@ namespace Spreads.Core.Tests.Buffers
             }
         }
 
-        [Test, Explicit("long running")]
+        [Test]
         public void RentReturnPinnedSlicesRetainablePool()
         {
             var maxBuffers = 128 / 64; // 2

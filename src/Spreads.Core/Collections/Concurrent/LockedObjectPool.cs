@@ -17,8 +17,9 @@ namespace Spreads.Collections.Concurrent
     public sealed class LockedObjectPool<T> : IDisposable
         where T : class
     {
+        internal bool AllocateOnEmpty;
+
         private Func<T> _factory;
-        private readonly bool _allocateOnEmpty;
         internal readonly T[] _objects;
         private SpinLock _lock; // do not make this readonly; it's a mutable struct
         private int _index;
@@ -27,7 +28,7 @@ namespace Spreads.Collections.Concurrent
         internal LockedObjectPool(int numberOfObjects, Func<T> factory, bool allocateOnEmpty = true)
         {
             _factory = factory;
-            _allocateOnEmpty = allocateOnEmpty;
+            AllocateOnEmpty = allocateOnEmpty;
             _lock = new SpinLock(Debugger.IsAttached);
             _objects = new T[numberOfObjects];
         }
@@ -59,7 +60,7 @@ namespace Spreads.Collections.Concurrent
                 if (lockTaken) _lock.Exit(false);
             }
 
-            if (allocate || (obj == null && _allocateOnEmpty))
+            if (allocate || (obj == null && AllocateOnEmpty))
             {
                 if (TraceLowCapacityAllocation && !allocate)
                 {

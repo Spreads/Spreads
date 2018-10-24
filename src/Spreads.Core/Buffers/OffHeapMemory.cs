@@ -3,8 +3,8 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 using System;
-using System.Diagnostics;
 using System.Runtime.CompilerServices;
+using static Spreads.Buffers.BuffersThrowHelper;
 
 namespace Spreads.Buffers
 {
@@ -44,30 +44,44 @@ namespace Spreads.Buffers
 
         protected override void Dispose(bool disposing)
         {
-            ClearBeforePooling();
+            var count = Counter.Count;
+            if (count != 0)
+            {
+                if (count > 0)
+                {
+                    ThrowDisposingRetained<OffHeapMemory<T>>();
+                }
+                else
+                {
+                    ThrowDisposed<OffHeapMemory<T>>();
+                }
+            }
 
             // disposing == false when finilizing and detected that non pooled
             if (disposing)
             {
-                // try to pool
-                bool pooled = false;
-                if (_pool != null)
+                if (IsPooled)
                 {
-#pragma warning disable 618
-
-                    pooled = _pool.Return(this);
-#pragma warning restore 618
+                    ThrowAlienOrAlreadyPooled<OffHeapMemory<T>>();
                 }
 
-                if (!pooled)
+#pragma warning disable 618
+                _pool?.Return(this);
+#pragma warning restore 618
+
+                if (!IsPooled)
                 {
-                    // as if finalizing, same as in ArrayMemorySlice
+                    // detach from pool
+                    _pool = null;
+                    // as if finalizing
                     GC.SuppressFinalize(this);
                     Dispose(false);
                 }
             }
             else
             {
+                ClearBeforeDispose();
+
                 // this calls _counter.Dispose() and clears _pointer & _capacity;
                 base.Dispose(false);
                 // Dispose destructs this object and native buffer
@@ -86,6 +100,7 @@ namespace Spreads.Buffers
             _offHeapBuffer.EnsureCapacity(minimumCapacity);
             _pointer = _offHeapBuffer._pointer;
             _length = _offHeapBuffer.Length;
+            _offset = 0;
         }
     }
 }

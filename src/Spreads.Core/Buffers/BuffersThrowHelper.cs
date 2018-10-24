@@ -50,7 +50,7 @@ namespace Spreads.Buffers
         [MethodImpl(MethodImplOptions.NoInlining)]
         internal static void ThrowAlienOrAlreadyPooled<T>()
         {
-            ThrowHelper.ThrowObjectDisposedException("Cannot return to pool alien or already pooled " + nameof(T));
+            ThrowHelper.ThrowInvalidOperationException("Cannot return to pool alien or already pooled " + nameof(T));
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]

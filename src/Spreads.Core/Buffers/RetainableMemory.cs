@@ -15,11 +15,14 @@ namespace Spreads.Buffers
     {
         internal AtomicCounter Counter;
 
-        // [p*_______[idx<---len--->]___] we must only check capacity at construction and then work from pointer
+        // [p*_______[offset<---len--->]___] we must only check capacity at construction and then work from pointer
 
         protected int _offset;
         protected int _length;
         protected void* _pointer;
+
+        // Pool could set this value on Rent/Return
+        internal bool IsPooled;
 
 #if DEBUG
         internal string _stackTrace = Environment.StackTrace;
@@ -61,7 +64,13 @@ namespace Spreads.Buffers
         internal void* Pointer
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => _pointer;
+            get => Unsafe.Add<T>(_pointer, _offset);
+        }
+
+        public bool IsPinned
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => _pointer != null;
         }
 
         public bool IsRetained
@@ -87,7 +96,7 @@ namespace Spreads.Buffers
         public bool IsDisposed
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => Counter.IsDisposed;
+            get => Counter.Count < 0;
         }
 
         public int Length
@@ -98,6 +107,11 @@ namespace Spreads.Buffers
 
         public override Span<T> GetSpan()
         {
+            if (IsPooled)
+            {
+                ThrowDisposed<RetainableMemory<T>>();
+            }
+
             return new Span<T>(_pointer, _length);
         }
 
@@ -108,6 +122,11 @@ namespace Spreads.Buffers
             if (unchecked((uint)elementIndex) >= _length) // if (elementIndex < 0 || elementIndex >= _capacity)
             {
                 ThrowIndexOutOfRange();
+            }
+
+            if (_pointer == null)
+            {
+                ThrowHelper.ThrowInvalidOperationException("RatinableMemory is not pinned.");
             }
 
             // NOTE: even for the array-based memory handle is create when array is taken from pool
@@ -134,6 +153,7 @@ namespace Spreads.Buffers
         /// <summary>
         /// Retain buffer memory.
         /// </summary>
+        [Obsolete("This differs from Slice that takes start, could be source of error")]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public RetainedMemory<T> Retain(int length)
         {
@@ -180,7 +200,7 @@ namespace Spreads.Buffers
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal void ClearBeforePooling()
+        internal void ClearBeforeDispose()
         {
             _pointer = null;
             _length = default;

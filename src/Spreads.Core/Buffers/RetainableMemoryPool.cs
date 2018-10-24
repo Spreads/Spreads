@@ -33,7 +33,7 @@ namespace Spreads.Buffers
 
     public sealed class RetainableMemoryPool<T, TImpl> : MemoryPool<T> where TImpl : RetainableMemory<T> // TODO
     {
-        private readonly Func<int, TImpl> _factory;
+        private readonly Func<RetainableMemoryPool<T, TImpl>, int, TImpl> _factory;
         private readonly int _minBufferLength;
         private readonly int _maxBufferLength;
         private readonly int _maxBucketsToTry;
@@ -48,11 +48,11 @@ namespace Spreads.Buffers
         private readonly Bucket[] _buckets;
         private readonly int _minBufferLengthPow2;
 
-        internal RetainableMemoryPool(Func<int, TImpl> factory) : this(factory, DefaultMinArrayLength, DefaultMaxArrayLength, DefaultMaxNumberOfArraysPerBucket)
+        internal RetainableMemoryPool(Func<RetainableMemoryPool<T, TImpl>, int, TImpl> factory) : this(factory, DefaultMinArrayLength, DefaultMaxArrayLength, DefaultMaxNumberOfArraysPerBucket)
         {
         }
 
-        internal RetainableMemoryPool(Func<int, TImpl> factory, int minBufferLength, int maxArrayLength, int maxArraysPerBucket, int maxBucketsToTry = 2)
+        internal RetainableMemoryPool(Func<RetainableMemoryPool<T, TImpl>, int, TImpl> factory, int minBufferLength, int maxArrayLength, int maxArraysPerBucket, int maxBucketsToTry = 2)
         {
             _factory = factory;
             if (typeof(TImpl) != typeof(ArrayMemory<T>) && _factory == null)
@@ -108,7 +108,7 @@ namespace Spreads.Buffers
             var buckets = new Bucket[maxBuckets + 1];
             for (int i = 0; i < buckets.Length; i++)
             {
-                buckets[i] = new Bucket(_factory, GetMaxSizeForBucket(i), maxArraysPerBucket, poolId);
+                buckets[i] = new Bucket(this, _factory, GetMaxSizeForBucket(i), maxArraysPerBucket, poolId);
             }
             _buckets = buckets;
         }
@@ -121,10 +121,12 @@ namespace Spreads.Buffers
         {
             if (typeof(TImpl) == typeof(ArrayMemory<T>) && _factory == null)
             {
-                return Unsafe.As<TImpl>(ArrayMemory<T>.Create(length));
+                var am = ArrayMemory<T>.Create(length);
+                am._pool = Unsafe.As<RetainableMemoryPool<T, ArrayMemory<T>>>(this);
+                return Unsafe.As<TImpl>(am);
             }
 
-            return _factory.Invoke(length);
+            return _factory.Invoke(this, length);
         }
 
         public override IMemoryOwner<T> Rent(int minBufferSize = -1)
@@ -162,6 +164,7 @@ namespace Spreads.Buffers
                         {
                             log.BufferRented(buffer.GetHashCode(), buffer.Length, Id, _buckets[i].Id);
                         }
+                        buffer.IsPooled = false;
                         return buffer;
                     }
                 }
@@ -190,23 +193,24 @@ namespace Spreads.Buffers
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool Return(TImpl memory, bool clearArray = false)
+        internal bool Return(TImpl memory, bool clearArray = false)
         {
-            if (memory == null)
+            // These checks for internal code that could Return directly without Dispose on memory
+            var count = memory.Counter.IsValid ? memory.Counter.Count : -1;
+            if (count != 0)
             {
-                ThrowArgumentNull<TImpl>();
-            }
-
-            // ReSharper disable once PossibleNullReferenceException
-            if (memory.IsDisposed)
-            {
-                ThrowDisposed<TImpl>();
+                if (count > 0)
+                {
+                    ThrowDisposingRetained<ArrayMemorySlice<T>>();
+                }
+                else
+                {
+                    ThrowDisposed<ArrayMemorySlice<T>>();
+                }
             }
 
             // Determine with what bucket this array length is associated
             int bucket = SelectBucketIndex(memory.Length);
-
-            var pooled = false;
 
             // Clear the array if the user requests
             if (clearArray)
@@ -220,12 +224,7 @@ namespace Spreads.Buffers
                 // Return the buffer to its bucket.  In the future, we might consider having Return return false
                 // instead of dropping a bucket, in which case we could try to return to a lower-sized bucket,
                 // just as how in Rent we allow renting from a higher-sized bucket.
-                pooled = _buckets[bucket].Return(memory);
-            }
-            else
-            {
-                // if !pooled then bucket.Return disposes so in else branch
-                ((IDisposable)memory).Dispose();
+                memory.IsPooled = _buckets[bucket].Return(memory);
             }
 
             // Log that the buffer was returned
@@ -235,7 +234,7 @@ namespace Spreads.Buffers
                 log.BufferReturned(memory.GetHashCode(), memory.Length, Id);
             }
 
-            return pooled;
+            return memory.IsPooled;
         }
 
         protected override void Dispose(bool disposing)
@@ -248,6 +247,7 @@ namespace Spreads.Buffers
                     // ReSharper disable once UseNullPropagation : Debug
                     if (disposable != null)
                     {
+                        sharedMemoryBuffer.IsPooled = false;
                         ((IDisposable)disposable).Dispose();
                     }
                 }
@@ -259,8 +259,9 @@ namespace Spreads.Buffers
         /// <summary>Provides a thread-safe bucket containing buffers that can be Rent'd and Return'd.</summary>
         private sealed class Bucket
         {
-            private readonly Func<int, TImpl> _factory;
-            internal readonly int _bufferLength;
+            private readonly RetainableMemoryPool<T, TImpl> _pool;
+            private readonly Func<RetainableMemoryPool<T, TImpl>, int, TImpl> _factory;
+            private readonly int _bufferLength;
             internal readonly TImpl[] _buffers;
             private readonly int _poolId;
 
@@ -272,7 +273,7 @@ namespace Spreads.Buffers
             /// <summary>
             /// Creates the pool with numberOfBuffers arrays where each buffer is of bufferLength length.
             /// </summary>
-            internal Bucket(Func<int, TImpl> factory, int bufferLength, int numberOfBuffers, int poolId)
+            internal Bucket(RetainableMemoryPool<T, TImpl> pool, Func<RetainableMemoryPool<T, TImpl>, int, TImpl> factory, int bufferLength, int numberOfBuffers, int poolId)
             {
                 _lock = new SpinLock(Debugger.IsAttached); // only enable thread tracking if debugger is attached; it adds non-trivial overheads to Enter/Exit
                 _buffers = new TImpl[numberOfBuffers];
@@ -282,6 +283,7 @@ namespace Spreads.Buffers
                     ThrowArgumentNull<Func<int, TImpl>>();
                 }
 
+                _pool = pool;
                 _factory = factory;
                 _bufferLength = bufferLength;
                 _poolId = poolId;
@@ -295,6 +297,7 @@ namespace Spreads.Buffers
             {
                 if (typeof(TImpl) == typeof(ArrayMemory<T>) && _factory == null)
                 {
+                    ArrayMemory<T> arrayMemory;
                     if (_bufferLength <= 64 * 1024)
                     {
                         if (_sliceBucket == null)
@@ -302,16 +305,24 @@ namespace Spreads.Buffers
                             _sliceBucket = new ArrayMemorySliceBucket<T>(_bufferLength, _buffers.Length);
                         }
 
-                        var slice = _sliceBucket.RentMemory();
-                        Debug.Assert(slice.Length == _bufferLength);
-                        var asTImpl = Unsafe.As<TImpl>(slice);
-                        return asTImpl;
+                        arrayMemory = _sliceBucket.RentMemory();
+                    }
+                    else
+                    {
+                        arrayMemory = ArrayMemory<T>.Create(_bufferLength);
                     }
 
-                    return Unsafe.As<TImpl>(ArrayMemory<T>.Create(_bufferLength));
+                    arrayMemory._pool = Unsafe.As<RetainableMemoryPool<T, ArrayMemory<T>>>(_pool);
+                    if (arrayMemory.Length != _bufferLength)
+                    {
+                        // TODO proper exception, this is for args
+                        ThrowBadLength();
+                    }
+                    var asTImpl = Unsafe.As<TImpl>(arrayMemory);
+                    return asTImpl;
                 }
                 // ReSharper disable once PossibleNullReferenceException
-                return _factory.Invoke(_bufferLength);
+                return _factory.Invoke(_pool, _bufferLength);
             }
 
             /// <summary>Takes an array from the bucket.  If the bucket is empty, returns null.</summary>
@@ -360,6 +371,13 @@ namespace Spreads.Buffers
                             RetainedMemoryPoolEventSource.BufferAllocatedReason.Pooled);
                     }
                 }
+                else
+                {
+                    if (buffer != null && !buffer.IsPooled)
+                    {
+                        ThrowNotFromPool<TImpl>();
+                    }
+                }
 
                 return buffer;
             }
@@ -383,14 +401,14 @@ namespace Spreads.Buffers
                 // The try/finally is necessary to properly handle thread aborts on platforms
                 // which have them.
                 bool lockTaken = false;
-                bool dispose;
+                bool pooled;
 #if !NETCOREAPP
                 try
 #endif
                 {
                     _lock.Enter(ref lockTaken);
-                    dispose = _index == 0;
-                    if (!dispose)
+                    pooled = _index != 0;
+                    if (pooled)
                     {
                         _buffers[--_index] = memory;
                     }
@@ -402,12 +420,7 @@ namespace Spreads.Buffers
                     if (lockTaken) _lock.Exit(false);
                 }
 
-                if (dispose)
-                {
-                    ((IDisposable)memory).Dispose();
-                }
-
-                return !dispose;
+                return pooled;
             }
         }
 

@@ -153,7 +153,7 @@ namespace Spreads.Serialization
                 Debug.Assert(bc != null);
                 ThrowHelper.AssertFailFast(bc != null, "TypeHelper<T>.BinaryConverter != null, in other cases raw temp buffer should be present");
                 rawOffset = DataTypeHeader.Size + 4 + tsSize;
-                tmpArray = BufferPool.RetainNoLoh(rawOffset + rawSize);
+                tmpArray = BufferPool.RetainTemp(rawOffset + rawSize);
                 tmpDestination = new DirectBuffer(tmpArray.Length, (byte*)tmpArray.Pointer);
                 var slice = tmpDestination.Slice(rawOffset);
                 // ReSharper disable once PossibleNullReferenceException
@@ -171,7 +171,7 @@ namespace Spreads.Serialization
                 else
                 {
                     rawOffset = DataTypeHeader.Size + 4 + tsSize;
-                    tmpArray = BufferPool.RetainNoLoh(rawOffset + rawSize);
+                    tmpArray = BufferPool.RetainTemp(rawOffset + rawSize);
                     tmpDestination = new DirectBuffer(tmpArray.Length, (byte*)tmpArray.Pointer);
                     var slice = tmpDestination.Slice(rawOffset);
                     rawTemporaryBuffer.Span.CopyTo(slice.Span);
@@ -218,7 +218,7 @@ namespace Spreads.Serialization
 
             var uncompressedBufferWithHeader = tmpDestination.Slice(firstOffset, totalLength);
 
-            var tmpArray2 = BufferPool.RetainNoLoh(checked((int)(uint)uncompressedBufferWithHeader.Length));
+            var tmpArray2 = BufferPool.RetainTemp(checked((int)(uint)uncompressedBufferWithHeader.Length));
             var destination2 = new DirectBuffer(tmpArray2.Length, (byte*)tmpArray2.Pointer).Slice(0, uncompressedBufferWithHeader.Length);
 
             var compressedSize = CompressWithHeader(uncompressedBufferWithHeader, destination2, compressionMethod);

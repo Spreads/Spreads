@@ -258,47 +258,47 @@ namespace Spreads.Core.Tests.Serialization
         {
             Settings.DoAdditionalCorrectnessChecks = false;
 
-            //CouldSerializeBlittable(DateTime.Today);
-            //CouldSerializeBlittable(default(DateTime));
-            //CouldSerializeBlittable(DateTime.MinValue);
-            //CouldSerializeBlittable(DateTime.MaxValue);
-            //CouldSerializeBlittable(DateTime.Today.AddSeconds(1));
+            CouldSerializeBlittable(DateTime.Today);
+            CouldSerializeBlittable(default(DateTime));
+            CouldSerializeBlittable(DateTime.MinValue);
+            CouldSerializeBlittable(DateTime.MaxValue);
+            CouldSerializeBlittable(DateTime.Today.AddSeconds(1));
 
             CouldSerializeBlittable(TimeService.Default.CurrentTime);
-            //CouldSerializeBlittable(default(Timestamp));
-            //CouldSerializeBlittable((Timestamp)long.MaxValue);
+            CouldSerializeBlittable(default(Timestamp));
+            CouldSerializeBlittable((Timestamp)long.MaxValue);
 
-            //CouldSerializeBlittable(0.0);
+            CouldSerializeBlittable(0.0);
 
-            //var count = 1_000;
-            //using (Benchmark.Run("CouldSerializeBlittables", count * (2 * 2 * 8) * 12))
-            //{
-            //    for (int i = 0; i < count; i++)
-            //    {
-            //        var x = i; //  % 100;
+            var count = 10;
+            using (Benchmark.Run("CouldSerializeBlittables", count * (2 * 2 * 8) * 12))
+            {
+                for (int i = 0; i < count; i++)
+                {
+                    var x = i; //  % 100;
 
-            //        CouldSerializeBlittable(DateTime.Today);
-            //        CouldSerializeBlittable(default(DateTime));
-            //        CouldSerializeBlittable(DateTime.MinValue);
-            //        CouldSerializeBlittable(DateTime.MaxValue);
-            //        CouldSerializeBlittable(DateTime.Today.AddSeconds(x));
+                    CouldSerializeBlittable(DateTime.Today);
+                    CouldSerializeBlittable(default(DateTime));
+                    CouldSerializeBlittable(DateTime.MinValue);
+                    CouldSerializeBlittable(DateTime.MaxValue);
+                    CouldSerializeBlittable(DateTime.Today.AddSeconds(x));
 
-            //        CouldSerializeBlittable(TimeService.Default.CurrentTime);
-            //        CouldSerializeBlittable(default(Timestamp));
-            //        CouldSerializeBlittable((Timestamp)long.MaxValue);
+                    CouldSerializeBlittable(TimeService.Default.CurrentTime);
+                    CouldSerializeBlittable(default(Timestamp));
+                    CouldSerializeBlittable((Timestamp)long.MaxValue);
 
-            //        CouldSerializeBlittable(i);
-            //        CouldSerializeBlittable((short)i);
-            //        CouldSerializeBlittable((long)i);
+                    CouldSerializeBlittable(i);
+                    CouldSerializeBlittable((short)i);
+                    CouldSerializeBlittable((long)i);
 
-            //        CouldSerializeBlittable((double)x / (double)(x + 1)); // / (double)(x + 1));
-            //        // CouldSerializeBlittable((decimal)x / (decimal)(x + 1)); // / (double)(x + 1));
-            //    }
+                    CouldSerializeBlittable((double)x / (double)(x + 1)); // / (double)(x + 1));
+                    // CouldSerializeBlittable((decimal)x / (decimal)(x + 1)); // / (double)(x + 1));
+                }
 
-            //    //CouldSerializeBlittable(default(double));
-            //    //CouldSerializeBlittable(double.MinValue);
-            //    // CouldSerializeBlittable(double.MaxValue);
-            //}
+                //CouldSerializeBlittable(default(double));
+                //CouldSerializeBlittable(double.MinValue);
+                // CouldSerializeBlittable(double.MaxValue);
+            }
         }
 
         [Test]

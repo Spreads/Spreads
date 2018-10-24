@@ -29,8 +29,8 @@ namespace Spreads.Core.Run
             Settings.DoAdditionalCorrectnessChecks = false;
 #pragma warning restore 618
 
-            var test = new ArrayMemoryTests();
-            test.RentReturnPinnedSlicesRetainablePoolBadBehaviorDropped();
+            var test = new Utf8JsonTests();
+            test.SerializeToRetainedMemoryOverhead();
 
             //IlwdBenchmark();
 

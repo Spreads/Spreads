@@ -296,7 +296,7 @@ namespace Spreads.Core.Tests.Buffers
             Assert.AreEqual(50 * 2, AtomicCounterService.Buckets.Where(x => x != null).Select(x => x.FreeCount).Sum());
         }
 
-        [Test]
+        [Test, Explicit("with static side effects")]
         public void ServiceCouldGrowBucketsWithResizeManyTimes()
         {
             var rounds = 100;

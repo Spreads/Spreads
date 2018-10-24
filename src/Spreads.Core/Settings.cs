@@ -14,7 +14,7 @@ namespace Spreads
     public static class Settings
     {
         // ReSharper disable once InconsistentNaming
-        internal const int LOH_LIMIT = 85000;
+        internal const int LOH_BUFFER_LIMIT = 64 * 1024;
         // TODO find best values
         /// <summary>
         ///
@@ -32,7 +32,7 @@ namespace Spreads
         // when noone is using it.
 
         // NB at least 85k for LOH
-        internal static readonly int ThreadStaticPinnedBufferSize = BitUtil.FindNextPositivePowerOfTwo(LOH_LIMIT);
+        internal static readonly int ThreadStaticPinnedBufferSize = BitUtil.FindNextPositivePowerOfTwo(LOH_BUFFER_LIMIT);
 
         internal class AdditionalCorrectnessChecks
         {

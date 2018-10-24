@@ -13,7 +13,7 @@ namespace Spreads.Buffers
 {
     // HAA0301/HAA0302 only happens once per pool
 
-    public class OffHeapMemoryPool<T> : MemoryPool<T> //where T : struct
+    public class OffHeapMemoryPool<T> : MemoryPool<T>
     {
         /// <summary>
         /// Internal for tests only, do not use in other places.
@@ -56,7 +56,7 @@ namespace Spreads.Buffers
             var mem = RentMemory(length);
             if (requireExact)
             {
-                return mem.Retain(length);
+                return mem.Retain(0, length);
             }
             return mem.Retain();
         }
@@ -65,7 +65,14 @@ namespace Spreads.Buffers
 
         protected override void Dispose(bool disposing)
         {
-            _pool.Dispose();
+            _pool.AllocateOnEmpty = false;
+            OffHeapMemory<T> mem;
+            while ((mem = _pool.Rent()) != null)
+            {
+                mem.IsPooled = false;
+                mem._pool = null;
+                ((IDisposable)mem).Dispose();
+            }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -93,6 +100,7 @@ namespace Spreads.Buffers
 #if DEBUG
             offHeapMemory._stackTrace = Environment.StackTrace;
 #endif
+            offHeapMemory.IsPooled = false;
             return offHeapMemory;
         }
 
@@ -110,24 +118,39 @@ namespace Spreads.Buffers
         {
             // offHeapMemory must be in the same state as it was after Rent so that Rent/Return work without any other requirements
 
-            if (offHeapMemory.IsDisposed)
+            // These checks for internal code that could Return directly without Dispose on memory
+            var count = offHeapMemory.Counter.IsValid ? offHeapMemory.Counter.Count : -1;
+            if (count != 0)
             {
-                ThrowDisposed<OffHeapMemory<T>>();
+                if (count > 0)
+                {
+                    ThrowDisposingRetained<ArrayMemorySlice<T>>();
+                }
+                else
+                {
+                    ThrowDisposed<ArrayMemorySlice<T>>();
+                }
             }
 
-            if (offHeapMemory.IsRetained)
-            {
-                ThrowDisposingRetained<OffHeapMemory<T>>();
-            }
-
-            if (offHeapMemory._pool != this)
+            if (offHeapMemory.IsPooled || offHeapMemory._pool != this)
             {
                 ThrowAlienOrAlreadyPooled<OffHeapMemory<T>>();
             }
 
-            var pooled = _pool.Return(offHeapMemory);
-            offHeapMemory._pool = null;
+            var pooled = offHeapMemory.IsPooled = _pool.Return(offHeapMemory);
             return pooled;
+        }
+
+        public bool Return<TImpl>(TImpl memory) where TImpl : RetainableMemory<T>
+        {
+            if (typeof(TImpl) == typeof(OffHeapMemory<T>))
+            {
+#pragma warning disable 618
+                return Return(Unsafe.As<OffHeapMemory<T>>(memory));
+#pragma warning restore 618
+            }
+            ThrowHelper.ThrowNotSupportedException();
+            return false;
         }
     }
 }

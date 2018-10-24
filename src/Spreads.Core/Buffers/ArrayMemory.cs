@@ -69,19 +69,22 @@ namespace Spreads.Buffers
         [Obsolete("internal only for tests/disgnostics")]
         internal readonly ArrayMemory<T> _slab;
 
-        private readonly LockedObjectPool<ArrayMemorySlice<T>> _pool;
+        private readonly LockedObjectPool<ArrayMemorySlice<T>> _slicesPool;
 
-        public ArrayMemorySlice(ArrayMemory<T> slab, LockedObjectPool<ArrayMemorySlice<T>> pool, int offset, int length)
+        public unsafe ArrayMemorySlice(ArrayMemory<T> slab, LockedObjectPool<ArrayMemorySlice<T>> slicesPool, int offset, int length)
         {
-            slab.Increment();
 #pragma warning disable 618
             _slab = slab;
+            _slab.Increment();
             _handle = GCHandle.Alloc(_slab);
 #pragma warning restore 618
-            _pool = pool;
+            _slicesPool = slicesPool;
+
+            _pointer = _slab.Pointer;
             _offset = offset;
             _length = length;
             _array = slab._array;
+            
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -92,51 +95,81 @@ namespace Spreads.Buffers
                 ThrowHelper.ThrowNotSupportedException();
             }
 
-            if (IsRetained)
+            var count = Counter.Count;
+            if (count != 0)
             {
-                ThrowDisposingRetained<ArrayMemorySlice<T>>();
+                if (count > 0)
+                {
+                    ThrowDisposingRetained<ArrayMemorySlice<T>>();
+                }
+                else
+                {
+                    ThrowDisposed<ArrayMemorySlice<T>>();
+                }
             }
 
-            var array = Interlocked.Exchange(ref _array, null);
-            if (array != null)
-            {
-                ClearBeforePooling();
-#pragma warning disable 618
-                _slab.Decrement();
-                _handle.Free();
-#pragma warning restore 618
-            }
-
+            // disposing == false when finilizing and detected that non pooled
             if (disposing)
             {
-                if (array == null)
+                if (IsPooled)
                 {
-                    ThrowDisposed<ArrayMemory<T>>();
+                    ThrowAlienOrAlreadyPooled<OffHeapMemory<T>>();
                 }
 
-                // TODO return to bucket
-                var pooled = _pool.Return(this);
-                if (!pooled)
+                if (_pool != null)
                 {
-                    // as if finalizing, same as in OffHeapMemory
-                    GC.SuppressFinalize(this);
-                    Dispose(false);
+                    IsPooled = _pool.Return(this);
+                }
+
+                if (!IsPooled)
+                {
+                    // detach from pool
+                    _pool = null;
+                    // we still could add this to the pool of free pinned slices that are backed by an existing slab
+                    var pooledToFreeSlicesPool = _slicesPool.Return(this);
+                    if (!pooledToFreeSlicesPool)
+                    {
+                        // as if finalizing
+                        GC.SuppressFinalize(this);
+                        Dispose(false);
+                    }
                 }
             }
             else
             {
+                // destroy the object and release resources
+                var array = Interlocked.Exchange(ref _array, null);
+                if (array != null)
+                {
+                    ClearBeforeDispose();
+                    Debug.Assert(_handle.IsAllocated);
+#pragma warning disable 618
+                    _slab.Decrement();
+                    _handle.Free();
+#pragma warning restore 618
+                }
+                else
+                {
+                    ThrowDisposed<ArrayMemory<T>>();
+                }
+
+                Debug.Assert(!_handle.IsAllocated);
+
                 Counter.Dispose();
+                AtomicCounterService.ReleaseCounter(Counter);
             }
         }
     }
 
     public class ArrayMemory<T> : RetainableMemory<T>
     {
-        private static readonly ObjectPool<ArrayMemory<T>> Pool = new ObjectPool<ArrayMemory<T>>(() => new ArrayMemory<T>(), Environment.ProcessorCount * 16);
+        private static readonly ObjectPool<ArrayMemory<T>> ObjectPool = new ObjectPool<ArrayMemory<T>>(() => new ArrayMemory<T>(), Environment.ProcessorCount * 16);
 
         internal T[] _array;
         protected GCHandle _handle;
         protected bool _externallyOwned;
+
+        internal RetainableMemoryPool<T, ArrayMemory<T>> _pool;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         protected ArrayMemory() : base(AtomicCounterService.AcquireCounter())
@@ -190,54 +223,82 @@ namespace Spreads.Buffers
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static unsafe ArrayMemory<T> Create(T[] array, int offset, int length, bool externallyOwned)
         {
-            var ownedPooledArray = Pool.Allocate();
-            ownedPooledArray._array = array;
-            ownedPooledArray._handle = GCHandle.Alloc(ownedPooledArray._array, GCHandleType.Pinned);
-            ownedPooledArray._pointer = Unsafe.AsPointer(ref ownedPooledArray._array[0]);
-            ownedPooledArray._offset = offset;
-            ownedPooledArray._length = length;
-            ownedPooledArray._externallyOwned = externallyOwned;
-            return ownedPooledArray;
+            var arrayMemory = ObjectPool.Allocate();
+            arrayMemory._array = array;
+            arrayMemory._handle = GCHandle.Alloc(arrayMemory._array, GCHandleType.Pinned);
+            arrayMemory._pointer = Unsafe.AsPointer(ref arrayMemory._array[0]);
+            arrayMemory._offset = offset;
+            arrayMemory._length = length;
+            arrayMemory._externallyOwned = externallyOwned;
+            arrayMemory.Counter = AtomicCounterService.AcquireCounter();
+            return arrayMemory;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         protected override void Dispose(bool disposing)
         {
-            if (IsRetained)
+            var count = Counter.IsValid ? Counter.Count : -1;
+            if (count != 0)
             {
-                ThrowDisposingRetained<ArrayMemory<T>>();
-            }
-
-            var array = Interlocked.Exchange(ref _array, null);
-            if (array != null)
-            {
-                ClearBeforePooling();
-                Debug.Assert(_handle.IsAllocated);
-                _handle.Free();
-                _handle = default;
-                // special value that is not normally possible - to keep thread-static buffer undisposable
-                if (!_externallyOwned)
+                if (count > 0)
                 {
-                    BufferPool<T>.Return(array, !TypeHelper<T>.IsFixedSize);
+                    ThrowDisposingRetained<ArrayMemorySlice<T>>();
+                }
+                else
+                {
+                    ThrowDisposed<ArrayMemorySlice<T>>();
                 }
             }
 
-            Debug.Assert(!_handle.IsAllocated);
-
+            // disposing == false when finilizing and detected that non pooled
             if (disposing)
             {
-                if (array == null)
+                if (IsPooled)
+                {
+                    ThrowAlienOrAlreadyPooled<OffHeapMemory<T>>();
+                }
+
+                _pool?.Return(this);
+
+                if (!IsPooled)
+                {
+                    // detach from pool
+                    _pool = null;
+                    // as if finalizing
+                    GC.SuppressFinalize(this);
+                    Dispose(false);
+                }
+            }
+            else
+            {
+                var array = Interlocked.Exchange(ref _array, null);
+                if (array != null)
+                {
+                    ClearBeforeDispose();
+                    Debug.Assert(_handle.IsAllocated);
+                    _handle.Free();
+                    _handle = default;
+                    // special value that is not normally possible - to keep thread-static buffer undisposable
+                    if (!_externallyOwned)
+                    {
+                        BufferPool<T>.Return(array, !TypeHelper<T>.IsFixedSize);
+                    }
+                }
+                else
                 {
                     ThrowDisposed<ArrayMemory<T>>();
                 }
 
+                Debug.Assert(!_handle.IsAllocated);
+
                 // we cannot tell is this object is pooled, so we rely on finalizer
-                // that will be called only if the object is not in the pool
-                Pool.Free(this);
-            }
-            else
-            {
+                // that will be called only if the object is not in the pool.
+                // But if we tried to pool above then we called GC.SuppressFinalize(this)
+                // and finalizer won't be called if the object is dropped from ObjectPool.
+                ObjectPool.Free(this);
                 base.Dispose(false);
+                AtomicCounterService.ReleaseCounter(Counter);
+                Counter = default;
             }
         }
 

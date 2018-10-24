@@ -127,10 +127,10 @@ namespace Spreads.Buffers
             get => _manager.Memory.Slice(_offset, _length);
         }
 
-        public Span<T> Span
+        public unsafe Span<T> Span
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => _manager.GetSpan().Slice(_offset, _length);
+            get => new Span<T>(Pointer, _length);
         }
 
         /// <summary>

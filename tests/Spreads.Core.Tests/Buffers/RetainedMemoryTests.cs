@@ -55,7 +55,7 @@ namespace Spreads.Core.Tests.Buffers
             var b = mem.Span[0];
 
             clone1.Dispose();
-            Assert.Throws<ArgumentOutOfRangeException>(() =>
+            Assert.Throws<ObjectDisposedException>(() =>
             {
                 var b2 = mem.Span[0];
             });
@@ -77,6 +77,28 @@ namespace Spreads.Core.Tests.Buffers
             rmc.Span[1] = 1;
 
             Assert.AreEqual(1, array[11]);
+
+            rm.Dispose();
+            rmc.Dispose();
+        }
+
+        [Test]
+        public void OffsetsAreOk()
+        {
+            var array = new byte[100];
+            var rm = new RetainedMemory<byte>(ArrayMemory<byte>.Create(array, 50, 50, true), 25, 25, true);
+
+            // 85 - 95
+            var rmc = rm.Clone().Slice(10, 10);
+
+            GC.Collect(2, GCCollectionMode.Forced, true);
+            GC.WaitForPendingFinalizers();
+            GC.Collect(2, GCCollectionMode.Forced, true);
+            GC.WaitForPendingFinalizers();
+
+            rmc.Span[5] = 1;
+
+            Assert.AreEqual(1, array[90]);
 
             rm.Dispose();
             rmc.Dispose();

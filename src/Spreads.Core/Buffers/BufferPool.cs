@@ -2,7 +2,6 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-using Spreads.Utils;
 using System;
 using System.Buffers;
 using System.Reflection;
@@ -36,11 +35,11 @@ namespace Spreads.Buffers
     {
         internal static BufferPool Shared = new BufferPool();
 
-        public static RetainableMemoryPool<byte,ArrayMemory<byte>> PinnedArrayMemoryPool = 
-            new RetainableMemoryPool<byte, ArrayMemory<byte>>(ArrayMemory<byte>.Create, 
-                2048, // < one page with array header
-                64 * 1024, // not in LOH
-                Environment.ProcessorCount*2, 2);
+        internal static RetainableMemoryPool<byte, ArrayMemory<byte>> PinnedArrayMemoryPool =
+            new RetainableMemoryPool<byte, ArrayMemory<byte>>(null,
+                2048,
+                1024 * 1024,
+                64, 2);
 
         /// <summary>
         /// Default OffHeap pool has capacity of 4. This static field could be changed to a new instance.
@@ -143,49 +142,52 @@ namespace Spreads.Buffers
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public virtual RetainedMemory<byte> RetainMemory(int length, bool requireExact = true)
+        public RetainedMemory<byte> RetainMemory(int length, bool requireExact = true)
         {
-            // https://github.com/dotnet/corefx/blob/master/src/System.Buffers/src/System/Buffers/DefaultArrayPool.cs#L35
-            // DefaultArrayPool has a minimum size of 16
+            var arrayMemory = PinnedArrayMemoryPool.RentMemory(length);
+            return requireExact ? arrayMemory.Retain(0, length) : arrayMemory.Retain();
 
-            if (length <= _smallTreshhold)
-            {
-                if (_sharedBuffer == null)
-                {
-                    _sharedBuffer = ArrayMemory<byte>.Create(SharedBufferSize);
-                    // NB we must create a reference or the first RetainedMemory could
-                    // dispose _sharedBuffer on RetainedMemory disposal.
+            //// https://github.com/dotnet/corefx/blob/master/src/System.Buffers/src/System/Buffers/DefaultArrayPool.cs#L35
+            //// DefaultArrayPool has a minimum size of 16
 
-                    // We are discarding RetainedMemory struct and will unpin below manually
-                    _sharedBufferMemory = _sharedBuffer.Retain();
+            //if (length <= _smallTreshhold)
+            //{
+            //    if (_sharedBuffer == null)
+            //    {
+            //        _sharedBuffer = ArrayMemory<byte>.Create(SharedBufferSize);
+            //        // NB we must create a reference or the first RetainedMemory could
+            //        // dispose _sharedBuffer on RetainedMemory disposal.
 
-                    SharedBufferOffset = 0;
-                }
-                var bufferSize = _sharedBuffer.Memory.Length;
-                var newOffset = SharedBufferOffset + length;
-                if (newOffset > bufferSize)
-                {
-                    // replace shared buffer, the old one will be disposed
-                    // when all ReservedMemory views on it are disposed
-                    var previous = _sharedBufferMemory;
-                    _sharedBuffer = ArrayMemory<byte>.Create(SharedBufferSize);
+            //        // We are discarding RetainedMemory struct and will unpin below manually
+            //        _sharedBufferMemory = _sharedBuffer.Retain();
 
-                    _sharedBufferMemory = _sharedBuffer.Retain();
-                    previous.Dispose(); // unpinning manually, now the buffer is free and it's retainers determine when it goes back to the pool
+            //        SharedBufferOffset = 0;
+            //    }
+            //    var bufferSize = _sharedBuffer.Memory.Length;
+            //    var newOffset = SharedBufferOffset + length;
+            //    if (newOffset > bufferSize)
+            //    {
+            //        // replace shared buffer, the old one will be disposed
+            //        // when all ReservedMemory views on it are disposed
+            //        var previous = _sharedBufferMemory;
+            //        _sharedBuffer = ArrayMemory<byte>.Create(SharedBufferSize);
 
-                    SharedBufferOffset = 0;
-                    newOffset = length;
-                }
+            //        _sharedBufferMemory = _sharedBuffer.Retain();
+            //        previous.Dispose(); // unpinning manually, now the buffer is free and it's retainers determine when it goes back to the pool
 
-                var retainedMemory = _sharedBuffer.Retain(SharedBufferOffset, length);
-                SharedBufferOffset = BitUtil.Align(newOffset, Settings.SliceMemoryAlignment);
-                return retainedMemory;
-            }
-            // NB here we exclusively own the buffer and disposal of RetainedMemory will cause
-            // disposal and returning to pool of the ownedBuffer instance, unless references were added via
-            // RetainedMemory.Clone()
-            var ownedPooledArray = ArrayMemory<byte>.Create(length);
-            return requireExact ? ownedPooledArray.Retain(length) : ownedPooledArray.Retain();
+            //        SharedBufferOffset = 0;
+            //        newOffset = length;
+            //    }
+
+            //    var retainedMemory = _sharedBuffer.Retain(SharedBufferOffset, length);
+            //    SharedBufferOffset = BitUtil.Align(newOffset, Settings.SliceMemoryAlignment);
+            //    return retainedMemory;
+            //}
+            //// NB here we exclusively own the buffer and disposal of RetainedMemory will cause
+            //// disposal and returning to pool of the ownedBuffer instance, unless references were added via
+            //// RetainedMemory.Clone()
+            //var arrayMemory = ArrayMemory<byte>.Create(length);
+            //return requireExact ? arrayMemory.Retain(0, length) : arrayMemory.Retain();
         }
 
         /// <summary>
@@ -198,23 +200,27 @@ namespace Spreads.Buffers
         }
 
         /// <summary>
-        /// Note that requireExact is false, this method is for temp buffers
+        /// Note that requireExact is false, this method is for temp buffers that could be very large.
         /// </summary>
-        /// <param name="length"></param>
-        /// <param name="requireExact"></param>
-        /// <returns></returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static RetainedMemory<byte> RetainNoLoh(int length, bool requireExact = false)
+        internal static RetainedMemory<byte> RetainTemp(int length)
         {
-            if (length >= Settings.LOH_LIMIT)
+            if (length > Settings.LOH_BUFFER_LIMIT)
             {
                 if (OffHeapMemoryPool != null)
                 {
-                    return OffHeapMemoryPool.RetainMemory(length, requireExact);
+                    return OffHeapMemoryPool.RetainMemory(length, false);
                 }
-                ThrowHelper.ThrowInvalidOperationException("BufferPool.OffHeap is null while requesting RetainNoLoh");
+
+                ThrowOffHeapPoolIsNull();
             }
-            return Shared.RetainMemory(length, requireExact);
+            return Shared.RetainMemory(length, false);
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static void ThrowOffHeapPoolIsNull()
+        {
+            ThrowHelper.ThrowInvalidOperationException("BufferPool.OffHeap is null while requesting RetainNoLoh");
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -228,7 +234,6 @@ namespace Spreads.Buffers
         {
             throw new NotImplementedException();
         }
-
     }
 
     internal static class BufferPoolRetainedMemoryHelper<T>

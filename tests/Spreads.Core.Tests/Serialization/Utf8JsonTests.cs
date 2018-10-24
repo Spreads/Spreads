@@ -56,7 +56,7 @@ namespace Spreads.Core.Tests.Serialization
             var rand = new Random(34151513);
 
             Settings.DoAdditionalCorrectnessChecks = false;
-            var count = 1000_000;
+            var count = 100_000;
             var bytes = new byte[100_000];
             var mem = (Memory<byte>)bytes;
             var h = mem.Pin();
@@ -160,43 +160,46 @@ namespace Spreads.Core.Tests.Serialization
             Settings.DoAdditionalCorrectnessChecks = false;
 #pragma warning restore 618
 
-            var count = 1000_000;
+            var count = 10_000_000;
             
-            for (int r = 0; r < 20; r++)
+            for (int r = 0; r < 10; r++)
             {
-                using (Benchmark.Run("To Rented Array", count))
-                {
-                    for (int i = 0; i < count; i++)
-                    {
-                        var segment = Spreads.Serialization.Utf8Json.JsonSerializer.SerializeToRentedBuffer(i);
-                        BufferPool<byte>.Return(segment.Array);
-                    }
-                }
+                //using (Benchmark.Run("To Rented Array", count))
+                //{
+                //    for (int i = 0; i < count; i++)
+                //    {
+                //        var segment = Spreads.Serialization.Utf8Json.JsonSerializer.SerializeToRentedBuffer(i);
+                //        BufferPool<byte>.Return(segment.Array);
+                //    }
+                //}
 
-                using (Benchmark.Run("To RM", count))
-                {
-                    for (int i = 0; i < count; i++)
-                    {
-                        var rm = Spreads.Serialization.Utf8Json.JsonSerializer.SerializeToRetainedMemory(i);
-                        rm.Dispose();
-                    }
-                }
+                //using (Benchmark.Run("To RM", count))
+                //{
+                //    for (int i = 0; i < count; i++)
+                //    {
+                //        var rm = Spreads.Serialization.Utf8Json.JsonSerializer.SerializeToRetainedMemory(i);
+                //        rm.Dispose();
+                //    }
+                //}
 
-                using (Benchmark.Run("To RMS", count))
-                {
-                    for (int i = 0; i < count; i++)
-                    {
-                        var rms = RecyclableMemoryStreamManager.Default.GetStream();
-                        Spreads.Serialization.Utf8Json.JsonSerializer.Serialize(rms, i);
-                        rms.Dispose();
-                    }
-                }
+                //using (Benchmark.Run("To RMS", count))
+                //{
+                //    for (int i = 0; i < count; i++)
+                //    {
+                //        var rms = RecyclableMemoryStreamManager.Default.GetStream();
+                //        Spreads.Serialization.Utf8Json.JsonSerializer.Serialize(rms, i);
+                //        rms.Dispose();
+                //    }
+                //}
+
+                var rm = BufferPool.Retain(16);
+                rm.Dispose();
 
                 using (Benchmark.Run("RM", count))
                 {
                     for (int i = 0; i < count; i++)
                     {
-                        var rm = BufferPool.Retain(16);
+                        rm = BufferPool.Retain(16);
                         rm.Dispose();
                     }
                 }
