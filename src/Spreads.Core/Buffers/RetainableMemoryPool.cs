@@ -47,6 +47,7 @@ namespace Spreads.Buffers
 
         private readonly Bucket[] _buckets;
         private readonly int _minBufferLengthPow2;
+        internal bool _disposed;
 
         internal RetainableMemoryPool(Func<RetainableMemoryPool<T, TImpl>, int, TImpl> factory) : this(factory, DefaultMinArrayLength, DefaultMaxArrayLength, DefaultMaxNumberOfArraysPerBucket)
         {
@@ -119,6 +120,11 @@ namespace Spreads.Buffers
         [MethodImpl(MethodImplOptions.NoInlining)]
         private TImpl CreateNew(int length)
         {
+            if (_disposed)
+            {
+                ThrowDisposed<RetainableMemoryPool<T, TImpl>>();
+            }
+
             if (typeof(TImpl) == typeof(ArrayMemory<T>) && _factory == null)
             {
                 var am = ArrayMemory<T>.Create(length);
@@ -195,6 +201,10 @@ namespace Spreads.Buffers
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal bool Return(TImpl memory, bool clearArray = false)
         {
+            if (_disposed)
+            {
+                return false;
+            }
             // These checks for internal code that could Return directly without Dispose on memory
             var count = memory.Counter.IsValid ? memory.Counter.Count : -1;
             if (count != 0)
@@ -239,6 +249,7 @@ namespace Spreads.Buffers
 
         protected override void Dispose(bool disposing)
         {
+            _disposed = true;
             foreach (var bucket in _buckets)
             {
                 foreach (var sharedMemoryBuffer in bucket._buffers)
@@ -295,6 +306,11 @@ namespace Spreads.Buffers
             [MethodImpl(MethodImplOptions.NoInlining)]
             internal TImpl CreateNew()
             {
+                if (_pool._disposed)
+                {
+                    ThrowDisposed<RetainableMemoryPool<T, TImpl>>();
+                }
+
                 if (typeof(TImpl) == typeof(ArrayMemory<T>) && _factory == null)
                 {
                     ArrayMemory<T> arrayMemory;

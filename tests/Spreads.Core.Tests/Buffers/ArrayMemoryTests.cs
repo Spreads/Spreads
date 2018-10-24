@@ -7,6 +7,7 @@ using Spreads.Buffers;
 using Spreads.Utils;
 using System;
 using System.Collections.Generic;
+using System.Runtime.InteropServices;
 
 namespace Spreads.Core.Tests.Buffers
 {
@@ -32,6 +33,40 @@ namespace Spreads.Core.Tests.Buffers
         }
 
         [Test, Explicit("long running")]
+        public unsafe void GCHandleTest()
+        {
+            var count = 100_000_000;
+            var bytes = new byte[10000];
+
+            // if we work with Memory abstraction GCHandle is no-go
+            // either move to off-heap or pre-pin, handle is 19MOPS, slower than RMP
+            // fixed is OK with 250+ MOPS in this test
+
+            using (Benchmark.Run("GCHandle", count))
+            {
+                for (int i = 0; i < count; i++)
+                {
+                    var h = GCHandle.Alloc(bytes, GCHandleType.Pinned);
+                    h.Free();
+                }
+            }
+
+            var sum = 0.0;
+            using (Benchmark.Run("Fixed", count))
+            {
+                for (int i = 0; i < count; i++)
+                {
+                    fixed (byte* ptr = &bytes[0])
+                    {
+                        sum += *ptr;
+                    }
+                }
+            }
+
+            Console.WriteLine(sum);
+        }
+
+        [Test, Explicit("long running")]
         public void RentReturnBenchmark()
         {
             var count = 100_000_000;
@@ -49,7 +84,7 @@ namespace Spreads.Core.Tests.Buffers
         [Test, Explicit("long running")]
         public void RentReturnBenchmarkRetainablePool()
         {
-            var count = 10_000_000;
+            var count = 100_000_000;
 
             var pool = new RetainableMemoryPool<byte, ArrayMemory<byte>>(null, 16,
                 1024 * 1024, 50, 2);
@@ -91,7 +126,7 @@ namespace Spreads.Core.Tests.Buffers
             var count = 1_000_000;
             var capacity = 25;
             var batch = capacity * 2;
-            var pool = new RetainableMemoryPool<byte, ArrayMemory<byte>>((p,l) =>
+            var pool = new RetainableMemoryPool<byte, ArrayMemory<byte>>((p, l) =>
                 {
                     var am = ArrayMemory<byte>.Create(l);
                     // Attach pool
@@ -170,6 +205,26 @@ namespace Spreads.Core.Tests.Buffers
                 for (int i = 2; i < maxBuffers * 2; i++)
                 {
                     pool.Return(list[i]);
+                }
+            }
+
+            pool.Dispose();
+        }
+
+        [Test]
+        public void CouldDisposePoolWithFreeSpace()
+        {
+            var maxBuffers = 10;
+
+            var pool = new RetainableMemoryPool<byte, ArrayMemory<byte>>(null, 32 * 1024,
+                1024 * 1024, maxBuffers, 0);
+
+            using (Benchmark.Run("FullCycle"))
+            {
+                for (int i = 0; i < maxBuffers / 2; i++)
+                {
+                    var memory = pool.RentMemory(64 * 1024);
+                    pool.Return(memory);
                 }
             }
 
