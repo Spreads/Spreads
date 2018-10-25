@@ -63,7 +63,6 @@ namespace Spreads.Buffers
             _offHeapBuffer.EnsureCapacity(BitUtil.FindNextPositivePowerOfTwo(minimumCapacity));
             _pointer = _offHeapBuffer._pointer;
             _length = _offHeapBuffer.Length;
-            _offset = 0;
         }
     }
 }

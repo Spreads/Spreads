@@ -137,8 +137,8 @@ namespace Spreads.Core.Tests.Serialization
         [Test]
         public unsafe void CouldSerializeTickDecimal()
         {
-            var count = 1_000;
-            var rounds = 10;
+            var count = 1_00;
+            var rounds = 1;
             var rm = BufferPool.Retain(512);
             var db = new DirectBuffer(rm.Length, (byte*)rm.Pointer);
 

@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Spreads.Utils;
+using System;
 using System.Buffers;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -15,15 +16,19 @@ namespace Spreads.Buffers
     {
         internal AtomicCounter Counter;
 
-        // [p*_______[offset<---len--->]___] we must only check capacity at construction and then work from pointer
+        // [p*<-len---------------->] we must only check capacity at construction and then work from pointer
+        // [p*<-len-[<--lenPow2-->]>] buffer could be larger, pooling always by max pow2 we could store
 
-        protected int _offset;
+        // protected int _offset;
         protected int _length;
+
         protected void* _pointer;
 
         // Pool could set this value on Rent/Return
         internal bool IsPooled;
+
         internal RetainableMemoryPool<T> _pool;
+        internal int _pow2Length;
 
 #if DEBUG
         internal string _stackTrace = Environment.StackTrace;
@@ -59,16 +64,19 @@ namespace Spreads.Buffers
             return true;
         }
 
-        internal DirectBuffer DirectBuffer
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => new DirectBuffer(_length * Unsafe.SizeOf<T>(), (byte*)Pointer);
-        }
-
         internal void* Pointer
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => Unsafe.Add<T>(_pointer, _offset);
+            get => _pointer; //Unsafe.Add<T>(_pointer, _offset);
+        }
+
+        /// <summary>
+        /// Extra space (if any) is at the beginning.
+        /// </summary>
+        internal void* PointerPow2
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => Unsafe.Add<T>(_pointer, _length - LengthPow2);
         }
 
         public bool IsPinned
@@ -109,7 +117,6 @@ namespace Spreads.Buffers
             }
         }
 
-
         public bool IsDisposed
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -122,6 +129,19 @@ namespace Spreads.Buffers
             get => _length;
         }
 
+        internal int LengthPow2
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get
+            {
+                if (_pow2Length == 0)
+                {
+                    return _pow2Length = (BitUtil.FindNextPositivePowerOfTwo(_length + 1) / 2);
+                }
+                return _pow2Length;
+            }
+        }
+
         public override Span<T> GetSpan()
         {
             if (IsPooled)
@@ -130,6 +150,12 @@ namespace Spreads.Buffers
             }
 
             return new Span<T>(Pointer, _length);
+        }
+
+        internal DirectBuffer DirectBuffer
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => new DirectBuffer(_length * Unsafe.SizeOf<T>(), (byte*)Pointer);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)] // hope for devirt
@@ -149,7 +175,7 @@ namespace Spreads.Buffers
             // NOTE: even for the array-based memory handle is create when array is taken from pool
             // and is stored in MemoryManager until the array is released back to the pool.
             GCHandle handle = default;
-            return new MemoryHandle(Unsafe.Add<T>(_pointer, _offset + elementIndex), handle, this);
+            return new MemoryHandle(Unsafe.Add<T>(_pointer, elementIndex), handle, this);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)] // hope for devirt
@@ -164,7 +190,14 @@ namespace Spreads.Buffers
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public RetainedMemory<T> Retain()
         {
-            return RetainImpl();
+            return Retain(0, _length);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal RetainedMemory<T> RetainPow2()
+        {
+            var lengthPow2 = LengthPow2;
+            return Retain(_length - lengthPow2, lengthPow2);
         }
 
         /// <summary>
@@ -179,7 +212,7 @@ namespace Spreads.Buffers
                 ThrowBadLength();
             }
 
-            return RetainImpl(length: length);
+            return Retain(0, length);
         }
 
         /// <summary>
@@ -192,22 +225,6 @@ namespace Spreads.Buffers
             {
                 ThrowBadLength();
             }
-            return RetainImpl(start, length);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private RetainedMemory<T> RetainImpl(int start = -1, int length = -1)
-        {
-            if (length < 0)
-            {
-                length = Length;
-            }
-
-            if (start < 0)
-            {
-                start = 0;
-            }
-
             return new RetainedMemory<T>(this, start, length, true);
         }
 
@@ -227,17 +244,8 @@ namespace Spreads.Buffers
         {
             _pointer = null;
             _length = default;
-            _offset = default;
+            _pow2Length = default;
         }
-
-        //protected override void Dispose(bool disposing)
-        //{
-        //    Counter.Dispose();
-        //    if (disposing)
-        //    {
-        //        GC.SuppressFinalize(this);
-        //    }
-        //}
 
         ~RetainableMemory()
         {

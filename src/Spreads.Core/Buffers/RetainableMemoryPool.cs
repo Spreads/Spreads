@@ -223,7 +223,7 @@ namespace Spreads.Buffers
             }
 
             // Determine with what bucket this array length is associated
-            int bucket = SelectBucketIndex(memory.Length);
+            int bucket = SelectBucketIndex(memory.LengthPow2);
 
             // Clear the array if the user requests
             if (clearArray)
@@ -345,7 +345,7 @@ namespace Spreads.Buffers
                     }
 
                     arrayMemory._pool = Unsafe.As<RetainableMemoryPool<T>>(_pool);
-                    if (arrayMemory.Length != _bufferLength)
+                    if (arrayMemory.LengthPow2 != _bufferLength)
                     {
                         // TODO proper exception, this is for args
                         ThrowBadLength();
@@ -423,7 +423,7 @@ namespace Spreads.Buffers
             internal void Return(RetainableMemory<T> memory)
             {
                 // Check to see if the buffer is the correct size for this bucket
-                if (memory.Length != _bufferLength)
+                if (memory.LengthPow2 != _bufferLength)
                 {
                     ThrowNotFromPool<RetainableMemory<T>>();
                 }

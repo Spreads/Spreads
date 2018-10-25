@@ -76,13 +76,13 @@ namespace Spreads.Buffers
 #pragma warning disable 618
             _slab = slab;
             _slab.Increment();
-            _pointer = _slab.Pointer;
+            _pointer = Unsafe.Add<T>(_slab.Pointer, offset);
             _handle = GCHandle.Alloc(_slab);
 #pragma warning restore 618
             _slicesPool = slicesPool;
-            _offset = offset;
             _length = length;
             _array = slab._array;
+            _arrayOffset = slab._arrayOffset + offset;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -140,6 +140,7 @@ namespace Spreads.Buffers
         private static readonly ObjectPool<ArrayMemory<T>> ObjectPool = new ObjectPool<ArrayMemory<T>>(() => new ArrayMemory<T>(), Environment.ProcessorCount * 16);
 
         internal T[] _array;
+        internal int _arrayOffset;
         protected GCHandle _handle;
         protected bool _externallyOwned;
 
@@ -157,7 +158,7 @@ namespace Spreads.Buffers
         internal ArraySegment<T> ArraySegment
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => new ArraySegment<T>(_array, _offset, _length);
+            get => new ArraySegment<T>(_array, _arrayOffset, _length);
         }
 
         /// <summary>
@@ -198,8 +199,8 @@ namespace Spreads.Buffers
             var arrayMemory = ObjectPool.Allocate();
             arrayMemory._array = array;
             arrayMemory._handle = GCHandle.Alloc(arrayMemory._array, GCHandleType.Pinned);
-            arrayMemory._pointer = Unsafe.AsPointer(ref arrayMemory._array[0]);
-            arrayMemory._offset = offset;
+            arrayMemory._pointer = Unsafe.AsPointer(ref arrayMemory._array[offset]);
+            arrayMemory._arrayOffset = offset;
             arrayMemory._length = length;
             arrayMemory._externallyOwned = externallyOwned;
             arrayMemory.Counter = AtomicCounterService.AcquireCounter();

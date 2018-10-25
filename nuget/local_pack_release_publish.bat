@@ -12,6 +12,8 @@ REM echo fullstamp: "%fullstamp%"
 set "build=build%fullstamp%"
 echo build: "%build%"
 
+dotnet test ..\tests\Spreads.Core.Tests\Spreads.Core.Tests.csproj -c RELEASE  --filter TestCategory=CI -v n
+
 dotnet restore ..\src\Spreads.Core\Spreads.Core.csproj
 dotnet pack ..\src\Spreads.Core\Spreads.Core.csproj -c RELEASE -o C:\tools\LocalNuget --version-suffix "%build%"R
 
