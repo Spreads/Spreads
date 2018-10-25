@@ -2,6 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+using Spreads.Buffers;
 using System;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
@@ -24,8 +25,9 @@ namespace Spreads.Collections.Concurrent
         private int _index;
         private int _locker;
         internal bool TraceLowCapacityAllocation;
+        private bool _disposed;
 
-        internal LockedObjectPool(int numberOfObjects, Func<T> factory, bool allocateOnEmpty = true)
+        public LockedObjectPool(int numberOfObjects, Func<T> factory, bool allocateOnEmpty = true)
         {
             _factory = factory;
             AllocateOnEmpty = allocateOnEmpty;
@@ -35,6 +37,11 @@ namespace Spreads.Collections.Concurrent
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public T Rent()
         {
+            if (_disposed)
+            {
+                BuffersThrowHelper.ThrowDisposed<LockedObjectPool<T>>();
+            }
+
             var objects = _objects;
             T obj = null;
 
@@ -88,8 +95,12 @@ namespace Spreads.Collections.Concurrent
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal bool Return(T obj)
+        public bool Return(T obj)
         {
+            if (_disposed)
+            {
+                return false;
+            }
             bool pooled;
 #if !NETCOREAPP
             try
@@ -119,11 +130,11 @@ namespace Spreads.Collections.Concurrent
 
         public void Dispose()
         {
+            _disposed = true;
             _factory = null;
-            T obj;
-            while ((obj = Rent()) != null)
+            foreach (var o in _objects)
             {
-                if (obj is IDisposable idisp)
+                if (o != null && o is IDisposable idisp)
                 {
                     idisp.Dispose();
                 }
