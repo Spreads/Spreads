@@ -93,39 +93,24 @@ namespace Spreads.Buffers
                 ThrowHelper.ThrowNotSupportedException();
             }
 
-            var count = Counter.IsValid ? Counter.Count : -1;
-            if (count != 0)
-            {
-                if (count > 0) { ThrowDisposingRetained<ArrayMemorySlice<T>>(); }
-                else { ThrowDisposed<ArrayMemorySlice<T>>(); }
-            }
+            EnsureNotRetainedAndNotDisposed();
 
             // disposing == false when finilizing and detected that non pooled
             if (disposing)
             {
-                if (IsPooled)
-                {
-                    ThrowAlreadyPooled<OffHeapMemory<T>>();
-                }
-
-                _pool?.ReturnNoChecks(this, clearArray:false); // this is pinned, we do not need to clean blittables
-
-                if (!IsPooled)
-                {
-                    // detach from pool
-                    _pool = null;
-                    // we still could add this to the pool of free pinned slices that are backed by an existing slab
-                    var pooledToFreeSlicesPool = _slicesPool.Return(this);
-                    if (!pooledToFreeSlicesPool)
-                    {
-                        // as if finalizing
-                        GC.SuppressFinalize(this);
-                        Dispose(false);
-                    }
-                }
+                TryReturnThisToPoolOrFinalize();
             }
             else
             {
+                Debug.Assert(!IsPooled);
+
+                // we still could add this to the pool of free pinned slices that are backed by an existing slab
+                var pooledToFreeSlicesPool = _slicesPool.Return(this);
+                if (pooledToFreeSlicesPool)
+                {
+                    return;
+                }
+
                 // destroy the object and release resources
                 var array = Interlocked.Exchange(ref _array, null);
                 if (array != null)
@@ -157,8 +142,6 @@ namespace Spreads.Buffers
         internal T[] _array;
         protected GCHandle _handle;
         protected bool _externallyOwned;
-
-        internal RetainableMemoryPool<T, ArrayMemory<T>> _pool;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         protected ArrayMemory() : base(AtomicCounterService.AcquireCounter())
@@ -226,34 +209,17 @@ namespace Spreads.Buffers
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         protected override void Dispose(bool disposing)
         {
-            var count = Counter.IsValid ? Counter.Count : -1;
-            if (count != 0)
-            {
-                if (count > 0) { ThrowDisposingRetained<ArrayMemorySlice<T>>(); }
-                else { ThrowDisposed<ArrayMemorySlice<T>>(); }
-            }
+            EnsureNotRetainedAndNotDisposed();
 
             // disposing == false when finilizing and detected that non pooled
             if (disposing)
             {
-                if (IsPooled)
-                {
-                    ThrowAlreadyPooled<OffHeapMemory<T>>();
-                }
-
-                _pool?.ReturnNoChecks(this, clearArray: false); // this is pinned, we do not need to clean blittables
-
-                if (!IsPooled)
-                {
-                    // detach from pool
-                    _pool = null;
-                    // as if finalizing
-                    GC.SuppressFinalize(this);
-                    Dispose(false);
-                }
+                TryReturnThisToPoolOrFinalize();
             }
             else
             {
+                Debug.Assert(!IsPooled);
+
                 Counter.Dispose();
                 AtomicCounterService.ReleaseCounter(Counter);
                 Counter = default;

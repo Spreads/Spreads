@@ -3,17 +3,13 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 using Spreads.Utils;
-using System;
 using System.Runtime.CompilerServices;
-using static Spreads.Buffers.BuffersThrowHelper;
 
 namespace Spreads.Buffers
 {
     public sealed unsafe class OffHeapMemory<T> : RetainableMemory<T> //where T : struct
     {
         private OffHeapBuffer<T> _offHeapBuffer;
-
-        internal RetainableMemoryPool<T, OffHeapMemory<T>> _pool;
 
         // This object is pooled together with off-heap buffer in LockedObjectPool that
         // act like a storage and does not drop objects due to data races. The pool
@@ -28,7 +24,7 @@ namespace Spreads.Buffers
         public OffHeapMemory(int minLength) : this(null, minLength)
         { }
 
-        internal OffHeapMemory(RetainableMemoryPool<T, OffHeapMemory<T>> pool, int minLength) :
+        internal OffHeapMemory(RetainableMemoryPool<T> pool, int minLength) :
             // NOTE: this object must release _counter when finalized or not pooled
             // Base class calls _counter.Dispose in it's dispose method and this is enough
             // for shared-memory backed counters. Base class doesn't know about ACS.
@@ -40,31 +36,12 @@ namespace Spreads.Buffers
 
         protected override void Dispose(bool disposing)
         {
-            var count = Counter.IsValid ? Counter.Count : -1;
-            if (count != 0)
-            {
-                if (count > 0) { ThrowDisposingRetained<OffHeapMemory<T>>(); }
-                else { ThrowDisposed<OffHeapMemory<T>>(); }
-            }
+            EnsureNotRetainedAndNotDisposed();
 
             // disposing == false when finilizing and detected that non pooled
             if (disposing)
             {
-                if (IsPooled)
-                {
-                    ThrowAlreadyPooled<OffHeapMemory<T>>();
-                }
-
-                _pool?.ReturnNoChecks(this, clearArray:false); // this is off-heap, we do not need to clean blittables
-
-                if (!IsPooled)
-                {
-                    // detach from pool
-                    _pool = null;
-                    // as if finalizing
-                    GC.SuppressFinalize(this);
-                    Dispose(false);
-                }
+                TryReturnThisToPoolOrFinalize();
             }
             else
             {

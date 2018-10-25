@@ -88,7 +88,7 @@ namespace Spreads.Core.Tests.Buffers
         {
             var count = 100_000_000;
 
-            var pool = new RetainableMemoryPool<byte, ArrayMemory<byte>>(null, 16,
+            var pool = new RetainableMemoryPool<byte>(null, 16,
                 1024 * 1024, 50, 2);
 
             for (int i = 0; i < 1000; i++)
@@ -127,7 +127,7 @@ namespace Spreads.Core.Tests.Buffers
         {
             var count = 100_000_000;
 
-            var pool = new RetainableMemoryPool<byte, ArrayMemory<byte>>(null, 16,
+            var pool = new RetainableMemoryPool<byte>(null, 16,
                 1024 * 1024, 50, 2);
 
             var tasks = new List<Task>();
@@ -179,7 +179,7 @@ namespace Spreads.Core.Tests.Buffers
             var count = 1_000_000;
             var capacity = 25;
             var batch = capacity * 2;
-            var pool = new RetainableMemoryPool<byte, ArrayMemory<byte>>((p, l) =>
+            var pool = new RetainableMemoryPool<byte>((p, l) =>
                 {
                     var am = ArrayMemory<byte>.Create(l);
                     // Attach pool
@@ -188,7 +188,7 @@ namespace Spreads.Core.Tests.Buffers
                 }, 16,
                 1024 * 1024, capacity, 0);
 
-            var list = new List<ArrayMemory<byte>>(batch);
+            var list = new List<RetainableMemory<byte>>(batch);
 
             using (Benchmark.Run("FullCycle", count * batch))
             {
@@ -238,10 +238,10 @@ namespace Spreads.Core.Tests.Buffers
         {
             var maxBuffers = 128 / 64; // 2
 
-            var pool = new RetainableMemoryPool<byte, ArrayMemory<byte>>(null, 32 * 1024,
+            var pool = new RetainableMemoryPool<byte>(null, 32 * 1024,
                 1024 * 1024, maxBuffers, 0);
 
-            var list = new List<ArrayMemory<byte>>();
+            var list = new List<RetainableMemory<byte>>();
 
             using (Benchmark.Run("FullCycle"))
             {
@@ -269,7 +269,7 @@ namespace Spreads.Core.Tests.Buffers
         {
             var maxBuffers = 10;
 
-            var pool = new RetainableMemoryPool<byte, ArrayMemory<byte>>(null, 32 * 1024,
+            var pool = new RetainableMemoryPool<byte>(null, 32 * 1024,
                 1024 * 1024, maxBuffers, 0);
 
             using (Benchmark.Run("FullCycle"))
@@ -292,10 +292,10 @@ namespace Spreads.Core.Tests.Buffers
             var maxBuffers = 32; // 2
             var buffersToTake = 128;
 
-            var pool = new RetainableMemoryPool<byte, ArrayMemory<byte>>(null, 32 * 1024,
+            var pool = new RetainableMemoryPool<byte>(null, 32 * 1024,
                 1024 * 1024, maxBuffers, 0);
 
-            var list = new List<ArrayMemory<byte>>();
+            var list = new List<RetainableMemory<byte>>();
 
             using (Benchmark.Run("FullCycle"))
             {
@@ -322,7 +322,7 @@ namespace Spreads.Core.Tests.Buffers
             var maxBuffers = 32; // 2
             var buffersToTake = 1_000_000;
 
-            var pool = new RetainableMemoryPool<byte, ArrayMemory<byte>>(null, 32 * 1024,
+            var pool = new RetainableMemoryPool<byte>(null, 32 * 1024,
                 1024 * 1024, maxBuffers, 0);
 
             using (Benchmark.Run("FullCycle", buffersToTake))

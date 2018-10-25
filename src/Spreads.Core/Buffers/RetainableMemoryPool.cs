@@ -32,9 +32,9 @@ namespace Spreads.Buffers
         }
     }
 
-    public class RetainableMemoryPool<T, TImpl> : MemoryPool<T> where TImpl : RetainableMemory<T> // TODO
+    public class RetainableMemoryPool<T> : MemoryPool<T> //  where TImpl : RetainableMemory<T> // TODO
     {
-        private readonly Func<RetainableMemoryPool<T, TImpl>, int, TImpl> _factory;
+        private readonly Func<RetainableMemoryPool<T>, int, RetainableMemory<T>> _factory;
         private readonly int _minBufferLength;
         private readonly int _maxBufferLength;
         private readonly int _maxBucketsToTry;
@@ -50,18 +50,14 @@ namespace Spreads.Buffers
         private readonly int _minBufferLengthPow2;
         internal bool _disposed;
 
-        internal RetainableMemoryPool(Func<RetainableMemoryPool<T, TImpl>, int, TImpl> factory) : this(factory, DefaultMinArrayLength, DefaultMaxArrayLength, DefaultMaxNumberOfArraysPerBucket)
+        public RetainableMemoryPool(Func<RetainableMemoryPool<T>, int, RetainableMemory<T>> factory) : this(factory, DefaultMinArrayLength, DefaultMaxArrayLength, DefaultMaxNumberOfArraysPerBucket)
         {
         }
 
-        internal RetainableMemoryPool(Func<RetainableMemoryPool<T, TImpl>, int, TImpl> factory, int minLength,
+        public RetainableMemoryPool(Func<RetainableMemoryPool<T>, int, RetainableMemory<T>> factory, int minLength,
             int maxLength, int maxBuffersPerBucket, int maxBucketsToTry = 2)
         {
             _factory = factory;
-            if (typeof(TImpl) != typeof(ArrayMemory<T>) && _factory == null)
-            {
-                ThrowArgumentNull<Func<int, TImpl>>();
-            }
 
             if (minLength <= 16)
             {
@@ -120,18 +116,18 @@ namespace Spreads.Buffers
         private int Id => GetHashCode();
 
         [MethodImpl(MethodImplOptions.NoInlining)]
-        private TImpl CreateNew(int length)
+        private RetainableMemory<T> CreateNew(int length)
         {
             if (_disposed)
             {
-                ThrowDisposed<RetainableMemoryPool<T, TImpl>>();
+                ThrowDisposed<RetainableMemoryPool<T>>();
             }
 
-            if (typeof(TImpl) == typeof(ArrayMemory<T>) && _factory == null)
+            if (_factory == null)
             {
                 var am = ArrayMemory<T>.Create(length);
-                am._pool = Unsafe.As<RetainableMemoryPool<T, ArrayMemory<T>>>(this);
-                return Unsafe.As<TImpl>(am);
+                am._pool = Unsafe.As<RetainableMemoryPool<T>>(this);
+                return Unsafe.As<RetainableMemory<T>>(am);
             }
 
             return _factory.Invoke(this, length);
@@ -147,7 +143,7 @@ namespace Spreads.Buffers
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public TImpl RentMemory(int minimumLength)
+        public RetainableMemory<T> RentMemory(int minimumLength)
         {
             // Arrays can't be smaller than zero.  We allow requesting zero-length arrays (even though
             // pooling such an array isn't valuable) as it's a valid length array, and we want the pool
@@ -157,8 +153,8 @@ namespace Spreads.Buffers
                 ThrowBadLength();
             }
 
-            var log = RetainedMemoryPoolEventSource.Log;
-            TImpl buffer;
+            var log = RetainableMemoryPoolEventSource.Log;
+            RetainableMemory<T> buffer;
 
             int index = SelectBucketIndex(minimumLength);
             if (index < _buckets.Length)
@@ -198,33 +194,28 @@ namespace Spreads.Buffers
                 int bufferId = buffer.GetHashCode(), bucketId = -1; // no bucket for an on-demand allocated buffer
                 log.BufferRented(bufferId, buffer.Length, Id, bucketId);
                 log.BufferAllocated(bufferId, buffer.Length, Id, bucketId, index >= _buckets.Length ?
-                    RetainedMemoryPoolEventSource.BufferAllocatedReason.OverMaximumSize : RetainedMemoryPoolEventSource.BufferAllocatedReason.PoolExhausted);
+                    RetainableMemoryPoolEventSource.BufferAllocatedReason.OverMaximumSize : RetainableMemoryPoolEventSource.BufferAllocatedReason.PoolExhausted);
             }
 
             return buffer;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal bool Return(TImpl memory, bool clearArray = false)
+        internal bool Return(RetainableMemory<T> memory, bool clearArray = false)
         {
             // These checks for internal code that could Return directly without Dispose on memory
-            var count = memory.Counter.IsValid ? memory.Counter.Count : -1;
-            if (count != 0)
-            {
-                if (count > 0)
-                { ThrowDisposingRetained<ArrayMemorySlice<T>>(); }
-                else { ThrowDisposed<ArrayMemorySlice<T>>(); }
-            }
+            memory.EnsureNotRetainedAndNotDisposed();
+
             if (memory.IsPooled)
             {
-                ThrowAlreadyPooled<TImpl>();
+                ThrowAlreadyPooled<RetainableMemory<T>>();
             }
 
             return ReturnNoChecks(memory, clearArray);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal bool ReturnNoChecks(TImpl memory, bool clearArray = false)
+        internal bool ReturnNoChecks(RetainableMemory<T> memory, bool clearArray = false)
         {
             if (_disposed)
             {
@@ -250,7 +241,7 @@ namespace Spreads.Buffers
             }
 
             // Log that the buffer was returned
-            var log = RetainedMemoryPoolEventSource.Log;
+            var log = RetainableMemoryPoolEventSource.Log;
             if (log.IsEnabled())
             {
                 log.BufferReturned(memory.GetHashCode(), memory.Length, Id);
@@ -278,7 +269,7 @@ namespace Spreads.Buffers
         }
 
         [Obsolete("For diagnostic only")]
-        internal IEnumerable<TImpl> InspectObjects()
+        internal IEnumerable<RetainableMemory<T>> InspectObjects()
         {
             foreach (var bucket in _buckets)
             {
@@ -297,35 +288,28 @@ namespace Spreads.Buffers
         /// <summary>Provides a thread-safe bucket containing buffers that can be Rent'd and Return'd.</summary>
         private sealed class Bucket
         {
-            private readonly RetainableMemoryPool<T, TImpl> _pool;
-            private readonly Func<RetainableMemoryPool<T, TImpl>, int, TImpl> _factory;
+            private readonly RetainableMemoryPool<T> _pool;
+            private readonly Func<RetainableMemoryPool<T>, int, RetainableMemory<T>> _factory;
             private readonly int _bufferLength;
-            internal readonly TImpl[] _buffers;
+            internal readonly RetainableMemory<T>[] _buffers;
             private readonly int _poolId;
 
-            // TODO remove commented stuff related to SpinLock
-
-            // private SpinLock _lock; // do not make this readonly; it's a mutable struct
             private int _index;
-
             private int _locker;
 
             private ArrayMemorySliceBucket<T> _sliceBucket;
 
             /// <summary>
-            /// Creates the pool with numberOfBuffers arrays where each buffer is of bufferLength length.
+            /// Creates the pool with numberOfBuffers buffers where each buffer is of bufferLength length.
             /// </summary>
-            internal Bucket(RetainableMemoryPool<T, TImpl> pool, Func<RetainableMemoryPool<T, TImpl>, int, TImpl> factory, int bufferLength, int numberOfBuffers, int poolId)
+            internal Bucket(RetainableMemoryPool<T> pool, Func<RetainableMemoryPool<T>, int, RetainableMemory<T>> factory,
+                int bufferLength, int numberOfBuffers, int poolId)
             {
                 // _lock = new SpinLock(Debugger.IsAttached); // only enable thread tracking if debugger is attached; it adds non-trivial overheads to Enter/Exit
-                _buffers = new TImpl[numberOfBuffers];
+                _buffers = new RetainableMemory<T>[numberOfBuffers];
 
                 _pool = pool;
 
-                if (typeof(TImpl) != typeof(ArrayMemory<T>) && factory == null)
-                {
-                    ThrowArgumentNull<Func<int, TImpl>>();
-                }
                 _factory = factory;
 
                 _bufferLength = bufferLength;
@@ -336,14 +320,14 @@ namespace Spreads.Buffers
             internal int Id => GetHashCode();
 
             [MethodImpl(MethodImplOptions.NoInlining)]
-            internal TImpl CreateNew()
+            internal RetainableMemory<T> CreateNew()
             {
                 if (_pool._disposed)
                 {
-                    ThrowDisposed<RetainableMemoryPool<T, TImpl>>();
+                    ThrowDisposed<RetainableMemoryPool<T>>();
                 }
 
-                if (typeof(TImpl) == typeof(ArrayMemory<T>) && _factory == null)
+                if (_factory == null)
                 {
                     ArrayMemory<T> arrayMemory;
                     if (_bufferLength <= 64 * 1024)
@@ -360,13 +344,13 @@ namespace Spreads.Buffers
                         arrayMemory = ArrayMemory<T>.Create(_bufferLength);
                     }
 
-                    arrayMemory._pool = Unsafe.As<RetainableMemoryPool<T, ArrayMemory<T>>>(_pool);
+                    arrayMemory._pool = Unsafe.As<RetainableMemoryPool<T>>(_pool);
                     if (arrayMemory.Length != _bufferLength)
                     {
                         // TODO proper exception, this is for args
                         ThrowBadLength();
                     }
-                    var asTImpl = Unsafe.As<TImpl>(arrayMemory);
+                    var asTImpl = Unsafe.As<RetainableMemory<T>>(arrayMemory);
                     return asTImpl;
                 }
                 // ReSharper disable once PossibleNullReferenceException
@@ -375,22 +359,21 @@ namespace Spreads.Buffers
 
             /// <summary>Takes an array from the bucket.  If the bucket is empty, returns null.</summary>
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            internal TImpl Rent()
+            internal RetainableMemory<T> Rent()
             {
-                TImpl[] buffers = _buffers;
-                TImpl buffer = null;
+                RetainableMemory<T>[] buffers = _buffers;
+                RetainableMemory<T> buffer = null;
 
                 // While holding the lock, grab whatever is at the next available index and
                 // update the index.  We do as little work as possible while holding the spin
                 // lock to minimize contention with other threads.  The try/finally is
                 // necessary to properly handle thread aborts on platforms which have them.
                 // bool lockTaken = false;
-                bool allocateBuffer = false;
+                var allocateBuffer = false;
 #if !NETCOREAPP
                 try
 #endif
                 {
-                    // _lock.Enter(ref lockTaken);
                     var spinner = new SpinWait();
                     while (0 != Interlocked.CompareExchange(ref _locker, 1, 0))
                     {
@@ -409,7 +392,6 @@ namespace Spreads.Buffers
 #endif
                 {
                     Volatile.Write(ref _locker, 0);
-                    // if (lockTaken) _lock.Exit(false);
                 }
 
                 // While we were holding the lock, we grabbed whatever was at the next available index, if
@@ -419,36 +401,31 @@ namespace Spreads.Buffers
                 {
                     buffer = CreateNew();
 
-                    var log = RetainedMemoryPoolEventSource.Log;
+                    var log = RetainableMemoryPoolEventSource.Log;
                     if (log.IsEnabled())
                     {
                         log.BufferAllocated(buffer.GetHashCode(), _bufferLength, _poolId, Id,
-                            RetainedMemoryPoolEventSource.BufferAllocatedReason.Pooled);
+                            RetainableMemoryPoolEventSource.BufferAllocatedReason.Pooled);
                     }
                 }
                 else
                 {
                     if (buffer != null && !buffer.IsPooled)
                     {
-                        ThrowNotFromPool<TImpl>();
+                        ThrowNotFromPool<RetainableMemory<T>>();
                     }
                 }
 
                 return buffer;
             }
 
-            /// <summary>
-            /// Attempts to return the buffer to the bucket.  If successful, the buffer will be stored
-            /// in the bucket and true will be returned; otherwise, the buffer won't be stored, and false
-            /// will be returned.
-            /// </summary>
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            internal void Return(TImpl memory)
+            internal void Return(RetainableMemory<T> memory)
             {
                 // Check to see if the buffer is the correct size for this bucket
                 if (memory.Length != _bufferLength)
                 {
-                    ThrowNotFromPool<TImpl>();
+                    ThrowNotFromPool<RetainableMemory<T>>();
                 }
 
                 // While holding the spin lock, if there's room available in the bucket,
@@ -456,20 +433,17 @@ namespace Spreads.Buffers
                 // The try/finally is necessary to properly handle thread aborts on platforms
                 // which have them.
 
-                // bool lockTaken = false;
-                bool pooled;
 #if !NETCOREAPP
                 try
 #endif
                 {
-                    // _lock.Enter(ref lockTaken);
                     var spinner = new SpinWait();
                     while (0 != Interlocked.CompareExchange(ref _locker, 1, 0))
                     {
                         spinner.SpinOnce();
                     }
 
-                    pooled = _index != 0;
+                    var pooled = _index != 0;
                     if (pooled)
                     {
                         _buffers[--_index] = memory;
@@ -481,7 +455,6 @@ namespace Spreads.Buffers
 #endif
                 {
                     Volatile.Write(ref _locker, 0);
-                    // if (lockTaken) _lock.Exit(false);
                 }
             }
         }
@@ -513,96 +486,96 @@ namespace Spreads.Buffers
             Debug.Assert(maxSize >= 0);
             return maxSize;
         }
+    }
 
-        [EventSource(Guid = "C5BB9D49-21E4-4339-B6BC-981486D123DB", Name = "Spreads.Buffers.MemoryManagerPoolEventSource")]
-        internal sealed class RetainedMemoryPoolEventSource : EventSource
+    [EventSource(Guid = "C5BB9D49-21E4-4339-B6BC-981486D123DB", Name = "Spreads.Buffers.MemoryManagerPoolEventSource")]
+    internal sealed class RetainableMemoryPoolEventSource : EventSource
+    {
+        internal static readonly RetainableMemoryPoolEventSource Log = new RetainableMemoryPoolEventSource();
+
+        /// <summary>The reason for a BufferAllocated event.</summary>
+        internal enum BufferAllocatedReason : int
         {
-            internal static readonly RetainedMemoryPoolEventSource Log = new RetainedMemoryPoolEventSource();
+            /// <summary>The pool is allocating a buffer to be pooled in a bucket.</summary>
+            Pooled,
 
-            /// <summary>The reason for a BufferAllocated event.</summary>
-            internal enum BufferAllocatedReason : int
-            {
-                /// <summary>The pool is allocating a buffer to be pooled in a bucket.</summary>
-                Pooled,
+            /// <summary>The requested buffer size was too large to be pooled.</summary>
+            OverMaximumSize,
 
-                /// <summary>The requested buffer size was too large to be pooled.</summary>
-                OverMaximumSize,
-
-                /// <summary>The pool has already allocated for pooling as many buffers of a particular size as it's allowed.</summary>
-                PoolExhausted
-            }
-
-            private RetainedMemoryPoolEventSource() : base(
-                "Spreads.Buffers.MemoryManagerPoolEventSource")
-            {
-            }
-
-            /// <summary>
-            /// Event for when a buffer is rented.  This is invoked once for every successful call to Rent,
-            /// regardless of whether a buffer is allocated or a buffer is taken from the pool.  In a
-            /// perfect situation where all rented buffers are returned, we expect to see the number
-            /// of BufferRented events exactly match the number of BuferReturned events, with the number
-            /// of BufferAllocated events being less than or equal to those numbers (ideally significantly
-            /// less than).
-            /// </summary>
-            [Event(1, Level = EventLevel.Verbose)]
-            internal unsafe void BufferRented(int bufferId, int bufferSize, int poolId, int bucketId)
-            {
-                EventData* payload = stackalloc EventData[4];
-                payload[0].Size = sizeof(int);
-                payload[0].DataPointer = ((IntPtr)(&bufferId));
-                payload[1].Size = sizeof(int);
-                payload[1].DataPointer = ((IntPtr)(&bufferSize));
-                payload[2].Size = sizeof(int);
-                payload[2].DataPointer = ((IntPtr)(&poolId));
-                payload[3].Size = sizeof(int);
-                payload[3].DataPointer = ((IntPtr)(&bucketId));
-                WriteEventCore(1, 4, payload);
-            }
-
-            /// <summary>
-            /// Event for when a buffer is allocated by the pool.  In an ideal situation, the number
-            /// of BufferAllocated events is significantly smaller than the number of BufferRented and
-            /// BufferReturned events.
-            /// </summary>
-            [Event(2, Level = EventLevel.Informational)]
-            internal unsafe void BufferAllocated(int bufferId, int bufferSize, int poolId, int bucketId, BufferAllocatedReason reason)
-            {
-                EventData* payload = stackalloc EventData[5];
-                payload[0].Size = sizeof(int);
-                payload[0].DataPointer = ((IntPtr)(&bufferId));
-                payload[1].Size = sizeof(int);
-                payload[1].DataPointer = ((IntPtr)(&bufferSize));
-                payload[2].Size = sizeof(int);
-                payload[2].DataPointer = ((IntPtr)(&poolId));
-                payload[3].Size = sizeof(int);
-                payload[3].DataPointer = ((IntPtr)(&bucketId));
-                payload[4].Size = sizeof(BufferAllocatedReason);
-                payload[4].DataPointer = ((IntPtr)(&reason));
-                WriteEventCore(2, 5, payload);
-            }
-
-            /// <summary>
-            /// Event raised when a buffer is returned to the pool.  This event is raised regardless of whether
-            /// the returned buffer is stored or dropped.  In an ideal situation, the number of BufferReturned
-            /// events exactly matches the number of BufferRented events.
-            /// </summary>
-            [Event(3, Level = EventLevel.Verbose)]
-            internal void BufferReturned(int bufferId, int bufferSize, int poolId) => WriteEvent(3, bufferId, bufferSize, poolId);
-
-            /// <summary>
-            /// Event raised when we attempt to free a buffer due to inactivity or memory pressure (by no longer
-            /// referencing it). It is possible (although not commmon) this buffer could be rented as we attempt
-            /// to free it. A rent event before or after this event for the same ID, is a rare, but expected case.
-            /// </summary>
-            [Event(4, Level = EventLevel.Informational)]
-            internal void BufferTrimmed(int bufferId, int bufferSize, int poolId) => WriteEvent(4, bufferId, bufferSize, poolId);
-
-            /// <summary>
-            /// Event raised when we check to trim buffers.
-            /// </summary>
-            [Event(5, Level = EventLevel.Informational)]
-            internal void BufferTrimPoll(int milliseconds, int pressure) => WriteEvent(5, milliseconds, pressure);
+            /// <summary>The pool has already allocated for pooling as many buffers of a particular size as it's allowed.</summary>
+            PoolExhausted
         }
+
+        private RetainableMemoryPoolEventSource() : base(
+            "Spreads.Buffers.MemoryManagerPoolEventSource")
+        {
+        }
+
+        /// <summary>
+        /// Event for when a buffer is rented.  This is invoked once for every successful call to Rent,
+        /// regardless of whether a buffer is allocated or a buffer is taken from the pool.  In a
+        /// perfect situation where all rented buffers are returned, we expect to see the number
+        /// of BufferRented events exactly match the number of BuferReturned events, with the number
+        /// of BufferAllocated events being less than or equal to those numbers (ideally significantly
+        /// less than).
+        /// </summary>
+        [Event(1, Level = EventLevel.Verbose)]
+        internal unsafe void BufferRented(int bufferId, int bufferSize, int poolId, int bucketId)
+        {
+            EventData* payload = stackalloc EventData[4];
+            payload[0].Size = sizeof(int);
+            payload[0].DataPointer = ((IntPtr)(&bufferId));
+            payload[1].Size = sizeof(int);
+            payload[1].DataPointer = ((IntPtr)(&bufferSize));
+            payload[2].Size = sizeof(int);
+            payload[2].DataPointer = ((IntPtr)(&poolId));
+            payload[3].Size = sizeof(int);
+            payload[3].DataPointer = ((IntPtr)(&bucketId));
+            WriteEventCore(1, 4, payload);
+        }
+
+        /// <summary>
+        /// Event for when a buffer is allocated by the pool.  In an ideal situation, the number
+        /// of BufferAllocated events is significantly smaller than the number of BufferRented and
+        /// BufferReturned events.
+        /// </summary>
+        [Event(2, Level = EventLevel.Informational)]
+        internal unsafe void BufferAllocated(int bufferId, int bufferSize, int poolId, int bucketId, BufferAllocatedReason reason)
+        {
+            EventData* payload = stackalloc EventData[5];
+            payload[0].Size = sizeof(int);
+            payload[0].DataPointer = ((IntPtr)(&bufferId));
+            payload[1].Size = sizeof(int);
+            payload[1].DataPointer = ((IntPtr)(&bufferSize));
+            payload[2].Size = sizeof(int);
+            payload[2].DataPointer = ((IntPtr)(&poolId));
+            payload[3].Size = sizeof(int);
+            payload[3].DataPointer = ((IntPtr)(&bucketId));
+            payload[4].Size = sizeof(BufferAllocatedReason);
+            payload[4].DataPointer = ((IntPtr)(&reason));
+            WriteEventCore(2, 5, payload);
+        }
+
+        /// <summary>
+        /// Event raised when a buffer is returned to the pool.  This event is raised regardless of whether
+        /// the returned buffer is stored or dropped.  In an ideal situation, the number of BufferReturned
+        /// events exactly matches the number of BufferRented events.
+        /// </summary>
+        [Event(3, Level = EventLevel.Verbose)]
+        internal void BufferReturned(int bufferId, int bufferSize, int poolId) => WriteEvent(3, bufferId, bufferSize, poolId);
+
+        /// <summary>
+        /// Event raised when we attempt to free a buffer due to inactivity or memory pressure (by no longer
+        /// referencing it). It is possible (although not commmon) this buffer could be rented as we attempt
+        /// to free it. A rent event before or after this event for the same ID, is a rare, but expected case.
+        /// </summary>
+        [Event(4, Level = EventLevel.Informational)]
+        internal void BufferTrimmed(int bufferId, int bufferSize, int poolId) => WriteEvent(4, bufferId, bufferSize, poolId);
+
+        /// <summary>
+        /// Event raised when we check to trim buffers.
+        /// </summary>
+        [Event(5, Level = EventLevel.Informational)]
+        internal void BufferTrimPoll(int milliseconds, int pressure) => WriteEvent(5, milliseconds, pressure);
     }
 }

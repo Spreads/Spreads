@@ -23,6 +23,7 @@ namespace Spreads.Buffers
 
         // Pool could set this value on Rent/Return
         internal bool IsPooled;
+        internal RetainableMemoryPool<T> _pool;
 
 #if DEBUG
         internal string _stackTrace = Environment.StackTrace;
@@ -30,9 +31,12 @@ namespace Spreads.Buffers
 
         protected RetainableMemory(AtomicCounter counter)
         {
-            if (counter.Count != 0)
+            if (counter.IsValid)
             {
-                ThrowHelper.ThrowArgumentException("counter.Count != 0");
+                if (counter.Count != 0)
+                {
+                    ThrowHelper.ThrowArgumentException("counter.Count != 0");
+                }
             }
             Counter = counter;
         }
@@ -49,7 +53,7 @@ namespace Spreads.Buffers
             var newRefCount = Counter.Decrement();
             if (newRefCount == 0)
             {
-                OnNoReferences();
+                TryReturnThisToPoolOrFinalize();
                 return false;
             }
             return true;
@@ -58,7 +62,7 @@ namespace Spreads.Buffers
         internal DirectBuffer DirectBuffer
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => new DirectBuffer(_length * Unsafe.SizeOf<T>(), (byte*)_pointer);
+            get => new DirectBuffer(_length * Unsafe.SizeOf<T>(), (byte*)Pointer);
         }
 
         internal void* Pointer
@@ -85,13 +89,26 @@ namespace Spreads.Buffers
             get => Counter.Count;
         }
 
-        protected void OnNoReferences()
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        protected void TryReturnThisToPoolOrFinalize()
         {
-            // Pooled implementation try to return object to pool
-            // If not possible to tell if object is returned then rely on finalizer
-            // In steady-state that should not be a big deal
-            Dispose(true);
+            if (IsPooled)
+            {
+                ThrowAlreadyPooled<OffHeapMemory<T>>();
+            }
+
+            _pool?.ReturnNoChecks(this, clearArray: false); // this is pinned, we do not need to clean blittables
+
+            if (!IsPooled)
+            {
+                // detach from pool
+                _pool = null;
+                // as if finalizing
+                GC.SuppressFinalize(this);
+                Dispose(false);
+            }
         }
+
 
         public bool IsDisposed
         {
@@ -112,7 +129,7 @@ namespace Spreads.Buffers
                 ThrowDisposed<RetainableMemory<T>>();
             }
 
-            return new Span<T>(_pointer, _length);
+            return new Span<T>(Pointer, _length);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)] // hope for devirt
@@ -192,6 +209,17 @@ namespace Spreads.Buffers
             }
 
             return new RetainedMemory<T>(this, start, length, true);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal void EnsureNotRetainedAndNotDisposed()
+        {
+            var count = Counter.IsValid ? Counter.Count : -1;
+            if (count != 0)
+            {
+                if (count > 0) { ThrowDisposingRetained<RetainableMemory<T>>(); }
+                else { ThrowDisposed<RetainableMemory<T>>(); }
+            }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

@@ -35,8 +35,8 @@ namespace Spreads.Buffers
     {
         internal static BufferPool Shared = new BufferPool();
 
-        internal static RetainableMemoryPool<byte, ArrayMemory<byte>> PinnedArrayMemoryPool =
-            new RetainableMemoryPool<byte, ArrayMemory<byte>>(null,
+        internal static RetainableMemoryPool<byte> PinnedArrayMemoryPool =
+            new RetainableMemoryPool<byte>(null,
                 2048,
                 1024 * 1024,
                 64, 2);
