@@ -494,5 +494,26 @@ namespace Spreads.Core.Tests.DataTypes
 
         }
 
+        
+        [Test]
+        public void CouldCreateVariantFromDoubleArray()
+        {
+            var paramdef = new ParamDef<double[]>(new[] { 1.0, 2.0 });
+
+            var variant = paramdef.UntypedDef;
+        }
+
     }
+
+
+    internal readonly struct ParamDef<T>
+    {
+        public ParamDef(T value)
+        {
+            Value = value;
+        }
+        public Variant UntypedDef =>    Variant.Create(Value); // casting to (object) fixes this but should work as is
+        public T Value { get; }
+    }
+
 }
