@@ -25,6 +25,7 @@ namespace Spreads.Buffers
     /// ensure that the underlying <see cref="RetainableMemory{T}"/> is not returned to the pool.
     /// Access to this struct is not thread-safe, only one thread could call its methods at a time.
     /// </remarks>
+    [DebuggerDisplay("{" + nameof(ToString) + "()}")]
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     public readonly struct RetainedMemory<T> : IDisposable
     {
@@ -136,16 +137,6 @@ namespace Spreads.Buffers
         /// <summary>
         /// Gets the number of elements in the RetainedMemory.
         /// </summary>
-        [Obsolete("Use Length property instead")]
-        public int Count
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => _length;
-        }
-
-        /// <summary>
-        /// Gets the number of elements in the RetainedMemory.
-        /// </summary>
         public int Length
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -202,6 +193,11 @@ namespace Spreads.Buffers
             }
             BuffersThrowHelper.ThrowBadLength();
             return default;
+        }
+
+        public override string ToString()
+        {
+            return $"RM: Length={Length}, RefCount={_manager?.ReferenceCount}";
         }
 
         /// <summary>

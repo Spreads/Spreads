@@ -34,10 +34,9 @@ namespace Spreads.Buffers
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public AtomicCounter(int* pointer)
         {
-            int value = Volatile.Read(ref *pointer);
-            if (value != 0)
+            if (pointer == null)
             {
-                ThowNonZeroRefCountInCtor(value);
+                ThowNullPointerInCtor();
             }
             Pointer = pointer;
         }
@@ -141,9 +140,9 @@ namespace Spreads.Buffers
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
-        private static void ThowNonZeroRefCountInCtor(int count)
+        private static void ThowNullPointerInCtor()
         {
-            ThrowHelper.ThrowInvalidOperationException($"Pointer in AtomicCounter.Count ctor has non-zero value of {count}");
+            ThrowHelper.ThrowInvalidOperationException($"Pointer in AtomicCounter ctor is null");
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
