@@ -7,6 +7,7 @@
 // Supports custom minimum size instead of 16 and maxBucketsToTry is configurable and could be zero.
 // Return returns bool=true when an object is pooled.
 
+using Spreads.Serialization;
 using Spreads.Utils;
 using System;
 using System.Buffers;
@@ -34,6 +35,13 @@ namespace Spreads.Buffers
 
     public class RetainableMemoryPool<T> : MemoryPool<T> //  where TImpl : RetainableMemory<T> // TODO
     {
+        /// <summary>
+        /// Set to true to always clean on return and clean buffers produced by factory.
+        /// </summary>
+        protected bool IsRentAlwaysClean;
+
+        private readonly bool _typeHasReferences = !TypeHelper<T>.IsPinnable;
+
         private readonly Func<RetainableMemoryPool<T>, int, RetainableMemory<T>> _factory;
         private readonly int _minBufferLength;
         private readonly int _maxBufferLength;
@@ -50,13 +58,15 @@ namespace Spreads.Buffers
         private readonly int _minBufferLengthPow2;
         internal bool _disposed;
 
-        public RetainableMemoryPool(Func<RetainableMemoryPool<T>, int, RetainableMemory<T>> factory) : this(factory, DefaultMinArrayLength, DefaultMaxArrayLength, DefaultMaxNumberOfArraysPerBucket)
-        {
-        }
+        public RetainableMemoryPool(Func<RetainableMemoryPool<T>, int, RetainableMemory<T>> factory)
+            : this(factory, DefaultMinArrayLength, DefaultMaxArrayLength, DefaultMaxNumberOfArraysPerBucket)
+        { }
 
         public RetainableMemoryPool(Func<RetainableMemoryPool<T>, int, RetainableMemory<T>> factory, int minLength,
             int maxLength, int maxBuffersPerBucket, int maxBucketsToTry = 2)
         {
+            IsRentAlwaysClean = false;
+
             _factory = factory;
 
             if (minLength <= 16)
@@ -130,7 +140,12 @@ namespace Spreads.Buffers
                 return Unsafe.As<RetainableMemory<T>>(am);
             }
 
-            return _factory.Invoke(this, length);
+            var buffer = _factory.Invoke(this, length);
+            if (IsRentAlwaysClean)
+            {
+                buffer.GetSpan().Clear();
+            }
+            return buffer;
         }
 
         public override IMemoryOwner<T> Rent(int minBufferSize = -1)
@@ -172,7 +187,7 @@ namespace Spreads.Buffers
                         {
                             log.BufferRented(buffer.GetHashCode(), buffer.Length, Id, _buckets[i].Id);
                         }
-                        buffer.IsPooled = false;
+                        buffer._isPooled = false;
                         return buffer;
                     }
                 }
@@ -206,7 +221,7 @@ namespace Spreads.Buffers
             // These checks for internal code that could Return directly without Dispose on memory
             memory.EnsureNotRetainedAndNotDisposed();
 
-            if (memory.IsPooled)
+            if (memory._isPooled)
             {
                 ThrowAlreadyPooled<RetainableMemory<T>>();
             }
@@ -215,7 +230,7 @@ namespace Spreads.Buffers
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal bool ReturnNoChecks(RetainableMemory<T> memory, bool clearArray = false)
+        internal bool ReturnNoChecks(RetainableMemory<T> memory, bool clearMemory = true)
         {
             if (_disposed)
             {
@@ -225,15 +240,22 @@ namespace Spreads.Buffers
             // Determine with what bucket this array length is associated
             int bucket = SelectBucketIndex(memory.LengthPow2);
 
-            // Clear the array if the user requests
-            if (clearArray)
-            {
-                memory.GetSpan().Clear();
-            }
-
             // If we can tell that the buffer was allocated, drop it. Otherwise, check if we have space in the pool
             if (bucket < _buckets.Length)
             {
+                // Clear the array if the user requests regardless of pooling result.
+                // If not pooled then it should be RM.DisposeFinalize-d and destruction
+                // is not always GC.
+                if (clearMemory || IsRentAlwaysClean || _typeHasReferences)
+                {
+                    if (!memory.SkipCleaning)
+                    {
+                        memory.GetSpan().Clear();
+                    }
+                }
+
+                memory.SkipCleaning = false;
+
                 // Return the buffer to its bucket.  In the future, we might consider having Return return false
                 // instead of dropping a bucket, in which case we could try to return to a lower-sized bucket,
                 // just as how in Rent we allow renting from a higher-sized bucket.
@@ -247,7 +269,7 @@ namespace Spreads.Buffers
                 log.BufferReturned(memory.GetHashCode(), memory.Length, Id);
             }
 
-            return memory.IsPooled;
+            return memory._isPooled;
         }
 
         protected override void Dispose(bool disposing)
@@ -261,7 +283,7 @@ namespace Spreads.Buffers
                     // ReSharper disable once UseNullPropagation : Debug
                     if (disposable != null)
                     {
-                        sharedMemoryBuffer.IsPooled = false;
+                        sharedMemoryBuffer._isPooled = false;
                         ((IDisposable)disposable).Dispose();
                     }
                 }
@@ -322,6 +344,8 @@ namespace Spreads.Buffers
             [MethodImpl(MethodImplOptions.NoInlining)]
             internal RetainableMemory<T> CreateNew()
             {
+                RetainableMemory<T> buffer;
+
                 if (_pool._disposed)
                 {
                     ThrowDisposed<RetainableMemoryPool<T>>();
@@ -344,17 +368,24 @@ namespace Spreads.Buffers
                         arrayMemory = ArrayMemory<T>.Create(_bufferLength);
                     }
 
-                    arrayMemory._pool = Unsafe.As<RetainableMemoryPool<T>>(_pool);
+                    arrayMemory._pool = _pool;
                     if (arrayMemory.LengthPow2 != _bufferLength)
                     {
                         // TODO proper exception, this is for args
                         ThrowBadLength();
                     }
-                    var asTImpl = Unsafe.As<RetainableMemory<T>>(arrayMemory);
-                    return asTImpl;
+                    buffer = arrayMemory;
                 }
-                // ReSharper disable once PossibleNullReferenceException
-                return _factory.Invoke(_pool, _bufferLength);
+                else
+                {
+                    buffer = _factory.Invoke(_pool, _bufferLength);
+                }
+
+                if (_pool.IsRentAlwaysClean)
+                {
+                    buffer.GetSpan().Clear();
+                }
+                return buffer;
             }
 
             /// <summary>Takes an array from the bucket.  If the bucket is empty, returns null.</summary>
@@ -410,7 +441,7 @@ namespace Spreads.Buffers
                 }
                 else
                 {
-                    if (buffer != null && !buffer.IsPooled)
+                    if (buffer != null && !buffer._isPooled)
                     {
                         ThrowNotFromPool<RetainableMemory<T>>();
                     }
@@ -447,7 +478,7 @@ namespace Spreads.Buffers
                     if (pooled)
                     {
                         _buffers[--_index] = memory;
-                        memory.IsPooled = true;
+                        memory._isPooled = true;
                     }
                 }
 #if !NETCOREAPP

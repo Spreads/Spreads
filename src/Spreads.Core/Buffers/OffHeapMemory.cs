@@ -2,6 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+using System.Diagnostics;
 using Spreads.Utils;
 using System.Runtime.CompilerServices;
 
@@ -45,10 +46,12 @@ namespace Spreads.Buffers
             }
             else
             {
+                Debug.Assert(!_isPooled);
+                _pool = null;
+
                 Counter.Dispose();
                 AtomicCounterService.ReleaseCounter(Counter);
-                Counter = default;
-                ClearOnDispose();
+                ClearAfterDispose();
 
                 // Dispose destructs this object and native buffer
                 _offHeapBuffer.Dispose();

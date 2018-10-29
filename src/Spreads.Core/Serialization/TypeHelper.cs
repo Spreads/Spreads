@@ -119,6 +119,17 @@ namespace Spreads.Serialization
         // ReSharper disable once StaticMemberInGenericType
         public static readonly int FixedSize = InitChecked();
 
+
+        // NOTE: PinnedSize simply tries to pin via GCHandle.
+        // FixedSize could be positive for non-pinnable structs with auto layout (e.g. DateTime)
+        // but it is opt-in and requires an attribute to treat a custom blittable type as fixed.
+
+        /// <summary>
+        /// True if an array T[] could be pinned in memory.
+        /// </summary>
+        // ReSharper disable once StaticMemberInGenericType
+        public static readonly bool IsPinnable = PinnedSize() > 0 || FixedSize > 0;
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int EnsureFixedSize()
         {
@@ -159,10 +170,7 @@ namespace Spreads.Serialization
         /// </summary>
         public static readonly bool IsIDelta = typeof(IDelta<T>).GetTypeInfo().IsAssignableFrom(typeof(T));
 
-        /// <summary>
-        /// True if an array T[] could be pinned in memory.
-        /// </summary>
-        public static readonly bool IsPinnable = FixedSize > 0 && typeof(T) != typeof(DateTime);
+        
 
         // ReSharper disable once StaticMemberInGenericType
         public static readonly bool IsFixedSize = FixedSize > 0;
@@ -250,34 +258,34 @@ namespace Spreads.Serialization
             }
         }
 
+        private static int PinnedSize()
+        {
+            try
+            {
+                var array = new T[2];
+                var pinnedArrayHandle = GCHandle.Alloc(array, GCHandleType.Pinned);
+                var size = (int)
+                    (Marshal.UnsafeAddrOfPinnedArrayElement(array, 1).ToInt64() -
+                     Marshal.UnsafeAddrOfPinnedArrayElement(array, 0).ToInt64());
+                pinnedArrayHandle.Free();
+                // Type helper works only with types that could be pinned in arrays
+                // Here we just cross-check, happens only in static constructor
+                var unsafeSize = SizeOf<T>();
+                if (unsafeSize != size) { ThrowHelper.FailFast("Pinned and unsafe sizes differ!"); }
+                return size;
+            }
+            catch
+            {
+                return -1;
+            }
+        }
+
         /// <summary>
         /// Method is only called from the static constructor of TypeHelper.
         /// </summary>
         /// <returns></returns>
         private static int Init()
         {
-            int PinnedSize()
-            {
-                try
-                {
-                    var array = new T[2];
-                    var pinnedArrayHandle = GCHandle.Alloc(array, GCHandleType.Pinned);
-                    var size = (int)
-                        (Marshal.UnsafeAddrOfPinnedArrayElement(array, 1).ToInt64() -
-                         Marshal.UnsafeAddrOfPinnedArrayElement(array, 0).ToInt64());
-                    pinnedArrayHandle.Free();
-                    // Type helper works only with types that could be pinned in arrays
-                    // Here we just cross-check, happens only in static constructor
-                    var unsafeSize = SizeOf<T>();
-                    if (unsafeSize != size) { ThrowHelper.FailFast("Pinned and unsafe sizes differ!"); }
-                    return size;
-                }
-                catch
-                {
-                    return -1;
-                }
-            }
-
             if (typeof(T) == typeof(DateTime))
             {
                 return 8;

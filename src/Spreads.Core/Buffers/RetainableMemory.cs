@@ -19,13 +19,21 @@ namespace Spreads.Buffers
         // [p*<-len---------------->] we must only check capacity at construction and then work from pointer
         // [p*<-len-[<--lenPow2-->]>] buffer could be larger, pooling always by max pow2 we could store
 
-        // protected int _offset;
         protected int _length;
-
         protected void* _pointer;
 
+        // Internals with private-like _name are not intended for usage outside RMP and tests.
+
         // Pool could set this value on Rent/Return
-        internal bool IsPooled;
+        internal bool _isPooled;
+
+        /// <summary>
+        /// True if the memory is already clean (all zeros) on return. Useful for the case when
+        /// the pool has <see cref="RetainableMemoryPool{T}.IsRentAlwaysClean"/> set to true
+        /// but we know that the buffer is already clean. Use with caution: cleanliness
+        /// must be ovious and only when cost of cleaning could be high (larger buffers).
+        /// </summary>
+        internal bool SkipCleaning;
 
         internal RetainableMemoryPool<T> _pool;
         internal int _pow2Length;
@@ -52,6 +60,10 @@ namespace Spreads.Buffers
             return Counter.Increment();
         }
 
+        /// <summary>
+        /// Returns true if there are outstanding references after decrement.
+        /// </summary>
+        /// <returns></returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal bool Decrement()
         {
@@ -67,7 +79,7 @@ namespace Spreads.Buffers
         internal void* Pointer
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => _pointer; //Unsafe.Add<T>(_pointer, _offset);
+            get => _pointer;
         }
 
         /// <summary>
@@ -100,21 +112,28 @@ namespace Spreads.Buffers
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         protected void TryReturnThisToPoolOrFinalize()
         {
-            if (IsPooled)
+            if (_isPooled)
             {
                 ThrowAlreadyPooled<OffHeapMemory<T>>();
             }
 
-            _pool?.ReturnNoChecks(this, clearArray: false); // this is pinned, we do not need to clean blittables
+            _pool?.ReturnNoChecks(this, clearMemory: false);
 
-            if (!IsPooled)
+            if (!_isPooled)
             {
-                // detach from pool
-                _pool = null;
-                // as if finalizing
-                GC.SuppressFinalize(this);
-                Dispose(false);
+                DisposeFinalize();
             }
+        }
+
+        /// <summary>
+        /// Call Dispose(False) as if finalizing.
+        /// Useful when we internally rent a temp buffer and manually return it with clearMemory = false.
+        /// </summary>
+        internal void DisposeFinalize()
+        {
+            // Do not detach from the pool yet, Dispose(false) may need it for custom finalization implemented by the pool:  _pool = null;
+            GC.SuppressFinalize(this);
+            Dispose(false);
         }
 
         public bool IsDisposed
@@ -144,11 +163,11 @@ namespace Spreads.Buffers
 
         public override Span<T> GetSpan()
         {
-            if (IsPooled)
+            if (_isPooled)
             {
                 ThrowDisposed<RetainableMemory<T>>();
             }
-
+            // if disposed Pointer & _len are null/0, no way to corrupt data, will just throw
             return new Span<T>(Pointer, _length);
         }
 
@@ -240,11 +259,12 @@ namespace Spreads.Buffers
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal void ClearOnDispose()
+        internal void ClearAfterDispose()
         {
             _pointer = null;
             _length = default;
             _pow2Length = default;
+            Counter = default;
         }
 
         ~RetainableMemory()

@@ -56,7 +56,7 @@ namespace Spreads.Buffers
             }
             else
             {
-                ThrowNotSupportedMemeoryType();
+                ThrowNotSupportedMemoryType();
                 _manager = default;
                 _offset = 0;
                 _length = 0;
@@ -68,7 +68,7 @@ namespace Spreads.Buffers
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
-        private static void ThrowNotSupportedMemeoryType()
+        private static void ThrowNotSupportedMemoryType()
         {
             ThrowHelper.ThrowNotSupportedException("Only RetainableMemory<T> and array-backed Memory is supported");
         }
@@ -193,6 +193,12 @@ namespace Spreads.Buffers
             }
             BuffersThrowHelper.ThrowBadLength();
             return default;
+        }
+
+        public int ReferenceCount
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => _manager.ReferenceCount;
         }
 
         public override string ToString()

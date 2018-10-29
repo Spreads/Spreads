@@ -45,7 +45,7 @@ namespace Spreads.Buffers
 
         private ArrayMemorySlice<T> Factory()
         {
-            // the whole purpose is pooling of ArrayMemorySliceBucket, it's OK to lock
+            // the whole purpose is pooling of ArrayMemorySlice, it's OK to lock
             lock (_pool)
             {
                 if (_slabFreeCount == 0)
@@ -102,7 +102,8 @@ namespace Spreads.Buffers
             }
             else
             {
-                Debug.Assert(!IsPooled);
+                Debug.Assert(!_isPooled);
+                _pool = null;
 
                 // we still could add this to the pool of free pinned slices that are backed by an existing slab
                 var pooledToFreeSlicesPool = _slicesPool.Return(this);
@@ -111,11 +112,14 @@ namespace Spreads.Buffers
                     return;
                 }
 
+                Counter.Dispose();
+                AtomicCounterService.ReleaseCounter(Counter);
+                ClearAfterDispose();
+
                 // destroy the object and release resources
                 var array = Interlocked.Exchange(ref _array, null);
                 if (array != null)
                 {
-                    ClearOnDispose();
                     Debug.Assert(_handle.IsAllocated);
 #pragma warning disable 618
                     _slab.Decrement();
@@ -128,9 +132,6 @@ namespace Spreads.Buffers
                 }
 
                 Debug.Assert(!_handle.IsAllocated);
-
-                Counter.Dispose();
-                AtomicCounterService.ReleaseCounter(Counter);
             }
         }
     }
@@ -219,12 +220,12 @@ namespace Spreads.Buffers
             }
             else
             {
-                Debug.Assert(!IsPooled);
+                Debug.Assert(!_isPooled);
+                _pool = null;
 
                 Counter.Dispose();
                 AtomicCounterService.ReleaseCounter(Counter);
-                Counter = default;
-                ClearOnDispose();
+                ClearAfterDispose();
 
                 var array = Interlocked.Exchange(ref _array, null);
                 if (array != null)
