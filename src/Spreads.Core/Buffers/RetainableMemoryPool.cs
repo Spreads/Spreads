@@ -33,7 +33,13 @@ namespace Spreads.Buffers
         }
     }
 
-    public class RetainableMemoryPool<T> : MemoryPool<T> //  where TImpl : RetainableMemory<T> // TODO
+    /// <summary>
+    /// This is thread-safe only with correct usage. With Rent a buffer must be returned via Return and used only by a single
+    /// thread at a time and no refcounting is done. As soon as a buffer is Retain-ed it must only be used with ref-counting
+    /// methods such as Increment/Decrement and Dispose of RetainedMemory. A buffer is returned to a pool when refcount
+    /// reaches zero.
+    /// </summary>
+    public class RetainableMemoryPool<T> : MemoryPool<T>
     {
         /// <summary>
         /// Set to true to always clean on return and clean buffers produced by factory.
@@ -235,6 +241,11 @@ namespace Spreads.Buffers
             if (_disposed)
             {
                 return false;
+            }
+
+            if (memory._pool != this)
+            {
+                ThrowNotFromPool<RetainableMemory<T>>();
             }
 
             // Determine with what bucket this array length is associated

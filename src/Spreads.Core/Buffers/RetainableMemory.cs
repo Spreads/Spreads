@@ -24,18 +24,30 @@ namespace Spreads.Buffers
 
         // Internals with private-like _name are not intended for usage outside RMP and tests.
 
-        // Pool could set this value on Rent/Return
+        // NOTE: this could be replaced by _pool == null, but ambiguous for never pooled managers
+        // and we do not save object size in the presence of SkipCleaning field (at least 4 bytes padding)
+        // Pool sets this value on Rent/Return
         internal bool _isPooled;
 
         /// <summary>
         /// True if the memory is already clean (all zeros) on return. Useful for the case when
         /// the pool has <see cref="RetainableMemoryPool{T}.IsRentAlwaysClean"/> set to true
-        /// but we know that the buffer is already clean. Use with caution: cleanliness
-        /// must be ovious and only when cost of cleaning could be high (larger buffers).
+        /// but we know that the buffer is already clean. Use with caution only when cleanliness
+        /// is ovious and when cost of cleaning could be high (larger buffers).
         /// </summary>
         internal bool SkipCleaning;
 
+        // Whenever a memory becomes a storage of app data and not a temp buffer
+        // this must be cleared. Decrement to zero causes pooling before checks
+        // and we need to somehow refactor logic without introducing another
+        // virtual method and just follow the rule that app data buffers are not
+        // poolable in this context. When app finishes working with the buffer
+        // it could set this field back to original value.
         internal RetainableMemoryPool<T> _pool;
+
+        // Length for pool buckets. To simplify and speedup implementation we just
+        // use default pow2 pool logic without virtual methods and complexity of
+        // calculating lengths. A buffer is pooled by max pow2 it could fit into.
         internal int _pow2Length;
 
 #if DEBUG
@@ -101,6 +113,18 @@ namespace Spreads.Buffers
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => Counter.Count > 0;
+        }
+
+        public bool IsPooled
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => _isPooled;
+        }
+
+        public bool IsPoolable
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => _pool != null;
         }
 
         public int ReferenceCount
@@ -271,7 +295,7 @@ namespace Spreads.Buffers
         {
 #if DEBUG
             // always dies in Debug
-            if (IsRetained)
+            if (Counter.IsValid && IsRetained)
             {
                 throw new ApplicationException("Finalizing retained RM: " + _stackTrace);
             }
