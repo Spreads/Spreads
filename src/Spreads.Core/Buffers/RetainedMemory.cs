@@ -6,7 +6,9 @@
 #endif
 
 using System;
+using System.Buffers;
 using System.Diagnostics;
+using System.Diagnostics.Contracts;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -29,7 +31,7 @@ namespace Spreads.Buffers
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     public readonly struct RetainedMemory<T> : IDisposable
     {
-        private readonly RetainableMemory<T> _manager;
+        internal readonly RetainableMemory<T> _manager;
         private readonly int _offset;
         private readonly int _length;
 
@@ -218,6 +220,17 @@ namespace Spreads.Buffers
             _manager?.Decrement();
         }
 
+        /// <summary>
+        /// Release a reference of the underlying OwnedBuffer.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal void Forget()
+        {
+#if DETECT_LEAKS
+            _finalizeChecker?.Dispose();
+#endif
+        }
+
 #if DETECT_LEAKS
 
         internal class PanicOnFinalize : IDisposable
@@ -254,7 +267,7 @@ namespace Spreads.Buffers
 
         internal readonly PanicOnFinalize _finalizeChecker;
 #endif
-    }
+        }
 
     public static class RetainedMemoryExtensions
     {

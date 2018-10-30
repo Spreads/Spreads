@@ -77,15 +77,14 @@ namespace Spreads.Buffers
         /// </summary>
         /// <returns></returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal bool Decrement()
+        internal int Decrement()
         {
             var newRefCount = Counter.Decrement();
             if (newRefCount == 0)
             {
                 TryReturnThisToPoolOrFinalize();
-                return false;
             }
-            return true;
+            return newRefCount;
         }
 
         internal void* Pointer
@@ -291,6 +290,7 @@ namespace Spreads.Buffers
             Counter = default;
         }
 
+        [Obsolete("For debugging to detect leaks, will be removed later.")]
         ~RetainableMemory()
         {
 #if DEBUG
