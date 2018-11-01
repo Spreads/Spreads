@@ -1,12 +1,18 @@
 ﻿using Spreads.Utils;
 using System;
 using System.Buffers;
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using static Spreads.Buffers.BuffersThrowHelper;
 
 namespace Spreads.Buffers
 {
+    internal static class RetainableMemoryTracker
+    {
+        internal static ConditionalWeakTable<object, string> Tags = new ConditionalWeakTable<object, string>();
+    }
+
     /// <summary>
     /// Base class for retainable pinned memory. Buffers are always pinned during initialization.
     /// Initialization could be from a pool of arrays or from native memory. When pooled, RetainableMemory
@@ -290,16 +296,40 @@ namespace Spreads.Buffers
             Counter = default;
         }
 
+        internal string Tag
+        {
+            get
+            {
+                if (RetainableMemoryTracker.Tags.TryGetValue(this, out var tag))
+                {
+                    return tag;
+                }
+
+                return null;
+            }
+
+            set
+            {
+                RetainableMemoryTracker.Tags.Remove(this);
+                RetainableMemoryTracker.Tags.Add(this, value);
+            }
+        }
+
         [Obsolete("For debugging to detect leaks, will be removed later.")]
         ~RetainableMemory()
         {
-#if DEBUG
             // always dies in Debug
             if (Counter.IsValid && IsRetained)
             {
+                if (Tag != null)
+                {
+                    // in general we do not know that Dispose(false) will throw/fail, so just print it here
+                    Trace.TraceWarning("Finalizing retained RM: " + Tag);
+                }
+#if DEBUG
                 throw new ApplicationException("Finalizing retained RM: " + _stackTrace);
-            }
 #endif
+            }
 
             // TODO review current logic, we throw when finalizing dropped retained object
             // If it is safe enough to tell that when finalized it always dropped then we
