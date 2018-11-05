@@ -63,6 +63,7 @@ namespace Spreads.Buffers
         private readonly Bucket[] _buckets;
         private readonly int _minBufferLengthPow2;
         internal bool _disposed;
+        internal bool AddStackTraceOnRent = false;
 
         public RetainableMemoryPool(Func<RetainableMemoryPool<T>, int, RetainableMemory<T>> factory)
             : this(factory, DefaultMinArrayLength, DefaultMaxArrayLength, DefaultMaxNumberOfArraysPerBucket)
@@ -194,6 +195,10 @@ namespace Spreads.Buffers
                             log.BufferRented(buffer.GetHashCode(), buffer.Length, Id, _buckets[i].Id);
                         }
                         buffer._isPooled = false;
+                        if (AddStackTraceOnRent)
+                        {
+                            buffer.Tag = Environment.StackTrace;
+                        }
                         return buffer;
                     }
                 }
@@ -218,6 +223,10 @@ namespace Spreads.Buffers
                     RetainableMemoryPoolEventSource.BufferAllocatedReason.OverMaximumSize : RetainableMemoryPoolEventSource.BufferAllocatedReason.PoolExhausted);
             }
 
+            if (AddStackTraceOnRent)
+            {
+                buffer.Tag = Environment.StackTrace;
+            }
             return buffer;
         }
 

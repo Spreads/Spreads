@@ -121,7 +121,7 @@ namespace Spreads.Buffers
         public unsafe void* Pointer
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => Unsafe.Add<T>(_manager.Pointer, _offset);
+            get => Unsafe.Add<T>(_manager._pointer, _offset);
         }
 
         public Memory<T> Memory

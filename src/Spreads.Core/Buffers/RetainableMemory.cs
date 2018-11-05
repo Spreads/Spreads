@@ -26,7 +26,7 @@ namespace Spreads.Buffers
         // [p*<-len-[<--lenPow2-->]>] buffer could be larger, pooling always by max pow2 we could store
 
         protected int _length;
-        protected void* _pointer;
+        internal void* _pointer;
 
         // Internals with private-like _name are not intended for usage outside RMP and tests.
 
