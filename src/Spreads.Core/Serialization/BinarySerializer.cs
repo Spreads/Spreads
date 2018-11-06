@@ -2,7 +2,6 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-// using Newtonsoft.Json;
 using Spreads.Buffers;
 using Spreads.DataTypes;
 using System;
@@ -10,22 +9,14 @@ using System.Buffers;
 using System.Diagnostics;
 using System.IO;
 using System.Runtime.CompilerServices;
-using System.Threading;
-using static System.Runtime.CompilerServices.Unsafe;
 
 #pragma warning disable 0618
 
 namespace Spreads.Serialization
 {
-    // 3 serialization cases: fixed binary, custom converter and json
-    // compression is applied to the result of the later two
-
-    /// <summary>
-    /// Binary Serializer that tries to serialize objects to their blittable representation whenever possible
-    /// and falls back to JSON.NET for non-blittable types. It supports versioning and custom binary converters.
-    /// </summary>
     public static unsafe partial class BinarySerializer
     {
+        // Binary converter padding
         // ReSharper disable once InconsistentNaming
         internal const int BC_PADDING = 16;
 
@@ -150,7 +141,6 @@ namespace Spreads.Serialization
             if (rawTemporaryBuffer.IsEmpty) // requested compression, empty is possible only when TypeHelper<T>.BinaryConverter != null
             {
                 bc = TypeHelper<T>.BinaryConverter;
-                Debug.Assert(bc != null);
                 ThrowHelper.AssertFailFast(bc != null, "TypeHelper<T>.BinaryConverter != null, in other cases raw temp buffer should be present");
                 rawOffset = DataTypeHeader.Size + 4 + tsSize;
                 tmpArray = BufferPool.RetainTemp(rawOffset + rawSize);
@@ -236,8 +226,8 @@ namespace Spreads.Serialization
             return -1;
         }
 
-
 #pragma warning disable EPS05 // Use in-modifier for a readonly struct: public method should support older C# versions
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int Write<T>(T value, ref DirectBuffer pinnedDestination,
             RetainedMemory<byte> temporaryBuffer = default,
@@ -276,15 +266,15 @@ namespace Spreads.Serialization
 
         [MethodImpl(MethodImplOptions.NoInlining)]
         private static int WriteVarSize<T>(T value,
-            ref DirectBuffer pinnedDestination, 
-            in RetainedMemory<byte> temporaryBuffer, 
+            ref DirectBuffer pinnedDestination,
+            in RetainedMemory<byte> temporaryBuffer,
             SerializationFormat format,
             Timestamp timestamp, IBinaryConverter<T> bc)
         {
             RetainedMemory<byte> rm = temporaryBuffer;
             try
             {
-                var hasTs = (long) timestamp != default;
+                var hasTs = (long)timestamp != default;
                 var sizeOf = 0;
                 if (rm.IsEmpty)
                 {
@@ -377,7 +367,9 @@ namespace Spreads.Serialization
                 rm.Dispose();
             }
         }
+
 #pragma warning disable EPS05 // Use in-modifier for a readonly struct
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int Write<T>(T value, Memory<byte> buffer,
             RetainedMemory<byte> temporaryBuffer = default,
@@ -561,71 +553,68 @@ namespace Spreads.Serialization
 
         #region Experiments
 
-        // branchless reads
+        //// branchless reads
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static int TsSize(Timestamp ts)
-        {
-            var isNonDefault = (long)ts != default;
-            var size = (*(byte*)&isNonDefault << 3); // 1 << 3 = 8 or zero
-            return size;
-        }
+        //[MethodImpl(MethodImplOptions.AggressiveInlining)]
+        //internal static int TsSize(Timestamp ts)
+        //{
+        //    var isNonDefault = (long)ts != default;
+        //    var size = (*(byte*)&isNonDefault << 3); // 1 << 3 = 8 or zero
+        //    return size;
+        //}
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static Timestamp ReadTimestamp(byte* ptr, out int payloadOffset)
-        {
-            var isVarSize = *(ptr + 2) == 0;
-            var offset = DataTypeHeader.Size + (*(byte*)&isVarSize << 2); // 4 for varsize or 0 for fixed size
-            long tsLen = VersionAndFlags.TimestampFlagMask & *ptr;
+        //[MethodImpl(MethodImplOptions.AggressiveInlining)]
+        //internal static Timestamp ReadTimestamp(byte* ptr, out int payloadOffset)
+        //{
+        //    var isVarSize = *(ptr + 2) == 0;
+        //    var offset = DataTypeHeader.Size + (*(byte*)&isVarSize << 2); // 4 for varsize or 0 for fixed size
+        //    long tsLen = VersionAndFlags.TimestampFlagMask & *ptr;
 
-            var tsMask = ~((tsLen >> 3) - 1); // all 1s or 0s
+        //    var tsMask = ~((tsLen >> 3) - 1); // all 1s or 0s
 
-            // the only requirment if ptr + offset + 8 not causing segfault.
-            var timestamp = (Timestamp)(tsMask & ReadUnaligned<long>(ptr + offset));
+        //    // the only requirment if ptr + offset + 8 not causing segfault.
+        //    var timestamp = (Timestamp)(tsMask & ReadUnaligned<long>(ptr + offset));
 
-            payloadOffset = offset + (int)tsLen;
-            return timestamp;
-        }
+        //    payloadOffset = offset + (int)tsLen;
+        //    return timestamp;
+        //}
 
-        [ThreadStatic]
-        private static decimal placeHolder;
+        //[ThreadStatic]
+        //private static decimal placeHolder;
 
-        [ThreadStatic]
-        private static void* sharedPtr = BufferPool.StaticBufferMemory.Pointer;
+        //[Obsolete]
+        //[MethodImpl(MethodImplOptions.AggressiveInlining)]
+        //internal static Timestamp ReadTimestamp2(byte* ptr, out int payloadOffset)
+        //{
+        //    var x = AsPointer(ref placeHolder);
+        //    // store pointers in the first 16 bytes of the shared thread-static buffer
+        //    //var bptr = default(decimal);
+        //    //var sharedPtr = (void*)&bptr;
+        //    //if (sharedPtr == (void*) IntPtr.Zero)
+        //    //{
+        //    //    sharedPtr = BufferPool.StaticBufferMemory.Pointer;
+        //    //}
+        //    var ptrXX = (byte**)x; // (byte**)sharedPtr;
+        //    long ts = default;
+        //    // ()ptrXX = &ts
 
-        [Obsolete]
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static Timestamp ReadTimestamp2(byte* ptr, out int payloadOffset)
-        {
-            var x = AsPointer(ref placeHolder);
-            // store pointers in the first 16 bytes of the shared thread-static buffer
-            //var bptr = default(decimal);
-            //var sharedPtr = (void*)&bptr;
-            //if (sharedPtr == (void*) IntPtr.Zero)
-            //{
-            //    sharedPtr = BufferPool.StaticBufferMemory.Pointer;
-            //}
-            var ptrXX = (byte**)x; // (byte**)sharedPtr;
-            long ts = default;
-            // ()ptrXX = &ts
+        //    // var ptrX = stackalloc Timestamp*[2];
+        //    // we need ANY pointer that does not segfault on read
+        //    *ptrXX = (byte*)(x) + 8; // (byte*)&ts;
 
-            // var ptrX = stackalloc Timestamp*[2];
-            // we need ANY pointer that does not segfault on read
-            *ptrXX = (byte*)(x) + 8; // (byte*)&ts;
+        //    var isVarSize = *(ptr + 2) == 0;
+        //    var offset = 4 << *(int*)(byte*)&isVarSize; // + (*(byte*)&isVarSize << 2); // 4 for varsize or 0 for fixed size
+        //    long tsLen = VersionAndFlags.TimestampFlagMask & *ptr;
 
-            var isVarSize = *(ptr + 2) == 0;
-            var offset = 4 << *(int*)(byte*)&isVarSize; // + (*(byte*)&isVarSize << 2); // 4 for varsize or 0 for fixed size
-            long tsLen = VersionAndFlags.TimestampFlagMask & *ptr;
+        //    *(ptrXX + 8) = (byte*)(ptr + offset);
 
-            *(ptrXX + 8) = (byte*)(ptr + offset);
+        //    var hasTs = tsLen;
+        //    var ptrToDeref = *(ptrXX + hasTs);
+        //    ts = Volatile.Read(ref *(long*)(ptrToDeref));
 
-            var hasTs = tsLen;
-            var ptrToDeref = *(ptrXX + hasTs);
-            ts = Volatile.Read(ref *(long*)(ptrToDeref));
-
-            payloadOffset = offset + (int)tsLen;
-            return (Timestamp)ts;
-        }
+        //    payloadOffset = offset + (int)tsLen;
+        //    return (Timestamp)ts;
+        //}
 
         #endregion Experiments
     }

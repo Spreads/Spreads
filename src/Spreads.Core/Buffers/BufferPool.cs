@@ -55,18 +55,6 @@ namespace Spreads.Buffers
         internal static readonly int StaticBufferSize = Settings.ThreadStaticPinnedBufferSize;
 
         /// <summary>
-        /// Shared buffers are for slicing of small PreservedBuffers
-        /// </summary>
-        [ThreadStatic]
-        private static ArrayMemory<byte> _sharedBuffer;
-
-        [ThreadStatic]
-        private static RetainedMemory<byte> _sharedBufferMemory;
-
-        [ThreadStatic]
-        internal static int SharedBufferOffset;
-
-        /// <summary>
         /// Temp storage e.g. for serialization
         /// </summary>
         [ThreadStatic]
@@ -75,34 +63,14 @@ namespace Spreads.Buffers
         [ThreadStatic]
         private static RetainedMemory<byte> _threadStaticMemory;
 
-        private int _smallTreshhold = 16;
-
         internal BufferPool()
         { }
-
-        protected internal int SmallTreshhold
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => _smallTreshhold;
-            set
-            {
-                if (value > SharedBufferSize)
-                {
-                    value = SharedBufferSize;
-                }
-
-                if (value < 16)
-                {
-                    value = 16;
-                }
-                _smallTreshhold = value;
-            }
-        }
 
         /// <summary>
         /// Thread-static <see cref="ArrayMemory{T}"/> with size of <see cref="StaticBufferSize"/>.
         /// Never dispose it!
         /// </summary>
+        [Obsolete("Will be removed soon")]
         internal static ArrayMemory<byte> StaticBuffer
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -114,20 +82,18 @@ namespace Spreads.Buffers
                 }
 
                 return CreateThreadStaticBuffer();
+
+                ArrayMemory<byte> CreateThreadStaticBuffer()
+                {
+                    // TODO review this mess with externally owned
+                    _threadStaticBuffer = ArrayMemory<byte>.Create(new byte[StaticBufferSize], true);
+                    _threadStaticMemory = new RetainedMemory<byte>(_threadStaticBuffer, 0, _threadStaticBuffer.Memory.Length, false);
+                    return _threadStaticBuffer;
+                }
             }
         }
 
-        [MethodImpl(MethodImplOptions.NoInlining)]
-        private static ArrayMemory<byte> CreateThreadStaticBuffer()
-        {
-            // TODO review this mess with externally owned
-            _threadStaticBuffer = ArrayMemory<byte>.Create(new byte[StaticBufferSize], true);
-            _threadStaticBuffer.Increment();
-            // NB Pin in LOH if ThreadStaticPinnedBufferSize > 85k, limit impact on compaction (see Slab in Kestrel)
-            _threadStaticMemory = new RetainedMemory<byte>(_threadStaticBuffer.Memory);
-            return _threadStaticBuffer;
-        }
-
+        [Obsolete("Will be removed soon")]
         internal static RetainedMemory<byte> StaticBufferMemory
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -146,48 +112,6 @@ namespace Spreads.Buffers
         {
             var arrayMemory = PinnedArrayMemoryPool.RentMemory(length);
             return requireExact ? arrayMemory.Retain(0, length) : arrayMemory.Retain();
-
-            //// https://github.com/dotnet/corefx/blob/master/src/System.Buffers/src/System/Buffers/DefaultArrayPool.cs#L35
-            //// DefaultArrayPool has a minimum size of 16
-
-            //if (length <= _smallTreshhold)
-            //{
-            //    if (_sharedBuffer == null)
-            //    {
-            //        _sharedBuffer = ArrayMemory<byte>.Create(SharedBufferSize);
-            //        // NB we must create a reference or the first RetainedMemory could
-            //        // dispose _sharedBuffer on RetainedMemory disposal.
-
-            //        // We are discarding RetainedMemory struct and will unpin below manually
-            //        _sharedBufferMemory = _sharedBuffer.Retain();
-
-            //        SharedBufferOffset = 0;
-            //    }
-            //    var bufferSize = _sharedBuffer.Memory.Length;
-            //    var newOffset = SharedBufferOffset + length;
-            //    if (newOffset > bufferSize)
-            //    {
-            //        // replace shared buffer, the old one will be disposed
-            //        // when all ReservedMemory views on it are disposed
-            //        var previous = _sharedBufferMemory;
-            //        _sharedBuffer = ArrayMemory<byte>.Create(SharedBufferSize);
-
-            //        _sharedBufferMemory = _sharedBuffer.Retain();
-            //        previous.Dispose(); // unpinning manually, now the buffer is free and it's retainers determine when it goes back to the pool
-
-            //        SharedBufferOffset = 0;
-            //        newOffset = length;
-            //    }
-
-            //    var retainedMemory = _sharedBuffer.Retain(SharedBufferOffset, length);
-            //    SharedBufferOffset = BitUtil.Align(newOffset, Settings.SliceMemoryAlignment);
-            //    return retainedMemory;
-            //}
-            //// NB here we exclusively own the buffer and disposal of RetainedMemory will cause
-            //// disposal and returning to pool of the ownedBuffer instance, unless references were added via
-            //// RetainedMemory.Clone()
-            //var arrayMemory = ArrayMemory<byte>.Create(length);
-            //return requireExact ? arrayMemory.Retain(0, length) : arrayMemory.Retain();
         }
 
         /// <summary>
@@ -238,7 +162,6 @@ namespace Spreads.Buffers
 
     internal static class BufferPoolRetainedMemoryHelper<T>
     {
-        // JIT-time const
         // ReSharper disable once StaticMemberInGenericType
         public static readonly bool IsRetainedMemory = IsRetainedMemoryInit();
 
