@@ -63,6 +63,52 @@ namespace Spreads.Buffers
             return value;
         }
 
+        [System.Diagnostics.Contracts.Pure]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal int IncrementIfRetained()
+        {
+            // Pooled buffers have zero counter and not disposed one.
+            // The recovery logic above (if (value <= 0)) is bad and not atomic.
+            while (true)
+            {
+                var current = Volatile.Read(ref *Pointer);
+                if (current > 0)
+                {
+                    var target = current + 1;
+                    if (current == Interlocked.CompareExchange(ref *Pointer, target, current))
+                    {
+                        return target;
+                    }
+                }
+                else
+                {
+                    return current;
+                }
+            }
+        }
+
+        [System.Diagnostics.Contracts.Pure]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal int DecrementIfOne()
+        {
+            while (true)
+            {
+                var current = Volatile.Read(ref *Pointer);
+                if (current == 1)
+                {
+                    const int target = 0;
+                    if (1 == Interlocked.CompareExchange(ref *Pointer, 0, 1))
+                    {
+                        return target;
+                    }
+                }
+                else
+                {
+                    return current;
+                }
+            }
+        }
+
         [MethodImpl(MethodImplOptions.NoInlining)]
         private static void IncrementFailReleased()
         {
@@ -471,7 +517,7 @@ namespace Spreads.Buffers
                 // linear search
                 var p = counter.Pointer;
                 var idx = p - bucket.Pointer;
-                if (unchecked ((ulong)idx) < (ulong)BucketSize)
+                if (unchecked((ulong)idx) < (ulong)BucketSize)
                 {
                     bucket.ReleaseCounter(counter);
                     return;

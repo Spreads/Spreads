@@ -78,6 +78,12 @@ namespace Spreads.Buffers
             return Counter.Increment();
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal int IncrementIfRetained()
+        {
+            return Counter.IncrementIfRetained();
+        }
+
         /// <summary>
         /// Returns true if there are outstanding references after decrement.
         /// </summary>
@@ -86,6 +92,17 @@ namespace Spreads.Buffers
         internal int Decrement()
         {
             var newRefCount = Counter.Decrement();
+            if (newRefCount == 0)
+            {
+                TryReturnThisToPoolOrFinalize();
+            }
+            return newRefCount;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal int DecrementIfOne()
+        {
+            var newRefCount = Counter.DecrementIfOne();
             if (newRefCount == 0)
             {
                 TryReturnThisToPoolOrFinalize();
