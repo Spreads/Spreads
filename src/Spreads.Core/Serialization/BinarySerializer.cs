@@ -5,7 +5,6 @@
 using Spreads.Buffers;
 using Spreads.DataTypes;
 using System;
-using System.Buffers;
 using System.Diagnostics;
 using System.IO;
 using System.Runtime.CompilerServices;
@@ -135,7 +134,7 @@ namespace Spreads.Serialization
 
             // reuse the raw buffer or create one in case it is empty or without padding.
             var rawOffset = BC_PADDING;
-            RetainedMemory<byte> tmpArray;
+            RetainedMemory<byte> tempMemory;
             DirectBuffer tmpDestination;
 
             if (rawTemporaryBuffer.IsEmpty) // requested compression, empty is possible only when TypeHelper<T>.BinaryConverter != null
@@ -143,26 +142,26 @@ namespace Spreads.Serialization
                 bc = TypeHelper<T>.BinaryConverter;
                 ThrowHelper.AssertFailFast(bc != null, "TypeHelper<T>.BinaryConverter != null, in other cases raw temp buffer should be present");
                 rawOffset = DataTypeHeader.Size + 4 + tsSize;
-                tmpArray = BufferPool.RetainTemp(rawOffset + rawSize);
-                tmpDestination = new DirectBuffer(tmpArray.Length, (byte*)tmpArray.Pointer);
+                tempMemory = BufferPool.RetainTemp(rawOffset + rawSize);
+                tmpDestination = new DirectBuffer(tempMemory.Length, (byte*)tempMemory.Pointer);
                 var slice = tmpDestination.Slice(rawOffset);
                 // ReSharper disable once PossibleNullReferenceException
                 bc.Write(value, ref slice);
-                // now tmpArray is the same as if if was returned from SizeOfNoHeader
+                // now tempMemory is the same as if if was returned from SizeOfNoHeader
             }
             else
             {
                 if (withPadding)
                 {
                     Debug.Assert(rawOffset == BC_PADDING);
-                    tmpArray = rawTemporaryBuffer;
-                    tmpDestination = new DirectBuffer(tmpArray.Length, (byte*)tmpArray.Pointer);
+                    tempMemory = rawTemporaryBuffer;
+                    tmpDestination = new DirectBuffer(tempMemory.Length, (byte*)tempMemory.Pointer);
                 }
                 else
                 {
                     rawOffset = DataTypeHeader.Size + 4 + tsSize;
-                    tmpArray = BufferPool.RetainTemp(rawOffset + rawSize);
-                    tmpDestination = new DirectBuffer(tmpArray.Length, (byte*)tmpArray.Pointer);
+                    tempMemory = BufferPool.RetainTemp(rawOffset + rawSize);
+                    tmpDestination = new DirectBuffer(tempMemory.Length, (byte*)tempMemory.Pointer);
                     var slice = tmpDestination.Slice(rawOffset);
                     rawTemporaryBuffer.Span.CopyTo(slice.Span);
                 }
@@ -201,28 +200,28 @@ namespace Spreads.Serialization
 
             if (compressionMethod == CompressionMethod.None)
             {
-                tmpArray = tmpArray.Slice(firstOffset, tmpArray.Length - firstOffset);
-                temporaryBuffer = tmpArray;
+                tempMemory = tempMemory.Slice(firstOffset, tempMemory.Length - firstOffset);
+                temporaryBuffer = tempMemory;
                 return totalLength;
             }
 
             var uncompressedBufferWithHeader = tmpDestination.Slice(firstOffset, totalLength);
 
-            var tmpArray2 = BufferPool.RetainTemp(checked((int)(uint)uncompressedBufferWithHeader.Length));
-            var destination2 = new DirectBuffer(tmpArray2.Length, (byte*)tmpArray2.Pointer).Slice(0, uncompressedBufferWithHeader.Length);
+            var tempMemory2 = BufferPool.RetainTemp(checked((int)(uint)uncompressedBufferWithHeader.Length));
+            var destination2 = new DirectBuffer(tempMemory2.Length, (byte*)tempMemory2.Pointer).Slice(0, uncompressedBufferWithHeader.Length);
 
             var compressedSize = CompressWithHeader(uncompressedBufferWithHeader, destination2, compressionMethod);
 
-            tmpArray.Dispose();
+            tempMemory.Dispose();
 
             if (compressedSize > 0)
             {
-                tmpArray2 = tmpArray2.Slice(0, compressedSize);
-                temporaryBuffer = tmpArray2;
+                tempMemory2 = tempMemory2.Slice(0, compressedSize);
+                temporaryBuffer = tempMemory2;
                 return compressedSize;
             }
 
-            tmpArray2.Dispose();
+            tempMemory2.Dispose();
             return -1;
         }
 
@@ -448,42 +447,31 @@ namespace Spreads.Serialization
             // this is how much we read from source, we return this value
             var readSize = calculatedSourceSize;
 
-            byte[] tmpArray = null;
-            MemoryHandle pin = default;
-            try
-            {
-                if (header.VersionAndFlags.CompressionMethod != CompressionMethod.None)
-                {
-                    var uncompressedBufferSize = offset + source.Read<int>(offset);
-                    tmpArray = BufferPool<byte>.Rent(uncompressedBufferSize);
-                    pin = ((Memory<byte>)tmpArray).Pin();
-                    var sourceUncompressed = new DirectBuffer(tmpArray.Length, (byte*)pin.Pointer).Slice(0, uncompressedBufferSize);
-                    // we must return readSize = this is how many bytes we have read from original source
-                    readSize = DecompressWithHeader(source, sourceUncompressed);
-                    // use sourceUncompressed as if there was no compression
-                    source = sourceUncompressed;
-                }
+            RetainedMemory<byte> tempMemory = default;
 
-                if (bc == null)
-                {
-                    bc = JsonBinaryConverter<T>.Instance;
-                }
-                var slice = source.Slice(offset, readSize - offset);
-                var readSize1 = offset + bc.Read(ref slice, out value);
-                if (readSize > 0 && readSize1 != readSize)
-                {
-                    goto INVALID_RETURN;
-                }
-                return calculatedSourceSize;
-            }
-            finally
+            if (header.VersionAndFlags.CompressionMethod != CompressionMethod.None)
             {
-                if (tmpArray != null)
-                {
-                    BufferPool<byte>.Return(tmpArray);
-                    pin.Dispose();
-                }
+                var uncompressedBufferSize = offset + source.Read<int>(offset);
+                tempMemory = BufferPool.RetainTemp(uncompressedBufferSize);
+                var sourceUncompressed = new DirectBuffer(tempMemory.Length, (byte*)tempMemory.Pointer).Slice(0, uncompressedBufferSize);
+                // we must return readSize = this is how many bytes we have read from original source
+                readSize = DecompressWithHeader(source, sourceUncompressed);
+                // use sourceUncompressed as if there was no compression
+                source = sourceUncompressed;
             }
+
+            if (bc == null)
+            {
+                bc = JsonBinaryConverter<T>.Instance;
+            }
+            var slice = source.Slice(offset, readSize - offset);
+            var readSize1 = offset + bc.Read(ref slice, out value);
+            if (readSize > 0 && readSize1 != readSize)
+            {
+                goto INVALID_RETURN;
+            }
+            tempMemory.Dispose();
+            return calculatedSourceSize;
 
             INVALID_RETURN:
             value = default;

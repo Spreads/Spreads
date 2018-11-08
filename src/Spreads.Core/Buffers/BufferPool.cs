@@ -38,7 +38,7 @@ namespace Spreads.Buffers
         internal static RetainableMemoryPool<byte> PinnedArrayMemoryPool =
             new RetainableMemoryPool<byte>(null,
                 2048,
-                1024 * 1024,
+                8 * 1024 * 1024,
                 64, 2);
 
         /// <summary>
