@@ -47,8 +47,7 @@ namespace Spreads
     public class DataStream
     {
         private DataStream()
-        {
-        }
+        { }
 
         /// <summary>
         /// 2**53 ought to be enough for anybody. It's 285 years of microseconds.

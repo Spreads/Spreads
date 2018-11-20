@@ -155,7 +155,7 @@ namespace Spreads.Collections.Concurrent
                         else
                         {
                             idx = _freeSlots.Pop();
-                            if (Settings.AdditionalCorrectnessChecks.Enabled)
+                            if (AdditionalCorrectnessChecks.Enabled)
                             {
                                 if (_index[idx].IsAllocated)
                                 {
@@ -207,7 +207,7 @@ namespace Spreads.Collections.Concurrent
                     return false;
                 }
 
-                if (Settings.AdditionalCorrectnessChecks.Enabled)
+                if (AdditionalCorrectnessChecks.Enabled)
                 {
                     if (!h.IsAllocated)
                     {

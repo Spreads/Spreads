@@ -110,7 +110,7 @@ namespace Spreads.Serialization
                 return rawSize;
             }
 
-            if (Settings.AdditionalCorrectnessChecks.Enabled)
+            if (AdditionalCorrectnessChecks.Enabled)
             {
                 if (!rawTemporaryBuffer.IsEmpty &&
                     rawSize != rawTemporaryBuffer.Length - (withPadding ? BC_PADDING : 0))

@@ -2,6 +2,10 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+using NUnit.Framework;
+using Spreads.Buffers;
+using Spreads.Serialization;
+using Spreads.Utils;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -9,10 +13,6 @@ using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Threading;
-using NUnit.Framework;
-using Spreads.Buffers;
-using Spreads.Serialization;
-using Spreads.Utils;
 
 namespace Spreads.Core.Tests
 {
@@ -521,7 +521,6 @@ namespace Spreads.Core.Tests
                     }
                 }
             }
-
         }
 
         [Test, Explicit("long running")]
@@ -889,7 +888,6 @@ namespace Spreads.Core.Tests
             }
         }
 
-
         [Test, Explicit("long running")]
         public void LargeLongsToDoubleKeepWeekOrder()
         {
@@ -981,7 +979,7 @@ namespace Spreads.Core.Tests
             // NB uncommenting this line will set the value to its default=true
             // before the above property is assigned due to how static fields are
             // initialized
-            //Assert.True(Settings.AdditionalCorrectnessChecks.DoChecks);
+            //Assert.True(AdditionalCorrectnessChecks.DoChecks);
 
             Assert.False(Settings.DoAdditionalCorrectnessChecks);
         }
@@ -1007,7 +1005,7 @@ namespace Spreads.Core.Tests
         {
             // https://github.com/dotnet/coreclr/issues/2430
 
-            var sizes = new[] {3, 7, 17, 33, 65, 129, 257, 513}; //, 1025, 2049, 4097, 8193 };
+            var sizes = new[] { 3, 7, 17, 33, 65, 129, 257, 513 }; //, 1025, 2049, 4097, 8193 };
 
             Console.WriteLine(Vector<byte>.Count);
 
@@ -1019,7 +1017,7 @@ namespace Spreads.Core.Tests
                 var dstArr = new byte[size];
                 for (int i = 0; i < size; i++)
                 {
-                    var val = (byte) (i % 255);
+                    var val = (byte)(i % 255);
                     *(src + i) = val;
                 }
                 var count = (int)(100_000_000 / Math.Log(size));
@@ -1099,12 +1097,51 @@ namespace Spreads.Core.Tests
                             srcSpan.CopyTo(dstSpan);
                         }
                     }
-
                 }
 
                 Benchmark.Dump(
                     $"Vectorized copy for Vector<byte>.Count={Vector<byte>.Count} and payload size of {size}");
             }
+        }
+
+        ////////////////////////////////////////////////////////////////////////////
+
+        [Test, Explicit("long running")]
+        public void StaticReadonlySettingInlining()
+        {
+            Assert.IsFalse(AdditionalCorrectnessChecks.Enabled);
+
+            var count = 10_000_000_000L;
+
+            long x = 0L;
+
+            using (Benchmark.Run("StaticReadonlySettingInlining", count))
+            {
+                for (long i = 0; i < count; i++)
+                {
+                    x = TestOuterMethod(x);
+                }
+            }
+
+            Console.WriteLine(x);
+        }
+
+        public static readonly int doChecks = 0; //AdditionalCorrectnessChecks.Enabled ? 1 : 0;
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private long TestOuterMethod(long x)
+        {
+            if (AdditionalCorrectnessChecks.Enabled)
+            {
+                TestInnerMethod();
+            }
+            return x++;
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private void TestInnerMethod()
+        {
+            ThrowHelper.ThrowInvalidOperationException("longish text message");
         }
     }
 }

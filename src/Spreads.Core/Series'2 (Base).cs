@@ -1306,7 +1306,7 @@ namespace Spreads
         internal void BeforeWrite()
         {
             // TODO review (recall) why SCM needed access to this
-            // TODO Use Settings.AdditionalCorrectnessChecks instead of #if DEBUG
+            // TODO Use AdditionalCorrectnessChecks instead of #if DEBUG
             // Failing to unlock in-memory is FailFast condition
             // But before that move DS unlock logic to Utils
             // If high-priority thread is writing in a hot loop on a machine/container

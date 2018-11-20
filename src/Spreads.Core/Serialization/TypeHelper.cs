@@ -432,7 +432,7 @@ namespace Spreads.Serialization
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int WriteWithHeader(in T value, DirectBuffer destination, Timestamp timestamp = default)
         {
-            if (Settings.AdditionalCorrectnessChecks.Enabled)
+            if (AdditionalCorrectnessChecks.Enabled)
             {
                 if (FixedSize <= 0)
                 {
@@ -448,7 +448,7 @@ namespace Spreads.Serialization
             if (hasTs)
             {
                 pos = 12;
-                if (Settings.AdditionalCorrectnessChecks.Enabled)
+                if (AdditionalCorrectnessChecks.Enabled)
                 {
                     destination.Assert(0, pos + FixedSize);
                 }
@@ -458,7 +458,7 @@ namespace Spreads.Serialization
             else
             {
                 pos = 4;
-                if (Settings.AdditionalCorrectnessChecks.Enabled)
+                if (AdditionalCorrectnessChecks.Enabled)
                 {
                     destination.Assert(0, pos + FixedSize);
                 }
@@ -478,7 +478,7 @@ namespace Spreads.Serialization
 
             var versionAndFlags = header.VersionAndFlags;
 
-            if (Settings.AdditionalCorrectnessChecks.Enabled)
+            if (AdditionalCorrectnessChecks.Enabled)
             {
                 if (FixedSize <= 0)
                 {

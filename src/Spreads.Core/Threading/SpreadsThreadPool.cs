@@ -762,7 +762,7 @@ namespace Spreads.Threading
         // Without accessing this namespace and class it is not created
         private static SpreadsThreadPool _default;
 
-        private static TaskScheduler _scheduler;
+        private TaskScheduler _scheduler;
 
         public static SpreadsThreadPool Default
         {

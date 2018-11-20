@@ -2,6 +2,7 @@
 using Spreads.Core.Tests.Serialization;
 using System;
 using System.Diagnostics;
+using Spreads.Core.Tests;
 using Spreads.Core.Tests.Collections.Concurrent;
 
 namespace Spreads.Core.Run
@@ -29,8 +30,8 @@ namespace Spreads.Core.Run
             Settings.DoAdditionalCorrectnessChecks = false;
 #pragma warning restore 618
 
-            var test = new Utf8JsonTests();
-            test.SerializeToRetainedMemoryOverhead();
+            var test = new NanoOptimizationTests();
+            test.StaticReadonlySettingInlining();
 
             //IlwdBenchmark();
 

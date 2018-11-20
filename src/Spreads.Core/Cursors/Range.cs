@@ -468,7 +468,7 @@ namespace Spreads
                     // next MN will return false without trying to move beyond the end and subsequent recovery with MP
                     _flags |= Flags.AtEnd;
                     Debug.Assert(_cmp.Compare(_cursor.CurrentKey, _endKey) == 0);
-                    //if (Settings.AdditionalCorrectnessChecks.DoChecks)
+                    //if (AdditionalCorrectnessChecks.DoChecks)
                     //{
                     //    if (_cmp.Compare(_cursor.CurrentKey, _endKey) != 0)
                     //    {

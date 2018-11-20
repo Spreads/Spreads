@@ -1,13 +1,25 @@
 ﻿using Spreads.Serialization;
-using System;
-#if NETCOREAPP2_1
 using System.Diagnostics;
-#endif
 using System.Runtime.CompilerServices;
 using Spreads.Utils;
 
 namespace Spreads
 {
+    internal class AdditionalCorrectnessChecks
+    {
+        // Unless _doAdditionalCorrectnessChecks is changed from default before this internal
+        // class is ever referenced from any code path it will have default
+        // value and this field will be JIT compile-time constant. If set to false checks such as
+        // if(AdditionalCorrectnessChecks.Enabled) will be
+        // completely eliminated by JIT.
+
+#if DEBUG
+        public static readonly bool Enabled = true;
+#else
+        public static readonly bool Enabled = Settings._doAdditionalCorrectnessChecks;
+#endif
+    }
+
     /// <summary>
     /// Global settings.
     /// </summary>
@@ -15,6 +27,7 @@ namespace Spreads
     {
         // ReSharper disable once InconsistentNaming
         internal const int LARGE_BUFFER_LIMIT = 64 * 1024;
+
         // TODO find best values
         /// <summary>
         ///
@@ -34,24 +47,6 @@ namespace Spreads
         // NB at least 85k for LOH
         internal static readonly int ThreadStaticPinnedBufferSize = BitUtil.FindNextPositivePowerOfTwo(LARGE_BUFFER_LIMIT);
 
-        internal class AdditionalCorrectnessChecks
-        {
-            // Unless _doAdditionalCorrectnessChecks is changed from default before this internal
-            // class is ever referenced from any code path it will have default
-            // value and this field will be JIT compile-time constant. If set to false checks such as
-            // if(Settings.AdditionalCorrectnessChecks.Enabled) will be
-            // completely eliminated by JIT.
-
-            // TODO review when this works, there is some issue/comment on ngened version, also AOT, etc.
-            // Could ifdef. Main purpose is to find code errors under load (multi threaded, etc.)
-            // After enough tests this should be disabled
-#if DEBUG
-            public static readonly bool Enabled = true;
-#else
-            public static readonly bool Enabled = _doAdditionalCorrectnessChecks;
-#endif
-        }
-
         /// <summary>
         /// Call Trace.TraceWarning when a finalizer of IDisposable objects is called.
         /// </summary>
@@ -69,7 +64,7 @@ namespace Spreads
 
         // TODO when/if used often benchmark its effect and if significant then set default to false
         // ReSharper disable once NotAccessedField.Local
-        private static bool _doAdditionalCorrectnessChecks = true;
+        internal static bool _doAdditionalCorrectnessChecks = true;
 
         /// <summary>
         /// Enable/disable additional correctess checks that could affect performance or exit the process.
@@ -89,11 +84,19 @@ namespace Spreads
         /// in buffer management and other cases that could generate a lot of garbage and
         /// induce GC latency. For the later cases `#if DEBUG` is used.
         /// </remarks>
-        [Obsolete("For JIT magic to work, use internal static readonly field directly in if: `if(Settings.AdditionalCorrectnessChecks.Enabled)`.")]
         public static bool DoAdditionalCorrectnessChecks
         {
             get => AdditionalCorrectnessChecks.Enabled;
-            set => _doAdditionalCorrectnessChecks = value;
+            set
+            {
+                _doAdditionalCorrectnessChecks = value;
+
+                // access it immediately: https://github.com/dotnet/coreclr/issues/2526
+                if (!AdditionalCorrectnessChecks.Enabled)
+                {
+                    Trace.TraceInformation("Disabled AdditionalCorrectnessChecks");
+                }
+            }
         }
 
         // ReSharper disable once InconsistentNaming

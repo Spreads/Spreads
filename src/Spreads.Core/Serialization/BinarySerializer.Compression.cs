@@ -100,7 +100,7 @@ namespace Spreads.Serialization
             var hasTs = header.VersionAndFlags.IsTimestamped;
             var tsSize = *(int*)(&hasTs) << 3;
 
-            if (Settings.AdditionalCorrectnessChecks.Enabled)
+            if (AdditionalCorrectnessChecks.Enabled)
             {
                 if (destination.Length < source.Length)
                 {
@@ -173,7 +173,7 @@ namespace Spreads.Serialization
 
             var compressedLength = source.ReadInt32(DataTypeHeader.Size) - 4 - tsSize;
             var expectedUncompressedLength = source.ReadInt32(DataTypeHeader.Size + 4 + tsSize);
-            if (Settings.AdditionalCorrectnessChecks.Enabled)
+            if (AdditionalCorrectnessChecks.Enabled)
             {
                 if (destination.Length < DataTypeHeader.Size + 4 + tsSize + expectedUncompressedLength)
                 {
@@ -199,7 +199,7 @@ namespace Spreads.Serialization
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static int Compress(in DirectBuffer source, in DirectBuffer destination, CompressionMethod method)
         {
-            //if (Settings.AdditionalCorrectnessChecks.Enabled)
+            //if (AdditionalCorrectnessChecks.Enabled)
             //{
             //    if (destination.Length < source.Length)
             //    {
