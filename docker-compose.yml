@@ -6,5 +6,6 @@ services:
     build:
       context: .
       dockerfile: tests/Spreads.Core.Run/Dockerfile
+
     volumes:
       - E:\tmp:/localdata

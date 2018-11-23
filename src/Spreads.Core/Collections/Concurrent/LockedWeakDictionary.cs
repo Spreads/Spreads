@@ -2,6 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+using System;
 using System.Runtime.CompilerServices;
 using Spreads.Collections.Generic;
 using System.Runtime.InteropServices;
@@ -9,10 +10,10 @@ using System.Threading;
 
 namespace Spreads.Collections.Concurrent
 {
-    public sealed class LockedWeakDictionary<TKey>
+    public sealed class LockedWeakDictionary<TKey> where TKey : IEquatable<TKey>
     {
 #pragma warning disable CS0618 // Type or member is obsolete
-        private FastDictionary<TKey, GCHandle> _inner = new FastDictionary<TKey, GCHandle>();
+        private DictionarySlim<TKey, GCHandle> _inner = new DictionarySlim<TKey, GCHandle>();
 #pragma warning restore CS0618 // Type or member is obsolete
         private long _locker;
 
@@ -41,10 +42,16 @@ namespace Spreads.Collections.Concurrent
             }
 
             var h = GCHandle.Alloc(obj, GCHandleType.Weak);
-            var added = _inner.TryAdd(key, h);
-            if (!added)
+            ref var hr = ref _inner.GetOrAddValueRef(key);
+            bool added = true;
+            if (hr.IsAllocated)
             {
                 h.Free();
+                added = false;
+            }
+            else
+            {
+                hr = h;
             }
 
             Volatile.Write(ref _locker, 0L);

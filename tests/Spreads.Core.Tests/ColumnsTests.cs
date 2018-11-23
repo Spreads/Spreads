@@ -6,20 +6,31 @@
 using System;
 using System.Diagnostics;
 using System.Linq;
+using System.Runtime.InteropServices;
 using NUnit.Framework;
 using Spreads.DataTypes;
+using Spreads.Serialization;
 using Spreads.Utils.FastMember;
 
 namespace Spreads.Core.Tests
 {
-    public class TestRow
+    [StructLayout(LayoutKind.Sequential, Pack = 4)]
+    [BinarySerialization(blittableSize: 20)]
+    public struct TestRowInner
     {
-        public int Col1 { get; set; }
-        public double Col2 { get; set; }
-        public decimal Col3 { get; set; }
-        public int Col11 { get; set; }
-        public double Col21 { get; set; }
-        public decimal Col31 { get; set; }
+        public int Col11;
+        public double Col21;
+        public long Col31;
+    }
+
+    [StructLayout(LayoutKind.Sequential, Pack = 4)]
+    [BinarySerialization(blittableSize:40)]
+    public struct TestRow
+    {
+        public int Col1;
+        public double Col2;
+        public long Col3;
+        public TestRowInner TestRowInner;
     }
 
     [TestFixture]
@@ -28,6 +39,9 @@ namespace Spreads.Core.Tests
         [Test, Explicit("long running")]
         public void ColumnTest()
         {
+
+            var isFixedSize = TypeHelper<TestRow>.IsFixedSize;
+
             var count = 100000;
             var accessor = TypeAccessor.Create(typeof(TestRow));
             var rows = new TestRow[count];
@@ -38,9 +52,9 @@ namespace Spreads.Core.Tests
                     Col1 = i,
                     Col2 = i,
                     Col3 = i,
-                    Col11 = i,
-                    Col21 = i,
-                    Col31 = i
+                    //Col11 = i,
+                    //Col21 = i,
+                    //Col31 = i
                 };
             }
 

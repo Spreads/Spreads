@@ -4,9 +4,12 @@
 
 using NUnit.Framework;
 using Spreads.Buffers;
+using Spreads.Serialization.Utf8Json;
 using Spreads.Utils;
 using System;
+using System.IO;
 using System.Runtime.InteropServices;
+using System.Text;
 
 namespace Spreads.Core.Tests.Serialization
 {
@@ -160,8 +163,8 @@ namespace Spreads.Core.Tests.Serialization
             Settings.DoAdditionalCorrectnessChecks = false;
 #pragma warning restore 618
 
-            var count = 10_000_000;
-            
+            var count = 1_0_000;
+
             for (int r = 0; r < 10; r++)
             {
                 //using (Benchmark.Run("To Rented Array", count))
@@ -205,6 +208,19 @@ namespace Spreads.Core.Tests.Serialization
                 }
             }
             Benchmark.Dump();
+        }
+
+        [Test, Explicit("long running")]
+        public void CouldReadStream()
+        {
+            var stream1 = new MemoryStream(Encoding.UTF8.GetBytes("[1]"));
+            var result1 = JsonSerializer.Deserialize<int[]>(stream1);
+
+            var stream2 = new MemoryStream(Encoding.UTF8.GetBytes("["));
+            Assert.Throws<JsonParsingException>(() =>
+            {
+                var result2 = JsonSerializer.Deserialize<int[]>(stream2);
+            });
         }
     }
 }

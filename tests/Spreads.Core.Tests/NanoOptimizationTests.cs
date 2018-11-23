@@ -1109,8 +1109,6 @@ namespace Spreads.Core.Tests
         [Test, Explicit("long running")]
         public void StaticReadonlySettingInlining()
         {
-            Assert.IsFalse(AdditionalCorrectnessChecks.Enabled);
-
             var count = 10_000_000_000L;
 
             long x = 0L;
@@ -1131,17 +1129,22 @@ namespace Spreads.Core.Tests
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private long TestOuterMethod(long x)
         {
+            x++;
+            // should perform exactly the same as with commented out 
             if (AdditionalCorrectnessChecks.Enabled)
             {
-                TestInnerMethod();
+                if (x == 0)
+                {
+                    TestInnerMethod();
+                }
             }
-            return x++;
+            return x;
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
         private void TestInnerMethod()
         {
-            ThrowHelper.ThrowInvalidOperationException("longish text message");
+            ThrowHelper.FailFast("longish text message");
         }
     }
 }

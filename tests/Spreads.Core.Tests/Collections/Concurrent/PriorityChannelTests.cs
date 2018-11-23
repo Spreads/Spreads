@@ -100,6 +100,139 @@ namespace Spreads.Core.Tests.Collections.Concurrent
         }
 
         [Test, Explicit("long running")]
+        public void PriorityChannelBenchmarkSlowWriterTryThenBlock()
+        {
+            var count = 1_000_000;
+            var cts = new CancellationTokenSource();
+            var pc = new PriorityChannel<int>(cts.Token);
+
+            var wt = Task.Run(() =>
+            {
+                using (Benchmark.Run("Write", count, true))
+                {
+                    for (var i = 0; i < count; i++)
+                    {
+                        var priority = i % 2 == 0;
+                        pc.TryAdd(i, priority);
+                        if (i % 10 == 0)
+                        {
+                            if (!Thread.Yield())
+                            {
+                                Thread.Sleep(0);
+                            }
+                        }
+                        else
+                        {
+                            Thread.SpinWait(10);
+                        }
+                    }
+                }
+            });
+
+            var rt = Task.Run(() =>
+            {
+                using (Benchmark.Run("Read", count, true))
+                {
+                    var c = 0;
+                    var spinner = new SpinWait();
+                    while (c < count)
+                    {
+                        if (!pc.TryTake(out var i, out var isPriority))
+                        {
+                            if (!pc.TryTake(out i, out isPriority))
+                            {
+                                // still no new notifications, retry toggle after some wait
+                                spinner.SpinOnce();
+                                if (spinner.NextSpinWillYield)
+                                {
+                                    spinner.Reset();
+                                    if (!Thread.Yield())
+                                    {
+                                        Thread.Sleep(0);
+                                    }
+                                }
+                                continue;
+                            }
+                        }
+
+                        //if (i >> 3 == 0 && !isPriority)
+                        //{
+                        //    Assert.Fail("i >> 8 == 0 && !isPriority");
+                        //}
+
+                        c++;
+                    }
+                }
+            });
+
+            rt.Wait();
+
+            wt.Wait();
+
+            Benchmark.Dump();
+        }
+
+        [Test, Explicit("long running")]
+        public void PriorityChannelBenchmarkSlowWriterTryThenBlock2()
+        {
+            var count = 1_000_000;
+            // var cts = new CancellationTokenSource();
+            var pc = new SingleProducerSingleConsumerQueue<int>();
+
+            var rt = Task.Run(() =>
+            {
+                using (Benchmark.Run("Read", count, true))
+                {
+                    var c = 0;
+                    var spinner = new SpinWait();
+                    while (c < count)
+                    {
+                        if (pc.TryDequeue(out var i))
+                        {
+                            c++;
+                            continue;
+                        }
+
+                        if (pc.TryDequeue(out i))
+                        {
+                            c++;
+                            continue;
+                        }
+                    }
+                }
+            });
+
+            var wt = Task.Run(() =>
+            {
+                using (Benchmark.Run("Write", count, true))
+                {
+                    for (var i = 0; i < count; i++)
+                    {
+                        var priority = false; //  i % 10 == 0;
+                        pc.Enqueue(i);
+                        //if (i % 100 == 0)
+                        //{
+                        //    if (!Thread.Yield())
+                        //    {
+                        //        Thread.Sleep(0);
+                        //    }
+                        //}
+                        //else
+                        //{
+                        Thread.SpinWait(10);
+                        //}
+                    }
+                }
+            });
+
+            rt.Wait();
+
+            wt.Wait();
+
+            Benchmark.Dump();
+        }
+
+        [Test, Explicit("long running")]
         public void PriorityChannelBenchmarkWriteThenReadNoWait()
         {
             var count = 200_000_000;
@@ -137,7 +270,6 @@ namespace Spreads.Core.Tests.Collections.Concurrent
                 }
             });
 
-            
             rt.Wait();
 
             Benchmark.Dump();
@@ -181,14 +313,12 @@ namespace Spreads.Core.Tests.Collections.Concurrent
                 }
             });
 
-            
             rt.Wait();
 
             wt.Wait();
 
             Benchmark.Dump();
         }
-
 
         [Test, Explicit("long running")]
         public void ConcurrentQueueBenchmark()

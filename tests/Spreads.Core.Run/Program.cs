@@ -26,12 +26,10 @@ namespace Spreads.Core.Run
         {
             Trace.Listeners.Add(new ConsoleListener());
 
-#pragma warning disable 618
             Settings.DoAdditionalCorrectnessChecks = false;
-#pragma warning restore 618
 
-            var test = new NanoOptimizationTests();
-            test.StaticReadonlySettingInlining();
+            var test = new LockedWeakDictionaryTests();
+            test.WeakReferenceLookup();
 
             //IlwdBenchmark();
 

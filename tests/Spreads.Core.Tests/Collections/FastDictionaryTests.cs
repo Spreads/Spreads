@@ -18,6 +18,7 @@ namespace Spreads.Core.Tests.Collections
         public void CompareSCGAndFastDictionaryWithInts()
         {
             var dictionary = new Dictionary<long, long>();
+            var dictionarySlim = new DictionarySlim<long, long>();
             var fastDictionary = new FastDictionary<long, long>();
             var concurrentDictionary = new ConcurrentDictionary<long, long>();
 
@@ -26,6 +27,8 @@ namespace Spreads.Core.Tests.Collections
             for (int i = 0; i < length; i++)
             {
                 dictionary.Add(i, i);
+                ref var x = ref dictionarySlim.GetOrAddValueRef(i);
+                x = i;
                 fastDictionary.Add(i, i);
                 concurrentDictionary[i] = i;
             }
@@ -73,6 +76,19 @@ namespace Spreads.Core.Tests.Collections
                     }
                 }
                 Assert.True(sum2 > 0);
+
+                var sum3 = 0L;
+                using (Benchmark.Run("DictionarySlim", count * length))
+                {
+                    for (int i = 0; i < count; i++)
+                    {
+                        for (int j = 0; j < length; j++)
+                        {
+                            sum3 += dictionarySlim.GetOrAddValueRef(j);
+                        }
+                    }
+                }
+                Assert.True(sum3 > 0);
 
             }
 

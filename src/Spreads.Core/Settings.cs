@@ -67,7 +67,7 @@ namespace Spreads
         internal static bool _doAdditionalCorrectnessChecks = true;
 
         /// <summary>
-        /// Enable/disable additional correctess checks that could affect performance or exit the process.
+        /// Enable/disable additional correctess checks that could affect performance or exit the process with FailFast.
         /// This could only be set at application startup before accessing other Spreads types.
         /// By default this value is set to true and Spreads usually fails fast on any condition
         /// that could compromise calculation correctness or data integrity. If an application

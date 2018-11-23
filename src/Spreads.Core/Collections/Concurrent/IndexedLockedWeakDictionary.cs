@@ -27,7 +27,7 @@ namespace Spreads.Collections.Concurrent
     /// <summary>
     /// An example and potentially base class for values in <see cref="IndexedLockedWeakDictionary{TKey, TValue}"/>.
     /// </summary>
-    public abstract class IndexedLookup<TKey, TValue> : IDisposable, IStorageIndexed where TValue : IndexedLookup<TKey, TValue>
+    public abstract class IndexedLookup<TKey, TValue> : IDisposable, IStorageIndexed where TValue : IndexedLookup<TKey, TValue> where TKey : IEquatable<TKey>
     {
         public int StorageIndex { get; set; }
         public abstract IndexedLockedWeakDictionary<TKey, TValue> Storage { get; }
@@ -96,10 +96,10 @@ namespace Spreads.Collections.Concurrent
     /// ensuring that an async cleanup is
     /// </summary>
     public sealed class IndexedLockedWeakDictionary<TKey, TValue> 
-        where TValue : class, IStorageIndexed
+        where TValue : class, IStorageIndexed where TKey : IEquatable<TKey>
     {
 #pragma warning disable CS0618 // Type or member is obsolete
-        private readonly FastDictionary<TKey, GCHandle> _inner = new FastDictionary<TKey, GCHandle>();
+        private readonly DictionarySlim<TKey, GCHandle> _inner = new DictionarySlim<TKey, GCHandle>();
 #pragma warning restore CS0618 // Type or member is obsolete
         private long _locker;
 
@@ -138,13 +138,16 @@ namespace Spreads.Collections.Concurrent
             try
             {
                 var h = GCHandle.Alloc(value, GCHandleType.Weak);
-                var added = _inner.TryAdd(key, h);
-                if (!added)
+                ref var hr = ref _inner.GetOrAddValueRef(key);
+                var added = true;
+                if (hr.IsAllocated)
                 {
                     h.Free();
+                    added = false;
                 }
                 else
                 {
+                    hr = h;
                     var idx = _counter++; // we are inside lock, do not need: Interlocked.Increment(ref _counter);
                     if (idx >= _index.Length)
                     {
@@ -199,9 +202,13 @@ namespace Spreads.Collections.Concurrent
             EnterWriteLock();
             try
             {
-                var removed = _inner.Remove(key, out var h);
-
-                if (!removed)
+                var exists = _inner.TryGetValue(key, out var h);
+                if (exists)
+                {
+                    _inner.Remove(key);
+                }
+                
+                if (!exists)
                 {
                     Volatile.Write(ref _locker, 0L);
                     return false;

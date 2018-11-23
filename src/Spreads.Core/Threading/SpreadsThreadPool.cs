@@ -1277,7 +1277,11 @@ namespace Spreads.Threading
                         // once we've called this a few times we'll become a "waiter" and wait on the Semaphore, and that will
                         // yield to anything that is runnable.
                         //
-                        Thread.Sleep(0);
+                        if (!Thread.Yield())
+                        {
+                            Thread.Sleep(0);
+                        }
+
                         numSpins++;
                     }
                 }

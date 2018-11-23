@@ -77,20 +77,8 @@ namespace Spreads.Collections.Concurrent
             var spinner = new SpinWait();
             while (true)
             {
-                if (_priorityItems.IsEmpty)
+                if (TryTake(out item, out isPriority))
                 {
-                    if (_items.TryDequeue(out item))
-                    {
-                        isPriority = false;
-                        return true;
-                    }
-                }
-                else
-                {
-                    // ReSharper disable once RedundantAssignment
-                    var taken = _priorityItems.TryDequeue(out item);
-                    Debug.Assert(taken);
-                    isPriority = true;
                     return true;
                 }
 

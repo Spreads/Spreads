@@ -1400,7 +1400,7 @@ namespace Spreads.Collections.Generic
         }
     }
 
-    internal static class HashHelpers
+    internal static partial class HashHelpers
     {
         internal const Int32 HashPrime = 101;
 

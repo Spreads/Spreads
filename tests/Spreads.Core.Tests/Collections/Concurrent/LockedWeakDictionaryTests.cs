@@ -34,6 +34,7 @@ namespace Spreads.Core.Tests.Collections.Concurrent
             // How bad is WR lookup
 
             var d = new FastDictionary<long, object>();
+            // var ds = new DictionarySlim<long, object>();
             var lockedWeakDictionary = new LockedWeakDictionary<long>();
             var indexedLockedWeakDictionary = new IndexedLockedWeakDictionary<long, Dummy>();
             var cd = new ConcurrentDictionary<long, object>();
@@ -49,6 +50,7 @@ namespace Spreads.Core.Tests.Collections.Concurrent
             {
                 var obj = (object)new Dummy();
                 d.Add(i, obj);
+                // ds.GetOrAddValueRef(i) = obj;
                 cd.TryAdd(i, obj);
                 wcd.TryAdd(i, new WeakReference<object>(obj));
                 //wcd2.TryAdd(i, new WeakReference(obj));
@@ -56,7 +58,7 @@ namespace Spreads.Core.Tests.Collections.Concurrent
                 var h = GCHandle.Alloc(obj, GCHandleType.Weak);
                 wcd3.TryAdd(i, h);
                 lockedWeakDictionary.TryAdd(i, obj);
-                lockedWeakDictionary.TryAdd(i, obj);
+                // lockedWeakDictionary.TryAdd(i, obj);
             }
 
             var mult = 100_000;
@@ -173,21 +175,21 @@ namespace Spreads.Core.Tests.Collections.Concurrent
                 }
             }
 
-            var sum7 = 0.0;
-            using (Benchmark.Run("ILWD", count * mult))
-            {
-                for (int i = 0; i < count * mult; i++)
-                {
-                    if (indexedLockedWeakDictionary.TryGetValue(i / mult, out var val))
-                    {
-                        //sum7 += (int)val.StorageIndex;
-                    }
-                    else
-                    {
-                        Assert.Fail();
-                    }
-                }
-            }
+            //var sum7 = 0.0;
+            //using (Benchmark.Run("ILWD", count * mult))
+            //{
+            //    for (int i = 0; i < count * mult; i++)
+            //    {
+            //        if (indexedLockedWeakDictionary.TryGetValue(i / mult, out var val))
+            //        {
+            //            //sum7 += (int)val.StorageIndex;
+            //        }
+            //        else
+            //        {
+            //            Assert.Fail();
+            //        }
+            //    }
+            //}
 
             Benchmark.Dump();
 
