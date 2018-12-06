@@ -9,7 +9,7 @@ namespace Spreads.Core.Tests.DataTypes
     [TestFixture]
     public class TypeFlattenerTests
     {
-        [Test]
+        [Test, Ignore("TODO")]
         public void CouldFlattenStructWithDataMembers()
         {
             var tick = new Tick(DateTime.UtcNow.Date, new SmallDecimal(123.45), 4242);
@@ -30,7 +30,7 @@ namespace Spreads.Core.Tests.DataTypes
             Assert.AreEqual(4242, values[2]);
         }
 
-        [Test]
+        [Test, Ignore("TODO")]
         public void CouldFlattenScalar()
         {
             var price = new SmallDecimal(123.45);
@@ -45,7 +45,7 @@ namespace Spreads.Core.Tests.DataTypes
             Assert.AreEqual(new SmallDecimal(123.45), values[0]);
         }
 
-        [Test]
+        [Test, Ignore("TODO")]
         public void CouldFlattenDouble()
         {
             var dbl = 123.45;
@@ -79,7 +79,7 @@ namespace Spreads.Core.Tests.DataTypes
             public SmallDecimal Price { get; set; }
         }
 
-        [Test]
+        [Test, Ignore("TODO")]
         public void CouldFlattenCustomType()
         {
             var value = new TestType { Number = 42, Text = "foo", Price = new SmallDecimal(123.45) };
@@ -99,7 +99,7 @@ namespace Spreads.Core.Tests.DataTypes
             Assert.AreEqual("foo", values[2]);
         }
 
-        [Test]
+        [Test, Ignore("TODO")]
         public void CouldFlattenCustomTypeWithPartialOrder()
         {
             var value = new TestTypeWithPartialOrder { Number = 42, Text = "foo", Price = new SmallDecimal(123.45) };

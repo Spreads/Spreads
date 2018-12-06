@@ -2,7 +2,6 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-using Spreads.Blosc;
 using Spreads.Buffers;
 using Spreads.DataTypes;
 using System;
@@ -36,10 +35,6 @@ namespace Spreads.Serialization
         /// |                       Compressed Payload                      |
         /// |                              ...                              |
 
-        // Calli for compression is almost meaningless since compression costs >>> P/Invoke costs.
-        // But nice to have an example of the technique. Gains are visible for shuffle/unshuffle small buffers.
-        private static readonly bool UseCalli = Settings.PreferCalli && IntPtr.Size == 8 && AppDomain.CurrentDomain.IsFullyTrusted;
-
 #if NETCOREAPP2_1
         internal static readonly bool IsBrotliSupported = true;
 #else
@@ -72,9 +67,10 @@ namespace Spreads.Serialization
         }
 #endif
 
-        private static readonly IntPtr[] CompressionMethodPointers = { BloscMethods.compress_copy_ptr, BloscMethods.compress_gzip_ptr, BloscMethods.compress_lz4_ptr, BloscMethods.compress_zstd_ptr };
+        //private static readonly IntPtr[] CompressionMethodPointers = { BloscMethods.compress_copy_ptr, BloscMethods.compress_gzip_ptr, BloscMethods.compress_lz4_ptr, BloscMethods.compress_zstd_ptr };
+        //private static readonly IntPtr[] DecompressionMethodPointers = { BloscMethods.decompress_copy_ptr, BloscMethods.decompress_gzip_ptr, BloscMethods.decompress_lz4_ptr, BloscMethods.decompress_zstd_ptr };
+
         private static readonly int[] CompressionMethodLevels = { 0, Settings.ZlibCompressionLevel, Settings.LZ4CompressionLevel, Settings.ZstdCompressionLevel };
-        private static readonly IntPtr[] DecompressionMethodPointers = { BloscMethods.decompress_copy_ptr, BloscMethods.decompress_gzip_ptr, BloscMethods.decompress_lz4_ptr, BloscMethods.decompress_zstd_ptr };
 
         internal static void UpdateLevels()
         {
@@ -149,7 +145,7 @@ namespace Spreads.Serialization
                 return DataTypeHeader.Size + 4 + tsSize + 4 + compressedLength;
             }
 
-            COPY:
+        COPY:
             var len = DataTypeHeader.Size + 4 + uncompressedLength;
             source.Slice(0, len).CopyTo(destination);
             return len;
@@ -214,16 +210,6 @@ namespace Spreads.Serialization
             //    //}
             //}
 
-            if (UseCalli)
-            {
-                var methodIdx = (int)method;
-                var ptr = CompressionMethodPointers[methodIdx];
-                var level = CompressionMethodLevels[methodIdx];
-
-                return UnsafeEx.CalliCompressUnmanagedCdecl(source._pointer, (IntPtr)source._length, destination._pointer, (IntPtr)destination._length,
-                    level, ptr);
-            }
-
             if (method == CompressionMethod.GZip)
             {
                 return WriteGZip(in source, in destination);
@@ -263,15 +249,6 @@ namespace Spreads.Serialization
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static int Decompress(in DirectBuffer source, in DirectBuffer destination, CompressionMethod method)
         {
-            if (UseCalli)
-            {
-                var methodIdx = (int)method;
-                var ptr = DecompressionMethodPointers[methodIdx];
-
-                return UnsafeEx.CalliDecompressUnmanagedCdecl(source._pointer, (IntPtr)source._length, destination._pointer, (IntPtr)destination._length,
-                    ptr);
-            }
-
             if (method == CompressionMethod.GZip)
             {
                 return ReadGZip(source, destination);
@@ -305,156 +282,77 @@ namespace Spreads.Serialization
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static int WriteLz4(in DirectBuffer source, in DirectBuffer destination)
         {
-            if (UseCalli)
-            {
-                return UnsafeEx.CalliCompressUnmanagedCdecl(source._pointer, (IntPtr)source._length, destination._pointer, (IntPtr)destination._length,
-                    Settings.LZ4CompressionLevel,
-                    BloscMethods.compress_lz4_ptr);
-            }
-
-            return BloscMethods.compress_lz4(source._pointer, (IntPtr)source._length, destination._pointer,
+            return Native.Compression.compress_lz4(source._pointer, (IntPtr)source._length, destination._pointer,
                 (IntPtr)destination._length, Settings.LZ4CompressionLevel);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static int ReadLz4(in DirectBuffer source, in DirectBuffer destination)
         {
-            if (UseCalli)
-            {
-                return UnsafeEx.CalliDecompressUnmanagedCdecl(source._pointer, (IntPtr)source._length, destination._pointer, (IntPtr)destination._length,
-                    BloscMethods.decompress_lz4_ptr);
-            }
-
-            return BloscMethods.decompress_lz4(source._pointer, (IntPtr)source._length, destination._pointer, (IntPtr)destination._length);
+            return Native.Compression.decompress_lz4(source._pointer, (IntPtr)source._length, destination._pointer, (IntPtr)destination._length);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static int WriteZstd(in DirectBuffer source, in DirectBuffer destination)
         {
-            if (UseCalli)
-            {
-                return UnsafeEx.CalliCompressUnmanagedCdecl(source._pointer, (IntPtr)source._length, destination._pointer, (IntPtr)destination._length,
-                    Settings.ZstdCompressionLevel,
-                    BloscMethods.compress_zstd_ptr);
-            }
-
-            return BloscMethods.compress_zstd(source._pointer, (IntPtr)source._length, destination._pointer,
+            return Native.Compression.compress_zstd(source._pointer, (IntPtr)source._length, destination._pointer,
                 (IntPtr)destination._length, Settings.ZstdCompressionLevel);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static int ReadZstd(in DirectBuffer source, in DirectBuffer destination)
         {
-            if (UseCalli)
-            {
-                return UnsafeEx.CalliDecompressUnmanagedCdecl(source._pointer, (IntPtr)source._length, destination._pointer, (IntPtr)destination._length,
-                    BloscMethods.decompress_zstd_ptr);
-            }
-
-            return BloscMethods.decompress_zstd(source._pointer, (IntPtr)source._length, destination._pointer, (IntPtr)destination._length);
+            return Native.Compression.decompress_zstd(source._pointer, (IntPtr)source._length, destination._pointer, (IntPtr)destination._length);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static int WriteZlib(in DirectBuffer source, in DirectBuffer destination)
         {
-            if (UseCalli)
-            {
-                return UnsafeEx.CalliCompressUnmanagedCdecl(source._pointer, (IntPtr)source._length, destination._pointer, (IntPtr)destination._length,
-                    Settings.ZlibCompressionLevel,
-                    BloscMethods.compress_zlib_ptr);
-            }
-
-            return BloscMethods.compress_zlib(source._pointer, (IntPtr)source._length, destination._pointer,
+            return Native.Compression.compress_zlib(source._pointer, (IntPtr)source._length, destination._pointer,
                 (IntPtr)destination._length, Settings.ZlibCompressionLevel);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static int ReadZlib(in DirectBuffer source, in DirectBuffer destination)
         {
-            if (UseCalli)
-            {
-                return UnsafeEx.CalliDecompressUnmanagedCdecl(source._pointer, (IntPtr)source._length, destination._pointer, (IntPtr)destination._length,
-                    BloscMethods.decompress_zlib_ptr);
-            }
-
-            return BloscMethods.decompress_zlib(source._pointer, (IntPtr)source._length, destination._pointer, (IntPtr)destination._length);
+            return Native.Compression.decompress_zlib(source._pointer, (IntPtr)source._length, destination._pointer, (IntPtr)destination._length);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static int WriteDeflate(in DirectBuffer source, in DirectBuffer destination)
         {
-            if (UseCalli)
-            {
-                return UnsafeEx.CalliCompressUnmanagedCdecl(source._pointer, (IntPtr)source._length, destination._pointer, (IntPtr)destination._length,
-                    Settings.ZlibCompressionLevel,
-                    BloscMethods.compress_deflate_ptr);
-            }
-
-            return BloscMethods.compress_deflate(source._pointer, (IntPtr)source._length, destination._pointer,
+            return Native.Compression.compress_deflate(source._pointer, (IntPtr)source._length, destination._pointer,
                 (IntPtr)destination._length, Settings.ZlibCompressionLevel);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static int ReadDeflate(in DirectBuffer source, in DirectBuffer destination)
         {
-            if (UseCalli)
-            {
-                return UnsafeEx.CalliDecompressUnmanagedCdecl(source._pointer, (IntPtr)source._length, destination._pointer, (IntPtr)destination._length,
-                    BloscMethods.decompress_deflate_ptr);
-            }
-
-            return BloscMethods.decompress_deflate(source._pointer, (IntPtr)source._length, destination._pointer, (IntPtr)destination._length);
+            return Native.Compression.decompress_deflate(source._pointer, (IntPtr)source._length, destination._pointer, (IntPtr)destination._length);
         }
 
         internal static int WriteGZip(in DirectBuffer source, in DirectBuffer destination)
         {
-            if (UseCalli)
-            {
-                return UnsafeEx.CalliCompressUnmanagedCdecl(source._pointer, (IntPtr)source._length, destination._pointer, (IntPtr)destination._length,
-                    Settings.ZlibCompressionLevel,
-                    BloscMethods.compress_gzip_ptr);
-            }
-
-            return BloscMethods.compress_gzip(source._pointer, (IntPtr)source._length, destination._pointer,
+            return Native.Compression.compress_gzip(source._pointer, (IntPtr)source._length, destination._pointer,
                 (IntPtr)destination._length, Settings.ZlibCompressionLevel);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static int ReadGZip(in DirectBuffer source, in DirectBuffer destination)
         {
-            if (UseCalli)
-            {
-                return UnsafeEx.CalliDecompressUnmanagedCdecl(source._pointer, (IntPtr)source._length, destination._pointer, (IntPtr)destination._length,
-                    BloscMethods.decompress_gzip_ptr);
-            }
-
-            return BloscMethods.decompress_gzip(source._pointer, (IntPtr)source._length, destination._pointer, (IntPtr)destination._length);
+            return Native.Compression.decompress_gzip(source._pointer, (IntPtr)source._length, destination._pointer, (IntPtr)destination._length);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static void Shuffle(in DirectBuffer source, in DirectBuffer destination, byte typeSize)
         {
-            if (UseCalli)
-            {
-                UnsafeEx.CalliShuffleUnshuffle((IntPtr)typeSize, (IntPtr)source._length, source._pointer, destination._pointer, BloscMethods.shuffle_ptr);
-            }
-            else
-            {
-                BloscMethods.shuffle((IntPtr)typeSize, (IntPtr)source._length, source._pointer, destination._pointer);
-            }
+            Native.Compression.shuffle((IntPtr)typeSize, (IntPtr)source._length, source._pointer, destination._pointer);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static void Unshuffle(in DirectBuffer source, in DirectBuffer destination, byte typeSize)
         {
-            if (UseCalli)
-            {
-                UnsafeEx.CalliShuffleUnshuffle((IntPtr)typeSize, (IntPtr)source._length, source._pointer, destination._pointer, BloscMethods.unshuffle_ptr);
-            }
-            else
-            {
-                BloscMethods.unshuffle((IntPtr)typeSize, (IntPtr)source._length, source._pointer, destination._pointer);
-            }
+            Native.Compression.unshuffle((IntPtr)typeSize, (IntPtr)source._length, source._pointer, destination._pointer);
         }
     }
 }

@@ -138,6 +138,7 @@ namespace Spreads.Collections.Concurrent
             try
             {
                 var h = GCHandle.Alloc(value, GCHandleType.Weak);
+                
                 ref var hr = ref _inner.GetOrAddValueRef(key);
                 var added = true;
                 if (hr.IsAllocated)

@@ -103,27 +103,13 @@
     <Compile Include="Cursors\Zip.cs" />
   </ItemGroup>
   <ItemGroup>
-    <EmbeddedResource Include="..\..\lib\libblosc\w64\libblosc.dll.compressed">
-      <Link>native\w64\libblosc.dll</Link>
-      <LogicalName>win.x64.libblosc.dll</LogicalName>
-    </EmbeddedResource>
-    <EmbeddedResource Include="..\..\lib\libblosc\w32\libblosc.dll.compressed">
-      <Link>native\w32\libblosc.dll</Link>
-      <LogicalName>win.x32.libblosc.dll</LogicalName>
-    </EmbeddedResource>
-    <EmbeddedResource Include="..\..\lib\libblosc\l64\libblosc.compressed">
-      <Link>native\l64\libblosc.so</Link>
-      <LogicalName>lin.x64.libblosc.so</LogicalName>
-    </EmbeddedResource>
-  </ItemGroup>
-  <ItemGroup>
     <PackageReference Include="Newtonsoft.Json" Version="11.0.2" />
-    <PackageReference Include="Spreads.Unsafe" Version="1.0.5" />
+    <PackageReference Include="Spreads.Native" Version="1.0.0-build1812061625R" />
     <PackageReference Include="System.Buffers" Version="4.5.0" />
     <PackageReference Include="System.Collections.Immutable" Version="1.5.0" />
     <PackageReference Include="System.Memory" Version="4.5.1" />
     <PackageReference Include="System.Numerics.Vectors" Version="4.5.0" />
-    <PackageReference Include="System.Runtime.CompilerServices.Unsafe" Version="4.5.1" />
+    <PackageReference Include="System.Runtime.CompilerServices.Unsafe" Version="4.5.2" />
     <PackageReference Include="System.Threading.Tasks.Extensions" Version="4.5.1" />
     <PackageReference Include="System.ValueTuple" Version="4.5.0" />
   </ItemGroup>

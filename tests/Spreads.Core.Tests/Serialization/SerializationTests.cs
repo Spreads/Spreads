@@ -3,7 +3,6 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 using NUnit.Framework;
-using Spreads.Blosc;
 using Spreads.Buffers;
 using Spreads.Collections;
 using Spreads.DataTypes;
@@ -579,7 +578,6 @@ namespace Spreads.Core.Tests.Serialization
         [Test, Ignore("SM not implemented")]
         public unsafe void CouldSerializeRegularSortedMapWithZstd()
         {
-            BloscSettings.SerializationFormat = SerializationFormat.BinaryZstd;
             var rng = new Random();
 
             var dest = (Memory<byte>)new byte[1000000];
