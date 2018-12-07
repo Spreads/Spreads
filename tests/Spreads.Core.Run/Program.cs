@@ -3,6 +3,7 @@ using Spreads.Core.Tests.Serialization;
 using System;
 using System.Diagnostics;
 using Spreads.Core.Tests;
+using Spreads.Core.Tests.Algorithms;
 using Spreads.Core.Tests.Collections.Concurrent;
 
 namespace Spreads.Core.Run
@@ -28,10 +29,8 @@ namespace Spreads.Core.Run
 
             Settings.DoAdditionalCorrectnessChecks = false;
 
-            var test = new LockedWeakDictionaryTests();
-            test.WeakReferenceLookup();
-
-            //IlwdBenchmark();
+            var test = new Blake2Tests();
+            test.CouldHashIncrementalBench();
 
             Console.WriteLine("Finished, press enter to exit...");
             Console.ReadLine();
