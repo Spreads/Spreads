@@ -15,14 +15,14 @@ echo build: "%build%"
 dotnet test ..\tests\Spreads.Core.Tests\Spreads.Core.Tests.csproj -c RELEASE  --filter TestCategory=CI -v n
 
 dotnet restore ..\src\Spreads.Core\Spreads.Core.csproj
-dotnet pack ..\src\Spreads.Core\Spreads.Core.csproj -c RELEASE -o C:\tools\LocalNuget --version-suffix "%build%"R
+dotnet pack ..\src\Spreads.Core\Spreads.Core.csproj -c RELEASE -o C:\transient\LocalNuget --version-suffix "%build%"R
 
 dotnet restore ..\src\Spreads.Collections\Spreads.Collections.fsproj
-dotnet pack ..\src\Spreads.Collections\Spreads.Collections.fsproj -c RELEASE -o C:\tools\LocalNuget --version-suffix "%build%"R
+dotnet pack ..\src\Spreads.Collections\Spreads.Collections.fsproj -c RELEASE -o C:\transient\LocalNuget --version-suffix "%build%"R
 
 dotnet restore ..\src\Spreads\Spreads.csproj
-dotnet pack ..\src\Spreads\Spreads.csproj -c RELEASE -o C:\tools\LocalNuget --version-suffix "%build%"R
+dotnet pack ..\src\Spreads\Spreads.csproj -c RELEASE -o C:\transient\LocalNuget --version-suffix "%build%"R
 
-@for %%f in (C:\tools\LocalNuget\*"%build%"R.nupkg) do @C:\tools\nuget\NuGet.exe push %%f -source https://www.nuget.org/api/v2/package
+@for %%f in (C:\transient\LocalNuget\*"%build%"R.nupkg) do @C:\tools\nuget\NuGet.exe push %%f -source https://www.nuget.org/api/v2/package
 
 pause

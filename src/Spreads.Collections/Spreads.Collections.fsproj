@@ -84,8 +84,8 @@
         <Compile Include="Deedle\VirtualFrame.fs" />
     </ItemGroup>
     <ItemGroup>
-        <PackageReference Include="FSharp.Core" Version="4.5.2" />
-        <PackageReference Include="System.Reflection.Emit.ILGeneration" Version="4.3.0" />
+        <PackageReference Include="FSharp.Core" Version="4.5.4" />
+        <PackageReference Include="System.Reflection.Emit.ILGeneration" Version="4.6.0-preview.18571.3" />
         <PackageReference Update="System.ValueTuple" Version="4.5.0" />
     </ItemGroup>
     <ItemGroup>
