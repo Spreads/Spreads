@@ -22,6 +22,7 @@ namespace Spreads.Core.Tests.Algorithms
         {
             var hashLength = 32;
 
+#if NETCOREAPP2_1
             NSec.Cryptography.Blake2b b = default;
             if (hashLength == 32)
             {
@@ -35,9 +36,9 @@ namespace Spreads.Core.Tests.Algorithms
             {
                 Assert.Fail("hashLength != 32 || 64");
             }
-
+#endif
             var rng = new Random();
-            var size = 64;
+            var size = 256;
 
             var rmb = BufferPool.Retain(size);
             var bytes = new DirectBuffer(rmb);
@@ -47,7 +48,7 @@ namespace Spreads.Core.Tests.Algorithms
             var hash0 = new byte[hashLength];
             var hash1 = new byte[hashLength];
 
-            var count = 5000_000;
+            var count = 1000_000;
             var rounds = 10;
 
             // warm up
@@ -55,11 +56,12 @@ namespace Spreads.Core.Tests.Algorithms
             {
                 Blake2b.ComputeAndWriteHash(hashLength, bytes, hash0);
             }
-
+#if NETCOREAPP2_1
             for (int i = 0; i < count / 10; i++)
             {
                 b.Hash(bytes.Span, hash1);
             }
+#endif
 
             // var ctx = Blake2b.CreateIncrementalHasher(32);
 
@@ -74,7 +76,7 @@ namespace Spreads.Core.Tests.Algorithms
                         Blake2b.ComputeAndWriteHash(hashLength, bytes, hash0);
                     }
                 }
-
+#if NETCOREAPP2_1
                 using (Benchmark.Run("Libsodium (MBsec)", count * size, false))
                 {
                     for (int i = 0; i < count; i++)
@@ -84,6 +86,7 @@ namespace Spreads.Core.Tests.Algorithms
                 }
 
                 Assert.IsTrue(hash0.SequenceEqual(hash1));
+#endif
             }
 
             Benchmark.Dump();
@@ -103,7 +106,7 @@ namespace Spreads.Core.Tests.Algorithms
             rng.NextBytes(segment.Array);
 
             var hashLength = 32;
-
+            
             NSec.Cryptography.Blake2b b = default;
             if (hashLength == 32)
             {
@@ -146,7 +149,7 @@ namespace Spreads.Core.Tests.Algorithms
                         {
                             var span = bytes.Slice(i * incrSize, incrSize);
                             ctx.Update(span);
-                            Blake2bContext.TryFinish(in ctx, hash0, out var len);
+                            Blake2bContext.TryFinish(ref ctx, hash0, out var len);
                         }
                     }
                 }
@@ -173,7 +176,7 @@ namespace Spreads.Core.Tests.Algorithms
             Console.WriteLine("Context size: " + Unsafe.SizeOf<Blake2bContext>());
 
             var steps = 200_000;
-            var incrSize = 100;
+            var incrSize = 1;
             var rng = new Random(42);
             var byteLength = incrSize * steps;
 
@@ -219,7 +222,7 @@ namespace Spreads.Core.Tests.Algorithms
 
                     // Incremental Spreads
                     ctx.Update(incrSpan);
-                    Blake2bContext.TryFinish(in ctx, hash0, out var _);
+                    Blake2bContext.TryFinish(ref ctx, hash0, out var _);
 
                     // Running Spreads
                     Blake2b.ComputeAndWriteHash(hashLength, runningBuff, hash1);

@@ -21,6 +21,14 @@ namespace Spreads.Algorithms.Hash
     [StructLayout(LayoutKind.Sequential, Pack = 4)]
     public unsafe partial struct Blake2bContext
     {
+        [StructLayout(LayoutKind.Sequential)]
+        internal struct Blake2bContextFinalizable
+        {
+            public fixed ulong h[HashWords];
+            public fixed ulong t[2];
+            public fixed ulong f[2];
+        }
+
         public const int WordSize = sizeof(ulong);
         public const int BlockWords = 16;
         public const int BlockBytes = BlockWords * WordSize;
@@ -35,10 +43,9 @@ namespace Spreads.Algorithms.Hash
             0x1F83D9ABFB41BD6Bul, 0x5BE0CD19137E2179ul
         };
 
+        private Blake2bContextFinalizable htf;
+
         private fixed byte b[BlockBytes];
-        private fixed ulong h[HashWords];
-        private fixed ulong t[2];
-        private fixed ulong f[2];
 
 #if NETCOREAPP2_1
         private fixed ulong viv[HashWords];
@@ -51,9 +58,9 @@ namespace Spreads.Algorithms.Hash
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void addLength(uint len)
         {
-            t[0] += len;
-            if (t[0] < len)
-                t[1]++;
+            htf.t[0] += len;
+            if (htf.t[0] < len)
+                htf.t[1]++;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -89,8 +96,8 @@ namespace Spreads.Algorithms.Hash
             }
 
             outlen = (uint)digestLength;
-            Unsafe.CopyBlock(ref Unsafe.As<ulong, byte>(ref h[0]), ref Unsafe.As<ulong, byte>(ref iv[0]), HashBytes);
-            h[0] ^= 0x01010000u ^ (keylen << 8) ^ outlen;
+            Unsafe.CopyBlock(ref Unsafe.As<ulong, byte>(ref htf.h[0]), ref Unsafe.As<ulong, byte>(ref iv[0]), HashBytes);
+            htf.h[0] ^= 0x01010000u ^ (keylen << 8) ^ outlen;
 
 #if NETCOREAPP2_1
             if (Sse41.IsSupported)
@@ -119,7 +126,7 @@ namespace Spreads.Algorithms.Hash
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Update(DirectBuffer input)
+        public void Update(in DirectBuffer input)
         {
             uint inlen = (uint)input.Length;
 
@@ -135,7 +142,7 @@ namespace Spreads.Algorithms.Hash
                     Unsafe.CopyBlockUnaligned(s->b + c, input._pointer, blockrem);
                 }
                 addLength(BlockBytes);
-                
+
                 compress(s, s->b);
 
                 clen += blockrem;
@@ -143,12 +150,8 @@ namespace Spreads.Algorithms.Hash
                 c = 0u;
             }
 
-            
-            
-
             if (inlen + clen > BlockBytes)
             {
-                
                 byte* pinput = input._pointer;
 
                 while (inlen > BlockBytes)
@@ -174,20 +177,20 @@ namespace Spreads.Algorithms.Hash
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void finish(Span<byte> hash)
         {
-            if (f[0] != 0)
+            if (htf.f[0] != 0)
             { ThrowHashAlreadyFinalized(); }
 
             if (c < BlockBytes)
             { Unsafe.InitBlockUnaligned(ref b[c], 0, BlockBytes - c); }
 
             addLength(c);
-            f[0] = unchecked((ulong)~0);
+            htf.f[0] = unchecked((ulong)~0);
             var s = (Blake2bContext*)Unsafe.AsPointer(ref Unsafe.AsRef(this));
             {
                 compress(s, s->b);
             }
 
-            Unsafe.CopyBlock(ref hash[0], ref Unsafe.As<ulong, byte>(ref h[0]), outlen);
+            Unsafe.CopyBlock(ref hash[0], ref Unsafe.As<ulong, byte>(ref htf.h[0]), outlen);
         }
 
         private static void ThrowHashAlreadyFinalized()
@@ -196,18 +199,20 @@ namespace Spreads.Algorithms.Hash
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static void finish(in Blake2bContext ctx, Span<byte> hash)
+        private static void finish(ref Blake2bContext ctx1, Span<byte> hash)
         {
-            var ctx1 = ctx;
+            var prevHtf = ctx1.htf;
+            // var ctx1 = ctx;
             if (ctx1.c < BlockBytes)
                 Unsafe.InitBlockUnaligned(ref ctx1.b[ctx1.c], 0, BlockBytes - ctx1.c);
 
             ctx1.addLength(ctx1.c);
-            ctx1.f[0] = unchecked((ulong)~0);
+            ctx1.htf.f[0] = unchecked((ulong)~0);
             var s = (Blake2bContext*)Unsafe.AsPointer(ref Unsafe.AsRef(ctx1));
             compress(s, s->b);
 
-            Unsafe.CopyBlock(ref hash[0], ref Unsafe.As<ulong, byte>(ref ctx1.h[0]), ctx1.outlen);
+            Unsafe.CopyBlock(ref hash[0], ref Unsafe.As<ulong, byte>(ref ctx1.htf.h[0]), ctx1.outlen);
+            ctx1.htf = prevHtf;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -225,7 +230,7 @@ namespace Spreads.Algorithms.Hash
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool TryFinish(in Blake2bContext ctx, Span<byte> output, out int bytesWritten)
+        public static bool TryFinish(ref Blake2bContext ctx, Span<byte> output, out int bytesWritten)
         {
             if (output.Length < ctx.outlen)
             {
@@ -233,7 +238,7 @@ namespace Spreads.Algorithms.Hash
                 return false;
             }
 
-            finish(in ctx, output);
+            finish(ref ctx, output);
             bytesWritten = (int)ctx.outlen;
             return true;
         }

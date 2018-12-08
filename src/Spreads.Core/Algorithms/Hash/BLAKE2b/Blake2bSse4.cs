@@ -21,25 +21,25 @@ namespace Spreads.Algorithms.Hash
 		};
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		private static Vector128<ulong> ror64_32(Vector128<ulong> x) => Sse.StaticCast<uint, ulong>(Sse2.Shuffle(Sse.StaticCast<ulong, uint>(x), 0b_10_11_00_01));
+		private static Vector128<ulong> ror64_32(ref Vector128<ulong> x) => Sse.StaticCast<uint, ulong>(Sse2.Shuffle(Sse.StaticCast<ulong, uint>(x), 0b_10_11_00_01));
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		private static Vector128<ulong> ror64_63(Vector128<ulong> x) => Sse2.Xor(Sse2.ShiftRightLogical(x, 63), Sse2.Add(x, x));
+		private static Vector128<ulong> ror64_63(ref Vector128<ulong> x) => Sse2.Xor(Sse2.ShiftRightLogical(x, 63), Sse2.Add(x, x));
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		private static Vector128<ulong> ror64_shuffle(Vector128<ulong> x, Vector128<sbyte> y) =>
+		private static Vector128<ulong> ror64_shuffle(ref Vector128<ulong> x, ref Vector128<sbyte> y) =>
 			Sse.StaticCast<sbyte, ulong>(Ssse3.Shuffle(Sse.StaticCast<ulong, sbyte>(x), y));
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		private static Vector128<ulong> blend_ulong(Vector128<ulong> x, Vector128<ulong> y, byte m) =>
+		private static Vector128<ulong> blend_ulong(ref Vector128<ulong> x, ref Vector128<ulong> y, byte m) =>
 			Sse.StaticCast<ushort, ulong>(Sse41.Blend(Sse.StaticCast<ulong, ushort>(x), Sse.StaticCast<ulong, ushort>(y), m));
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		private static Vector128<ulong> alignr_ulong(Vector128<ulong> x, Vector128<ulong> y, byte m) =>
+		private static Vector128<ulong> alignr_ulong(ref Vector128<ulong> x, ref Vector128<ulong> y, byte m) =>
 			Sse.StaticCast<sbyte, ulong>(Ssse3.AlignRight(Sse.StaticCast<ulong, sbyte>(x), Sse.StaticCast<ulong, sbyte>(y), m));
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		private static Vector128<ulong> shuffle_ulong(Vector128<ulong> x, byte m) =>
+		private static Vector128<ulong> shuffle_ulong(ref Vector128<ulong> x, byte m) =>
 			Sse.StaticCast<uint, ulong>(Sse2.Shuffle(Sse.StaticCast<ulong, uint>(x), m));
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -51,16 +51,16 @@ namespace Spreads.Algorithms.Hash
 
 			row4l = Sse2.Xor(row4l, row1l);
 			row4h = Sse2.Xor(row4h, row1h);
-			row4l = ror64_32(row4l);
-			row4h = ror64_32(row4h);
+			row4l = ror64_32(ref row4l);
+			row4h = ror64_32(ref row4h);
 
 			row3l = Sse2.Add(row3l, row4l);
 			row3h = Sse2.Add(row3h, row4h);
 
 			row2l = Sse2.Xor(row2l, row3l);
 			row2h = Sse2.Xor(row2h, row3h);
-			row2l = ror64_shuffle(row2l, r24);
-			row2h = ror64_shuffle(row2h, r24);
+			row2l = ror64_shuffle(ref row2l, ref r24);
+			row2h = ror64_shuffle(ref row2h, ref r24);
 		}
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -72,16 +72,16 @@ namespace Spreads.Algorithms.Hash
 
 			row4l = Sse2.Xor(row4l, row1l);
 			row4h = Sse2.Xor(row4h, row1h);
-			row4l = ror64_shuffle(row4l, r16);
-			row4h = ror64_shuffle(row4h, r16);
+			row4l = ror64_shuffle(ref row4l, ref r16);
+			row4h = ror64_shuffle(ref row4h, ref r16);
 
 			row3l = Sse2.Add(row3l, row4l);
 			row3h = Sse2.Add(row3h, row4h);
 
 			row2l = Sse2.Xor(row2l, row3l);
 			row2h = Sse2.Xor(row2h, row3h);
-			row2l = ror64_63(row2l);
-			row2h = ror64_63(row2h);
+			row2l = ror64_63(ref row2l);
+			row2h = ror64_63(ref row2h);
 		}
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -124,19 +124,22 @@ namespace Spreads.Algorithms.Hash
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         unsafe private static void mixSse41(Blake2bContext* s, ulong* m)
-		{
-			var row1l = Sse2.LoadVector128(s->h);
-			var row1h = Sse2.LoadVector128(s->h + 2);
-			var row2l = Sse2.LoadVector128(s->h + 4);
-			var row2h = Sse2.LoadVector128(s->h + 6);
+        {
+            var hptr = s->htf.h;
+            var row1l = Sse2.LoadVector128(hptr);
+			var row1h = Sse2.LoadVector128(hptr + 2);
+			var row2l = Sse2.LoadVector128(hptr + 4);
+			var row2h = Sse2.LoadVector128(hptr + 6);
 
-			var row3l = Sse2.LoadVector128(s->viv);
-			var row3h = Sse2.LoadVector128(s->viv + 2);
-			var row4l = Sse2.LoadVector128(s->viv + 4);
-			var row4h = Sse2.LoadVector128(s->viv + 6);
 
-			row4l = Sse2.Xor(row4l, Sse2.LoadVector128(s->t));
-			row4h = Sse2.Xor(row4h, Sse2.LoadVector128(s->f));
+            var vivptr = s->viv;
+            var row3l = Sse2.LoadVector128(vivptr);
+			var row3h = Sse2.LoadVector128(vivptr + 2);
+			var row4l = Sse2.LoadVector128(vivptr + 4);
+			var row4h = Sse2.LoadVector128(vivptr + 6);
+
+			row4l = Sse2.Xor(row4l, Sse2.LoadVector128(s->htf.t));
+			row4h = Sse2.Xor(row4h, Sse2.LoadVector128(s->htf.f));
 
 			//ROUND 1
 			var m0 = Sse2.LoadVector128(m);
@@ -181,12 +184,12 @@ namespace Spreads.Algorithms.Hash
 			g1(ref row1l, ref row2l, ref row3l, ref row4l, ref row1h, ref row2h, ref row3h, ref row4h, ref b0, ref b1, ref r24);
 
 			b0 = Sse2.UnpackLow(m5, m4);
-			b1 = alignr_ulong(m3, m7, 8);
+			b1 = alignr_ulong(ref m3, ref m7, 8);
 
 			g2(ref row1l, ref row2l, ref row3l, ref row4l, ref row1h, ref row2h, ref row3h, ref row4h, ref b0, ref b1, ref r16);
 			diagonalize(ref row1l, ref row2l, ref row3l, ref row4l, ref row1h, ref row2h, ref row3h, ref row4h, ref b0);
 
-			b0 = shuffle_ulong(m0, 0b_01_00_11_10);
+			b0 = shuffle_ulong(ref m0, 0b_01_00_11_10);
 			b1 = Sse2.UnpackHigh(m5, m2);
 
 			g1(ref row1l, ref row2l, ref row3l, ref row4l, ref row1h, ref row2h, ref row3h, ref row4h, ref b0, ref b1, ref r24);
@@ -198,24 +201,24 @@ namespace Spreads.Algorithms.Hash
 			undiagonalize(ref row1l, ref row2l, ref row3l, ref row4l, ref row1h, ref row2h, ref row3h, ref row4h, ref b0);
 
 			//ROUND 3
-			b0 = alignr_ulong(m6, m5, 8);
+			b0 = alignr_ulong(ref m6, ref m5, 8);
 			b1 = Sse2.UnpackHigh(m2, m7);
 
 			g1(ref row1l, ref row2l, ref row3l, ref row4l, ref row1h, ref row2h, ref row3h, ref row4h, ref b0, ref b1, ref r24);
 
 			b0 = Sse2.UnpackLow(m4, m0);
-			b1 = blend_ulong(m1, m6, 0b_1111_0000);
+			b1 = blend_ulong(ref m1, ref m6, 0b_1111_0000);
 
 			g2(ref row1l, ref row2l, ref row3l, ref row4l, ref row1h, ref row2h, ref row3h, ref row4h, ref b0, ref b1, ref r16);
 			diagonalize(ref row1l, ref row2l, ref row3l, ref row4l, ref row1h, ref row2h, ref row3h, ref row4h, ref b0);
 
-			b0 = blend_ulong(m5, m1, 0b_1111_0000);
+			b0 = blend_ulong(ref m5, ref m1, 0b_1111_0000);
 			b1 = Sse2.UnpackHigh(m3, m4);
 
 			g1(ref row1l, ref row2l, ref row3l, ref row4l, ref row1h, ref row2h, ref row3h, ref row4h, ref b0, ref b1, ref r24);
 
 			b0 = Sse2.UnpackLow(m7, m3);
-			b1 = alignr_ulong(m2, m0, 8);
+			b1 = alignr_ulong(ref m2, ref m0, 8);
 
 			g2(ref row1l, ref row2l, ref row3l, ref row4l, ref row1h, ref row2h, ref row3h, ref row4h, ref b0, ref b1, ref r16);
 			undiagonalize(ref row1l, ref row2l, ref row3l, ref row4l, ref row1h, ref row2h, ref row3h, ref row4h, ref b0);
@@ -232,8 +235,8 @@ namespace Spreads.Algorithms.Hash
 			g2(ref row1l, ref row2l, ref row3l, ref row4l, ref row1h, ref row2h, ref row3h, ref row4h, ref b0, ref b1, ref r16);
 			diagonalize(ref row1l, ref row2l, ref row3l, ref row4l, ref row1h, ref row2h, ref row3h, ref row4h, ref b0);
 
-			b0 = blend_ulong(m1, m2, 0b_1111_0000);
-			b1 = blend_ulong(m2, m7, 0b_1111_0000);
+			b0 = blend_ulong(ref m1, ref m2, 0b_1111_0000);
+			b1 = blend_ulong(ref m2, ref m7, 0b_1111_0000);
 
 			g1(ref row1l, ref row2l, ref row3l, ref row4l, ref row1h, ref row2h, ref row3h, ref row4h, ref b0, ref b1, ref r24);
 
@@ -249,19 +252,19 @@ namespace Spreads.Algorithms.Hash
 
 			g1(ref row1l, ref row2l, ref row3l, ref row4l, ref row1h, ref row2h, ref row3h, ref row4h, ref b0, ref b1, ref r24);
 
-			b0 = blend_ulong(m0, m3, 0b_1111_0000);
-			b1 = blend_ulong(m2, m7, 0b_1111_0000);
+			b0 = blend_ulong(ref m0, ref m3, 0b_1111_0000);
+			b1 = blend_ulong(ref m2, ref m7, 0b_1111_0000);
 
 			g2(ref row1l, ref row2l, ref row3l, ref row4l, ref row1h, ref row2h, ref row3h, ref row4h, ref b0, ref b1, ref r16);
 			diagonalize(ref row1l, ref row2l, ref row3l, ref row4l, ref row1h, ref row2h, ref row3h, ref row4h, ref b0);
 
-			b0 = blend_ulong(m7, m5, 0b_1111_0000);
-			b1 = blend_ulong(m3, m1, 0b_1111_0000);
+			b0 = blend_ulong(ref m7, ref m5, 0b_1111_0000);
+			b1 = blend_ulong(ref m3, ref m1, 0b_1111_0000);
 
 			g1(ref row1l, ref row2l, ref row3l, ref row4l, ref row1h, ref row2h, ref row3h, ref row4h, ref b0, ref b1, ref r24);
 
-			b0 = alignr_ulong(m6, m0, 8);
-			b1 = blend_ulong(m4, m6, 0b_1111_0000);
+			b0 = alignr_ulong(ref m6, ref m0, 8);
+			b1 = blend_ulong(ref m4, ref m6, 0b_1111_0000);
 
 			g2(ref row1l, ref row2l, ref row3l, ref row4l, ref row1h, ref row2h, ref row3h, ref row4h, ref b0, ref b1, ref r16);
 			undiagonalize(ref row1l, ref row2l, ref row3l, ref row4l, ref row1h, ref row2h, ref row3h, ref row4h, ref b0);
@@ -278,47 +281,47 @@ namespace Spreads.Algorithms.Hash
 			g2(ref row1l, ref row2l, ref row3l, ref row4l, ref row1h, ref row2h, ref row3h, ref row4h, ref b0, ref b1, ref r16);
 			diagonalize(ref row1l, ref row2l, ref row3l, ref row4l, ref row1h, ref row2h, ref row3h, ref row4h, ref b0);
 
-			b0 = blend_ulong(m2, m3, 0b_1111_0000);
+			b0 = blend_ulong(ref m2, ref m3, 0b_1111_0000);
 			b1 = Sse2.UnpackHigh(m7, m0);
 
 			g1(ref row1l, ref row2l, ref row3l, ref row4l, ref row1h, ref row2h, ref row3h, ref row4h, ref b0, ref b1, ref r24);
 
 			b0 = Sse2.UnpackHigh(m6, m2);
-			b1 = blend_ulong(m7, m4, 0b_1111_0000);
+			b1 = blend_ulong(ref m7, ref m4, 0b_1111_0000);
 
 			g2(ref row1l, ref row2l, ref row3l, ref row4l, ref row1h, ref row2h, ref row3h, ref row4h, ref b0, ref b1, ref r16);
 			undiagonalize(ref row1l, ref row2l, ref row3l, ref row4l, ref row1h, ref row2h, ref row3h, ref row4h, ref b0);
 
 			//ROUND 7
-			b0 = blend_ulong(m6, m0, 0b_1111_0000);
+			b0 = blend_ulong(ref m6, ref m0, 0b_1111_0000);
 			b1 = Sse2.UnpackLow(m7, m2);
 
 			g1(ref row1l, ref row2l, ref row3l, ref row4l, ref row1h, ref row2h, ref row3h, ref row4h, ref b0, ref b1, ref r24);
 
 			b0 = Sse2.UnpackHigh(m2, m7);
-			b1 = alignr_ulong(m5, m6, 8);
+			b1 = alignr_ulong(ref m5, ref m6, 8);
 
 			g2(ref row1l, ref row2l, ref row3l, ref row4l, ref row1h, ref row2h, ref row3h, ref row4h, ref b0, ref b1, ref r16);
 			diagonalize(ref row1l, ref row2l, ref row3l, ref row4l, ref row1h, ref row2h, ref row3h, ref row4h, ref b0);
 
 			b0 = Sse2.UnpackLow(m0, m3);
-			b1 = shuffle_ulong(m4, 0b_01_00_11_10);
+			b1 = shuffle_ulong(ref m4, 0b_01_00_11_10);
 
 			g1(ref row1l, ref row2l, ref row3l, ref row4l, ref row1h, ref row2h, ref row3h, ref row4h, ref b0, ref b1, ref r24);
 
 			b0 = Sse2.UnpackHigh(m3, m1);
-			b1 = blend_ulong(m1, m5, 0b_1111_0000);
+			b1 = blend_ulong(ref m1, ref m5, 0b_1111_0000);
 
 			g2(ref row1l, ref row2l, ref row3l, ref row4l, ref row1h, ref row2h, ref row3h, ref row4h, ref b0, ref b1, ref r16);
 			undiagonalize(ref row1l, ref row2l, ref row3l, ref row4l, ref row1h, ref row2h, ref row3h, ref row4h, ref b0);
 
 			//ROUND 8
 			b0 = Sse2.UnpackHigh(m6, m3);
-			b1 = blend_ulong(m6, m1, 0b_1111_0000);
+			b1 = blend_ulong(ref m6, ref m1, 0b_1111_0000);
 
 			g1(ref row1l, ref row2l, ref row3l, ref row4l, ref row1h, ref row2h, ref row3h, ref row4h, ref b0, ref b1, ref r24);
 
-			b0 = alignr_ulong(m7, m5, 8);
+			b0 = alignr_ulong(ref m7, ref m5, 8);
 			b1 = Sse2.UnpackHigh(m0, m4);
 
 			g2(ref row1l, ref row2l, ref row3l, ref row4l, ref row1h, ref row2h, ref row3h, ref row4h, ref b0, ref b1, ref r16);
@@ -337,22 +340,22 @@ namespace Spreads.Algorithms.Hash
 
 			//ROUND 9
 			b0 = Sse2.UnpackLow(m3, m7);
-			b1 = alignr_ulong(m0, m5, 8);
+			b1 = alignr_ulong(ref m0, ref m5, 8);
 
 			g1(ref row1l, ref row2l, ref row3l, ref row4l, ref row1h, ref row2h, ref row3h, ref row4h, ref b0, ref b1, ref r24);
 
 			b0 = Sse2.UnpackHigh(m7, m4);
-			b1 = alignr_ulong(m4, m1, 8);
+			b1 = alignr_ulong(ref m4, ref m1, 8);
 
 			g2(ref row1l, ref row2l, ref row3l, ref row4l, ref row1h, ref row2h, ref row3h, ref row4h, ref b0, ref b1, ref r16);
 			diagonalize(ref row1l, ref row2l, ref row3l, ref row4l, ref row1h, ref row2h, ref row3h, ref row4h, ref b0);
 
 			b0 = m6;
-			b1 = alignr_ulong(m5, m0, 8);
+			b1 = alignr_ulong(ref m5, ref m0, 8);
 
 			g1(ref row1l, ref row2l, ref row3l, ref row4l, ref row1h, ref row2h, ref row3h, ref row4h, ref b0, ref b1, ref r24);
 
-			b0 = blend_ulong(m1, m3, 0b_1111_0000);
+			b0 = blend_ulong(ref m1, ref m3, 0b_1111_0000);
 			b1 = m2;
 
 			g2(ref row1l, ref row2l, ref row3l, ref row4l, ref row1h, ref row2h, ref row3h, ref row4h, ref b0, ref b1, ref r16);
@@ -365,7 +368,7 @@ namespace Spreads.Algorithms.Hash
 			g1(ref row1l, ref row2l, ref row3l, ref row4l, ref row1h, ref row2h, ref row3h, ref row4h, ref b0, ref b1, ref r24);
 
 			b0 = Sse2.UnpackLow(m1, m2);
-			b1 = blend_ulong(m3, m2, 0b_1111_0000);
+			b1 = blend_ulong(ref m3, ref m2, 0b_1111_0000);
 
 			g2(ref row1l, ref row2l, ref row3l, ref row4l, ref row1h, ref row2h, ref row3h, ref row4h, ref b0, ref b1, ref r16);
 			diagonalize(ref row1l, ref row2l, ref row3l, ref row4l, ref row1h, ref row2h, ref row3h, ref row4h, ref b0);
@@ -375,7 +378,7 @@ namespace Spreads.Algorithms.Hash
 
 			g1(ref row1l, ref row2l, ref row3l, ref row4l, ref row1h, ref row2h, ref row3h, ref row4h, ref b0, ref b1, ref r24);
 
-			b0 = alignr_ulong(m7, m5, 8);
+			b0 = alignr_ulong(ref m7, ref m5, 8);
 			b1 = Sse2.UnpackLow(m6, m0);
 
 			g2(ref row1l, ref row2l, ref row3l, ref row4l, ref row1h, ref row2h, ref row3h, ref row4h, ref b0, ref b1, ref r16);
@@ -411,12 +414,12 @@ namespace Spreads.Algorithms.Hash
 			g1(ref row1l, ref row2l, ref row3l, ref row4l, ref row1h, ref row2h, ref row3h, ref row4h, ref b0, ref b1, ref r24);
 
 			b0 = Sse2.UnpackLow(m5, m4);
-			b1 = alignr_ulong(m3, m7, 8);
+			b1 = alignr_ulong(ref m3, ref m7, 8);
 
 			g2(ref row1l, ref row2l, ref row3l, ref row4l, ref row1h, ref row2h, ref row3h, ref row4h, ref b0, ref b1, ref r16);
 			diagonalize(ref row1l, ref row2l, ref row3l, ref row4l, ref row1h, ref row2h, ref row3h, ref row4h, ref b0);
 
-			b0 = shuffle_ulong(m0, 0b_01_00_11_10);
+			b0 = shuffle_ulong(ref m0, 0b_01_00_11_10);
 			b1 = Sse2.UnpackHigh(m5, m2);
 
 			g1(ref row1l, ref row2l, ref row3l, ref row4l, ref row1h, ref row2h, ref row3h, ref row4h, ref b0, ref b1, ref r24);
@@ -429,17 +432,17 @@ namespace Spreads.Algorithms.Hash
 
 			row1l = Sse2.Xor(row1l, row3l);
 			row1h = Sse2.Xor(row1h, row3h);
-			row1l = Sse2.Xor(row1l, Sse2.LoadVector128(s->h));
-			row1h = Sse2.Xor(row1h, Sse2.LoadVector128(s->h + 2));
-			Sse2.Store(s->h, row1l);
-			Sse2.Store(s->h + 2, row1h);
+			row1l = Sse2.Xor(row1l, Sse2.LoadVector128(hptr));
+			row1h = Sse2.Xor(row1h, Sse2.LoadVector128(hptr + 2));
+			Sse2.Store(hptr, row1l);
+			Sse2.Store(hptr + 2, row1h);
 
 			row2l = Sse2.Xor(row2l, row4l);
 			row2h = Sse2.Xor(row2h, row4h);
-			row2l = Sse2.Xor(row2l, Sse2.LoadVector128(s->h + 4));
-			row2h = Sse2.Xor(row2h, Sse2.LoadVector128(s->h + 6));
-			Sse2.Store(s->h + 4, row2l);
-			Sse2.Store(s->h + 6, row2h);
+			row2l = Sse2.Xor(row2l, Sse2.LoadVector128(hptr + 4));
+			row2h = Sse2.Xor(row2h, Sse2.LoadVector128(hptr + 6));
+			Sse2.Store(hptr + 4, row2l);
+			Sse2.Store(hptr + 6, row2h);
 		}
 	}
 }
