@@ -27,6 +27,7 @@ namespace Spreads.Algorithms.Hash
             public fixed ulong h[HashWords];
             public fixed ulong t[2];
             public fixed ulong f[2];
+            
         }
 
         public const int WordSize = sizeof(ulong);
@@ -44,6 +45,8 @@ namespace Spreads.Algorithms.Hash
         };
 
         private Blake2bContextFinalizable htf;
+
+        public fixed ulong padding[4];
 
         private fixed byte b[BlockBytes];
 
@@ -96,7 +99,7 @@ namespace Spreads.Algorithms.Hash
             }
 
             outlen = (uint)digestLength;
-            Unsafe.CopyBlock(ref Unsafe.As<ulong, byte>(ref htf.h[0]), ref Unsafe.As<ulong, byte>(ref iv[0]), HashBytes);
+            Unsafe.CopyBlockUnaligned(ref Unsafe.As<ulong, byte>(ref htf.h[0]), ref Unsafe.As<ulong, byte>(ref iv[0]), HashBytes);
             htf.h[0] ^= 0x01010000u ^ (keylen << 8) ^ outlen;
 
 #if NETCOREAPP2_1
@@ -129,21 +132,23 @@ namespace Spreads.Algorithms.Hash
         public void Update(in DirectBuffer input)
         {
             uint inlen = (uint)input.Length;
+            byte* pinput = input._pointer;
 
             uint clen = 0u;
             uint blockrem = BlockBytes - c;
 
             var s = (Blake2bContext*)Unsafe.AsPointer(ref Unsafe.AsRef(this));
+            var sb = s->b;
 
             if ((c > 0u) && (inlen > blockrem))
             {
                 if (blockrem > 0)
                 {
-                    Unsafe.CopyBlockUnaligned(s->b + c, input._pointer, blockrem);
+                    Unsafe.CopyBlockUnaligned(sb + c, pinput, blockrem);
                 }
                 addLength(BlockBytes);
 
-                compress(s, s->b);
+                compress(s, sb);
 
                 clen += blockrem;
                 inlen -= blockrem;
@@ -152,8 +157,6 @@ namespace Spreads.Algorithms.Hash
 
             if (inlen + clen > BlockBytes)
             {
-                byte* pinput = input._pointer;
-
                 while (inlen > BlockBytes)
                 {
                     addLength(BlockBytes);
@@ -168,7 +171,7 @@ namespace Spreads.Algorithms.Hash
 
             if (inlen > 0)
             {
-                Unsafe.CopyBlockUnaligned(s->b + c, (input._pointer + clen), inlen);
+                Unsafe.CopyBlockUnaligned(sb + c, (pinput + clen), inlen);
 
                 c += inlen;
             }
@@ -202,14 +205,18 @@ namespace Spreads.Algorithms.Hash
         private static void finish(ref Blake2bContext ctx1, Span<byte> hash)
         {
             var prevHtf = ctx1.htf;
-            // var ctx1 = ctx;
-            if (ctx1.c < BlockBytes)
-                Unsafe.InitBlockUnaligned(ref ctx1.b[ctx1.c], 0, BlockBytes - ctx1.c);
+            var c = ctx1.c;
 
-            ctx1.addLength(ctx1.c);
-            ctx1.htf.f[0] = unchecked((ulong)~0);
             var s = (Blake2bContext*)Unsafe.AsPointer(ref Unsafe.AsRef(ctx1));
-            compress(s, s->b);
+            var sb = s->b;
+
+            if (c < BlockBytes)
+                Unsafe.InitBlockUnaligned(ref sb[c], 0, BlockBytes - c);
+
+            ctx1.addLength(c);
+            ctx1.htf.f[0] = unchecked((ulong)~0);
+            
+            compress(s, sb);
 
             Unsafe.CopyBlock(ref hash[0], ref Unsafe.As<ulong, byte>(ref ctx1.htf.h[0]), ctx1.outlen);
             ctx1.htf = prevHtf;

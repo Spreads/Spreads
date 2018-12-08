@@ -38,7 +38,7 @@ namespace Spreads.Core.Tests.Algorithms
             }
 #endif
             var rng = new Random();
-            var size = 256;
+            var size = 128;
 
             var rmb = BufferPool.Retain(size);
             var bytes = new DirectBuffer(rmb);
@@ -95,7 +95,7 @@ namespace Spreads.Core.Tests.Algorithms
         [Test, Explicit("long running")]
         public void CouldHashIncrementalBench()
         {
-            var steps = 5_000;
+            var steps = 50_000;
             var incrSize = 64;
             var rng = new Random(42);
             var byteLength = incrSize * steps;
@@ -154,17 +154,17 @@ namespace Spreads.Core.Tests.Algorithms
                     }
                 }
 
-                using (var stat = Benchmark.Run("Libsodium (MBsec)", byteLength, false))
-                {
-                    var sp = bytes.Span;
-                    for (int i = 0; i < steps; i++)
-                    {
-                        var span = sp.Slice(0, i * incrSize + incrSize);
-                        b.Hash(span, hash1);
-                    }
-                }
+                //using (var stat = Benchmark.Run("Libsodium (MBsec)", byteLength, false))
+                //{
+                //    var sp = bytes.Span;
+                //    for (int i = 0; i < steps; i++)
+                //    {
+                //        var span = sp.Slice(0, i * incrSize + incrSize);
+                //        b.Hash(span, hash1);
+                //    }
+                //}
 
-                Assert.IsTrue(hash0.SequenceEqual(hash1));
+                //Assert.IsTrue(hash0.SequenceEqual(hash1));
             }
 
             Benchmark.Dump($"Incremental hashing by {incrSize} bytes {steps} times");

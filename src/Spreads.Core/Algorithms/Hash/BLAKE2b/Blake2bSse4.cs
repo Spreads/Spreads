@@ -126,17 +126,16 @@ namespace Spreads.Algorithms.Hash
         unsafe private static void mixSse41(Blake2bContext* s, ulong* m)
         {
             var hptr = s->htf.h;
-            var row1l = Sse2.LoadVector128(hptr);
-			var row1h = Sse2.LoadVector128(hptr + 2);
-			var row2l = Sse2.LoadVector128(hptr + 4);
-			var row2h = Sse2.LoadVector128(hptr + 6);
-
+            var row1l = Unsafe.As<ulong, Vector128<ulong>>(ref hptr[0]);
+			var row1h = Unsafe.As<ulong, Vector128<ulong>>(ref hptr[2]);
+			var row2l = Unsafe.As<ulong, Vector128<ulong>>(ref hptr[4]);
+			var row2h = Unsafe.As<ulong, Vector128<ulong>>(ref hptr[6]);
 
             var vivptr = s->viv;
-            var row3l = Sse2.LoadVector128(vivptr);
-			var row3h = Sse2.LoadVector128(vivptr + 2);
-			var row4l = Sse2.LoadVector128(vivptr + 4);
-			var row4h = Sse2.LoadVector128(vivptr + 6);
+            var row3l = Unsafe.As<ulong, Vector128<ulong>>(ref vivptr[0]);
+			var row3h = Unsafe.As<ulong, Vector128<ulong>>(ref vivptr[2]);
+			var row4l = Unsafe.As<ulong, Vector128<ulong>>(ref vivptr[4]);
+			var row4h = Unsafe.As<ulong, Vector128<ulong>>(ref vivptr[6]);
 
 			row4l = Sse2.Xor(row4l, Sse2.LoadVector128(s->htf.t));
 			row4h = Sse2.Xor(row4h, Sse2.LoadVector128(s->htf.f));
