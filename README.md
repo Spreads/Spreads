@@ -35,7 +35,7 @@ Spreads library is optimized for performance and memory usage.
 It is several times faster than other open source [projects](https://github.com/BlueMountainCapital/Deedle),
 does not allocate memory for intermediate calculations or windows,
 and provides real-time incremental calculations with low-latency lock-free synchronization 
-between data producers and consumers. You could run tests and [benchmarks](https://github.com/Spreads/Spreads/blob/master/tests/Spreads.Tests/Benchmarks.fs) 
+between data producers and consumers. You could run tests and [benchmarks](https://github.com/Spreads/Spreads/blob/master/tests/Benchmark/Benchmark.cs) 
 to see the exact numbers.
 
 For regular keys - keys that have equal difference between them (e.g. seconds) - Spreads stores
