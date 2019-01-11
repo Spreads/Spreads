@@ -44,9 +44,7 @@ namespace Spreads.Algorithms.Hash
             { FailBadOutputLength(digestLength); }
 
             var ctx = default(Blake2bContext);
-            ctx.Init(digestLength, key);
-            ctx.Update(input);
-            ctx.TryFinish(output, out int _);
+            ctx.InitUpdateFinish(input, output, digestLength, key);
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]

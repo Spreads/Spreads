@@ -130,6 +130,10 @@ namespace Spreads.Serialization
         // ReSharper disable once StaticMemberInGenericType
         public static readonly bool IsPinnable = PinnedSize() > 0 || FixedSize > 0;
 
+        public static readonly int ElemOffset = UnsafeEx.ElemOffset(new T[1]);
+
+        public static readonly int ElemSize = SizeOf<T>();
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int EnsureFixedSize()
         {

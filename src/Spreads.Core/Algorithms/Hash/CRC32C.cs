@@ -30,7 +30,7 @@ using System.Runtime.CompilerServices;
 using Spreads.Buffers;
 using static System.Runtime.CompilerServices.Unsafe;
 
-#if NETCOREAPP2_1
+#if NETCOREAPP3_0
 using System.Runtime.Intrinsics.X86;
 #endif
 
@@ -38,8 +38,8 @@ namespace Spreads.Algorithms.Hash
 {
     public static unsafe class Crc32C
     {
-#if NETCOREAPP2_1
-        public static readonly bool IsHardwareAccelerated = Sse42.IsSupported && Environment.Is64BitProcess;
+#if NETCOREAPP3_0
+        public static readonly bool IsHardwareAccelerated = Sse42.IsSupported || Sse42.X64.IsSupported;
 #endif
         private const uint Crc32CPoly = 0x82F63B78u;
 
@@ -67,7 +67,7 @@ namespace Spreads.Algorithms.Hash
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static uint Append(uint crc, byte* data, int len)
         {
-#if NETCOREAPP2_1
+#if NETCOREAPP3_0
             if (IsHardwareAccelerated)
             {
                 byte* next = data;
@@ -82,28 +82,33 @@ namespace Spreads.Algorithms.Hash
                 //    next++;
                 //    len--;
                 //}
-                while (len >= 32)
+                if (Sse42.X64.IsSupported)
                 {
-                    crc0 = (uint)Sse42.Crc32(crc0, ReadUnaligned<ulong>(next));
-                    crc0 = (uint)Sse42.Crc32(crc0, ReadUnaligned<ulong>(next + 8));
-                    crc0 = (uint)Sse42.Crc32(crc0, ReadUnaligned<ulong>(next + 16));
-                    crc0 = (uint)Sse42.Crc32(crc0, ReadUnaligned<ulong>(next + 24));
-                    next += 32;
-                    len -= 32;
-                }
-                while (len >= 16)
-                {
-                    crc0 = (uint)Sse42.Crc32(crc0, ReadUnaligned<ulong>(next));
-                    crc0 = (uint)Sse42.Crc32(crc0, ReadUnaligned<ulong>(next + 8));
-                    next += 16;
-                    len -= 16;
-                }
-                while (len >= 8)
-                {
-                    crc0 = (uint)Sse42.Crc32(crc0, ReadUnaligned<ulong>(next));
-                    next += 8;
-                    len -= 8;
-                }
+                    while (len >= 32)
+                    {
+                        crc0 = (uint) Sse42.X64.Crc32(crc0, ReadUnaligned<ulong>(next));
+                        crc0 = (uint) Sse42.X64.Crc32(crc0, ReadUnaligned<ulong>(next + 8));
+                        crc0 = (uint) Sse42.X64.Crc32(crc0, ReadUnaligned<ulong>(next + 16));
+                        crc0 = (uint) Sse42.X64.Crc32(crc0, ReadUnaligned<ulong>(next + 24));
+                        next += 32;
+                        len -= 32;
+                    }
+
+                    while (len >= 16)
+                    {
+                        crc0 = (uint) Sse42.X64.Crc32(crc0, ReadUnaligned<ulong>(next));
+                        crc0 = (uint) Sse42.X64.Crc32(crc0, ReadUnaligned<ulong>(next + 8));
+                        next += 16;
+                        len -= 16;
+                    }
+
+                    while (len >= 8)
+                    {
+                        crc0 = (uint) Sse42.X64.Crc32(crc0, ReadUnaligned<ulong>(next));
+                        next += 8;
+                        len -= 8;
+                    }
+                } // NB do not unroll anything for x86 case, it doesn't matter much
 
                 while (len >= 4)
                 {
@@ -121,7 +126,7 @@ namespace Spreads.Algorithms.Hash
 
                 while (len > 0)
                 {
-                    crc0 = Sse42.Crc32(crc0, *(next));
+                    crc0 = Sse42.Crc32(crc0, Read<byte>(next));
                     next++;
                     len--;
                 }
@@ -140,7 +145,7 @@ namespace Spreads.Algorithms.Hash
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static uint AppendCopy(uint crc, byte* data, int len, byte* copyTarget)
         {
-#if NETCOREAPP2_1
+#if NETCOREAPP3_0
             if (IsHardwareAccelerated)
             {
                 byte* next = data;
@@ -155,42 +160,45 @@ namespace Spreads.Algorithms.Hash
                 //    next++;
                 //    len--;
                 //}
-
-                while (len >= 32)
+                if (Sse42.X64.IsSupported)
                 {
-                    crc0 = (uint)Sse42.Crc32(crc0, ReadUnaligned<ulong>(next));
-                    crc0 = (uint)Sse42.Crc32(crc0, ReadUnaligned<ulong>(next + 8));
-                    crc0 = (uint)Sse42.Crc32(crc0, ReadUnaligned<ulong>(next + 16));
-                    crc0 = (uint)Sse42.Crc32(crc0, ReadUnaligned<ulong>(next + 24));
+                    while (len >= 32)
+                    {
+                        crc0 = (uint) Sse42.X64.Crc32(crc0, ReadUnaligned<ulong>(next));
+                        crc0 = (uint) Sse42.X64.Crc32(crc0, ReadUnaligned<ulong>(next + 8));
+                        crc0 = (uint) Sse42.X64.Crc32(crc0, ReadUnaligned<ulong>(next + 16));
+                        crc0 = (uint) Sse42.X64.Crc32(crc0, ReadUnaligned<ulong>(next + 24));
 
-                    CopyBlockUnaligned(copyTarget, next, 32);
+                        CopyBlockUnaligned(copyTarget, next, 32);
 
-                    copyTarget += 32;
-                    next += 32;
-                    len -= 32;
-                }
+                        copyTarget += 32;
+                        next += 32;
+                        len -= 32;
+                    }
 
-                while (len >= 16)
-                {
-                    crc0 = (uint)Sse42.Crc32(crc0, ReadUnaligned<ulong>(next));
-                    crc0 = (uint)Sse42.Crc32(crc0, ReadUnaligned<ulong>(next + 8));
+                    while (len >= 16)
+                    {
+                        crc0 = (uint) Sse42.X64.Crc32(crc0, ReadUnaligned<ulong>(next));
+                        crc0 = (uint) Sse42.X64.Crc32(crc0, ReadUnaligned<ulong>(next + 8));
 
-                    CopyBlockUnaligned(copyTarget, next, 16);
+                        CopyBlockUnaligned(copyTarget, next, 16);
 
-                    copyTarget += 16;
-                    next += 16;
-                    len -= 16;
-                }
-                while (len >= 8)
-                {
-                    crc0 = (uint)Sse42.Crc32(crc0, ReadUnaligned<ulong>(next));
+                        copyTarget += 16;
+                        next += 16;
+                        len -= 16;
+                    }
 
-                    CopyBlockUnaligned(copyTarget, next, 8);
+                    while (len >= 8)
+                    {
+                        crc0 = (uint) Sse42.X64.Crc32(crc0, ReadUnaligned<ulong>(next));
 
-                    copyTarget += 8;
-                    next += 8;
-                    len -= 8;
-                }
+                        CopyBlockUnaligned(copyTarget, next, 8);
+
+                        copyTarget += 8;
+                        next += 8;
+                        len -= 8;
+                    }
+                } // NB do not unroll anything for x86 case, it doesn't matter much
 
                 while (len >= 4)
                 {

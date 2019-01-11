@@ -7,12 +7,35 @@ using Spreads.Algorithms.Hash;
 using Spreads.Buffers;
 using Spreads.Utils;
 using System;
+using System.Runtime.InteropServices;
+// using System.Runtime.Intrinsics.X86;
 
 namespace Spreads.Core.Tests.Algorithms
 {
     [TestFixture]
-    public class CRC32Tests
+    public unsafe class CRC32Tests
     {
+        //private static uint MethodWithCrc32OK(byte* data)
+        //{
+        //    var b = *data;
+        //    var x = System.Runtime.Intrinsics.X86.Sse42.Crc32(0, b);
+        //    return x;
+        //}
+
+        //private static uint MethodWithCrc32Fail(byte* data)
+        //{
+        //    var x = System.Runtime.Intrinsics.X86.Sse42.Crc32(0, (*(data)));
+        //    return x;
+        //}
+
+        //[Test]
+        //public unsafe void CouldCallCrc32()
+        //{
+        //    var data = (byte*)Marshal.AllocHGlobal(1);
+        //    var x1 = MethodWithCrc32OK(data);
+        //    // var x2 = MethodWithCrc32Fail(data);
+        //}
+
         [Test, Explicit("long running")]
         public unsafe void CRCBenchmark()
         {

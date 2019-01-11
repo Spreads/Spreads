@@ -12,6 +12,9 @@ using System.Text;
 
 namespace Spreads.DataTypes
 {
+
+    // TODO Equality is not implemented for len > 16
+
     // See https://codeblog.jonskeet.uk/2011/04/05/of-memory-and-strings/
     // why this has a lot of sense in some cases: on x64 a string takes 26 + length * 2,
     // so we always win for small strings even with padding.
@@ -170,6 +173,7 @@ namespace Spreads.DataTypes
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool Equals(Symbol32 other)
         {
+            throw new NotImplementedException();
             var ptr = Unsafe.AsPointer(ref this);
             return *(long*)(ptr) == *(long*)(other.Bytes) && *(long*)((byte*)ptr + 8) == *(long*)(other.Bytes + 8);
         }
@@ -291,6 +295,7 @@ namespace Spreads.DataTypes
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool Equals(Symbol64 other)
         {
+            throw new NotImplementedException();
             var ptr = Unsafe.AsPointer(ref this);
             return *(long*)(ptr) == *(long*)(other.Bytes) && *(long*)((byte*)ptr + 8) == *(long*)(other.Bytes + 8);
         }
@@ -412,6 +417,7 @@ namespace Spreads.DataTypes
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool Equals(Symbol128 other)
         {
+            throw new NotImplementedException();
             var ptr = Unsafe.AsPointer(ref this);
             return *(long*)(ptr) == *(long*)(other.Bytes) && *(long*)((byte*)ptr + 8) == *(long*)(other.Bytes + 8);
         }
@@ -533,6 +539,7 @@ namespace Spreads.DataTypes
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool Equals(Symbol256 other)
         {
+            throw new NotImplementedException();
             var ptr = Unsafe.AsPointer(ref this);
             return *(long*)(ptr) == *(long*)(other.Bytes) && *(long*)((byte*)ptr + 8) == *(long*)(other.Bytes + 8);
         }

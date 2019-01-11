@@ -13,13 +13,13 @@ steps:
 
 - task: DotNetCoreInstaller@0
   inputs:
-    version: '2.1.500'
+    version: '3.0.100-preview-010046'
 
-- script: dotnet test tests/Spreads.Core.Tests/Spreads.Core.Tests.csproj -c Release  --filter TestCategory=CI -v m
+- script: dotnet test tests/Spreads.Core.Tests/Spreads.Core.Tests.csproj -f netcoreapp3.0 -c Release  --filter TestCategory=CI -v m
   displayName: 'Test Release'
 
 - script: dotnet test tests/Spreads.Core.Tests/Spreads.Core.Tests.csproj -f net461 -c Release  --filter TestCategory=CI -v m
   displayName: 'Test Release net461'
 
-- script: dotnet test tests/Spreads.Core.Tests/Spreads.Core.Tests.csproj -c Debug  --filter TestCategory=CI -v m
+- script: dotnet test tests/Spreads.Core.Tests/Spreads.Core.Tests.csproj -f netcoreapp3.0 -c Debug  --filter TestCategory=CI -v m
   displayName: 'Test Debug'

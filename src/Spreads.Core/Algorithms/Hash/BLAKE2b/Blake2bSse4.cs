@@ -6,7 +6,7 @@
 // Copyright (c) 2018 Clinton Ingram
 // The MIT License
 
-#if NETCOREAPP2_1
+#if NETCOREAPP3_0
 using System.Runtime.Intrinsics;
 using System.Runtime.Intrinsics.X86;
 using System.Runtime.CompilerServices;
@@ -20,29 +20,36 @@ namespace Spreads.Algorithms.Hash
 			3, 4, 5, 6, 7, 0, 1, 2, 11, 12, 13, 14, 15, 8, 9, 10  //r24
 		};
 
-		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		private static Vector128<ulong> ror64_32(ref Vector128<ulong> x) => Sse.StaticCast<uint, ulong>(Sse2.Shuffle(Sse.StaticCast<ulong, uint>(x), 0b_10_11_00_01));
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static Vector128<ulong> ror64_32(ref Vector128<ulong> x) => Sse2.Shuffle(x.As<uint>(), 0b_10_11_00_01).As<ulong>();
+
+	    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+		private static Vector256<ulong> ror64_32_avx(ref Vector256<ulong> x) => Avx2.Shuffle(x.As<uint>(), 0b_10_11_00_01).As<ulong>();
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		private static Vector128<ulong> ror64_63(ref Vector128<ulong> x) => Sse2.Xor(Sse2.ShiftRightLogical(x, 63), Sse2.Add(x, x));
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		private static Vector128<ulong> ror64_shuffle(ref Vector128<ulong> x, ref Vector128<sbyte> y) =>
-			Sse.StaticCast<sbyte, ulong>(Ssse3.Shuffle(Sse.StaticCast<ulong, sbyte>(x), y));
+			Ssse3.Shuffle(x.As<sbyte>(), y).As<ulong>();
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		private static Vector128<ulong> blend_ulong(ref Vector128<ulong> x, ref Vector128<ulong> y, byte m) =>
-			Sse.StaticCast<ushort, ulong>(Sse41.Blend(Sse.StaticCast<ulong, ushort>(x), Sse.StaticCast<ulong, ushort>(y), m));
+			Sse41.Blend(x.As<ushort>(), y.As<ushort>(), m).As<ulong>();
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		private static Vector128<ulong> alignr_ulong(ref Vector128<ulong> x, ref Vector128<ulong> y, byte m) =>
-			Sse.StaticCast<sbyte, ulong>(Ssse3.AlignRight(Sse.StaticCast<ulong, sbyte>(x), Sse.StaticCast<ulong, sbyte>(y), m));
+			Ssse3.AlignRight(x.As<sbyte>(), y.As<sbyte>(), m).As<ulong>();
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		private static Vector128<ulong> shuffle_ulong(ref Vector128<ulong> x, byte m) =>
-			Sse.StaticCast<uint, ulong>(Sse2.Shuffle(Sse.StaticCast<ulong, uint>(x), m));
+		private static Vector128<ulong> shuffle_ulong(ref Vector128<ulong> x, byte m)
+        {
+            var y = x.As<uint>();
+            var z = Sse2.Shuffle(y, m);
+            return z.As<ulong>();
+        }
 
-		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
 		private static void g1(ref Vector128<ulong> row1l, ref Vector128<ulong> row2l, ref Vector128<ulong> row3l, ref Vector128<ulong> row4l,
 			ref Vector128<ulong> row1h, ref Vector128<ulong> row2h, ref Vector128<ulong> row3h, ref Vector128<ulong> row4h, ref Vector128<ulong> b0, ref Vector128<ulong> b1, ref Vector128<sbyte> r24)
 		{
@@ -88,38 +95,38 @@ namespace Spreads.Algorithms.Hash
 		private static void diagonalize(ref Vector128<ulong> row1l, ref Vector128<ulong> row2l, ref Vector128<ulong> row3l, ref Vector128<ulong> row4l,
 			ref Vector128<ulong> row1h, ref Vector128<ulong> row2h, ref Vector128<ulong> row3h, ref Vector128<ulong> row4h, ref Vector128<ulong> b0)
 		{
-			var t0 = Ssse3.AlignRight(Sse.StaticCast<ulong, sbyte>(row2h), Sse.StaticCast<ulong, sbyte>(row2l), 8);
-			var t1 = Ssse3.AlignRight(Sse.StaticCast<ulong, sbyte>(row2l), Sse.StaticCast<ulong, sbyte>(row2h), 8);
-			row2l = Sse.StaticCast<sbyte, ulong>(t0);
-			row2h = Sse.StaticCast<sbyte, ulong>(t1);
+			var t0 = Ssse3.AlignRight(row2h.As<sbyte>(), row2l.As<sbyte>(), 8);
+			var t1 = Ssse3.AlignRight(row2l.As<sbyte>(), row2h.As<sbyte>(), 8);
+			row2l = t0.As<ulong>();
+			row2h = t1.As<ulong>();
 
 			b0 = row3l;
 			row3l = row3h;
 			row3h = b0;
 
-			t0 = Ssse3.AlignRight(Sse.StaticCast<ulong, sbyte>(row4h), Sse.StaticCast<ulong, sbyte>(row4l), 8);
-			t1 = Ssse3.AlignRight(Sse.StaticCast<ulong, sbyte>(row4l), Sse.StaticCast<ulong, sbyte>(row4h), 8);
-			row4l = Sse.StaticCast<sbyte, ulong>(t1);
-			row4h = Sse.StaticCast<sbyte, ulong>(t0);
+			t0 = Ssse3.AlignRight(row4h.As<sbyte>(), row4l.As<sbyte>(), 8);
+			t1 = Ssse3.AlignRight(row4l.As<sbyte>(), row4h.As<sbyte>(), 8);
+			row4l = t1.As<ulong>();
+			row4h = t0.As<ulong>();
 		}
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		private static void undiagonalize(ref Vector128<ulong> row1l, ref Vector128<ulong> row2l, ref Vector128<ulong> row3l, ref Vector128<ulong> row4l,
 			ref Vector128<ulong> row1h, ref Vector128<ulong> row2h, ref Vector128<ulong> row3h, ref Vector128<ulong> row4h, ref Vector128<ulong> b0)
 		{
-			var t0 = Ssse3.AlignRight(Sse.StaticCast<ulong, sbyte>(row2l), Sse.StaticCast<ulong, sbyte>(row2h), 8);
-			var t1 = Ssse3.AlignRight(Sse.StaticCast<ulong, sbyte>(row2h), Sse.StaticCast<ulong, sbyte>(row2l), 8);
-			row2l = Sse.StaticCast<sbyte, ulong>(t0);
-			row2h = Sse.StaticCast<sbyte, ulong>(t1);
+			var t0 = Ssse3.AlignRight(row2l.As<sbyte>(), row2h.As<sbyte>(), 8);
+			var t1 = Ssse3.AlignRight(row2h.As<sbyte>(), row2l.As<sbyte>(), 8);
+			row2l = t0.As<ulong>();
+			row2h = t1.As<ulong>();
 
 			b0 = row3l;
 			row3l = row3h;
 			row3h = b0;
 
-			t0 = Ssse3.AlignRight(Sse.StaticCast<ulong, sbyte>(row4l), Sse.StaticCast<ulong, sbyte>(row4h), 8);
-			t1 = Ssse3.AlignRight(Sse.StaticCast<ulong, sbyte>(row4h), Sse.StaticCast<ulong, sbyte>(row4l), 8);
-			row4l = Sse.StaticCast<sbyte, ulong>(t1);
-			row4h = Sse.StaticCast<sbyte, ulong>(t0);
+			t0 = Ssse3.AlignRight(row4l.As<sbyte>(), row4h.As<sbyte>(), 8);
+			t1 = Ssse3.AlignRight(row4h.As<sbyte>(), row4l.As<sbyte>(), 8);
+			row4l = t1.As<ulong>();
+			row4h = t0.As<ulong>();
 		}
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -131,11 +138,10 @@ namespace Spreads.Algorithms.Hash
 			var row2l = Unsafe.As<ulong, Vector128<ulong>>(ref hptr[4]);
 			var row2h = Unsafe.As<ulong, Vector128<ulong>>(ref hptr[6]);
 
-            var vivptr = s->viv;
-            var row3l = Unsafe.As<ulong, Vector128<ulong>>(ref vivptr[0]);
-			var row3h = Unsafe.As<ulong, Vector128<ulong>>(ref vivptr[2]);
-			var row4l = Unsafe.As<ulong, Vector128<ulong>>(ref vivptr[4]);
-			var row4h = Unsafe.As<ulong, Vector128<ulong>>(ref vivptr[6]);
+            var row3l = Unsafe.As<ulong, Vector128<ulong>>(ref V.iv[0]);
+			var row3h = Unsafe.As<ulong, Vector128<ulong>>(ref V.iv[2]);
+			var row4l = Unsafe.As<ulong, Vector128<ulong>>(ref V.iv[4]);
+			var row4h = Unsafe.As<ulong, Vector128<ulong>>(ref V.iv[6]);
 
 			row4l = Sse2.Xor(row4l, Sse2.LoadVector128(s->htf.t));
 			row4h = Sse2.Xor(row4h, Sse2.LoadVector128(s->htf.f));
@@ -149,8 +155,8 @@ namespace Spreads.Algorithms.Hash
 			var b0 = Sse2.UnpackLow(m0, m1);
 			var b1 = Sse2.UnpackLow(m2, m3);
 
-			var r16 = Sse2.LoadVector128((sbyte*)s->vrm);
-			var r24 = Sse2.LoadVector128((sbyte*)s->vrm + 16);
+			var r16 = Sse2.LoadVector128((sbyte*)V.rm);
+			var r24 = Sse2.LoadVector128((sbyte*)V.rm + 16);
 
 			g1(ref row1l, ref row2l, ref row3l, ref row4l, ref row1h, ref row2h, ref row3h, ref row4h, ref b0, ref b1, ref r24);
 

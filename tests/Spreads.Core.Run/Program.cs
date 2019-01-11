@@ -1,10 +1,10 @@
-﻿using Spreads.Core.Tests.Buffers;
-using Spreads.Core.Tests.Serialization;
-using System;
-using System.Diagnostics;
-using Spreads.Core.Tests;
+﻿using Spreads.Collections;
 using Spreads.Core.Tests.Algorithms;
 using Spreads.Core.Tests.Collections.Concurrent;
+using Spreads.Core.Tests.Serialization;
+using Spreads.Utils;
+using System;
+using System.Diagnostics;
 
 namespace Spreads.Core.Run
 {
@@ -29,8 +29,10 @@ namespace Spreads.Core.Run
 
             Settings.DoAdditionalCorrectnessChecks = false;
 
-            var test = new Blake2Tests();
-            test.CouldHashIncrementalBench();
+            // EquiJoinBench();
+
+            var test = new CRC32Tests();
+            test.CRCBenchmark();
 
             Console.WriteLine("Finished, press enter to exit...");
             Console.ReadLine();
@@ -65,7 +67,7 @@ namespace Spreads.Core.Run
             test.ZstdBenchmark();
             Console.WriteLine("----------- GZip -----------");
             test.GZipBenchmark();
-#if NETCOREAPP2_1
+#if NETCOREAPP3_0xx
             Console.WriteLine("----------- Brotli -----------");
             test.BrotliBenchmark();
 #endif
@@ -75,6 +77,48 @@ namespace Spreads.Core.Run
             //test.DeflateBenchmark();
             Console.WriteLine("Finished, press enter to exit...");
             Console.ReadLine();
+        }
+
+        public static void EquiJoinBench()
+        {
+            var sml = new SortedMap<long, long>(); // alternative: SortedChunkedMap
+            var smr = new SortedMap<long, long>(); // alternative: SortedChunkedMap
+
+            var countl = 1_000_000;
+            var step = 10;
+            var countr = countl * step;
+
+            for (int i = 0; i < countl; i++)
+            {
+                sml.Add(i * step, i * step);
+            }
+
+            for (int i = 0; i < countr; i++)
+            {
+                smr.Add(i, i);
+            }
+
+            var rounds = 10;
+
+            for (int r = 0; r < rounds; r++)
+            {
+                var count = 0L;
+                var sum = 0L;
+                using (Benchmark.Run("EquiJoin", countr))
+                {
+                    var result = sml.Repeat().Zip(smr, (lv, rv) => lv);
+
+                    foreach (var keyValuePair in result)
+                    {
+                        sum += keyValuePair.Value;
+                        count++;
+                    }
+
+                    Console.WriteLine("COUNT: " + count);
+                }
+            }
+
+            Benchmark.Dump();
         }
     }
 }
