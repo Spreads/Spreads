@@ -28,6 +28,16 @@ using System.Threading.Tasks;
 
 namespace Spreads.Threading
 {
+#if !NETCOREAPP3_0
+
+    /// <summary>Represents a work item that can be executed by the ThreadPool.</summary>
+    public interface IThreadPoolWorkItem
+    {
+        void Execute();
+    }
+
+#endif
+
     [StructLayout(LayoutKind.Sequential)] // enforce layout so that padding reduces false sharing
     internal sealed class ThreadPoolWorkQueue
     {
@@ -145,7 +155,7 @@ namespace Spreads.Threading
         {
             private const int INITIAL_SIZE = 32;
 
-            internal volatile Action<object>[] m_array = new Action<object>[INITIAL_SIZE];
+            internal volatile IThreadPoolWorkItem[] m_array = new IThreadPoolWorkItem[INITIAL_SIZE];
             private volatile int m_mask = INITIAL_SIZE - 1;
 
 #if DEBUG
@@ -163,7 +173,7 @@ namespace Spreads.Threading
             private SpinLock m_foreignLock = new SpinLock(enableThreadOwnerTracking: false);
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public void LocalPush(Action<object> obj)
+            public void LocalPush(IThreadPoolWorkItem obj)
             {
                 int tail = m_tailIndex;
 
@@ -220,7 +230,7 @@ namespace Spreads.Threading
                         if (count >= m_mask)
                         {
                             // We're full; expand the queue by doubling its size.
-                            var newArray = new Action<object>[m_array.Length << 1];
+                            var newArray = new IThreadPoolWorkItem[m_array.Length << 1];
                             for (int i = 0; i < m_array.Length; i++)
                                 newArray[i] = m_array[(i + head) & m_mask];
 
@@ -243,12 +253,12 @@ namespace Spreads.Threading
             }
 
             [SuppressMessage("Microsoft.Concurrency", "CA8001", Justification = "Reviewed for thread safety")]
-            public bool LocalFindAndPop(Action<object> obj)
+            public bool LocalFindAndPop(IThreadPoolWorkItem obj)
             {
                 // Fast path: check the tail. If equal, we can skip the lock.
                 if (m_array[(m_tailIndex - 1) & m_mask] == obj)
                 {
-                    Action<object> unused = LocalPop();
+                    IThreadPoolWorkItem unused = LocalPop();
                     Debug.Assert(unused == null || unused == obj);
                     return unused != null;
                 }
@@ -300,11 +310,11 @@ namespace Spreads.Threading
             }
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public Action<object> LocalPop() => m_headIndex < m_tailIndex ? LocalPopCore() : null;
+            public IThreadPoolWorkItem LocalPop() => m_headIndex < m_tailIndex ? LocalPopCore() : null;
 
             [SuppressMessage("Microsoft.Concurrency", "CA8001", Justification = "Reviewed for thread safety")]
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            private Action<object> LocalPopCore()
+            private IThreadPoolWorkItem LocalPopCore()
             {
                 while (true)
                 {
@@ -322,7 +332,7 @@ namespace Spreads.Threading
                     if (m_headIndex <= tail)
                     {
                         int idx = tail & m_mask;
-                        Action<object> obj = Volatile.Read(ref m_array[idx]);
+                        IThreadPoolWorkItem obj = Volatile.Read(ref m_array[idx]);
 
                         // Check for nulls in the array.
                         if (obj == null) continue;
@@ -342,7 +352,7 @@ namespace Spreads.Threading
                             {
                                 // Element still available. Take it.
                                 int idx = tail & m_mask;
-                                Action<object> obj = Volatile.Read(ref m_array[idx]);
+                                IThreadPoolWorkItem obj = Volatile.Read(ref m_array[idx]);
 
                                 // Check for nulls in the array.
                                 if (obj == null) continue;
@@ -373,7 +383,7 @@ namespace Spreads.Threading
             }
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public Action<object> TrySteal(ref bool missedSteal)
+            public IThreadPoolWorkItem TrySteal(ref bool missedSteal)
             {
                 while (true)
                 {
@@ -392,7 +402,7 @@ namespace Spreads.Threading
                                 if (head < m_tailIndex)
                                 {
                                     int idx = head & m_mask;
-                                    Action<object> obj = Volatile.Read(ref m_array[idx]);
+                                    IThreadPoolWorkItem obj = Volatile.Read(ref m_array[idx]);
 
                                     // Check for nulls in the array.
                                     if (obj == null) continue;
@@ -421,7 +431,7 @@ namespace Spreads.Threading
             }
         }
 
-        internal readonly ConcurrentQueue<(Action<object>, ExecutionContext, object)> workItems = new ConcurrentQueue<(Action<object>, ExecutionContext, object)>();
+        internal readonly ConcurrentQueue<IThreadPoolWorkItem> workItems = new ConcurrentQueue<IThreadPoolWorkItem>();
 
 #pragma warning disable 169
         private readonly PaddingFor32 pad1;
@@ -487,7 +497,7 @@ namespace Spreads.Threading
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Enqueue(Action<object> callback, ExecutionContext exCtx, object state, bool forceGlobal)
+        public void Enqueue(IThreadPoolWorkItem callback, bool forceGlobal)
         {
             ThreadPoolWorkQueueThreadLocals tl = null;
             if (!forceGlobal)
@@ -501,25 +511,25 @@ namespace Spreads.Threading
             }
             else
             {
-                workItems.Enqueue((callback, exCtx, state));
+                workItems.Enqueue(callback);
             }
             EnsureThreadRequested();
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal bool LocalFindAndPop(Action<object> callback)
+        internal bool LocalFindAndPop(IThreadPoolWorkItem callback)
         {
             ThreadPoolWorkQueueThreadLocals tl = ThreadPoolWorkQueueThreadLocals.threadLocals;
             return tl != null && tl.workStealingQueue.LocalFindAndPop(callback);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public (Action<object>, ExecutionContext, object) Dequeue(ThreadPoolWorkQueueThreadLocals tl, ref bool missedSteal)
+        public IThreadPoolWorkItem Dequeue(ThreadPoolWorkQueueThreadLocals tl, ref bool missedSteal)
         {
             WorkStealingQueue localWsq = tl.workStealingQueue;
-            (Action<object>, ExecutionContext, object) callback;
+            IThreadPoolWorkItem callback;
 
-            if ((callback = (localWsq.LocalPop(), null, null)).Item1 == null && // first try the local queue
+            if ((callback = localWsq.LocalPop()) == null && // first try the local queue
                 !workItems.TryDequeue(out callback)) // then try the global queue
             {
                 // finally try to steal from another thread's local queue
@@ -534,8 +544,8 @@ namespace Spreads.Threading
                     WorkStealingQueue otherQueue = queues[i];
                     if (otherQueue != localWsq && otherQueue.CanSteal)
                     {
-                        callback = (otherQueue.TrySteal(ref missedSteal), null, null);
-                        if (callback.Item1 != null)
+                        callback = otherQueue.TrySteal(ref missedSteal);
+                        if (callback != null)
                         {
                             break;
                         }
@@ -557,7 +567,7 @@ namespace Spreads.Threading
                 bool missedSteal = false;
                 var completableCtx = Dequeue(tl, ref missedSteal);
 
-                if (completableCtx.Item1 == null)
+                if (completableCtx == null)
                 {
                     if (IsAddingCompleted)
                     {
@@ -578,15 +588,7 @@ namespace Spreads.Threading
 
                 try
                 {
-                    if (completableCtx.Item2 == null)
-                    {
-                        completableCtx.Item1.Invoke(completableCtx.Item3);
-                    }
-                    else
-                    {
-                        ExecutionContext.Run(completableCtx.Item2, s => ((Action)s).Invoke(),
-                            completableCtx.Item1);
-                    }
+                    completableCtx.Execute();
                 }
                 catch (Exception ex)
                 {
@@ -645,11 +647,11 @@ namespace Spreads.Threading
                 {
                     if (null != workQueue)
                     {
-                        Action<object> cb;
+                        IThreadPoolWorkItem cb;
                         while ((cb = workStealingQueue.LocalPop()) != null)
                         {
                             Debug.Assert(null != cb);
-                            workQueue.Enqueue(cb, null, null, forceGlobal: true);
+                            workQueue.Enqueue(cb, forceGlobal: true);
                         }
                     }
 
@@ -833,43 +835,35 @@ namespace Spreads.Threading
             }
         }
 
+        [Obsolete("SpreadsThreadPool does not support working with ExecutionContext, use UnsafeQueueCompletableItem method.")]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void QueueCompletableItem(Action<object> completable, object state, bool preferLocal)
+        public void QueueCompletableItem(IThreadPoolWorkItem workItem, bool preferLocal)
         {
-            if (completable == null)
+            if (workItem == null)
             {
-                ThrowHelper.ThrowArgumentNullException(nameof(completable));
+                ThrowWorkItemIsNull();
             }
-
-            ExecutionContext context = null;
-
-            if (!preferLocal)
-            {
-                context = ExecutionContext.Capture();
-            }
-
-            // after ctx logic
-            if (state != null)
-            {
-                preferLocal = false;
-            }
-
-            workQueue.Enqueue(completable, context, state, forceGlobal: !preferLocal);
+            workQueue.Enqueue(workItem, forceGlobal: !preferLocal);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void UnsafeQueueCompletableItem(Action<object> completable, object state, bool preferLocal)
+        public void UnsafeQueueCompletableItem(IThreadPoolWorkItem workItem, bool preferLocal)
         {
-            Debug.Assert(null != completable);
-            if (state != null)
+            if (workItem == null)
             {
-                preferLocal = false;
+                ThrowHelper.ThrowArgumentNullException(nameof(workItem));
             }
-            workQueue.Enqueue(completable, null, state, forceGlobal: !preferLocal);
+            workQueue.Enqueue(workItem, forceGlobal: !preferLocal);
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static void ThrowWorkItemIsNull()
+        {
+            ThrowHelper.ThrowArgumentNullException("workItem");
         }
 
         // Get all workitems.  Called by TaskScheduler in its debugger hooks.
-        internal IEnumerable<(Action<object>, ExecutionContext, object)> GetQueuedWorkItems()
+        internal IEnumerable<IThreadPoolWorkItem> GetQueuedWorkItems()
         {
             // Enumerate global queue
             foreach (var workItem in workQueue.workItems)
@@ -882,47 +876,49 @@ namespace Spreads.Threading
             {
                 if (wsq != null && wsq.m_array != null)
                 {
-                    Action<object>[] items = wsq.m_array;
+                    IThreadPoolWorkItem[] items = wsq.m_array;
                     for (int i = 0; i < items.Length; i++)
                     {
-                        Action<object> item = items[i];
+                        IThreadPoolWorkItem item = items[i];
                         if (item != null)
                         {
-                            yield return (item, null, null);
+                            yield return item;
                         }
                     }
                 }
             }
         }
 
-        internal IEnumerable<(Action<object>, ExecutionContext, object)> GetLocallyQueuedWorkItems()
+        internal IEnumerable<IThreadPoolWorkItem> GetLocallyQueuedWorkItems()
         {
             ThreadPoolWorkQueue.WorkStealingQueue wsq = ThreadPoolWorkQueue.ThreadPoolWorkQueueThreadLocals.threadLocals.workStealingQueue;
             if (wsq != null && wsq.m_array != null)
             {
-                Action<object>[] items = wsq.m_array;
+                IThreadPoolWorkItem[] items = wsq.m_array;
                 for (int i = 0; i < items.Length; i++)
                 {
-                    Action<object> item = items[i];
+                    IThreadPoolWorkItem item = items[i];
                     if (item != null)
-                        yield return (item, null, null);
+                        yield return item;
                 }
             }
         }
 
-        internal IEnumerable<(Action<object>, ExecutionContext, object)> GetGloballyQueuedWorkItems() => workQueue.workItems;
+        internal IEnumerable<IThreadPoolWorkItem> GetGloballyQueuedWorkItems() => workQueue.workItems;
 
-        private object[] ToObjectArray(IEnumerable<(Action<object>, ExecutionContext, object)> workitems)
+        private object[] ToObjectArray(IEnumerable<IThreadPoolWorkItem> workitems)
         {
             int i = 0;
-            foreach ((Action<object>, ExecutionContext, object) item in workitems)
+            // ReSharper disable once PossibleMultipleEnumeration
+            foreach (var _ in workitems)    
             {
                 i++;
             }
 
             object[] result = new object[i];
             i = 0;
-            foreach ((Action<object>, ExecutionContext, object) item in workitems)
+            // ReSharper disable once PossibleMultipleEnumeration
+            foreach (var item in workitems)
             {
                 if (i < result.Length) //just in case someone calls us while the queues are in motion
                     result[i] = item;
@@ -1010,7 +1006,7 @@ namespace Spreads.Threading
     /// <summary>
     /// TaskScheduler for working with a <see cref="SpreadsThreadPool"/> instance
     /// </summary>
-    internal class SpreadsThreadPoolTaskScheduler : TaskScheduler
+    internal class SpreadsThreadPoolTaskScheduler : TaskScheduler, IThreadPoolWorkItem
     {
         // Indicates whether the current thread is processing work items.
         [ThreadStatic]
@@ -1019,7 +1015,7 @@ namespace Spreads.Threading
         /// <summary>
         /// Number of tasks currently running
         /// </summary>
-        private volatile int _parallelWorkers = 0;
+        private volatile int _parallelWorkers;
 
         private readonly LinkedList<Task> _tasks = new LinkedList<Task>();
 
@@ -1113,37 +1109,39 @@ namespace Spreads.Threading
 
         private void RequestWorker()
         {
-            _pool.UnsafeQueueCompletableItem((o) =>
-            {
-                // this thread is now available for inlining
-                _currentThreadIsRunningTasks = true;
-                try
-                {
-                    // Process all available items in the queue.
-                    while (true)
-                    {
-                        Task item;
-                        lock (_tasks)
-                        {
-                            // done processing
-                            if (_tasks.Count == 0)
-                            {
-                                ReleaseWorker();
-                                break;
-                            }
+            _pool.UnsafeQueueCompletableItem(this, true);
+        }
 
-                            // Get the next item from the queue
-                            item = _tasks.First.Value;
-                            _tasks.RemoveFirst();
+        public void Execute()
+        {
+            // this thread is now available for inlining
+            _currentThreadIsRunningTasks = true;
+            try
+            {
+                // Process all available items in the queue.
+                while (true)
+                {
+                    Task item;
+                    lock (_tasks)
+                    {
+                        // done processing
+                        if (_tasks.Count == 0)
+                        {
+                            ReleaseWorker();
+                            break;
                         }
 
-                        // Execute the task we pulled out of the queue
-                        TryExecuteTask(item);
+                        // Get the next item from the queue
+                        item = _tasks.First.Value;
+                        _tasks.RemoveFirst();
                     }
+
+                    // Execute the task we pulled out of the queue
+                    TryExecuteTask(item);
                 }
-                // We're done processing items on the current thread
-                finally { _currentThreadIsRunningTasks = false; }
-            }, null, true);
+            }
+            // We're done processing items on the current thread
+            finally { _currentThreadIsRunningTasks = false; }
         }
     }
 

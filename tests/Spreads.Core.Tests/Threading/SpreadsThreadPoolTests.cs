@@ -14,7 +14,7 @@ namespace Spreads.Core.Tests.Threading
     [TestFixture]
     public class SpinningThreadpoolTests
     {
-        public class Completable
+        public class Completable : IThreadPoolWorkItem
         {
             private readonly SpreadsThreadPool _tp;
             public static long TotalCount;
@@ -25,7 +25,7 @@ namespace Spreads.Core.Tests.Threading
                 _tp = tp;
             }
 
-            public void ExecuteCompletion(object val)
+            public void Execute()
             {
                 // for (int i = 0; i < 10; i++)
                 {
@@ -37,17 +37,17 @@ namespace Spreads.Core.Tests.Threading
         [Test, Explicit("Benchmark")]
         public void ThreadPoolPerformanceBenchmark()
         {
-            var count = 50_000_000;
+            var count = 100_000_000;
 
-            var items = Enumerable.Range(1, 100).Select(x => (Action<object>)(new Completable(SpreadsThreadPool.Default)).ExecuteCompletion).ToArray();
+            var items = Enumerable.Range(1, 100).Select(x => new Completable(SpreadsThreadPool.Default)).ToArray();
             var tp = SpreadsThreadPool.Default;
             var th = new Thread(() =>
             {
                 using (Benchmark.Run("SpinningThreadPool", count))
                 {
-                    for (int i = 0; i < count; i++)
+                    for (var i = 0L; i < count; i++)
                     {
-                        tp.UnsafeQueueCompletableItem(items[i % 100], null, true);
+                        tp.UnsafeQueueCompletableItem(items[i % 100], true);
                         //Thread.SpinWait(1);
                     }
 
@@ -62,9 +62,16 @@ namespace Spreads.Core.Tests.Threading
             th.Join();
 
             Console.WriteLine($"Total: {Completable.TotalCount}");
+            var c = 0;
             foreach (var item in items)
             {
+                if (item != null)
+                {
+                    c++;
+                }
             }
+
+            Console.WriteLine(c);
             Benchmark.Dump();
         }
     }
