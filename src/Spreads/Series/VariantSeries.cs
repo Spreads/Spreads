@@ -106,15 +106,15 @@ namespace Spreads
 
         protected sealed override IAsyncEnumerator<KeyValuePair<Variant, Variant>> GetAsyncEnumeratorImpl()
         {
-            return GetCursor();
+            return GetCursorImpl();
         }
 
         protected sealed override IEnumerator<KeyValuePair<Variant, Variant>> GetEnumeratorImpl()
         {
-            return GetCursor();
+            return GetCursorImpl();
         }
 
-        public sealed override ICursor<Variant, Variant> GetCursor()
+        protected sealed override ICursor<Variant, Variant> GetCursorImpl()
         {
             return new VariantCursor(Inner.GetCursor(), this);
         }

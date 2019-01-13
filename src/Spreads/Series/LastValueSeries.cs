@@ -75,13 +75,13 @@ namespace Spreads
 
         internal override Cursor<TKey, TValue> GetContainerCursor()
         {
-            return GetWrapper();
+            return GetCursor();
         }
 
         public override KeyComparer<TKey> Comparer { get; } = KeyComparer<TKey>.Default;
         public override bool IsIndexed => false;
 
-        public override ICursor<TKey, TValue> GetCursor()
+        protected override ICursor<TKey, TValue> GetCursorImpl()
         {
             throw new NotImplementedException();
         }

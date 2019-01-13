@@ -63,7 +63,7 @@ for(var i = 0; i < ops.Length; i++)
         public static Series<TKey, TValue, ZipOp<TKey, TValue, <#= opNames[i] #><TValue>, Cursor<TKey, TValue>, TCursor>> operator
             <#= ops[i] #>(Series<TKey, TValue> series, Series<TKey, TValue, TCursor> other)
         {
-            var c1 = series.GetWrapper();
+            var c1 = series.GetCursor();
             var c2 = other.GetEnumerator();
 
             var zipCursor = new Zip<TKey, TValue, TValue, Cursor<TKey, TValue>, TCursor>(c1, c2);
@@ -75,7 +75,7 @@ for(var i = 0; i < ops.Length; i++)
             <#= ops[i] #>(Series<TKey, TValue, TCursor> series, Series<TKey, TValue> other)
         {
             var c1 = series.GetEnumerator();
-            var c2 = other.GetWrapper();
+            var c2 = other.GetCursor();
 
             var zipCursor = new Zip<TKey, TValue, TValue, TCursor, Cursor<TKey, TValue>>(c1, c2);
             return ZipOp(zipCursor, default(<#= opNames[i] #><TValue>)).Source;

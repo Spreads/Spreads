@@ -501,7 +501,7 @@ namespace Spreads.Core.Tests.Blosc
             Benchmark.Dump();
         }
 
-#if NETCOREAPP2_1
+#if NETCOREAPP3_0xx
 
         [Test]
         public void BrotliBenchmark()

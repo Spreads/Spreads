@@ -582,7 +582,7 @@ namespace Spreads
         {
             if (ReferenceEquals(other, null)) throw new ArgumentNullException(nameof(other));
             var c1 = series.GetEnumerator();
-            var c2 = other.GetWrapper();
+            var c2 = other.GetCursor();
 
             var zipCursor = new Zip<TKey, TValue, TValue, TCursor, Cursor<TKey, TValue>>(c1, c2);
             return zipCursor.Map(EQOp<TValue>.ZipSelector).Source;
@@ -595,7 +595,7 @@ namespace Spreads
             ==(Series<TKey, TValue> series, Series<TKey, TValue, TCursor> other)
         {
             if (ReferenceEquals(series, null)) throw new ArgumentNullException(nameof(series));
-            var c1 = series.GetWrapper();
+            var c1 = series.GetCursor();
             var c2 = other.GetEnumerator();
 
             var zipCursor = new Zip<TKey, TValue, TValue, Cursor<TKey, TValue>, TCursor>(c1, c2);
@@ -636,7 +636,7 @@ namespace Spreads
         {
             if (ReferenceEquals(other, null)) throw new ArgumentNullException(nameof(other));
             var c1 = series.GetEnumerator();
-            var c2 = other.GetWrapper();
+            var c2 = other.GetCursor();
 
             var zipCursor = new Zip<TKey, TValue, TValue, TCursor, Cursor<TKey, TValue>>(c1, c2);
             return zipCursor.Map(NEQOp<TValue>.ZipSelector).Source;
@@ -649,7 +649,7 @@ namespace Spreads
             !=(Series<TKey, TValue> series, Series<TKey, TValue, TCursor> other)
         {
             if (ReferenceEquals(series, null)) throw new ArgumentNullException(nameof(series));
-            var c1 = series.GetWrapper();
+            var c1 = series.GetCursor();
             var c2 = other.GetEnumerator();
 
             var zipCursor = new Zip<TKey, TValue, TValue, Cursor<TKey, TValue>, TCursor>(c1, c2);
@@ -690,7 +690,7 @@ namespace Spreads
         {
             if (ReferenceEquals(other, null)) throw new ArgumentNullException(nameof(other));
             var c1 = series.GetEnumerator();
-            var c2 = other.GetWrapper();
+            var c2 = other.GetCursor();
 
             var zipCursor = new Zip<TKey, TValue, TValue, TCursor, Cursor<TKey, TValue>>(c1, c2);
             return zipCursor.Map(LEOp<TValue>.ZipSelector).Source;
@@ -703,7 +703,7 @@ namespace Spreads
             <=(Series<TKey, TValue> series, Series<TKey, TValue, TCursor> other)
         {
             if (ReferenceEquals(series, null)) throw new ArgumentNullException(nameof(series));
-            var c1 = series.GetWrapper();
+            var c1 = series.GetCursor();
             var c2 = other.GetEnumerator();
 
             var zipCursor = new Zip<TKey, TValue, TValue, Cursor<TKey, TValue>, TCursor>(c1, c2);
@@ -744,7 +744,7 @@ namespace Spreads
         {
             if (ReferenceEquals(other, null)) throw new ArgumentNullException(nameof(other));
             var c1 = series.GetEnumerator();
-            var c2 = other.GetWrapper();
+            var c2 = other.GetCursor();
 
             var zipCursor = new Zip<TKey, TValue, TValue, TCursor, Cursor<TKey, TValue>>(c1, c2);
             return zipCursor.Map(GEOp<TValue>.ZipSelector).Source;
@@ -757,7 +757,7 @@ namespace Spreads
             >=(Series<TKey, TValue> series, Series<TKey, TValue, TCursor> other)
         {
             if (ReferenceEquals(series, null)) throw new ArgumentNullException(nameof(series));
-            var c1 = series.GetWrapper();
+            var c1 = series.GetCursor();
             var c2 = other.GetEnumerator();
 
             var zipCursor = new Zip<TKey, TValue, TValue, Cursor<TKey, TValue>, TCursor>(c1, c2);
@@ -798,7 +798,7 @@ namespace Spreads
         {
             if (ReferenceEquals(other, null)) throw new ArgumentNullException(nameof(other));
             var c1 = series.GetEnumerator();
-            var c2 = other.GetWrapper();
+            var c2 = other.GetCursor();
 
             var zipCursor = new Zip<TKey, TValue, TValue, TCursor, Cursor<TKey, TValue>>(c1, c2);
             return zipCursor.Map(LTOp<TValue>.ZipSelector).Source;
@@ -811,7 +811,7 @@ namespace Spreads
             <(Series<TKey, TValue> series, Series<TKey, TValue, TCursor> other)
         {
             if (ReferenceEquals(series, null)) throw new ArgumentNullException(nameof(series));
-            var c1 = series.GetWrapper();
+            var c1 = series.GetCursor();
             var c2 = other.GetEnumerator();
 
             var zipCursor = new Zip<TKey, TValue, TValue, Cursor<TKey, TValue>, TCursor>(c1, c2);
@@ -852,7 +852,7 @@ namespace Spreads
         {
             if (ReferenceEquals(other, null)) throw new ArgumentNullException(nameof(other));
             var c1 = series.GetEnumerator();
-            var c2 = other.GetWrapper();
+            var c2 = other.GetCursor();
 
             var zipCursor = new Zip<TKey, TValue, TValue, TCursor, Cursor<TKey, TValue>>(c1, c2);
             return zipCursor.Map(GTOp<TValue>.ZipSelector).Source;
@@ -865,7 +865,7 @@ namespace Spreads
             >(Series<TKey, TValue> series, Series<TKey, TValue, TCursor> other)
         {
             if (ReferenceEquals(series, null)) throw new ArgumentNullException(nameof(series));
-            var c1 = series.GetWrapper();
+            var c1 = series.GetCursor();
             var c2 = other.GetEnumerator();
 
             var zipCursor = new Zip<TKey, TValue, TValue, Cursor<TKey, TValue>, TCursor>(c1, c2);

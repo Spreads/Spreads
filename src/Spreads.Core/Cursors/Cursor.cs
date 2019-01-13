@@ -18,7 +18,7 @@ namespace Spreads
     internal static class SpecializedCursorExtensions
     {
         /// <summary>
-        /// Create SpecializedWrapper that wraps the result of ISeries.GetCursor() call.
+        /// Create SpecializedWrapper that wraps the result of ISeries.GetCursor() call as <see cref="Cursor{TKey,TValue}"/>.
         /// </summary>
         public static Cursor<TKey, TValue> GetSpecializedCursor<TKey, TValue>(this ISeries<TKey, TValue> series)
         {
@@ -57,7 +57,6 @@ namespace Spreads
             return new Cursor<TKey, TValue>(_cursor.Source.GetCursor());
         }
 
-        /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool MoveNext()
         {

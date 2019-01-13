@@ -36,7 +36,7 @@ namespace Spreads
             this ISpecializedSeries<TKey, TValue, TCursor> series, TValue value)
             where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
         {
-            var cursor = new Fill<TKey, TValue, TCursor>(series.GetSpecializedCursor(), value);
+            var cursor = new Fill<TKey, TValue, TCursor>(series.GetCursor(), value);
             return cursor.Source;
         }
 

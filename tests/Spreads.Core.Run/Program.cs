@@ -35,7 +35,7 @@ namespace Spreads.Core.Run
             // EquiJoinBench();
 
             var test = new Spreads.Core.Tests.Cursors.AsyncCursorTests();
-            for (int i = 0; i < 10; i++)
+            for (int i = 0; i < 100; i++)
             {
                 await test.CouldReadDataStreamWhileWritingFromManyThreads();
                 Console.WriteLine("TEST: " + i);

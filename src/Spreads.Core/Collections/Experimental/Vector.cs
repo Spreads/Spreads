@@ -6,6 +6,13 @@ using static System.Runtime.CompilerServices.Unsafe;
 
 namespace Spreads.Collections.Experimental
 {
+    // Follow Joe Duffy's Slices.net basic idea of accessing items efficiently. (TODO test)
+    // Ownership is out of scope, Vector is constructed either from a pointer+length or T[]+offset+length.
+    // Object stores an array T[].
+    // Offset in bytes. When Object is not null offset also includes array object header before the first element.
+    // Length in items.
+    // Capacity in items.
+
     // Theory:
     // Store non-pinnable types as T[]
     // Store pinnable types as pinned memory
@@ -13,12 +20,14 @@ namespace Spreads.Collections.Experimental
 
     public readonly unsafe struct Vector<T>
     {
+        private static readonly IntPtr ElementOffset = IntPtr.Zero; // TODO
+
         public static readonly bool IsPinnable = TypeHelper<T>.IsPinnable;
 
         private readonly T[] _array;
 
         private readonly DirectBuffer _buffer;
-        private readonly void* _pointer;
+        private readonly byte* _pointer;
 
         public Vector(T[] array)
         {

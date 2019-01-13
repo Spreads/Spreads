@@ -632,6 +632,7 @@ and
       member this.MoveAt(index:'K, lookup:Lookup) = this.MoveAt(index, lookup)
       member this.MoveFirst():bool = this.MoveFirst()
       member this.MoveLast():bool =  this.MoveLast()
+      member this.MoveNext():bool = this.MoveNext()
       member this.MovePrevious():bool = this.MovePrevious()
       member this.CurrentKey with get() = this.CurrentKey
       member this.CurrentValue with get() = this.CurrentValue

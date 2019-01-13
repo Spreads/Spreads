@@ -21,7 +21,7 @@ namespace Spreads.Core.Tests.Cursors
                 { 5, 5 }
             };
 
-            var c = new Fill<int, double, Cursor<int, double>>(sm.GetWrapper(), 42).Initialize();
+            var c = new Fill<int, double, Cursor<int, double>>(sm.GetSpecializedCursor(), 42).Initialize();
 
             Assert.True(c.MoveNext());
             Assert.AreEqual(1, c.CurrentValue);
@@ -68,7 +68,7 @@ namespace Spreads.Core.Tests.Cursors
                 { 5, 4 }
             };
 
-            var fc = new Fill<int, double, Cursor<int, double>>(sm.GetWrapper(), 41).Initialize();
+            var fc = new Fill<int, double, Cursor<int, double>>(sm.GetSpecializedCursor(), 41).Initialize();
             var c = new Map<int, double, double, Fill<int, double, Cursor<int, double>>>(fc, v => v + 1).Initialize();
 
             Assert.True(c.MoveNext());
@@ -123,7 +123,7 @@ namespace Spreads.Core.Tests.Cursors
             var filled2 = (src as ISpecializedSeries<int, double, SortedMapCursor<int, double>>).Fill(0);
             var filled3 = sm.Fill(0);
 
-            var fc = new Fill<int, double, Cursor<int, double>>(sm.GetWrapper(), 41).Initialize();
+            var fc = new Fill<int, double, Cursor<int, double>>(sm.GetSpecializedCursor(), 41).Initialize();
             var c = (fc.Source + 1).GetEnumerator();
 
             Assert.True(c.MoveNext());

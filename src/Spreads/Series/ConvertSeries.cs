@@ -100,15 +100,15 @@ namespace Spreads
 
         protected sealed override IAsyncEnumerator<KeyValuePair<TKey2, TValue2>> GetAsyncEnumeratorImpl()
         {
-            return GetCursor();
+            return GetCursorImpl();
         }
 
         protected sealed override IEnumerator<KeyValuePair<TKey2, TValue2>> GetEnumeratorImpl()
         {
-            return GetCursor();
+            return GetCursorImpl();
         }
 
-        public override ICursor<TKey2, TValue2> GetCursor()
+        protected override ICursor<TKey2, TValue2> GetCursorImpl()
         {
             return new ConvertCursor(Inner.GetCursor(), this as TImpl);
         }

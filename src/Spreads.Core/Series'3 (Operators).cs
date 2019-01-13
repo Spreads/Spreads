@@ -1,7 +1,4 @@
-﻿
-
-
-// This Source Code Form is subject to the terms of the Mozilla Public
+﻿// This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
@@ -16,7 +13,6 @@ namespace Spreads
     public readonly partial struct Series<TKey, TValue, TCursor>
     where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
     {
-
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Series<TKey, TValue, ZipOp<TKey, TValue, AddOp<TValue>, TCursor, TCursor>> operator
             +(Series<TKey, TValue, TCursor> series, Series<TKey, TValue, TCursor> other)
@@ -43,7 +39,7 @@ namespace Spreads
         public static Series<TKey, TValue, ZipOp<TKey, TValue, AddOp<TValue>, Cursor<TKey, TValue>, TCursor>> operator
             +(Series<TKey, TValue> series, Series<TKey, TValue, TCursor> other)
         {
-            var c1 = series.GetWrapper();
+            var c1 = series.GetCursor();
             var c2 = other.GetEnumerator();
 
             var zipCursor = new Zip<TKey, TValue, TValue, Cursor<TKey, TValue>, TCursor>(c1, c2);
@@ -55,12 +51,11 @@ namespace Spreads
             +(Series<TKey, TValue, TCursor> series, Series<TKey, TValue> other)
         {
             var c1 = series.GetEnumerator();
-            var c2 = other.GetWrapper();
+            var c2 = other.GetCursor();
 
             var zipCursor = new Zip<TKey, TValue, TValue, TCursor, Cursor<TKey, TValue>>(c1, c2);
             return ZipOp(zipCursor, default(AddOp<TValue>)).Source;
         }
-
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Series<TKey, TValue, ZipOp<TKey, TValue, SubtractOp<TValue>, TCursor, TCursor>> operator
@@ -88,7 +83,7 @@ namespace Spreads
         public static Series<TKey, TValue, ZipOp<TKey, TValue, SubtractOp<TValue>, Cursor<TKey, TValue>, TCursor>> operator
             -(Series<TKey, TValue> series, Series<TKey, TValue, TCursor> other)
         {
-            var c1 = series.GetWrapper();
+            var c1 = series.GetCursor();
             var c2 = other.GetEnumerator();
 
             var zipCursor = new Zip<TKey, TValue, TValue, Cursor<TKey, TValue>, TCursor>(c1, c2);
@@ -100,12 +95,11 @@ namespace Spreads
             -(Series<TKey, TValue, TCursor> series, Series<TKey, TValue> other)
         {
             var c1 = series.GetEnumerator();
-            var c2 = other.GetWrapper();
+            var c2 = other.GetCursor();
 
             var zipCursor = new Zip<TKey, TValue, TValue, TCursor, Cursor<TKey, TValue>>(c1, c2);
             return ZipOp(zipCursor, default(SubtractOp<TValue>)).Source;
         }
-
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Series<TKey, TValue, ZipOp<TKey, TValue, MultiplyOp<TValue>, TCursor, TCursor>> operator
@@ -133,7 +127,7 @@ namespace Spreads
         public static Series<TKey, TValue, ZipOp<TKey, TValue, MultiplyOp<TValue>, Cursor<TKey, TValue>, TCursor>> operator
             *(Series<TKey, TValue> series, Series<TKey, TValue, TCursor> other)
         {
-            var c1 = series.GetWrapper();
+            var c1 = series.GetCursor();
             var c2 = other.GetEnumerator();
 
             var zipCursor = new Zip<TKey, TValue, TValue, Cursor<TKey, TValue>, TCursor>(c1, c2);
@@ -145,12 +139,11 @@ namespace Spreads
             *(Series<TKey, TValue, TCursor> series, Series<TKey, TValue> other)
         {
             var c1 = series.GetEnumerator();
-            var c2 = other.GetWrapper();
+            var c2 = other.GetCursor();
 
             var zipCursor = new Zip<TKey, TValue, TValue, TCursor, Cursor<TKey, TValue>>(c1, c2);
             return ZipOp(zipCursor, default(MultiplyOp<TValue>)).Source;
         }
-
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Series<TKey, TValue, ZipOp<TKey, TValue, DivideOp<TValue>, TCursor, TCursor>> operator
@@ -178,7 +171,7 @@ namespace Spreads
         public static Series<TKey, TValue, ZipOp<TKey, TValue, DivideOp<TValue>, Cursor<TKey, TValue>, TCursor>> operator
             /(Series<TKey, TValue> series, Series<TKey, TValue, TCursor> other)
         {
-            var c1 = series.GetWrapper();
+            var c1 = series.GetCursor();
             var c2 = other.GetEnumerator();
 
             var zipCursor = new Zip<TKey, TValue, TValue, Cursor<TKey, TValue>, TCursor>(c1, c2);
@@ -190,12 +183,11 @@ namespace Spreads
             /(Series<TKey, TValue, TCursor> series, Series<TKey, TValue> other)
         {
             var c1 = series.GetEnumerator();
-            var c2 = other.GetWrapper();
+            var c2 = other.GetCursor();
 
             var zipCursor = new Zip<TKey, TValue, TValue, TCursor, Cursor<TKey, TValue>>(c1, c2);
             return ZipOp(zipCursor, default(DivideOp<TValue>)).Source;
         }
-
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Series<TKey, TValue, ZipOp<TKey, TValue, ModuloOp<TValue>, TCursor, TCursor>> operator
@@ -223,7 +215,7 @@ namespace Spreads
         public static Series<TKey, TValue, ZipOp<TKey, TValue, ModuloOp<TValue>, Cursor<TKey, TValue>, TCursor>> operator
             %(Series<TKey, TValue> series, Series<TKey, TValue, TCursor> other)
         {
-            var c1 = series.GetWrapper();
+            var c1 = series.GetCursor();
             var c2 = other.GetEnumerator();
 
             var zipCursor = new Zip<TKey, TValue, TValue, Cursor<TKey, TValue>, TCursor>(c1, c2);
@@ -235,7 +227,7 @@ namespace Spreads
             %(Series<TKey, TValue, TCursor> series, Series<TKey, TValue> other)
         {
             var c1 = series.GetEnumerator();
-            var c2 = other.GetWrapper();
+            var c2 = other.GetCursor();
 
             var zipCursor = new Zip<TKey, TValue, TValue, TCursor, Cursor<TKey, TValue>>(c1, c2);
             return ZipOp(zipCursor, default(ModuloOp<TValue>)).Source;

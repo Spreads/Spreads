@@ -95,7 +95,7 @@ namespace Spreads.Core.Tests
 
             public long Counter => _counter;
 
-            public override ICursor<int, int> GetCursor()
+            protected override ICursor<int, int> GetCursorImpl()
             {
                 throw new NotImplementedException();
             }
@@ -103,7 +103,7 @@ namespace Spreads.Core.Tests
 
             internal override Cursor<int, int> GetContainerCursor()
             {
-                return this.GetWrapper();
+                return this.GetCursor();
             }
         }
 

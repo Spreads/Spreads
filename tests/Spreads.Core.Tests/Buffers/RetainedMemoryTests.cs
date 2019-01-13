@@ -167,6 +167,15 @@ namespace Spreads.Core.Tests.Buffers
 
             rm.Dispose();
         }
+
+
+        [Test, Ignore("Doesn't work with non-blittables")]
+        public unsafe void WorksWithNonBlittables()
+        {
+            var rm = new Spreads.Buffers.RetainedMemory<string>((new string[] {"a"}).AsMemory());
+            Assert.AreEqual("a", rm.Span[0]);
+            rm.Dispose();
+        }
     }
 
     public class NonSeekableStream : Stream

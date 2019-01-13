@@ -59,8 +59,7 @@ namespace Spreads
         ISpecializedSeries<TKey, TValue, Cursor<TKey, TValue>>, IAsyncCompleter, IDisposable
 #pragma warning restore 660, 661
     {
-        /// <inheritdoc />
-        public abstract ICursor<TKey, TValue> GetCursor();
+        protected abstract ICursor<TKey, TValue> GetCursorImpl();
 
         /// <inheritdoc />
         public abstract KeyComparer<TKey> Comparer { get; }
@@ -99,9 +98,14 @@ namespace Spreads
 #pragma warning restore HAA0401 // Possible allocation of reference type enumerator
         }
 
-        Cursor<TKey, TValue> ISpecializedSeries<TKey, TValue, Cursor<TKey, TValue>>.GetSpecializedCursor()
+        Cursor<TKey, TValue> ISpecializedSeries<TKey, TValue, Cursor<TKey, TValue>>.GetCursor()
         {
-            return GetWrapper();
+            return GetCursor();
+        }
+
+        ICursor<TKey, TValue> ISeries<TKey, TValue>.GetCursor()
+        {
+            return GetCursorImpl();
         }
 
         /// <inheritdoc />
@@ -157,9 +161,9 @@ namespace Spreads
         /// <inheritdoc />
         public virtual IEnumerable<TValue> Values => this.Select(kvp => kvp.Value);
 
-        internal Cursor<TKey, TValue> GetWrapper()
+        public Cursor<TKey, TValue> GetCursor()
         {
-            return new Cursor<TKey, TValue>(GetCursor());
+            return new Cursor<TKey, TValue>(GetCursorImpl());
         }
 
         #region Implicit cast
@@ -170,7 +174,7 @@ namespace Spreads
         /// </summary>
         public static implicit operator Series<TKey, TValue, Cursor<TKey, TValue>>(Series<TKey, TValue> series)
         {
-            var c = series.GetWrapper();
+            var c = series.GetCursor();
             return new Series<TKey, TValue, Cursor<TKey, TValue>>(c);
         }
 
@@ -186,7 +190,7 @@ namespace Spreads
         public static Series<TKey, TValue, Op<TKey, TValue, AddOp<TValue>, Cursor<TKey, TValue>>> operator
             +(Series<TKey, TValue> series, TValue constant)
         {
-            var cursor = new Op<TKey, TValue, AddOp<TValue>, Cursor<TKey, TValue>>(series.GetWrapper(), constant);
+            var cursor = new Op<TKey, TValue, AddOp<TValue>, Cursor<TKey, TValue>>(series.GetCursor(), constant);
             return cursor.Source;
         }
 
@@ -197,7 +201,7 @@ namespace Spreads
             +(TValue constant, Series<TKey, TValue> series)
         {
             // Addition is commutative
-            var cursor = new Op<TKey, TValue, AddOp<TValue>, Cursor<TKey, TValue>>(series.GetWrapper(), constant);
+            var cursor = new Op<TKey, TValue, AddOp<TValue>, Cursor<TKey, TValue>>(series.GetCursor(), constant);
             return cursor.Source;
         }
 
@@ -208,7 +212,7 @@ namespace Spreads
             -(Series<TKey, TValue> series)
         {
             var cursor =
-                new Op<TKey, TValue, NegateOp<TValue>, Cursor<TKey, TValue>>(series.GetWrapper(), default);
+                new Op<TKey, TValue, NegateOp<TValue>, Cursor<TKey, TValue>>(series.GetCursor(), default);
             return cursor.Source;
         }
 
@@ -219,7 +223,7 @@ namespace Spreads
             +(Series<TKey, TValue> series)
         {
             var cursor =
-                new Op<TKey, TValue, PlusOp<TValue>, Cursor<TKey, TValue>>(series.GetWrapper(), default);
+                new Op<TKey, TValue, PlusOp<TValue>, Cursor<TKey, TValue>>(series.GetCursor(), default);
             return cursor.Source;
         }
 
@@ -229,7 +233,7 @@ namespace Spreads
         public static Series<TKey, TValue, Op<TKey, TValue, SubtractOp<TValue>, Cursor<TKey, TValue>>> operator
             -(Series<TKey, TValue> series, TValue constant)
         {
-            var cursor = new Op<TKey, TValue, SubtractOp<TValue>, Cursor<TKey, TValue>>(series.GetWrapper(), constant);
+            var cursor = new Op<TKey, TValue, SubtractOp<TValue>, Cursor<TKey, TValue>>(series.GetCursor(), constant);
             return cursor.Source;
         }
 
@@ -240,7 +244,7 @@ namespace Spreads
             -(TValue constant, Series<TKey, TValue> series)
         {
             var cursor =
-                new Op<TKey, TValue, SubtractReverseOp<TValue>, Cursor<TKey, TValue>>(series.GetWrapper(), constant);
+                new Op<TKey, TValue, SubtractReverseOp<TValue>, Cursor<TKey, TValue>>(series.GetCursor(), constant);
             return cursor.Source;
         }
 
@@ -250,7 +254,7 @@ namespace Spreads
         public static Series<TKey, TValue, Op<TKey, TValue, MultiplyOp<TValue>, Cursor<TKey, TValue>>> operator
             *(Series<TKey, TValue> series, TValue constant)
         {
-            var cursor = new Op<TKey, TValue, MultiplyOp<TValue>, Cursor<TKey, TValue>>(series.GetWrapper(), constant);
+            var cursor = new Op<TKey, TValue, MultiplyOp<TValue>, Cursor<TKey, TValue>>(series.GetCursor(), constant);
             return cursor.Source;
         }
 
@@ -261,7 +265,7 @@ namespace Spreads
             *(TValue constant, Series<TKey, TValue> series)
         {
             // Multiplication is commutative
-            var cursor = new Op<TKey, TValue, MultiplyOp<TValue>, Cursor<TKey, TValue>>(series.GetWrapper(), constant);
+            var cursor = new Op<TKey, TValue, MultiplyOp<TValue>, Cursor<TKey, TValue>>(series.GetCursor(), constant);
             return cursor.Source;
         }
 
@@ -271,7 +275,7 @@ namespace Spreads
         public static Series<TKey, TValue, Op<TKey, TValue, DivideOp<TValue>, Cursor<TKey, TValue>>> operator
             /(Series<TKey, TValue> series, TValue constant)
         {
-            var cursor = new Op<TKey, TValue, DivideOp<TValue>, Cursor<TKey, TValue>>(series.GetWrapper(), constant);
+            var cursor = new Op<TKey, TValue, DivideOp<TValue>, Cursor<TKey, TValue>>(series.GetCursor(), constant);
             return cursor.Source;
         }
 
@@ -282,7 +286,7 @@ namespace Spreads
             /(TValue constant, Series<TKey, TValue> series)
         {
             var cursor =
-                new Op<TKey, TValue, DivideReverseOp<TValue>, Cursor<TKey, TValue>>(series.GetWrapper(), constant);
+                new Op<TKey, TValue, DivideReverseOp<TValue>, Cursor<TKey, TValue>>(series.GetCursor(), constant);
             return cursor.Source;
         }
 
@@ -292,7 +296,7 @@ namespace Spreads
         public static Series<TKey, TValue, Op<TKey, TValue, ModuloOp<TValue>, Cursor<TKey, TValue>>> operator
             %(Series<TKey, TValue> series, TValue constant)
         {
-            var cursor = new Op<TKey, TValue, ModuloOp<TValue>, Cursor<TKey, TValue>>(series.GetWrapper(), constant);
+            var cursor = new Op<TKey, TValue, ModuloOp<TValue>, Cursor<TKey, TValue>>(series.GetCursor(), constant);
             return cursor.Source;
         }
 
@@ -303,7 +307,7 @@ namespace Spreads
             %(TValue constant, Series<TKey, TValue> series)
         {
             var cursor =
-                new Op<TKey, TValue, ModuloReverseOp<TValue>, Cursor<TKey, TValue>>(series.GetWrapper(), constant);
+                new Op<TKey, TValue, ModuloReverseOp<TValue>, Cursor<TKey, TValue>>(series.GetCursor(), constant);
             return cursor.Source;
         }
 
@@ -317,7 +321,7 @@ namespace Spreads
         {
             if (series is null) throw new ArgumentNullException(nameof(series));
             var cursor =
-                new Comparison<TKey, TValue, Cursor<TKey, TValue>>(series.GetWrapper(), comparand,
+                new Comparison<TKey, TValue, Cursor<TKey, TValue>>(series.GetCursor(), comparand,
                     EQOp<TValue>.Instance);
             return cursor.Source;
         }
@@ -330,7 +334,7 @@ namespace Spreads
         {
             if (series is null) throw new ArgumentNullException(nameof(series));
             var cursor =
-                new Comparison<TKey, TValue, Cursor<TKey, TValue>>(series.GetWrapper(), comparand,
+                new Comparison<TKey, TValue, Cursor<TKey, TValue>>(series.GetCursor(), comparand,
                     EQOp<TValue>.Instance);
             return cursor.Source;
         }
@@ -343,7 +347,7 @@ namespace Spreads
         {
             if (series is null) throw new ArgumentNullException(nameof(series));
             var cursor =
-                new Comparison<TKey, TValue, Cursor<TKey, TValue>>(series.GetWrapper(), comparand,
+                new Comparison<TKey, TValue, Cursor<TKey, TValue>>(series.GetCursor(), comparand,
                     NEQOp<TValue>.Instance);
             return cursor.Source;
         }
@@ -356,7 +360,7 @@ namespace Spreads
         {
             if (series is null) throw new ArgumentNullException(nameof(series));
             var cursor =
-                new Comparison<TKey, TValue, Cursor<TKey, TValue>>(series.GetWrapper(), comparand,
+                new Comparison<TKey, TValue, Cursor<TKey, TValue>>(series.GetCursor(), comparand,
                     NEQOp<TValue>.Instance);
             return cursor.Source;
         }
@@ -369,7 +373,7 @@ namespace Spreads
         {
             if (series is null) throw new ArgumentNullException(nameof(series));
             var cursor =
-                new Comparison<TKey, TValue, Cursor<TKey, TValue>>(series.GetWrapper(), comparand,
+                new Comparison<TKey, TValue, Cursor<TKey, TValue>>(series.GetCursor(), comparand,
                     LTOp<TValue>.Instance);
             return cursor.Source;
         }
@@ -382,7 +386,7 @@ namespace Spreads
         {
             if (series is null) throw new ArgumentNullException(nameof(series));
             var cursor =
-                new Comparison<TKey, TValue, Cursor<TKey, TValue>>(series.GetWrapper(), comparand,
+                new Comparison<TKey, TValue, Cursor<TKey, TValue>>(series.GetCursor(), comparand,
                     LTReverseOp<TValue>.Instance);
             return cursor.Source;
         }
@@ -395,7 +399,7 @@ namespace Spreads
         {
             if (series is null) throw new ArgumentNullException(nameof(series));
             var cursor =
-                new Comparison<TKey, TValue, Cursor<TKey, TValue>>(series.GetWrapper(), comparand,
+                new Comparison<TKey, TValue, Cursor<TKey, TValue>>(series.GetCursor(), comparand,
                     GTOp<TValue>.Instance);
             return cursor.Source;
         }
@@ -408,7 +412,7 @@ namespace Spreads
         {
             if (series is null) throw new ArgumentNullException(nameof(series));
             var cursor =
-                new Comparison<TKey, TValue, Cursor<TKey, TValue>>(series.GetWrapper(), comparand,
+                new Comparison<TKey, TValue, Cursor<TKey, TValue>>(series.GetCursor(), comparand,
                     GTReverseOp<TValue>.Instance);
             return cursor.Source;
         }
@@ -421,7 +425,7 @@ namespace Spreads
         {
             if (series is null) throw new ArgumentNullException(nameof(series));
             var cursor =
-                new Comparison<TKey, TValue, Cursor<TKey, TValue>>(series.GetWrapper(), comparand,
+                new Comparison<TKey, TValue, Cursor<TKey, TValue>>(series.GetCursor(), comparand,
                     LEOp<TValue>.Instance);
             return cursor.Source;
         }
@@ -434,7 +438,7 @@ namespace Spreads
         {
             if (series is null) throw new ArgumentNullException(nameof(series));
             var cursor =
-                new Comparison<TKey, TValue, Cursor<TKey, TValue>>(series.GetWrapper(), comparand,
+                new Comparison<TKey, TValue, Cursor<TKey, TValue>>(series.GetCursor(), comparand,
                     LEReverseOp<TValue>.Instance);
             return cursor.Source;
         }
@@ -447,7 +451,7 @@ namespace Spreads
         {
             if (series is null) throw new ArgumentNullException(nameof(series));
             var cursor =
-                new Comparison<TKey, TValue, Cursor<TKey, TValue>>(series.GetWrapper(), comparand,
+                new Comparison<TKey, TValue, Cursor<TKey, TValue>>(series.GetCursor(), comparand,
                     GEOp<TValue>.Instance);
             return cursor.Source;
         }
@@ -460,7 +464,7 @@ namespace Spreads
         {
             if (series is null) throw new ArgumentNullException(nameof(series));
             var cursor =
-                new Comparison<TKey, TValue, Cursor<TKey, TValue>>(series.GetWrapper(), comparand,
+                new Comparison<TKey, TValue, Cursor<TKey, TValue>>(series.GetCursor(), comparand,
                     GEReverseOp<TValue>.Instance);
             return cursor.Source;
         }
@@ -478,8 +482,8 @@ namespace Spreads
                 Zip<TKey, TValue, TValue, Cursor<TKey, TValue>, Cursor<TKey, TValue>>>> operator
             +(Series<TKey, TValue> series, Series<TKey, TValue> other)
         {
-            var c1 = series.GetWrapper();
-            var c2 = other.GetWrapper();
+            var c1 = series.GetCursor();
+            var c2 = other.GetCursor();
             Func<TKey, (TValue, TValue), TValue> selector = AddOp<TValue>.ZipSelector;
 
             var zipCursor = new Zip<TKey, TValue, TValue, Cursor<TKey, TValue>, Cursor<TKey, TValue>>(c1, c2);
@@ -497,7 +501,7 @@ namespace Spreads
             +(Series<TKey, TValue, Cursor<TKey, TValue>> series, Series<TKey, TValue> other)
         {
             var c1 = series.GetEnumerator();
-            var c2 = other.GetWrapper();
+            var c2 = other.GetCursor();
             Func<TKey, (TValue, TValue), TValue> selector = AddOp<TValue>.ZipSelector;
 
             var zipCursor = new Zip<TKey, TValue, TValue, Cursor<TKey, TValue>, Cursor<TKey, TValue>>(c1, c2);
@@ -511,7 +515,7 @@ namespace Spreads
                 Zip<TKey, TValue, TValue, Cursor<TKey, TValue>, Cursor<TKey, TValue>>>> operator
             +(Series<TKey, TValue> series, Series<TKey, TValue, Cursor<TKey, TValue>> other)
         {
-            var c1 = series.GetWrapper();
+            var c1 = series.GetCursor();
             var c2 = other.GetEnumerator();
             Func<TKey, (TValue, TValue), TValue> selector = AddOp<TValue>.ZipSelector;
 
@@ -526,8 +530,8 @@ namespace Spreads
                 Zip<TKey, TValue, TValue, Cursor<TKey, TValue>, Cursor<TKey, TValue>>>> operator
             -(Series<TKey, TValue> series, Series<TKey, TValue> other)
         {
-            var c1 = series.GetWrapper();
-            var c2 = other.GetWrapper();
+            var c1 = series.GetCursor();
+            var c2 = other.GetCursor();
             Func<TKey, (TValue, TValue), TValue> selector = SubtractOp<TValue>.ZipSelector;
 
             var zipCursor = new Zip<TKey, TValue, TValue, Cursor<TKey, TValue>, Cursor<TKey, TValue>>(c1, c2);
@@ -542,7 +546,7 @@ namespace Spreads
             -(Series<TKey, TValue, Cursor<TKey, TValue>> series, Series<TKey, TValue> other)
         {
             var c1 = series.GetEnumerator();
-            var c2 = other.GetWrapper();
+            var c2 = other.GetCursor();
             Func<TKey, (TValue, TValue), TValue> selector = SubtractOp<TValue>.ZipSelector;
 
             var zipCursor = new Zip<TKey, TValue, TValue, Cursor<TKey, TValue>, Cursor<TKey, TValue>>(c1, c2);
@@ -556,7 +560,7 @@ namespace Spreads
                 Zip<TKey, TValue, TValue, Cursor<TKey, TValue>, Cursor<TKey, TValue>>>> operator
             -(Series<TKey, TValue> series, Series<TKey, TValue, Cursor<TKey, TValue>> other)
         {
-            var c1 = series.GetWrapper();
+            var c1 = series.GetCursor();
             var c2 = other.GetEnumerator();
             Func<TKey, (TValue, TValue), TValue> selector = SubtractOp<TValue>.ZipSelector;
 
@@ -571,8 +575,8 @@ namespace Spreads
                 Zip<TKey, TValue, TValue, Cursor<TKey, TValue>, Cursor<TKey, TValue>>>> operator
             *(Series<TKey, TValue> series, Series<TKey, TValue> other)
         {
-            var c1 = series.GetWrapper();
-            var c2 = other.GetWrapper();
+            var c1 = series.GetCursor();
+            var c2 = other.GetCursor();
             Func<TKey, (TValue, TValue), TValue> selector = MultiplyOp<TValue>.ZipSelector;
 
             var zipCursor = new Zip<TKey, TValue, TValue, Cursor<TKey, TValue>, Cursor<TKey, TValue>>(c1, c2);
@@ -587,7 +591,7 @@ namespace Spreads
             *(Series<TKey, TValue, Cursor<TKey, TValue>> series, Series<TKey, TValue> other)
         {
             var c1 = series.GetEnumerator();
-            var c2 = other.GetWrapper();
+            var c2 = other.GetCursor();
             Func<TKey, (TValue, TValue), TValue> selector = MultiplyOp<TValue>.ZipSelector;
 
             var zipCursor = new Zip<TKey, TValue, TValue, Cursor<TKey, TValue>, Cursor<TKey, TValue>>(c1, c2);
@@ -601,7 +605,7 @@ namespace Spreads
                 Zip<TKey, TValue, TValue, Cursor<TKey, TValue>, Cursor<TKey, TValue>>>> operator
             *(Series<TKey, TValue> series, Series<TKey, TValue, Cursor<TKey, TValue>> other)
         {
-            var c1 = series.GetWrapper();
+            var c1 = series.GetCursor();
             var c2 = other.GetEnumerator();
             Func<TKey, (TValue, TValue), TValue> selector = MultiplyOp<TValue>.ZipSelector;
 
@@ -616,8 +620,8 @@ namespace Spreads
                 Zip<TKey, TValue, TValue, Cursor<TKey, TValue>, Cursor<TKey, TValue>>>> operator
             /(Series<TKey, TValue> series, Series<TKey, TValue> other)
         {
-            var c1 = series.GetWrapper();
-            var c2 = other.GetWrapper();
+            var c1 = series.GetCursor();
+            var c2 = other.GetCursor();
             Func<TKey, (TValue, TValue), TValue> selector = DivideOp<TValue>.ZipSelector;
 
             var zipCursor = new Zip<TKey, TValue, TValue, Cursor<TKey, TValue>, Cursor<TKey, TValue>>(c1, c2);
@@ -632,7 +636,7 @@ namespace Spreads
             /(Series<TKey, TValue, Cursor<TKey, TValue>> series, Series<TKey, TValue> other)
         {
             var c1 = series.GetEnumerator();
-            var c2 = other.GetWrapper();
+            var c2 = other.GetCursor();
             Func<TKey, (TValue, TValue), TValue> selector = DivideOp<TValue>.ZipSelector;
 
             var zipCursor = new Zip<TKey, TValue, TValue, Cursor<TKey, TValue>, Cursor<TKey, TValue>>(c1, c2);
@@ -646,7 +650,7 @@ namespace Spreads
                 Zip<TKey, TValue, TValue, Cursor<TKey, TValue>, Cursor<TKey, TValue>>>> operator
             /(Series<TKey, TValue> series, Series<TKey, TValue, Cursor<TKey, TValue>> other)
         {
-            var c1 = series.GetWrapper();
+            var c1 = series.GetCursor();
             var c2 = other.GetEnumerator();
             Func<TKey, (TValue, TValue), TValue> selector = DivideOp<TValue>.ZipSelector;
 
@@ -661,8 +665,8 @@ namespace Spreads
                 Zip<TKey, TValue, TValue, Cursor<TKey, TValue>, Cursor<TKey, TValue>>>> operator
             %(Series<TKey, TValue> series, Series<TKey, TValue> other)
         {
-            var c1 = series.GetWrapper();
-            var c2 = other.GetWrapper();
+            var c1 = series.GetCursor();
+            var c2 = other.GetCursor();
             Func<TKey, (TValue, TValue), TValue> selector = ModuloOp<TValue>.ZipSelector;
 
             var zipCursor = new Zip<TKey, TValue, TValue, Cursor<TKey, TValue>, Cursor<TKey, TValue>>(c1, c2);
@@ -677,7 +681,7 @@ namespace Spreads
             %(Series<TKey, TValue, Cursor<TKey, TValue>> series, Series<TKey, TValue> other)
         {
             var c1 = series.GetEnumerator();
-            var c2 = other.GetWrapper();
+            var c2 = other.GetCursor();
             Func<TKey, (TValue, TValue), TValue> selector = ModuloOp<TValue>.ZipSelector;
 
             var zipCursor = new Zip<TKey, TValue, TValue, Cursor<TKey, TValue>, Cursor<TKey, TValue>>(c1, c2);
@@ -691,7 +695,7 @@ namespace Spreads
                 Zip<TKey, TValue, TValue, Cursor<TKey, TValue>, Cursor<TKey, TValue>>>> operator
             %(Series<TKey, TValue> series, Series<TKey, TValue, Cursor<TKey, TValue>> other)
         {
-            var c1 = series.GetWrapper();
+            var c1 = series.GetCursor();
             var c2 = other.GetEnumerator();
             Func<TKey, (TValue, TValue), TValue> selector = ModuloOp<TValue>.ZipSelector;
 
@@ -710,8 +714,8 @@ namespace Spreads
         {
             if (series is null) throw new ArgumentNullException(nameof(series));
             if (other is null) throw new ArgumentNullException(nameof(other));
-            var c1 = series.GetWrapper();
-            var c2 = other.GetWrapper();
+            var c1 = series.GetCursor();
+            var c2 = other.GetCursor();
 
             var zipCursor = new Zip<TKey, TValue, TValue, Cursor<TKey, TValue>, Cursor<TKey, TValue>>(c1, c2);
             return zipCursor.Map(EQOp<TValue>.ZipSelector).Source;
@@ -726,7 +730,7 @@ namespace Spreads
         {
             if (other is null) throw new ArgumentNullException(nameof(other));
             var c1 = series.GetEnumerator();
-            var c2 = other.GetWrapper();
+            var c2 = other.GetCursor();
 
             var zipCursor = new Zip<TKey, TValue, TValue, Cursor<TKey, TValue>, Cursor<TKey, TValue>>(c1, c2);
             return zipCursor.Map(EQOp<TValue>.ZipSelector).Source;
@@ -740,7 +744,7 @@ namespace Spreads
             ==(Series<TKey, TValue> series, Series<TKey, TValue, Cursor<TKey, TValue>> other)
         {
             if (series is null) throw new ArgumentNullException(nameof(series));
-            var c1 = series.GetWrapper();
+            var c1 = series.GetCursor();
             var c2 = other.GetEnumerator();
 
             var zipCursor = new Zip<TKey, TValue, TValue, Cursor<TKey, TValue>, Cursor<TKey, TValue>>(c1, c2);
@@ -756,8 +760,8 @@ namespace Spreads
         {
             if (series is null) throw new ArgumentNullException(nameof(series));
             if (other is null) throw new ArgumentNullException(nameof(other));
-            var c1 = series.GetWrapper();
-            var c2 = other.GetWrapper();
+            var c1 = series.GetCursor();
+            var c2 = other.GetCursor();
 
             var zipCursor = new Zip<TKey, TValue, TValue, Cursor<TKey, TValue>, Cursor<TKey, TValue>>(c1, c2);
             return zipCursor.Map(NEQOp<TValue>.ZipSelector).Source;
@@ -772,7 +776,7 @@ namespace Spreads
         {
             if (other is null) throw new ArgumentNullException(nameof(other));
             var c1 = series.GetEnumerator();
-            var c2 = other.GetWrapper();
+            var c2 = other.GetCursor();
 
             var zipCursor = new Zip<TKey, TValue, TValue, Cursor<TKey, TValue>, Cursor<TKey, TValue>>(c1, c2);
             return zipCursor.Map(NEQOp<TValue>.ZipSelector).Source;
@@ -786,7 +790,7 @@ namespace Spreads
             !=(Series<TKey, TValue> series, Series<TKey, TValue, Cursor<TKey, TValue>> other)
         {
             if (series is null) throw new ArgumentNullException(nameof(series));
-            var c1 = series.GetWrapper();
+            var c1 = series.GetCursor();
             var c2 = other.GetEnumerator();
 
             var zipCursor = new Zip<TKey, TValue, TValue, Cursor<TKey, TValue>, Cursor<TKey, TValue>>(c1, c2);
@@ -802,8 +806,8 @@ namespace Spreads
         {
             if (series is null) throw new ArgumentNullException(nameof(series));
             if (other is null) throw new ArgumentNullException(nameof(other));
-            var c1 = series.GetWrapper();
-            var c2 = other.GetWrapper();
+            var c1 = series.GetCursor();
+            var c2 = other.GetCursor();
 
             var zipCursor = new Zip<TKey, TValue, TValue, Cursor<TKey, TValue>, Cursor<TKey, TValue>>(c1, c2);
             return zipCursor.Map(LEOp<TValue>.ZipSelector).Source;
@@ -818,7 +822,7 @@ namespace Spreads
         {
             if (other is null) throw new ArgumentNullException(nameof(other));
             var c1 = series.GetEnumerator();
-            var c2 = other.GetWrapper();
+            var c2 = other.GetCursor();
 
             var zipCursor = new Zip<TKey, TValue, TValue, Cursor<TKey, TValue>, Cursor<TKey, TValue>>(c1, c2);
             return zipCursor.Map(LEOp<TValue>.ZipSelector).Source;
@@ -832,7 +836,7 @@ namespace Spreads
             <=(Series<TKey, TValue> series, Series<TKey, TValue, Cursor<TKey, TValue>> other)
         {
             if (series is null) throw new ArgumentNullException(nameof(series));
-            var c1 = series.GetWrapper();
+            var c1 = series.GetCursor();
             var c2 = other.GetEnumerator();
 
             var zipCursor = new Zip<TKey, TValue, TValue, Cursor<TKey, TValue>, Cursor<TKey, TValue>>(c1, c2);
@@ -848,8 +852,8 @@ namespace Spreads
         {
             if (series is null) throw new ArgumentNullException(nameof(series));
             if (other is null) throw new ArgumentNullException(nameof(other));
-            var c1 = series.GetWrapper();
-            var c2 = other.GetWrapper();
+            var c1 = series.GetCursor();
+            var c2 = other.GetCursor();
 
             var zipCursor = new Zip<TKey, TValue, TValue, Cursor<TKey, TValue>, Cursor<TKey, TValue>>(c1, c2);
             return zipCursor.Map(GEOp<TValue>.ZipSelector).Source;
@@ -864,7 +868,7 @@ namespace Spreads
         {
             if (other is null) throw new ArgumentNullException(nameof(other));
             var c1 = series.GetEnumerator();
-            var c2 = other.GetWrapper();
+            var c2 = other.GetCursor();
 
             var zipCursor = new Zip<TKey, TValue, TValue, Cursor<TKey, TValue>, Cursor<TKey, TValue>>(c1, c2);
             return zipCursor.Map(GEOp<TValue>.ZipSelector).Source;
@@ -878,7 +882,7 @@ namespace Spreads
             >=(Series<TKey, TValue> series, Series<TKey, TValue, Cursor<TKey, TValue>> other)
         {
             if (series is null) throw new ArgumentNullException(nameof(series));
-            var c1 = series.GetWrapper();
+            var c1 = series.GetCursor();
             var c2 = other.GetEnumerator();
 
             var zipCursor = new Zip<TKey, TValue, TValue, Cursor<TKey, TValue>, Cursor<TKey, TValue>>(c1, c2);
@@ -894,8 +898,8 @@ namespace Spreads
         {
             if (series is null) throw new ArgumentNullException(nameof(series));
             if (other is null) throw new ArgumentNullException(nameof(other));
-            var c1 = series.GetWrapper();
-            var c2 = other.GetWrapper();
+            var c1 = series.GetCursor();
+            var c2 = other.GetCursor();
 
             var zipCursor = new Zip<TKey, TValue, TValue, Cursor<TKey, TValue>, Cursor<TKey, TValue>>(c1, c2);
             return zipCursor.Map(LTOp<TValue>.ZipSelector).Source;
@@ -910,7 +914,7 @@ namespace Spreads
         {
             if (other is null) throw new ArgumentNullException(nameof(other));
             var c1 = series.GetEnumerator();
-            var c2 = other.GetWrapper();
+            var c2 = other.GetCursor();
 
             var zipCursor = new Zip<TKey, TValue, TValue, Cursor<TKey, TValue>, Cursor<TKey, TValue>>(c1, c2);
             return zipCursor.Map(LTOp<TValue>.ZipSelector).Source;
@@ -924,7 +928,7 @@ namespace Spreads
             <(Series<TKey, TValue> series, Series<TKey, TValue, Cursor<TKey, TValue>> other)
         {
             if (series is null) throw new ArgumentNullException(nameof(series));
-            var c1 = series.GetWrapper();
+            var c1 = series.GetCursor();
             var c2 = other.GetEnumerator();
 
             var zipCursor = new Zip<TKey, TValue, TValue, Cursor<TKey, TValue>, Cursor<TKey, TValue>>(c1, c2);
@@ -940,8 +944,8 @@ namespace Spreads
         {
             if (series is null) throw new ArgumentNullException(nameof(series));
             if (other is null) throw new ArgumentNullException(nameof(other));
-            var c1 = series.GetWrapper();
-            var c2 = other.GetWrapper();
+            var c1 = series.GetCursor();
+            var c2 = other.GetCursor();
 
             var zipCursor = new Zip<TKey, TValue, TValue, Cursor<TKey, TValue>, Cursor<TKey, TValue>>(c1, c2);
             return zipCursor.Map(GTOp<TValue>.ZipSelector).Source;
@@ -956,7 +960,7 @@ namespace Spreads
         {
             if (other is null) throw new ArgumentNullException(nameof(other));
             var c1 = series.GetEnumerator();
-            var c2 = other.GetWrapper();
+            var c2 = other.GetCursor();
 
             var zipCursor = new Zip<TKey, TValue, TValue, Cursor<TKey, TValue>, Cursor<TKey, TValue>>(c1, c2);
             return zipCursor.Map(GTOp<TValue>.ZipSelector).Source;
@@ -970,7 +974,7 @@ namespace Spreads
             >(Series<TKey, TValue> series, Series<TKey, TValue, Cursor<TKey, TValue>> other)
         {
             if (series is null) throw new ArgumentNullException(nameof(series));
-            var c1 = series.GetWrapper();
+            var c1 = series.GetCursor();
             var c2 = other.GetEnumerator();
 
             var zipCursor = new Zip<TKey, TValue, TValue, Cursor<TKey, TValue>, Cursor<TKey, TValue>>(c1, c2);
@@ -1247,17 +1251,17 @@ namespace Spreads
             if (IsCompleted)
             {
 #pragma warning disable HAA0601 // Value type to reference type conversion causing boxing allocation
-                return GetSpecializedCursor();
+                return GetCursor();
 #pragma warning restore HAA0601 // Value type to reference type conversion causing boxing allocation
             }
-            var c = new AsyncCursor<TKey, TValue, TCursor>(GetSpecializedCursor(), true);
+            var c = new AsyncCursor<TKey, TValue, TCursor>(GetCursor(), true);
             return c;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public AsyncCursor<TKey, TValue, TCursor> GetAsyncEnumerator()
         {
-            var c = new AsyncCursor<TKey, TValue, TCursor>(GetSpecializedCursor(), true);
+            var c = new AsyncCursor<TKey, TValue, TCursor>(GetCursor(), true);
             return c;
         }
 
@@ -1265,32 +1269,32 @@ namespace Spreads
         protected sealed override IEnumerator<KeyValuePair<TKey, TValue>> GetEnumeratorImpl()
         {
 #pragma warning disable HAA0601 // Value type to reference type conversion causing boxing allocation
-            return GetSpecializedCursor();
+            return GetCursor();
 #pragma warning restore HAA0601 // Value type to reference type conversion causing boxing allocation
         }
 
         public TCursor GetEnumerator()
         {
-            return GetSpecializedCursor();
+            return GetCursor();
         }
 
-        public override ICursor<TKey, TValue> GetCursor()
+        protected override ICursor<TKey, TValue> GetCursorImpl()
         {
             if (IsCompleted)
             {
 #pragma warning disable HAA0601 // Value type to reference type conversion causing boxing allocation
-                return GetSpecializedCursor();
+                return GetCursor();
 #pragma warning restore HAA0601 // Value type to reference type conversion causing boxing allocation
             }
             // NB subscribe from AsyncCursor
-            var c = new AsyncCursor<TKey, TValue, TCursor>(GetSpecializedCursor());
+            var c = new AsyncCursor<TKey, TValue, TCursor>(GetCursor());
             return c;
         }
 
         internal abstract TCursor GetContainerCursor();
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public TCursor GetSpecializedCursor()
+        public TCursor GetCursor()
         {
             return GetContainerCursor();
         }
@@ -1767,7 +1771,7 @@ namespace Spreads
         public static implicit operator Series<TKey, TValue, Cursor<TKey, TValue>>(
             ContainerSeries<TKey, TValue, TCursor> series)
         {
-            var c = series.GetWrapper();
+            var c = new Cursor<TKey, TValue>(series.GetCursorImpl());
             return new Series<TKey, TValue, Cursor<TKey, TValue>>(c);
         }
 
