@@ -205,6 +205,7 @@ namespace Spreads
             return cursor.Source.Map((k,array) => selector(k, array.AsSpan()));
         }
 
+        // TODO (cleanup) remove
         //[System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
         //[Obsolete("Use an overload with ZipNSelector")]
         //public static ISeries<TKey, TValue[]> Zip<TKey, TValue>(

@@ -837,7 +837,8 @@ namespace Spreads.Core.Tests.Cursors
             sm1.Add(0, 0);
             sm2.Add(0, 0);
             sm3.Add(0, 0);
-            var count = 50_000_000;
+            
+            var count = 10_000_000;
 
             for (int i = 2; i < count; i++)
             {
@@ -847,29 +848,30 @@ namespace Spreads.Core.Tests.Cursors
                 sm3.Add(i, 3 * i);
             }
 
+            await sm1.Complete();
+            await sm2.Complete();
+            await sm3.Complete();
+
+
             //var result = new[] {sm1, sm2, sm3}.Zip((int k, Span<double> sp) => { return sp[0] + sp[1] + sp[2]; });
             var result = new[] { sm1, sm2, sm3 }.Zip((key, values) =>
               {
                   return values[0] + values[1] + values[2];
               });
 
+            // var resultX = result + 1;
+
             var sum = 0.0;
             var c = 0L;
 
-            //#if NETCOREAPP3_0
-            //            // TODO await async stream
-
-            //            foreach (var item in result)
-            //            {
-            //                sum += item.Value;
-            //            }
-
-            //#else
             for (int r = 0; r < 10; r++)
             {
-                using (Benchmark.Run("ZipN", count * 3))
+                using (Benchmark.Run("ZipN", count))
                 {
-                    foreach (var item in sm1)
+#if NETCOREAPP3_0
+                    // await
+#endif
+                    foreach (var item in result)
                     {
                         sum += item.Value;
                         c++;
@@ -878,7 +880,6 @@ namespace Spreads.Core.Tests.Cursors
             }
             Benchmark.Dump();
 
-            //#endif
 
             Console.WriteLine(sum);
             Console.WriteLine("Total " + c.ToString("N"));

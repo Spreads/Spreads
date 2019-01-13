@@ -1546,6 +1546,8 @@ type public SortedMapCursor<'K,'V> =
         if this.MoveNext() then new ValueTask<bool>(true) else new ValueTask<bool>(false)
       else ThrowHelper.ThrowNotSupportedException("Use an async cursor wrapper instead");new ValueTask<bool>(false)
 
+    member this.DisposeAsync() = this.Dispose();ValueTask(Task.CompletedTask)
+
     [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
     member this.Clone() = 
       let mutable copy = this
@@ -1572,7 +1574,7 @@ type public SortedMapCursor<'K,'V> =
       member this.Current with get(): KVP<'K, 'V> = this.Current
       
     interface IAsyncDisposable with
-      member this.DisposeAsync() = this.Dispose();ValueTask(Task.CompletedTask)
+      member this.DisposeAsync() = this.DisposeAsync()
       
     interface IAsyncEnumerator<KVP<'K,'V>> with
       member this.MoveNextAsync(): ValueTask<bool> = this.MoveNextAsync()

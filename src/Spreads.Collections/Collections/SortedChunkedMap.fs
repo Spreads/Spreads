@@ -584,6 +584,8 @@ and
         if this.MoveNext() then new ValueTask<bool>(true) else ValueTask<bool>(false)
       else raise (NotSupportedException("Use SortedChunkedMapBaseGenericCursorAsync instead"))
 
+    member this.DisposeAsync() = this.Dispose();ValueTask(Task.CompletedTask)
+
     member this.Clone() =
       let mutable entered = false
       try
@@ -621,7 +623,7 @@ and
 
     interface IAsyncEnumerator<KVP<'K,'V>> with
       member this.MoveNextAsync(): ValueTask<bool> = this.MoveNextAsync()
-      member this.DisposeAsync() = this.Dispose();ValueTask(Task.CompletedTask)
+      member this.DisposeAsync() = this.DisposeAsync()
 
     interface IAsyncBatchEnumerator<KVP<'K,'V>> with
       member this.MoveNextBatch(noAsync: bool): ValueTask<bool> = this.MoveNextBatch(noAsync)
