@@ -621,7 +621,7 @@ and
 
     interface IAsyncEnumerator<KVP<'K,'V>> with
       member this.MoveNextAsync(): ValueTask<bool> = this.MoveNextAsync()
-      member this.DisposeAsync() = this.Dispose();Task.CompletedTask
+      member this.DisposeAsync() = this.Dispose();ValueTask(Task.CompletedTask)
 
     interface IAsyncBatchEnumerator<KVP<'K,'V>> with
       member this.MoveNextBatch(noAsync: bool): ValueTask<bool> = this.MoveNextBatch(noAsync)

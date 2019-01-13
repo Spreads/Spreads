@@ -1261,7 +1261,7 @@ namespace Spreads
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public AsyncCursor<TKey, TValue, TCursor> GetAsyncEnumerator()
         {
-            var c = new AsyncCursor<TKey, TValue, TCursor>(GetCursor(), true);
+            var c = new AsyncCursor<TKey, TValue, TCursor>(GetCursor(), false);
             return c;
         }
 

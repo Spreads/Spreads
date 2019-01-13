@@ -239,10 +239,10 @@ namespace Spreads.Enumerators
                 }
             }
 
-            public Task DisposeAsync()
+            public ValueTask DisposeAsync()
             {
                 Dispose();
-                return Task.CompletedTask;
+                return new ValueTask(Task.CompletedTask);
             }
         }
     }

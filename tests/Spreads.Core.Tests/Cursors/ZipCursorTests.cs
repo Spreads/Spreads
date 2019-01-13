@@ -4,13 +4,13 @@
 
 // using Deedle;
 
+using NUnit.Framework;
+using Spreads.Collections;
+using Spreads.Utils;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using NUnit.Framework;
-using Spreads.Collections;
-using Spreads.Utils;
 
 namespace Spreads.Core.Tests.Cursors
 {
@@ -31,7 +31,6 @@ namespace Spreads.Core.Tests.Cursors
 
             Assert.NotNull(c1.Comparer);
             Assert.NotNull(c2.Comparer);
-
 
             var zipSum = (sm1 + sm2);
             double actual = 0;
@@ -75,7 +74,6 @@ namespace Spreads.Core.Tests.Cursors
             //    }
             //}
             //Assert.AreEqual(expected, actual);
-
 
             //var zipNOld = new[] { sm1, sm2 }.ZipOld((k, varr) => varr[0] + varr[1]).GetCursor();
             //actual = 0;
@@ -813,7 +811,6 @@ namespace Spreads.Core.Tests.Cursors
 
             //    Assert.AreEqual(expected, actual);
 
-
             //    //actual = 0.0;
             //    //using (Benchmark.Run("ZipN old", count * 3))
             //    //{
@@ -826,6 +823,65 @@ namespace Spreads.Core.Tests.Cursors
             //}
 
             //Benchmark.Dump();
+        }
+
+        [Test, Explicit("long running")]
+        public async Task CouldUseZipNSelector()
+        {
+            var sm1 = new SortedMap<int, double>();
+            var sm2 = new SortedMap<int, double>();
+            var sm3 = new SortedMap<int, double>();
+
+            double expected = 0;
+
+            sm1.Add(0, 0);
+            sm2.Add(0, 0);
+            sm3.Add(0, 0);
+            var count = 50_000_000;
+
+            for (int i = 2; i < count; i++)
+            {
+                expected += i + 2 * i + 3 * i;
+                sm1.Add(i, i);
+                sm2.Add(i, 2 * i);
+                sm3.Add(i, 3 * i);
+            }
+
+            //var result = new[] {sm1, sm2, sm3}.Zip((int k, Span<double> sp) => { return sp[0] + sp[1] + sp[2]; });
+            var result = new[] { sm1, sm2, sm3 }.Zip((key, values) =>
+              {
+                  return values[0] + values[1] + values[2];
+              });
+
+            var sum = 0.0;
+            var c = 0L;
+
+            //#if NETCOREAPP3_0
+            //            // TODO await async stream
+
+            //            foreach (var item in result)
+            //            {
+            //                sum += item.Value;
+            //            }
+
+            //#else
+            for (int r = 0; r < 10; r++)
+            {
+                using (Benchmark.Run("ZipN", count * 3))
+                {
+                    foreach (var item in sm1)
+                    {
+                        sum += item.Value;
+                        c++;
+                    }
+                }
+            }
+            Benchmark.Dump();
+
+            //#endif
+
+            Console.WriteLine(sum);
+            Console.WriteLine("Total " + c.ToString("N"));
         }
     }
 }

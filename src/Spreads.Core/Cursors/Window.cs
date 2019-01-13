@@ -306,10 +306,10 @@ namespace Spreads
 
         #endregion ICursor members
 
-        public Task DisposeAsync()
+        public ValueTask DisposeAsync()
         {
             Dispose();
-            return Task.CompletedTask;
+            return new ValueTask(Task.CompletedTask);
         }
     }
 }

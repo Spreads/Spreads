@@ -162,9 +162,9 @@ namespace Spreads
 
         #endregion ICursorSeries members
 
-        public Task DisposeAsync()
+        public ValueTask DisposeAsync()
         {
-            return Task.CompletedTask;
+            return new ValueTask(Task.CompletedTask);
         }
     }
 }

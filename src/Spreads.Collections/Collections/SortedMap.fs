@@ -1572,7 +1572,7 @@ type public SortedMapCursor<'K,'V> =
       member this.Current with get(): KVP<'K, 'V> = this.Current
       
     interface IAsyncDisposable with
-      member this.DisposeAsync() = this.Dispose();Task.CompletedTask
+      member this.DisposeAsync() = this.Dispose();ValueTask(Task.CompletedTask)
       
     interface IAsyncEnumerator<KVP<'K,'V>> with
       member this.MoveNextAsync(): ValueTask<bool> = this.MoveNextAsync()

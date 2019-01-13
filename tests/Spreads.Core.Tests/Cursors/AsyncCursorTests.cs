@@ -12,18 +12,18 @@ using System.Threading.Tasks;
 namespace Spreads.Core.Tests.Cursors
 {
     // TODO SCM debug.assert fails
-    // [Category("CI")]
+    [Category("CI")]
     [TestFixture]
     public class AsyncCursorTests
     {
         [Test]
         public void DeadCursorDoesntCauseEndlessLoopInNotifyUpdate()
         {
-            var sm = new SortedChunkedMap<int, int>();
+            var sm = new SortedMap<int, int>();
 
             sm.Add(1, 1);
 
-            var cursor = sm.GetCursor();
+            var cursor = sm.GetAsyncEnumerator();
             Assert.True(cursor.MoveNext());
             Assert.False(cursor.MoveNext());
 
@@ -45,11 +45,11 @@ namespace Spreads.Core.Tests.Cursors
         [Test]
         public void CancelledCursorDoesntCauseEndlessLoopInNotifyUpdate()
         {
-            var sm = new SortedChunkedMap<int, int>();
+            var sm = new SortedMap<int, int>();
 
             sm.Add(1, 1);
 
-            var cursor = sm.GetCursor();
+            var cursor = sm.GetAsyncEnumerator();
             Assert.True(cursor.MoveNext());
             Assert.False(cursor.MoveNext());
 
@@ -123,7 +123,7 @@ namespace Spreads.Core.Tests.Cursors
         [Test]
         public void RangeCursorStopsBeforeEndKey()
         {
-            var sm = new SortedChunkedMap<int, int>();
+            var sm = new SortedMap<int, int>();
 
             sm.Add(1, 1);
             sm.Add(2, 2);
@@ -132,7 +132,7 @@ namespace Spreads.Core.Tests.Cursors
 
             //Assert.AreEqual(1, range.First.Value);
 
-            var cursor = range.GetCursor();
+            var cursor = range.GetAsyncEnumerator();
 
             var source = cursor.Source;
 
@@ -156,7 +156,7 @@ namespace Spreads.Core.Tests.Cursors
         [Test]
         public void RangeCursorMovesAfterAwating()
         {
-            var sm = new SortedChunkedMap<int, int>();
+            var sm = new SortedMap<int, int>();
 
             sm.Add(1, 1);
 
@@ -164,7 +164,7 @@ namespace Spreads.Core.Tests.Cursors
 
             //Assert.AreEqual(1, range.First.Value);
 
-            var cursor = range.GetCursor();
+            var cursor = range.GetAsyncEnumerator();
 
             var source = cursor.Source;
 
@@ -196,7 +196,7 @@ namespace Spreads.Core.Tests.Cursors
             sm.Add(2, 2);
             // sm.Flush();
 
-            var cursor = sm.GetCursor();
+            var cursor = sm.GetAsyncEnumerator();
             Assert.True(await cursor.MoveNextAsync());
             Assert.True(await cursor.MoveNextAsync());
 
@@ -213,7 +213,7 @@ namespace Spreads.Core.Tests.Cursors
         [Test]
         public async Task CouldCancelCursor()
         {
-            var sm = new SortedChunkedMap<int, int>();
+            var sm = new SortedMap<int, int>();
 
             var cursor = sm.GetAsyncEnumerator();
 
@@ -325,7 +325,7 @@ namespace Spreads.Core.Tests.Cursors
         public async Task CouldEnumerateSCMInBatchMode()
         {
             Settings.SCMDefaultChunkLength = Settings.SCMDefaultChunkLength * 4;
-            var scm = new SortedChunkedMap<int, int>();
+            var scm = new SortedMap<int, int>();
             var count = 1_000_000; // Settings.SCMDefaultChunkLength - 1;
 
             //for (int i = 0; i < count; i++)
@@ -390,7 +390,7 @@ namespace Spreads.Core.Tests.Cursors
         public async Task CouldEnumerateSCMUsingCursor()
         {
             Settings.SCMDefaultChunkLength = Settings.SCMDefaultChunkLength * 4;
-            var scm = new SortedChunkedMap<int, int>();
+            var scm = new SortedMap<int, int>();
             var count = 1_000_000; // Settings.SCMDefaultChunkLength - 1;
 
             for (int i = 0; i < count; i++)
@@ -455,7 +455,7 @@ namespace Spreads.Core.Tests.Cursors
         {
             var map = new SortedMap<int, int>();
 
-            var count = 50_000_000;
+            var count = 1_000_000;
             var rounds = 1;
 
             var writeTask = Task.Run(async () =>

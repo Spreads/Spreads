@@ -286,7 +286,7 @@ namespace Spreads
             public ISeries<Variant, Variant> Source => _source; //Create(_innerCursor.Source);
             public bool IsContinuous => _innerCursor.IsContinuous;
             
-            public Task DisposeAsync()
+            public ValueTask DisposeAsync()
             {
                 return _innerCursor.DisposeAsync();
             }

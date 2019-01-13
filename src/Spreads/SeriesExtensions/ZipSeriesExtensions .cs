@@ -4,11 +4,14 @@
 
 using Spreads.Utils;
 using System;
+using System.Diagnostics;
 using System.Linq;
 
 // ReSharper disable once CheckNamespace
 namespace Spreads
 {
+    public delegate TResult ZipNSelector<in TKey, TValue, out TResult>(TKey key, ReadOnlySpan<TValue> values);
+
     public static partial class Series
     {
         // TODO see the trick with implicit conversion in ContainerSeries.* operator. Here it is also needed.
@@ -151,31 +154,27 @@ namespace Spreads
 
         #region Series array
 
-        public static ISeries<TKey, TValue[]> Zip<TKey, TValue>(
-            [NotNull] this ISeries<TKey, TValue>[] series, bool reuseArray = false)
+        public static ISeries<TKey, TResult> Zip<TKey, TValue, TResult>(
+            [NotNull] this ISeries<TKey, TValue>[] series, ZipNSelector<TKey, TValue, TResult> selector)
         {
             if (series == null) throw new ArgumentNullException(nameof(series));
-            TValue[] reusedArray = null;
 
             if (series.Length == 0)
             {
-                return Empty<TKey, TValue[]>();
+                return Empty<TKey, TResult>();
             }
 
-            if (reuseArray)
-            {
-                reusedArray = new TValue[series.Length];
-            }
+            var reusedArray = new TValue[series.Length];
 
             if (series.Length == 1)
             {
                 var map =
-                series[0].Map((k, v) =>
+                    series[0].Map((k, v) =>
                     {
-                        var arr = reuseArray ? reusedArray : new TValue[series.Length];
+                        var arr = reusedArray;
                         // ReSharper disable once PossibleNullReferenceException
                         arr[0] = v;
-                        return arr;
+                        return selector(k,arr.AsSpan());
                     });
                 return map;
             }
@@ -184,7 +183,7 @@ namespace Spreads
                 series[0].GetSpecializedCursor(), series[1].GetSpecializedCursor())
                 .Map((k, t) =>
                 {
-                    var arr = reuseArray ? reusedArray : new TValue[series.Length];
+                    var arr = reusedArray;
                     // ReSharper disable once PossibleNullReferenceException
                     arr[0] = t.Item1;
                     arr[1] = t.Item2;
@@ -203,34 +202,83 @@ namespace Spreads
                     }));
             }
 
-            return cursor.Source;
+            return cursor.Source.Map((k,array) => selector(k, array.AsSpan()));
         }
 
-        // TODO Use span to protect from copying reused array outside Zip
-        [Obsolete]
-        public delegate TResult ZipNSelector<TKey,TValue, TResult>(TKey key, Span<TValue> values);
+        //[System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
+        //[Obsolete("Use an overload with ZipNSelector")]
+        //public static ISeries<TKey, TValue[]> Zip<TKey, TValue>(
+        //    [NotNull] this ISeries<TKey, TValue>[] series, bool reuseArray = false)
+        //{
+        //    if (series == null) throw new ArgumentNullException(nameof(series));
+        //    TValue[] reusedArray = null;
 
-        [Obsolete]
-        public static Series<TKey, TResult, Map<TKey, TValue[], TResult, Cursor<TKey, TValue[]>>> Zip<TKey, TValue, TResult>(
-            this ISeries<TKey, TValue>[] series, ZipNSelector<TKey, TValue, TResult> selector, bool reuseArray = false)
-        {
-            throw new NotImplementedException();
-        }
+        //    if (series.Length == 0)
+        //    {
+        //        return Empty<TKey, TValue[]>();
+        //    }
 
+        //    if (reuseArray)
+        //    {
+        //        reusedArray = new TValue[series.Length];
+        //    }
 
-        public static Series<TKey, TResult, Map<TKey, TValue[], TResult, Cursor<TKey, TValue[]>>> Zip<TKey, TValue, TResult>(
-            this ISeries<TKey, TValue>[] series, Func<TKey, TValue[], TResult> selector, bool reuseArray = false)
-        {
-            return series.Zip(reuseArray).Map(selector);
-        }
+        //    if (series.Length == 1)
+        //    {
+        //        var map =
+        //        series[0].Map((k, v) =>
+        //            {
+        //                var arr = reuseArray ? reusedArray : new TValue[series.Length];
+        //                // ReSharper disable once PossibleNullReferenceException
+        //                arr[0] = v;
+        //                return arr;
+        //            });
+        //        return map;
+        //    }
 
-        public static Series<TKey, TResult, Map<TKey, TValue[], TResult, Cursor<TKey, TValue[]>>> Zip<TKey, TValue, TResult, TCursor>(
-            this Series<TKey, TValue, TCursor>[] series, Func<TKey, TValue[], TResult> selector, bool reuseArray = false)
-            where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
-        {
-            // TODO rework...
-            return series.Cast<ISeries<TKey, TValue>>().ToArray().Zip(reuseArray).Map(selector);
-        }
+        //    var cursor = new Cursor<TKey, TValue[]>(new Zip<TKey, TValue, TValue, Cursor<TKey, TValue>, Cursor<TKey, TValue>>(
+        //        series[0].GetSpecializedCursor(), series[1].GetSpecializedCursor())
+        //        .Map((k, t) =>
+        //        {
+        //            var arr = reuseArray ? reusedArray : new TValue[series.Length];
+        //            // ReSharper disable once PossibleNullReferenceException
+        //            arr[0] = t.Item1;
+        //            arr[1] = t.Item2;
+        //            return arr;
+        //        }));
+
+        //    for (var i = 2; i < series.Length; i++)
+        //    {
+        //        var idx = i;
+        //        cursor = new Cursor<TKey, TValue[]>(new Zip<TKey, TValue[], TValue, Cursor<TKey, TValue[]>, Cursor<TKey, TValue>>(
+        //            cursor, series[idx].GetSpecializedCursor())
+        //            .Map((k, t) =>
+        //            {
+        //                t.Item1[idx] = t.Item2;
+        //                return t.Item1;
+        //            }));
+        //    }
+
+        //    return cursor.Source;
+        //}
+
+        //[System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
+        //[Obsolete("Use an overload with ZipNSelector")]
+        //public static Series<TKey, TResult, Map<TKey, TValue[], TResult, Cursor<TKey, TValue[]>>> Zip<TKey, TValue, TResult>(
+        //    this ISeries<TKey, TValue>[] series, Func<TKey, TValue[], TResult> selector, bool reuseArray)
+        //{
+        //    return series.Zip(reuseArray).Map(selector);
+        //}
+
+        //[System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
+        //[Obsolete("Use an overload with ZipNSelector")]
+        //public static Series<TKey, TResult, Map<TKey, TValue[], TResult, Cursor<TKey, TValue[]>>> Zip<TKey, TValue, TResult, TCursor>(
+        //    this Series<TKey, TValue, TCursor>[] series, Func<TKey, TValue[], TResult> selector, bool reuseArray)
+        //    where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
+        //{
+        //    // TODO rework...
+        //    return series.Cast<ISeries<TKey, TValue>>().ToArray().Zip(reuseArray).Map(selector);
+        //}
 
         #endregion Series array
     }

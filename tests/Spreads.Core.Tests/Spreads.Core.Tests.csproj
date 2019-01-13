@@ -4,7 +4,7 @@
         <TargetFrameworks>netcoreapp3.0;net461</TargetFrameworks>
         <AssemblyName>Spreads.Core.Tests</AssemblyName>
         <RootNamespace>Spreads.Core.Tests</RootNamespace>
-        <LangVersion>7.2</LangVersion>
+        <LangVersion>8.0</LangVersion>
         <TieredCompilation>true</TieredCompilation>
     </PropertyGroup>
 

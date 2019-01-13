@@ -88,7 +88,7 @@ namespace Spreads
 
         /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Task DisposeAsync()
+        public ValueTask DisposeAsync()
         {
             return _cursor.DisposeAsync();
         }

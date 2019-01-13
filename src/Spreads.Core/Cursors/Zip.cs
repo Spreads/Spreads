@@ -1389,10 +1389,10 @@ namespace Spreads
         //    var op2 = new Op2<TKey, TResult, TOp, Zip<TKey, TLeft, TRight, TCursorLeft, TCursorRight>>(this);
         //    return op2;
         //}
-        public Task DisposeAsync()
+        public ValueTask DisposeAsync()
         {
             Dispose();
-            return Task.CompletedTask;
+            return new ValueTask(Task.CompletedTask);
         }
     }
 }

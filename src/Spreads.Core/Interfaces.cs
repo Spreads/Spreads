@@ -29,7 +29,7 @@ namespace Spreads
 
     public interface IAsyncDisposable
     {
-        Task DisposeAsync();
+        ValueTask DisposeAsync();
     }
 
     /// <summary>
@@ -45,6 +45,9 @@ namespace Spreads
     /// False move from a valid state keeps a cursor/enumerator at the previous valid state.
     /// </remarks>
     public interface IAsyncEnumerator<out T> : IEnumerator<T>, IAsyncDisposable
+    //#if NETCOREAPP3_0
+    //        ,System.IAsyncDisposable
+    //#endif
     {
         /// <summary>
         /// Async move next.
@@ -54,8 +57,6 @@ namespace Spreads
         /// complete and there will be no more elements ever.
         /// </returns>
         ValueTask<bool> MoveNextAsync();
-
-        
     }
 
     // A marker interface for optional batching feature
@@ -71,7 +72,6 @@ namespace Spreads
         ValueTask<bool> MoveNextBatch(bool noAsync);
 
         IEnumerable<T> CurrentBatch { get; } // TODO specialized
-
     }
 
     /// <summary>
@@ -275,7 +275,7 @@ namespace Spreads
         // MoveNext is a part of IEnumerable
 
         /// <summary>
-        /// Move the cursor to a previous item in the <see cref="Source"/> series. 
+        /// Move the cursor to a previous item in the <see cref="Source"/> series.
         /// </summary>
         /// <returns>Returns true if the cursor moved. When false is returned the cursor stays at the same position where it was before calling this method.</returns>
         new bool MoveNext();
@@ -294,7 +294,7 @@ namespace Spreads
         long MoveNext(long stride, bool allowPartial);
 
         /// <summary>
-        /// Move the cursor to a previous item in the <see cref="Source"/> series. 
+        /// Move the cursor to a previous item in the <see cref="Source"/> series.
         /// </summary>
         /// <returns>Returns true if the cursor moved. When false is returned the cursor stays at the same position where it was before calling this method.</returns>
         bool MovePrevious();
@@ -334,7 +334,7 @@ namespace Spreads
         /// Gets a calculated value for continuous series without moving the cursor position.
         /// E.g. a continuous cursor for Repeat() will check if current state allows to get previous value,
         /// and if not then .Source.GetCursor().MoveAt(key, LE).
-        /// </summary>        
+        /// </summary>
         bool TryGetValue(TKey key, out TValue value);
 
         // TODO (review)
@@ -342,7 +342,6 @@ namespace Spreads
         // for sort join case using enumerator, e.g. for repeat it should keep previous value and check if
         // the requested key is between the previous and the current keys, and then return the previous one.
         // NB This is not thread safe. ICursors must be used from a single thread.
-        
     }
 
     /// <summary>

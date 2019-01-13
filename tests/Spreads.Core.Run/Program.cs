@@ -34,12 +34,14 @@ namespace Spreads.Core.Run
 
             // EquiJoinBench();
 
-            var test = new Spreads.Core.Tests.Cursors.AsyncCursorTests();
-            for (int i = 0; i < 100; i++)
-            {
-                await test.CouldReadDataStreamWhileWritingFromManyThreads();
-                Console.WriteLine("TEST: " + i);
-            }
+            var test = new Spreads.Core.Tests.Cursors.ZipCursorTests();
+            await test.CouldUseZipNSelector();
+
+            //for (int i = 0; i < 100; i++)
+            //{
+            //    await test.CouldUseZipNSelector();
+            //    Console.WriteLine("TEST: " + i);
+            //}
 
 
             Console.WriteLine("Finished, press enter to exit...");

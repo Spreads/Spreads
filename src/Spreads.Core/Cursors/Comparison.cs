@@ -265,10 +265,10 @@ namespace Spreads
         #endregion Custom Properties
 
        
-        public Task DisposeAsync()
+        public ValueTask DisposeAsync()
         {
             Dispose();
-            return Task.CompletedTask;
+            return new ValueTask(Task.CompletedTask);
         }
     }
 }

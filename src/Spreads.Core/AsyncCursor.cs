@@ -889,7 +889,7 @@ namespace Spreads
             Dispose(false);
         }
 
-        public Task DisposeAsync()
+        public ValueTask DisposeAsync()
         {
             Reset();
             return _innerCursor.DisposeAsync();
