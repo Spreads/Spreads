@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 15
-VisualStudioVersion = 15.0.27110.0
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.28407.52
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "docs", "docs", "{A6A6AF7D-D6E3-442D-9B1E-58CC91879BE1}"
 	ProjectSection(SolutionItems) = preProject
@@ -12,14 +12,12 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "project", "project", "{BF60
 	ProjectSection(SolutionItems) = preProject
 		azure-pipelines.yml = azure-pipelines.yml
 		build.cmd = build.cmd
-		build.sh = build.sh
 		build\common.props = build\common.props
 		LICENSE.Dependencies.txt = LICENSE.Dependencies.txt
 		LICENSE.txt = LICENSE.txt
 		NuGet.config = NuGet.config
 		README.md = README.md
 		RELEASE_NOTES.md = RELEASE_NOTES.md
-		tools\Spreads.Unsafe\Spreads.Unsafe.il = tools\Spreads.Unsafe\Spreads.Unsafe.il
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{ED8079DD-2B06-4030-9F0F-DC548F98E1C4}"
