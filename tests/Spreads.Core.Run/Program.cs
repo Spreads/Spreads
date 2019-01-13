@@ -5,6 +5,8 @@ using Spreads.Core.Tests.Serialization;
 using Spreads.Utils;
 using System;
 using System.Diagnostics;
+using System.Threading.Tasks;
+using Spreads.Core.Tests.Threading;
 
 namespace Spreads.Core.Run
 {
@@ -23,16 +25,22 @@ namespace Spreads.Core.Run
 
     internal class Program
     {
-        private static void Main(string[] args)
+        private static async Task Main(string[] args)
         {
+            
             Trace.Listeners.Add(new ConsoleListener());
 
             Settings.DoAdditionalCorrectnessChecks = false;
 
             // EquiJoinBench();
 
-            var test = new CRC32Tests();
-            test.CRCBenchmark();
+            var test = new Spreads.Core.Tests.Cursors.AsyncCursorTests();
+            for (int i = 0; i < 10; i++)
+            {
+                await test.CouldReadDataStreamWhileWritingFromManyThreads();
+                Console.WriteLine("TEST: " + i);
+            }
+
 
             Console.WriteLine("Finished, press enter to exit...");
             Console.ReadLine();

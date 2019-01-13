@@ -11,6 +11,7 @@ using System.Threading.Tasks;
 
 namespace Spreads.Core.Tests.Cursors
 {
+    [Category("CI")]
     [TestFixture]
     public class AsyncCursorTests
     {
@@ -130,7 +131,7 @@ namespace Spreads.Core.Tests.Cursors
 
             //Assert.AreEqual(1, range.First.Value);
 
-            var cursor = range.GetSpecializedCursor();
+            var cursor = range.GetCursor();
 
             var source = cursor.Source;
 
@@ -162,7 +163,7 @@ namespace Spreads.Core.Tests.Cursors
 
             //Assert.AreEqual(1, range.First.Value);
 
-            var cursor = range.GetSpecializedCursor();
+            var cursor = range.GetCursor();
 
             var source = cursor.Source;
 
@@ -188,11 +189,11 @@ namespace Spreads.Core.Tests.Cursors
         [Test]
         public async Task NotificationWorksWhenCursorIsNotWating()
         {
-            var sm = new SortedChunkedMap<int, int>();
+            var sm = new SortedMap<int, int>();
 
             sm.Add(1, 1);
             sm.Add(2, 2);
-            sm.Flush();
+            // sm.Flush();
 
             var cursor = sm.GetCursor();
             Assert.True(await cursor.MoveNextAsync());
@@ -232,7 +233,7 @@ namespace Spreads.Core.Tests.Cursors
 
             Thread.Sleep(100);
 
-            completable?.TryComplete(true, true);
+            completable?.TryComplete(true);
 
             t.Wait();
         }
@@ -241,7 +242,7 @@ namespace Spreads.Core.Tests.Cursors
         public async Task CouldEnumerateSMInBatchMode()
         {
             var map = new SortedMap<int, int>();
-            var count = 10_000_000;
+            var count = 1_000_000;
 
             for (int i = 0; i < count; i++)
             {
@@ -282,7 +283,7 @@ namespace Spreads.Core.Tests.Cursors
         public async Task CouldEnumerateSMUsingCursor()
         {
             var map = new SortedMap<int, int>();
-            var count = 10_000_000;
+            var count = 1_000_000;
 
             for (int i = 0; i < count; i++)
             {
@@ -324,7 +325,7 @@ namespace Spreads.Core.Tests.Cursors
         {
             Settings.SCMDefaultChunkLength = Settings.SCMDefaultChunkLength * 4;
             var scm = new SortedChunkedMap<int, int>();
-            var count = 50_000_000; // Settings.SCMDefaultChunkLength - 1;
+            var count = 1_000_000; // Settings.SCMDefaultChunkLength - 1;
 
             //for (int i = 0; i < count; i++)
             //{
@@ -453,41 +454,32 @@ namespace Spreads.Core.Tests.Cursors
         {
             var map = new SortedMap<int, int>();
 
-            var count = 1_000_000;
-            var rounds = 1;
+            var count = 1_00_000;
+            var rounds = 5;
 
-            var writeTask = Task.Run(async () =>
-            {
-                using (Benchmark.Run("Write", count * rounds, true))
-                {
-                    for (int j = 0; j < rounds; j++)
-                    {
-                        var t1 = Task.Run(async () =>
-                        {
-                            for (int i = j * count; i < (j + 1) * count; i++)
-                            {
-                                await map.TryAddLast(i, i);
-                            }
-                        });
-                        await t1;
-                    }
-                }
-            });
-
-            ICursor<int, int> cursor;
+            AsyncCursor<int, int, SortedMapCursor<int, int>> cursor = null;
             var cnt = 0L;
             var readTask = Task.Run(async () =>
             {
                 for (int r = 0; r < 1; r++)
                 {
-                    using (Benchmark.Run("Read", count, true))
+                    using (cursor = new AsyncCursor<int, int, SortedMapCursor<int, int>>(map.GetSpecializedCursor()))
                     {
-                        using (cursor = map.GetCursor())
+                        using (Benchmark.Run("Read", count * rounds, true))
                         {
-                            while (await cursor.MoveNextAsync())
+                            try
                             {
-                                Interlocked.Increment(ref cnt);
+                                while (await cursor.MoveNextAsync())
+                                {
+                                    Interlocked.Increment(ref cnt);
+                                }
                             }
+                            catch (Exception e)
+                            {
+                                Console.WriteLine(e);
+                                throw;
+                            }
+                            
 
                             // Left from coreclr 19161 tests, TODO remove when everything works OK
                             // here is a strong reference to cursor with side effects of printing to console
@@ -499,16 +491,65 @@ namespace Spreads.Core.Tests.Cursors
                 }
             });
 
+
+            var writeTask = Task.Run(async () =>
+            {
+                using (Benchmark.Run("Write", count * rounds, true))
+                {
+                    for (int j = 0; j < rounds; j++)
+                    {
+                        var t1 = Task.Run(async () =>
+                        {
+                            try
+                            {
+                                for (int i = j * count; i < (j + 1) * count; i++)
+                                {
+                                    await map.TryAddLast(i, i).ConfigureAwait(false);
+                                    Thread.SpinWait(10);
+                                }
+                            }
+                            catch (Exception e)
+                            {
+                                Console.WriteLine(e);
+                                throw;
+                            }
+                        });
+                        await t1;
+                    }
+                }
+            });
+
+            var monitor = true;
+            var t = Task.Run(async () =>
+            {
+                try
+                {
+                    while (monitor)
+                    {
+                        await Task.Delay(1000);
+                        Console.WriteLine($"Key {cursor.CurrentKey}");
+                        cursor.TryComplete(false);
+                    }
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine(e);
+                    throw;
+                }
+            });
+
             await writeTask;
             await map.Complete();
-            Console.WriteLine("Read after complete:" + Interlocked.Read(ref cnt));
+            map.NotifyUpdate(true);
+            Console.WriteLine("Read after map complete:" + Interlocked.Read(ref cnt));
             await readTask;
-
+            Console.WriteLine("Read after finish:" + Interlocked.Read(ref cnt));
             // Console.WriteLine("Last key: " + lastKey);
 
             Benchmark.Dump();
 
             map.Dispose();
+            monitor = false;
         }
     }
 }

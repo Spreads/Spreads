@@ -10,7 +10,6 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.ExceptionServices;
-using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Sources;
@@ -89,34 +88,60 @@ namespace Spreads
         }
 
         protected static readonly Action<object> SCompletedSentinel = s => throw new InvalidOperationException("Called completed sentinel");
-        protected static readonly Action<object> SAvailableSentinel = s => throw new InvalidOperationException("Called available sentinel");
     }
+
+    // AsyncCursor is a state machine that is usually moved by SpreadsThreadPool when notified by the source and until cancelled.
+    // Continuation could be sqeduled to the default ThreadPool when context is required (TODO review, there is nothing in Spread pipiline, we only need this to return back e.g. to UI thread)
 
     public sealed class AsyncCursor<TKey, TValue, TCursor> : AsyncCursor,
          ISpecializedCursor<TKey, TValue, TCursor>,
-         IValueTaskSource<bool>, IAsyncCompletable
+         IValueTaskSource<bool>, IAsyncCompletable, IThreadPoolWorkItem
          where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
     {
-        // TODO Pooling, but see #84
+        // TODO (?,low) Pooling, but see #84
 
-        // NB this is often a struct, should not be made readonly!
+        // NB this is often a struct, should not be made readonly
         // ReSharper disable once FieldCanBeMadeReadOnly.Local
         private TCursor _innerCursor;
 
+        /// <summary>
+        /// The callback to invoke when the operation completes if <see cref="OnCompleted"/> was called before the operation completed,
+        /// or <see cref="AsyncCursor.SCompletedSentinel"/> if the operation completed before a callback was supplied,
+        /// or null if a callback hasn't yet been provided and the operation hasn't yet completed.
+        /// </summary>
         private Action<object> _continuation;
+
+        /// <summary>State to pass to <see cref="_continuation"/>.</summary>
         private object _continuationState;
-        private object _capturedContext;
+
+        /// <summary><see cref="ExecutionContext"/> to flow to the callback, or null if no flowing is required.</summary>
         private ExecutionContext _executionContext;
+
+        /// <summary>
+        /// A "captured" <see cref="SynchronizationContext"/> or <see cref="TaskScheduler"/> with which to invoke the callback,
+        /// or null if no special context is required.
+        /// </summary>
+        private object _capturedContext;
+
+        /// <summary>Whether the current operation has completed.</summary>
         internal volatile bool _completed;
+
+        /// <summary>The result with which the operation succeeded, or the default value if it hasn't yet completed or failed.</summary>
         private bool _result;
+
+        /// <summary>The exception with which the operation failed, or null if it hasn't yet completed or completed successfully.</summary>
         private ExceptionDispatchInfo _error;
+
+        /// <summary>The current version of this value, used to help prevent misuse.</summary>
         private short _version;
 
         private long _isLocked = 1L;
         private bool _hasSkippedUpdate;
+
+        // TODO try to use a single field
         private IDisposable _subscription;
+
         private IAsyncSubscription _subscriptionEx;
-        private GCHandle _keepAliveHandle;
 
         private bool _preferBatchMode;
         private bool _isInBatch;
@@ -128,7 +153,7 @@ namespace Spreads
         internal AsyncCursor(TCursor cursor, bool preferBatchMode = false)
         {
             _innerCursor = cursor;
-            
+
             _preferBatchMode = preferBatchMode;
 
             if (_preferBatchMode)
@@ -144,7 +169,7 @@ namespace Spreads
                 }
             }
 
-            _continuation = SAvailableSentinel;
+            _continuation = null;
             _continuationState = null;
             _capturedContext = null;
             _executionContext = null;
@@ -162,29 +187,21 @@ namespace Spreads
         #region Async synchronization
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void TryOwnAndReset()
+        private void TryOwnAndReset()
         {
-            var previous = Interlocked.CompareExchange(ref _continuation, null, SAvailableSentinel);
-            if (ReferenceEquals(previous, SAvailableSentinel) || previous is null)
+            unchecked
             {
-                unchecked
-                {
-                    _version++;
-                }
-
-                _isLocked = 1L;
-
-                _completed = false;
-                _result = default;
-                _continuationState = null;
-                _error = null;
-                _executionContext = null;
-                _capturedContext = null;
+                _version++;
             }
-            else
-            {
-                ThrowHelper.FailFast("Cannot reset");
-            }
+            _completed = false;
+            _result = default;
+            _error = null;
+            _executionContext = null;
+            _capturedContext = null;
+            _continuation = null;
+            _continuationState = null;
+
+            _isLocked = 1L;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -195,22 +212,24 @@ namespace Spreads
                 LogSync();
                 return new ValueTask<bool>(true);
             }
+
             if (_innerCursor.IsCompleted)
             {
+                LogSync();
                 if (_innerCursor.MoveNext())
                 {
-                    LogSync();
                     return new ValueTask<bool>(true);
                 }
-                LogSync();
                 return new ValueTask<bool>(false);
             }
+
             // Delay subscribing as much as possible
             if (_subscription == null)
             {
                 _subscription = _innerCursor.AsyncCompleter?.Subscribe(this) ?? _nullSubscriptionSentinel;
                 _subscriptionEx = _subscription as IAsyncSubscription;
             }
+
             if (ReferenceEquals(_subscription, _nullSubscriptionSentinel))
             {
                 // NB last chance, no async support
@@ -219,14 +238,12 @@ namespace Spreads
 
             TryOwnAndReset();
 
-            switch (GetStatus(_version))
+            if (GetStatus(_version) == ValueTaskSourceStatus.Succeeded)
             {
-                case ValueTaskSourceStatus.Succeeded:
-                    return new ValueTask<bool>(GetResult(_version));
-
-                default:
-                    return new ValueTask<bool>(this, _version);
+                return new ValueTask<bool>(GetResult(_version));
             }
+
+            return new ValueTask<bool>(this, _version);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -234,23 +251,7 @@ namespace Spreads
         {
             ValidateToken(token);
 
-            if (_innerCursor.MoveNext())
-            {
-                LogSync();
-                _completed = true;
-                _result = true;
-            }
-            else if (_innerCursor.IsCompleted)
-            {
-                LogSync();
-                if (_innerCursor.MoveNext())
-                {
-                    _completed = true;
-                    _result = true;
-                }
-                _completed = true;
-                _result = false;
-            }
+            // Do not try cursor move here, it's done already in MNA, then we check if value is available after OnCompleted call
 
             return
                 !_completed ? ValueTaskSourceStatus.Pending :
@@ -266,15 +267,13 @@ namespace Spreads
 
             if (!_completed)
             {
-                ThrowHelper.ThrowInvalidOperationException("_completed = false in GetResult");
+                ThrowGetResultUncompleted();
             }
 
-            var result = _result;
-
-            Volatile.Write(ref _continuation, SAvailableSentinel);
+            // Volatile.Write(ref _continuation, SAvailableSentinel);
 
             _error?.Throw();
-            return result;
+            return _result;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -282,19 +281,21 @@ namespace Spreads
         {
             if (token != _version)
             {
-                ThrowHelper.FailFast("token != _version");
+                ThrowBadToken();
             }
         }
 
+        // This method is used to chain/combine Spreads's logic, actual execution on a completion/consumer thread happens in Execute method.
+        /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void TryComplete(bool runAsync, bool cancel)
+        public void TryComplete(bool cancel)
         {
             if (cancel)
             {
                 _error = _error ?? ExceptionDispatchInfo.Capture(new OperationCanceledException());
             }
 
-            // NB: OnCompleted opens the lock. If there is no awaiter then
+            // NB: OnCompleted opens the lock (set to 0). If there is no awaiter then
             // we register a missed update and return. This methods does
             // not move _innerCursor if noone is awating on MNA. Cursors are
             // single-reader (one thread at time) so if someone awaits on one
@@ -307,24 +308,19 @@ namespace Spreads
                 return;
             }
 
-            if (runAsync)
-            {
-                SpreadsThreadPool.Default.UnsafeQueueCompletableItem(TryCompleteImpl, null, true);
-            }
-            else
-            {
-                TryCompleteImpl(null);
-            }
+            SpreadsThreadPool.Default.UnsafeQueueCompletableItem(this, false); // TODO (review) currently hangs with true.
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void TryCompleteImpl(object dummy)
+        /// <summary>
+        /// This method is normally called by a thread pool worker. If there is no context (execution or scheduling) then execute continuation synchronuously
+        /// since we are on a threadpool worker thread or a caller of this method knows what is going on.
+        /// </summary>
+        public void Execute()
         {
-            var runAsync = false;
             // separate because there could be no awaiter when we cancel and lock is taken
             if (_error != null)
             {
-                SignalCompletion(runAsync);
+                SignalCompletion();
                 return;
             }
 
@@ -335,18 +331,12 @@ namespace Spreads
                     // if during checks someones notifies us about updates but we are trying to move,
                     // then we could miss update (happenned in tests once in 355M-5.5B ops)
                     Volatile.Write(ref _hasSkippedUpdate, false);
+
                     if (_innerCursor.MoveNext())
                     {
                         _subscriptionEx?.RequestNotification(-1);
-                        if (runAsync)
-                        {
-                            SetResultAsync(true);
-                        }
-                        else
-                        {
-                            SetResult(true);
-                        }
 
+                        SetResult(true);
                         LogAsync();
                         return;
                     }
@@ -355,24 +345,9 @@ namespace Spreads
                     {
                         // not needed: if completed then there will be no updates
                         _subscriptionEx?.RequestNotification(-1);
-                        if (_innerCursor.MoveNext())
-                        {
-                            if (runAsync)
-                            {
-                                SetResultAsync(true);
-                            }
-                            else
-                            {
-                                SetResult(true);
-                            }
 
-                            LogAsync();
-                            return;
-                        }
-
-                        if (runAsync) { SetResultAsync(false); }
-                        else { SetResult(false); }
-
+                        var moved = _innerCursor.MoveNext();
+                        SetResult(moved);
                         LogAsync();
                         return;
                     }
@@ -383,119 +358,20 @@ namespace Spreads
                 LogAwait();
 
                 _subscriptionEx?.RequestNotification(1);
+
                 Volatile.Write(ref _isLocked, 0L);
+
                 if (Volatile.Read(ref _hasSkippedUpdate))//  && locked == 0 && !_completed)
                 {
                     LogSkipped();
-                    TryComplete(true, false);
+                    // logically recursive call but via thread pool
+                    TryComplete(false);
                 }
             }
             catch (Exception e)
             {
                 Console.WriteLine(e);
-                SetException(e); // see https://github.com/dotnet/roslyn/issues/26567; we may want to move this out of the catch
-            }
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void OnCompleted(Action<object> continuation, object state, short token, ValueTaskSourceOnCompletedFlags flags)
-        {
-            if (continuation == null)
-            {
-                ThrowHelper.FailFast(nameof(continuation));
-                return;
-            }
-            ValidateToken(token);
-
-            if ((flags & ValueTaskSourceOnCompletedFlags.FlowExecutionContext) != 0)
-            {
-                _executionContext = ExecutionContext.Capture();
-            }
-
-            if ((flags & ValueTaskSourceOnCompletedFlags.UseSchedulingContext) != 0)
-            {
-                SynchronizationContext sc = SynchronizationContext.Current;
-                if (sc != null && sc.GetType() != typeof(SynchronizationContext))
-                {
-                    _capturedContext = sc;
-                }
-                else
-                {
-                    TaskScheduler ts = TaskScheduler.Current;
-                    if (ts != TaskScheduler.Default)
-                    {
-                        _capturedContext = ts;
-                    }
-                }
-            }
-
-            // From S.Th.Channels:
-            // We need to store the state before the CompareExchange, so that if it completes immediately
-            // after the CompareExchange, it'll find the state already stored.  If someone misuses this
-            // and schedules multiple continuations erroneously, we could end up using the wrong state.
-            // Make a best-effort attempt to catch such misuse.
-            if (_continuationState != null)
-            {
-                ThrowHelper.FailFast("Multiple continuations");
-            }
-            _continuationState = state;
-
-            // From S.Th.Channels:
-            // Try to set the provided continuation into _continuation.  If this succeeds, that means the operation
-            // has not yet completed, and the completer will be responsible for invoking the callback.  If this fails,
-            // that means the operation has already completed, and we must invoke the callback, but because we're still
-            // inside the awaiter's OnCompleted method and we want to avoid possible stack dives, we must invoke
-            // the continuation asynchronously rather than synchronously.
-            Action<object> prevContinuation = Interlocked.CompareExchange(ref _continuation, continuation, null);
-
-            if (prevContinuation != null)
-            {
-                if (!ReferenceEquals(prevContinuation, SCompletedSentinel))
-                {
-                    Debug.Assert(prevContinuation != SAvailableSentinel, "Continuation was the available sentinel.");
-                    ThrowHelper.FailFast("Multiple continuations");
-                }
-
-                _executionContext = null;
-
-                object cc = _capturedContext;
-                _capturedContext = null;
-
-                switch (cc)
-                {
-                    case null:
-                        SpreadsThreadPool.Default.UnsafeQueueCompletableItem(continuation, state, true);
-                        break;
-
-                    case SynchronizationContext sc:
-                        sc.Post(s =>
-                        {
-                            var tuple = (Tuple<Action<object>, object>)s;
-                            tuple.Item1(tuple.Item2);
-                        }, Tuple.Create(continuation, state));
-                        break;
-
-                    case TaskScheduler ts:
-                        Task.Factory.StartNew(continuation, state, CancellationToken.None, TaskCreationOptions.DenyChildAttach, ts);
-                        break;
-                }
-            }
-            else
-            {
-                // we will lose the root after this method method returns without 
-                // completion, so we keep the reference to this cursor alive
-                // https://github.com/dotnet/coreclr/issues/19161
-                _keepAliveHandle = GCHandle.Alloc(this);
-
-                // if we request notification before releasing the lock then
-                // we will have _hasSkippedUpdate flag set. Then we retry ourselves anyway
-
-                _subscriptionEx?.RequestNotification(1);
-                Volatile.Write(ref _isLocked, 0L);
-                // Retry self, _continuations is now set, last chance to get result
-                // without external notification. If cannot move from here
-                // lock will remain open
-                TryComplete(true, false);
+                SetException(e); // TODO (low) review https://github.com/dotnet/roslyn/issues/26567; we may want to move this out of the catch
             }
         }
 
@@ -507,115 +383,209 @@ namespace Spreads
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void SetResultAsync(bool result)
-        {
-            _result = result;
-            SignalCompletion(true);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void SetException(Exception error)
         {
             _error = ExceptionDispatchInfo.Capture(error);
             SignalCompletion();
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void SetExceptionAsync(Exception error)
+        public void OnCompleted(Action<object> continuation, object state, short token, ValueTaskSourceOnCompletedFlags flags)
         {
-            _error = ExceptionDispatchInfo.Capture(error);
-            SignalCompletion(true);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void SignalCompletion(bool runAsync = false)
-        {
-            if (_keepAliveHandle.IsAllocated)
+            if (continuation == null) // TODO (review) #ifdebug ?
             {
-                _keepAliveHandle.Free();
+                FailContinuationIsNull();
+            }
+            ValidateToken(token);
+
+            // From S.Th.Channels:
+            // We need to store the state before the CompareExchange, so that if it completes immediately
+            // after the CompareExchange, it'll find the state already stored.  If someone misuses this
+            // and schedules multiple continuations erroneously, we could end up using the wrong state.
+            // Make a best-effort attempt to catch such misuse.
+            if (_continuationState != null)
+            {
+                ThrowMultipleContinuations();
+            }
+            _continuationState = state;
+
+            // Capture the execution context if necessary.
+            Debug.Assert(_executionContext == null);
+            if ((flags & ValueTaskSourceOnCompletedFlags.FlowExecutionContext) != 0)
+            {
+                _executionContext = ExecutionContext.Capture();
             }
 
-            if (_completed)
+            // Capture the scheduling context if necessary.
+            Debug.Assert(_capturedContext == null);
+            SynchronizationContext sc = null;
+            TaskScheduler ts = null;
+            if ((flags & ValueTaskSourceOnCompletedFlags.UseSchedulingContext) != 0)
             {
-                ThrowHelper.ThrowInvalidOperationException("Calling SignalCompletion on already completed task");
-            }
-            _completed = true;
-
-            if (Interlocked.CompareExchange(ref _continuation, SCompletedSentinel, null) != null)
-            {
-                if (_continuation == SCompletedSentinel || _continuation == SAvailableSentinel)
+                sc = SynchronizationContext.Current;
+                if (sc != null && sc.GetType() != typeof(SynchronizationContext))
                 {
-                    ThrowHelper.FailFast("Wrong continuation");
-                }
-
-                if (_executionContext != null)
-                {
-                    ExecutionContext.Run(_executionContext, runAsync ? _contextCallbackAsync : _contextCallback, this);
+                    _capturedContext = sc;
                 }
                 else
                 {
-                    InvokeContinuation(runAsync);
+                    sc = null;
+                    ts = TaskScheduler.Current;
+                    if (ts != TaskScheduler.Default)
+                    {
+                        _capturedContext = ts;
+                    }
                 }
             }
-        }
 
-        // TODO refactor callbacks sync vs async path
+            // From S.Th.Channels:
+            // Try to set the provided continuation into _continuation.  If this succeeds, that means the operation
+            // has not yet completed, and the completer will be responsible for invoking the callback.  If this fails,
+            // that means the operation has already completed, and we must invoke the callback, but because we're still
+            // inside the awaiter's OnCompleted method and we want to avoid possible stack dives, we must invoke
+            // the continuation asynchronously rather than synchronously.
+            Action<object> prevContinuation = Interlocked.CompareExchange(ref _continuation, continuation, null);
 
-        private readonly ContextCallback _contextCallback = (th) =>
-        {
-            ((AsyncCursor<TKey, TValue, TCursor>)th).InvokeContinuation(false);
-        };
-
-        private readonly ContextCallback _contextCallbackAsync = (th) =>
-        {
-            ((AsyncCursor<TKey, TValue, TCursor>)th).InvokeContinuation(true);
-        };
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void InvokeContinuation(bool runAsync)
-        {
-            object cc = _capturedContext;
-            _capturedContext = null;
-
-            switch (cc)
+            if (prevContinuation != null)
             {
-                case null:
-                    if (runAsync)
+                Debug.Assert(IsCompleted, $"Expected IsCompleted");
+                if (!ReferenceEquals(prevContinuation, SCompletedSentinel))
+                {
+                    // Debug.Assert(prevContinuation != SAvailableSentinel, "Continuation was the available sentinel.");
+                    ThrowMultipleContinuations();
+                }
+
+                // From S.Th.Channels:
+                // Queue the continuation.  We always queue here, even if !RunContinuationsAsynchronously, in order
+                // to avoid stack diving; this path happens in the rare race when we're setting up to await and the
+                // object is completed after the awaiter.IsCompleted but before the awaiter.OnCompleted.
+                if (_capturedContext == null)
+                {
+                    QueueUserWorkItem(continuation, state);
+                }
+                else if (sc != null)
+                {
+                    sc.Post(s =>
                     {
-                        SpreadsThreadPool.Default.UnsafeQueueCompletableItem(_cbForScheduler, this, true);
-                    }
-                    else
-                    {
-                        SetCompletionAndInvokeContinuation();
-                    }
+                        var t = (Tuple<Action<object>, object>)s;
+                        t.Item1(t.Item2);
+                    }, Tuple.Create(continuation, state));
+                }
+                else
+                {
+                    Debug.Assert(ts != null);
+                    // ReSharper disable AssignNullToNotNullAttribute
+                    Task.Factory.StartNew(continuation, state, CancellationToken.None, TaskCreationOptions.DenyChildAttach, ts);
+                    // ReSharper restore AssignNullToNotNullAttribute
+                }
+            }
+            else
+            {
+                // TODO (!) get rid of this
+                // we will lose the root after this method method returns without
+                // completion, so we keep the reference to this cursor alive
+                // https://github.com/dotnet/coreclr/issues/19161
+                // _keepAliveHandle = GCHandle.Alloc(this);
+                // Console.WriteLine("HANDLE");
 
-                    break;
+                // if we request notification before releasing the lock then
+                // we will have _hasSkippedUpdate flag set. Then we retry ourselves anyway
 
-                case SynchronizationContext sc:
-                    sc.Post(_sendOrPostCallback, this);
-                    break;
-
-                case TaskScheduler ts:
-                    Task.Factory.StartNew(_cbForScheduler, this, CancellationToken.None, TaskCreationOptions.DenyChildAttach, ts);
-                    break;
+                _subscriptionEx?.RequestNotification(1);
+                Volatile.Write(ref _isLocked, 0L);
+                // Retry self, _continuations is now set, last chance to get result
+                // without external notification. If cannot move from here
+                // lock will remain open
+                TryComplete(false);
             }
         }
 
-        private readonly SendOrPostCallback _sendOrPostCallback = (th) =>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static void QueueUserWorkItem(Action<object> action, object state)
         {
-            ((AsyncCursor<TKey, TValue, TCursor>)th).SetCompletionAndInvokeContinuation();
-        };
+#if NETCOREAPP3_0
+            ThreadPool.QueueUserWorkItem(action, state, preferLocal: false);
+#else
+            Task.Factory.StartNew(action, state,
+                CancellationToken.None, TaskCreationOptions.DenyChildAttach, TaskScheduler.Default);
+#endif
+        }
 
-        private readonly Action<object> _cbForScheduler = (th) =>
-        {
-            ((AsyncCursor<TKey, TValue, TCursor>)th).SetCompletionAndInvokeContinuation();
-        };
-
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void SetCompletionAndInvokeContinuation()
         {
-            Action<object> c = _continuation;
-            _continuation = SCompletedSentinel;
-            c(_continuationState);
+            if (_executionContext == null)
+            {
+                Action<object> c = _continuation;
+                _continuation = SCompletedSentinel;
+                c(_continuationState);
+            }
+            else
+            {
+                SetCompletionAndInvokeContinuationCtx();
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private void SetCompletionAndInvokeContinuationCtx()
+        {
+            ExecutionContext.Run(_executionContext, s =>
+            {
+                var thisRef = (AsyncCursor<TKey, TValue, TCursor>)s;
+                Action<object> c = thisRef._continuation;
+                thisRef._continuation = SCompletedSentinel;
+                c(thisRef._continuationState);
+            }, this);
+        }
+
+        /// <summary>Signals to a registered continuation that the operation has now completed.</summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void SignalCompletion()
+        {
+            if (_completed)
+            {
+                ThrowSignallingAlreadyCompleted();
+            }
+            _completed = true;
+
+            if (_continuation != null || Interlocked.CompareExchange(ref _continuation, SCompletedSentinel, null) != null)
+            {
+                Debug.Assert(_continuation != SCompletedSentinel, $"The continuation was the completion sentinel.");
+                // Debug.Assert(_continuation != SAvailableSentinel, $"The continuation was the available sentinel.");
+
+                if (_capturedContext == null)
+                {
+                    // There's no captured scheduling context.
+                    // Fall through to invoke it synchronously.
+                }
+                else if (_capturedContext is SynchronizationContext sc)
+                {
+                    // There's a captured synchronization context.  If we're forced to run continuations asynchronously,
+                    // or if there's a current synchronization context that's not the one we're targeting, queue it.
+                    // Otherwise fall through to invoke it synchronously.
+                    if (sc != SynchronizationContext.Current)
+                    {
+                        sc.Post(s => ((AsyncCursor<TKey, TValue, TCursor>)s).SetCompletionAndInvokeContinuation(), this);
+                        return;
+                    }
+                }
+                else
+                {
+                    // There's a captured TaskScheduler.  If we're forced to run continuations asynchronously,
+                    // or if there's a current scheduler that's not the one we're targeting, queue it.
+                    // Otherwise fall through to invoke it synchronously.
+                    TaskScheduler ts = (TaskScheduler)_capturedContext;
+                    Debug.Assert(ts != null, "Expected a TaskScheduler");
+                    if (ts != TaskScheduler.Current)
+                    {
+                        Task.Factory.StartNew(s => ((AsyncCursor<TKey, TValue, TCursor>)s).SetCompletionAndInvokeContinuation(), this,
+                            CancellationToken.None, TaskCreationOptions.DenyChildAttach, ts);
+                        return;
+                    }
+                }
+
+                // Invoke the continuation synchronously.
+                SetCompletionAndInvokeContinuation();
+            }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -693,6 +663,36 @@ namespace Spreads
                 }
                 return await MoveNextAsync();
             }
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static void ThrowGetResultUncompleted()
+        {
+            ThrowHelper.ThrowInvalidOperationException("_completed = false in GetResult");
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static void ThrowBadToken()
+        {
+            ThrowHelper.FailFast("token != _version");
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static void ThrowMultipleContinuations()
+        {
+            ThrowHelper.ThrowInvalidOperationException("Multiple continuations");
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static void FailContinuationIsNull()
+        {
+            ThrowHelper.FailFast("continuation");
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static void ThrowSignallingAlreadyCompleted()
+        {
+            ThrowHelper.ThrowInvalidOperationException("Calling SignalCompletion on already completed task");
         }
 
         #endregion Async synchronization
@@ -859,11 +859,11 @@ namespace Spreads
         {
             _subscription?.Dispose();
             _innerBatchEnumerator?.Dispose();
-
-            if (_keepAliveHandle.IsAllocated)
-            {
-                _keepAliveHandle.Free();
-            }
+            Console.WriteLine("dispose");
+            //if (_keepAliveHandle.IsAllocated)
+            //{
+            //    _keepAliveHandle.Free();
+            //}
 
             if (!disposing) return;
 
@@ -883,7 +883,8 @@ namespace Spreads
 
         ~AsyncCursor()
         {
-            Console.WriteLine("Async cursor finalized");
+            //Console.WriteLine("Async cursor finalized: " + _st);
+            Console.WriteLine("-----------------------------------");
             Dispose(false);
         }
 

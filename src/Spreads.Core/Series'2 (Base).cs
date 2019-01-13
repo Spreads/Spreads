@@ -987,7 +987,7 @@ namespace Spreads
         private class ContainerSubscription : IAsyncSubscription
         {
             private readonly Series<TKey, TValue> _series;
-            public readonly WeakReference<IAsyncCompletable> Wr;
+            public readonly StrongReference<IAsyncCompletable> Wr;
 
             // Public interface exposes only IDisposable, only if subscription is IAsyncSubscription cursor knows what to do
             // Otherwise this number will stay at 1 and NotifyUpdate will send all updates
@@ -1003,7 +1003,7 @@ namespace Spreads
                 get => Volatile.Read(ref _requests);
             }
 
-            public ContainerSubscription(Series<TKey, TValue> series, WeakReference<IAsyncCompletable> wr)
+            public ContainerSubscription(Series<TKey, TValue> series, StrongReference<IAsyncCompletable> wr)
             {
                 _series = series;
                 Wr = wr;
@@ -1070,7 +1070,7 @@ namespace Spreads
 
         public IDisposable Subscribe(IAsyncCompletable subscriber)
         {
-            var wr = new WeakReference<IAsyncCompletable>(subscriber);
+            var wr = new StrongReference<IAsyncCompletable>(subscriber);
             var subscription = new ContainerSubscription(this, wr);
             try
             {
@@ -1194,7 +1194,7 @@ namespace Spreads
         private static void DoNotifyUpdateSingleSync(object obj)
         {
             var cursor = (IAsyncCompletable)obj;
-            cursor.TryComplete(true, false);
+            cursor.TryComplete(false);
         }
 
         #endregion Async cursor

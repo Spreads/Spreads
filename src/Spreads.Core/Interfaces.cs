@@ -84,14 +84,15 @@ namespace Spreads
         IAsyncEnumerator<T> GetAsyncEnumerator();
     }
 
+    // TODO rename to INotifiable+Notify,
+
     public interface IAsyncCompletable
     {
         /// <summary>
         /// Caller of this method completes an outstanding async operation.
         /// </summary>
-        /// <param name="runAsync">Run completion asynchronously.</param>
         /// <param name="cancel">Cancel completion. Causes OperationCancelledException in awaiters.</param>
-        void TryComplete(bool runAsync, bool cancel);
+        void TryComplete(bool cancel);
     }
 
     internal interface IAsyncSubscription : IDisposable
