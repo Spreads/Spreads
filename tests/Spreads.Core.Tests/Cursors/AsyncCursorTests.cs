@@ -456,7 +456,7 @@ namespace Spreads.Core.Tests.Cursors
             var map = new SortedMap<int, int>();
 
             var count = 1_000_000;
-            var rounds = 1;
+            var rounds = 5;
 
             var writeTask = Task.Run(async () =>
             {
@@ -471,7 +471,7 @@ namespace Spreads.Core.Tests.Cursors
                                 for (int i = j * count; i < (j + 1) * count; i++)
                                 {
                                     await map.TryAddLast(i, i);
-                                    // Thread.SpinWait(10);
+                                    Thread.SpinWait(10);
                                 }
                             }
                             catch (Exception e)

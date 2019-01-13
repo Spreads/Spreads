@@ -1,12 +1,10 @@
 ﻿using Spreads.Collections;
-using Spreads.Core.Tests.Algorithms;
 using Spreads.Core.Tests.Collections.Concurrent;
 using Spreads.Core.Tests.Serialization;
 using Spreads.Utils;
 using System;
 using System.Diagnostics;
 using System.Threading.Tasks;
-using Spreads.Core.Tests.Threading;
 
 namespace Spreads.Core.Run
 {
@@ -27,22 +25,19 @@ namespace Spreads.Core.Run
     {
         private static async Task Main(string[] args)
         {
-            
             Trace.Listeners.Add(new ConsoleListener());
 
             Settings.DoAdditionalCorrectnessChecks = false;
 
             // EquiJoinBench();
 
-            var test = new Spreads.Core.Tests.Cursors.ZipCursorTests();
-            await test.CouldUseZipNSelector();
+            var test = new Spreads.Core.Tests.Cursors.AsyncCursorTests();
 
-            //for (int i = 0; i < 100; i++)
-            //{
-            //    await test.CouldUseZipNSelector();
-            //    Console.WriteLine("TEST: " + i);
-            //}
-
+            for (int i = 0; i < 100; i++)
+            {
+                await test.CouldReadDataStreamWhileWritingFromManyThreads();
+                Console.WriteLine("TEST: " + i);
+            }
 
             Console.WriteLine("Finished, press enter to exit...");
             Console.ReadLine();

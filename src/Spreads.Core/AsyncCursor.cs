@@ -308,7 +308,11 @@ namespace Spreads
                 return;
             }
 
-            SpreadsThreadPool.Default.UnsafeQueueCompletableItem(this, false); // TODO (review) currently hangs with true.
+#if NETCOREAPP3_0
+            ThreadPool.UnsafeQueueUserWorkItem(this, false);
+#else
+            ThreadPool.UnsafeQueueUserWorkItem(state => ((AsyncCursor<TKey, TValue, TCursor>) state).Execute(), this);
+#endif
         }
 
         /// <summary>
@@ -391,6 +395,7 @@ namespace Spreads
             SignalCompletion();
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void OnCompleted(Action<object> continuation, object state, short token, ValueTaskSourceOnCompletedFlags flags)
         {
             if (continuation == null) // TODO (review) #ifdebug ?
@@ -551,7 +556,6 @@ namespace Spreads
             if (_continuation != null || Interlocked.CompareExchange(ref _continuation, SCompletedSentinel, null) != null)
             {
                 Debug.Assert(_continuation != SCompletedSentinel, $"The continuation was the completion sentinel.");
-                // Debug.Assert(_continuation != SAvailableSentinel, $"The continuation was the available sentinel.");
 
                 if (_capturedContext == null)
                 {
@@ -696,7 +700,7 @@ namespace Spreads
             ThrowHelper.ThrowInvalidOperationException("Calling SignalCompletion on already completed task");
         }
 
-        #endregion Async synchronization
+#endregion Async synchronization
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool MoveNext()

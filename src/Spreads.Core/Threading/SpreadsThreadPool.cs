@@ -120,6 +120,7 @@ namespace Spreads.Threading
 
         private TaskScheduler _scheduler;
 
+        [Obsolete("Use built-in ThreadPool unless custom priority or other non-standard setting is required.")]
         public static SpreadsThreadPool Default
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
