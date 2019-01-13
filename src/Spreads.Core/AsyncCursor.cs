@@ -16,6 +16,9 @@ using System.Threading.Tasks.Sources;
 
 namespace Spreads
 {
+    /// <summary>
+    /// Base class with mostly internal static fields used by <see cref="AsyncCursor{TKey,TValue,TCursor}"/>.
+    /// </summary>
     public class AsyncCursor
     {
         protected static IDisposable _nullSubscriptionSentinel = new DummyDisposable();
@@ -41,8 +44,8 @@ namespace Spreads
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static void LogSync()
         {
-            Interlocked.Increment(ref _syncCount);
-            // _syncCount++;
+            //Interlocked.Increment(ref _syncCount);
+            _syncCount++;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -90,9 +93,9 @@ namespace Spreads
         protected static readonly Action<object> SCompletedSentinel = s => throw new InvalidOperationException("Called completed sentinel");
     }
 
-    // AsyncCursor is a state machine that is usually moved by SpreadsThreadPool when notified by the source and until cancelled.
-    // Continuation could be sqeduled to the default ThreadPool when context is required (TODO review, there is nothing in Spread pipiline, we only need this to return back e.g. to UI thread)
-
+    /// <summary>
+    /// The default implementation of <see cref="ICursor{TKey,TValue}"/> with supported <see cref="IAsyncEnumerator{T}.MoveNextAsync"/>.
+    /// </summary>
     public sealed class AsyncCursor<TKey, TValue, TCursor> : AsyncCursor,
          ISpecializedCursor<TKey, TValue, TCursor>,
          IValueTaskSource<bool>, IAsyncCompletable, IThreadPoolWorkItem
@@ -141,7 +144,7 @@ namespace Spreads
         // TODO try to use a single field
         private IDisposable _subscription;
 
-        private IAsyncSubscription _subscriptionEx;
+        // private IAsyncSubscription _subscriptionEx;
 
         private bool _preferBatchMode;
         private bool _isInBatch;
@@ -227,7 +230,6 @@ namespace Spreads
             if (_subscription == null)
             {
                 _subscription = _innerCursor.AsyncCompleter?.Subscribe(this) ?? _nullSubscriptionSentinel;
-                _subscriptionEx = _subscription as IAsyncSubscription;
             }
 
             if (ReferenceEquals(_subscription, _nullSubscriptionSentinel))
@@ -269,8 +271,6 @@ namespace Spreads
             {
                 ThrowGetResultUncompleted();
             }
-
-            // Volatile.Write(ref _continuation, SAvailableSentinel);
 
             _error?.Throw();
             return _result;
@@ -334,7 +334,9 @@ namespace Spreads
 
                     if (_innerCursor.MoveNext())
                     {
-                        _subscriptionEx?.RequestNotification(-1);
+                        if (_subscription is IAsyncSubscription asub) { asub.RequestNotification(-1); }
+
+                        
 
                         SetResult(true);
                         LogAsync();
@@ -344,7 +346,7 @@ namespace Spreads
                     if (_innerCursor.IsCompleted)
                     {
                         // not needed: if completed then there will be no updates
-                        _subscriptionEx?.RequestNotification(-1);
+                        // if (_subscription is IAsyncSubscription asub) { asub.RequestNotification(-1); }
 
                         var moved = _innerCursor.MoveNext();
                         SetResult(moved);
@@ -357,7 +359,7 @@ namespace Spreads
 
                 LogAwait();
 
-                _subscriptionEx?.RequestNotification(1);
+                if (_subscription is IAsyncSubscription asub2) { asub2.RequestNotification(1); }
 
                 Volatile.Write(ref _isLocked, 0L);
 
@@ -480,7 +482,6 @@ namespace Spreads
             }
             else
             {
-                // TODO (!) get rid of this
                 // we will lose the root after this method method returns without
                 // completion, so we keep the reference to this cursor alive
                 // https://github.com/dotnet/coreclr/issues/19161
@@ -489,8 +490,8 @@ namespace Spreads
 
                 // if we request notification before releasing the lock then
                 // we will have _hasSkippedUpdate flag set. Then we retry ourselves anyway
-
-                _subscriptionEx?.RequestNotification(1);
+                if (_subscription is IAsyncSubscription asub) { asub.RequestNotification(1); }
+                
                 Volatile.Write(ref _isLocked, 0L);
                 // Retry self, _continuations is now set, last chance to get result
                 // without external notification. If cannot move from here

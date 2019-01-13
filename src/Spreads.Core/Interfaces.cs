@@ -13,12 +13,9 @@ namespace Spreads
 {
     // NB Interfaces in a single file because current order is logical from the most primitive to complex interfaces
 
-    // See also
-    // https://github.com/dotnet/csharplang/blob/master/proposals/async-streams.md
-    // https://github.com/dotnet/csharplang/issues/43
-    // Pattern-based Compilation
+    // This interfaces match pattern-based compilation of IEnumerables and async streams (introduced in C# 8.0)
     // The compiler will bind to the pattern-based APIs if they exist, preferring those over using the interface
-    // (the pattern may be satisfied with instance methods or extension methods). The requirements for the pattern are:
+    // (the pattern may be satisfied with instance methods or extension methods). The requirements for the pattern for async streams are:
 
     // * The enumerable must expose a GetAsyncEnumerator method that may be called with no arguments and that returns an enumerator
     //   that meets the relevant pattern.
@@ -27,6 +24,8 @@ namespace Spreads
     // * The enumerator must also expose Current property whose getter returns a T representing the kind of data being enumerated.
     // * The enumerator may optionally expose a DisposeAsync method that may be invoked with no arguments and that returns something
     //   that can be awaited and whose GetResult() returns void.
+
+    // TODO Spreads follows the pattern of implementing unspecialized interfaces exlicitly and implementing specialized generic methods with the same name.
 
     public interface IAsyncDisposable
     {
@@ -55,6 +54,8 @@ namespace Spreads
         /// complete and there will be no more elements ever.
         /// </returns>
         ValueTask<bool> MoveNextAsync();
+
+        
     }
 
     // A marker interface for optional batching feature
@@ -69,7 +70,8 @@ namespace Spreads
         // will be no batches ever and consumer must switch to per-item calls.
         ValueTask<bool> MoveNextBatch(bool noAsync);
 
-        IEnumerable<T> CurrentBatch { get; }
+        IEnumerable<T> CurrentBatch { get; } // TODO specialized
+
     }
 
     /// <summary>
@@ -86,10 +88,15 @@ namespace Spreads
 
     // TODO rename to INotifiable+Notify,
 
+    /// <summary>
+    /// An interface to an object that could have an outstanding job (e.g. is awaiting async completion).
+    /// </summary>
     public interface IAsyncCompletable
     {
         /// <summary>
-        /// Caller of this method completes an outstanding async operation.
+        /// Try complete an outstanding operation on a thread pool. The default case is to
+        /// notify continuation of <see cref="IAsyncEnumerator{T}.MoveNextAsync"/> when
+        /// a data producer has a new value.
         /// </summary>
         /// <param name="cancel">Cancel completion. Causes OperationCancelledException in awaiters.</param>
         void TryComplete(bool cancel);
@@ -107,6 +114,9 @@ namespace Spreads
         void RequestNotification(int count);
     }
 
+    /// <summary>
+    /// An interface to pass a notification to waiting consumers (if any) when new data is available at a producer.
+    /// </summary>
     public interface IAsyncCompleter
     {
         IDisposable Subscribe(IAsyncCompletable subscriber);
@@ -125,6 +135,7 @@ namespace Spreads
 
         /// <summary>
         /// If true then elements are placed by some custom order (e.g. order of addition, index) and not sorted by keys.
+        /// If false then the keys are sorted according to <see cref="Comparer"/>.
         /// </summary>
         bool IsIndexed { get; }
 
@@ -134,6 +145,9 @@ namespace Spreads
         /// </summary>
         ICursor<TKey, TValue> GetCursor();
 
+        /// <summary>
+        /// An optimized <see cref="IComparer{T}"/> implementation with additional members to further optimize performance in certain cases.
+        /// </summary>
         KeyComparer<TKey> Comparer { get; }
 
         /// <summary>
@@ -147,24 +161,32 @@ namespace Spreads
         Opt<KeyValuePair<TKey, TValue>> Last { get; }
 
         /// <summary>
-        /// Equivalent of <see cref="ICursor{TKey,TValue}.TryGetValue"/>.
+        /// A throwing equivalent of <see cref="ICursor{TKey,TValue}.TryGetValue"/> and a series counterpart of <see cref="ICursor{TKey,TValue}.TryGetValue"/>.
         /// </summary>
+        /// <exception cref="KeyNotFoundException">Throws if key was not found in a series.</exception>
         TValue this[TKey key] { get; }
 
+        /// <summary>
+        /// Get a value at the given key. Evaluates continuous series at the key if there is no observed value at the key.
+        /// </summary>
+        /// <param name="key"></param>
+        /// <param name="value"></param>
+        /// <returns></returns>
         bool TryGetValue(TKey key, out TValue value);
 
-        ///// <summary>
-        ///// Value at index (offset). Implemented efficiently for indexed series and SortedMap, but default implementation
-        ///// is LINQ's <code>[series].Skip(idx-1).Take(1).Value</code>.
-        ///// </summary>
-        bool TryGetAt(long idx, out KeyValuePair<TKey, TValue> kvp); // TODO support negative moves in all implementations, -1 is last
+        /// <summary>
+        /// Try get value at index (offset). The method is implemented efficiently for indexed series and SortedMap, but default implementation
+        /// is LINQ's <code>[series].Skip(idx-1).Take(1).Value</code>.
+        /// </summary>
+        bool TryGetAt(long index, out KeyValuePair<TKey, TValue> kvp); // TODO support negative moves in all implementations, -1 is last
 
         /// <summary>
         /// The method finds value according to direction, returns false if it could not find such a value.
-        /// For indexed series LE/GE directions are invalid (throws InvalidOperationException), while
-        /// LT/GT search is done by index rather than by key and possible only when a key exists.
-        /// TryFindAt works only with existing keys and is an equivalent of <see cref="ICursor{TKey,TValue}.MoveAt"/>.
+        /// For indexed series LE/GE directions are invalid (throws  InvalidOperationException), while
+        /// LT/GT search is done by index rather than by key and is possible only when a key exists.
+        /// TryFindAt works only with existing keys and is a series counterpat of <see cref="ICursor{TKey,TValue}.MoveAt"/>.
         /// </summary>
+        /// <exception cref="InvalidOperationException">The <param name="direction">direction</param> is <see cref="Lookup.LE"/> or <see cref="Lookup.GE"/> for indexed series (<see cref="IsIndexed"/> = true). </exception>
         bool TryFindAt(TKey key, Lookup direction, out KeyValuePair<TKey, TValue> kvp);
 
         // NB: Key/Values are not async ones. Sometimes it's useful for optimization when we check underlying type.
@@ -193,7 +215,7 @@ namespace Spreads
         /// Get a strongly typed cursor that implements the <see cref="ISpecializedCursor{TKey,TValue,TCursor}"/> interface.
         /// </summary>
         /// <returns></returns>
-        TCursor GetSpecializedCursor();
+        new TCursor GetCursor(); // TODO (review) review why new
 
         // NB new name and not `new` keyword because this cursor does not implement MoveNextAsync,
         // but is used to build efficient computation tree without interface calls.
@@ -222,34 +244,74 @@ namespace Spreads
     /// </remarks>
     public interface ICursor<TKey, TValue> : IAsyncEnumerator<KeyValuePair<TKey, TValue>>
     {
+        /// <summary>
+        /// Cursor current state.
+        /// </summary>
         CursorState State { get; }
 
+        /// <summary>
+        /// An optimized <see cref="IComparer{T}"/> implementation with additional members to further optimize performance in certain cases.
+        /// </summary>
         KeyComparer<TKey> Comparer { get; }
 
         /// <summary>
-        /// Puts the cursor to the position according to LookupDirection
+        /// Move the cursor to the position according to the Lookup direction. An observed value at key must exist. Use <see cref="TryGetValue"/> to get a calculated value for continuous series.
         /// </summary>
+        /// <returns>Returns true if the cursor moved. When false is returned the cursor stays at the same position where it was before calling this method.</returns>
         bool MoveAt(TKey key, Lookup direction);
 
+        /// <summary>
+        /// Move the cursor to the first element in series.
+        /// </summary>
+        /// <returns>Returns true if the <see cref="Source"/> is not empty.</returns>
         bool MoveFirst();
 
+        /// <summary>
+        /// Move the cursor to the last element in series.
+        /// </summary>
+        /// <returns>Returns true if the <see cref="Source"/> is not empty.</returns>
         bool MoveLast();
 
         // MoveNext is a part of IEnumerable
+
+        /// <summary>
+        /// Move the cursor to a previous item in the <see cref="Source"/> series. 
+        /// </summary>
+        /// <returns>Returns true if the cursor moved. When false is returned the cursor stays at the same position where it was before calling this method.</returns>
+        new bool MoveNext();
 
         // NB returning zero is the same as false, no need for TryXXX/Opt<>
         // if we moved by zero steps then we at the same position as before.
         // Zero means we are by stride or less close to the end. If allowPartial = true or stride = 1
         // then we are at the end of series if the return value is zero.
 
+        /// <summary>
+        /// Move next by <paramref name="stride"/> elements or maximum number of elements less than stride if <paramref name="allowPartial"/> is true.
+        /// </summary>
+        /// <param name="stride"></param>
+        /// <param name="allowPartial"></param>
+        /// <returns>Actual number of moves. Equals to <paramref name="stride"/> or zero if <paramref name="allowPartial"/> is false.</returns>
         long MoveNext(long stride, bool allowPartial);
 
+        /// <summary>
+        /// Move the cursor to a previous item in the <see cref="Source"/> series. 
+        /// </summary>
+        /// <returns>Returns true if the cursor moved. When false is returned the cursor stays at the same position where it was before calling this method.</returns>
         bool MovePrevious();
 
+        /// <summary>
+        /// Opposite direction of <see cref="MoveNext"/>.
+        /// </summary>
         long MovePrevious(long stride, bool allowPartial);
 
+        /// <summary>
+        /// Series key at the current cursor position.
+        /// </summary>
         TKey CurrentKey { get; }
 
+        /// <summary>
+        /// Series value at the current cursor position.
+        /// </summary>
         TValue CurrentValue { get; }
 
         /// <summary>
@@ -272,20 +334,20 @@ namespace Spreads
         /// Gets a calculated value for continuous series without moving the cursor position.
         /// E.g. a continuous cursor for Repeat() will check if current state allows to get previous value,
         /// and if not then .Source.GetCursor().MoveAt(key, LE).
-        /// </summary>
-        /// <remarks>
-        /// The TryGetValue method should be optimized
-        /// for sort join case using enumerator, e.g. for repeat it should keep previous value and check if
-        /// the requested key is between the previous and the current keys, and then return the previous one.
-        /// NB This is not thread safe. ICursors must be used from a single thread.
-        /// </remarks>
+        /// </summary>        
         bool TryGetValue(TKey key, out TValue value);
+
+        // TODO (review)
+        // The TryGetValue method should be optimized
+        // for sort join case using enumerator, e.g. for repeat it should keep previous value and check if
+        // the requested key is between the previous and the current keys, and then return the previous one.
+        // NB This is not thread safe. ICursors must be used from a single thread.
+        
     }
 
     /// <summary>
-    /// An <see cref="ICursor{TKey, TValue}"/> with a known implementation type.
+    /// An <see cref="T:Spreads.ICursor`2" /> with a known implementation type.
     /// </summary>
-    // ReSharper disable once TypeParameterCanBeVariant
     public interface ISpecializedCursor<TKey, TValue, TCursor> : ICursor<TKey, TValue>
         where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
     {
@@ -295,7 +357,7 @@ namespace Spreads
         /// It is the equivalent to calling the method <see cref="ISeries{TKey,TValue}.GetCursor"/> on <see cref="ICursor{TKey,TValue}.Source"/> for the non-specialized ICursor.
         /// </summary>
         /// <remarks>
-        /// This method must work on disposed instances of <see cref="ISpecializedCursor{TKey, TValue, TCursor}"/>.
+        /// This method must work on disposed instances of <see cref="ISpecializedCursor{TKey, TValue, TCursor}"/>, i.e. it acts as a factory.
         /// </remarks>
         [Pure]
         TCursor Initialize();

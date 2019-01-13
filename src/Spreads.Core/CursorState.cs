@@ -14,8 +14,8 @@ namespace Spreads
         None = 0,
 
         /// <summary>
-        /// A cursor is initialized via GetCursor() call of ISeries and is READY TO MOVE.
-        /// The cursor is NOWHERE with this state.
+        /// A cursor is initialized via GetCursor() call of ISeries and is ready to move.
+        /// The cursor is "nowhere" with this state (before the first element for <see cref="ICursor{TKey,TValue}.MoveNext()"/>, after the last element for <see cref="ICursor{TKey,TValue}.MovePrevious()"/>).
         /// </summary>
         Initialized = 1,
 

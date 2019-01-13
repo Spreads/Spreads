@@ -132,16 +132,16 @@ namespace Spreads
         public abstract bool TryFindAt(TKey key, Lookup direction, out KeyValuePair<TKey, TValue> kvp);
 
         /// <inheritdoc />
-        public virtual bool TryGetAt(long idx, out KeyValuePair<TKey, TValue> kvp)
+        public virtual bool TryGetAt(long index, out KeyValuePair<TKey, TValue> kvp)
         {
-            if (idx < 0)
+            if (index < 0)
             {
                 ThrowHelper.ThrowNotImplementedException("TODO Support negative indexes in TryGetAt");
             }
             // TODO (review) not so stupid and potentially throwing impl
             try
             {
-                kvp = this.Skip(Math.Max(0, checked((int)(idx)) - 1)).First();
+                kvp = this.Skip(Math.Max(0, checked((int)(index)) - 1)).First();
                 return true;
             }
             catch
@@ -1856,17 +1856,17 @@ namespace Spreads
         }
 
         /// <inheritdoc />
-        public override bool TryGetAt(long idx, out KeyValuePair<TKey, TValue> kvp)
+        public override bool TryGetAt(long index, out KeyValuePair<TKey, TValue> kvp)
         {
             // NB call to this.NavCursor.Source.TryGetAt(idx) is recursive (=> SO) and is logically wrong
-            if (idx < 0) throw new ArgumentOutOfRangeException(nameof(idx));
+            if (index < 0) throw new ArgumentOutOfRangeException(nameof(index));
             lock (SyncRoot)
             {
                 if (!C.MoveFirst())
                 {
                     throw new KeyNotFoundException();
                 }
-                for (var i = 0; i < idx - 1; i++)
+                for (var i = 0; i < index - 1; i++)
                 {
                     if (!C.MoveNext())
                     {

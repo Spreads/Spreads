@@ -89,7 +89,7 @@ namespace Spreads
         /// <inheritdoc />
         [Pure]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public ICursor<TKey, TValue> GetCursor()
+        ICursor<TKey, TValue> ISeries<TKey, TValue>.GetCursor()
         {
             // Async support. ICursorSeries implementations do not implement MNA
             return new AsyncCursor<TKey, TValue, TCursor>(_cursor.Initialize());
@@ -97,7 +97,7 @@ namespace Spreads
 
         [Pure]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public TCursor GetSpecializedCursor()
+        public TCursor GetCursor()
         {
             return GetEnumerator();
         }
@@ -159,10 +159,10 @@ namespace Spreads
         /// <inheritdoc />
         [Pure]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool TryGetAt(long idx, out KeyValuePair<TKey, TValue> kvp)
+        public bool TryGetAt(long index, out KeyValuePair<TKey, TValue> kvp)
         {
             // NB call to this.NavCursor.Source.TryGetAt(idx) is recursive (=> SO) and is logically wrong
-            if (idx < 0)
+            if (index < 0)
             {
                 ThrowHelper.ThrowNotImplementedException("TODO Support negative indexes in TryGetAt");
             }
@@ -173,7 +173,7 @@ namespace Spreads
                     kvp = default;
                     return false;
                 }
-                for (var i = 0; i < idx - 1; i++)
+                for (var i = 0; i < index - 1; i++)
                 {
                     if (!c.MoveNext())
                     {

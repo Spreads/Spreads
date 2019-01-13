@@ -133,9 +133,9 @@ namespace Spreads
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool TryGetAt(long idx, out KeyValuePair<ulong, Timestamped<T>> kvp)
+        public bool TryGetAt(long index, out KeyValuePair<ulong, Timestamped<T>> kvp)
         {
-            return _impl.TryGetAt(idx, out kvp);
+            return _impl.TryGetAt(index, out kvp);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -238,9 +238,9 @@ namespace Spreads
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool TryGetAt(long idx, out KeyValuePair<ulong, Timestamped<T>> kvp)
+        public bool TryGetAt(long index, out KeyValuePair<ulong, Timestamped<T>> kvp)
         {
-            return _impl.TryGetAt(idx, out kvp);
+            return _impl.TryGetAt(index, out kvp);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

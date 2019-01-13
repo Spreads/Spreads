@@ -130,9 +130,9 @@ namespace Spreads
             return false;
         }
 
-        public sealed override bool TryGetAt(long idx, out KeyValuePair<Variant, Variant> value)
+        public sealed override bool TryGetAt(long index, out KeyValuePair<Variant, Variant> value)
         {
-            if (Inner.TryGetAt(idx, out var kvp))
+            if (Inner.TryGetAt(index, out var kvp))
             {
                 value = new KeyValuePair<Variant, Variant>(ToKey2(kvp.Key), ToValue2(kvp.Value));
                 return true;

@@ -113,10 +113,10 @@ namespace Spreads
             return new ConvertCursor(Inner.GetCursor(), this as TImpl);
         }
 
-        public override bool TryGetAt(long idx, out KeyValuePair<TKey2, TValue2> value)
+        public override bool TryGetAt(long index, out KeyValuePair<TKey2, TValue2> value)
         {
             KeyValuePair<TKey, TValue> tmp;
-            if (Inner.TryGetAt(idx, out tmp))
+            if (Inner.TryGetAt(index, out tmp))
             {
                 value = new KeyValuePair<TKey2, TValue2>(ToKey2(tmp.Key), ToValue2(tmp.Value));
                 return true;

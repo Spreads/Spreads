@@ -62,9 +62,9 @@ namespace Spreads
             return false;
         }
 
-        public override bool TryGetAt(long idx, out KeyValuePair<TKey, TValue> value)
+        public override bool TryGetAt(long index, out KeyValuePair<TKey, TValue> value)
         {
-            if (idx != 0)
+            if (index != 0)
             {
                 value = default;
                 return false;
