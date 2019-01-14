@@ -10,6 +10,7 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
+using Spreads.DataTypes;
 using static System.Runtime.CompilerServices.Unsafe;
 
 namespace Spreads.Buffers

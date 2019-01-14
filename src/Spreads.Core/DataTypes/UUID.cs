@@ -8,7 +8,7 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using Spreads.Utils;
 
-namespace Spreads
+namespace Spreads.DataTypes
 {
     /// <summary>
     /// A simpler, faster, comparable and blittable replacement for GUID.
