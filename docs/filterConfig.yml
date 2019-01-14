@@ -5,7 +5,14 @@ apiRules:
       ctorArguments:
       - System.ComponentModel.EditorBrowsableState.Never
 - exclude:
-    uidRegex: ^Spreads\.Deedle
+    hasAttribute:
+      uid: System.Obsolete
+- exclude:
+    uidRegex: ^Spreads\.Collections\.Experimental
+- exclude:
+    uidRegex: ^Spreads\.Serialization\.Utf8Json\.Internal
+- exclude:
+    uidRegex: ^FSharp*
 attributeRules:
 - exclude:
     uidRegex: ^System\.ComponentModel\.Design$

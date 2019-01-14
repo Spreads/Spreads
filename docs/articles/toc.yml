@@ -1,2 +1,8 @@
-- name: Introduction
+- name: Quick Start
   href: intro.md
+- name: Tutorial 1
+  href: tutorial1.md
+- name: Tutorial 2
+  href: tutorial2.md
+- name: Tutorial 3
+  href: tutorial3.md
