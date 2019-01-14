@@ -24,68 +24,7 @@
         <Compile Include="Statistics.fs" />
     </ItemGroup>
     <ItemGroup>
-        <!--<Compile Include="Deedle\FSharp.Data\TextConversions.fsi" />
-        <Compile Include="Deedle\FSharp.Data\TextRuntime.fsi" />
-        <Compile Include="Deedle\FSharp.Data\StructuralTypes.fsi" />
-        <Compile Include="Deedle\FSharp.Data\StructuralInference.fsi" />
-        <Compile Include="Deedle\FSharp.Data\CsvRuntime.fsi" />
-        <Compile Include="Deedle\FSharp.Data\CsvFile.fsi" />
-        <Compile Include="Deedle\FSharp.Data\CsvInference.fsi" />-->
-        <Compile Include="Deedle\FSharp.Data\Stubs.fs" />
-    </ItemGroup>
-    <ItemGroup>
-        <Compile Include="..\..\lib\FSharp.Data\src\CommonRuntime\TextConversions.fs">
-            <Link>Deedle/FSharp.Data/TextConversions.fs</Link>
-        </Compile>
-        <Compile Include="..\..\lib\FSharp.Data\src\CommonRuntime\TextRuntime.fs">
-            <Link>Deedle/FSharp.Data/TextRuntime.fs</Link>
-        </Compile>
-        <Compile Include="..\..\lib\FSharp.Data\src\CommonRuntime\StructuralTypes.fs">
-            <Link>Deedle/FSharp.Data/StructuralTypes.fs</Link>
-        </Compile>
-        <Compile Include="..\..\lib\FSharp.Data\src\CommonRuntime\StructuralInference.fs">
-            <Link>Deedle/FSharp.Data/StructuralInference.fs</Link>
-        </Compile>
-        <Compile Include="..\..\lib\FSharp.Data\src\Csv\CsvRuntime.fs">
-            <Link>Deedle/FSharp.Data/CsvRuntime.fs</Link>
-        </Compile>
-        <Compile Include="..\..\lib\FSharp.Data\src\Csv\CsvFile.fs">
-            <Link>Deedle/FSharp.Data/CsvFile.fs</Link>
-        </Compile>
-        <Compile Include="..\..\lib\FSharp.Data\src\Csv\CsvInference.fs">
-            <Link>Deedle/FSharp.Data/CsvInference.fs</Link>
-        </Compile>
-        <Compile Include="Deedle\Common\BinomialHeap.fs" />
-        <Compile Include="Deedle\Common\Common.fs" />
-        <Compile Include="Deedle\Common\Address.fs" />
-        <Compile Include="Deedle\Common\Deque.fs" />
-        <Compile Include="Deedle\Common\Ranges.fs" />
-        <Compile Include="Deedle\Vectors\Vector.fs" />
-        <Compile Include="Deedle\Vectors\VectorHelpers.fs" />
-        <Compile Include="Deedle\Vectors\ArrayVector.fs" />
-        <Compile Include="Deedle\Vectors\VectorExtensions.fs" />
-        <Compile Include="Deedle\Vectors\VirtualVector.fs" />
-        <Compile Include="Deedle\Indices\MultiKey.fs" />
-        <Compile Include="Deedle\Indices\Index.fs" />
-        <Compile Include="Deedle\Indices\LinearIndex.fs" />
-        <Compile Include="Deedle\Indices\IndexExtensions.fs" />
-        <Compile Include="Deedle\Indices\VirtualIndex.fs" />
-        <Compile Include="Deedle\JoinHelpers.fs" />
-        <Compile Include="Deedle\Series.fs" />
-        <Compile Include="Deedle\SeriesModule.fs" />
-        <Compile Include="Deedle\SeriesExtensions.fs" />
-        <Compile Include="Deedle\Frame.fs" />
-        <Compile Include="Deedle\Stats.fs" />
-        <Compile Include="Deedle\FrameUtils.fs" />
-        <Compile Include="Deedle\FrameModule.fs" />
-        <Compile Include="Deedle\FrameExtensions.fs" />
-        <Compile Include="Deedle\SeriesStatsExtensions.fs" />
-        <Compile Include="Deedle\DelayedSeries.fs" />
-        <Compile Include="Deedle\VirtualFrame.fs" />
-    </ItemGroup>
-    <ItemGroup>
         <PackageReference Include="FSharp.Core" Version="4.5.4" />
-        <PackageReference Include="System.Reflection.Emit.ILGeneration" Version="4.6.0-preview.18571.3" />
         <PackageReference Update="System.ValueTuple" Version="4.5.0" />
     </ItemGroup>
     <ItemGroup>
