@@ -17,7 +17,7 @@ namespace Spreads.Core.Tests.Cursors
     public class AsyncCursorTests
     {
         [Test]
-        public void DeadCursorDoesntCauseEndlessLoopInNotifyUpdate()
+        public void DeadCursorDoesNotCauseEndlessLoopInNotifyUpdate()
         {
             var sm = new SortedMap<int, int>();
 

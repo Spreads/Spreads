@@ -5,7 +5,8 @@ VisualStudioVersion = 16.0.28407.52
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "docs", "docs", "{A6A6AF7D-D6E3-442D-9B1E-58CC91879BE1}"
 	ProjectSection(SolutionItems) = preProject
-		docs\Comments.md = docs\Comments.md
+		docs\filterConfig.yml = docs\filterConfig.yml
+		docs\index.md = docs\index.md
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "project", "project", "{BF60BC93-E09B-4E5F-9D85-95A519479D54}"
@@ -55,6 +56,16 @@ EndProject
 Project("{6EC3EE1D-3C4E-46DD-8F32-0CC8E7565705}") = "Spreads.Collections.Deedle.Tests", "tests\Spreads.Collections.Deedle.Tests\Spreads.Collections.Deedle.Tests.fsproj", "{AF72A63A-67B4-4975-81B3-6C9407AC8B3A}"
 EndProject
 Project("{E53339B2-1760-4266-BCC7-CA923CBCF16C}") = "docker-compose", "docker-compose.dcproj", "{4082C087-A86C-4DFD-99C8-CEFA98C71FEA}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "api", "api", "{2D8B4B89-EB29-462E-B5FE-45A21E73FF8B}"
+	ProjectSection(SolutionItems) = preProject
+		docs\api\index.md = docs\api\index.md
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "articles", "articles", "{FB2D7CAF-0D1E-451D-B61F-534C6E81C1B4}"
+	ProjectSection(SolutionItems) = preProject
+		docs\articles\intro.md = docs\articles\intro.md
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -215,6 +226,8 @@ Global
 		{8789497B-B5A9-4371-A4F4-1AB50B070E1B} = {4FA14F38-8CC5-4649-855E-ECB3C0794560}
 		{AF72A63A-67B4-4975-81B3-6C9407AC8B3A} = {ED8079DD-2B06-4030-9F0F-DC548F98E1C4}
 		{4082C087-A86C-4DFD-99C8-CEFA98C71FEA} = {BF60BC93-E09B-4E5F-9D85-95A519479D54}
+		{2D8B4B89-EB29-462E-B5FE-45A21E73FF8B} = {A6A6AF7D-D6E3-442D-9B1E-58CC91879BE1}
+		{FB2D7CAF-0D1E-451D-B61F-534C6E81C1B4} = {A6A6AF7D-D6E3-442D-9B1E-58CC91879BE1}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {70B77C15-F13A-4AFD-891C-D7857FE8FD18}
