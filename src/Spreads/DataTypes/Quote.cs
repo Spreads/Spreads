@@ -6,6 +6,7 @@ using Spreads.Serialization;
 using Spreads.Serialization.Utf8Json;
 using System;
 using System.Runtime.InteropServices;
+using Spreads.Native;
 
 namespace Spreads.DataTypes
 {

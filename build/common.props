@@ -19,6 +19,7 @@
         <DelaySign>false</DelaySign>
         <DebugType>embedded</DebugType>
         <DebugSymbols>true</DebugSymbols>
+        <PackageIconUrl>https://raw.githubusercontent.com/DataSpreads/Docs/master/images/Spreads/Spreads_64.png</PackageIconUrl>
     </PropertyGroup>
 
     <PropertyGroup>

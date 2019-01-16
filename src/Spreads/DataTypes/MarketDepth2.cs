@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Runtime.InteropServices;
 using System.Runtime.Serialization;
+using Spreads.Native;
 using Spreads.Serialization;
 
 namespace Spreads.DataTypes

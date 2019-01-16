@@ -10,6 +10,7 @@ using System.IO;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using Spreads.Native;
 using static System.Runtime.CompilerServices.Unsafe;
 
 #pragma warning disable HAA0101 // Array allocation for params parameter
@@ -130,7 +131,7 @@ namespace Spreads.Serialization
         // ReSharper disable once StaticMemberInGenericType
         public static readonly bool IsPinnable = PinnedSize() > 0 || FixedSize > 0;
 
-        public static readonly int ElemOffset = UnsafeEx.ElemOffset(new T[1]);
+        public static readonly int ElemOffset = Native.UnsafeEx.ElemOffset(new T[1]);
 
         public static readonly int ElemSize = SizeOf<T>();
 

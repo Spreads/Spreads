@@ -4,6 +4,7 @@
 
 using System;
 using NUnit.Framework;
+using Spreads.Native;
 
 namespace Spreads.Core.Tests
 {

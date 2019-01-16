@@ -1,5 +1,6 @@
 ﻿using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using Spreads.Native;
 
 namespace Spreads.Serialization
 {

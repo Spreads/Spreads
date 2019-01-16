@@ -6,6 +6,7 @@ using Spreads.Serialization;
 using System;
 using System.Runtime.InteropServices;
 using System.Runtime.Serialization;
+using Spreads.Native;
 
 namespace Spreads.DataTypes
 {

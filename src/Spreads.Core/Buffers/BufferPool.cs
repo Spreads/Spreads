@@ -6,6 +6,7 @@ using System;
 using System.Buffers;
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using Spreads.Native;
 
 namespace Spreads.Buffers
 {
@@ -171,7 +172,7 @@ namespace Spreads.Buffers
             for (int i = offset; i < offset + len; i++)
             {
                 // TODO test it!
-                UnsafeEx.DisposeConstrained(ref array[i]); // ((IDisposable)array[i]).Dispose();
+                Native.UnsafeEx.DisposeConstrained(ref array[i]); // ((IDisposable)array[i]).Dispose();
             }
         }
 
