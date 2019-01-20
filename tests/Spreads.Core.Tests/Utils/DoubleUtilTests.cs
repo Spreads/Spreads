@@ -7,7 +7,7 @@ using System.Diagnostics;
 using NUnit.Framework;
 using Spreads.Utils;
 
-namespace Spreads.Core.Tests
+namespace Spreads.Core.Tests.Utils
 {
     [TestFixture]
     public class DoubleUtilTests

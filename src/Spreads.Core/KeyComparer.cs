@@ -2,8 +2,10 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+using Spreads.DataTypes;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.Contracts;
 using System.Reflection;
@@ -94,6 +96,11 @@ namespace Spreads
                     return _keyComparer.IsDiffable;
                 }
 
+                if (typeof(T) == typeof(Timestamp))
+                {
+                    return true;
+                }
+
                 if (typeof(T) == typeof(DateTime))
                 {
                     return true;
@@ -157,6 +164,144 @@ namespace Spreads
             return new KeyComparer<T>(comparer);
         }
 
+        /// <inheritdoc />
+        [SuppressMessage("ReSharper", "PossibleNullReferenceException")]
+        [Pure]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public int Compare(T x, T y)
+        {
+            // for our purposes this method is "normal", i.e. known types are compared normally
+
+            if (typeof(T) == typeof(Timestamp))
+            {
+                // TODO for TS we could use sub in normal cases
+
+                Debug.Assert(_keyComparer == null, "Known types should not have a comparer");
+
+                var x1 = ((Timestamp)(object)(x)).Nanos;
+                var y1 = ((Timestamp)(object)(y)).Nanos;
+
+                // Need to use compare because subtraction will wrap
+                // to positive for very large neg numbers, etc.
+                if (x1 < y1) return -1;
+                if (x1 > y1) return 1;
+                return 0;
+            }
+
+            if (typeof(T) == typeof(DateTime))
+            {
+                Debug.Assert(_keyComparer == null, "Known types should not have a comparer");
+
+                var x1 = (DateTime)(object)(x);
+                var y1 = (DateTime)(object)(y);
+                return DateTime.Compare(x1, y1);
+            }
+
+            if (typeof(T) == typeof(long))
+            {
+                Debug.Assert(_keyComparer == null, "Known types should not have a comparer");
+
+                var x1 = (long)(object)(x);
+                var y1 = (long)(object)(y);
+
+                // Need to use compare because subtraction will wrap
+                // to positive for very large neg numbers, etc.
+                if (x1 < y1) return -1;
+                if (x1 > y1) return 1;
+                return 0;
+            }
+
+            if (typeof(T) == typeof(ulong))
+            {
+                Debug.Assert(_keyComparer == null, "Known types should not have a comparer");
+
+                var x1 = (ulong)(object)(x);
+                var y1 = (ulong)(object)(y);
+                // Need to use compare because subtraction will wrap
+                // to positive for very large neg numbers, etc.
+                if (x1 < y1) return -1;
+                if (x1 > y1) return 1;
+                return 0;
+            }
+
+            if (typeof(T) == typeof(int))
+            {
+                Debug.Assert(_keyComparer == null, "Known types should not have a comparer");
+
+                var x1 = (int)(object)(x);
+                var y1 = (int)(object)(y);
+                return x1.CompareTo(y1);
+            }
+
+            if (typeof(T) == typeof(uint))
+            {
+                Debug.Assert(_keyComparer == null, "Known types should not have a comparer");
+
+                var x1 = (uint)(object)(x);
+                var y1 = (uint)(object)(y);
+
+                // Need to use compare because subtraction will wrap
+                // to positive for very large neg numbers, etc.
+                if (x1 < y1) return -1;
+                if (x1 > y1) return 1;
+                return 0;
+            }
+
+            if (typeof(T) == typeof(double))
+            {
+                // x1.CompareTo(y1) is not inlined, copy manually
+                // https://github.com/dotnet/corefx/blob/5fe165ab631675273f5d19bebc15b5733ef1354d/src/Common/src/CoreLib/System/Double.cs#L147
+                Debug.Assert(_keyComparer == null, "Known types should not have a comparer");
+
+                var x1 = (double)(object)(x);
+                var y1 = (double)(object)(y);
+
+                if (x1 < y1) return -1;
+                if (x1 > y1) return 1;
+                // ReSharper disable once CompareOfFloatsByEqualityOperator
+                if (x1 == y1) return 0;
+
+                // At least one of the values is NaN.
+                if (double.IsNaN(x1))
+                { return (double.IsNaN(y1) ? 0 : -1); }
+                else
+                { return 1; }
+            }
+
+            if (typeof(T) == typeof(float))
+            {
+                Debug.Assert(_keyComparer == null, "Known types should not have a comparer");
+
+                var x1 = (float)(object)(x);
+                var y1 = (float)(object)(y);
+
+                return x1.CompareTo(y1);
+            }
+
+            if (_keyComparer != null)
+            {
+                return _keyComparer.Compare(x, y);
+            }
+
+            // NB all primitive types are IComparable, all custom types could be easily made such
+            // This optimization using Spreads.Unsafe package works for any type that implements
+            // the interface and is as fast as `typeof(T) == typeof(...)` approach.
+            // The special cases above are left for scenarios when the "static readonly" optimization
+            // doesn't work, e.g. AOT. See discussion #100.
+            if (IsIComparable)
+            {
+                return Native.UnsafeEx.CompareToConstrained(ref x, ref y);
+            }
+
+            return CompareSlow(x, y);
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static int CompareSlow(T x, T y)
+        {
+            return Comparer<T>.Default.Compare(x, y);
+        }
+
         [MethodImpl(MethodImplOptions.NoInlining)]
         private T AddViaInterface(T value, long diff)
         {
@@ -171,9 +316,10 @@ namespace Spreads
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public T Add(T value, long diff)
         {
-            if (_keyComparer != null)
+            if (typeof(T) == typeof(Timestamp))
             {
-                return AddViaInterface(value, diff);
+                var value1 = (Timestamp)(object)(value);
+                return (T)(object)(new Timestamp(value1.Nanos + diff));
             }
 
             if (typeof(T) == typeof(DateTime))
@@ -206,76 +352,38 @@ namespace Spreads
                 return (T)(object)(checked((uint)((int)value1 + diff)));
             }
 
-            ThrowHelper.ThrowNotSupportedException();
-            return default(T);
-        }
+            // TODO add those in all three methods
+            //if (typeof(T) == typeof(short))
+            //{
+            //    var value1 = (short)(object)(value);
+            //    return (T)(object)(checked((short)(value1 + diff)));
+            //}
 
-        /// <inheritdoc />
-        [SuppressMessage("ReSharper", "PossibleNullReferenceException")]
-        [Pure]
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public int Compare(T x, T y)
-        {
+            //if (typeof(T) == typeof(ushort))
+            //{
+            //    var value1 = (ushort)(object)(value);
+            //    return (T)(object)(checked((ushort)((short)value1 + diff)));
+            //}
+
+            //if (typeof(T) == typeof(sbyte))
+            //{
+            //    var value1 = (sbyte)(object)(value);
+            //    return (T)(object)(checked((sbyte)(value1 + diff)));
+            //}
+
+            //if (typeof(T) == typeof(byte))
+            //{
+            //    var value1 = (byte)(object)(value);
+            //    return (T)(object)(checked((byte)((sbyte)value1 + diff)));
+            //}
+
             if (_keyComparer != null)
             {
-                return _keyComparer.Compare(x, y);
+                return AddViaInterface(value, diff);
             }
 
-            if (typeof(T) == typeof(DateTime))
-            {
-                var x1 = (DateTime)(object)(x);
-                var y1 = (DateTime)(object)(y);
-
-                return x1.CompareTo(y1);
-            }
-
-            if (typeof(T) == typeof(long))
-            {
-                var x1 = (long)(object)(x);
-                var y1 = (long)(object)(y);
-
-                return x1.CompareTo(y1);
-            }
-
-            if (typeof(T) == typeof(ulong))
-            {
-                var x1 = (ulong)(object)(x);
-                var y1 = (ulong)(object)(y);
-                return x1.CompareTo(y1);
-            }
-
-            if (typeof(T) == typeof(int))
-            {
-                var x1 = (int)(object)(x);
-                var y1 = (int)(object)(y);
-                return x1.CompareTo(y1);
-            }
-
-            if (typeof(T) == typeof(uint))
-            {
-                var x1 = (uint)(object)(x);
-                var y1 = (uint)(object)(y);
-
-                return x1.CompareTo(y1);
-            }
-
-            // NB all primitive types are IComparable, all custom types could be easily made such
-            // This optimization using Spreads.Unsafe package works for any type that implements
-            // the interface and is as fast as `typeof(T) == typeof(...)` approach.
-            // The special cases above are left for scenarios when the "static readonly" optimization
-            // doesn't work, e.g. AOT. See discussion #100.
-            if (IsIComparable)
-            {
-                return Native.UnsafeEx.CompareToConstrained(ref x, ref y);
-            }
-
-            return CompareSlow(x, y);
-        }
-
-        [MethodImpl(MethodImplOptions.NoInlining)]
-        private static int CompareSlow(T x, T y)
-        {
-            return Comparer<T>.Default.Compare(x, y);
+            ThrowHelper.ThrowNotSupportedException();
+            return default(T);
         }
 
         /// <summary>
@@ -285,13 +393,12 @@ namespace Spreads
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public long Diff(T x, T y)
         {
-            if (_keyComparer != null)
+            if (typeof(T) == typeof(Timestamp))
             {
-                if (!_keyComparer.IsDiffable)
-                {
-                    ThrowHelper.ThrowInvalidOperationException("Cannot Diff: KeyComparer.IsDiffable is false");
-                }
-                return _keyComparer.Diff(x, y);
+                var x1 = (Timestamp)(object)(x);
+                var y1 = (Timestamp)(object)(y);
+
+                return checked(x1.Nanos - y1.Nanos);
             }
 
             if (typeof(T) == typeof(DateTime))
@@ -331,6 +438,15 @@ namespace Spreads
                 return checked((long)(x1) - y1);
             }
 
+            if (_keyComparer != null)
+            {
+                if (!_keyComparer.IsDiffable)
+                {
+                    ThrowHelper.ThrowInvalidOperationException("Cannot Diff: KeyComparer.IsDiffable is false");
+                }
+                return _keyComparer.Diff(x, y);
+            }
+
             ThrowHelper.ThrowNotSupportedException();
             return 0L;
         }
@@ -345,9 +461,16 @@ namespace Spreads
             }
 
             // ReSharper disable PossibleNullReferenceException
+
+            if (typeof(T) == typeof(Timestamp))
+            {
+                var x1 = (Timestamp)(object)(x);
+                var y1 = (Timestamp)(object)(y);
+                return x1 == y1;
+            }
+
             if (typeof(T) == typeof(DateTime))
             {
-                // TODO (low) unsafe impl with bitwise sign
                 var x1 = (DateTime)(object)(x);
                 var y1 = (DateTime)(object)(y);
                 return x1 == y1;

@@ -12,12 +12,12 @@ namespace Spreads.Core.Tests.Collections
     [TestFixture]
     public unsafe class VecTests
     {
-        [Test]
-        public void HelperFirstElemOffsetWorks()
-        {
-            var offset = TypeHelper<int>.ElemOffset;
-            Assert.IsTrue(offset > 0);
-            Console.WriteLine(offset);
-        }
+        //[Test]
+        //public void HelperFirstElemOffsetWorks()
+        //{
+        //    var offset = TypeHelper<int>.ElemOffset;
+        //    Assert.IsTrue(offset > 0);
+        //    Console.WriteLine(offset);
+        //}
     }
 }

@@ -16,7 +16,7 @@ using static System.Runtime.CompilerServices.Unsafe;
 namespace Spreads.Buffers
 {
     /// <summary>
-    /// Provides unsafe read/write opertaions on a memory pointer.
+    /// Provides unsafe read/write operations on a memory pointer.
     /// </summary>
     [DebuggerTypeProxy(typeof(SpreadsBuffers_DirectBufferDebugView))]
     [DebuggerDisplay("Length={" + nameof(Length) + ("}"))]

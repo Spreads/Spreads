@@ -6,6 +6,7 @@ using System.Diagnostics;
 using Spreads.Buffers;
 using Spreads.Serialization.Utf8Json;
 using System.Runtime.CompilerServices;
+using Spreads.Native;
 
 namespace Spreads.Serialization
 {
@@ -38,9 +39,7 @@ namespace Spreads.Serialization
     /// |                     Serialized Payload                      ...
     /// C - compressed
     /// D - diffed (if a type implements <see cref="IDelta{T}"/>)
-    /// B - binary format. If not set then the payload is JSON,
-    /// if set then payload is custom binary (payload could have
-    /// it's own headers e.g. Blosc)
+    /// B - app/context-specific custom (binary) format . If not set then the payload is JSON.
     /// T - value has Timestamp as the first element of payload for binary case or Timestamp field on JSON object.
     /// </remarks>
     public interface IBinaryConverter<T>

@@ -5,6 +5,7 @@ using Spreads.Utils;
 using System;
 using System.Diagnostics;
 using System.Threading.Tasks;
+using Spreads.Core.Tests.Utils;
 
 namespace Spreads.Core.Run
 {
@@ -31,13 +32,9 @@ namespace Spreads.Core.Run
 
             // EquiJoinBench();
 
-            var test = new Spreads.Core.Tests.Cursors.AsyncCursorTests();
-
-            for (int i = 0; i < 100; i++)
-            {
-                await test.CouldReadDataStreamWhileWritingFromManyThreads();
-                Console.WriteLine("TEST: " + i);
-            }
+            var test = new VecHelpersTests();
+            test.BinarySearchBenchBench();
+           
 
             Console.WriteLine("Finished, press enter to exit...");
             Console.ReadLine();
