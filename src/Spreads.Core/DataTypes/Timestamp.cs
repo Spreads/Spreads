@@ -101,7 +101,11 @@ namespace Spreads.DataTypes
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public int CompareTo(Timestamp other)
         {
-            return _nanos.CompareTo(other._nanos);
+            // Need to use compare because subtraction will wrap
+            // to positive for very large neg numbers, etc.
+            if (_nanos < other._nanos) return -1;
+            if (_nanos > other._nanos) return 1;
+            return 0;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

@@ -181,11 +181,7 @@ namespace Spreads
                 var x1 = ((Timestamp)(object)(x)).Nanos;
                 var y1 = ((Timestamp)(object)(y)).Nanos;
 
-                // Need to use compare because subtraction will wrap
-                // to positive for very large neg numbers, etc.
-                if (x1 < y1) return -1;
-                if (x1 > y1) return 1;
-                return 0;
+                return x1.CompareTo(y1);
             }
 
             if (typeof(T) == typeof(DateTime))
@@ -204,11 +200,7 @@ namespace Spreads
                 var x1 = (long)(object)(x);
                 var y1 = (long)(object)(y);
 
-                // Need to use compare because subtraction will wrap
-                // to positive for very large neg numbers, etc.
-                if (x1 < y1) return -1;
-                if (x1 > y1) return 1;
-                return 0;
+                return x1.CompareTo(y1);
             }
 
             if (typeof(T) == typeof(ulong))
@@ -217,11 +209,7 @@ namespace Spreads
 
                 var x1 = (ulong)(object)(x);
                 var y1 = (ulong)(object)(y);
-                // Need to use compare because subtraction will wrap
-                // to positive for very large neg numbers, etc.
-                if (x1 < y1) return -1;
-                if (x1 > y1) return 1;
-                return 0;
+                return x1.CompareTo(y1);
             }
 
             if (typeof(T) == typeof(int))
@@ -240,11 +228,7 @@ namespace Spreads
                 var x1 = (uint)(object)(x);
                 var y1 = (uint)(object)(y);
 
-                // Need to use compare because subtraction will wrap
-                // to positive for very large neg numbers, etc.
-                if (x1 < y1) return -1;
-                if (x1 > y1) return 1;
-                return 0;
+                return x1.CompareTo(y1);
             }
 
             if (typeof(T) == typeof(double))
