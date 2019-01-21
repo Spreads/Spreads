@@ -5,6 +5,7 @@ using Spreads.Utils;
 using System;
 using System.Diagnostics;
 using System.Threading.Tasks;
+using Spreads.Core.Tests.Algorithms;
 using Spreads.Core.Tests.Utils;
 
 namespace Spreads.Core.Run
@@ -33,7 +34,7 @@ namespace Spreads.Core.Run
             // EquiJoinBench();
 
             var test = new VecHelpersTests();
-            test.BinarySearchLookupBench();
+            test.IndexOfBench();
            
 
             Console.WriteLine("Finished, press enter to exit...");
