@@ -2,6 +2,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+// 
+
 using System;
 using Spreads.Native;
 using System.Diagnostics;
@@ -29,7 +31,7 @@ namespace Spreads.Algorithms
     public static class VectorSearch
     {
         /// <summary>
-        /// Performs standard binary serach and returns index of the value or its negative binary complement.
+        /// Performs standard binary search and returns index of the value or its negative binary complement.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int BinarySearch<T>(
@@ -70,7 +72,7 @@ namespace Spreads.Algorithms
         }
 
         /// <summary>
-        /// Find value using binary searach according to the lookup direction.
+        /// Find value using binary search according to the lookup direction.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int BinaryLookup<T>(
@@ -411,7 +413,6 @@ namespace Spreads.Algorithms
                 var elementVec = Vector256.Create(value);
                 do
                 {
-                    // var curr = Unsafe.As<int, Vector256<int>>(ref position);
                     var curr = Unsafe.ReadUnaligned<Vector256<int>>(ref Unsafe.As<int, byte>(ref position));
 
                     var mask = Avx2.CompareEqual(curr, elementVec);
