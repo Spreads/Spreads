@@ -9,6 +9,7 @@ using System.Runtime.CompilerServices;
 
 namespace Spreads.Serialization
 {
+    // TODO use Vec<T>
     internal interface IArrayBasedMap<TKey, TValue>
     {
         int Length { get; }

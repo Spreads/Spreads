@@ -2,11 +2,12 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-using System;
-
 namespace Spreads
 {
-    public enum CursorState : byte
+    // int32, we could later reuse negative space for other flags if needed. For MoveNext we should be able to do just `>0` to continue
+
+    // ReSharper disable once EnumUnderlyingTypeIsInt do not change to shorter
+    public enum CursorState : int
     {
         /// <summary>
         /// A cursor is either not initialized or disposed. Some (re)initialization work may be needed before moving.
@@ -28,12 +29,15 @@ namespace Spreads
         // TODO simple MN after MB is possible. But MB must set state so that
         // MN could move, not MN check every time - this is the hottest path.
         // MB puts cursor at the end of the batch.
-        
+
+        // TODO review how to minimize branches in SM
+        // e.g. if (State > 0) MN should continue
+        // only after that check is false we
+
         /// <summary>
         /// A cursor has started batch moving and is at a valid position.
         /// A false move from this state must restore the cursor to its position before the move.
         /// </summary>
-        [Obsolete("TODO BatchMoving in not reimplemented after 0.8 changes, rethink if another state is needed for batches")]
         BatchMoving = 4,
     }
 }

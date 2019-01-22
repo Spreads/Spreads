@@ -40,7 +40,11 @@ namespace Spreads
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Cursor([NotNull] ICursor<TKey, TValue> cursor)
         {
-            _cursor = cursor ?? throw new ArgumentNullException(nameof(cursor));
+            if (cursor == null)
+            {
+                ThrowHelper.ThrowArgumentNullException("cursor");
+            }
+            _cursor = cursor;
         }
 
         /// <inheritdoc />

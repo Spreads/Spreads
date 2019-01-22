@@ -104,7 +104,7 @@
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Newtonsoft.Json" Version="12.0.1" />
-    <PackageReference Include="Spreads.Native" Version="1.0.0-build1901201217R" />
+    <PackageReference Include="Spreads.Native" Version="1.0.0-build1901221248R" />
     <PackageReference Include="System.Buffers" Version="4.5.0" />
     <PackageReference Include="System.Collections.Immutable" Version="1.6.0-preview.18571.3" />
     <PackageReference Include="System.Memory" Version="4.5.2-servicing-27114-05" />

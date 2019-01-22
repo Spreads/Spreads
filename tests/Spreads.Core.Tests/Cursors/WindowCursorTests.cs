@@ -2,10 +2,10 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-using System;
-using System.Linq;
 using NUnit.Framework;
 using Spreads.Collections;
+using System;
+using System.Linq;
 
 namespace Spreads.Core.Tests.Cursors
 {
@@ -26,6 +26,7 @@ namespace Spreads.Core.Tests.Cursors
             }
 
             var window = sm.Window(10);
+
             // NB no type annotations needed to get the same result
             // Even though `.Source` saves a great deal of typing, manual construction is still a dealbreaker
             // Extension methods are smart and keep all types info without requiring any type annotations
@@ -58,7 +59,7 @@ namespace Spreads.Core.Tests.Cursors
                 Assert.AreEqual(Math.Min(pair.Key + 1, 10), pair.Value.Count());
             }
 
-            var window2 = sm.Window(count*2, true);
+            var window2 = sm.Window(count * 2, true);
             foreach (var pair in window2)
             {
                 Assert.AreEqual(sm.Values.Take(pair.Key + 1).Sum(), pair.Value.Values.Sum());

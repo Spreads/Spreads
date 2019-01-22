@@ -301,7 +301,7 @@ namespace Spreads
         public TValue CurrentValue
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => _op.Apply(_cursor.CurrentValue);
+            get => _op.Apply(_cursor.CurrentValue.Item1, _cursor.CurrentValue.Item2);
         }
 
         public CursorState State
@@ -355,7 +355,7 @@ namespace Spreads
         {
             if (_cursor.TryGetValue(key, out var v))
             {
-                value = default(TOp).Apply(v);
+                value = default(TOp).Apply(v.Item1, v.Item2);
                 return true;
             }
             value = default;

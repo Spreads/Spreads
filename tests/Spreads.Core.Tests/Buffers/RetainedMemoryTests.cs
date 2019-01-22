@@ -9,7 +9,6 @@ using System.Buffers;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using System.Threading;
 using System.Threading.Tasks;
 
 namespace Spreads.Core.Tests.Buffers
@@ -168,13 +167,34 @@ namespace Spreads.Core.Tests.Buffers
             rm.Dispose();
         }
 
-
-        [Test, Ignore("Doesn't work with non-blittables")]
-        public unsafe void WorksWithNonBlittables()
+        [Test, Explicit("Doesn't work with non-blittables")]
+        public void WorksWithNonBlittables()
         {
-            var rm = new Spreads.Buffers.RetainedMemory<string>((new string[] {"a"}).AsMemory());
+            var arr = new string[] { "a" };
+            var r = ArrayMemory<string>.Create(arr, 0, arr.Length, externallyOwned: true);
+
+            var h0 = r.Pin();
+
+            Assert.IsFalse(r.IsPinned);
+
+            var h1 = r.Pin();
+
+            h1.Dispose();
+
+            Assert.AreEqual(1, r.ReferenceCount);
+
+            var vec = r.Vec;
+            Assert.AreEqual(1, vec.Length);
+            Assert.AreEqual("a", vec[0]);
+            var rm = r.Retain();
+
+            Assert.AreEqual(2, r.ReferenceCount);
+
             Assert.AreEqual("a", rm.Span[0]);
             rm.Dispose();
+            Assert.AreEqual(1, r.ReferenceCount);
+
+            h0.Dispose();
         }
     }
 

@@ -60,7 +60,7 @@ namespace Spreads
     }
 
     // A marker interface for optional batching feature
-    internal interface IAsyncBatchEnumerator<out T> // F# doesn't allow to implement this: IAsyncEnumerator<IEnumerable<T>>
+    public interface IAsyncBatchEnumerator<T> // F# doesn't allow to implement this: IAsyncEnumerator<IEnumerable<T>>
     {
         // Same contract as in cursors:
         // if MoveNextBatchAsync(noAsync = true) returns false then there are no batches available synchronously
@@ -71,7 +71,7 @@ namespace Spreads
         // will be no batches ever and consumer must switch to per-item calls.
         ValueTask<bool> MoveNextBatch(bool noAsync);
 
-        IEnumerable<T> CurrentBatch { get; } // TODO specialized
+        IEnumerable<T> CurrentBatch { get; }
     }
 
     /// <summary>
@@ -242,7 +242,7 @@ namespace Spreads
     ///    no out-of-order exception is thrown e.g. when `SortedMap.Set(k, v)` is called and the cursor is at `k` position.
     ///    Subsequent move of the cursor will throw OOO exception.
     /// </remarks>
-    public interface ICursor<TKey, TValue> : IAsyncEnumerator<KeyValuePair<TKey, TValue>>
+    public interface ICursor<TKey, TValue> : IAsyncEnumerator<KeyValuePair<TKey, TValue>>// TODO, IAsyncBatchEnumerator<KeyValuePair<TKey, TValue>>
     {
         /// <summary>
         /// Cursor current state.
@@ -300,7 +300,7 @@ namespace Spreads
         bool MovePrevious();
 
         /// <summary>
-        /// Opposite direction of <see cref="MoveNext"/>.
+        /// Opposite direction of <see cref="MoveNext(long,bool)"/>.
         /// </summary>
         long MovePrevious(long stride, bool allowPartial);
 
@@ -342,6 +342,8 @@ namespace Spreads
         // for sort join case using enumerator, e.g. for repeat it should keep previous value and check if
         // the requested key is between the previous and the current keys, and then return the previous one.
         // NB This is not thread safe. ICursors must be used from a single thread.
+
+        // TODO new Series<TKey, TValue, Segment<TKey, TValue>> CurrentBatch { get; }
     }
 
     /// <summary>

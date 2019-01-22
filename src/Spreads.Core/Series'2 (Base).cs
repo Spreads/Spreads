@@ -11,6 +11,8 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
+using Spreads.Buffers;
+using Spreads.Collections.Internal;
 
 namespace Spreads
 {
@@ -20,6 +22,10 @@ namespace Spreads
     [CannotApplyEqualityOperator]
     public class BaseSeries
     {
+        internal DataStorage _data;
+
+        #region Attributes
+
         private static readonly ConditionalWeakTable<BaseSeries, Dictionary<string, object>> Attributes =
             new ConditionalWeakTable<BaseSeries, Dictionary<string, object>>();
 
@@ -46,6 +52,8 @@ namespace Spreads
             var dic = Attributes.GetOrCreateValue(this);
             dic[attributeName] = attributeValue;
         }
+
+        #endregion
     }
 
     /// <summary>
@@ -1224,6 +1232,9 @@ namespace Spreads
 #pragma warning restore 660, 661
         where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
     {
+        internal AtomicCounter _ac;
+
+        [Obsolete("use _ac")]
         internal long Locker;
 
         // ReSharper disable InconsistentNaming
@@ -1232,9 +1243,9 @@ namespace Spreads
         internal long _nextVersion;
 
         // ReSharper restore InconsistentNaming
-        internal bool _isSynchronized = true;
+        internal bool _isSynchronized = true; // todo _ac == default? or MutabilityEnum and always synchronize if not immutable?
 
-        internal bool _isReadOnly;
+        internal bool _isReadOnly; // TODO use Mutability enum
 
         /// <inheritdoc />
         public override bool IsCompleted

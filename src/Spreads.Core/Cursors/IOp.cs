@@ -16,19 +16,29 @@ using System.Runtime.CompilerServices;
 // ReSharper disable once CheckNamespace
 namespace Spreads
 {
+
+    ///// <summary>
+    ///// A generic operation on two values of types T1 and T2 returning a value of a type TResult.
+    ///// </summary>
+    //public interface IOp<in T, out TResult>
+    //{
+    //    /// <summary>
+    //    /// Apply a method to the first and the second argument.
+    //    /// </summary>
+    //    [Pure]
+    //    TResult Apply(T value);
+    //}
+
+    // TODO rename to Op2
     /// <summary>
     /// A generic operation on two values of types T1 and T2 returning a value of a type TResult.
     /// </summary>
-    public interface IOp<T1, T2, TResult>
+    public interface IOp<in T1, in T2, out TResult>
     {
         /// <summary>
         /// Apply a method to the first and the second argument.
         /// </summary>
-        TResult Apply((T1 first, T2 second) tuple);
-
-        /// <summary>
-        /// Apply a method to the first and the second argument.
-        /// </summary>
+        [Pure]
         TResult Apply(T1 first, T2 second);
     }
 
@@ -58,14 +68,7 @@ namespace Spreads
         [Obsolete("Use ZipOp")]
         internal static T ZipSelector<TKey>(TKey key, (T, T) value)
         {
-            return default(AddOp<T>).Apply(value);
-        }
-
-        [Pure]
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public T Apply((T first, T second) tuple)
-        {
-            return Apply(tuple.first, tuple.second);
+            return default(AddOp<T>).Apply(value.Item1, value.Item2);
         }
 
         [Pure]

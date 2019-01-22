@@ -65,6 +65,14 @@ namespace Spreads.Buffers
 
         [System.Diagnostics.Contracts.Pure]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal int IncrementIfZero()
+        {
+            // TODO
+            throw new NotImplementedException();
+        }
+
+        [System.Diagnostics.Contracts.Pure]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal int IncrementIfRetained()
         {
             // Pooled buffers have zero counter and not disposed one.

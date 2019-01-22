@@ -7,6 +7,13 @@ using System.Runtime.InteropServices;
 
 namespace Spreads
 {
+    public enum Mutability : byte
+    {
+        Immutable,
+        AppendOnly,
+        Mutable
+    }
+
     /// <summary>
     /// Indicates where a tick/instant is relative to a period.
     /// </summary>

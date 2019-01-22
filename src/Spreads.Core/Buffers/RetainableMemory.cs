@@ -1,9 +1,9 @@
-﻿using Spreads.Utils;
+﻿using Spreads.Native;
+using Spreads.Utils;
 using System;
 using System.Buffers;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
 using static Spreads.Buffers.BuffersThrowHelper;
 
 namespace Spreads.Buffers
@@ -14,7 +14,7 @@ namespace Spreads.Buffers
     }
 
     /// <summary>
-    /// Base class for retainable pinned memory. Buffers are always pinned during initialization.
+    /// Base class for retainable memory. Buffers are pinned during initialization if that is possible.
     /// Initialization could be from a pool of arrays or from native memory. When pooled, RetainableMemory
     /// is in disposed state, underlying arrays are unpinned and returned to array pool.
     /// </summary>
@@ -25,8 +25,10 @@ namespace Spreads.Buffers
         // [p*<-len---------------->] we must only check capacity at construction and then work from pointer
         // [p*<-len-[<--lenPow2-->]>] buffer could be larger, pooling always by max pow2 we could store
 
-        protected int _length;
+        internal T[] _array;
+        internal int _arrayOffset;
         internal void* _pointer;
+        protected int _length;
 
         // Internals with private-like _name are not intended for usage outside RMP and tests.
 
@@ -39,7 +41,7 @@ namespace Spreads.Buffers
         /// True if the memory is already clean (all zeros) on return. Useful for the case when
         /// the pool has <see cref="RetainableMemoryPool{T}.IsRentAlwaysClean"/> set to true
         /// but we know that the buffer is already clean. Use with caution only when cleanliness
-        /// is ovious and when cost of cleaning could be high (larger buffers).
+        /// is obvious and when cost of cleaning could be high (larger buffers).
         /// </summary>
         internal bool SkipCleaning;
 
@@ -110,6 +112,15 @@ namespace Spreads.Buffers
             return newRefCount;
         }
 
+        /// <summary>
+        /// Returns <see cref="Vec{T}"/> backed by this instance memory.
+        /// </summary>
+        public Vec<T> Vec
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => _pointer == null ? new Vec<T>(_array, _arrayOffset, _length) : new Vec<T>(_pointer, _length);
+        }
+
         internal void* Pointer
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -125,6 +136,9 @@ namespace Spreads.Buffers
             get => Unsafe.Add<T>(_pointer, _length - LengthPow2);
         }
 
+        /// <summary>
+        /// Underlying memory is a pinned array or native memory.
+        /// </summary>
         public bool IsPinned
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -214,7 +228,7 @@ namespace Spreads.Buffers
                 ThrowDisposed<RetainableMemory<T>>();
             }
             // if disposed Pointer & _len are null/0, no way to corrupt data, will just throw
-            return new Span<T>(Pointer, _length);
+            return _pointer == null ? new Span<T>(_array, _arrayOffset, _length) : new Span<T>(Pointer, _length);
         }
 
         internal DirectBuffer DirectBuffer
@@ -223,7 +237,6 @@ namespace Spreads.Buffers
             get => new DirectBuffer(_length * Unsafe.SizeOf<T>(), (byte*)Pointer);
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)] // hope for devirt
         public override MemoryHandle Pin(int elementIndex = 0)
         {
             Increment();
@@ -234,16 +247,14 @@ namespace Spreads.Buffers
 
             if (_pointer == null)
             {
-                ThrowHelper.ThrowInvalidOperationException("RatinableMemory is not pinned.");
+                return new MemoryHandle(null, handle: default, this);
             }
 
-            // NOTE: even for the array-based memory handle is create when array is taken from pool
+            // NOTE: even for the array-based memory the handle is create when array is taken from pool
             // and is stored in MemoryManager until the array is released back to the pool.
-            GCHandle handle = default;
-            return new MemoryHandle(Unsafe.Add<T>(_pointer, elementIndex), handle, this);
+            return new MemoryHandle(_pointer == null ? null : Unsafe.Add<T>(_pointer, elementIndex), handle: default, this);
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)] // hope for devirt
         public override void Unpin()
         {
             Decrement();

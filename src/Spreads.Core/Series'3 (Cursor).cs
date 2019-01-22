@@ -10,6 +10,34 @@ using System.Runtime.CompilerServices;
 
 namespace Spreads
 {
+
+    
+
+    public struct ZipW<TKey, TValue, RV, TLC, RC> 
+        where TLC : ISpecializedCursor<TKey, TValue, TLC> 
+        where // RC : ISpecializedCursor<TKey, TValue, RC>, ISpecializedCursor<RK, TValue, RC>, 
+        RC : ISpecializedCursor<TKey, RV, RC>
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static implicit operator ZipW<TKey, TValue, RV, TLC, RC>(Series<TKey, TValue, TLC> series)
+        {
+           return default;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int operator
+            +(ZipW<TKey, TValue, RV, TLC, RC> series, Series<TKey, RV, RC> other)
+        {
+            return 1;
+        }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int operator
+            +(ZipW<TKey, TValue, RV, TLC, RC> series, ZipW<TKey, TValue, RV, TLC, RC> other)
+        {
+            return 1;
+        }
+    }
+
     /// <summary>
     /// A fast lightweight wrapper around a <see cref="ISpecializedCursor{TKey,TValue,TCursor}"/>
     /// implementing <see cref="ISeries{TKey, TValue}"/> interface using the cursor.
@@ -242,6 +270,15 @@ namespace Spreads
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
+                if (typeof(TCursor) == typeof(Segment<TKey, TValue>))
+                {
+                    var sc = (Segment<TKey, TValue>)(object)_cursor;
+                    var c = _cursor;
+                    var sc2 = Unsafe.As<TCursor, Segment<TKey, TValue>>(ref c);
+                    // at least we could specialize on implementation
+                    throw new NotImplementedException();
+                }
+
                 using (var c = _cursor.Initialize())
                 {
                     if (c.TryGetValue(key, out var value))
@@ -271,9 +308,9 @@ namespace Spreads
             return cursor.Source;
         }
 
-        /// <summary>
-        /// Add operator.
-        /// </summary>
+        ///// <summary>
+        ///// Add operator.
+        ///// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Series<TKey, TValue, Op<TKey, TValue, AddOp<TValue>, TCursor>> operator
             +(TValue constant, Series<TKey, TValue, TCursor> series)
@@ -881,14 +918,14 @@ namespace Spreads
         /// with <see cref="Cursor{TKey,TValue}"/> as <typeparamref name="TCursor"/>.
         /// using <see cref="Cursor{TKey,TValue}"/> wrapper.
         /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static implicit operator Series<TKey, TValue, Cursor<TKey, TValue>>(Series<TKey, TValue, TCursor> series)
-        {
-#pragma warning disable HAA0601 // Value type to reference type conversion causing boxing allocation
-            var c = new Cursor<TKey, TValue>(series._cursor);
-#pragma warning restore HAA0601 // Value type to reference type conversion causing boxing allocation
-            return new Series<TKey, TValue, Cursor<TKey, TValue>>(c);
-        }
+//        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+//        public static implicit operator Series<TKey, TValue, Cursor<TKey, TValue>>(Series<TKey, TValue, TCursor> series)
+//        {
+//#pragma warning disable HAA0601 // Value type to reference type conversion causing boxing allocation
+//            var c = new Cursor<TKey, TValue>(series._cursor);
+//#pragma warning restore HAA0601 // Value type to reference type conversion causing boxing allocation
+//            return new Series<TKey, TValue, Cursor<TKey, TValue>>(c);
+//        }
 
         /// <summary>
         /// Erase cursor type <typeparamref name="TCursor"/> to <see cref="Cursor{TKey,TValue}"/>.
@@ -896,8 +933,15 @@ namespace Spreads
         public Series<TKey, TValue, Cursor<TKey, TValue>> Unspecialized
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => this;
+            get => throw new NotImplementedException();// this;
         }
+
+        // TODO
+        //public Series<TKey, TValue, Cursor<TKey, TValue>> _
+        //{
+        //    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        //    get => throw new NotImplementedException();// this;
+        //}
 
         #endregion Implicit cast
 

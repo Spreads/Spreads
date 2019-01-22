@@ -95,7 +95,7 @@ namespace Spreads.Buffers
 
             EnsureNotRetainedAndNotDisposed();
 
-            // disposing == false when finilizing and detected that non pooled
+            // disposing == false when finalizing and detected that non pooled
             if (disposing)
             {
                 TryReturnThisToPoolOrFinalize();
@@ -140,8 +140,6 @@ namespace Spreads.Buffers
     {
         private static readonly ObjectPool<ArrayMemory<T>> ObjectPool = new ObjectPool<ArrayMemory<T>>(() => new ArrayMemory<T>(), Environment.ProcessorCount * 16);
 
-        internal T[] _array;
-        internal int _arrayOffset;
         protected GCHandle _handle;
         protected bool _externallyOwned;
 
@@ -156,12 +154,6 @@ namespace Spreads.Buffers
             get => _array;
         }
 
-        internal ArraySegment<T> ArraySegment
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => new ArraySegment<T>(_array, _arrayOffset, _length);
-        }
-
         /// <summary>
         /// Create <see cref="ArrayMemory{T}"/> backed by an array from shared array pool.
         /// </summary>
@@ -173,7 +165,7 @@ namespace Spreads.Buffers
 
         /// <summary>
         /// Create <see cref="ArrayMemory{T}"/> backed by the provided array.
-        /// Ownership of the provided array if transafered to <see cref="ArrayMemory{T}"/> after calling
+        /// Ownership of the provided array if transferred to <see cref="ArrayMemory{T}"/> after calling
         /// this method and no other code should touch the array afterwards.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -199,13 +191,32 @@ namespace Spreads.Buffers
         {
             var arrayMemory = ObjectPool.Allocate();
             arrayMemory._array = array;
-            arrayMemory._handle = GCHandle.Alloc(arrayMemory._array, GCHandleType.Pinned);
-            arrayMemory._pointer = Unsafe.AsPointer(ref arrayMemory._array[offset]);
+            if (TypeHelper<T>.IsPinnable)
+            {
+                arrayMemory._handle = GCHandle.Alloc(arrayMemory._array, GCHandleType.Pinned);
+                arrayMemory._pointer = Unsafe.AsPointer(ref arrayMemory._array[offset]);
+            }
+            else
+            {
+                arrayMemory._handle = GCHandle.Alloc(arrayMemory._array, GCHandleType.Normal);
+                arrayMemory._pointer = null;
+            }
+
             arrayMemory._arrayOffset = offset;
             arrayMemory._length = length;
             arrayMemory._externallyOwned = externallyOwned;
-            arrayMemory.Counter = AtomicCounterService.AcquireCounter();
+            if (arrayMemory.Counter.Pointer == null || arrayMemory.Counter.Count != 0)
+            {
+                ThrowBadCounterAfterAllocate(arrayMemory);
+            }
             return arrayMemory;
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static unsafe void ThrowBadCounterAfterAllocate(ArrayMemory<T> arrayMemory)
+        {
+            ThrowHelper.FailFast(
+                $"Allocated ArrayMemory without counter or with non-zero counter: arrayMemory.Counter.Pointer == {(long)arrayMemory.Counter.Pointer} || arrayMemory.Counter.Count != 0 [{arrayMemory.Counter.Count}]");
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -213,7 +224,7 @@ namespace Spreads.Buffers
         {
             EnsureNotRetainedAndNotDisposed();
 
-            // disposing == false when finilizing and detected that non pooled
+            // disposing == false when finalizing and detected that non pooled
             if (disposing)
             {
                 TryReturnThisToPoolOrFinalize();
@@ -233,7 +244,7 @@ namespace Spreads.Buffers
                     Debug.Assert(_handle.IsAllocated);
                     _handle.Free();
                     _handle = default;
-                    // special value that is not normally possible - to keep thread-static buffer undisposable
+                    // special value that is not normally possible - to keep thread-static buffer non-disposable
                     if (!_externallyOwned)
                     {
                         BufferPool<T>.Return(array, !TypeHelper<T>.IsFixedSize);
@@ -258,7 +269,7 @@ namespace Spreads.Buffers
         protected override bool TryGetArray(out ArraySegment<T> buffer)
         {
             if (IsDisposed) { ThrowDisposed<ArrayMemory<T>>(); }
-            buffer = ArraySegment;
+            buffer = new ArraySegment<T>(_array, _arrayOffset, _length);
             return true;
         }
     }
