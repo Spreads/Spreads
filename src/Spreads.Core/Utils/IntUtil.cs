@@ -83,6 +83,13 @@ namespace Spreads.Utils
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int NumberOfLeadingZeros(int i)
         {
+#if NETCOREAPP3_0
+            if (System.Runtime.Intrinsics.X86.Lzcnt.IsSupported)
+            {
+                return (int)System.Runtime.Intrinsics.X86.Lzcnt.LeadingZeroCount((uint)i);
+            }
+#endif
+
             unchecked
             {
                 // HD, Figure 5-6
@@ -117,6 +124,60 @@ namespace Spreads.Utils
                 }
 
                 n -= (int)((uint)i >> 31);
+                return n;
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int NumberOfLeadingZeros(long i)
+        {
+#if NETCOREAPP3_0
+            if (System.Runtime.Intrinsics.X86.Lzcnt.X64.IsSupported)
+            {
+                return (int)System.Runtime.Intrinsics.X86.Lzcnt.X64.LeadingZeroCount((ulong)i);
+            }
+#endif
+
+            unchecked
+            {
+                // HD, Figure 5-6
+                if (i == 0L)
+                {
+                    return 64;
+                }
+
+                int n = 1;
+                if ((long)((ulong)i >> 32) == 0)
+                {
+                    n += 32;
+                    i <<= 32;
+                }
+
+                if ((long)((ulong)i >> 48) == 0)
+                {
+                    n += 16;
+                    i <<= 16;
+                }
+
+                if ((long)((ulong)i >> 56) == 0)
+                {
+                    n += 8;
+                    i <<= 8;
+                }
+
+                if ((long)((ulong)i >> 60) == 0)
+                {
+                    n += 4;
+                    i <<= 4;
+                }
+
+                if ((long)((ulong)i >> 62) == 0)
+                {
+                    n += 2;
+                    i <<= 2;
+                }
+
+                n -= (int)((ulong)i >> 63);
                 return n;
             }
         }

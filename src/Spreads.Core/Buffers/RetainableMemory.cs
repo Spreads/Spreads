@@ -118,7 +118,13 @@ namespace Spreads.Buffers
         public Vec<T> Vec
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => _pointer == null ? new Vec<T>(_array, _arrayOffset, _length) : new Vec<T>(_pointer, _length);
+            get
+            {
+                // var tid = VecTypeHelper<T>.RuntimeVecInfo.RuntimeTypeId;
+                var vec = _pointer == null ? new Vec<T>(_array, _arrayOffset, _length) : new Vec<T>(_pointer, _length);
+                Debug.Assert(vec.AsVec().Type == typeof(T));
+                return vec;
+            }
         }
 
         internal void* Pointer

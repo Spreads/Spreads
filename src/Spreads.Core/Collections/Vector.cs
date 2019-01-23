@@ -5,6 +5,8 @@
 using Spreads.Collections.Internal;
 using Spreads.Native;
 using System;
+using System.Collections;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 
@@ -14,7 +16,9 @@ namespace Spreads.Collections
     // but they point correctly to the right addresses and do not copy
     // use case is for batched and immutable data
 
-    public readonly ref struct Vector
+    // TODO check order version if storage is mutable?
+
+    public readonly struct Vector : IVec
     {
         // We keep dangerous readonly methods because they could only crash app or get wrong data
         // to a user who uses these methods incorrectly. But these method will not corrupt underlying
@@ -66,10 +70,16 @@ namespace Spreads.Collections
             return ref _vectorStorage.DangerousGetRef<T>(index);
         }
 
+        [Obsolete("This is slow if the type T knownly matches the underlying type (the method has type check in addition to bound check). Use typed Vector<T> view over VectorStorage.")]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public T Get<T>(int index)
         {
             return _vectorStorage.Get<T>(index);
+        }
+
+        public T DangerousGet<T>(int index)
+        {
+            return _vectorStorage.DangerousGet<T>(index);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -91,7 +101,7 @@ namespace Spreads.Collections
         }
     }
 
-    public readonly ref struct Vector<T>
+    public readonly struct Vector<T> : IVec<T>
     {
         internal readonly VectorStorage _vectorStorage;
 
@@ -109,21 +119,50 @@ namespace Spreads.Collections
         public T this[int index]
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get
-            {
-                // type is checked in ctor, only BC
-                if (unchecked((uint)index) >= unchecked((uint)_vectorStorage._length))
-                {
-                    VecThrowHelper.ThrowIndexOutOfRangeException();
-                }
-                return _vectorStorage.DangerousGet<T>(index);
-            }
+            get => Get(index);
         }
 
         public int Length
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => _vectorStorage.Length;
+        }
+
+        // From IVec
+        //[EditorBrowsable(EditorBrowsableState.Never)]
+        //[MethodImpl(MethodImplOptions.AggressiveInlining)]
+        //public T1 Get<T1>(int index)
+        //{
+        //    if (typeof(T1) == typeof(T))
+        //    {
+        //        return (T1)(object)Get(index);
+        //    }
+        //    VecThrowHelper.ThrowVecTypeMismatchException();
+        //    return default;
+        //}
+
+        //[EditorBrowsable(EditorBrowsableState.Never)]
+        //[MethodImpl(MethodImplOptions.AggressiveInlining)]
+        //public T1 DangerousGet<T1>(int index)
+        //{
+        //    if (typeof(T1) == typeof(T))
+        //    {
+        //        return (T1)(object)DangerousGet(index);
+        //    }
+        //    VecThrowHelper.ThrowVecTypeMismatchException();
+        //    return default;
+        //}
+
+        [EditorBrowsable(EditorBrowsableState.Never)]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public T Get(int index)
+        {
+            // type is checked in ctor, only BC
+            if (unchecked((uint)index) >= unchecked((uint)_vectorStorage._length))
+            {
+                VecThrowHelper.ThrowIndexOutOfRangeException();
+            }
+            return _vectorStorage.DangerousGet<T>(index);
         }
 
         [EditorBrowsable(EditorBrowsableState.Never)]
@@ -143,7 +182,12 @@ namespace Spreads.Collections
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ref readonly T GetRef(int index)
         {
-            return ref _vectorStorage.GetRef<T>(index);
+            // type is checked in ctor, only BC
+            if (unchecked((uint)index) >= unchecked((uint)_vectorStorage._length))
+            {
+                VecThrowHelper.ThrowIndexOutOfRangeException();
+            }
+            return ref _vectorStorage.DangerousGetRef<T>(index);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -157,9 +201,22 @@ namespace Spreads.Collections
         {
             throw new NotImplementedException();
         }
+
+        // TODO Explicit and typed Enumerator
+        public IEnumerator<T> GetEnumerator()
+        {
+            throw new NotImplementedException();
+        }
+
+        IEnumerator IEnumerable.GetEnumerator()
+        {
+            return GetEnumerator();
+        }
+
+        int IReadOnlyCollection<T>.Count => Length;
     }
 
-    // 
+    //
     [Obsolete]
     internal enum SortTracking : byte
     {

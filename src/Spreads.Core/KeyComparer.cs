@@ -170,7 +170,8 @@ namespace Spreads
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public int Compare(T x, T y)
         {
-            // for our purposes this method is "normal", i.e. known types are compared normally
+            // For our purposes this method is "normal", i.e. known types are compared normally
+            // TODO (docs) It is easy to compare known types in a custom way - just implement a wrapper struct and IComparable<T>. This also will be faster than a comparable.
 
             if (typeof(T) == typeof(Timestamp))
             {

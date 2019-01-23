@@ -167,7 +167,7 @@ namespace Spreads.Core.Tests.Buffers
             rm.Dispose();
         }
 
-        [Test, Explicit("Doesn't work with non-blittables")]
+        [Test]
         public void WorksWithNonBlittables()
         {
             var arr = new string[] { "a" };
@@ -207,7 +207,7 @@ namespace Spreads.Core.Tests.Buffers
             _stream = baseStream;
         }
 
-#if NETCOREAPP2_1
+#if NETCOREAPP2_1xxx
 
         public override ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
         {

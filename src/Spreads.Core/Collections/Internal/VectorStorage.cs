@@ -3,15 +3,16 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 using Spreads.Buffers;
+using Spreads.Collections.Concurrent;
 using Spreads.Native;
 using System;
 using System.Buffers;
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
 namespace Spreads.Collections.Internal
 {
-
     // **Ownership rules**
     // * Vector storage is owned by DataStorage
     // * Matrix: DataStorage could create multiple VS columns over the same memory,
@@ -20,8 +21,6 @@ namespace Spreads.Collections.Internal
     // * If DS columns point to different memory then DS._values must be null and
     //   each column owns its reference.
     // * VS owns a reference when its _handle field is not default. It's OK to call Free on default to simplify disposal implementation.
-
-
 
     // TODO comments are just thoughts, most relevant at the bottom, work in progress
 
@@ -58,26 +57,21 @@ namespace Spreads.Collections.Internal
     /// VectorStorage is logical representation of data and its source.
     /// </summary>
     [StructLayout(LayoutKind.Sequential)]
-    internal class VectorStorage // : IDisposable
+    internal class VectorStorage : IDisposable, IVec
     {
-        // must be poolable eventually or a struct
-        // not ref counted, disposal/release should be internal
+        private static readonly ObjectPool<VectorStorage> ObjectPool = new ObjectPool<VectorStorage>(() => new VectorStorage(), Environment.ProcessorCount * 16);
 
-        protected VectorStorage()
-        {
-        }
+        private VectorStorage()
+        { }
 
         // untyped storage of Vector data
 
         /// <summary>
         /// A source that owns Vec memory
         /// </summary>
-        internal IPinnable _source;
+        internal IPinnable _memorySource;
 
         internal MemoryHandle _memoryHandle;
-
-
-
 
         // slicing via this
         internal Vec _vec;
@@ -89,7 +83,7 @@ namespace Spreads.Collections.Internal
         /// If it is > 1 then this is a column/row of a matrix. Stride is equal to the number of columns if storage is by rows and vice versa.
         /// Series/Panel are endless, so this is only for a chunk.
         /// </summary>
-        private int _stride = 1;
+        private int _stride;
 
         // _vec.Length is capacity, this is the number of valid elements in the Vector
         // also need to cache _vec.Length/_stride result because it is used by bound-checking getter
@@ -102,9 +96,6 @@ namespace Spreads.Collections.Internal
 
         internal bool _isSorted;
 
-        // TODO optional Dictionary<K,V> to lookup 
-        internal object _index;
-
         public void Unpin()
         {
             // TODO review
@@ -112,17 +103,80 @@ namespace Spreads.Collections.Internal
             // _source.Unpin();
         }
 
-        public static VectorStorage Create<T>(RetainableMemory<T> memoryManager, int start, int length)
+        /// <summary>
+        /// Returns new VectorStorage instance with the same memory source but (optionally) different memory start, length and stride.
+        /// Increments underlying memory reference count.
+        /// </summary>
+        /// <returns></returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public VectorStorage Slice(int memoryStart,
+            int memoryLength,
+            int stride = 1,
+            bool externallyOwned = false)
         {
-            var vs = new VectorStorage();
-            vs._source = memoryManager;
-            // store the handle as a field
-            var handle = vs._source.Pin(start);
+            Debug.Assert(stride > 0);
 
-            if (MemoryMarshal.TryGetArray<T>(memoryManager.Memory, out var segment))
+            var vs = ObjectPool.Allocate();
+
+            vs._memorySource = _memorySource;
+
+            if (!externallyOwned)
             {
-                var vec = new Vec<T>(segment.Array, segment.Offset, segment.Count);
+                vs._memoryHandle = vs._memorySource.Pin(0);
             }
+
+            vs._vec = _vec.Slice(memoryStart, memoryLength);
+
+            vs._stride = stride;
+
+            var numberOfStridesFromZero = vs._vec.Length / stride;
+            if (stride > 1)
+            {
+                // last full stride could be incomplete but with the current logic we will access only the first element
+                if (vs._vec.Length - numberOfStridesFromZero * stride > 0)
+                {
+                    numberOfStridesFromZero++;
+                }
+            }
+
+            vs._length = numberOfStridesFromZero;
+
+            return vs;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static VectorStorage Create<T>(RetainableMemory<T> memorySource,
+            int memoryStart,
+            int memoryLength,
+            int stride = 1,
+            bool externallyOwned = false)
+        {
+            Debug.Assert(stride > 0);
+
+            var vs = ObjectPool.Allocate();
+
+            vs._memorySource = memorySource;
+
+            if (!externallyOwned)
+            {
+                vs._memoryHandle = vs._memorySource.Pin(0);
+            }
+
+            vs._vec = memorySource.Vec.AsVec().Slice(memoryStart, memoryLength);
+
+            vs._stride = stride;
+
+            var numberOfStridesFromZero = vs._vec.Length / stride;
+            if (stride > 1)
+            {
+                // last full stride could be incomplete but with the current logic we will access only the first element
+                if (vs._vec.Length - numberOfStridesFromZero * stride > 0)
+                {
+                    numberOfStridesFromZero++;
+                }
+            }
+
+            vs._length = numberOfStridesFromZero;
 
             return vs;
         }
@@ -183,6 +237,7 @@ namespace Spreads.Collections.Internal
             _vec.DangerousSet(index * _stride, value);
         }
 
+        [Obsolete("This is slow if the type T knownly matches the underlying type (the method has type check in addition to bound check). Use typed Vector<T> view over VectorStorage.")]
         public T Get<T>(int index)
         {
             return _vec.Get<T>(index * _stride);
@@ -206,17 +261,67 @@ namespace Spreads.Collections.Internal
             return ref _vec.DangerousGetRef<T>(index * _stride);
         }
 
-        // TODO it is possible to slice with stride, but what are the use cases?
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Vec Slice(int start)
+        #region Dispose logic
+
+        public bool IsDisposed
         {
-            throw new NotImplementedException();
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => _memorySource == null;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Vec Slice(int start, int length)
+        private void Dispose(bool disposing, bool unpin = true)
         {
-            throw new NotImplementedException();
+            lock (_memorySource)
+            {
+                if (!disposing)
+                {
+                    WarnFinalizing();
+                }
+                if (IsDisposed)
+                {
+                    ThrowDisposed();
+                }
+                _memorySource = null;
+
+                _memoryHandle.Dispose();
+            }
+            // now we do not care about _source, it is either borrowed by other VectorStorage instances or returned to a pool/GC
+
+            // clear all fields before pooling
+            _memoryHandle = default;
+            _vec = default;
+            _isSorted = default;
+            _length = default;
+            _mutability = default;
+            _sortTracking = default;
+            _stride = default;
+
+            ObjectPool.Free(this);
         }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static void WarnFinalizing()
+        {
+            Trace.TraceWarning("Finalizing VectorStorage. It must be properly disposed.");
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static void ThrowDisposed()
+        {
+            ThrowHelper.ThrowObjectDisposedException("source");
+        }
+
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        ~VectorStorage()
+        {
+            Dispose(false);
+        }
+
+        #endregion Dispose logic
     }
 }
