@@ -7,7 +7,6 @@
 using Spreads.Collections;
 using Spreads.DataTypes;
 using Spreads.Native;
-using Spreads.Utils;
 using System;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
@@ -329,63 +328,13 @@ namespace Spreads.Algorithms
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int InterpolationSearchYY(ref long vecStart, int length, long value)
-        {
-            unchecked
-            {
-                int lo = 0;
-                int hi = length - 1;
-
-                if (lo < hi)
-                {
-                    var vlo = vecStart;
-                    var vhi = Unsafe.Add(ref vecStart, hi);
-                    var range = vhi - vlo;
-
-                    // this is the power itself so that we could shift by it
-                    var rangeNextPow2 = 64 - IntUtil.NumberOfLeadingZeros(range);
-
-                    var nominator = ((hi - lo) * (value - vlo));
-
-                    // this is lower estimate because rangeNextPow2 is higher that actual
-                    var iLeft = (int)(nominator >> rangeNextPow2);
-                    var vLeft = Unsafe.Add(ref vecStart, iLeft);
-
-                    if (value == vLeft)
-                    {
-                        return iLeft;
-                    }
-
-                    // we missed the very happy case
-                    if (value < vLeft)
-                    {
-                        hi = iLeft - 1;
-                    }
-                    else
-                    {
-                        var iRight = Math.Min(hi, (int)(nominator >> (rangeNextPow2 - 1)));
-                        var vRight = Unsafe.Add(ref vecStart, iRight);
-
-                        if (value < vRight)
-                        {
-                            lo = iLeft + 1;
-                            hi = iRight - 1;
-                        }
-                        else if (value == vRight)
-                        {
-                            return length;
-                        }
-                        // value in (iLeft, i)
-                        lo = iLeft + 1;
-                    }
-                }
-                return BinarySearch(ref Unsafe.Add(ref vecStart, lo), 1 + hi - lo, value, default);
-            }
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int InterpolationSearch(ref long vecStart, int length, long value)
         {
+            // fist we divide by 2 "the smart way" which on average is better than mid for real data and hits exactly for regular keys
+            // then we should divide space "around" the first guess
+            // 4 -> 2^4 = 16 regions, 2 x 6% around first guess
+            const int proximityRegionsPow2 = 4;  // TODO (?) maybe 5, it is slightly better in the test but the data is synthetic. 4 is better for interpolation misses.
+
             unchecked
             {
                 int lo = 0;
@@ -394,11 +343,17 @@ namespace Spreads.Algorithms
                 {
                     long vlo = vecStart;
                     long vhi = Unsafe.Add(ref vecStart, hi);
-                    long range = vhi - vlo;
+                    long vRange = vhi - vlo;
 
-                    var nominator = (hi - lo) * (value - vlo);
+                    Debug.Assert(vRange > 0);
 
-                    var i = Math.Min(hi, (int)((double)nominator / range));
+                    // (hi - lo) <= int32.MaxValue
+                    // vlo could be zero while value could easily be close to int64.MaxValue (nanos in unix time, we are now between 60 and 61 bit at 60.4)
+                    // convert to double here to avoid overflow and for much faster calculations
+                    // (only 4 cycles vs 25 cycles https://lemire.me/blog/2017/11/16/fast-exact-integer-divisions-using-floating-point-operations/)
+                    double nominator = (hi - lo) * (double)(value - vlo);
+
+                    var i = Math.Min(hi, (int)(nominator / vRange));
 
                     var vi = Unsafe.Add(ref vecStart, i);
 
@@ -407,52 +362,68 @@ namespace Spreads.Algorithms
                         return i;
                     }
 
-                    // we missed the very happy case
+                    // we missed the very happy case, but will reuse the i value for
+                    // breaking the search into 4 regions:
+                    // [0]..1..[iLeft]..2..[i]..3..[iRight]..4..[hi]
 
-                    // this is the power itself so that we could shift by it
-                    var rangeNextPow2 = 64 - IntUtil.NumberOfLeadingZeros(range);
+                    var offset = length >> proximityRegionsPow2;
 
                     if (value < vi)
                     {
-                        // this is lower estimate because rangeNextPow2 is higher that actual
-                        var iLeft = (int)(nominator >> rangeNextPow2);
-                        var vLeft = Unsafe.Add(ref vecStart, iLeft);
+                        int iLeft;
+                        if (offset > 0 && (iLeft = i - offset) >= lo)
+                        {
+                            var vLeft = Unsafe.Add(ref vecStart, iLeft);
 
-                        if (value < vLeft)
-                        {
-                            // value in [0, vLeft)
-                            hi = iLeft - 1;
-                        }
-                        else if (value == vLeft)
-                        {
-                            return iLeft;
+                            if (value < vLeft)
+                            {
+                                // value in [0, vLeft)
+                                hi = iLeft - 1;
+                            }
+                            else if (value == vLeft)
+                            {
+                                return iLeft;
+                            }
+                            else
+                            {
+                                // value in (iLeft, i)
+                                lo = iLeft + 1;
+                                hi = i - 1;
+                            }
                         }
                         else
                         {
-                            // value in (iLeft, i)
-                            lo = iLeft + 1;
+                            // value in [lo, i)
                             hi = i - 1;
                         }
                     }
                     else
                     {
-                        var iRight = Math.Min(hi, (int)(nominator >> (rangeNextPow2 - 1)));
-                        var vRight = Unsafe.Add(ref vecStart, iRight);
+                        int iRight;
+                        if (offset > 0 && (iRight = i + offset) <= hi)
+                        {
+                            var vRight = Unsafe.Add(ref vecStart, iRight);
 
-                        if (value < vRight)
-                        {
-                            // value in (i, iRight)
-                            lo = i + 1;
-                            hi = iRight - 1;
-                        }
-                        else if (value == vRight)
-                        {
-                            return iRight;
+                            if (value < vRight)
+                            {
+                                // value in (i, iRight)
+                                lo = i + 1;
+                                hi = iRight - 1;
+                            }
+                            else if (value == vRight)
+                            {
+                                return iRight;
+                            }
+                            else
+                            {
+                                // value in (iRight, hi]
+                                lo = iRight + 1;
+                            }
                         }
                         else
                         {
-                            // value in (iRight, hi]
-                            lo = iRight + 1;
+                            // value in (i, hi]
+                            lo = i + 1;
                         }
                     }
                 }
@@ -467,66 +438,6 @@ namespace Spreads.Algorithms
                 {
                     return ~(lo + ~iBs);
                 }
-            }
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int InterpolationSearchXX(ref long vecStart, int length, long value)
-        {
-            unchecked
-            {
-                int lo = 0;
-                int hi = length - 1;
-                int hl;
-                var c = 0;
-                // If length == 0, hi == -1, and loop will not be entered
-                while ((hl = hi - lo) >= 0)
-                {
-                    c++;
-                    if (c > 2)
-                    {
-                        return BinarySearch(ref Unsafe.Add(ref vecStart, lo), 1 + hi - lo, value, default);
-                    }
-
-                    int i;
-                    if (hl > 0)
-                    {
-                        var vlo = (ulong)Unsafe.Add(ref vecStart, lo);
-                        var totalRange = (ulong)Unsafe.Add(ref vecStart, hi) - vlo;
-                        var valueRange = (ulong)value - vlo;
-
-                        if (valueRange > totalRange)
-                        {
-                            valueRange = 0;
-                        }
-
-                        i = lo +
-                            (valueRange > totalRange
-                            ? (int)(((uint)hi + (uint)lo) >> 1)
-                            : (int)(hl * ((double)valueRange / totalRange)));
-                        // division via double is much faster
-                    }
-                    else
-                    {
-                        i = lo;
-                    }
-
-                    var vi = Unsafe.Add(ref vecStart, i);
-                    if (value == vi)
-                    {
-                        return i;
-                    }
-                    else if (value > vi)
-                    {
-                        lo = i + 1;
-                    }
-                    else
-                    {
-                        hi = i - 1;
-                    }
-                }
-
-                return ~lo;
             }
         }
 

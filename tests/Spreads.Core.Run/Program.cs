@@ -1,13 +1,11 @@
 ﻿using Spreads.Collections;
+using Spreads.Core.Tests.Algorithms;
 using Spreads.Core.Tests.Collections.Concurrent;
 using Spreads.Core.Tests.Serialization;
 using Spreads.Utils;
 using System;
 using System.Diagnostics;
 using System.Threading.Tasks;
-using Spreads.Core.Tests;
-using Spreads.Core.Tests.Algorithms;
-using Spreads.Core.Tests.Utils;
 
 namespace Spreads.Core.Run
 {
@@ -34,9 +32,8 @@ namespace Spreads.Core.Run
 
             // EquiJoinBench();
 
-            var test = new NanoOptimizationTests();
-            test.CallVsCallVirt();
-           
+            var test = new VecSearchTests();
+            test.SearchIrregularBench();
 
             Console.WriteLine("Finished, press enter to exit...");
             Console.ReadLine();
