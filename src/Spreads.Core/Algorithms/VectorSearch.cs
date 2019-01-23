@@ -2,14 +2,14 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-// 
+//
 
-using System;
+using Spreads.DataTypes;
 using Spreads.Native;
+using System;
 using System.Diagnostics;
 using System.Numerics;
 using System.Runtime.CompilerServices;
-using Spreads.DataTypes;
 
 #if NETCOREAPP3_0
 
@@ -164,6 +164,142 @@ namespace Spreads.Algorithms
             }
 
             return i;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int InterpolationSearch<T>(
+            ref T vecStart, int length, T value)
+        {
+            if (typeof(T) == typeof(Timestamp))
+            {
+                return InterpolationSearch(ref Unsafe.As<T, long>(ref vecStart), length, Unsafe.As<T, long>(ref value));
+            }
+
+            if (typeof(T) == typeof(long))
+            {
+                return InterpolationSearch(ref Unsafe.As<T, long>(ref vecStart), length, Unsafe.As<T, long>(ref value));
+            }
+
+            if (typeof(T) == typeof(int))
+            {
+                return InterpolationSearch(ref Unsafe.As<T, int>(ref vecStart), length, Unsafe.As<T, int>(ref value));
+            }
+
+            if (!KeyComparer<T>.Default.IsDiffable)
+            {
+                ThrowHelper.ThrowNotSupportedException("KeyComparer<T>.Default.IsDiffable must be true for interpolation search");
+            }
+            return InterpolationSearchGeneric(ref vecStart, length, value, KeyComparer<T>.Default);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int InterpolationSearch(
+            ref long vecStart, int length, long value)
+        {
+            int lo = 0;
+            int hi = length - 1;
+            // If length == 0, hi == -1, and loop will not be entered
+            while (lo <= hi)
+            {
+                unchecked
+                {
+                    var vlo = (ulong)Unsafe.Add(ref vecStart, lo);
+                    var totalRange = (ulong)Unsafe.Add(ref vecStart, hi) - vlo;
+                    var valueRange = (ulong)value - vlo;
+
+                    // division via double is much faster
+                    int i = lo + (int)((hi - lo) * (double)valueRange / totalRange);
+
+                    var vi = Unsafe.Add(ref vecStart, i);
+                    if (value == vi)
+                    {
+                        return i;
+                    }
+                    else if (value > vi)
+                    {
+                        lo = i + 1;
+                    }
+                    else
+                    {
+                        hi = i - 1;
+                    }
+                }
+            }
+            return ~lo;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int InterpolationSearch(
+            ref int vecStart, int length, int value)
+        {
+            int lo = 0;
+            int hi = length - 1;
+            // If length == 0, hi == -1, and loop will not be entered
+            while (lo <= hi)
+            {
+                unchecked
+                {
+                    var vlo = (ulong)Unsafe.Add(ref vecStart, lo);
+                    var totalRange = (ulong)Unsafe.Add(ref vecStart, hi) - vlo;
+                    var valueRange = (ulong)value - vlo;
+
+                    // division via double is much faster
+                    int i = lo + (int)((hi - lo) * (double)valueRange / totalRange);
+
+                    var vi = Unsafe.Add(ref vecStart, i);
+                    if (value == vi)
+                    {
+                        return i;
+                    }
+                    else if (value > vi)
+                    {
+                        lo = i + 1;
+                    }
+                    else
+                    {
+                        hi = i - 1;
+                    }
+                }
+            }
+            return ~lo;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static int InterpolationSearchGeneric<T>(
+            ref T vecStart, int length, T value, KeyComparer<T> comparer)
+        {
+            if (typeof(T) == typeof(Timestamp))
+            {
+                return InterpolationSearch(ref Unsafe.As<T, long>(ref vecStart), length, Unsafe.As<T, long>(ref value));
+            }
+
+            int lo = 0;
+            int hi = length - 1;
+            // If length == 0, hi == -1, and loop will not be entered
+            while (lo <= hi)
+            {
+                var l = hi - lo;
+                var totalRange = 1 + comparer.Diff(Unsafe.Add(ref vecStart, hi), Unsafe.Add(ref vecStart, lo));
+                var valueRange = 1 + comparer.Diff(value, Unsafe.Add(ref vecStart, lo));
+
+                // division via double is much faster
+                int i = (int)(l * (double)valueRange / totalRange);
+
+                int c = comparer.Compare(value, Unsafe.Add(ref vecStart, i));
+                if (c == 0)
+                {
+                    return i;
+                }
+                else if (c > 0)
+                {
+                    lo = i + 1;
+                }
+                else
+                {
+                    hi = i - 1;
+                }
+            }
+            return ~lo;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

@@ -51,8 +51,8 @@ namespace Spreads.Core.Tests.Algorithms
                         {
                             for (int i = 0; i < count; i++)
                             {
-                                var idx = BinaryLookupLe<Timestamp>(ref vec.DangerousGetRef(0),
-                                    count, (Timestamp)i, KeyComparer<Timestamp>.Default);
+                                var idx = VectorSearch.InterpolationSearch(ref vec.DangerousGetRef(0),
+                                    count, (Timestamp)i);
                                 if (idx != i)
                                 {
                                     Console.WriteLine($"val {i} -> idx {idx}");
@@ -187,10 +187,13 @@ namespace Spreads.Core.Tests.Algorithms
         {
             var start = vecStart; // todo local?
             var totalRange = comparer.Diff(Unsafe.Add(ref vecStart, length - 1), start);
+            var pow2 = (32 - IntUtil.NumberOfLeadingZeros(length - 1));
             // var rangePerValue = totalRange / BitUtil.FindNextPositivePowerOfTwo(length);
+            var rangePerValue = totalRange >> pow2;
             var valueRange = comparer.Diff(value, start);
             // var searchStart = valueRange / rangePerValue;
-            var startIdx = (int)((valueRange / ((double)(totalRange))) * (length - 1));
+            // var startIdx = (int)((valueRange / ((double)(totalRange))) * (length - 1));
+            var startIdx = (int)((valueRange) * (length - 1)) >> ((32 - IntUtil.NumberOfLeadingZeros((int)totalRange - 1)));
 
             int c = comparer.Compare(value, Unsafe.Add(ref vecStart, startIdx));
         LOOP:
@@ -225,5 +228,93 @@ namespace Spreads.Core.Tests.Algorithms
 
             return -1;
         }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int BinaryLookupLeTs(
+                ref Timestamp vecStart, int length, Timestamp value)
+        // where T : IInt64Diffable<T>
+        {
+            var start = vecStart; // todo local?
+            var totalRange = Unsafe.Add(ref vecStart, length - 1).Nanos - vecStart.Nanos;
+            var valueRange = value.Nanos - vecStart.Nanos;
+
+            var startIdx = (int)(totalRange >> ((64 - IntUtil.NumberOfLeadingZeros(valueRange - 1))));
+
+        //var pow2 = (32 - IntUtil.NumberOfLeadingZeros(length - 1));
+        //// var rangePerValue = totalRange / BitUtil.FindNextPositivePowerOfTwo(length);
+        //var rangePerValue = totalRange >> pow2;
+        //var valueRange = comparer.Diff(value, start);
+        //// var searchStart = valueRange / rangePerValue;
+        //// var startIdx = (int)((valueRange / ((double)(totalRange))) * (length - 1));
+        //var startIdx = ((valueRange) * (length - 1)) >> ((32 - IntUtil.NumberOfLeadingZeros((int)totalRange - 1)));
+
+        // int c = comparer.Compare(value, Unsafe.Add(ref vecStart, startIdx));
+        LOOP:
+
+            if (value > Unsafe.Add(ref vecStart, startIdx))
+            {
+                // startIdx is LE but the next one must be greater
+                startIdx++;
+                if (startIdx == length)
+                {
+                    return length - 1;
+                }
+                if (value < Unsafe.Add(ref vecStart, startIdx)) // next is GT
+                {
+                    return startIdx - 1;
+                }
+
+                goto LOOP;
+            }
+
+            if (value == Unsafe.Add(ref vecStart, startIdx))
+            {
+                return startIdx;
+            }
+
+            startIdx--;
+            if (startIdx >= 0)
+            {
+                goto LOOP;
+            }
+
+            return -1;
+        }
+
+        //[MethodImpl(MethodImplOptions.AggressiveInlining)]
+        //public static int InterpolationSearchTimeStamp(
+        //        ref Timestamp vecStart, int length, Timestamp value)
+        //{
+        //    return InterpolationSearch(ref Unsafe.As<Timestamp, long>(ref vecStart), length, (long)value);
+        //    //int lo = 0;
+        //    //int hi = length - 1;
+        //    //// If length == 0, hi == -1, and loop will not be entered
+        //    //while (lo <= hi)
+        //    //{
+        //    //    var l = hi - lo;
+        //    //    var totalRange = 1 + Unsafe.Add(ref vecStart, hi).Nanos - Unsafe.Add(ref vecStart, lo).Nanos;
+        //    //    var valueRange = 1 + value.Nanos - Unsafe.Add(ref vecStart, lo).Nanos;
+
+        //    //    // division via double is much faster
+        //    //    int i = (int)(l * (double)valueRange / totalRange);
+
+        //    //    int c = value.CompareTo(Unsafe.Add(ref vecStart, i));
+        //    //    if (c == 0)
+        //    //    {
+        //    //        return i;
+        //    //    }
+        //    //    else if (c > 0)
+        //    //    {
+        //    //        lo = i + 1;
+        //    //    }
+        //    //    else
+        //    //    {
+        //    //        hi = i - 1;
+        //    //    }
+        //    //}
+        //    //return ~lo;
+        //}
+
+        
     }
 }
