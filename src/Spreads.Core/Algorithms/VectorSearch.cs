@@ -4,12 +4,14 @@
 
 //
 
+using Spreads.Collections;
 using Spreads.DataTypes;
 using Spreads.Native;
+using Spreads.Utils;
 using System;
 using System.Diagnostics;
-using System.Numerics;
 using System.Runtime.CompilerServices;
+using Vector = System.Numerics.Vector;
 
 #if NETCOREAPP3_0
 
@@ -37,138 +39,238 @@ namespace Spreads.Algorithms
         public static int BinarySearch<T>(
             ref T vecStart, int length, T value, KeyComparer<T> comparer)
         {
-            int lo = 0;
-            int hi = length - 1;
-            // If length == 0, hi == -1, and loop will not be entered
-            while (lo <= hi)
+            unchecked
             {
-                // PERF: `lo` or `hi` will never be negative inside the loop,
-                //       so computing median using uints is safe since we know
-                //       `length <= int.MaxValue`, and indices are >= 0
-                //       and thus cannot overflow an uint.
-                //       Saves one subtraction per loop compared to
-                //       `int i = lo + ((hi - lo) >> 1);`
-                int i = (int)(((uint)hi + (uint)lo) >> 1);
+                int lo = 0;
+                int hi = length - 1;
+                // If length == 0, hi == -1, and loop will not be entered
+                while (lo <= hi)
+                {
+                    // PERF: `lo` or `hi` will never be negative inside the loop,
+                    //       so computing median using uints is safe since we know
+                    //       `length <= int.MaxValue`, and indices are >= 0
+                    //       and thus cannot overflow an uint.
+                    //       Saves one subtraction per loop compared to
+                    //       `int i = lo + ((hi - lo) >> 1);`
+                    int i = (int)(((uint)hi + (uint)lo) >> 1);
 
-                int c = comparer.Compare(value, Unsafe.Add(ref vecStart, i));
-                if (c == 0)
-                {
-                    return i;
+                    int c = comparer.Compare(value, Unsafe.Add(ref vecStart, i));
+                    if (c == 0)
+                    {
+                        return i;
+                    }
+                    else if (c > 0)
+                    {
+                        lo = i + 1;
+                    }
+                    else
+                    {
+                        hi = i - 1;
+                    }
                 }
-                else if (c > 0)
-                {
-                    lo = i + 1;
-                }
-                else
-                {
-                    hi = i - 1;
-                }
+
+                // If none found, then a negative number that is the bitwise complement
+                // of the index of the next element that is larger than or, if there is
+                // no larger element, the bitwise complement of `length`, which
+                // is `lo` at this point.
+                return ~lo;
             }
-            // If none found, then a negative number that is the bitwise complement
-            // of the index of the next element that is larger than or, if there is
-            // no larger element, the bitwise complement of `length`, which
-            // is `lo` at this point.
-            return ~lo;
+        }
+
+        /// <summary>
+        /// Performs standard binary search and returns index of the value or its negative binary complement.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int BinarySearch<T, TVec>(ref TVec vec, T value, KeyComparer<T> comparer)
+            where TVec : IVec<T>
+        {
+            unchecked
+            {
+                int lo = 0;
+                int hi = vec.Length - 1;
+                while (lo <= hi)
+                {
+                    int i = (int)(((uint)hi + (uint)lo) >> 1);
+
+                    int c = comparer.Compare(value, vec.DangerousGet(i));
+                    if (c == 0)
+                    {
+                        return i;
+                    }
+                    else if (c > 0)
+                    {
+                        lo = i + 1;
+                    }
+                    else
+                    {
+                        hi = i - 1;
+                    }
+                }
+
+                return ~lo;
+            }
         }
 
         /// <summary>
         /// Find value using binary search according to the lookup direction.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int BinaryLookup<T>(
-            ref T vecStart, int length, T value, KeyComparer<T> comparer, Lookup lookup)
+        public static int BinaryLookup<T>(ref T vecStart, int length, T value, Lookup lookup, KeyComparer<T> comparer = default)
         {
             if (length == 0)
             {
                 return ~0;
             }
 
-            bool eqOk = lookup.IsEqualityOK();
-            int lo = 0;
-            int hi = length - 1;
-            int i;
+            int i = BinarySearch(ref vecStart, length, value, comparer);
 
-            // optimization: return last item if requesting LE with key >= the last one
-            // or if key == last and equality is acceptable
-            int c = comparer.Compare(value, Unsafe.Add(ref vecStart, hi));
-            if (c >= 0)
+            if (i >= 0)
             {
-                if (lookup == Lookup.LE || (c == 0 && eqOk))
+                if (lookup.IsEqualityOK())
                 {
-                    return hi;
+                    return i;
+                }
+
+                if (lookup == Lookup.LT)
+                {
+                    if (i == 0)
+                    {
+                        return -1;
+                    }
+
+                    i = i - 1;
+                }
+                else // depends on if (eqOk) above
+                {
+                    Debug.Assert(lookup == Lookup.GT);
+                    if (i == length - 1)
+                    {
+                        return ~length;
+                    }
+
+                    i = i + 1;
                 }
             }
-
-            // If length == 0, hi == -1, and loop will not be entered
-            while (lo <= hi)
+            else
             {
-                // PERF: `lo` or `hi` will never be negative inside the loop,
-                //       so computing median using uints is safe since we know
-                //       `length <= int.MaxValue`, and indices are >= 0
-                //       and thus cannot overflow an uint.
-                //       Saves one subtraction per loop compared to
-                //       `int i = lo + ((hi - lo) >> 1);`
-
-                i = (int)(((uint)hi + (uint)lo) >> 1);
-
-                c = comparer.Compare(value, Unsafe.Add(ref vecStart, i));
-                if (c == 0)
+                if (lookup == Lookup.EQ)
                 {
-                    goto FOUND;
+                    return i;
                 }
-                else if (c > 0)
+
+                i = ~i;
+
+                // LT or LE
+                if (((uint)lookup & (uint)Lookup.LT) != 0)
                 {
-                    lo = i + 1;
+                    // i is idx of element that is larger, nothing here for LE/LT
+                    if (i == 0)
+                    {
+                        return -1;
+                    }
+
+                    i = i - 1;
                 }
                 else
                 {
-                    hi = i - 1;
+                    Debug.Assert(((uint)lookup & (uint)Lookup.GT) != 0);
+                    Debug.Assert(i <= length);
+                    // if was negative, if it was ~length then there are no more elements for GE/GT
+                    if (i == length)
+                    {
+                        return ~length;
+                    }
+
+                    // i is the same, ~i is idx of element that is GT the value
                 }
             }
 
-            // complement = ~lo;
+            Debug.Assert(unchecked((uint)i) < unchecked((uint)length));
+            return i;
+        }
 
-            // If none found, then a negative number that is the bitwise complement
-            // of the index of the next element that is larger than or, if there is
-            // no larger element, the bitwise complement of `length`, which
-            // is `lo` at this point.
-            // i = ~lo;
-
-            // GE/GT will be at lo
-            // LE/LT will be at lo-1
-            // EQ must return ~lo
-
-            if (lookup == Lookup.EQ)
+        /// <summary>
+        /// Find value using binary search according to the lookup direction.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int BinaryLookup<T, TVec>(ref TVec vec, T value, Lookup lookup, KeyComparer<T> comparer = default)
+            where TVec : IVec<T>
+        {
+            var length = vec.Length;
+            if (length == 0)
             {
-                return ~lo;
+                return ~0;
             }
 
-            i = lo - lookup.ComplementAdjustment();
+            int i = BinarySearch(ref vec, value, comparer);
 
-            goto HAS_I_CANDIDATE;
-
-        FOUND:
-            Debug.Assert(i >= 0);
-            if (eqOk)
+            if (i >= 0)
             {
-                return i;
-            }
-            // -1 or +1
-            i = i + lookup.NeqOffset();
+                if (lookup.IsEqualityOK())
+                {
+                    return i;
+                }
 
-        HAS_I_CANDIDATE:
-            if (unchecked((uint)i) >= unchecked((uint)length))
+                if (lookup == Lookup.LT)
+                {
+                    if (i == 0)
+                    {
+                        return -1;
+                    }
+
+                    i = i - 1;
+                }
+                else // depends on if (eqOk) above
+                {
+                    Debug.Assert(lookup == Lookup.GT);
+                    if (i == length - 1)
+                    {
+                        return ~length;
+                    }
+
+                    i = i + 1;
+                }
+            }
+            else
             {
-                // out of range
-                return ~lo;
+                if (lookup == Lookup.EQ)
+                {
+                    return i;
+                }
+
+                i = ~i;
+
+                // LT or LE
+                if (((uint)lookup & (uint)Lookup.LT) != 0)
+                {
+                    // i is idx of element that is larger, nothing here for LE/LT
+                    if (i == 0)
+                    {
+                        return -1;
+                    }
+
+                    i = i - 1;
+                }
+                else
+                {
+                    Debug.Assert(((uint)lookup & (uint)Lookup.GT) != 0);
+                    Debug.Assert(i <= length);
+                    // if was negative, if it was ~length then there are no more elements for GE/GT
+                    if (i == length)
+                    {
+                        return ~length;
+                    }
+
+                    // i is the same, ~i is idx of element that is GT the value
+                }
             }
 
+            Debug.Assert(unchecked((uint)i) < unchecked((uint)length));
             return i;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int InterpolationSearch<T>(
-            ref T vecStart, int length, T value)
+        public static int InterpolationSearch<T>(ref T vecStart, int length, T value, KeyComparer<T> comparer = default)
         {
             if (typeof(T) == typeof(Timestamp))
             {
@@ -187,119 +289,719 @@ namespace Spreads.Algorithms
 
             if (!KeyComparer<T>.Default.IsDiffable)
             {
-                ThrowHelper.ThrowNotSupportedException("KeyComparer<T>.Default.IsDiffable must be true for interpolation search");
+                ThrowNonDiffable<T>();
             }
             return InterpolationSearchGeneric(ref vecStart, length, value, KeyComparer<T>.Default);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int InterpolationSearch(
-            ref long vecStart, int length, long value)
+        public static int InterpolationSearch<T, TVec>(ref TVec vec, T value, KeyComparer<T> comparer = default)
+            where TVec : IVec<T>
         {
-            int lo = 0;
-            int hi = length - 1;
-            // If length == 0, hi == -1, and loop will not be entered
-            while (lo <= hi)
-            {
-                unchecked
-                {
-                    var vlo = (ulong)Unsafe.Add(ref vecStart, lo);
-                    var totalRange = (ulong)Unsafe.Add(ref vecStart, hi) - vlo;
-                    var valueRange = (ulong)value - vlo;
+            // TODO test if this works and is inlined well
 
-                    // division via double is much faster
-                    int i = lo + (int)((hi - lo) * (double)valueRange / totalRange);
+            if (typeof(TVec) == typeof(Vector<Timestamp>))
+            {
+                return InterpolationSearch(ref Unsafe.As<TVec, Vector<long>>(ref vec), Unsafe.As<T, long>(ref value));
+            }
+
+            if (typeof(T) == typeof(Vector<long>))
+            {
+                return InterpolationSearch(ref Unsafe.As<TVec, Vector<long>>(ref vec), Unsafe.As<T, long>(ref value));
+            }
+
+            if (typeof(T) == typeof(Vector<int>))
+            {
+                return InterpolationSearch(ref Unsafe.As<TVec, Vector<int>>(ref vec), Unsafe.As<T, int>(ref value));
+            }
+
+            if (!KeyComparer<T>.Default.IsDiffable)
+            {
+                ThrowNonDiffable<T>();
+            }
+            return InterpolationSearchGeneric(ref vec, value, comparer);
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static void ThrowNonDiffable<T>()
+        {
+            ThrowHelper.ThrowNotSupportedException("KeyComparer<T>.Default.IsDiffable must be true for interpolation search: T is " + typeof(T).FullName);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int InterpolationSearchYY(ref long vecStart, int length, long value)
+        {
+            unchecked
+            {
+                int lo = 0;
+                int hi = length - 1;
+
+                if (lo < hi)
+                {
+                    var vlo = vecStart;
+                    var vhi = Unsafe.Add(ref vecStart, hi);
+                    var range = vhi - vlo;
+
+                    // this is the power itself so that we could shift by it
+                    var rangeNextPow2 = 64 - IntUtil.NumberOfLeadingZeros(range);
+
+                    var nominator = ((hi - lo) * (value - vlo));
+
+                    // this is lower estimate because rangeNextPow2 is higher that actual
+                    var iLeft = (int)(nominator >> rangeNextPow2);
+                    var vLeft = Unsafe.Add(ref vecStart, iLeft);
+
+                    if (value == vLeft)
+                    {
+                        return iLeft;
+                    }
+
+                    // we missed the very happy case
+                    if (value < vLeft)
+                    {
+                        hi = iLeft - 1;
+                    }
+                    else
+                    {
+                        var iRight = Math.Min(hi, (int)(nominator >> (rangeNextPow2 - 1)));
+                        var vRight = Unsafe.Add(ref vecStart, iRight);
+
+                        if (value < vRight)
+                        {
+                            lo = iLeft + 1;
+                            hi = iRight - 1;
+                        }
+                        else if (value == vRight)
+                        {
+                            return length;
+                        }
+                        // value in (iLeft, i)
+                        lo = iLeft + 1;
+                    }
+                }
+                return BinarySearch(ref Unsafe.Add(ref vecStart, lo), 1 + hi - lo, value, default);
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int InterpolationSearch(ref long vecStart, int length, long value)
+        {
+            unchecked
+            {
+                int lo = 0;
+                int hi = length - 1;
+                if (lo < hi)
+                {
+                    long vlo = vecStart;
+                    long vhi = Unsafe.Add(ref vecStart, hi);
+                    long range = vhi - vlo;
+
+                    var nominator = (hi - lo) * (value - vlo);
+
+                    var i = Math.Min(hi, (int)((double)nominator / range));
 
                     var vi = Unsafe.Add(ref vecStart, i);
+
                     if (value == vi)
                     {
                         return i;
                     }
-                    else if (value > vi)
+
+                    // we missed the very happy case
+
+                    // this is the power itself so that we could shift by it
+                    var rangeNextPow2 = 64 - IntUtil.NumberOfLeadingZeros(range);
+
+                    if (value < vi)
                     {
-                        lo = i + 1;
+                        // this is lower estimate because rangeNextPow2 is higher that actual
+                        var iLeft = (int)(nominator >> rangeNextPow2);
+                        var vLeft = Unsafe.Add(ref vecStart, iLeft);
+
+                        if (value < vLeft)
+                        {
+                            // value in [0, vLeft)
+                            hi = iLeft - 1;
+                        }
+                        else if (value == vLeft)
+                        {
+                            return iLeft;
+                        }
+                        else
+                        {
+                            // value in (iLeft, i)
+                            lo = iLeft + 1;
+                            hi = i - 1;
+                        }
                     }
                     else
                     {
-                        hi = i - 1;
+                        var iRight = Math.Min(hi, (int)(nominator >> (rangeNextPow2 - 1)));
+                        var vRight = Unsafe.Add(ref vecStart, iRight);
+
+                        if (value < vRight)
+                        {
+                            // value in (i, iRight)
+                            lo = i + 1;
+                            hi = iRight - 1;
+                        }
+                        else if (value == vRight)
+                        {
+                            return iRight;
+                        }
+                        else
+                        {
+                            // value in (iRight, hi]
+                            lo = iRight + 1;
+                        }
                     }
                 }
-            }
-            return ~lo;
-        }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int InterpolationSearch(
-            ref int vecStart, int length, int value)
-        {
-            int lo = 0;
-            int hi = length - 1;
-            // If length == 0, hi == -1, and loop will not be entered
-            while (lo <= hi)
-            {
-                unchecked
+                var iBs = BinarySearch(ref Unsafe.Add(ref vecStart, lo), 1 + hi - lo, value, default);
+
+                if (iBs >= 0)
                 {
-                    var vlo = (ulong)Unsafe.Add(ref vecStart, lo);
-                    var totalRange = (ulong)Unsafe.Add(ref vecStart, hi) - vlo;
-                    var valueRange = (ulong)value - vlo;
-
-                    // division via double is much faster
-                    int i = lo + (int)((hi - lo) * (double)valueRange / totalRange);
-
-                    var vi = Unsafe.Add(ref vecStart, i);
-                    if (value == vi)
-                    {
-                        return i;
-                    }
-                    else if (value > vi)
-                    {
-                        lo = i + 1;
-                    }
-                    else
-                    {
-                        hi = i - 1;
-                    }
-                }
-            }
-            return ~lo;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static int InterpolationSearchGeneric<T>(
-            ref T vecStart, int length, T value, KeyComparer<T> comparer)
-        {
-            if (typeof(T) == typeof(Timestamp))
-            {
-                return InterpolationSearch(ref Unsafe.As<T, long>(ref vecStart), length, Unsafe.As<T, long>(ref value));
-            }
-
-            int lo = 0;
-            int hi = length - 1;
-            // If length == 0, hi == -1, and loop will not be entered
-            while (lo <= hi)
-            {
-                var l = hi - lo;
-                var totalRange = 1 + comparer.Diff(Unsafe.Add(ref vecStart, hi), Unsafe.Add(ref vecStart, lo));
-                var valueRange = 1 + comparer.Diff(value, Unsafe.Add(ref vecStart, lo));
-
-                // division via double is much faster
-                int i = (int)(l * (double)valueRange / totalRange);
-
-                int c = comparer.Compare(value, Unsafe.Add(ref vecStart, i));
-                if (c == 0)
-                {
-                    return i;
-                }
-                else if (c > 0)
-                {
-                    lo = i + 1;
+                    return lo + iBs;
                 }
                 else
                 {
-                    hi = i - 1;
+                    return ~(lo + ~iBs);
                 }
             }
-            return ~lo;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int InterpolationSearchXX(ref long vecStart, int length, long value)
+        {
+            unchecked
+            {
+                int lo = 0;
+                int hi = length - 1;
+                int hl;
+                var c = 0;
+                // If length == 0, hi == -1, and loop will not be entered
+                while ((hl = hi - lo) >= 0)
+                {
+                    c++;
+                    if (c > 2)
+                    {
+                        return BinarySearch(ref Unsafe.Add(ref vecStart, lo), 1 + hi - lo, value, default);
+                    }
+
+                    int i;
+                    if (hl > 0)
+                    {
+                        var vlo = (ulong)Unsafe.Add(ref vecStart, lo);
+                        var totalRange = (ulong)Unsafe.Add(ref vecStart, hi) - vlo;
+                        var valueRange = (ulong)value - vlo;
+
+                        if (valueRange > totalRange)
+                        {
+                            valueRange = 0;
+                        }
+
+                        i = lo +
+                            (valueRange > totalRange
+                            ? (int)(((uint)hi + (uint)lo) >> 1)
+                            : (int)(hl * ((double)valueRange / totalRange)));
+                        // division via double is much faster
+                    }
+                    else
+                    {
+                        i = lo;
+                    }
+
+                    var vi = Unsafe.Add(ref vecStart, i);
+                    if (value == vi)
+                    {
+                        return i;
+                    }
+                    else if (value > vi)
+                    {
+                        lo = i + 1;
+                    }
+                    else
+                    {
+                        hi = i - 1;
+                    }
+                }
+
+                return ~lo;
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int InterpolationSearchX(ref long vecStart, int length, long value)
+        {
+            unchecked
+            {
+                int lo = 0;
+                int hi = length - 1;
+                int hl;
+
+                // If length == 0, hi == -1, and loop will not be entered
+                if ((hl = hi - lo) >= 0)
+                {
+                    int i;
+                    if (hl > 0)
+                    {
+                        var vlo = (ulong)Unsafe.Add(ref vecStart, lo);
+                        var totalRange = (ulong)Unsafe.Add(ref vecStart, hi) - vlo;
+                        var valueRange = (ulong)value - vlo;
+
+                        if (valueRange > totalRange)
+                        {
+                            valueRange = 0;
+                        }
+
+                        i = lo +
+                            (valueRange > totalRange
+                                ? (int)(((uint)hi + (uint)lo) >> 1)
+                                : (int)(hl * ((double)valueRange / totalRange)));
+                        // division via double is much faster
+                    }
+                    else
+                    {
+                        i = lo;
+                    }
+
+                    var vi = Unsafe.Add(ref vecStart, i);
+                    if (value == vi)
+                    {
+                        return i;
+                    }
+                    else if (value > vi)
+                    {
+                        lo = i + 1;
+                    }
+                    else
+                    {
+                        hi = i - 1;
+                    }
+
+                    return BinarySearch(ref Unsafe.Add(ref vecStart, lo), 1 + hi - lo, value, default);
+                }
+
+                return ~lo;
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int InterpolationSearch<TVec>(ref TVec vec, long value)
+            where TVec : IVec<long>
+        {
+            unchecked
+            {
+                int lo = 0;
+                int hi = vec.Length - 1;
+                int hl;
+                // If length == 0, hi == -1, and loop will not be entered
+                while ((hl = hi - lo) >= 0)
+                {
+                    int i;
+                    if (hl > 0)
+                    {
+                        var vlo = (ulong)vec.DangerousGet(lo);
+                        var totalRange = (ulong)vec.DangerousGet(hi) - vlo;
+                        var valueRange = (ulong)value - vlo;
+
+                        if (valueRange > totalRange)
+                        {
+                            valueRange = totalRange >> 1;
+                        }
+
+                        // division via double is much faster
+
+                        i = lo + (int)(hl * ((double)valueRange / totalRange));
+                    }
+                    else
+                    {
+                        i = lo;
+                    }
+
+                    var vi = vec.DangerousGet(i);
+                    if (value == vi)
+                    {
+                        return i;
+                    }
+                    else if (value > vi)
+                    {
+                        lo = i + 1;
+                    }
+                    else
+                    {
+                        hi = i - 1;
+                    }
+                }
+
+                return ~lo;
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int InterpolationSearch(ref int vecStart, int length, int value)
+        {
+            unchecked
+            {
+                int lo = 0;
+                int hi = length - 1;
+                int hl;
+                // If length == 0, hi == -1, and loop will not be entered
+                while ((hl = hi - lo) >= 0)
+                {
+                    int i;
+                    if (hl > 0)
+                    {
+                        var vlo = (ulong)Unsafe.Add(ref vecStart, lo);
+                        var totalRange = (ulong)Unsafe.Add(ref vecStart, hi) - vlo;
+                        var valueRange = (ulong)value - vlo;
+
+                        if (valueRange > totalRange)
+                        {
+                            valueRange = totalRange >> 1;
+                        }
+
+                        // division via double is much faster
+
+                        i = lo + (int)(hl * ((double)valueRange / totalRange));
+                    }
+                    else
+                    {
+                        i = lo;
+                    }
+
+                    var vi = Unsafe.Add(ref vecStart, i);
+                    if (value == vi)
+                    {
+                        return i;
+                    }
+                    else if (value > vi)
+                    {
+                        lo = i + 1;
+                    }
+                    else
+                    {
+                        hi = i - 1;
+                    }
+                }
+
+                return ~lo;
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int InterpolationSearch<TVec>(ref TVec vec, int value)
+            where TVec : IVec<int>
+        {
+            unchecked
+            {
+                int lo = 0;
+                int hi = vec.Length - 1;
+                int hl;
+                // If length == 0, hi == -1, and loop will not be entered
+                while ((hl = hi - lo) >= 0)
+                {
+                    int i;
+                    if (hl > 0)
+                    {
+                        var vlo = (ulong)vec.DangerousGet(lo);
+                        var totalRange = (ulong)vec.DangerousGet(hi) - vlo;
+                        var valueRange = (ulong)value - vlo;
+
+                        if (valueRange > totalRange)
+                        {
+                            valueRange = totalRange >> 1;
+                        }
+
+                        // division via double is much faster
+
+                        i = lo + (int)(hl * ((double)valueRange / totalRange));
+                    }
+                    else
+                    {
+                        i = lo;
+                    }
+
+                    var vi = vec.DangerousGet(i);
+                    if (value == vi)
+                    {
+                        return i;
+                    }
+                    else if (value > vi)
+                    {
+                        lo = i + 1;
+                    }
+                    else
+                    {
+                        hi = i - 1;
+                    }
+                }
+
+                return ~lo;
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static int InterpolationSearchGeneric<T>(ref T vecStart, int length, T value, KeyComparer<T> comparer = default)
+        {
+            unchecked
+            {
+                int lo = 0;
+                int hi = length - 1;
+                int hl;
+                // If length == 0, hi == -1, and loop will not be entered
+                while ((hl = hi - lo) >= 0)
+                {
+                    int i;
+                    if (hl > 0)
+                    {
+                        var vlo = Unsafe.Add(ref vecStart, lo);
+                        var totalRange = (ulong)comparer.Diff(Unsafe.Add(ref vecStart, hi), vlo);
+                        var valueRange = (ulong)comparer.Diff(value, vlo);
+
+                        if (valueRange > totalRange)
+                        {
+                            valueRange = totalRange >> 1;
+                        }
+
+                        // division via double is much faster
+
+                        i = lo + (int)(hl * ((double)valueRange / totalRange));
+                    }
+                    else
+                    {
+                        i = lo;
+                    }
+
+                    int c = comparer.Compare(value, Unsafe.Add(ref vecStart, i));
+                    if (c == 0)
+                    {
+                        return i;
+                    }
+                    else if (c > 0)
+                    {
+                        lo = i + 1;
+                    }
+                    else
+                    {
+                        hi = i - 1;
+                    }
+                }
+
+                return ~lo;
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static int InterpolationSearchGeneric<T, TVec>(ref TVec vec, T value, KeyComparer<T> comparer = default)
+             where TVec : IVec<T>
+        {
+            unchecked
+            {
+                int length = vec.Length;
+                int lo = 0;
+                int hi = length - 1;
+                int hl;
+                // If length == 0, hi == -1, and loop will not be entered
+                while ((hl = hi - lo) >= 0)
+                {
+                    int i;
+                    if (hl > 0)
+                    {
+                        var vlo = vec.DangerousGet(lo);
+                        var totalRange = (ulong)comparer.Diff(vec.DangerousGet(hi), vlo);
+                        var valueRange = (ulong)comparer.Diff(value, vlo);
+
+                        if (valueRange > totalRange)
+                        {
+                            valueRange = totalRange >> 1;
+                        }
+
+                        // division via double is much faster
+
+                        i = lo + (int)(hl * ((double)valueRange / totalRange));
+                    }
+                    else
+                    {
+                        i = lo;
+                    }
+
+                    int c = comparer.Compare(value, vec.DangerousGet(i));
+                    if (c == 0)
+                    {
+                        return i;
+                    }
+                    else if (c > 0)
+                    {
+                        lo = i + 1;
+                    }
+                    else
+                    {
+                        hi = i - 1;
+                    }
+                }
+
+                return ~lo;
+            }
+        }
+
+        /// <summary>
+        /// Find value using binary search according to the lookup direction.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int InterpolationLookup<T>(ref T vecStart, int length, T value, Lookup lookup,
+            KeyComparer<T> comparer = default)
+        {
+            if (length == 0)
+            {
+                return ~0;
+            }
+
+            int i = InterpolationSearch(ref vecStart, length, value, comparer);
+
+            if (i >= 0)
+            {
+                if (lookup.IsEqualityOK())
+                {
+                    return i;
+                }
+
+                if (lookup == Lookup.LT)
+                {
+                    if (i == 0)
+                    {
+                        return -1;
+                    }
+
+                    i = i - 1;
+                }
+                else // depends on if (eqOk) above
+                {
+                    Debug.Assert(lookup == Lookup.GT);
+                    if (i == length - 1)
+                    {
+                        return ~length;
+                    }
+
+                    i = i + 1;
+                }
+            }
+            else
+            {
+                if (lookup == Lookup.EQ)
+                {
+                    return i;
+                }
+
+                i = ~i;
+
+                // LT or LE
+                if (((uint)lookup & (uint)Lookup.LT) != 0)
+                {
+                    // i is idx of element that is larger, nothing here for LE/LT
+                    if (i == 0)
+                    {
+                        return -1;
+                    }
+
+                    i = i - 1;
+                }
+                else
+                {
+                    Debug.Assert(((uint)lookup & (uint)Lookup.GT) != 0);
+                    Debug.Assert(i <= length);
+                    // if was negative, if it was ~length then there are no more elements for GE/GT
+                    if (i == length)
+                    {
+                        return ~length;
+                    }
+
+                    // i is the same, ~i is idx of element that is GT the value
+                }
+            }
+
+            Debug.Assert(unchecked((uint)i) < unchecked((uint)length));
+            return i;
+        }
+
+        /// <summary>
+        /// Find value using binary search according to the lookup direction.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int InterpolationLookup<T, TVec>(ref TVec vec, T value, Lookup lookup, KeyComparer<T> comparer = default)
+            where TVec : IVec<T>
+        {
+            var length = vec.Length;
+            if (length == 0)
+            {
+                return ~0;
+            }
+
+            int i = InterpolationSearch(ref vec, value, comparer);
+
+            if (i >= 0)
+            {
+                if (lookup.IsEqualityOK())
+                {
+                    return i;
+                }
+
+                if (lookup == Lookup.LT)
+                {
+                    if (i == 0)
+                    {
+                        return -1;
+                    }
+
+                    i = i - 1;
+                }
+                else // depends on if (eqOk) above
+                {
+                    Debug.Assert(lookup == Lookup.GT);
+                    if (i == length - 1)
+                    {
+                        return ~length;
+                    }
+
+                    i = i + 1;
+                }
+            }
+            else
+            {
+                if (lookup == Lookup.EQ)
+                {
+                    return i;
+                }
+
+                i = ~i;
+
+                // LT or LE
+                if (((uint)lookup & (uint)Lookup.LT) != 0)
+                {
+                    // i is idx of element that is larger, nothing here for LE/LT
+                    if (i == 0)
+                    {
+                        return -1;
+                    }
+
+                    i = i - 1;
+                }
+                else
+                {
+                    Debug.Assert(((uint)lookup & (uint)Lookup.GT) != 0);
+                    Debug.Assert(i <= length);
+                    // if was negative, if it was ~length then there are no more elements for GE/GT
+                    if (i == length)
+                    {
+                        return ~length;
+                    }
+
+                    // i is the same, ~i is idx of element that is GT the value
+                }
+            }
+
+            Debug.Assert(unchecked((uint)i) < unchecked((uint)length));
+            return i;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -376,10 +1078,10 @@ namespace Spreads.Algorithms
                 IntPtr offset = (IntPtr)0; // Use IntPtr for arithmetic to avoid unnecessary 64->32->64 truncations
                 IntPtr nLength = (IntPtr)length;
 
-                if (Vector.IsHardwareAccelerated && length >= Vector<T>.Count * 2)
+                if (Vector.IsHardwareAccelerated && length >= System.Numerics.Vector<T>.Count * 2)
                 {
-                    int unaligned = (int)Unsafe.AsPointer(ref searchSpace) & (Vector<T>.Count - 1);
-                    nLength = (IntPtr)((Vector<T>.Count - unaligned) & (Vector<T>.Count - 1));
+                    int unaligned = (int)Unsafe.AsPointer(ref searchSpace) & (System.Numerics.Vector<T>.Count - 1);
+                    nLength = (IntPtr)((System.Numerics.Vector<T>.Count - unaligned) & (System.Numerics.Vector<T>.Count - 1));
                 }
 
             SequentialScan:
@@ -435,24 +1137,24 @@ namespace Spreads.Algorithms
 
                 if (Vector.IsHardwareAccelerated && ((int)(byte*)offset < length))
                 {
-                    nLength = (IntPtr)((length - (int)(byte*)offset) & ~(Vector<T>.Count - 1));
+                    nLength = (IntPtr)((length - (int)(byte*)offset) & ~(System.Numerics.Vector<T>.Count - 1));
 
                     // Get comparison Vector
-                    Vector<T> vComparison = new Vector<T>(value);
+                    System.Numerics.Vector<T> vComparison = new System.Numerics.Vector<T>(value);
 
                     while ((byte*)nLength > (byte*)offset)
                     {
                         var vMatches = Vector.Equals(vComparison,
-                            Unsafe.ReadUnaligned<Vector<T>>(
+                            Unsafe.ReadUnaligned<System.Numerics.Vector<T>>(
                                 ref Unsafe.As<T, byte>(ref Unsafe.Add(ref searchSpace, offset))));
-                        if (Vector<T>.Zero.Equals(vMatches))
+                        if (System.Numerics.Vector<T>.Zero.Equals(vMatches))
                         {
-                            offset += Vector<T>.Count;
+                            offset += System.Numerics.Vector<T>.Count;
                             continue;
                         }
 
                         // Find offset of first match
-                        return IndexOfSimple(ref Unsafe.Add(ref searchSpace, offset), value, Vector<T>.Count);
+                        return IndexOfSimple(ref Unsafe.Add(ref searchSpace, offset), value, System.Numerics.Vector<T>.Count);
                         // return (int)(byte*)offset + LocateFirstFoundByte(vMatches);
                     }
 
