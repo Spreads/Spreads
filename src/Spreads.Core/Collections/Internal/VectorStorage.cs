@@ -57,7 +57,7 @@ namespace Spreads.Collections.Internal
     /// VectorStorage is logical representation of data and its source.
     /// </summary>
     [StructLayout(LayoutKind.Sequential)]
-    internal class VectorStorage : IDisposable, IVec
+    internal class VectorStorage : IDisposable, IVector
     {
         private static readonly ObjectPool<VectorStorage> ObjectPool = new ObjectPool<VectorStorage>(() => new VectorStorage(), Environment.ProcessorCount * 16);
 

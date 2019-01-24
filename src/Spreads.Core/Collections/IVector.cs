@@ -7,7 +7,7 @@ using System.Collections.Generic;
 
 namespace Spreads.Collections
 {
-    public interface IVec<out T> : IReadOnlyList<T>
+    public interface IVector<out T> : IReadOnlyList<T>
     {
         /// <summary>
         /// Get the total number of elements in Vec.
@@ -28,7 +28,7 @@ namespace Spreads.Collections
         T DangerousGet(int index);
     }
 
-    public interface IVec
+    public interface IVector
     {
         /// <summary>
         /// Get the total number of elements in Vec.

@@ -22,334 +22,334 @@ namespace Spreads.Core.Tests.Algorithms
         {
             var arr = new int[0];
 
-            var idxI = ((ArrayVec<int>)arr).InterpolationSearch(1);
+            var idxI = arr.InterpolationSearch(1);
             Assert.AreEqual(-1, idxI);
 
-            var idxB = ((ArrayVec<int>)arr).BinarySearch(1);
+            var idxB = arr.BinarySearch(1);
             Assert.AreEqual(-1, idxB);
 
-            var idxILt = ((ArrayVec<int>)arr).InterpolationLookup(1, Lookup.LT);
+            var idxILt = arr.InterpolationLookup(1, Lookup.LT);
             Assert.AreEqual(-1, idxILt);
 
-            var idxILe = ((ArrayVec<int>)arr).InterpolationLookup(1, Lookup.LE);
+            var idxILe = arr.InterpolationLookup(1, Lookup.LE);
             Assert.AreEqual(-1, idxILe);
 
-            var idxILq = ((ArrayVec<int>)arr).InterpolationLookup(1, Lookup.EQ);
+            var idxILq = arr.InterpolationLookup(1, Lookup.EQ);
             Assert.AreEqual(-1, idxILq);
 
-            var idxIGe = ((ArrayVec<int>)arr).InterpolationLookup(1, Lookup.GE);
+            var idxIGe = arr.InterpolationLookup(1, Lookup.GE);
             Assert.AreEqual(-1, idxIGe);
 
-            var idxIGt = ((ArrayVec<int>)arr).InterpolationLookup(1, Lookup.GT);
+            var idxIGt = arr.InterpolationLookup(1, Lookup.GT);
             Assert.AreEqual(-1, idxIGt);
 
-            var idxBLt = ((ArrayVec<int>)arr).BinaryLookup(1, Lookup.LT);
+            var idxBLt = arr.BinaryLookup(1, Lookup.LT);
             Assert.AreEqual(-1, idxBLt);
 
-            var idxBLe = ((ArrayVec<int>)arr).BinaryLookup(1, Lookup.LE);
+            var idxBLe = arr.BinaryLookup(1, Lookup.LE);
             Assert.AreEqual(-1, idxBLe);
 
-            var idxBEq = ((ArrayVec<int>)arr).BinaryLookup(1, Lookup.EQ);
+            var idxBEq = arr.BinaryLookup(1, Lookup.EQ);
             Assert.AreEqual(-1, idxBEq);
 
-            var idxBGe = ((ArrayVec<int>)arr).BinaryLookup(1, Lookup.GE);
+            var idxBGe = arr.BinaryLookup(1, Lookup.GE);
             Assert.AreEqual(-1, idxBGe);
 
-            var idxBGt = ((ArrayVec<int>)arr).BinaryLookup(1, Lookup.GT);
+            var idxBGt = arr.BinaryLookup(1, Lookup.GT);
             Assert.AreEqual(-1, idxBGt);
         }
 
         [Test]
         public void WorksOnSingle()
         {
-            var arr = new int[] { 1 };
+            var arr = new[] { 1 };
 
-            var idxI = ((ArrayVec<int>)arr).InterpolationSearch(1);
+            var idxI = arr.InterpolationSearch(1);
             Assert.AreEqual(0, idxI);
 
-            var idxB = ((ArrayVec<int>)arr).BinarySearch(1);
+            var idxB = arr.BinarySearch(1);
             Assert.AreEqual(0, idxB);
 
-            var idxILt = ((ArrayVec<int>)arr).InterpolationLookup(1, Lookup.LT);
+            var idxILt = arr.InterpolationLookup(1, Lookup.LT);
             Assert.AreEqual(-1, idxILt);
 
-            var idxILe = ((ArrayVec<int>)arr).InterpolationLookup(1, Lookup.LE);
+            var idxILe = arr.InterpolationLookup(1, Lookup.LE);
             Assert.AreEqual(0, idxILe);
 
-            var idxILq = ((ArrayVec<int>)arr).InterpolationLookup(1, Lookup.EQ);
+            var idxILq = arr.InterpolationLookup(1, Lookup.EQ);
             Assert.AreEqual(0, idxILq);
 
-            var idxIGe = ((ArrayVec<int>)arr).InterpolationLookup(1, Lookup.GE);
+            var idxIGe = arr.InterpolationLookup(1, Lookup.GE);
             Assert.AreEqual(0, idxIGe);
 
-            var idxIGt = ((ArrayVec<int>)arr).InterpolationLookup(1, Lookup.GT);
+            var idxIGt = arr.InterpolationLookup(1, Lookup.GT);
             Assert.AreEqual(-2, idxIGt);
 
-            var idxBLt = ((ArrayVec<int>)arr).BinaryLookup(1, Lookup.LT);
+            var idxBLt = arr.BinaryLookup(1, Lookup.LT);
             Assert.AreEqual(-1, idxBLt);
 
-            var idxBLe = ((ArrayVec<int>)arr).BinaryLookup(1, Lookup.LE);
+            var idxBLe = arr.BinaryLookup(1, Lookup.LE);
             Assert.AreEqual(0, idxBLe);
 
-            var idxBEq = ((ArrayVec<int>)arr).BinaryLookup(1, Lookup.EQ);
+            var idxBEq = arr.BinaryLookup(1, Lookup.EQ);
             Assert.AreEqual(0, idxBEq);
 
-            var idxBGe = ((ArrayVec<int>)arr).BinaryLookup(1, Lookup.GE);
+            var idxBGe = arr.BinaryLookup(1, Lookup.GE);
             Assert.AreEqual(0, idxBGe);
 
-            var idxBGt = ((ArrayVec<int>)arr).BinaryLookup(1, Lookup.GT);
+            var idxBGt = arr.BinaryLookup(1, Lookup.GT);
             Assert.AreEqual(-2, idxBGt);
         }
 
         [Test]
         public void WorksOnFirst()
         {
-            var arr = new int[] { 1, 2, 3, 4, 5, 6 };
+            var arr = new[] { 1, 2, 3, 4, 5, 6 };
 
-            var idxI = ((ArrayVec<int>)arr).InterpolationSearch(1);
+            var idxI = arr.InterpolationSearch(1);
             Assert.AreEqual(0, idxI);
 
-            var idxB = ((ArrayVec<int>)arr).BinarySearch(1);
+            var idxB = arr.BinarySearch(1);
             Assert.AreEqual(0, idxB);
 
-            var idxILt = ((ArrayVec<int>)arr).InterpolationLookup(1, Lookup.LT);
+            var idxILt = arr.InterpolationLookup(1, Lookup.LT);
             Assert.AreEqual(-1, idxILt);
 
-            var idxILe = ((ArrayVec<int>)arr).InterpolationLookup(1, Lookup.LE);
+            var idxILe = arr.InterpolationLookup(1, Lookup.LE);
             Assert.AreEqual(0, idxILe);
 
-            var idxILq = ((ArrayVec<int>)arr).InterpolationLookup(1, Lookup.EQ);
+            var idxILq = arr.InterpolationLookup(1, Lookup.EQ);
             Assert.AreEqual(0, idxILq);
 
-            var idxIGe = ((ArrayVec<int>)arr).InterpolationLookup(1, Lookup.GE);
+            var idxIGe = arr.InterpolationLookup(1, Lookup.GE);
             Assert.AreEqual(0, idxIGe);
 
-            var idxIGt = ((ArrayVec<int>)arr).InterpolationLookup(1, Lookup.GT);
+            var idxIGt = arr.InterpolationLookup(1, Lookup.GT);
             Assert.AreEqual(1, idxIGt);
 
-            var idxBLt = ((ArrayVec<int>)arr).BinaryLookup(1, Lookup.LT);
+            var idxBLt = arr.BinaryLookup(1, Lookup.LT);
             Assert.AreEqual(-1, idxBLt);
 
-            var idxBLe = ((ArrayVec<int>)arr).BinaryLookup(1, Lookup.LE);
+            var idxBLe = arr.BinaryLookup(1, Lookup.LE);
             Assert.AreEqual(0, idxBLe);
 
-            var idxBEq = ((ArrayVec<int>)arr).BinaryLookup(1, Lookup.EQ);
+            var idxBEq = arr.BinaryLookup(1, Lookup.EQ);
             Assert.AreEqual(0, idxBEq);
 
-            var idxBGe = ((ArrayVec<int>)arr).BinaryLookup(1, Lookup.GE);
+            var idxBGe = arr.BinaryLookup(1, Lookup.GE);
             Assert.AreEqual(0, idxBGe);
 
-            var idxBGt = ((ArrayVec<int>)arr).BinaryLookup(1, Lookup.GT);
+            var idxBGt = arr.BinaryLookup(1, Lookup.GT);
             Assert.AreEqual(1, idxBGt);
         }
 
         [Test]
         public void WorksOnLast()
         {
-            var arr = new int[] { 1, 2 };
+            var arr = new[] { 1, 2 };
 
-            var idxI = ((ArrayVec<int>)arr).InterpolationSearch(2);
+            var idxI = arr.InterpolationSearch(2);
             Assert.AreEqual(1, idxI);
 
-            var idxB = ((ArrayVec<int>)arr).BinarySearch(2);
+            var idxB = arr.BinarySearch(2);
             Assert.AreEqual(1, idxB);
 
-            var idxILt = ((ArrayVec<int>)arr).InterpolationLookup(2, Lookup.LT);
+            var idxILt = arr.InterpolationLookup(2, Lookup.LT);
             Assert.AreEqual(0, idxILt);
 
-            var idxILe = ((ArrayVec<int>)arr).InterpolationLookup(2, Lookup.LE);
+            var idxILe = arr.InterpolationLookup(2, Lookup.LE);
             Assert.AreEqual(1, idxILe);
 
-            var idxILq = ((ArrayVec<int>)arr).InterpolationLookup(2, Lookup.EQ);
+            var idxILq = arr.InterpolationLookup(2, Lookup.EQ);
             Assert.AreEqual(1, idxILq);
 
-            var idxIGe = ((ArrayVec<int>)arr).InterpolationLookup(2, Lookup.GE);
+            var idxIGe = arr.InterpolationLookup(2, Lookup.GE);
             Assert.AreEqual(1, idxIGe);
 
-            var idxIGt = ((ArrayVec<int>)arr).InterpolationLookup(2, Lookup.GT);
+            var idxIGt = arr.InterpolationLookup(2, Lookup.GT);
             Assert.AreEqual(-3, idxIGt);
 
-            var idxBLt = ((ArrayVec<int>)arr).BinaryLookup(2, Lookup.LT);
+            var idxBLt = arr.BinaryLookup(2, Lookup.LT);
             Assert.AreEqual(0, idxBLt);
 
-            var idxBLe = ((ArrayVec<int>)arr).BinaryLookup(2, Lookup.LE);
+            var idxBLe = arr.BinaryLookup(2, Lookup.LE);
             Assert.AreEqual(1, idxBLe);
 
-            var idxBEq = ((ArrayVec<int>)arr).BinaryLookup(2, Lookup.EQ);
+            var idxBEq = arr.BinaryLookup(2, Lookup.EQ);
             Assert.AreEqual(1, idxBEq);
 
-            var idxBGe = ((ArrayVec<int>)arr).BinaryLookup(2, Lookup.GE);
+            var idxBGe = arr.BinaryLookup(2, Lookup.GE);
             Assert.AreEqual(1, idxBGe);
 
-            var idxBGt = ((ArrayVec<int>)arr).BinaryLookup(2, Lookup.GT);
+            var idxBGt = arr.BinaryLookup(2, Lookup.GT);
             Assert.AreEqual(-3, idxBGt);
         }
 
         [Test]
         public void WorksOnExistingMiddle()
         {
-            var arr = new int[] { 1, 2, 4 };
+            var arr = new[] { 1, 2, 4 };
 
-            var idxI = ((ArrayVec<int>)arr).InterpolationSearch(2);
+            var idxI = arr.InterpolationSearch(2);
             Assert.AreEqual(1, idxI);
 
-            var idxB = ((ArrayVec<int>)arr).BinarySearch(2);
+            var idxB = arr.BinarySearch(2);
             Assert.AreEqual(1, idxB);
 
-            var idxILt = ((ArrayVec<int>)arr).InterpolationLookup(2, Lookup.LT);
+            var idxILt = arr.InterpolationLookup(2, Lookup.LT);
             Assert.AreEqual(0, idxILt);
 
-            var idxILe = ((ArrayVec<int>)arr).InterpolationLookup(2, Lookup.LE);
+            var idxILe = arr.InterpolationLookup(2, Lookup.LE);
             Assert.AreEqual(1, idxILe);
 
-            var idxILq = ((ArrayVec<int>)arr).InterpolationLookup(2, Lookup.EQ);
+            var idxILq = arr.InterpolationLookup(2, Lookup.EQ);
             Assert.AreEqual(1, idxILq);
 
-            var idxIGe = ((ArrayVec<int>)arr).InterpolationLookup(2, Lookup.GE);
+            var idxIGe = arr.InterpolationLookup(2, Lookup.GE);
             Assert.AreEqual(1, idxIGe);
 
-            var idxIGt = ((ArrayVec<int>)arr).InterpolationLookup(2, Lookup.GT);
+            var idxIGt = arr.InterpolationLookup(2, Lookup.GT);
             Assert.AreEqual(2, idxIGt);
 
-            var idxBLt = ((ArrayVec<int>)arr).BinaryLookup(2, Lookup.LT);
+            var idxBLt = arr.BinaryLookup(2, Lookup.LT);
             Assert.AreEqual(0, idxBLt);
 
-            var idxBLe = ((ArrayVec<int>)arr).BinaryLookup(2, Lookup.LE);
+            var idxBLe = arr.BinaryLookup(2, Lookup.LE);
             Assert.AreEqual(1, idxBLe);
 
-            var idxBEq = ((ArrayVec<int>)arr).BinaryLookup(2, Lookup.EQ);
+            var idxBEq = arr.BinaryLookup(2, Lookup.EQ);
             Assert.AreEqual(1, idxBEq);
 
-            var idxBGe = ((ArrayVec<int>)arr).BinaryLookup(2, Lookup.GE);
+            var idxBGe = arr.BinaryLookup(2, Lookup.GE);
             Assert.AreEqual(1, idxBGe);
 
-            var idxBGt = ((ArrayVec<int>)arr).BinaryLookup(2, Lookup.GT);
+            var idxBGt = arr.BinaryLookup(2, Lookup.GT);
             Assert.AreEqual(2, idxBGt);
         }
 
         [Test]
         public void WorksOnNonExistingMiddle()
         {
-            var arr = new int[] { 1, 4 };
+            var arr = new[] { 1, 4 };
 
-            var idxI = ((ArrayVec<int>)arr).InterpolationSearch(2);
+            var idxI = arr.InterpolationSearch(2);
             Assert.AreEqual(-2, idxI);
 
-            var idxB = ((ArrayVec<int>)arr).BinarySearch(2);
+            var idxB = arr.BinarySearch(2);
             Assert.AreEqual(-2, idxB);
 
-            var idxILt = ((ArrayVec<int>)arr).InterpolationLookup(2, Lookup.LT);
+            var idxILt = arr.InterpolationLookup(2, Lookup.LT);
             Assert.AreEqual(0, idxILt);
 
-            var idxILe = ((ArrayVec<int>)arr).InterpolationLookup(2, Lookup.LE);
+            var idxILe = arr.InterpolationLookup(2, Lookup.LE);
             Assert.AreEqual(0, idxILe);
 
-            var idxILq = ((ArrayVec<int>)arr).InterpolationLookup(2, Lookup.EQ);
+            var idxILq = arr.InterpolationLookup(2, Lookup.EQ);
             Assert.AreEqual(-2, idxILq);
 
-            var idxIGe = ((ArrayVec<int>)arr).InterpolationLookup(2, Lookup.GE);
+            var idxIGe = arr.InterpolationLookup(2, Lookup.GE);
             Assert.AreEqual(1, idxIGe);
 
-            var idxIGt = ((ArrayVec<int>)arr).InterpolationLookup(2, Lookup.GT);
+            var idxIGt = arr.InterpolationLookup(2, Lookup.GT);
             Assert.AreEqual(1, idxIGt);
 
-            var idxBLt = ((ArrayVec<int>)arr).BinaryLookup(2, Lookup.LT);
+            var idxBLt = arr.BinaryLookup(2, Lookup.LT);
             Assert.AreEqual(0, idxBLt);
 
-            var idxBLe = ((ArrayVec<int>)arr).BinaryLookup(2, Lookup.LE);
+            var idxBLe = arr.BinaryLookup(2, Lookup.LE);
             Assert.AreEqual(0, idxBLe);
 
-            var idxBEq = ((ArrayVec<int>)arr).BinaryLookup(2, Lookup.EQ);
+            var idxBEq = arr.BinaryLookup(2, Lookup.EQ);
             Assert.AreEqual(-2, idxBEq);
 
-            var idxBGe = ((ArrayVec<int>)arr).BinaryLookup(2, Lookup.GE);
+            var idxBGe = arr.BinaryLookup(2, Lookup.GE);
             Assert.AreEqual(1, idxBGe);
 
-            var idxBGt = ((ArrayVec<int>)arr).BinaryLookup(2, Lookup.GT);
+            var idxBGt = arr.BinaryLookup(2, Lookup.GT);
             Assert.AreEqual(1, idxBGt);
         }
 
         [Test]
         public void WorksAfterEnd()
         {
-            var arr = new int[] { 0, 1 };
+            var arr = new[] { 0, 1 };
 
-            var idxI = ((ArrayVec<int>)arr).InterpolationSearch(2);
+            var idxI = arr.InterpolationSearch(2);
             Assert.AreEqual(-3, idxI);
 
-            var idxB = ((ArrayVec<int>)arr).BinarySearch(2);
+            var idxB = arr.BinarySearch(2);
             Assert.AreEqual(-3, idxB);
 
-            var idxILt = ((ArrayVec<int>)arr).InterpolationLookup(2, Lookup.LT);
+            var idxILt = arr.InterpolationLookup(2, Lookup.LT);
             Assert.AreEqual(1, idxILt);
 
-            var idxILe = ((ArrayVec<int>)arr).InterpolationLookup(2, Lookup.LE);
+            var idxILe = arr.InterpolationLookup(2, Lookup.LE);
             Assert.AreEqual(1, idxILe);
 
-            var idxILq = ((ArrayVec<int>)arr).InterpolationLookup(2, Lookup.EQ);
+            var idxILq = arr.InterpolationLookup(2, Lookup.EQ);
             Assert.AreEqual(-3, idxILq);
 
-            var idxIGe = ((ArrayVec<int>)arr).InterpolationLookup(2, Lookup.GE);
+            var idxIGe = arr.InterpolationLookup(2, Lookup.GE);
             Assert.AreEqual(-3, idxIGe);
 
-            var idxIGt = ((ArrayVec<int>)arr).InterpolationLookup(2, Lookup.GT);
+            var idxIGt = arr.InterpolationLookup(2, Lookup.GT);
             Assert.AreEqual(-3, idxIGt);
 
-            var idxBLt = ((ArrayVec<int>)arr).BinaryLookup(2, Lookup.LT);
+            var idxBLt = arr.BinaryLookup(2, Lookup.LT);
             Assert.AreEqual(1, idxBLt);
 
-            var idxBLe = ((ArrayVec<int>)arr).BinaryLookup(2, Lookup.LE);
+            var idxBLe = arr.BinaryLookup(2, Lookup.LE);
             Assert.AreEqual(1, idxBLe);
 
-            var idxBEq = ((ArrayVec<int>)arr).BinaryLookup(2, Lookup.EQ);
+            var idxBEq = arr.BinaryLookup(2, Lookup.EQ);
             Assert.AreEqual(-3, idxBEq);
 
-            var idxBGe = ((ArrayVec<int>)arr).BinaryLookup(2, Lookup.GE);
+            var idxBGe = arr.BinaryLookup(2, Lookup.GE);
             Assert.AreEqual(-3, idxBGe);
 
-            var idxBGt = ((ArrayVec<int>)arr).BinaryLookup(2, Lookup.GT);
+            var idxBGt = arr.BinaryLookup(2, Lookup.GT);
             Assert.AreEqual(-3, idxBGt);
         }
 
         [Test]
         public void WorksBeforeStart()
         {
-            var arr = new int[] { 0, 1, 2, 3, 4, 5 };
+            var arr = new[] { 0, 1, 2, 3, 4, 5 };
 
-            var idxI = ((ArrayVec<int>)arr).InterpolationSearch(-1);
+            var idxI = arr.InterpolationSearch(-1);
             Assert.AreEqual(-1, idxI);
 
-            var idxB = ((ArrayVec<int>)arr).BinarySearch(-1);
+            var idxB = arr.BinarySearch(-1);
             Assert.AreEqual(-1, idxB);
 
-            var idxILt = ((ArrayVec<int>)arr).InterpolationLookup(-1, Lookup.LT);
+            var idxILt = arr.InterpolationLookup(-1, Lookup.LT);
             Assert.AreEqual(-1, idxILt);
 
-            var idxILe = ((ArrayVec<int>)arr).InterpolationLookup(-1, Lookup.LE);
+            var idxILe = arr.InterpolationLookup(-1, Lookup.LE);
             Assert.AreEqual(-1, idxILe);
 
-            var idxILq = ((ArrayVec<int>)arr).InterpolationLookup(-1, Lookup.EQ);
+            var idxILq = arr.InterpolationLookup(-1, Lookup.EQ);
             Assert.AreEqual(-1, idxILq);
 
-            var idxIGe = ((ArrayVec<int>)arr).InterpolationLookup(-1, Lookup.GE);
+            var idxIGe = arr.InterpolationLookup(-1, Lookup.GE);
             Assert.AreEqual(0, idxIGe);
 
-            var idxIGt = ((ArrayVec<int>)arr).InterpolationLookup(-1, Lookup.GT);
+            var idxIGt = arr.InterpolationLookup(-1, Lookup.GT);
             Assert.AreEqual(0, idxIGt);
 
-            var idxBLt = ((ArrayVec<int>)arr).BinaryLookup(-1, Lookup.LT);
+            var idxBLt = arr.BinaryLookup(-1, Lookup.LT);
             Assert.AreEqual(-1, idxBLt);
 
-            var idxBLe = ((ArrayVec<int>)arr).BinaryLookup(-1, Lookup.LE);
+            var idxBLe = arr.BinaryLookup(-1, Lookup.LE);
             Assert.AreEqual(-1, idxBLe);
 
-            var idxBEq = ((ArrayVec<int>)arr).BinaryLookup(-1, Lookup.EQ);
+            var idxBEq = arr.BinaryLookup(-1, Lookup.EQ);
             Assert.AreEqual(-1, idxBEq);
 
-            var idxBGe = ((ArrayVec<int>)arr).BinaryLookup(-1, Lookup.GE);
+            var idxBGe = arr.BinaryLookup(-1, Lookup.GE);
             Assert.AreEqual(-0, idxBGe);
 
-            var idxBGt = ((ArrayVec<int>)arr).BinaryLookup(-1, Lookup.GT);
+            var idxBGt = arr.BinaryLookup(-1, Lookup.GT);
             Assert.AreEqual(-0, idxBGt);
         }
 
@@ -501,16 +501,16 @@ namespace Spreads.Core.Tests.Algorithms
         public void SearchIrregularBench()
         {
             Random rng;
-            var rounds = 10;
-            var counts = new[] { 50, 100, 256, 512, 1000, 2048, 4096, 10_000, 100_000 };
+            var rounds = 500;
+            var counts = new[] { 50, 100, 256, 512, 1000, 2048, 4096, 10_000, 100_000, 1_000_000 };
             for (int r = 0; r < rounds; r++)
             {
                 foreach (var count in counts)
                 {
                     rng = new Random(r);
 
-                    var step = rng.Next(10, 100);
-                    var dev = step / rng.Next(2, 8);
+                    var step = rng.Next(10, 1000);
+                    var dev = step / rng.Next(2, 10);
 
                     var vec = new Vec<Timestamp>(Enumerable.Range(0, count)
                         .Select(i => (Timestamp)i).ToArray());

@@ -18,7 +18,7 @@ namespace Spreads.Collections
 
     // TODO check order version if storage is mutable?
 
-    public readonly struct Vector : IVec
+    public readonly struct Vector : IVector
     {
         // We keep dangerous readonly methods because they could only crash app or get wrong data
         // to a user who uses these methods incorrectly. But these method will not corrupt underlying
@@ -101,7 +101,7 @@ namespace Spreads.Collections
         }
     }
 
-    public readonly struct Vector<T> : IVec<T>
+    public readonly struct Vector<T> : IVector<T>
     {
         internal readonly VectorStorage _vectorStorage;
 

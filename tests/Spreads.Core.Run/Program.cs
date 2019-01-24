@@ -35,8 +35,8 @@ namespace Spreads.Core.Run
             var test = new VecSearchTests();
             test.SearchIrregularBench();
 
-            Console.WriteLine("Finished, press enter to exit...");
-            Console.ReadLine();
+            //Console.WriteLine("Finished, press enter to exit...");
+            //Console.ReadLine();
         }
 
         private static void IlwdBenchmark()
