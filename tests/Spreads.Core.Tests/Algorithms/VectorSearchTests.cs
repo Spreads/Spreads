@@ -510,7 +510,7 @@ namespace Spreads.Core.Tests.Algorithms
                     rng = new Random(r);
 
                     var step = rng.Next(10, 100);
-                    var dev = 0; // step / rng.Next(2, 8);
+                    var dev = step / rng.Next(2, 8);
 
                     var vec = new Vec<Timestamp>(Enumerable.Range(0, count)
                         .Select(i => (Timestamp)i).ToArray());
@@ -526,12 +526,12 @@ namespace Spreads.Core.Tests.Algorithms
                     for (int i = 0; i < count; i++)
                     {
 #pragma warning disable CS0618 // Type or member is obsolete
-                        var br = vec.DangerousBinarySearch(0, count, (Timestamp)(vec[i].Nanos));
-                        var ir = vec.DangerousInterpolationSearch(0, count, (Timestamp)(vec[i].Nanos));
+                        var br = vec.DangerousBinarySearch(0, count, (Timestamp)(i * step));
+                        var ir = vec.DangerousInterpolationSearch(0, count, (Timestamp)(i * step));
                         if (br != ir)
                         {
                             Console.WriteLine($"[{count}] binRes {br} != interRes {ir} at {i}");
-                            ir = vec.DangerousInterpolationSearch(0, count, (Timestamp)(i * 1000));
+                            ir = vec.DangerousInterpolationSearch(0, count, (Timestamp)(i * step));
                             Assert.Fail();
                         }
 

@@ -328,7 +328,7 @@ namespace Spreads.Algorithms
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int InterpolationSearch(ref long vecStart, int length, long value)
+        public static int InterpolationSearchXXX(ref long vecStart, int length, long value)
         {
             // fist we divide by 2 "the smart way" which on average is better than mid for real data and hits exactly for regular keys
             // then we should divide space "around" the first guess
@@ -438,6 +438,118 @@ namespace Spreads.Algorithms
                 {
                     return ~(lo + ~iBs);
                 }
+            }
+        }
+
+        /// <summary>
+        /// Exponential
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int InterpolationSearch(ref long vecStart, int length, long value)
+        {
+            unchecked
+            {
+                int i;
+                int lo = 0;
+                int hi = length - 1;
+                if (lo < hi)
+                {
+                    long vlo = vecStart;
+                    long vhi = Unsafe.Add(ref vecStart, hi);
+                    long vRange = vhi - vlo;
+
+                    Debug.Assert(vRange > 0);
+
+                    // (hi - lo) <= int32.MaxValue
+                    // vlo could be zero while value could easily be close to int64.MaxValue (nanos in unix time, we are now between 60 and 61 bit at 60.4)
+                    // convert to double here to avoid overflow and for much faster calculations
+                    // (only 4 cycles vs 25 cycles https://lemire.me/blog/2017/11/16/fast-exact-integer-divisions-using-floating-point-operations/)
+                    double nominator = (hi - lo) * (double)(value - vlo);
+
+                    i = Math.Min(hi, (int)(nominator / vRange));
+
+                    var vi = Unsafe.Add(ref vecStart, i);
+
+                    if (value == vi)
+                    {
+                        goto FOUND;
+                    }
+
+                    var offset = 1;
+
+                    if (value < vi)
+                    {
+                        while ((i -= offset) >= 0)
+                        {
+                            vi = Unsafe.Add(ref vecStart, i);
+
+                            if (value == vi)
+                            {
+                                goto FOUND;
+                            }
+
+                            if (value > vi)
+                            {
+                                lo = i + 1;
+                                hi = lo + offset;
+                                goto BIN_SEARCH;
+                            }
+
+                            // x2
+                            offset <<= 1;
+                        }
+
+                        Debug.Assert(i < 0);
+
+                        // i was decremented by offset and became negative, restore it and search from zero
+                        hi = i + offset;
+
+                        Debug.Assert(lo == 0);
+                        Debug.Assert(hi > 0);
+                    }
+                    else
+                    {
+                        while ((i += offset) <= hi)
+                        {
+                            vi = Unsafe.Add(ref vecStart, i);
+
+                            if (value == vi)
+                            {
+                                goto FOUND;
+                            }
+
+                            if (value < vi)
+                            {
+                                hi = i - 1;
+                                lo = Math.Max(0, hi - offset);
+                                goto BIN_SEARCH;
+                            }
+
+                            offset <<= 1;
+                        }
+
+                        Debug.Assert(i > hi);
+
+                        // i was incremented by offset and became > hi, restore it and search to hi
+                        lo = i - offset;
+                    }
+                }
+
+            BIN_SEARCH:
+
+                var iBs = BinarySearch(ref Unsafe.Add(ref vecStart, lo), 1 + hi - lo, value, default);
+
+                if (iBs >= 0)
+                {
+                    return lo + iBs;
+                }
+                else
+                {
+                    return ~(lo + ~iBs);
+                }
+
+            FOUND:
+                return i;
             }
         }
 
