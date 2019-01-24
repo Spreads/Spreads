@@ -7,7 +7,7 @@ namespace Spreads
     // int32, we could later reuse negative space for other flags if needed. For MoveNext we should be able to do just `>0` to continue
 
     // ReSharper disable once EnumUnderlyingTypeIsInt do not change to shorter
-    public enum CursorState : int
+    public enum CursorState : sbyte
     {
         /// <summary>
         /// A cursor is either not initialized or disposed. Some (re)initialization work may be needed before moving.

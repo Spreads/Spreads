@@ -205,9 +205,18 @@ namespace Spreads.Buffers
             arrayMemory._arrayOffset = offset;
             arrayMemory._length = length;
             arrayMemory._externallyOwned = externallyOwned;
-            if (arrayMemory.Counter.Pointer == null || arrayMemory.Counter.Count != 0)
+
+            // ObjectPool.Allocate creates a valid AC from Factory, reused objects have AC disposed
+            if (arrayMemory.Counter.Pointer != null)
             {
-                ThrowBadCounterAfterAllocate(arrayMemory);
+                if (arrayMemory.Counter.Count != 0)
+                {
+                    ThrowBadCounterAfterAllocate(arrayMemory);
+                }
+            }
+            else
+            {
+                arrayMemory.Counter = AtomicCounterService.AcquireCounter();
             }
             return arrayMemory;
         }
@@ -215,8 +224,8 @@ namespace Spreads.Buffers
         [MethodImpl(MethodImplOptions.NoInlining)]
         private static unsafe void ThrowBadCounterAfterAllocate(ArrayMemory<T> arrayMemory)
         {
-            ThrowHelper.FailFast(
-                $"Allocated ArrayMemory without counter or with non-zero counter: arrayMemory.Counter.Pointer == {(long)arrayMemory.Counter.Pointer} || arrayMemory.Counter.Count != 0 [{arrayMemory.Counter.Count}]");
+            ThrowHelper.ThrowInvalidOperationException(
+                $"Allocated ArrayMemory with non-zero counter: arrayMemory.Counter.Count != 0 [{arrayMemory.Counter.Count}]");
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
