@@ -28,6 +28,6 @@ namespace Spreads
         /// This method could be used for <see cref="IComparer{T}.Compare"/> implementation,
         /// but must be checked for int overflow (e.g. compare Diff result to 0L instead of int cast).
         /// </remarks>
-        long Diff(T x, T y);
+        long Diff(T minuend, T subtrahend);
     }
 }

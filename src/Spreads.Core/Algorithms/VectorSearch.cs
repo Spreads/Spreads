@@ -16,12 +16,10 @@ namespace Spreads.Algorithms
 {
     /// <summary>
     /// Algorithms to find values in contiguous data (memory region or a data structure with an indexer), e.g. <see cref="Vec{T}"/>.
-    /// </summary>
-    /// <remarks>
     /// WARNING: Methods in this static class do not perform bound checks and are intended to be used
     /// as building blocks in other parts that calculate bounds correctly and
     /// do performs required checks on external input.
-    /// </remarks>
+    /// </summary>
     public static class VectorSearch
     {
         /// <summary>
@@ -333,7 +331,7 @@ namespace Spreads.Algorithms
                         hi = i + offset;
 
                         Debug.Assert(lo == 0);
-                        Debug.Assert(hi > 0);
+                        Debug.Assert(hi >= lo);
                     }
                     else
                     {
@@ -449,7 +447,7 @@ namespace Spreads.Algorithms
                         hi = i + offset;
 
                         Debug.Assert(lo == 0);
-                        Debug.Assert(hi > 0);
+                        Debug.Assert(hi >= lo);
                     }
                     else
                     {
@@ -564,7 +562,7 @@ namespace Spreads.Algorithms
                         hi = i + offset;
 
                         Debug.Assert(lo == 0);
-                        Debug.Assert(hi > 0);
+                        Debug.Assert(hi >= lo);
                     }
                     else
                     {
@@ -680,7 +678,7 @@ namespace Spreads.Algorithms
                         hi = i + offset;
 
                         Debug.Assert(lo == 0);
-                        Debug.Assert(hi > 0);
+                        Debug.Assert(hi >= lo);
                     }
                     else
                     {
@@ -794,7 +792,7 @@ namespace Spreads.Algorithms
                         hi = i + offset;
 
                         Debug.Assert(lo == 0);
-                        Debug.Assert(hi > 0);
+                        Debug.Assert(hi >= lo);
                     }
                     else
                     {

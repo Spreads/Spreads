@@ -8,6 +8,9 @@ apiRules:
     hasAttribute:
       uid: System.Obsolete
 - exclude:
+    uidRegex: ^System\.Object
+    type: Type
+- exclude:
     uidRegex: ^Spreads\.Collections\.Experimental
 - exclude:
     uidRegex: ^Spreads\.Serialization\.Utf8Json\.Internal

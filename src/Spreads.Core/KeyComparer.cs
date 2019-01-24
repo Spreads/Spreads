@@ -3,6 +3,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 using Spreads.DataTypes;
+using Spreads.Native;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -38,7 +39,7 @@ namespace Spreads
         }
 
         [Pure]
-        public long Diff(T x, T y)
+        public long Diff(T minuend, T subtrahend)
         {
             ThrowHelper.ThrowNotSupportedException();
             return default;
@@ -51,18 +52,51 @@ namespace Spreads
     /// <typeparam name="T"></typeparam>
     public readonly struct KeyComparer<T> : IKeyComparer<T>, IEqualityComparer<T>, IEquatable<KeyComparer<T>>
     {
-        private static readonly bool IsIComparable = typeof(IComparable<T>).GetTypeInfo().IsAssignableFrom(typeof(T));
-        private readonly IKeyComparer<T> _keyComparer;
+        /// <summary>
+        /// Returns true for built-in types that are numbers or could be represented as numbers via <see cref="IInt64Diffable{T}"/>.
+        /// </summary>
+        public static readonly bool IsBuiltInNumericType =
+            typeof(T) == typeof(bool)
+            || typeof(T) == typeof(byte)
+            || typeof(T) == typeof(sbyte)
+            || typeof(T) == typeof(char)
+            || typeof(T) == typeof(short)
+            || typeof(T) == typeof(ushort)
+            || typeof(T) == typeof(int)
+            || typeof(T) == typeof(uint)
+            || typeof(T) == typeof(long)
+            || typeof(T) == typeof(ulong)
+            || typeof(T) == typeof(float)
+            || typeof(T) == typeof(double)
+            || typeof(T) == typeof(decimal)
+            || typeof(T) == typeof(DateTime)
+            || typeof(T) == typeof(Timestamp);
 
         /// <summary>
-        /// Create a new KeyComparer instance.
+        /// Returns true for types that implement <see cref="IComparable{T}"/> interface or are <see cref="IsBuiltInNumericType"/>.
         /// </summary>
-        // private KeyComparer() : this(null) { }
+        public static readonly bool IsIComparable = typeof(IComparable<T>).GetTypeInfo().IsAssignableFrom(typeof(T));
+
+        /// <summary>
+        /// Returns true for types that implement <see cref="IInt64Diffable{T}"/> interface.
+        /// </summary>
+        private static readonly bool IsIInt64Diffable = typeof(IInt64Diffable<T>).GetTypeInfo().IsAssignableFrom(typeof(T));
+
+        private readonly IKeyComparer<T> _keyComparer;
 
         private KeyComparer(IComparer<T> comparer)
         {
             if (comparer != null && !ReferenceEquals(comparer, Comparer<T>.Default))
             {
+                //
+                if (IsBuiltInNumericType)
+                {
+                    ThrowHelper.ThrowNotSupportedException("Custom IComparer<T> for built-in type is not supported. Create a wrapper struct that implements IComparable<T> and use KeyComparer<T>.Default for it.");
+                }
+                if (IsIComparable)
+                {
+                    ThrowHelper.ThrowNotSupportedException("Custom IComparer<T> for a type T that implements IComparable<T> is not supported. Create a wrapper struct that implements a different IComparable<T> logic and use KeyComparer<T>.Default for it.");
+                }
                 if (comparer is IKeyComparer<T> kc)
                 {
                     _keyComparer = kc;
@@ -81,49 +115,46 @@ namespace Spreads
         /// <summary>
         /// Binary instance of a KeyComparer for type T.
         /// </summary>
-        public static readonly KeyComparer<T> Default = new KeyComparer<T>();
+        public static readonly KeyComparer<T> Default = default;
 
         /// <summary>
-        /// True if type T support <see cref="Diff"/> and <see cref="Add"/> methods.
+        /// Returns true for types that implement <see cref="IInt64Diffable{T}"/> interface or are <see cref="IsBuiltInNumericType"/>.
         /// </summary>
         public bool IsDiffable
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
+                if ( // no bool
+                    typeof(T) == typeof(byte)
+                    || typeof(T) == typeof(sbyte)
+                    || typeof(T) == typeof(char)
+                    || typeof(T) == typeof(short)
+                    || typeof(T) == typeof(ushort)
+                    || typeof(T) == typeof(int)
+                    || typeof(T) == typeof(uint)
+                    || typeof(T) == typeof(long)
+                    || typeof(T) == typeof(ulong)
+                    // || typeof(T) == typeof(float) // could lose precision for floats and decimals
+                    // || typeof(T) == typeof(double)
+                    // || typeof(T) == typeof(decimal)
+                    || typeof(T) == typeof(DateTime)
+                    || typeof(T) == typeof(Timestamp)
+                    // custom Spreads types below to completely JIT-eliminate this call
+                    // || typeof(T) == typeof(SmallDecimal) // TODO
+                    )
+                {
+                    return true;
+                }
+
+                if (IsIInt64Diffable)
+                {
+                    return true;
+                }
+
                 if (_keyComparer != null)
                 {
                     return _keyComparer.IsDiffable;
-                }
-
-                if (typeof(T) == typeof(Timestamp))
-                {
-                    return true;
-                }
-
-                if (typeof(T) == typeof(DateTime))
-                {
-                    return true;
-                }
-
-                if (typeof(T) == typeof(long))
-                {
-                    return true;
-                }
-
-                if (typeof(T) == typeof(ulong))
-                {
-                    return true;
-                }
-
-                if (typeof(T) == typeof(int))
-                {
-                    return true;
-                }
-
-                if (typeof(T) == typeof(uint))
-                {
-                    return true;
                 }
 
                 return false;
@@ -151,7 +182,7 @@ namespace Spreads
         /// <summary>
         /// Get a new or default instance of KeyComparer.
         /// </summary>
-        public static KeyComparer<T> Create(IKeyComparer<T> comparer)
+        public static KeyComparer<T> Create(IKeyComparer<T> comparer = null)
         {
             if (comparer == null)
             {
@@ -173,44 +204,60 @@ namespace Spreads
             // For our purposes this method is "normal", i.e. known types are compared normally
             // TODO (docs) It is easy to compare known types in a custom way - just implement a wrapper struct and IComparable<T>. This also will be faster than a comparable.
 
-            if (typeof(T) == typeof(Timestamp))
+            if (typeof(T) == typeof(bool))
             {
-                // TODO for TS we could use sub in normal cases
-
                 Debug.Assert(_keyComparer == null, "Known types should not have a comparer");
 
-                var x1 = ((Timestamp)(object)(x)).Nanos;
-                var y1 = ((Timestamp)(object)(y)).Nanos;
-
+                var x1 = (bool)(object)(x);
+                var y1 = (bool)(object)(y);
                 return x1.CompareTo(y1);
             }
 
-            if (typeof(T) == typeof(DateTime))
+            if (typeof(T) == typeof(byte))
             {
                 Debug.Assert(_keyComparer == null, "Known types should not have a comparer");
 
-                var x1 = (DateTime)(object)(x);
-                var y1 = (DateTime)(object)(y);
-                return DateTime.Compare(x1, y1);
+                var x1 = (byte)(object)(x);
+                var y1 = (byte)(object)(y);
+                return x1 - y1;
             }
 
-            if (typeof(T) == typeof(long))
+            if (typeof(T) == typeof(sbyte))
             {
                 Debug.Assert(_keyComparer == null, "Known types should not have a comparer");
 
-                var x1 = (long)(object)(x);
-                var y1 = (long)(object)(y);
-
-                return x1.CompareTo(y1);
+                var x1 = (sbyte)(object)(x);
+                var y1 = (sbyte)(object)(y);
+                return x1 - y1;
             }
 
-            if (typeof(T) == typeof(ulong))
+            if (typeof(T) == typeof(char))
             {
                 Debug.Assert(_keyComparer == null, "Known types should not have a comparer");
 
-                var x1 = (ulong)(object)(x);
-                var y1 = (ulong)(object)(y);
-                return x1.CompareTo(y1);
+                var x1 = (char)(object)(x);
+                var y1 = (char)(object)(y);
+                return x1 - y1;
+            }
+
+            if (typeof(T) == typeof(short))
+            {
+                Debug.Assert(_keyComparer == null, "Known types should not have a comparer");
+
+                var x1 = (short)(object)(x);
+                var y1 = (short)(object)(y);
+                return x1 - y1;
+            }
+
+            if (typeof(T) == typeof(ushort))
+            {
+                Debug.Assert(_keyComparer == null, "Known types should not have a comparer");
+
+                var x1 = (ushort)(object)(x);
+                var y1 = (ushort)(object)(y);
+
+                // ReSharper disable once RedundantCast
+                return (int)x1 - (int)y1;
             }
 
             if (typeof(T) == typeof(int))
@@ -232,25 +279,23 @@ namespace Spreads
                 return x1.CompareTo(y1);
             }
 
-            if (typeof(T) == typeof(double))
+            if (typeof(T) == typeof(long))
             {
-                // x1.CompareTo(y1) is not inlined, copy manually
-                // https://github.com/dotnet/corefx/blob/5fe165ab631675273f5d19bebc15b5733ef1354d/src/Common/src/CoreLib/System/Double.cs#L147
                 Debug.Assert(_keyComparer == null, "Known types should not have a comparer");
 
-                var x1 = (double)(object)(x);
-                var y1 = (double)(object)(y);
+                var x1 = (long)(object)(x);
+                var y1 = (long)(object)(y);
 
-                if (x1 < y1) return -1;
-                if (x1 > y1) return 1;
-                // ReSharper disable once CompareOfFloatsByEqualityOperator
-                if (x1 == y1) return 0;
+                return x1.CompareTo(y1);
+            }
 
-                // At least one of the values is NaN.
-                if (double.IsNaN(x1))
-                { return (double.IsNaN(y1) ? 0 : -1); }
-                else
-                { return 1; }
+            if (typeof(T) == typeof(ulong))
+            {
+                Debug.Assert(_keyComparer == null, "Known types should not have a comparer");
+
+                var x1 = (ulong)(object)(x);
+                var y1 = (ulong)(object)(y);
+                return x1.CompareTo(y1);
             }
 
             if (typeof(T) == typeof(float))
@@ -260,12 +305,67 @@ namespace Spreads
                 var x1 = (float)(object)(x);
                 var y1 = (float)(object)(y);
 
-                return x1.CompareTo(y1);
+                if (x1 < y1) { return -1; }
+                if (x1 > y1) { return 1; }
+                if (x1 == y1) { return 0; }
+
+                // At least one of the values is NaN.
+                if (float.IsNaN(x1))
+                { return (float.IsNaN(y1) ? 0 : -1); }
+                else // f is NaN.
+                { return 1; }
             }
 
-            if (_keyComparer != null)
+            if (typeof(T) == typeof(double))
             {
-                return _keyComparer.Compare(x, y);
+                // x1.CompareTo(y1) is not inlined, copy manually
+                // https://github.com/dotnet/corefx/blob/5fe165ab631675273f5d19bebc15b5733ef1354d/src/Common/src/CoreLib/System/Double.cs#L147
+                Debug.Assert(_keyComparer == null, "Known types should not have a comparer");
+
+                var x1 = (double)(object)(x);
+                var y1 = (double)(object)(y);
+
+                if (x1 < y1) { return -1; }
+                if (x1 > y1) { return 1; }
+                // ReSharper disable once CompareOfFloatsByEqualityOperator
+                if (x1 == y1) { return 0; }
+
+                // At least one of the values is NaN.
+                if (double.IsNaN(x1))
+                { return (double.IsNaN(y1) ? 0 : -1); }
+                else
+                { return 1; }
+            }
+
+            if (typeof(T) == typeof(decimal))
+            {
+                Debug.Assert(_keyComparer == null, "Known types should not have a comparer");
+
+                var x1 = (decimal)(object)(x);
+                var y1 = (decimal)(object)(y);
+
+                return decimal.Compare(x1, y1);
+            }
+
+            if (typeof(T) == typeof(DateTime))
+            {
+                Debug.Assert(_keyComparer == null, "Known types should not have a comparer");
+
+                var x1 = (DateTime)(object)(x);
+                var y1 = (DateTime)(object)(y);
+                return DateTime.Compare(x1, y1);
+            }
+
+            if (typeof(T) == typeof(Timestamp))
+            {
+                // TODO for TS we could use sub in normal cases
+
+                Debug.Assert(_keyComparer == null, "Known types should not have a comparer");
+
+                var x1 = ((Timestamp)(object)(x)).Nanos;
+                var y1 = ((Timestamp)(object)(y)).Nanos;
+
+                return x1.CompareTo(y1);
             }
 
             // NB all primitive types are IComparable, all custom types could be easily made such
@@ -275,7 +375,12 @@ namespace Spreads
             // doesn't work, e.g. AOT. See discussion #100.
             if (IsIComparable)
             {
-                return Native.UnsafeEx.CompareToConstrained(ref x, ref y);
+                return UnsafeEx.CompareToConstrained(ref x, ref y);
+            }
+
+            if (_keyComparer != null)
+            {
+                return _keyComparer.Compare(x, y);
             }
 
             return CompareSlow(x, y);
@@ -301,28 +406,34 @@ namespace Spreads
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public T Add(T value, long diff)
         {
-            if (typeof(T) == typeof(Timestamp))
+            if (typeof(T) == typeof(byte))
             {
-                var value1 = (Timestamp)(object)(value);
-                return (T)(object)(new Timestamp(value1.Nanos + diff));
+                var value1 = (byte)(object)(value);
+                return (T)(object)(checked((byte)((sbyte)value1 + diff)));
             }
 
-            if (typeof(T) == typeof(DateTime))
+            if (typeof(T) == typeof(sbyte))
             {
-                var value1 = (DateTime)(object)(value);
-                return (T)(object)value1.AddTicks(diff);
+                var value1 = (sbyte)(object)(value);
+                return (T)(object)(checked((sbyte)(value1 + diff)));
             }
 
-            if (typeof(T) == typeof(long))
+            if (typeof(T) == typeof(char))
             {
-                var value1 = (long)(object)(value);
-                return (T)(object)(checked(value1 + diff));
+                var value1 = (char)(object)(value);
+                return (T)(object)(checked((char)(value1 + diff)));
             }
 
-            if (typeof(T) == typeof(ulong))
+            if (typeof(T) == typeof(short))
             {
-                var value1 = (ulong)(object)(value);
-                return (T)(object)(checked((ulong)((long)value1 + diff)));
+                var value1 = (short)(object)(value);
+                return (T)(object)(checked((short)(value1 + diff)));
+            }
+
+            if (typeof(T) == typeof(ushort))
+            {
+                var value1 = (ushort)(object)(value);
+                return (T)(object)(checked((ushort)((short)value1 + diff)));
             }
 
             if (typeof(T) == typeof(int))
@@ -337,30 +448,36 @@ namespace Spreads
                 return (T)(object)(checked((uint)((int)value1 + diff)));
             }
 
-            // TODO add those in all three methods
-            //if (typeof(T) == typeof(short))
-            //{
-            //    var value1 = (short)(object)(value);
-            //    return (T)(object)(checked((short)(value1 + diff)));
-            //}
+            if (typeof(T) == typeof(long))
+            {
+                var value1 = (long)(object)(value);
+                return (T)(object)(checked(value1 + diff));
+            }
 
-            //if (typeof(T) == typeof(ushort))
-            //{
-            //    var value1 = (ushort)(object)(value);
-            //    return (T)(object)(checked((ushort)((short)value1 + diff)));
-            //}
+            if (typeof(T) == typeof(ulong))
+            {
+                var value1 = (ulong)(object)(value);
+                return (T)(object)(checked((ulong)((long)value1 + diff)));
+            }
 
-            //if (typeof(T) == typeof(sbyte))
-            //{
-            //    var value1 = (sbyte)(object)(value);
-            //    return (T)(object)(checked((sbyte)(value1 + diff)));
-            //}
+            if (typeof(T) == typeof(DateTime))
+            {
+                var value1 = (DateTime)(object)(value);
+                return (T)(object)value1.AddTicks(diff);
+            }
 
-            //if (typeof(T) == typeof(byte))
-            //{
-            //    var value1 = (byte)(object)(value);
-            //    return (T)(object)(checked((byte)((sbyte)value1 + diff)));
-            //}
+            if (typeof(T) == typeof(Timestamp))
+            {
+                var value1 = (Timestamp)(object)(value);
+                return (T)(object)(new Timestamp(value1.Nanos + diff));
+            }
+
+            // TODO SmallDecimal
+
+            if (IsIInt64Diffable)
+            {
+                return UnsafeEx.AddLongConstrained(ref value, diff);
+            }
 
             if (_keyComparer != null)
             {
@@ -376,94 +493,180 @@ namespace Spreads
         /// </summary>
         [Pure]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public long Diff(T x, T y)
+        public long Diff(T minuend, T subtrahend)
         {
-            if (typeof(T) == typeof(Timestamp))
+            if (typeof(T) == typeof(byte))
             {
-                var x1 = (Timestamp)(object)(x);
-                var y1 = (Timestamp)(object)(y);
-
-                return checked(x1.Nanos - y1.Nanos);
+                var x1 = (byte)(object)(minuend);
+                var y1 = (byte)(object)(subtrahend);
+                return checked((long)(x1) - (long)y1);
             }
 
-            if (typeof(T) == typeof(DateTime))
+            if (typeof(T) == typeof(sbyte))
             {
-                var x1 = (DateTime)(object)(x);
-                var y1 = (DateTime)(object)(y);
+                var x1 = (sbyte)(object)(minuend);
+                var y1 = (sbyte)(object)(subtrahend);
+                return checked((long)(x1) - (long)y1);
+            }
 
-                return checked(x1.Ticks - y1.Ticks);
+            if (typeof(T) == typeof(char))
+            {
+                var x1 = (char)(object)(minuend);
+                var y1 = (char)(object)(subtrahend);
+                return checked((long)(x1) - (long)y1);
+            }
+
+            if (typeof(T) == typeof(short))
+            {
+                var x1 = (short)(object)(minuend);
+                var y1 = (short)(object)(subtrahend);
+                return checked((long)(x1) - (long)y1);
+            }
+
+            if (typeof(T) == typeof(ushort))
+            {
+                var x1 = (ushort)(object)(minuend);
+                var y1 = (ushort)(object)(subtrahend);
+                return checked((long)(x1) - (long)y1);
+            }
+
+            if (typeof(T) == typeof(int))
+            {
+                var x1 = (int)(object)(minuend);
+                var y1 = (int)(object)(subtrahend);
+                return checked((long)(x1) - (long)y1);
+            }
+
+            if (typeof(T) == typeof(uint))
+            {
+                var x1 = (uint)(object)(minuend);
+                var y1 = (uint)(object)(subtrahend);
+                return checked((long)(x1) - y1);
             }
 
             if (typeof(T) == typeof(long))
             {
-                var x1 = (long)(object)(x);
-                var y1 = (long)(object)(y);
+                var x1 = (long)(object)(minuend);
+                var y1 = (long)(object)(subtrahend);
 
                 return checked(x1 - y1);
             }
 
             if (typeof(T) == typeof(ulong))
             {
-                var x1 = (ulong)(object)(x);
-                var y1 = (ulong)(object)(y);
+                var x1 = (ulong)(object)(minuend);
+                var y1 = (ulong)(object)(subtrahend);
                 return checked((long)(x1) - (long)y1);
             }
 
-            if (typeof(T) == typeof(int))
+            if (typeof(T) == typeof(DateTime))
             {
-                var x1 = (int)(object)(x);
-                var y1 = (int)(object)(y);
-                return checked((long)(x1) - (long)y1);
+                var x1 = (DateTime)(object)(minuend);
+                var y1 = (DateTime)(object)(subtrahend);
+
+                return checked(x1.Ticks - y1.Ticks);
             }
 
-            if (typeof(T) == typeof(uint))
+            if (typeof(T) == typeof(Timestamp))
             {
-                var x1 = (uint)(object)(x);
-                var y1 = (uint)(object)(y);
-                return checked((long)(x1) - y1);
+                var x1 = (Timestamp)(object)(minuend);
+                var y1 = (Timestamp)(object)(subtrahend);
+
+                return checked(x1.Nanos - y1.Nanos);
+            }
+
+            // TODO SmallDecimal
+
+            if (IsIInt64Diffable)
+            {
+                return UnsafeEx.DiffLongConstrained(ref minuend, ref subtrahend);
             }
 
             if (_keyComparer != null)
             {
-                if (!_keyComparer.IsDiffable)
-                {
-                    ThrowHelper.ThrowInvalidOperationException("Cannot Diff: KeyComparer.IsDiffable is false");
-                }
-                return _keyComparer.Diff(x, y);
+                return DiffViaInterface(minuend, subtrahend);
             }
 
             ThrowHelper.ThrowNotSupportedException();
             return 0L;
         }
 
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private long DiffViaInterface(T minuend, T subtrahend)
+        {
+            if (!_keyComparer.IsDiffable)
+            {
+                ThrowHelper.ThrowInvalidOperationException("Cannot Diff: KeyComparer.IsDiffable is false");
+            }
+
+            return _keyComparer.Diff(minuend, subtrahend);
+        }
+
         /// <inheritdoc />
         [Pure]
         public bool Equals(T x, T y)
         {
-            if (_keyComparer != null)
-            {
-                return _keyComparer.Compare(x, y) == 0;
-            }
-
             // ReSharper disable PossibleNullReferenceException
 
-            if (typeof(T) == typeof(Timestamp))
+            if (typeof(T) == typeof(bool))
             {
-                var x1 = (Timestamp)(object)(x);
-                var y1 = (Timestamp)(object)(y);
+                var x1 = (bool)(object)(x);
+                var y1 = (bool)(object)(y);
                 return x1 == y1;
             }
 
-            if (typeof(T) == typeof(DateTime))
+            if (typeof(T) == typeof(byte))
             {
-                var x1 = (DateTime)(object)(x);
-                var y1 = (DateTime)(object)(y);
+                var x1 = (byte)(object)(x);
+                var y1 = (byte)(object)(y);
+                return x1 == y1;
+            }
+
+            if (typeof(T) == typeof(sbyte))
+            {
+                var x1 = (sbyte)(object)(x);
+                var y1 = (sbyte)(object)(y);
+                return x1 == y1;
+            }
+
+            if (typeof(T) == typeof(char))
+            {
+                var x1 = (char)(object)(x);
+                var y1 = (char)(object)(y);
+                return x1 == y1;
+            }
+
+            if (typeof(T) == typeof(short))
+            {
+                var x1 = (short)(object)(x);
+                var y1 = (short)(object)(y);
+                return x1 == y1;
+            }
+
+            if (typeof(T) == typeof(ushort))
+            {
+                var x1 = (ushort)(object)(x);
+                var y1 = (ushort)(object)(y);
+                return x1 == y1;
+            }
+
+            if (typeof(T) == typeof(int))
+            {
+                var x1 = (int)(object)(x);
+                var y1 = (int)(object)(y);
+                return x1 == y1;
+            }
+
+            if (typeof(T) == typeof(uint))
+            {
+                var x1 = (uint)(object)(x);
+                var y1 = (uint)(object)(y);
+
                 return x1 == y1;
             }
 
             if (typeof(T) == typeof(long))
             {
-                // TODO (low) unsafe impl with bitwise sign
                 var x1 = (long)(object)(x);
                 var y1 = (long)(object)(y);
 
@@ -473,28 +676,57 @@ namespace Spreads
             if (typeof(T) == typeof(ulong))
             {
                 var x1 = (ulong)(object)(x);
-
                 var y1 = (ulong)(object)(y);
 
                 return x1 == y1;
             }
 
-            if (typeof(T) == typeof(int))
+            if (typeof(T) == typeof(decimal))
             {
-                var x1 = (int)(object)(x);
-                var y1 = (int)(object)(y);
-                return x1 == y1;
-            }
-
-            if (typeof(T) == typeof(uint))
-            {
-                var x1 = (uint)(object)(x);
-                var y1 = (uint)(object)(y);
+                var x1 = (decimal)(object)(x);
+                var y1 = (decimal)(object)(y);
 
                 return x1 == y1;
             }
-            // ReSharper restore PossibleNullReferenceException
-            return EqualityComparer<T>.Default.Equals(x, y);
+            if (typeof(T) == typeof(float))
+            {
+                var x1 = (float)(object)(x);
+                var y1 = (float)(object)(y);
+
+                // ReSharper disable once CompareOfFloatsByEqualityOperator
+                return x1 == y1;
+            }
+
+            if (typeof(T) == typeof(double))
+            {
+                var x1 = (double)(object)(x);
+                var y1 = (double)(object)(y);
+
+                // ReSharper disable once CompareOfFloatsByEqualityOperator
+                return x1 == y1;
+            }
+            if (typeof(T) == typeof(DateTime))
+            {
+                var x1 = (DateTime)(object)(x);
+                var y1 = (DateTime)(object)(y);
+                return x1 == y1;
+            }
+
+            if (typeof(T) == typeof(Timestamp))
+            {
+                var x1 = (Timestamp)(object)(x);
+                var y1 = (Timestamp)(object)(y);
+                return x1 == y1;
+            }
+
+            if (typeof(T) == typeof(SmallDecimal))
+            {
+                var x1 = (SmallDecimal)(object)(x);
+                var y1 = (SmallDecimal)(object)(y);
+                return x1 == y1;
+            }
+
+            return Compare(x, y) == 0;
         }
 
         /// <summary>
@@ -527,6 +759,7 @@ namespace Spreads
             }
         }
 
+        [Obsolete("Use VectorSearch")]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal int BinarySearch(T[] array, int index, int length, T value)
         {
