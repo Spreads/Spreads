@@ -10,7 +10,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 
-namespace Spreads
+namespace Spreads.Collections
 {
     /// <summary>
     /// Base class for data containers implementations.
@@ -55,6 +55,11 @@ namespace Spreads
     /// <inheritdoc />
     public class BaseContainer<TKey> : BaseSeries
     {
+        // for tests only, it should have been abstract otherwise
+        internal BaseContainer()
+        {
+        }
+
         internal KeyComparer<TKey> Comparer = default;
         internal DataChunkSource<TKey> DataSource;
 
@@ -192,15 +197,18 @@ namespace Spreads
             // even if we could detect special cases in advance. Only when we cannot find check if there was a
             // special case and process it in a slow path as non-inlined method.
 
-            var isSingleChunk = IsSingleChunk;
+            chunk = DataChunk;
+            var retryOnGt = false;
 
-            // chunkIndex = -1;
+            if (IsSingleChunk)
+            {
+                goto SINGLE_CHUNK;
+            }
 
             // for single chunk this should exist, for sourced chunks this value is updated by a last search
             // Take reference, do not work directly. Reference assignment is atomic in .NET
-            chunk = DataChunk;
 
-            if (!isSingleChunk && chunk != null) // cached chunk
+            if (chunk != null) // cached chunk
             {
                 // Check edge cases if key is outside the chunk and we may need to retrieve
                 // the right one from storage. We do not know anything about other chunks, so we must
@@ -239,13 +247,13 @@ namespace Spreads
             // set local variables that we could reuse later and go through the same code
             var sourceLookup = lookup == Lookup.LT ? Lookup.LT : Lookup.LE;
             var sourceSearchKey = key;
-            var retryOnGt = !isSingleChunk;
+            retryOnGt = true;
 
         RETRY_NEXT_CHUNK:
 
             // if chunk is null here we have rejected it and need to get it from source
             // or it is the first search and cached chunk was not set yet
-            if (!isSingleChunk && chunk == null)
+            if (chunk == null)
             {
                 // TODO review: next line will eventually call this method for in-memory case, so how inlining possible?
                 // compiler should do magic to convert all this to a loop at JIT stage, so likely it does not
@@ -254,7 +262,7 @@ namespace Spreads
                 if (!DataSource.TryFindAt(sourceSearchKey, sourceLookup, out var kvp))
                 {
                     Debug.Assert(chunk == null);
-                    Debug.Assert(chunkIndex == -1);
+                    chunkIndex = -1;
                     return false;
                 }
 
@@ -271,6 +279,7 @@ namespace Spreads
                 }
             }
 
+        SINGLE_CHUNK:
             Debug.Assert(chunk != null);
 
             // Here we use internal knowledge that for series RowIndex in contiguous vec
@@ -280,14 +289,18 @@ namespace Spreads
 
             // TODO optimize this search via non-generic IVector with generic getter
             // ReSharper disable once PossibleNullReferenceException
-            var vec = chunk.RowIndex._vec.As<TKey>();
-            chunkIndex = VectorSearch.SortedLookup(ref vec.GetRef(0), DataChunk.RowLength, ref key, lookup, Comparer);
+            // ref var vecStart = ref chunk.RowIndex._vec.DangerousGetRef<TKey>(0);
+            chunkIndex = VectorSearch.SortedLookup(ref chunk.RowIndex._vec.DangerousGetRef<TKey>(0), chunk.RowLength, ref key, lookup, Comparer);
 
             if (chunkIndex >= 0)
             {
                 // Set cached value, probably next search will be close enough
                 // Getting chunk from source is expensive especially with persistence.
-                DataChunk = chunk;
+                if (!retryOnGt)
+                {
+                    DataChunk = chunk;
+                }
+
                 return true;
             }
 
@@ -306,7 +319,7 @@ namespace Spreads
                     goto RETRY_NEXT_CHUNK;
                 }
             }
-
+            
             return false;
         }
 

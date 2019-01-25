@@ -1102,7 +1102,7 @@ namespace Spreads.Algorithms
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int SortedLookup<T>(ref T vecStart, int length, ref T value, Lookup lookup, KeyComparer<T> comparer = default)
         {
-            if (KeyComparer<T>.IsDiffableSafe)
+            if (Settings.UseInterpolatedSearchForKnownTypes && KeyComparer<T>.IsDiffableSafe)
             {
                 return InterpolationLookup(ref vecStart, length, ref value, lookup, comparer);
             }

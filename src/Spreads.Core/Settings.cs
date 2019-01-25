@@ -213,5 +213,11 @@ namespace Spreads
         public static bool LogMemoryPoolEvents { get; set; } = false;
 
         internal const int SlabLength = 128 * 1024;
+
+        /// <summary>
+        /// This only affects known types for which interpolation search works correctly
+        /// and is expected to be significantly faster.
+        /// </summary>
+        internal const bool UseInterpolatedSearchForKnownTypes = true;
     }
 }

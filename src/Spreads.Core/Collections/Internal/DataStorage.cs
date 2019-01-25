@@ -24,20 +24,21 @@ namespace Spreads.Collections.Internal
 
         internal int RowCapacity;
 
-        // TODO these must be lazy! E.g. for
-        private VectorStorage _rowIndex;
+        // TODO these must be lazy! 
+        internal VectorStorage _rowIndex;
 
-        private VectorStorage _values;
+        internal VectorStorage _values;
 
-        private VectorStorage _columnIndex;
+        internal VectorStorage _columnIndex;
 
-        private VectorStorage[] _columns; // arrays is allocated and GCed, so far OK
+        internal VectorStorage[] _columns; // arrays is allocated and GCed, so far OK
 
         // TODO could automatically keep a chain of chunks that otherwise only weakly referenced
         private DataChunkStorage _nextChunk;
 
         private Mutability _mutability;
 
+        [MethodImpl(MethodImplOptions.NoInlining)] // TODO remove, testing
         internal DataChunkStorage TryGetNextChunk()
         {
             return _nextChunk;
