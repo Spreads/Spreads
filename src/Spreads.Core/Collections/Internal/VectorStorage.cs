@@ -83,7 +83,7 @@ namespace Spreads.Collections.Internal
         /// If it is > 1 then this is a column/row of a matrix. Stride is equal to the number of columns if storage is by rows and vice versa.
         /// Series/Panel are endless, so this is only for a chunk.
         /// </summary>
-        private int _stride;
+        internal int _stride;
 
         // _vec.Length is capacity, this is the number of valid elements in the Vector
         // also need to cache _vec.Length/_stride result because it is used by bound-checking getter
@@ -92,7 +92,7 @@ namespace Spreads.Collections.Internal
         // TODO flags in a single byte/int
         internal Mutability _mutability;
 
-        internal SortTracking _sortTracking;
+        // internal Sorting Sorting;
 
         internal bool _isSorted;
 
@@ -293,7 +293,7 @@ namespace Spreads.Collections.Internal
             _isSorted = default;
             _length = default;
             _mutability = default;
-            _sortTracking = default;
+            // Sorting = default;
             _stride = default;
 
             ObjectPool.Free(this);

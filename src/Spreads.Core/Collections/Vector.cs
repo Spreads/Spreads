@@ -216,16 +216,5 @@ namespace Spreads.Collections
         int IReadOnlyCollection<T>.Count => Length;
     }
 
-    //
-    [Obsolete]
-    internal enum SortTracking : byte
-    {
-        NotTracked,
-        Tracked,
-
-        /// <summary>
-        /// No mutable operations could change sort order. Any attempt will throw.
-        /// </summary>
-        Enforced
-    }
+    
 }

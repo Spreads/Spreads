@@ -7,11 +7,38 @@ using System.Runtime.InteropServices;
 
 namespace Spreads
 {
-    public enum Mutability : byte
+    [Obsolete("TODO")]
+    internal enum ContainerType
     {
-        Immutable,
-        AppendOnly,
-        Mutable
+        Series = 0,
+        Matrix = 1,
+        Frame = 2,
+        Panel = 3
+    }
+
+    /// <summary>
+    /// Determines how key order is enforced and if a data stream could be opened as series in case of <see cref="Strong"/> sorting
+    /// or efficient search by keys is possible in case of <see cref="Weak"/> sorting.
+    /// </summary>
+    public enum KeySorting : byte
+    {
+        /// <summary>
+        /// Data is not sorted by keys (or sorted by accident).
+        /// </summary>
+        NotSorted,
+
+        /// <summary>
+        /// Keys are weakly monotonically sorted according to <see cref="KeyComparer{T}.Default"/> comparer.
+        /// Repeating equal keys are possible.
+        /// Search by key always returns the first item with the same key. (TODO)
+        /// </summary>
+        Weak,
+
+        /// <summary>
+        /// Keys are strictly monotonically sorted according to <see cref="KeyComparer{T}.Default"/> comparer.
+        /// No repeating keys are possible.
+        /// </summary>
+        Strong
     }
 
     /// <summary>

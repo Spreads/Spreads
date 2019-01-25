@@ -122,10 +122,23 @@ namespace Spreads
         IDisposable Subscribe(IAsyncCompletable subscriber);
     }
 
+    // TODO add it to all containers
+    public interface IData
+    {
+        Mutability Mutability { get; }
+    }
+
+    // TODO merge/replace
+    public interface INewSeries : IData
+    {
+        KeySorting KeySorting { get; }
+        bool IsIndexed { get; }
+    }
+
     /// <summary>
-    /// Series are navigable ordered data streams of key-value pairs.
-    /// </summary>
-    public interface ISeries<TKey, TValue> : IAsyncEnumerable<KeyValuePair<TKey, TValue>>
+        /// Series are navigable ordered data streams of key-value pairs.
+        /// </summary>
+        public interface ISeries<TKey, TValue> : IAsyncEnumerable<KeyValuePair<TKey, TValue>>
     {
         /// <summary>
         /// False if the underlying collection could be changed, true if the underlying collection is immutable or is complete
@@ -137,7 +150,7 @@ namespace Spreads
         /// If true then elements are placed by some custom order (e.g. order of addition, index) and not sorted by keys.
         /// If false then the keys are sorted according to <see cref="Comparer"/>.
         /// </summary>
-        bool IsIndexed { get; }
+        bool IsIndexed { get; } // TODO flip to IsSorted
 
         /// <summary>
         /// Get cursor, which is an advanced enumerator supporting moves to first, last, previous, next, exact
@@ -169,22 +182,19 @@ namespace Spreads
         /// <summary>
         /// Get a value at the given key. Evaluates continuous series at the key if there is no observed value at the key.
         /// </summary>
-        /// <param name="key"></param>
-        /// <param name="value"></param>
-        /// <returns></returns>
         bool TryGetValue(TKey key, out TValue value);
 
         /// <summary>
-        /// Try get value at index (offset). The method is implemented efficiently for indexed series and SortedMap, but default implementation
+        /// Try get value at index (offset). The method is implemented efficiently for some containers (in-memory or immutable/append-only), but default implementation
         /// is LINQ's <code>[series].Skip(idx-1).Take(1).Value</code>.
         /// </summary>
         bool TryGetAt(long index, out KeyValuePair<TKey, TValue> kvp); // TODO support negative moves in all implementations, -1 is last
 
         /// <summary>
         /// The method finds value according to direction, returns false if it could not find such a value.
-        /// For indexed series LE/GE directions are invalid (throws  InvalidOperationException), while
+        /// For indexed series LE/GE directions are invalid and throw InvalidOperationException, while
         /// LT/GT search is done by index rather than by key and is possible only when a key exists.
-        /// TryFindAt works only with existing keys and is a series counterpat of <see cref="ICursor{TKey,TValue}.MoveAt"/>.
+        /// TryFindAt works only with observed keys and is a series counterpart of <see cref="ICursor{TKey,TValue}.MoveAt"/>.
         /// </summary>
         /// <exception cref="InvalidOperationException">The <param name="direction">direction</param> is <see cref="Lookup.LE"/> or <see cref="Lookup.GE"/> for indexed series (<see cref="IsIndexed"/> = true). </exception>
         bool TryFindAt(TKey key, Lookup direction, out KeyValuePair<TKey, TValue> kvp);

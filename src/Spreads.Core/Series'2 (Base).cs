@@ -2,6 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+using Spreads.Buffers;
 using Spreads.Utils;
 using System;
 using System.Collections;
@@ -11,51 +12,9 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
-using Spreads.Buffers;
-using Spreads.Collections.Internal;
 
 namespace Spreads
 {
-    /// <summary>
-    /// Base class for series implementations.
-    /// </summary>
-    [CannotApplyEqualityOperator]
-    public class BaseSeries
-    {
-        internal DataStorage _data;
-
-        #region Attributes
-
-        private static readonly ConditionalWeakTable<BaseSeries, Dictionary<string, object>> Attributes =
-            new ConditionalWeakTable<BaseSeries, Dictionary<string, object>>();
-
-        /// <summary>
-        /// Get an attribute that was set using SetAttribute() method.
-        /// </summary>
-        /// <param name="attributeName">Name of an attribute.</param>
-        /// <returns>Return an attribute value or null is the attribute is not found.</returns>
-        public object GetAttribute(string attributeName)
-        {
-            if (Attributes.TryGetValue(this, out Dictionary<string, object> dic) &&
-                dic.TryGetValue(attributeName, out object res))
-            {
-                return res;
-            }
-            return null;
-        }
-
-        /// <summary>
-        /// Set any custom attribute to a series. An attribute is available during lifetime of a series and is available via GetAttribute() method.
-        /// </summary>
-        public void SetAttribute(string attributeName, object attributeValue)
-        {
-            var dic = Attributes.GetOrCreateValue(this);
-            dic[attributeName] = attributeValue;
-        }
-
-        #endregion
-    }
-
     /// <summary>
     /// Base generic class for all series implementations.
     /// </summary>
@@ -1211,7 +1170,6 @@ namespace Spreads
 
         #endregion Async cursor
 
-
         protected virtual void Dispose(bool disposing)
         { }
 
@@ -1446,8 +1404,6 @@ namespace Spreads
             } while (true);
             return value;
         }
-
-        
 
         internal Task DoComplete()
         {

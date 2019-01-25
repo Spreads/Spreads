@@ -1,5 +1,7 @@
 using Spreads.Collections.Concurrent;
 using System;
+using System.Collections;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Runtime.CompilerServices;
@@ -7,20 +9,71 @@ using System.Runtime.CompilerServices;
 namespace Spreads.Collections.Internal
 {
     /// <summary>
-    /// Storage for Series, Matrix and DataFrame
+    /// Physycal storage for Series, Matrix and DataFrame chunks.
     /// </summary>
-    internal class DataStorage : IDisposable
+    internal class DataChunkStorage : IDisposable, IData
     {
-        private static readonly ObjectPool<DataStorage> ObjectPool = new ObjectPool<DataStorage>(() => new DataStorage(), Environment.ProcessorCount * 16);
+        private static readonly ObjectPool<DataChunkStorage> ObjectPool = new ObjectPool<DataChunkStorage>(() => new DataChunkStorage(), Environment.ProcessorCount * 16);
 
         // for structural sharing no references to this should be exposed outside, only new object (or from pool)
 
+        /// <summary>
+        /// Length of existing data vs storage capacity. Owners set this value and determine capacity from vector storages.
+        /// </summary>
+        internal int RowLength;
+
+        internal int RowCapacity;
+
+        // TODO these must be lazy! E.g. for
         private VectorStorage _rowIndex;
+
         private VectorStorage _values;
 
         private VectorStorage _columnIndex;
-        
+
         private VectorStorage[] _columns; // arrays is allocated and GCed, so far OK
+
+        // TODO could automatically keep a chain of chunks that otherwise only weakly referenced
+        private DataChunkStorage _nextChunk;
+
+        private Mutability _mutability;
+
+        internal DataChunkStorage TryGetNextChunk()
+        {
+            return _nextChunk;
+        }
+
+        public VectorStorage RowIndex
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get
+            {
+                if (_rowIndex == null)
+                {
+                    // TODO lazy load if lazy is supported
+                }
+                return _rowIndex;
+            }
+        }
+
+        public VectorStorage Values
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get
+            {
+                if (_rowIndex == null)
+                {
+                    // TODO lazy load if lazy is supported
+                }
+                return _values;
+            }
+        }
+
+        public Mutability Mutability
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => _mutability;
+        }
 
         #region Structure check
 
@@ -211,6 +264,9 @@ namespace Spreads.Collections.Internal
                 _columnIndex = null;
             }
 
+            // just break the chain, if the remaining linked list was only rooted here it will be GCed TODO review
+            _nextChunk = null;
+
             ObjectPool.Free(this);
         }
 
@@ -232,11 +288,71 @@ namespace Spreads.Collections.Internal
             GC.SuppressFinalize(this);
         }
 
-        ~DataStorage()
+        ~DataChunkStorage()
         {
             Dispose(false);
         }
 
         #endregion Dispose logic
+    }
+
+    internal class DataChunkSource<TKey> : ISeries<TKey, DataChunkStorage>
+    {
+        // TODO
+        /// <summary>
+        ///  For append-only containers chunks will have the same size. Last chunk could be only partially filled.
+        /// </summary>
+        public uint ConstantChunkLength = 0;
+
+        public IAsyncEnumerator<KeyValuePair<TKey, DataChunkStorage>> GetAsyncEnumerator()
+        {
+            throw new NotImplementedException();
+        }
+
+        public IEnumerator<KeyValuePair<TKey, DataChunkStorage>> GetEnumerator()
+        {
+            throw new NotImplementedException();
+        }
+
+        IEnumerator IEnumerable.GetEnumerator()
+        {
+            return GetEnumerator();
+        }
+
+        public bool IsCompleted => throw new NotImplementedException();
+
+        public bool IsIndexed => throw new NotImplementedException();
+
+        public ICursor<TKey, DataChunkStorage> GetCursor()
+        {
+            throw new NotImplementedException();
+        }
+
+        public KeyComparer<TKey> Comparer => throw new NotImplementedException();
+
+        public Opt<KeyValuePair<TKey, DataChunkStorage>> First => throw new NotImplementedException();
+
+        public Opt<KeyValuePair<TKey, DataChunkStorage>> Last => throw new NotImplementedException();
+
+        public DataChunkStorage this[TKey key] => throw new NotImplementedException();
+
+        public bool TryGetValue(TKey key, out DataChunkStorage value)
+        {
+            throw new NotImplementedException();
+        }
+
+        public bool TryGetAt(long index, out KeyValuePair<TKey, DataChunkStorage> kvp)
+        {
+            throw new NotImplementedException();
+        }
+
+        public bool TryFindAt(TKey key, Lookup direction, out KeyValuePair<TKey, DataChunkStorage> kvp)
+        {
+            throw new NotImplementedException();
+        }
+
+        public IEnumerable<TKey> Keys => throw new NotImplementedException();
+
+        public IEnumerable<DataChunkStorage> Values => throw new NotImplementedException();
     }
 }
