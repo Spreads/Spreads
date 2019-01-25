@@ -26,7 +26,7 @@ namespace Spreads.Algorithms
         /// Performs standard binary search and returns index of the value or its negative binary complement.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int BinarySearch<T>(ref T vecStart, int length, T value, KeyComparer<T> comparer)
+        public static int BinarySearch<T>(ref T vecStart, int length, T value, KeyComparer<T> comparer = default)
         {
             unchecked
             {
@@ -67,17 +67,17 @@ namespace Spreads.Algorithms
         }
 
         /// <summary>
-        /// Performs standard binary search and returns index of the value or its negative binary complement.
+        /// Performs standard binary search and returns index of the value from the beginning of <paramref name="vec"/> (not from <paramref name="start"/>) or its negative binary complement.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int BinarySearch<T, TVec>(ref TVec vec, int start, int length, T value, KeyComparer<T> comparer)
+        public static int BinarySearch<T, TVec>(ref TVec vec, int start, int length, T value, KeyComparer<T> comparer = default)
             where TVec : IVector<T>
         {
             Debug.Assert(unchecked((uint)start + (uint)length) <= vec.Length);
             unchecked
             {
                 int lo = start;
-                int hi = length - 1;
+                int hi = start + length - 1;
                 while (lo <= hi)
                 {
                     int i = (int)(((uint)hi + (uint)lo) >> 1);
@@ -105,9 +105,9 @@ namespace Spreads.Algorithms
         /// Converts a result of a sorted search to result of directional search with direction of <see cref="Lookup"/>.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int SearchToLookup(int length, Lookup lookup, int i)
+        public static int SearchToLookup(int start, int length, Lookup lookup, int i)
         {
-            if (i >= 0)
+            if (i >= start)
             {
                 if (lookup.IsEqualityOK())
                 {
@@ -116,9 +116,9 @@ namespace Spreads.Algorithms
 
                 if (lookup == Lookup.LT)
                 {
-                    if (i == 0)
+                    if (i == start)
                     {
-                        return -1;
+                        return ~start;
                     }
 
                     i--;
@@ -126,9 +126,9 @@ namespace Spreads.Algorithms
                 else // depends on if (eqOk) above
                 {
                     Debug.Assert(lookup == Lookup.GT);
-                    if (i == length - 1)
+                    if (i == start + length - 1)
                     {
-                        return ~length;
+                        return ~(start + length);
                     }
 
                     i++;
@@ -147,9 +147,9 @@ namespace Spreads.Algorithms
                 if (((uint)lookup & (uint)Lookup.LT) != 0)
                 {
                     // i is idx of element that is larger, nothing here for LE/LT
-                    if (i == 0)
+                    if (i == start)
                     {
-                        return -1;
+                        return ~start;
                     }
 
                     i--;
@@ -157,18 +157,18 @@ namespace Spreads.Algorithms
                 else
                 {
                     Debug.Assert(((uint)lookup & (uint)Lookup.GT) != 0);
-                    Debug.Assert(i <= length);
+                    Debug.Assert(i <= start + length);
                     // if was negative, if it was ~length then there are no more elements for GE/GT
-                    if (i == length)
+                    if (i == start + length)
                     {
-                        return ~length;
+                        return ~(start + length);
                     }
 
                     // i is the same, ~i is idx of element that is GT the value
                 }
             }
 
-            Debug.Assert(unchecked((uint)i) < unchecked((uint)length));
+            Debug.Assert(unchecked((uint)i) - start < unchecked((uint)length));
             return i;
         }
 
@@ -182,7 +182,7 @@ namespace Spreads.Algorithms
 
             var i = BinarySearch(ref vecStart, length, value, comparer);
 
-            return SearchToLookup(length, lookup, i);
+            return SearchToLookup(0, length, lookup, i);
         }
 
         /// <summary>
@@ -195,8 +195,8 @@ namespace Spreads.Algorithms
             Debug.Assert(unchecked((uint)start + (uint)length) <= vec.Length);
 
             int i = BinarySearch(ref vec, start, length, value, comparer);
-
-            return SearchToLookup(length, lookup, i);
+            // TODO adjust index
+            return SearchToLookup(start, length, lookup, i);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -267,12 +267,15 @@ namespace Spreads.Algorithms
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int InterpolationSearch(ref long vecStart, int length, long value)
         {
-            // this is definitive version, all other overloads must do exactly the same operations
+            const int start = 0;
+
             unchecked
             {
+                // this is definitive version, all other overloads must do exactly the same operations
+
                 int i;
-                int lo = 0;
-                int hi = length - 1;
+                int lo = start;
+                int hi = start + length - 1;
                 if (lo < hi)
                 {
                     long vlo = vecStart;
@@ -287,11 +290,11 @@ namespace Spreads.Algorithms
                     // (only 4 cycles vs 25 cycles https://lemire.me/blog/2017/11/16/fast-exact-integer-divisions-using-floating-point-operations/)
                     double nominator = (hi - lo) * (double)(value - vlo);
 
-                    i = Math.Min(hi, (int)(nominator / vRange));
+                    i = (int)(nominator / vRange);
 
-                    if (i < 0)
+                    if ((uint)i > hi)
                     {
-                        i = 0;
+                        i = i > hi ? hi : lo;
                     }
 
                     var vi = Unsafe.Add(ref vecStart, i);
@@ -305,7 +308,8 @@ namespace Spreads.Algorithms
 
                     if (value < vi)
                     {
-                        while ((i -= offset) >= 0)
+                        // lo = i - 1, but could be < hi
+                        while ((i = i - offset) >= start)
                         {
                             vi = Unsafe.Add(ref vecStart, i);
 
@@ -317,7 +321,8 @@ namespace Spreads.Algorithms
                             if (value > vi)
                             {
                                 lo = i + 1;
-                                hi = lo + offset;
+                                // vi(i + offset) was > value, so we could exclude this position for hi
+                                hi = i + offset - 1;
                                 goto BIN_SEARCH;
                             }
 
@@ -325,17 +330,19 @@ namespace Spreads.Algorithms
                             offset <<= 1;
                         }
 
-                        Debug.Assert(i < 0);
+                        Debug.Assert(i < start);
 
-                        // i was decremented by offset and became negative, restore it and search from zero
+                        // i was decremented by offset and became < start, restore it and search from zero
                         hi = i + offset;
 
-                        Debug.Assert(lo == 0);
+                        Debug.Assert(lo == start);
                         Debug.Assert(hi >= lo);
                     }
-                    else
+                    else // value > vi
                     {
-                        while ((i += offset) <= hi)
+                        // lo = i + 1, but could be > hi
+
+                        while ((i = i + offset) <= hi)
                         {
                             vi = Unsafe.Add(ref vecStart, i);
 
@@ -347,7 +354,8 @@ namespace Spreads.Algorithms
                             if (value < vi)
                             {
                                 hi = i - 1;
-                                lo = Math.Max(0, hi - offset);
+                                // vi(i - offset) was > value, so we could exclude this position for hi
+                                lo = i - offset + 1;
                                 goto BIN_SEARCH;
                             }
 
@@ -358,11 +366,15 @@ namespace Spreads.Algorithms
 
                         // i was incremented by offset and became > hi, restore it and search to hi
                         lo = i - offset;
+
+                        Debug.Assert(hi == start + length - 1);
+                        Debug.Assert(hi >= lo);
                     }
                 }
 
             BIN_SEARCH:
 
+                // This returns index from lo to hi, so we need to adjust for the narrowed range
                 var iBs = BinarySearch(ref Unsafe.Add(ref vecStart, lo), 1 + hi - lo, value, default);
 
                 if (iBs >= 0)
@@ -379,19 +391,27 @@ namespace Spreads.Algorithms
             }
         }
 
+        /// <summary>
+        /// Returns index from the beginning of the vector (not from the <paramref name="start"/> parameter).
+        /// </summary>
+        /// <param name="vec"></param>
+        /// <param name="start">Start of the search range.</param>
+        /// <param name="length">Length of the search range.</param>
+        /// <param name="value">Value to search.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int InterpolationSearch<TVec>(ref TVec vec, int start, int length, long value)
             where TVec : IVector<long>
         {
-            // adjusted copy of long
             unchecked
             {
+                // adjusted copy of long
+
                 int i;
                 int lo = start;
-                int hi = length;
+                int hi = start + length - 1;
                 if (lo < hi)
                 {
-                    long vlo = vec.DangerousGet(0);
+                    long vlo = vec.DangerousGet(lo);
                     long vhi = vec.DangerousGet(hi);
                     long vRange = vhi - vlo;
 
@@ -403,11 +423,11 @@ namespace Spreads.Algorithms
                     // (only 4 cycles vs 25 cycles https://lemire.me/blog/2017/11/16/fast-exact-integer-divisions-using-floating-point-operations/)
                     double nominator = (hi - lo) * (double)(value - vlo);
 
-                    i = Math.Max(0, Math.Min(hi, (int)(nominator / vRange)));
+                    i = (int)(nominator / vRange);
 
-                    if (i < 0)
+                    if ((uint)i > hi)
                     {
-                        i = 0;
+                        i = i > hi ? hi : lo;
                     }
 
                     var vi = vec.DangerousGet(i);
@@ -421,7 +441,8 @@ namespace Spreads.Algorithms
 
                     if (value < vi)
                     {
-                        while ((i -= offset) >= 0)
+                        // lo = i - 1, but could be < hi
+                        while ((i = i - offset) >= start)
                         {
                             vi = vec.DangerousGet(i);
 
@@ -433,7 +454,8 @@ namespace Spreads.Algorithms
                             if (value > vi)
                             {
                                 lo = i + 1;
-                                hi = lo + offset;
+                                // vi(i + offset) was > value, so we could exclude this position for hi
+                                hi = i + offset - 1;
                                 goto BIN_SEARCH;
                             }
 
@@ -441,17 +463,19 @@ namespace Spreads.Algorithms
                             offset <<= 1;
                         }
 
-                        Debug.Assert(i < 0);
+                        Debug.Assert(i < start);
 
-                        // i was decremented by offset and became negative, restore it and search from zero
+                        // i was decremented by offset and became < start, restore it and search from zero
                         hi = i + offset;
 
-                        Debug.Assert(lo == 0);
+                        Debug.Assert(lo == start);
                         Debug.Assert(hi >= lo);
                     }
-                    else
+                    else // value > vi
                     {
-                        while ((i += offset) <= hi)
+                        // lo = i + 1, but could be > hi
+
+                        while ((i = i + offset) <= hi)
                         {
                             vi = vec.DangerousGet(i);
 
@@ -463,7 +487,8 @@ namespace Spreads.Algorithms
                             if (value < vi)
                             {
                                 hi = i - 1;
-                                lo = Math.Max(0, hi - offset);
+                                // vi(i - offset) was > value, so we could exclude this position for hi
+                                lo = i - offset + 1;
                                 goto BIN_SEARCH;
                             }
 
@@ -474,21 +499,14 @@ namespace Spreads.Algorithms
 
                         // i was incremented by offset and became > hi, restore it and search to hi
                         lo = i - offset;
+
+                        Debug.Assert(hi == start + length - 1);
+                        Debug.Assert(hi >= lo);
                     }
                 }
 
             BIN_SEARCH:
-
-                var iBs = BinarySearch(ref vec, lo, 1 + hi - lo, value, default);
-
-                if (iBs >= 0)
-                {
-                    return lo + iBs;
-                }
-                else
-                {
-                    return ~(lo + ~iBs);
-                }
+                return BinarySearch(ref vec, lo, 1 + hi - lo, value, default);
 
             FOUND:
                 return i;
@@ -498,12 +516,14 @@ namespace Spreads.Algorithms
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int InterpolationSearch(ref int vecStart, int length, int value)
         {
-            // adjusted copy of long
+            const int start = 0;
+
             unchecked
             {
+                // adjusted copy of long
                 int i;
-                int lo = 0;
-                int hi = length - 1;
+                int lo = start;
+                int hi = start + length - 1;
                 if (lo < hi)
                 {
                     long vlo = vecStart;
@@ -518,11 +538,11 @@ namespace Spreads.Algorithms
                     // (only 4 cycles vs 25 cycles https://lemire.me/blog/2017/11/16/fast-exact-integer-divisions-using-floating-point-operations/)
                     double nominator = (hi - lo) * (double)(value - vlo);
 
-                    i = Math.Max(0, Math.Min(hi, (int)(nominator / vRange)));
+                    i = (int)(nominator / vRange);
 
-                    if (i < 0)
+                    if ((uint)i > hi)
                     {
-                        i = 0;
+                        i = i > hi ? hi : lo;
                     }
 
                     var vi = Unsafe.Add(ref vecStart, i);
@@ -536,7 +556,8 @@ namespace Spreads.Algorithms
 
                     if (value < vi)
                     {
-                        while ((i -= offset) >= 0)
+                        // lo = i - 1, but could be < hi
+                        while ((i = i - offset) >= start)
                         {
                             vi = Unsafe.Add(ref vecStart, i);
 
@@ -548,7 +569,8 @@ namespace Spreads.Algorithms
                             if (value > vi)
                             {
                                 lo = i + 1;
-                                hi = lo + offset;
+                                // vi(i + offset) was > value, so we could exclude this position for hi
+                                hi = i + offset - 1;
                                 goto BIN_SEARCH;
                             }
 
@@ -556,17 +578,19 @@ namespace Spreads.Algorithms
                             offset <<= 1;
                         }
 
-                        Debug.Assert(i < 0);
+                        Debug.Assert(i < start);
 
-                        // i was decremented by offset and became negative, restore it and search from zero
+                        // i was decremented by offset and became < start, restore it and search from zero
                         hi = i + offset;
 
-                        Debug.Assert(lo == 0);
+                        Debug.Assert(lo == start);
                         Debug.Assert(hi >= lo);
                     }
-                    else
+                    else // value > vi
                     {
-                        while ((i += offset) <= hi)
+                        // lo = i + 1, but could be > hi
+
+                        while ((i = i + offset) <= hi)
                         {
                             vi = Unsafe.Add(ref vecStart, i);
 
@@ -578,7 +602,8 @@ namespace Spreads.Algorithms
                             if (value < vi)
                             {
                                 hi = i - 1;
-                                lo = Math.Max(0, hi - offset);
+                                // vi(i - offset) was > value, so we could exclude this position for hi
+                                lo = i - offset + 1;
                                 goto BIN_SEARCH;
                             }
 
@@ -589,6 +614,9 @@ namespace Spreads.Algorithms
 
                         // i was incremented by offset and became > hi, restore it and search to hi
                         lo = i - offset;
+
+                        Debug.Assert(hi == start + length - 1);
+                        Debug.Assert(hi >= lo);
                     }
                 }
 
@@ -610,19 +638,27 @@ namespace Spreads.Algorithms
             }
         }
 
+        /// <summary>
+        /// Returns index from the beginning of the vector (not from the <paramref name="start"/> parameter).
+        /// </summary>
+        /// <param name="vec"></param>
+        /// <param name="start">Start of the search range.</param>
+        /// <param name="length">Length of the search range.</param>
+        /// <param name="value">Value to search.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int InterpolationSearch<TVec>(ref TVec vec, int start, int length, int value)
             where TVec : IVector<int>
         {
-            // adjusted copy of long
             unchecked
             {
+                // adjusted copy of long
+
                 int i;
                 int lo = start;
-                int hi = length;
+                int hi = start + length - 1;
                 if (lo < hi)
                 {
-                    long vlo = vec.DangerousGet(0);
+                    long vlo = vec.DangerousGet(lo);
                     long vhi = vec.DangerousGet(hi);
                     long vRange = vhi - vlo;
 
@@ -634,11 +670,11 @@ namespace Spreads.Algorithms
                     // (only 4 cycles vs 25 cycles https://lemire.me/blog/2017/11/16/fast-exact-integer-divisions-using-floating-point-operations/)
                     double nominator = (hi - lo) * (double)(value - vlo);
 
-                    i = Math.Min(hi, (int)(nominator / vRange));
+                    i = (int)(nominator / vRange);
 
-                    if (i < 0)
+                    if ((uint)i > hi)
                     {
-                        i = 0;
+                        i = i > hi ? hi : lo;
                     }
 
                     var vi = vec.DangerousGet(i);
@@ -652,7 +688,8 @@ namespace Spreads.Algorithms
 
                     if (value < vi)
                     {
-                        while ((i -= offset) >= 0)
+                        // lo = i - 1, but could be < hi
+                        while ((i = i - offset) >= start)
                         {
                             vi = vec.DangerousGet(i);
 
@@ -664,7 +701,8 @@ namespace Spreads.Algorithms
                             if (value > vi)
                             {
                                 lo = i + 1;
-                                hi = lo + offset;
+                                // vi(i + offset) was > value, so we could exclude this position for hi
+                                hi = i + offset - 1;
                                 goto BIN_SEARCH;
                             }
 
@@ -672,17 +710,19 @@ namespace Spreads.Algorithms
                             offset <<= 1;
                         }
 
-                        Debug.Assert(i < 0);
+                        Debug.Assert(i < start);
 
-                        // i was decremented by offset and became negative, restore it and search from zero
+                        // i was decremented by offset and became < start, restore it and search from zero
                         hi = i + offset;
 
-                        Debug.Assert(lo == 0);
+                        Debug.Assert(lo == start);
                         Debug.Assert(hi >= lo);
                     }
-                    else
+                    else // value > vi
                     {
-                        while ((i += offset) <= hi)
+                        // lo = i + 1, but could be > hi
+
+                        while ((i = i + offset) <= hi)
                         {
                             vi = vec.DangerousGet(i);
 
@@ -694,7 +734,8 @@ namespace Spreads.Algorithms
                             if (value < vi)
                             {
                                 hi = i - 1;
-                                lo = Math.Max(0, hi - offset);
+                                // vi(i - offset) was > value, so we could exclude this position for hi
+                                lo = i - offset + 1;
                                 goto BIN_SEARCH;
                             }
 
@@ -705,21 +746,14 @@ namespace Spreads.Algorithms
 
                         // i was incremented by offset and became > hi, restore it and search to hi
                         lo = i - offset;
+
+                        Debug.Assert(hi == start + length - 1);
+                        Debug.Assert(hi >= lo);
                     }
                 }
 
             BIN_SEARCH:
-
-                var iBs = BinarySearch(ref vec, lo, 1 + hi - lo, value, default);
-
-                if (iBs >= 0)
-                {
-                    return lo + iBs;
-                }
-                else
-                {
-                    return ~(lo + ~iBs);
-                }
+                return BinarySearch(ref vec, lo, 1 + hi - lo, value, default);
 
             FOUND:
                 return i;
@@ -729,15 +763,17 @@ namespace Spreads.Algorithms
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static int InterpolationSearchGeneric<T>(ref T vecStart, int length, T value, KeyComparer<T> comparer = default)
         {
-            // adjusted copy of long
+            const int start = 0;
             unchecked
             {
+                // adjusted copy of long
+
                 int i;
-                int lo = 0;
-                int hi = length - 1;
+                int lo = start;
+                int hi = start + length - 1;
                 if (lo < hi)
                 {
-                    var vlo = Unsafe.Add(ref vecStart, lo);
+                    var vlo = vecStart;
                     var vhi = Unsafe.Add(ref vecStart, hi);
                     long vRange = comparer.Diff(vhi, vlo);
 
@@ -749,11 +785,11 @@ namespace Spreads.Algorithms
                     // (only 4 cycles vs 25 cycles https://lemire.me/blog/2017/11/16/fast-exact-integer-divisions-using-floating-point-operations/)
                     double nominator = (hi - lo) * (double)comparer.Diff(value, vlo);
 
-                    i = Math.Min(hi, (int)(nominator / vRange));
+                    i = (int)(nominator / vRange);
 
-                    if (i < 0)
+                    if ((uint)i > hi)
                     {
-                        i = 0;
+                        i = i > hi ? hi : lo;
                     }
 
                     int c = comparer.Compare(value, Unsafe.Add(ref vecStart, i));
@@ -767,9 +803,11 @@ namespace Spreads.Algorithms
 
                     if (c < 0)
                     {
-                        while ((i -= offset) >= 0)
+                        // lo = i - 1, but could be < hi
+                        while ((i = i - offset) >= start)
                         {
                             c = comparer.Compare(value, Unsafe.Add(ref vecStart, i));
+
                             if (c == 0)
                             {
                                 goto FOUND;
@@ -778,7 +816,8 @@ namespace Spreads.Algorithms
                             if (c > 0)
                             {
                                 lo = i + 1;
-                                hi = lo + offset;
+                                // vi(i + offset) was > value, so we could exclude this position for hi
+                                hi = i + offset - 1;
                                 goto BIN_SEARCH;
                             }
 
@@ -786,17 +825,19 @@ namespace Spreads.Algorithms
                             offset <<= 1;
                         }
 
-                        Debug.Assert(i < 0);
+                        Debug.Assert(i < start);
 
-                        // i was decremented by offset and became negative, restore it and search from zero
+                        // i was decremented by offset and became < start, restore it and search from zero
                         hi = i + offset;
 
-                        Debug.Assert(lo == 0);
+                        Debug.Assert(lo == start);
                         Debug.Assert(hi >= lo);
                     }
-                    else
+                    else // value > vi
                     {
-                        while ((i += offset) <= hi)
+                        // lo = i + 1, but could be > hi
+
+                        while ((i = i + offset) <= hi)
                         {
                             c = comparer.Compare(value, Unsafe.Add(ref vecStart, i));
 
@@ -808,7 +849,8 @@ namespace Spreads.Algorithms
                             if (c < 0)
                             {
                                 hi = i - 1;
-                                lo = Math.Max(0, hi - offset);
+                                // vi(i - offset) was > value, so we could exclude this position for hi
+                                lo = i - offset + 1;
                                 goto BIN_SEARCH;
                             }
 
@@ -819,6 +861,9 @@ namespace Spreads.Algorithms
 
                         // i was incremented by offset and became > hi, restore it and search to hi
                         lo = i - offset;
+
+                        Debug.Assert(hi == start + length - 1);
+                        Debug.Assert(hi >= lo);
                     }
                 }
 
@@ -840,16 +885,24 @@ namespace Spreads.Algorithms
             }
         }
 
+        /// <summary>
+        /// Returns index from the beginning of the vector (not from the <paramref name="start"/> parameter).
+        /// </summary>
+        /// <param name="vec"></param>
+        /// <param name="start">Start of the search range.</param>
+        /// <param name="length">Length of the search range.</param>
+        /// <param name="value">Value to search.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static int InterpolationSearchGeneric<T, TVec>(ref TVec vec, int start, int length, T value, KeyComparer<T> comparer = default)
              where TVec : IVector<T>
         {
-            // adjusted copy of long
             unchecked
             {
+                // adjusted copy of long
+
                 int i;
                 int lo = start;
-                int hi = length - 1;
+                int hi = start + length - 1;
                 if (lo < hi)
                 {
                     var vlo = vec.DangerousGet(lo);
@@ -864,11 +917,11 @@ namespace Spreads.Algorithms
                     // (only 4 cycles vs 25 cycles https://lemire.me/blog/2017/11/16/fast-exact-integer-divisions-using-floating-point-operations/)
                     double nominator = (hi - lo) * (double)comparer.Diff(value, vlo);
 
-                    i = Math.Min(hi, (int)(nominator / vRange));
+                    i = (int)(nominator / vRange);
 
-                    if (i < 0)
+                    if ((uint)i > hi)
                     {
-                        i = 0;
+                        i = i > hi ? hi : lo;
                     }
 
                     int c = comparer.Compare(value, vec.DangerousGet(i));
@@ -882,9 +935,11 @@ namespace Spreads.Algorithms
 
                     if (c < 0)
                     {
-                        while ((i -= offset) >= 0)
+                        // lo = i - 1, but could be < hi
+                        while ((i = i - offset) >= start)
                         {
                             c = comparer.Compare(value, vec.DangerousGet(i));
+
                             if (c == 0)
                             {
                                 goto FOUND;
@@ -893,7 +948,8 @@ namespace Spreads.Algorithms
                             if (c > 0)
                             {
                                 lo = i + 1;
-                                hi = lo + offset;
+                                // vi(i + offset) was > value, so we could exclude this position for hi
+                                hi = i + offset - 1;
                                 goto BIN_SEARCH;
                             }
 
@@ -901,17 +957,19 @@ namespace Spreads.Algorithms
                             offset <<= 1;
                         }
 
-                        Debug.Assert(i < 0);
+                        Debug.Assert(i < start);
 
-                        // i was decremented by offset and became negative, restore it and search from zero
+                        // i was decremented by offset and became < start, restore it and search from zero
                         hi = i + offset;
 
-                        Debug.Assert(lo == 0);
-                        Debug.Assert(hi > 0);
+                        Debug.Assert(lo == start);
+                        Debug.Assert(hi >= lo);
                     }
-                    else
+                    else // value > vi
                     {
-                        while ((i += offset) <= hi)
+                        // lo = i + 1, but could be > hi
+
+                        while ((i = i + offset) <= hi)
                         {
                             c = comparer.Compare(value, vec.DangerousGet(i));
 
@@ -923,7 +981,8 @@ namespace Spreads.Algorithms
                             if (c < 0)
                             {
                                 hi = i - 1;
-                                lo = Math.Max(0, hi - offset);
+                                // vi(i - offset) was > value, so we could exclude this position for hi
+                                lo = i - offset + 1;
                                 goto BIN_SEARCH;
                             }
 
@@ -934,21 +993,14 @@ namespace Spreads.Algorithms
 
                         // i was incremented by offset and became > hi, restore it and search to hi
                         lo = i - offset;
+
+                        Debug.Assert(hi == start + length - 1);
+                        Debug.Assert(hi >= lo);
                     }
                 }
 
             BIN_SEARCH:
-
-                var iBs = BinarySearch(ref vec, lo, 1 + hi - lo, value, default);
-
-                if (iBs >= 0)
-                {
-                    return lo + iBs;
-                }
-                else
-                {
-                    return ~(lo + ~iBs);
-                }
+                return BinarySearch(ref vec, lo, 1 + hi - lo, value, default);
 
             FOUND:
                 return i;
@@ -965,22 +1017,98 @@ namespace Spreads.Algorithms
             Debug.Assert(length >= 0);
 
             var i = InterpolationSearch(ref vecStart, length, value, comparer);
-
-            return SearchToLookup(length, lookup, i);
+            var li = SearchToLookup(0, length, lookup, i);
+            // TODO
+            if (li != i && li >= 0)
+            {
+                value = Unsafe.Add(ref vecStart, li);
+            }
+            return li;
         }
 
         /// <summary>
-        /// Find value using binary search according to the lookup direction.
+        /// Returns index from the beginning of the vector (not from the <paramref name="start"/> parameter).
         /// </summary>
+        /// <param name="vec"></param>
+        /// <param name="start">Start of the search range.</param>
+        /// <param name="length">Length of the search range.</param>
+        /// <param name="value">Value to search.</param>
+        /// <param name="lookup"></param>
+        /// <param name="comparer"></param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int InterpolationLookup<T, TVec>(ref TVec vec, int start, int length, T value, Lookup lookup, KeyComparer<T> comparer = default)
             where TVec : IVector<T>
         {
             Debug.Assert(unchecked((uint)start + (uint)length) <= vec.Length);
 
-            int i = InterpolationSearch(ref vec, start, length, value, comparer);
 
-            return SearchToLookup(length, lookup, i);
+            int i = InterpolationSearch(ref vec, start, length, value, comparer);
+            // i is position from vec start, but SearchToLookup works with entire position
+
+
+            var li = SearchToLookup(start, length, lookup, i);
+
+            if (li != i && li >= 0)
+            {
+                // TODO
+                value = vec.DangerousGet(li);
+            }
+
+            return li;
+        }
+
+        /// <summary>
+        /// Performs interpolation search for well-known types and binary search for other types.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int SortedSearch<T>(ref T vecStart, int length, T value, KeyComparer<T> comparer = default)
+        {
+            if (KeyComparer<T>.IsDiffableSafe)
+            {
+                return InterpolationSearch(ref vecStart, length, value, comparer);
+            }
+            return BinarySearch(ref vecStart, length, value, comparer);
+        }
+
+        /// <summary>
+        /// Performs interpolation search for well-known types and binary search for other types.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int SortedSearch<T, TVec>(ref TVec vec, int start, int length, T value, KeyComparer<T> comparer = default)
+            where TVec : IVector<T>
+        {
+            if (KeyComparer<T>.IsDiffableSafe)
+            {
+                return InterpolationSearch(ref vec, start, length, value, comparer);
+            }
+            return BinarySearch(ref vec, start, length, value, comparer);
+        }
+
+        /// <summary>
+        /// Performs interpolation lookup for well-known types and binary lookup for other types.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int SortedLookup<T>(ref T vecStart, int length, T value, Lookup lookup, KeyComparer<T> comparer = default)
+        {
+            if (KeyComparer<T>.IsDiffableSafe)
+            {
+                return InterpolationLookup(ref vecStart, length, value, lookup, comparer);
+            }
+            return BinaryLookup(ref vecStart, length, value, lookup, comparer);
+        }
+
+        /// <summary>
+        /// Performs interpolation lookup for well-known types and binary lookup for other types.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int SortedLookup<T, TVec>(ref TVec vec, int start, int length, T value, Lookup lookup, KeyComparer<T> comparer = default)
+            where TVec : IVector<T>
+        {
+            if (KeyComparer<T>.IsDiffableSafe)
+            {
+                return InterpolationLookup(ref vec, start, length, value, lookup, comparer);
+            }
+            return BinaryLookup(ref vec, start, length, value, lookup, comparer);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

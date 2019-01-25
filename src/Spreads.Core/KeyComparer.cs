@@ -73,7 +73,7 @@ namespace Spreads
             || typeof(T) == typeof(Timestamp);
 
         /// <summary>
-        /// Returns true for types that implement <see cref="IComparable{T}"/> interface or are <see cref="IsBuiltInNumericType"/>.
+        /// Returns true for types that implement <see cref="IComparable{T}"/> interface.
         /// </summary>
         public static readonly bool IsIComparable = typeof(IComparable<T>).GetTypeInfo().IsAssignableFrom(typeof(T));
 
@@ -155,6 +155,40 @@ namespace Spreads
                 if (_keyComparer != null)
                 {
                     return _keyComparer.IsDiffable;
+                }
+
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// True is we could safely prefer interpolation search over binary search. Mostly known types for now.
+        /// </summary>
+        public static bool IsDiffableSafe
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get
+            {
+                if ( // no bool
+                    typeof(T) == typeof(byte)
+                    || typeof(T) == typeof(sbyte)
+                    || typeof(T) == typeof(char)
+                    || typeof(T) == typeof(short)
+                    || typeof(T) == typeof(ushort)
+                    || typeof(T) == typeof(int)
+                    || typeof(T) == typeof(uint)
+                    || typeof(T) == typeof(long)
+                    || typeof(T) == typeof(ulong)
+                    // || typeof(T) == typeof(float) // could lose precision for floats and decimals
+                    // || typeof(T) == typeof(double)
+                    // || typeof(T) == typeof(decimal)
+                    || typeof(T) == typeof(DateTime)
+                    || typeof(T) == typeof(Timestamp)
+                // custom Spreads types below to completely JIT-eliminate this call
+                // || typeof(T) == typeof(SmallDecimal) // TODO
+                )
+                {
+                    return true;
                 }
 
                 return false;
@@ -256,8 +290,9 @@ namespace Spreads
                 var x1 = (ushort)(object)(x);
                 var y1 = (ushort)(object)(y);
 
-                // ReSharper disable once RedundantCast
+                // ReSharper disable RedundantCast
                 return (int)x1 - (int)y1;
+                // ReSharper restore RedundantCast
             }
 
             if (typeof(T) == typeof(int))
@@ -307,6 +342,7 @@ namespace Spreads
 
                 if (x1 < y1) { return -1; }
                 if (x1 > y1) { return 1; }
+                // ReSharper disable once CompareOfFloatsByEqualityOperator
                 if (x1 == y1) { return 0; }
 
                 // At least one of the values is NaN.
@@ -495,10 +531,12 @@ namespace Spreads
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public long Diff(T minuend, T subtrahend)
         {
+            // ReSharper disable RedundantCast
             if (typeof(T) == typeof(byte))
             {
                 var x1 = (byte)(object)(minuend);
                 var y1 = (byte)(object)(subtrahend);
+
                 return checked((long)(x1) - (long)y1);
             }
 
@@ -575,6 +613,7 @@ namespace Spreads
                 return checked(x1.Nanos - y1.Nanos);
             }
 
+            // ReSharper restore RedundantCast
             // TODO SmallDecimal
 
             if (IsIInt64Diffable)
@@ -792,7 +831,7 @@ namespace Spreads
                 //       `int i = lo + ((hi - lo) >> 1);`
                 int i = (int)(((uint)hi + (uint)lo) >> 1);
 
-                int c = Compare(value, System.Runtime.CompilerServices.Unsafe.Add(ref start, i));
+                int c = Compare(value, Unsafe.Add(ref start, i));
                 if (c == 0)
                 {
                     return i;
