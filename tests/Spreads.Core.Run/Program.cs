@@ -33,7 +33,7 @@ namespace Spreads.Core.Run
             // EquiJoinBench();
 
             var test = new VecSearchTests();
-            test.SearchIrregularBench();
+            test.LookupIrregularBench();
 
             //Console.WriteLine("Finished, press enter to exit...");
             //Console.ReadLine();

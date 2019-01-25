@@ -85,34 +85,34 @@ namespace Spreads.Core.Tests.Algorithms
             var idxB = arr.BinarySearch(value);
             Assert.AreEqual(-1, idxB);
 
-            var idxILt = arr.InterpolationLookup(value, Lookup.LT);
+            var idxILt = arr.InterpolationLookup(ref value, Lookup.LT);
             Assert.AreEqual(-1, idxILt);
 
-            var idxILe = arr.InterpolationLookup(value, Lookup.LE);
+            var idxILe = arr.InterpolationLookup(ref value, Lookup.LE);
             Assert.AreEqual(-1, idxILe);
 
-            var idxILq = arr.InterpolationLookup(value, Lookup.EQ);
+            var idxILq = arr.InterpolationLookup(ref value, Lookup.EQ);
             Assert.AreEqual(-1, idxILq);
 
-            var idxIGe = arr.InterpolationLookup(value, Lookup.GE);
+            var idxIGe = arr.InterpolationLookup(ref value, Lookup.GE);
             Assert.AreEqual(-1, idxIGe);
 
-            var idxIGt = arr.InterpolationLookup(value, Lookup.GT);
+            var idxIGt = arr.InterpolationLookup(ref value, Lookup.GT);
             Assert.AreEqual(-1, idxIGt);
 
-            var idxBLt = arr.BinaryLookup(value, Lookup.LT);
+            var idxBLt = arr.BinaryLookup(ref value, Lookup.LT);
             Assert.AreEqual(-1, idxBLt);
 
-            var idxBLe = arr.BinaryLookup(value, Lookup.LE);
+            var idxBLe = arr.BinaryLookup(ref value, Lookup.LE);
             Assert.AreEqual(-1, idxBLe);
 
-            var idxBEq = arr.BinaryLookup(value, Lookup.EQ);
+            var idxBEq = arr.BinaryLookup(ref value, Lookup.EQ);
             Assert.AreEqual(-1, idxBEq);
 
-            var idxBGe = arr.BinaryLookup(value, Lookup.GE);
+            var idxBGe = arr.BinaryLookup(ref value, Lookup.GE);
             Assert.AreEqual(-1, idxBGe);
 
-            var idxBGt = arr.BinaryLookup(value, Lookup.GT);
+            var idxBGt = arr.BinaryLookup(ref value, Lookup.GT);
             Assert.AreEqual(-1, idxBGt);
         }
 
@@ -124,34 +124,34 @@ namespace Spreads.Core.Tests.Algorithms
             var idxB = arr.BinarySearch(value);
             Assert.AreEqual(-1, idxB);
 
-            var idxILt = arr.InterpolationLookup(value, Lookup.LT);
+            var idxILt = arr.InterpolationLookup(ref value, Lookup.LT);
             Assert.AreEqual(-1, idxILt);
 
-            var idxILe = arr.InterpolationLookup(value, Lookup.LE);
+            var idxILe = arr.InterpolationLookup(ref value, Lookup.LE);
             Assert.AreEqual(-1, idxILe);
 
-            var idxILq = arr.InterpolationLookup(value, Lookup.EQ);
+            var idxILq = arr.InterpolationLookup(ref value, Lookup.EQ);
             Assert.AreEqual(-1, idxILq);
 
-            var idxIGe = arr.InterpolationLookup(value, Lookup.GE);
+            var idxIGe = arr.InterpolationLookup(ref value, Lookup.GE);
             Assert.AreEqual(-1, idxIGe);
 
-            var idxIGt = arr.InterpolationLookup(value, Lookup.GT);
+            var idxIGt = arr.InterpolationLookup(ref value, Lookup.GT);
             Assert.AreEqual(-1, idxIGt);
 
-            var idxBLt = arr.BinaryLookup(value, Lookup.LT);
+            var idxBLt = arr.BinaryLookup(ref value, Lookup.LT);
             Assert.AreEqual(-1, idxBLt);
 
-            var idxBLe = arr.BinaryLookup(value, Lookup.LE);
+            var idxBLe = arr.BinaryLookup(ref value, Lookup.LE);
             Assert.AreEqual(-1, idxBLe);
 
-            var idxBEq = arr.BinaryLookup(value, Lookup.EQ);
+            var idxBEq = arr.BinaryLookup(ref value, Lookup.EQ);
             Assert.AreEqual(-1, idxBEq);
 
-            var idxBGe = arr.BinaryLookup(value, Lookup.GE);
+            var idxBGe = arr.BinaryLookup(ref value, Lookup.GE);
             Assert.AreEqual(-1, idxBGe);
 
-            var idxBGt = arr.BinaryLookup(value, Lookup.GT);
+            var idxBGt = arr.BinaryLookup(ref value, Lookup.GT);
             Assert.AreEqual(-1, idxBGt);
         }
 
@@ -187,34 +187,34 @@ namespace Spreads.Core.Tests.Algorithms
             var idxB = arr.BinarySearch(value);
             Assert.AreEqual(0, idxB);
 
-            var idxILt = arr.InterpolationLookup(value, Lookup.LT);
+            var idxILt = arr.InterpolationLookup(ref value, Lookup.LT);
             Assert.AreEqual(-1, idxILt);
 
-            var idxILe = arr.InterpolationLookup(value, Lookup.LE);
+            var idxILe = arr.InterpolationLookup(ref value, Lookup.LE);
             Assert.AreEqual(0, idxILe);
 
-            var idxILq = arr.InterpolationLookup(value, Lookup.EQ);
+            var idxILq = arr.InterpolationLookup(ref value, Lookup.EQ);
             Assert.AreEqual(0, idxILq);
 
-            var idxIGe = arr.InterpolationLookup(value, Lookup.GE);
+            var idxIGe = arr.InterpolationLookup(ref value, Lookup.GE);
             Assert.AreEqual(0, idxIGe);
 
-            var idxIGt = arr.InterpolationLookup(value, Lookup.GT);
+            var idxIGt = arr.InterpolationLookup(ref value, Lookup.GT);
             Assert.AreEqual(-2, idxIGt);
 
-            var idxBLt = arr.BinaryLookup(value, Lookup.LT);
+            var idxBLt = arr.BinaryLookup(ref value, Lookup.LT);
             Assert.AreEqual(-1, idxBLt);
 
-            var idxBLe = arr.BinaryLookup(value, Lookup.LE);
+            var idxBLe = arr.BinaryLookup(ref value, Lookup.LE);
             Assert.AreEqual(0, idxBLe);
 
-            var idxBEq = arr.BinaryLookup(value, Lookup.EQ);
+            var idxBEq = arr.BinaryLookup(ref value, Lookup.EQ);
             Assert.AreEqual(0, idxBEq);
 
-            var idxBGe = arr.BinaryLookup(value, Lookup.GE);
+            var idxBGe = arr.BinaryLookup(ref value, Lookup.GE);
             Assert.AreEqual(0, idxBGe);
 
-            var idxBGt = arr.BinaryLookup(value, Lookup.GT);
+            var idxBGt = arr.BinaryLookup(ref value, Lookup.GT);
             Assert.AreEqual(-2, idxBGt);
         }
 
@@ -226,34 +226,34 @@ namespace Spreads.Core.Tests.Algorithms
             var idxB = arr.BinarySearch(value);
             Assert.AreEqual(0, idxB);
 
-            var idxILt = arr.InterpolationLookup(value, Lookup.LT);
+            var idxILt = arr.InterpolationLookup(ref value, Lookup.LT);
             Assert.AreEqual(-1, idxILt);
 
-            var idxILe = arr.InterpolationLookup(value, Lookup.LE);
+            var idxILe = arr.InterpolationLookup(ref value, Lookup.LE);
             Assert.AreEqual(0, idxILe);
 
-            var idxILq = arr.InterpolationLookup(value, Lookup.EQ);
+            var idxILq = arr.InterpolationLookup(ref value, Lookup.EQ);
             Assert.AreEqual(0, idxILq);
 
-            var idxIGe = arr.InterpolationLookup(value, Lookup.GE);
+            var idxIGe = arr.InterpolationLookup(ref value, Lookup.GE);
             Assert.AreEqual(0, idxIGe);
 
-            var idxIGt = arr.InterpolationLookup(value, Lookup.GT);
+            var idxIGt = arr.InterpolationLookup(ref value, Lookup.GT);
             Assert.AreEqual(-2, idxIGt);
 
-            var idxBLt = arr.BinaryLookup(value, Lookup.LT);
+            var idxBLt = arr.BinaryLookup(ref value, Lookup.LT);
             Assert.AreEqual(-1, idxBLt);
 
-            var idxBLe = arr.BinaryLookup(value, Lookup.LE);
+            var idxBLe = arr.BinaryLookup(ref value, Lookup.LE);
             Assert.AreEqual(0, idxBLe);
 
-            var idxBEq = arr.BinaryLookup(value, Lookup.EQ);
+            var idxBEq = arr.BinaryLookup(ref value, Lookup.EQ);
             Assert.AreEqual(0, idxBEq);
 
-            var idxBGe = arr.BinaryLookup(value, Lookup.GE);
+            var idxBGe = arr.BinaryLookup(ref value, Lookup.GE);
             Assert.AreEqual(0, idxBGe);
 
-            var idxBGt = arr.BinaryLookup(value, Lookup.GT);
+            var idxBGt = arr.BinaryLookup(ref value, Lookup.GT);
             Assert.AreEqual(-2, idxBGt);
         }
 
@@ -289,34 +289,34 @@ namespace Spreads.Core.Tests.Algorithms
             var idxB = arr.BinarySearch(value);
             Assert.AreEqual(0, idxB);
 
-            var idxILt = arr.InterpolationLookup(value, Lookup.LT);
+            var idxILt = arr.InterpolationLookup(ref value, Lookup.LT);
             Assert.AreEqual(-1, idxILt);
 
-            var idxILe = arr.InterpolationLookup(value, Lookup.LE);
+            var idxILe = arr.InterpolationLookup(ref value, Lookup.LE);
             Assert.AreEqual(0, idxILe);
 
-            var idxILq = arr.InterpolationLookup(value, Lookup.EQ);
+            var idxILq = arr.InterpolationLookup(ref value, Lookup.EQ);
             Assert.AreEqual(0, idxILq);
 
-            var idxIGe = arr.InterpolationLookup(value, Lookup.GE);
+            var idxIGe = arr.InterpolationLookup(ref value, Lookup.GE);
             Assert.AreEqual(0, idxIGe);
 
-            var idxIGt = arr.InterpolationLookup(value, Lookup.GT);
+            var idxIGt = arr.InterpolationLookup(ref value, Lookup.GT);
             Assert.AreEqual(1, idxIGt);
 
-            var idxBLt = arr.BinaryLookup(value, Lookup.LT);
+            var idxBLt = arr.BinaryLookup(ref value, Lookup.LT);
             Assert.AreEqual(-1, idxBLt);
 
-            var idxBLe = arr.BinaryLookup(value, Lookup.LE);
+            var idxBLe = arr.BinaryLookup(ref value, Lookup.LE);
             Assert.AreEqual(0, idxBLe);
 
-            var idxBEq = arr.BinaryLookup(value, Lookup.EQ);
+            var idxBEq = arr.BinaryLookup(ref value, Lookup.EQ);
             Assert.AreEqual(0, idxBEq);
 
-            var idxBGe = arr.BinaryLookup(value, Lookup.GE);
+            var idxBGe = arr.BinaryLookup(ref value, Lookup.GE);
             Assert.AreEqual(0, idxBGe);
 
-            var idxBGt = arr.BinaryLookup(value, Lookup.GT);
+            var idxBGt = arr.BinaryLookup(ref value, Lookup.GT);
             Assert.AreEqual(1, idxBGt);
         }
 
@@ -328,34 +328,34 @@ namespace Spreads.Core.Tests.Algorithms
             var idxB = arr.BinarySearch(value);
             Assert.AreEqual(0, idxB);
 
-            var idxILt = arr.InterpolationLookup(value, Lookup.LT);
+            var idxILt = arr.InterpolationLookup(ref value, Lookup.LT);
             Assert.AreEqual(-1, idxILt);
 
-            var idxILe = arr.InterpolationLookup(value, Lookup.LE);
+            var idxILe = arr.InterpolationLookup(ref value, Lookup.LE);
             Assert.AreEqual(0, idxILe);
 
-            var idxILq = arr.InterpolationLookup(value, Lookup.EQ);
+            var idxILq = arr.InterpolationLookup(ref value, Lookup.EQ);
             Assert.AreEqual(0, idxILq);
 
-            var idxIGe = arr.InterpolationLookup(value, Lookup.GE);
+            var idxIGe = arr.InterpolationLookup(ref value, Lookup.GE);
             Assert.AreEqual(0, idxIGe);
 
-            var idxIGt = arr.InterpolationLookup(value, Lookup.GT);
+            var idxIGt = arr.InterpolationLookup(ref value, Lookup.GT);
             Assert.AreEqual(1, idxIGt);
 
-            var idxBLt = arr.BinaryLookup(value, Lookup.LT);
+            var idxBLt = arr.BinaryLookup(ref value, Lookup.LT);
             Assert.AreEqual(-1, idxBLt);
 
-            var idxBLe = arr.BinaryLookup(value, Lookup.LE);
+            var idxBLe = arr.BinaryLookup(ref value, Lookup.LE);
             Assert.AreEqual(0, idxBLe);
 
-            var idxBEq = arr.BinaryLookup(value, Lookup.EQ);
+            var idxBEq = arr.BinaryLookup(ref value, Lookup.EQ);
             Assert.AreEqual(0, idxBEq);
 
-            var idxBGe = arr.BinaryLookup(value, Lookup.GE);
+            var idxBGe = arr.BinaryLookup(ref value, Lookup.GE);
             Assert.AreEqual(0, idxBGe);
 
-            var idxBGt = arr.BinaryLookup(value, Lookup.GT);
+            var idxBGt = arr.BinaryLookup(ref value, Lookup.GT);
             Assert.AreEqual(1, idxBGt);
         }
 
@@ -391,34 +391,34 @@ namespace Spreads.Core.Tests.Algorithms
             var idxB = arr.BinarySearch(value);
             Assert.AreEqual(1, idxB);
 
-            var idxILt = arr.InterpolationLookup(value, Lookup.LT);
+            var idxILt = arr.InterpolationLookup(ref value, Lookup.LT);
             Assert.AreEqual(0, idxILt);
 
-            var idxILe = arr.InterpolationLookup(value, Lookup.LE);
+            var idxILe = arr.InterpolationLookup(ref value, Lookup.LE);
             Assert.AreEqual(1, idxILe);
 
-            var idxILq = arr.InterpolationLookup(value, Lookup.EQ);
+            var idxILq = arr.InterpolationLookup(ref value, Lookup.EQ);
             Assert.AreEqual(1, idxILq);
 
-            var idxIGe = arr.InterpolationLookup(value, Lookup.GE);
+            var idxIGe = arr.InterpolationLookup(ref value, Lookup.GE);
             Assert.AreEqual(1, idxIGe);
 
-            var idxIGt = arr.InterpolationLookup(value, Lookup.GT);
+            var idxIGt = arr.InterpolationLookup(ref value, Lookup.GT);
             Assert.AreEqual(-3, idxIGt);
 
-            var idxBLt = arr.BinaryLookup(value, Lookup.LT);
+            var idxBLt = arr.BinaryLookup(ref value, Lookup.LT);
             Assert.AreEqual(0, idxBLt);
 
-            var idxBLe = arr.BinaryLookup(value, Lookup.LE);
+            var idxBLe = arr.BinaryLookup(ref value, Lookup.LE);
             Assert.AreEqual(1, idxBLe);
 
-            var idxBEq = arr.BinaryLookup(value, Lookup.EQ);
+            var idxBEq = arr.BinaryLookup(ref value, Lookup.EQ);
             Assert.AreEqual(1, idxBEq);
 
-            var idxBGe = arr.BinaryLookup(value, Lookup.GE);
+            var idxBGe = arr.BinaryLookup(ref value, Lookup.GE);
             Assert.AreEqual(1, idxBGe);
 
-            var idxBGt = arr.BinaryLookup(value, Lookup.GT);
+            var idxBGt = arr.BinaryLookup(ref value, Lookup.GT);
             Assert.AreEqual(-3, idxBGt);
         }
 
@@ -430,34 +430,34 @@ namespace Spreads.Core.Tests.Algorithms
             var idxB = arr.BinarySearch(value);
             Assert.AreEqual(1, idxB);
 
-            var idxILt = arr.InterpolationLookup(value, Lookup.LT);
+            var idxILt = arr.InterpolationLookup(ref value, Lookup.LT);
             Assert.AreEqual(0, idxILt);
 
-            var idxILe = arr.InterpolationLookup(value, Lookup.LE);
+            var idxILe = arr.InterpolationLookup(ref value, Lookup.LE);
             Assert.AreEqual(1, idxILe);
 
-            var idxILq = arr.InterpolationLookup(value, Lookup.EQ);
+            var idxILq = arr.InterpolationLookup(ref value, Lookup.EQ);
             Assert.AreEqual(1, idxILq);
 
-            var idxIGe = arr.InterpolationLookup(value, Lookup.GE);
+            var idxIGe = arr.InterpolationLookup(ref value, Lookup.GE);
             Assert.AreEqual(1, idxIGe);
 
-            var idxIGt = arr.InterpolationLookup(value, Lookup.GT);
+            var idxIGt = arr.InterpolationLookup(ref value, Lookup.GT);
             Assert.AreEqual(-3, idxIGt);
 
-            var idxBLt = arr.BinaryLookup(value, Lookup.LT);
+            var idxBLt = arr.BinaryLookup(ref value, Lookup.LT);
             Assert.AreEqual(0, idxBLt);
 
-            var idxBLe = arr.BinaryLookup(value, Lookup.LE);
+            var idxBLe = arr.BinaryLookup(ref value, Lookup.LE);
             Assert.AreEqual(1, idxBLe);
 
-            var idxBEq = arr.BinaryLookup(value, Lookup.EQ);
+            var idxBEq = arr.BinaryLookup(ref value, Lookup.EQ);
             Assert.AreEqual(1, idxBEq);
 
-            var idxBGe = arr.BinaryLookup(value, Lookup.GE);
+            var idxBGe = arr.BinaryLookup(ref value, Lookup.GE);
             Assert.AreEqual(1, idxBGe);
 
-            var idxBGt = arr.BinaryLookup(value, Lookup.GT);
+            var idxBGt = arr.BinaryLookup(ref value, Lookup.GT);
             Assert.AreEqual(-3, idxBGt);
         }
 
@@ -493,34 +493,34 @@ namespace Spreads.Core.Tests.Algorithms
             var idxB = arr.BinarySearch(value);
             Assert.AreEqual(1, idxB);
 
-            var idxILt = arr.InterpolationLookup(value, Lookup.LT);
+            var idxILt = arr.InterpolationLookup(ref value, Lookup.LT);
             Assert.AreEqual(0, idxILt);
 
-            var idxILe = arr.InterpolationLookup(value, Lookup.LE);
+            var idxILe = arr.InterpolationLookup(ref value, Lookup.LE);
             Assert.AreEqual(1, idxILe);
 
-            var idxILq = arr.InterpolationLookup(value, Lookup.EQ);
+            var idxILq = arr.InterpolationLookup(ref value, Lookup.EQ);
             Assert.AreEqual(1, idxILq);
 
-            var idxIGe = arr.InterpolationLookup(value, Lookup.GE);
+            var idxIGe = arr.InterpolationLookup(ref value, Lookup.GE);
             Assert.AreEqual(1, idxIGe);
 
-            var idxIGt = arr.InterpolationLookup(value, Lookup.GT);
+            var idxIGt = arr.InterpolationLookup(ref value, Lookup.GT);
             Assert.AreEqual(2, idxIGt);
 
-            var idxBLt = arr.BinaryLookup(value, Lookup.LT);
+            var idxBLt = arr.BinaryLookup(ref value, Lookup.LT);
             Assert.AreEqual(0, idxBLt);
 
-            var idxBLe = arr.BinaryLookup(value, Lookup.LE);
+            var idxBLe = arr.BinaryLookup(ref value, Lookup.LE);
             Assert.AreEqual(1, idxBLe);
 
-            var idxBEq = arr.BinaryLookup(value, Lookup.EQ);
+            var idxBEq = arr.BinaryLookup(ref value, Lookup.EQ);
             Assert.AreEqual(1, idxBEq);
 
-            var idxBGe = arr.BinaryLookup(value, Lookup.GE);
+            var idxBGe = arr.BinaryLookup(ref value, Lookup.GE);
             Assert.AreEqual(1, idxBGe);
 
-            var idxBGt = arr.BinaryLookup(value, Lookup.GT);
+            var idxBGt = arr.BinaryLookup(ref value, Lookup.GT);
             Assert.AreEqual(2, idxBGt);
         }
 
@@ -532,34 +532,34 @@ namespace Spreads.Core.Tests.Algorithms
             var idxB = arr.BinarySearch(value);
             Assert.AreEqual(1, idxB);
 
-            var idxILt = arr.InterpolationLookup(value, Lookup.LT);
+            var idxILt = arr.InterpolationLookup(ref value, Lookup.LT);
             Assert.AreEqual(0, idxILt);
 
-            var idxILe = arr.InterpolationLookup(value, Lookup.LE);
+            var idxILe = arr.InterpolationLookup(ref value, Lookup.LE);
             Assert.AreEqual(1, idxILe);
 
-            var idxILq = arr.InterpolationLookup(value, Lookup.EQ);
+            var idxILq = arr.InterpolationLookup(ref value, Lookup.EQ);
             Assert.AreEqual(1, idxILq);
 
-            var idxIGe = arr.InterpolationLookup(value, Lookup.GE);
+            var idxIGe = arr.InterpolationLookup(ref value, Lookup.GE);
             Assert.AreEqual(1, idxIGe);
 
-            var idxIGt = arr.InterpolationLookup(value, Lookup.GT);
+            var idxIGt = arr.InterpolationLookup(ref value, Lookup.GT);
             Assert.AreEqual(2, idxIGt);
 
-            var idxBLt = arr.BinaryLookup(value, Lookup.LT);
+            var idxBLt = arr.BinaryLookup(ref value, Lookup.LT);
             Assert.AreEqual(0, idxBLt);
 
-            var idxBLe = arr.BinaryLookup(value, Lookup.LE);
+            var idxBLe = arr.BinaryLookup(ref value, Lookup.LE);
             Assert.AreEqual(1, idxBLe);
 
-            var idxBEq = arr.BinaryLookup(value, Lookup.EQ);
+            var idxBEq = arr.BinaryLookup(ref value, Lookup.EQ);
             Assert.AreEqual(1, idxBEq);
 
-            var idxBGe = arr.BinaryLookup(value, Lookup.GE);
+            var idxBGe = arr.BinaryLookup(ref value, Lookup.GE);
             Assert.AreEqual(1, idxBGe);
 
-            var idxBGt = arr.BinaryLookup(value, Lookup.GT);
+            var idxBGt = arr.BinaryLookup(ref value, Lookup.GT);
             Assert.AreEqual(2, idxBGt);
         }
 
@@ -595,34 +595,34 @@ namespace Spreads.Core.Tests.Algorithms
             var idxB = arr.BinarySearch(value);
             Assert.AreEqual(-2, idxB);
 
-            var idxILt = arr.InterpolationLookup(value, Lookup.LT);
+            var idxILt = arr.InterpolationLookup(ref value, Lookup.LT);
             Assert.AreEqual(0, idxILt);
 
-            var idxILe = arr.InterpolationLookup(value, Lookup.LE);
+            var idxILe = arr.InterpolationLookup(ref value, Lookup.LE);
             Assert.AreEqual(0, idxILe);
 
-            var idxILq = arr.InterpolationLookup(value, Lookup.EQ);
+            var idxILq = arr.InterpolationLookup(ref value, Lookup.EQ);
             Assert.AreEqual(-2, idxILq);
 
-            var idxIGe = arr.InterpolationLookup(value, Lookup.GE);
+            var idxIGe = arr.InterpolationLookup(ref value, Lookup.GE);
             Assert.AreEqual(1, idxIGe);
 
-            var idxIGt = arr.InterpolationLookup(value, Lookup.GT);
+            var idxIGt = arr.InterpolationLookup(ref value, Lookup.GT);
             Assert.AreEqual(1, idxIGt);
 
-            var idxBLt = arr.BinaryLookup(value, Lookup.LT);
+            var idxBLt = arr.BinaryLookup(ref value, Lookup.LT);
             Assert.AreEqual(0, idxBLt);
 
-            var idxBLe = arr.BinaryLookup(value, Lookup.LE);
+            var idxBLe = arr.BinaryLookup(ref value, Lookup.LE);
             Assert.AreEqual(0, idxBLe);
 
-            var idxBEq = arr.BinaryLookup(value, Lookup.EQ);
+            var idxBEq = arr.BinaryLookup(ref value, Lookup.EQ);
             Assert.AreEqual(-2, idxBEq);
 
-            var idxBGe = arr.BinaryLookup(value, Lookup.GE);
+            var idxBGe = arr.BinaryLookup(ref value, Lookup.GE);
             Assert.AreEqual(1, idxBGe);
 
-            var idxBGt = arr.BinaryLookup(value, Lookup.GT);
+            var idxBGt = arr.BinaryLookup(ref value, Lookup.GT);
             Assert.AreEqual(1, idxBGt);
         }
 
@@ -634,34 +634,34 @@ namespace Spreads.Core.Tests.Algorithms
             var idxB = arr.BinarySearch(value);
             Assert.AreEqual(-2, idxB);
 
-            var idxILt = arr.InterpolationLookup(value, Lookup.LT);
+            var idxILt = arr.InterpolationLookup(ref value, Lookup.LT);
             Assert.AreEqual(0, idxILt);
 
-            var idxILe = arr.InterpolationLookup(value, Lookup.LE);
+            var idxILe = arr.InterpolationLookup(ref value, Lookup.LE);
             Assert.AreEqual(0, idxILe);
 
-            var idxILq = arr.InterpolationLookup(value, Lookup.EQ);
+            var idxILq = arr.InterpolationLookup(ref value, Lookup.EQ);
             Assert.AreEqual(-2, idxILq);
 
-            var idxIGe = arr.InterpolationLookup(value, Lookup.GE);
+            var idxIGe = arr.InterpolationLookup(ref value, Lookup.GE);
             Assert.AreEqual(1, idxIGe);
 
-            var idxIGt = arr.InterpolationLookup(value, Lookup.GT);
+            var idxIGt = arr.InterpolationLookup(ref value, Lookup.GT);
             Assert.AreEqual(1, idxIGt);
 
-            var idxBLt = arr.BinaryLookup(value, Lookup.LT);
+            var idxBLt = arr.BinaryLookup(ref value, Lookup.LT);
             Assert.AreEqual(0, idxBLt);
 
-            var idxBLe = arr.BinaryLookup(value, Lookup.LE);
+            var idxBLe = arr.BinaryLookup(ref value, Lookup.LE);
             Assert.AreEqual(0, idxBLe);
 
-            var idxBEq = arr.BinaryLookup(value, Lookup.EQ);
+            var idxBEq = arr.BinaryLookup(ref value, Lookup.EQ);
             Assert.AreEqual(-2, idxBEq);
 
-            var idxBGe = arr.BinaryLookup(value, Lookup.GE);
+            var idxBGe = arr.BinaryLookup(ref value, Lookup.GE);
             Assert.AreEqual(1, idxBGe);
 
-            var idxBGt = arr.BinaryLookup(value, Lookup.GT);
+            var idxBGt = arr.BinaryLookup(ref value, Lookup.GT);
             Assert.AreEqual(1, idxBGt);
         }
 
@@ -697,34 +697,34 @@ namespace Spreads.Core.Tests.Algorithms
             var idxB = arr.BinarySearch(value);
             Assert.AreEqual(-3, idxB);
 
-            var idxILt = arr.InterpolationLookup(value, Lookup.LT);
+            var idxILt = arr.InterpolationLookup(ref value, Lookup.LT);
             Assert.AreEqual(1, idxILt);
 
-            var idxILe = arr.InterpolationLookup(value, Lookup.LE);
+            var idxILe = arr.InterpolationLookup(ref value, Lookup.LE);
             Assert.AreEqual(1, idxILe);
 
-            var idxILq = arr.InterpolationLookup(value, Lookup.EQ);
+            var idxILq = arr.InterpolationLookup(ref value, Lookup.EQ);
             Assert.AreEqual(-3, idxILq);
 
-            var idxIGe = arr.InterpolationLookup(value, Lookup.GE);
+            var idxIGe = arr.InterpolationLookup(ref value, Lookup.GE);
             Assert.AreEqual(-3, idxIGe);
 
-            var idxIGt = arr.InterpolationLookup(value, Lookup.GT);
+            var idxIGt = arr.InterpolationLookup(ref value, Lookup.GT);
             Assert.AreEqual(-3, idxIGt);
 
-            var idxBLt = arr.BinaryLookup(value, Lookup.LT);
+            var idxBLt = arr.BinaryLookup(ref value, Lookup.LT);
             Assert.AreEqual(1, idxBLt);
 
-            var idxBLe = arr.BinaryLookup(value, Lookup.LE);
+            var idxBLe = arr.BinaryLookup(ref value, Lookup.LE);
             Assert.AreEqual(1, idxBLe);
 
-            var idxBEq = arr.BinaryLookup(value, Lookup.EQ);
+            var idxBEq = arr.BinaryLookup(ref value, Lookup.EQ);
             Assert.AreEqual(-3, idxBEq);
 
-            var idxBGe = arr.BinaryLookup(value, Lookup.GE);
+            var idxBGe = arr.BinaryLookup(ref value, Lookup.GE);
             Assert.AreEqual(-3, idxBGe);
 
-            var idxBGt = arr.BinaryLookup(value, Lookup.GT);
+            var idxBGt = arr.BinaryLookup(ref value, Lookup.GT);
             Assert.AreEqual(-3, idxBGt);
         }
 
@@ -736,34 +736,34 @@ namespace Spreads.Core.Tests.Algorithms
             var idxB = arr.BinarySearch(value);
             Assert.AreEqual(-3, idxB);
 
-            var idxILt = arr.InterpolationLookup(value, Lookup.LT);
+            var idxILt = arr.InterpolationLookup(ref value, Lookup.LT);
             Assert.AreEqual(1, idxILt);
 
-            var idxILe = arr.InterpolationLookup(value, Lookup.LE);
+            var idxILe = arr.InterpolationLookup(ref value, Lookup.LE);
             Assert.AreEqual(1, idxILe);
 
-            var idxILq = arr.InterpolationLookup(value, Lookup.EQ);
+            var idxILq = arr.InterpolationLookup(ref value, Lookup.EQ);
             Assert.AreEqual(-3, idxILq);
 
-            var idxIGe = arr.InterpolationLookup(value, Lookup.GE);
+            var idxIGe = arr.InterpolationLookup(ref value, Lookup.GE);
             Assert.AreEqual(-3, idxIGe);
 
-            var idxIGt = arr.InterpolationLookup(value, Lookup.GT);
+            var idxIGt = arr.InterpolationLookup(ref value, Lookup.GT);
             Assert.AreEqual(-3, idxIGt);
 
-            var idxBLt = arr.BinaryLookup(value, Lookup.LT);
+            var idxBLt = arr.BinaryLookup(ref value, Lookup.LT);
             Assert.AreEqual(1, idxBLt);
 
-            var idxBLe = arr.BinaryLookup(value, Lookup.LE);
+            var idxBLe = arr.BinaryLookup(ref value, Lookup.LE);
             Assert.AreEqual(1, idxBLe);
 
-            var idxBEq = arr.BinaryLookup(value, Lookup.EQ);
+            var idxBEq = arr.BinaryLookup(ref value, Lookup.EQ);
             Assert.AreEqual(-3, idxBEq);
 
-            var idxBGe = arr.BinaryLookup(value, Lookup.GE);
+            var idxBGe = arr.BinaryLookup(ref value, Lookup.GE);
             Assert.AreEqual(-3, idxBGe);
 
-            var idxBGt = arr.BinaryLookup(value, Lookup.GT);
+            var idxBGt = arr.BinaryLookup(ref value, Lookup.GT);
             Assert.AreEqual(-3, idxBGt);
         }
 
@@ -799,34 +799,34 @@ namespace Spreads.Core.Tests.Algorithms
             var idxB = arr.BinarySearch(value);
             Assert.AreEqual(-1, idxB);
 
-            var idxILt = arr.InterpolationLookup(value, Lookup.LT);
+            var idxILt = arr.InterpolationLookup(ref value, Lookup.LT);
             Assert.AreEqual(-1, idxILt);
 
-            var idxILe = arr.InterpolationLookup(value, Lookup.LE);
+            var idxILe = arr.InterpolationLookup(ref value, Lookup.LE);
             Assert.AreEqual(-1, idxILe);
 
-            var idxILq = arr.InterpolationLookup(value, Lookup.EQ);
+            var idxILq = arr.InterpolationLookup(ref value, Lookup.EQ);
             Assert.AreEqual(-1, idxILq);
 
-            var idxIGe = arr.InterpolationLookup(value, Lookup.GE);
+            var idxIGe = arr.InterpolationLookup(ref value, Lookup.GE);
             Assert.AreEqual(0, idxIGe);
 
-            var idxIGt = arr.InterpolationLookup(value, Lookup.GT);
+            var idxIGt = arr.InterpolationLookup(ref value, Lookup.GT);
             Assert.AreEqual(0, idxIGt);
 
-            var idxBLt = arr.BinaryLookup(value, Lookup.LT);
+            var idxBLt = arr.BinaryLookup(ref value, Lookup.LT);
             Assert.AreEqual(-1, idxBLt);
 
-            var idxBLe = arr.BinaryLookup(value, Lookup.LE);
+            var idxBLe = arr.BinaryLookup(ref value, Lookup.LE);
             Assert.AreEqual(-1, idxBLe);
 
-            var idxBEq = arr.BinaryLookup(value, Lookup.EQ);
+            var idxBEq = arr.BinaryLookup(ref value, Lookup.EQ);
             Assert.AreEqual(-1, idxBEq);
 
-            var idxBGe = arr.BinaryLookup(value, Lookup.GE);
+            var idxBGe = arr.BinaryLookup(ref value, Lookup.GE);
             Assert.AreEqual(-0, idxBGe);
 
-            var idxBGt = arr.BinaryLookup(value, Lookup.GT);
+            var idxBGt = arr.BinaryLookup(ref value, Lookup.GT);
             Assert.AreEqual(-0, idxBGt);
         }
 
@@ -838,34 +838,34 @@ namespace Spreads.Core.Tests.Algorithms
             var idxB = arr.BinarySearch(value);
             Assert.AreEqual(-1, idxB);
 
-            var idxILt = arr.InterpolationLookup(value, Lookup.LT);
+            var idxILt = arr.InterpolationLookup(ref value, Lookup.LT);
             Assert.AreEqual(-1, idxILt);
 
-            var idxILe = arr.InterpolationLookup(value, Lookup.LE);
+            var idxILe = arr.InterpolationLookup(ref value, Lookup.LE);
             Assert.AreEqual(-1, idxILe);
 
-            var idxILq = arr.InterpolationLookup(value, Lookup.EQ);
+            var idxILq = arr.InterpolationLookup(ref value, Lookup.EQ);
             Assert.AreEqual(-1, idxILq);
 
-            var idxIGe = arr.InterpolationLookup(value, Lookup.GE);
+            var idxIGe = arr.InterpolationLookup(ref value, Lookup.GE);
             Assert.AreEqual(0, idxIGe);
 
-            var idxIGt = arr.InterpolationLookup(value, Lookup.GT);
+            var idxIGt = arr.InterpolationLookup(ref value, Lookup.GT);
             Assert.AreEqual(0, idxIGt);
 
-            var idxBLt = arr.BinaryLookup(value, Lookup.LT);
+            var idxBLt = arr.BinaryLookup(ref value, Lookup.LT);
             Assert.AreEqual(-1, idxBLt);
 
-            var idxBLe = arr.BinaryLookup(value, Lookup.LE);
+            var idxBLe = arr.BinaryLookup(ref value, Lookup.LE);
             Assert.AreEqual(-1, idxBLe);
 
-            var idxBEq = arr.BinaryLookup(value, Lookup.EQ);
+            var idxBEq = arr.BinaryLookup(ref value, Lookup.EQ);
             Assert.AreEqual(-1, idxBEq);
 
-            var idxBGe = arr.BinaryLookup(value, Lookup.GE);
+            var idxBGe = arr.BinaryLookup(ref value, Lookup.GE);
             Assert.AreEqual(-0, idxBGe);
 
-            var idxBGt = arr.BinaryLookup(value, Lookup.GT);
+            var idxBGt = arr.BinaryLookup(ref value, Lookup.GT);
             Assert.AreEqual(-0, idxBGt);
         }
 
@@ -899,8 +899,9 @@ namespace Spreads.Core.Tests.Algorithms
                 // search at the start of range
                 foreach (var lookup in lookups)
                 {
-                    var idxILt = arr.InterpolationLookup(i, arr.Length - i, arr.Get(i), lookup);
-                    var idxBLt = arr.BinaryLookup(i, arr.Length - i, arr.Get(i), lookup);
+                    var val = arr.Get(i);
+                    var idxILt = arr.InterpolationLookup(i, arr.Length - i, ref val, lookup);
+                    var idxBLt = arr.BinaryLookup(i, arr.Length - i, ref val, lookup);
                     Assert.AreEqual(idxILt, idxBLt);
 
                     if (i > 0 && i < arr.Length - 1)
@@ -925,8 +926,9 @@ namespace Spreads.Core.Tests.Algorithms
                 // search at the end of range
                 foreach (var lookup in lookups)
                 {
-                    var idxILt = arr.InterpolationLookup(0, i + 1, arr.Get(i), lookup);
-                    var idxBLt = arr.BinaryLookup(0, i + 1, arr.Get(i), lookup);
+                    var val = arr.Get(i);
+                    var idxILt = arr.InterpolationLookup(0, i + 1, ref val, lookup);
+                    var idxBLt = arr.BinaryLookup(0, i + 1, ref val, lookup);
                     Assert.AreEqual(idxILt, idxBLt);
 
                     if (i > 0 && i < arr.Length - 1)
@@ -1021,14 +1023,15 @@ namespace Spreads.Core.Tests.Algorithms
 
                     var mult = 10_000_000 / count;
 
-                    using (Benchmark.Run($"Binary {lookup} {count}", count * mult))
+                    using (Benchmark.Run($"Bin      {lookup} {count}", count * mult))
                     {
                         for (int m = 0; m < mult; m++)
                         {
                             for (int i = 0; i < count; i++)
                             {
 #pragma warning disable CS0618 // Type or member is obsolete
-                                var idx = vec.DangerousBinaryLookup(0, count, (Timestamp)i, lookup);
+                                var val = (Timestamp)i;
+                                var idx = vec.DangerousBinaryLookup(0, count, ref val, lookup);
 #pragma warning restore CS0618 // Type or member is obsolete
                                 if (idx < 0
                                     && !(i == 0 && lookup == Lookup.LT
@@ -1055,14 +1058,15 @@ namespace Spreads.Core.Tests.Algorithms
                         }
                     }
 
-                    using (Benchmark.Run($"Interpolation {lookup} {count}", count * mult))
+                    using (Benchmark.Run($"Interpol {lookup} {count}", count * mult))
                     {
                         for (int m = 0; m < mult; m++)
                         {
                             for (int i = 0; i < count; i++)
                             {
 #pragma warning disable CS0618 // Type or member is obsolete
-                                var idx = vec.DangerousInterpolationLookup(0, count, (Timestamp)i,
+                                var val = (Timestamp)i;
+                                var idx = vec.DangerousInterpolationLookup(0, count, ref val,
                                     lookup);
 #pragma warning restore CS0618 // Type or member is obsolete
                                 if (idx < 0
@@ -1114,7 +1118,7 @@ namespace Spreads.Core.Tests.Algorithms
             {
                 foreach (var count in counts)
                 {
-                    rng = new Random(r);
+                    rng = new Random(r + 1);
 
                     var step = rng.Next(10, 1000);
                     var dev = step / rng.Next(2, 10);
@@ -1198,6 +1202,113 @@ namespace Spreads.Core.Tests.Algorithms
             Benchmark.Dump();
         }
 
+        [Test
+#if !DEBUG
+         , Explicit("long running")
+#endif
+        ]
+        public void LookupIrregularBench()
+        {
+            Random rng;
+
+#if DEBUG
+            var rounds = 10;
+            var counts = new[] { 50, 100, 256, 512, 1000, 2048, 4096, 10_000 };
+#else
+            var rounds = 10;
+            var counts = new[] { 50, 100, 256, 512, 1000, 2048, 4096, 10_000, 100_000, 1_000_000 };
+#endif
+            for (int r = 0; r < rounds; r++)
+            {
+                foreach (var count in counts)
+                {
+                    rng = new Random(r + 1);
+
+                    var step = rng.Next(10, 1000);
+                    var dev = step / rng.Next(2, 10);
+
+                    var vec = new Vec<Timestamp>(Enumerable.Range(0, count)
+                        .Select(i => (Timestamp)i).ToArray());
+
+                    for (int i = 1; i < vec.Length; i++)
+                    {
+                        vec[i] = vec[i - 1] + (Timestamp)step + (Timestamp)rng.Next(-dev, dev); //  (Timestamp)(vec[i].Nanos * 1000 - 2 + rng.Next(0, 4)); //
+                    }
+
+                    int[] binRes = new int[vec.Length];
+                    int[] interRes = new int[vec.Length];
+
+                    for (int i = 1; i < count; i++)
+                    {
+#pragma warning disable CS0618 // Type or member is obsolete
+                        var value = (Timestamp)(i * step);
+                        var br = vec.DangerousBinaryLookup(0, count, ref value, Lookup.LE);
+                        var ir = vec.DangerousInterpolationLookup(0, count, ref value, Lookup.LE);
+                        if (br != ir)
+                        {
+                            Console.WriteLine($"[{count}] binRes {br} != interRes {ir} at {i}");
+                            ir = vec.DangerousInterpolationSearch(0, count, (Timestamp)(i * step));
+                            Assert.Fail();
+                        }
+
+                        if (br >= 0)
+                        {
+                            // Console.WriteLine("found");
+                        }
+#pragma warning restore CS0618 // Type or member is obsolete
+                    }
+#if DEBUG
+                    var mult = 1;
+#else
+                    var mult = 5_000_000 / count;
+#endif
+
+                    using (Benchmark.Run($"Bin      {count}", count * mult))
+                    {
+                        for (int m = 0; m < mult; m++)
+                        {
+                            for (int i = 0; i < count; i++)
+                            {
+#pragma warning disable CS0618 // Type or member is obsolete
+                                var value = (Timestamp)(i * step);
+                                binRes[i] = vec.DangerousBinaryLookup(0, count, ref value, Lookup.LE);
+#pragma warning restore CS0618 // Type or member is obsolete
+                            }
+                        }
+                    }
+
+                    using (Benchmark.Run($"Interpol {count}", count * mult))
+                    {
+                        for (int m = 0; m < mult; m++)
+                        {
+                            for (int i = 0; i < count; i++)
+                            {
+                                //if (count == 10)
+                                //{
+                                //    Console.WriteLine("Catch me");
+                                //}
+
+#pragma warning disable CS0618 // Type or member is obsolete
+                                var value = (Timestamp)(i * step);
+                                interRes[i] = vec.DangerousInterpolationLookup(0, count, ref value, Lookup.LE);
+#pragma warning restore CS0618 // Type or member is obsolete
+                            }
+                        }
+                    }
+
+                    for (int i = 0; i < count; i++)
+                    {
+                        if (binRes[i] != interRes[i])
+                        {
+                            Console.WriteLine($"[{count}] binRes[i] {binRes[i]} != interRes[i] {interRes[i]} at {i}");
+                            Assert.Fail();
+                        }
+                    }
+                }
+            }
+            Benchmark.Dump();
+        }
+
         [Test, Explicit("long running")]
         public void IndexOfBench()
         {
@@ -1249,7 +1360,8 @@ namespace Spreads.Core.Tests.Algorithms
                         for (int i = 0; i < count; i++)
                         {
 #pragma warning disable 618
-                            var idx = vec.DangerousInterpolationLookup(0, count, (long)i, Lookup.LE);
+                            var val = (long)i;
+                            var idx = vec.DangerousInterpolationLookup(0, count, ref val, Lookup.LE);
 #pragma warning restore 618
                             if (idx != i)
                             {

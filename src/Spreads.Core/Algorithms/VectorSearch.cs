@@ -176,11 +176,18 @@ namespace Spreads.Algorithms
         /// Find value using binary search according to the lookup direction.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int BinaryLookup<T>(ref T vecStart, int length, T value, Lookup lookup, KeyComparer<T> comparer = default)
+        public static int BinaryLookup<T>(ref T vecStart, int length, ref T value, Lookup lookup, KeyComparer<T> comparer = default)
         {
             Debug.Assert(length >= 0);
 
             var i = BinarySearch(ref vecStart, length, value, comparer);
+
+            var li = SearchToLookup(0, length, lookup, i);
+
+            if (li != i && li >= 0)
+            {
+                value = Unsafe.Add(ref vecStart, li);
+            }
 
             return SearchToLookup(0, length, lookup, i);
         }
@@ -189,14 +196,21 @@ namespace Spreads.Algorithms
         /// Find value using binary search according to the lookup direction.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int BinaryLookup<T, TVec>(ref TVec vec, int start, int length, T value, Lookup lookup, KeyComparer<T> comparer = default)
+        public static int BinaryLookup<T, TVec>(ref TVec vec, int start, int length, ref T value, Lookup lookup, KeyComparer<T> comparer = default)
             where TVec : IVector<T>
         {
             Debug.Assert(unchecked((uint)start + (uint)length) <= vec.Length);
 
             int i = BinarySearch(ref vec, start, length, value, comparer);
-            // TODO adjust index
-            return SearchToLookup(start, length, lookup, i);
+
+            var li = SearchToLookup(start, length, lookup, i);
+
+            if (li != i && li >= 0)
+            {
+                value = vec.DangerousGet(li);
+            }
+
+            return li;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -892,6 +906,7 @@ namespace Spreads.Algorithms
         /// <param name="start">Start of the search range.</param>
         /// <param name="length">Length of the search range.</param>
         /// <param name="value">Value to search.</param>
+        /// <param name="comparer"></param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static int InterpolationSearchGeneric<T, TVec>(ref TVec vec, int start, int length, T value, KeyComparer<T> comparer = default)
              where TVec : IVector<T>
@@ -1011,14 +1026,15 @@ namespace Spreads.Algorithms
         /// Find value using binary search according to the lookup direction.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int InterpolationLookup<T>(ref T vecStart, int length, T value, Lookup lookup,
+        public static int InterpolationLookup<T>(ref T vecStart, int length, ref T value, Lookup lookup,
             KeyComparer<T> comparer = default)
         {
             Debug.Assert(length >= 0);
 
             var i = InterpolationSearch(ref vecStart, length, value, comparer);
+
             var li = SearchToLookup(0, length, lookup, i);
-            // TODO
+            
             if (li != i && li >= 0)
             {
                 value = Unsafe.Add(ref vecStart, li);
@@ -1036,21 +1052,17 @@ namespace Spreads.Algorithms
         /// <param name="lookup"></param>
         /// <param name="comparer"></param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int InterpolationLookup<T, TVec>(ref TVec vec, int start, int length, T value, Lookup lookup, KeyComparer<T> comparer = default)
+        public static int InterpolationLookup<T, TVec>(ref TVec vec, int start, int length, ref T value, Lookup lookup, KeyComparer<T> comparer = default)
             where TVec : IVector<T>
         {
             Debug.Assert(unchecked((uint)start + (uint)length) <= vec.Length);
 
-
-            int i = InterpolationSearch(ref vec, start, length, value, comparer);
-            // i is position from vec start, but SearchToLookup works with entire position
-
+            var i = InterpolationSearch(ref vec, start, length, value, comparer);
 
             var li = SearchToLookup(start, length, lookup, i);
 
             if (li != i && li >= 0)
             {
-                // TODO
                 value = vec.DangerousGet(li);
             }
 
@@ -1088,13 +1100,13 @@ namespace Spreads.Algorithms
         /// Performs interpolation lookup for well-known types and binary lookup for other types.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int SortedLookup<T>(ref T vecStart, int length, T value, Lookup lookup, KeyComparer<T> comparer = default)
+        public static int SortedLookup<T>(ref T vecStart, int length, ref T value, Lookup lookup, KeyComparer<T> comparer = default)
         {
             if (KeyComparer<T>.IsDiffableSafe)
             {
-                return InterpolationLookup(ref vecStart, length, value, lookup, comparer);
+                return InterpolationLookup(ref vecStart, length, ref value, lookup, comparer);
             }
-            return BinaryLookup(ref vecStart, length, value, lookup, comparer);
+            return BinaryLookup(ref vecStart, length, ref value, lookup, comparer);
         }
 
         /// <summary>
@@ -1106,9 +1118,9 @@ namespace Spreads.Algorithms
         {
             if (KeyComparer<T>.IsDiffableSafe)
             {
-                return InterpolationLookup(ref vec, start, length, value, lookup, comparer);
+                return InterpolationLookup(ref vec, start, length, ref value, lookup, comparer);
             }
-            return BinaryLookup(ref vec, start, length, value, lookup, comparer);
+            return BinaryLookup(ref vec, start, length, ref value, lookup, comparer);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
