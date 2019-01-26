@@ -55,7 +55,8 @@ namespace Spreads
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool IsEqualityOK(this Lookup lookup)
         {
-            return ((int)lookup & (int)(Lookup.EQ)) != 0;
+            // ReSharper disable once BitwiseOperatorOnEnumWithoutFlags
+            return (lookup & Lookup.EQ) != 0;
         }
 
         /// <summary>

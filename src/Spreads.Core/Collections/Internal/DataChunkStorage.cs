@@ -9,11 +9,11 @@ using System.Runtime.CompilerServices;
 namespace Spreads.Collections.Internal
 {
     /// <summary>
-    /// Physycal storage for Series, Matrix and DataFrame chunks.
+    /// Physycal storage for Series, Matrix and DataFrame blocks.
     /// </summary>
-    internal class DataChunkStorage : IDisposable, IData
+    internal class DataBlockStorage : IDisposable, IData
     {
-        private static readonly ObjectPool<DataChunkStorage> ObjectPool = new ObjectPool<DataChunkStorage>(() => new DataChunkStorage(), Environment.ProcessorCount * 16);
+        private static readonly ObjectPool<DataBlockStorage> ObjectPool = new ObjectPool<DataBlockStorage>(() => new DataBlockStorage(), Environment.ProcessorCount * 16);
 
         // for structural sharing no references to this should be exposed outside, only new object (or from pool)
 
@@ -24,24 +24,58 @@ namespace Spreads.Collections.Internal
 
         internal int RowCapacity;
 
-        // TODO these must be lazy! 
+        // TODO these must be lazy!
+        [Obsolete("Internal only for tests")]
         internal VectorStorage _rowIndex;
 
+        [Obsolete("Internal only for tests")]
         internal VectorStorage _values;
 
+        [Obsolete("Internal only for tests")]
         internal VectorStorage _columnIndex;
 
+        [Obsolete("Internal only for tests")]
         internal VectorStorage[] _columns; // arrays is allocated and GCed, so far OK
 
-        // TODO could automatically keep a chain of chunks that otherwise only weakly referenced
-        private DataChunkStorage _nextChunk;
+        internal DataBlockStorage NextBlock;
 
         private Mutability _mutability;
 
-        [MethodImpl(MethodImplOptions.NoInlining)] // TODO remove, testing
-        internal DataChunkStorage TryGetNextChunk()
+        internal bool HasTryGetNextBlockImpl;
+
+        /// <summary>
+        /// Fast path to get the next block from the current one.
+        /// (TODO review) callers should not rely on this return value:
+        /// if null it does NOT mean that there is no next block but
+        /// it just means that we cannot get it in a super fast way (whatever
+        /// this means depends on implementation).
+        /// </summary>
+        /// <remarks>
+        /// This method should not be virtual, rather a flag should be used to call
+        /// a virtual implementation if it guarantees faster lookup than <see cref="ISeries{TKey,TValue}.TryFindAt"/>
+        /// even with the virtual call overhead. E.g. we could have O(1) vs O(log n)
+        /// or significantly save on some constant.
+        /// </remarks>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public DataBlockStorage TryGetNextBlock()
         {
-            return _nextChunk;
+            if (NextBlock != null)
+            {
+                // In-memory implementation just externally manages this field without TryGetNextBlockImpl
+                return NextBlock;
+            }
+            if (HasTryGetNextBlockImpl)
+            {
+                return TryGetNextBlockImpl();
+            }
+            return null;
+        }
+
+        // TODO JIT could devirt this if there is only one implementation, but we have two
+        // Check under what conditions this method in a derived sealed class is devirtualized.
+        public virtual DataBlockStorage TryGetNextBlockImpl()
+        {
+            return null;
         }
 
         public VectorStorage RowIndex
@@ -266,7 +300,7 @@ namespace Spreads.Collections.Internal
             }
 
             // just break the chain, if the remaining linked list was only rooted here it will be GCed TODO review
-            _nextChunk = null;
+            NextBlock = null;
 
             ObjectPool.Free(this);
         }
@@ -289,7 +323,7 @@ namespace Spreads.Collections.Internal
             GC.SuppressFinalize(this);
         }
 
-        ~DataChunkStorage()
+        ~DataBlockStorage()
         {
             Dispose(false);
         }
@@ -297,20 +331,20 @@ namespace Spreads.Collections.Internal
         #endregion Dispose logic
     }
 
-    internal class DataChunkSource<TKey> : ISeries<TKey, DataChunkStorage>
+    internal class DataBlockSource<TKey> : ISeries<TKey, DataBlockStorage>
     {
         // TODO
         /// <summary>
-        ///  For append-only containers chunks will have the same size. Last chunk could be only partially filled.
+        ///  For append-only containers blocks will have the same size. Last block could be only partially filled.
         /// </summary>
-        public uint ConstantChunkLength = 0;
+        public uint ConstantBlockLength = 0;
 
-        public IAsyncEnumerator<KeyValuePair<TKey, DataChunkStorage>> GetAsyncEnumerator()
+        public IAsyncEnumerator<KeyValuePair<TKey, DataBlockStorage>> GetAsyncEnumerator()
         {
             throw new NotImplementedException();
         }
 
-        public IEnumerator<KeyValuePair<TKey, DataChunkStorage>> GetEnumerator()
+        public IEnumerator<KeyValuePair<TKey, DataBlockStorage>> GetEnumerator()
         {
             throw new NotImplementedException();
         }
@@ -324,36 +358,36 @@ namespace Spreads.Collections.Internal
 
         public bool IsIndexed => throw new NotImplementedException();
 
-        public ICursor<TKey, DataChunkStorage> GetCursor()
+        public ICursor<TKey, DataBlockStorage> GetCursor()
         {
             throw new NotImplementedException();
         }
 
         public KeyComparer<TKey> Comparer => throw new NotImplementedException();
 
-        public Opt<KeyValuePair<TKey, DataChunkStorage>> First => throw new NotImplementedException();
+        public Opt<KeyValuePair<TKey, DataBlockStorage>> First => throw new NotImplementedException();
 
-        public Opt<KeyValuePair<TKey, DataChunkStorage>> Last => throw new NotImplementedException();
+        public Opt<KeyValuePair<TKey, DataBlockStorage>> Last => throw new NotImplementedException();
 
-        public DataChunkStorage this[TKey key] => throw new NotImplementedException();
+        public DataBlockStorage this[TKey key] => throw new NotImplementedException();
 
-        public bool TryGetValue(TKey key, out DataChunkStorage value)
+        public bool TryGetValue(TKey key, out DataBlockStorage value)
         {
             throw new NotImplementedException();
         }
 
-        public bool TryGetAt(long index, out KeyValuePair<TKey, DataChunkStorage> kvp)
+        public bool TryGetAt(long index, out KeyValuePair<TKey, DataBlockStorage> kvp)
         {
             throw new NotImplementedException();
         }
 
-        public bool TryFindAt(TKey key, Lookup direction, out KeyValuePair<TKey, DataChunkStorage> kvp)
+        public bool TryFindAt(TKey key, Lookup direction, out KeyValuePair<TKey, DataBlockStorage> kvp)
         {
             throw new NotImplementedException();
         }
 
         public IEnumerable<TKey> Keys => throw new NotImplementedException();
 
-        public IEnumerable<DataChunkStorage> Values => throw new NotImplementedException();
+        public IEnumerable<DataBlockStorage> Values => throw new NotImplementedException();
     }
 }

@@ -129,7 +129,7 @@ namespace Spreads
     }
 
     // TODO merge/replace
-    public interface INewSeries : IData
+    public interface ISeriesNew : IData
     {
         KeySorting KeySorting { get; }
         bool IsIndexed { get; }

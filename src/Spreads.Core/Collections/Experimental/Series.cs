@@ -2,16 +2,22 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
+using static Spreads.Data;
 
 namespace Spreads.Collections.Experimental
 {
     // TODO Interfaces to match hierarchy
 
+    // TODO will conflict with Data.Series when using static.
+    // Prefer Data.XXX for discoverability, write good xml docs there
     public static class Series
     {
+        public static void Test()
+        {
+        }
     }
 
-    public class Series<TKey> : BaseContainer<TKey>, ISeries<TKey, object>, INewSeries
+    public class Series<TKey> : BaseContainer<TKey>, ISeries<TKey, object>, ISeriesNew
     {
         public IAsyncEnumerator<KeyValuePair<TKey, object>> GetAsyncEnumerator()
         {
@@ -55,7 +61,7 @@ namespace Spreads.Collections.Experimental
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool TryGetAt(long index, out KeyValuePair<TKey, object> kvp)
         {
-            if(TryGetChunkAt(index, out var chunk, out var chunkIndex))
+            if(TryGetBlockAt(index, out var chunk, out var chunkIndex))
             {
                 var k = chunk.RowIndex.DangerousGet<TKey>(chunkIndex);
                 var v = chunk.Values.DangerousGet(chunkIndex);
@@ -78,6 +84,11 @@ namespace Spreads.Collections.Experimental
         public Mutability Mutability => throw new NotImplementedException();
     }
 
+
+    public struct SCursor<TKey> // : ISpecializedCursor<TKey, object, Cursor<TKey, object>>
+    {
+
+    }
     ///////////////////////////////////////////////////////////////////////////////
 
     public class Series<TKey, TValue> : Series<TKey>

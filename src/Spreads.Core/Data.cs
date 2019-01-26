@@ -78,6 +78,25 @@ namespace Spreads
 
         public readonly struct SeriesData
         {
+            /// <summary>
+            /// <para>We need implementation for accumulator/subject with guaranteed capacity
+            /// We need implementation for accumulator/subject with guaranteed capacity
+            /// We need implementation for accumulator/subject with guaranteed capacity
+            /// We need implementation for accumulator/subject with guaranteed capacity
+            /// We need implementation for accumulator/subject with guaranteed capacity
+            ///</para>
+            /// <para>
+            /// We need implementation for accumulator/subject with guaranteed capacity
+            /// We need implementation for accumulator/subject with guaranteed capacity
+            /// We need implementation for accumulator/subject with guaranteed capacity
+            /// We need implementation for accumulator/subject with guaranteed capacity
+            /// We need implementation for accumulator/subject with guaranteed capacity
+            /// </para>
+            /// </summary>
+            /// <typeparam name="TKey"></typeparam>
+            /// <typeparam name="TValue"></typeparam>
+            /// <param name="capacity"></param>
+            /// <returns></returns>
             public object Create<TKey, TValue>(int capacity)
             {
                 throw new NotImplementedException();

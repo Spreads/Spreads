@@ -30,7 +30,7 @@ namespace Spreads
         // don't forget about negative space - it could be used for order version or flags
         internal int _rowNumber;
         internal int _colNumber;
-        internal DataChunkStorage _storage;
+        internal DataBlockStorage _storage;
 
         public Vector<TKey> Keys => throw new NotImplementedException();
         public Vector<TValue> Values => throw new NotImplementedException();

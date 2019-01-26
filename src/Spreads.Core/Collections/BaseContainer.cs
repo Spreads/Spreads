@@ -18,7 +18,10 @@ namespace Spreads.Collections
     [CannotApplyEqualityOperator]
     public class BaseSeries // TODO rename to BaseContainer
     {
-        internal DataChunkStorage DataChunk;
+        internal BaseSeries()
+        { }
+
+        internal DataBlockStorage DataBlock;
 
         #region Attributes
 
@@ -61,7 +64,7 @@ namespace Spreads.Collections
         }
 
         internal KeyComparer<TKey> Comparer = default;
-        internal DataChunkSource<TKey> DataSource;
+        internal DataBlockSource<TKey> DataSource;
 
         // TODO we are forking existing series implementation from here
         // All containers inherit this.
@@ -69,59 +72,59 @@ namespace Spreads.Collections
         // Matrix could be sparse, it is no more than a series of rows.
         // All series functionality should be moved to new Series
 
-        internal bool IsSingleChunk
+        internal bool IsSingleBlock
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => DataSource == null;
         }
 
         /// <summary>
-        /// Returns <see cref="DataChunkStorage"/> that contains <paramref name="index"></paramref> and local index within the chunk as <paramref name="chunkIndex"></paramref>.
+        /// Returns <see cref="DataBlockStorage"/> that contains <paramref name="index"></paramref> and local index within the block as <paramref name="blockIndex"></paramref>.
         /// </summary>
         /// <param name="index">Index to get element at.</param>
-        /// <param name="chunk"><see cref="DataChunkStorage"/> that contains <paramref name="index"></paramref> or null if not found.</param>
-        /// <param name="chunkIndex">Local index within the chunk. -1 if requested index is not range.</param>
+        /// <param name="block"><see cref="DataBlockStorage"/> that contains <paramref name="index"></paramref> or null if not found.</param>
+        /// <param name="blockIndex">Local index within the block. -1 if requested index is not range.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal bool TryGetChunkAt(long index, out DataChunkStorage chunk, out int chunkIndex)
+        internal bool TryGetBlockAt(long index, out DataBlockStorage block, out int blockIndex)
         {
             // Take reference, do not work directly. Reference assignment is atomic in .NET
-            chunk = null;
-            chunkIndex = -1;
+            block = null;
+            blockIndex = -1;
             var result = false;
 
-            if (IsSingleChunk)
+            if (IsSingleBlock)
             {
-                Debug.Assert(DataChunk != null, "Single-chunk series must always have non-null DataChunk");
+                Debug.Assert(DataBlock != null, "Single-block series must always have non-null DataBlock");
 
-                if (index < DataChunk.RowLength)
+                if (index < DataBlock.RowLength)
                 {
-                    chunk = DataChunk;
-                    chunkIndex = (int)index;
+                    block = DataBlock;
+                    blockIndex = (int)index;
                     result = true;
                 }
             }
             else
             {
-                // TODO check DataChunk range, probably we are looking in the same chunk
+                // TODO check DataBlock range, probably we are looking in the same block
                 // But for this search it is possible only for immutable or append-only
                 // because we need to track first global index. For such cases maybe
-                // we should just guarantee that DataSource.ConstantChunkLength > 0 and is pow2.
+                // we should just guarantee that DataSource.ConstantBlockLength > 0 and is pow2.
 
-                var constantChunkLength = DataSource.ConstantChunkLength;
-                if (constantChunkLength > 0)
+                var constantBlockLength = DataSource.ConstantBlockLength;
+                if (constantBlockLength > 0)
                 {
-                    // TODO review long division. constantChunkLength should be a poser of 2
-                    var sourceIndex = index / constantChunkLength;
+                    // TODO review long division. constantBlockLength should be a poser of 2
+                    var sourceIndex = index / constantBlockLength;
                     if (DataSource.TryGetAt(sourceIndex, out var kvp))
                     {
-                        chunk = kvp.Value;
-                        chunkIndex = (int)(index - sourceIndex * constantChunkLength);
+                        block = kvp.Value;
+                        blockIndex = (int)(index - sourceIndex * constantBlockLength);
                         result = true;
                     }
                 }
                 else
                 {
-                    result = TryGetChunkAtSlow(index, out chunk, out chunkIndex);
+                    result = TryGetBlockAtSlow(index, out block, out blockIndex);
                 }
             }
 
@@ -129,7 +132,8 @@ namespace Spreads.Collections
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
-        private static bool TryGetChunkAtSlow(long index, out DataChunkStorage chunk, out int chunkIndex)
+        // ReSharper disable once UnusedParameter.Local
+        private static bool TryGetBlockAtSlow(long index, out DataBlockStorage block, out int blockIndex)
         {
             // TODO slow path as non-inlined method
             throw new NotImplementedException();
@@ -140,28 +144,30 @@ namespace Spreads.Collections
         }
 
         /// <summary>
-        /// When found, updates key by the found key if it is different, returns chunk and index whithin the chunk where the data resides.
+        /// When found, updates key by the found key if it is different, returns block and index whithin the block where the data resides.
         /// </summary>
         /// <param name="key"></param>
         /// <param name="lookup"></param>
-        /// <param name="chunk"></param>
-        /// <param name="chunkIndex"></param>
+        /// <param name="block"></param>
+        /// <param name="blockIndex"></param>
+        /// <param name="updateDataBlock"></param>
         /// <returns></returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal bool TryFindChunkAt(ref TKey key, Lookup lookup, out DataChunkStorage chunk, out int chunkIndex)
+        internal bool TryFindBlockAt(ref TKey key, Lookup lookup, out DataBlockStorage block, out int blockIndex, 
+            bool updateDataBlock = false)
         {
             // This is non-obvious part:
-            // For most searches we could find the right chunk
+            // For most searches we could find the right block
             // by searching with LE on the source:
             // o - EQ match, x - non-existing target key
-            // | - start of chunk, there is no space between start of chunk and it's first element (TODO review, had issues with that)
+            // | - start of a block, there is no space between start of block and it's first element (TODO review, had issues with that)
             // * for LE
             //      - [...] |[o...] |[<..]
             //      - [...] |[.o..] |[<..]
             //      - [...] |[ox..] |[<..]
             //      - [...] |[...o]x|[<..]
             // * for EQ
-            //      - [...] |[x...] |[<..] - not possible, because with LE this would be [..o]x|[....] | [<..] since the first key must be LE, if it is not !EQ we find previous chunk
+            //      - [...] |[x...] |[<..] - not possible, because with LE this would be [..o]x|[....] | [<..] since the first key must be LE, if it is not !EQ we find previous block
             //      - [...] |[o...] |[<..]
             //      - [...] |[..o.] |[<..]
             //      - [...] |[..x.] |[<..]
@@ -171,7 +177,7 @@ namespace Spreads.Collections
             //      - [...] |[xo..] |[<..]
             //      - [...] |[..o.] |[<..]
             //      - [...] |[..xo] |[<..]
-            //      - [...] |[...x] |[o..] SPECIAL CASE, SLE+SS do not find key but it is in the next chunk if it exist
+            //      - [...] |[...x] |[o..] SPECIAL CASE, SLE+SS do not find key but it is in the next block if it exist
             //      - [...] |[....]x|[o..] SPECIAL CASE
             // * for GT
             //      - [...] |[xo..] |[<..]
@@ -190,181 +196,181 @@ namespace Spreads.Collections
 
             // So the algorithm is:
             // Search source by LE or by LE if lookup is LT
-            // Do SortedSearch on the chunk
+            // Do SortedSearch on the block
             // If not found check if complement is after the end and
 
             // Notes: always optimize for LE search, it should have least branches and could try speculatively
             // even if we could detect special cases in advance. Only when we cannot find check if there was a
             // special case and process it in a slow path as non-inlined method.
 
-            chunk = DataChunk;
-            var retryOnGt = false;
+            block = DataBlock;
+            bool retryOnGt = default;
 
-            if (IsSingleChunk)
+            if (DataSource != null)
             {
-                goto SINGLE_CHUNK;
+                retryOnGt = true;
+                TryFindBlock_ValidateOrGetBlockFromSource(ref block, key, lookup, lookup == Lookup.LT ? Lookup.LT : Lookup.LE);
+
+
+                // TODO (review) updating cache is not responsibility of this method
+                // There could be a situation when we know that a search is irregular
+                // Also we return the block from this method so a caller could update itself.
+                // Cursors should not update
+
+                // Even if we do not find the key update cache anyway here unconditionally to search result below,
+                // do not penalize single-block case with this op (significant)
+                // and likely the next search will be around current value anyway
+                if (updateDataBlock)
+                {
+                    DataBlock = block;
+                }
+
+                
             }
 
-            // for single chunk this should exist, for sourced chunks this value is updated by a last search
-            // Take reference, do not work directly. Reference assignment is atomic in .NET
+        RETRY:
 
-            if (chunk != null) // cached chunk
-            {
-                // Check edge cases if key is outside the chunk and we may need to retrieve
-                // the right one from storage. We do not know anything about other chunks, so we must
-                // be strictly in range so that all searches will work.
-                var rowLength = chunk.RowLength;
-                if (rowLength <= 1) // with 1 there are some edge cases that penalize normal path, so make just one comparison
-                {
-                    chunk = null;
-                }
-                else
-                {
-                    var firstC = Comparer.Compare(key, chunk.RowIndex.DangerousGet<TKey>(0));
-
-                    if (firstC < 0 // not in this chunk even if looking LT
-                        || lookup == Lookup.LT // first value is >= key so LT won't find the value in this chunk
-                                               // Because rowLength >= 2 we do not need to check for firstC == 0 && GT
-                        )
-                    {
-                        chunk = null;
-                    }
-                    else
-                    {
-                        var lastC = Comparer.Compare(key, chunk.RowIndex.DangerousGet<TKey>(rowLength - 1));
-
-                        if (lastC > 0
-                            || lookup == Lookup.GT
-                            )
-                        {
-                            chunk = null;
-                        }
-                    }
-                }
-            }
-
-            // Try to call DataSource.TryFindAt and VectorSearch.SortedLookup from one place,
-            // set local variables that we could reuse later and go through the same code
-            var sourceLookup = lookup == Lookup.LT ? Lookup.LT : Lookup.LE;
-            var sourceSearchKey = key;
-            retryOnGt = true;
-
-        RETRY_NEXT_CHUNK:
-
-            // if chunk is null here we have rejected it and need to get it from source
-            // or it is the first search and cached chunk was not set yet
-            if (chunk == null)
-            {
-                // TODO review: next line will eventually call this method for in-memory case, so how inlining possible?
-                // compiler should do magic to convert all this to a loop at JIT stage, so likely it does not
-                // and the question is where to break the chain. We probably could afford non-inlined
-                // DataSource.TryFindAt if this method will be faster for single-chunk and cache-hit cases.
-                if (!DataSource.TryFindAt(sourceSearchKey, sourceLookup, out var kvp))
-                {
-                    Debug.Assert(chunk == null);
-                    chunkIndex = -1;
-                    return false;
-                }
-
-                chunk = kvp.Value;
-
-                if (AdditionalCorrectnessChecks.Enabled)
-                {
-                    // knowledge of key doesn't help here for speed, but ensure correctness
-                    if (chunk.RowLength <= 0 || Comparer.Compare(kvp.Key, chunk.RowIndex.DangerousGet<TKey>(0)) != 0)
-                    {
-                        chunk = null;
-                        ThrowBadChunkFromSource();
-                    }
-                }
-            }
-
-        SINGLE_CHUNK:
-            Debug.Assert(chunk != null);
+            Debug.Assert(block != null);
 
             // Here we use internal knowledge that for series RowIndex in contiguous vec
             // TODO(?) do check if VS is pure, allow strides > 1 or just create Nth cursor?
 
-            Debug.Assert(chunk.RowIndex._stride == 1);
+            Debug.Assert(block.RowIndex._stride == 1);
 
             // TODO optimize this search via non-generic IVector with generic getter
             // ReSharper disable once PossibleNullReferenceException
-            // ref var vecStart = ref chunk.RowIndex._vec.DangerousGetRef<TKey>(0);
-            chunkIndex = VectorSearch.SortedLookup(ref chunk.RowIndex._vec.DangerousGetRef<TKey>(0), chunk.RowLength, ref key, lookup, Comparer);
+            blockIndex = VectorSearch.SortedLookup(ref block.RowIndex.DangerousGetRef<TKey>(0), 
+                block.RowLength, ref key, lookup, Comparer);
 
-            if (chunkIndex >= 0)
+            if (blockIndex >= 0)
             {
-                // Set cached value, probably next search will be close enough
-                // Getting chunk from source is expensive especially with persistence.
-                if (!retryOnGt)
+                if (updateDataBlock)
                 {
-                    DataChunk = chunk;
+                    DataBlock = block;
                 }
-
                 return true;
             }
 
             // Check for SPECIAL CASE from the comment above
             if (retryOnGt &&
-                (~chunkIndex) == chunk.RowLength
+                (~blockIndex) == block.RowLength
                 && ((int)lookup & (int)Lookup.GT) != 0)
             {
                 retryOnGt = false;
-                var nextchunk = chunk.TryGetNextChunk();
-                if (nextchunk == null)
+                var nextBlock = block.TryGetNextBlock();
+                if (nextBlock == null)
                 {
-                    sourceLookup = Lookup.GT;
-                    sourceSearchKey = chunk.RowIndex.DangerousGet<TKey>(0);
-                    chunk = null; // if after RETRY_NEXT_CHUNK depends on it
-                    goto RETRY_NEXT_CHUNK;
+                    TryFindBlock_ValidateOrGetBlockFromSource(ref nextBlock,
+                        block.RowIndex.DangerousGetRef<TKey>(0), lookup, Lookup.GT);
+                }
+
+                if (nextBlock != null)
+                {
+                    block = nextBlock;
+                    goto RETRY;
                 }
             }
-            
+
             return false;
         }
 
-        private static void ThrowBadChunkFromSource()
+        // TODO Test multi-block case and this attribute impact. Maybe direct call is OK without inlining
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void TryFindBlock_ValidateOrGetBlockFromSource(ref DataBlockStorage block,
+            TKey key, Lookup direction, Lookup sourceDirection)
         {
-            ThrowHelper.ThrowInvalidOperationException(
-                "BaseContainer.DataSource.TryFindAt returned an empty chunk or key that doesn't match the first row index value");
+            // for single block this should exist, for sourced blocks this value is updated by a last search
+            // Take reference, do not work directly. Reference assignment is atomic in .NET
+
+            if (block != null) // cached block
+            {
+                // Check edge cases if key is outside the block and we may need to retrieve
+                // the right one from storage. We do not know anything about other blocks, so we must
+                // be strictly in range so that all searches will work.
+
+                if (block.RowLength <= 1) // with 1 there are some edge cases that penalize normal path, so make just one comparison
+                {
+                    block = null;
+                }
+                else
+                {
+                    var firstC = Comparer.Compare(key, block.RowIndex.DangerousGet<TKey>(0));
+
+                    if (firstC < 0 // not in this block even if looking LT
+                        || direction == Lookup.LT // first value is >= key so LT won't find the value in this block
+                                                  // Because rowLength >= 2 we do not need to check for firstC == 0 && GT
+                    )
+                    {
+                        block = null;
+                    }
+                    else
+                    {
+                        var lastC = Comparer.Compare(key, block.RowIndex.DangerousGet<TKey>(block.RowLength - 1));
+
+                        if (lastC > 0
+                            || direction == Lookup.GT
+                        )
+                        {
+                            block = null;
+                        }
+                    }
+                }
+            }
+            // if block is null here we have rejected it and need to get it from source
+            // or it is the first search and cached block was not set yet
+            if (block == null)
+            {
+                // Lookup sourceDirection = direction == Lookup.LT ? Lookup.LT : Lookup.LE;
+                // TODO review: next line will eventually call this method for in-memory case, so how inlining possible?
+                // compiler should do magic to convert all this to a loop at JIT stage, so likely it does not
+                // and the question is where to break the chain. We probably could afford non-inlined
+                // DataSource.TryFindAt if this method will be faster for single-block and cache-hit cases.
+                if (!DataSource.TryFindAt(key, sourceDirection, out var kvp))
+                {
+                    block = null;
+                }
+                else
+                {
+                    if (AdditionalCorrectnessChecks.Enabled)
+                    {
+                        if (kvp.Value.RowLength <= 0 || Comparer.Compare(kvp.Key, kvp.Value.RowIndex.DangerousGet<TKey>(0)) != 0)
+                        {
+                            ThrowBadBlockFromSource();
+                        }
+                    }
+
+                    block = kvp.Value;
+                }
+            }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal bool ChunkIsValidForLookup(TKey key, Lookup lookup, DataChunkStorage chunk, out int foundChunkIndexAtEdge)
+        private DataBlockStorage TryFindBlockAt_LookUpSource(TKey sourceKey, Lookup direction)
         {
-            foundChunkIndexAtEdge = -1;
-
-            if (chunk == null || chunk.RowLength == 0)
+            // TODO review: next line will eventually call this method for in-memory case, so how inlining possible?
+            // compiler should do magic to convert all this to a loop at JIT stage, so likely it does not
+            // and the question is where to break the chain. We probably could afford non-inlined
+            // DataSource.TryFindAt if this method will be faster for single-block and cache-hit cases.
+            if (!DataSource.TryFindAt(sourceKey, direction, out var kvp))
             {
-                return false;
+                return null;
             }
 
-            // TODO here we could detect if we found a value without SortedSearch
-
-            var firstC = Comparer.Compare(key, chunk.RowIndex.DangerousGet<TKey>(0));
-
-            // not in this chunk even if looking LT
-            if (firstC < 0)
+            if (AdditionalCorrectnessChecks.Enabled)
             {
-                return false;
+                if (kvp.Value.RowLength <= 0 || Comparer.Compare(kvp.Key, kvp.Value.RowIndex.DangerousGet<TKey>(0)) != 0)
+                {
+                    ThrowBadBlockFromSource();
+                }
             }
 
-            // first value is >= key so LT won't find the value in this chunk
-            // we must search by LT in the source for this
-            if (lookup == Lookup.LT)
-            {
-                return false;
-            }
+            return kvp.Value;
+        }
 
-            var lastC = Comparer.Compare(key, chunk.RowIndex.DangerousGet<TKey>(chunk.RowLength - 1));
-
-            // key is larger then the last, could work only for LE/LT
-            if (lastC > 0 && (((int)lookup & (int)Lookup.LT) == 0))
-            {
-                return false;
-            }
-
-            return true;
+        private static void ThrowBadBlockFromSource()
+        {
+            ThrowHelper.ThrowInvalidOperationException("BaseContainer.DataSource.TryFindAt " +
+                    "returned an empty block or key that doesn't match the first row index value");
         }
     }
 }
