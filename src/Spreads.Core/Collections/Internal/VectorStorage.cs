@@ -57,7 +57,7 @@ namespace Spreads.Collections.Internal
     /// VectorStorage is logical representation of data and its source.
     /// </summary>
     [StructLayout(LayoutKind.Sequential)]
-    internal class VectorStorage : IDisposable, IVector
+    internal sealed class VectorStorage : IDisposable, IVector
     {
         private static readonly ObjectPool<VectorStorage> ObjectPool = new ObjectPool<VectorStorage>(() => new VectorStorage(), Environment.ProcessorCount * 16);
 
@@ -74,6 +74,7 @@ namespace Spreads.Collections.Internal
         internal MemoryHandle _memoryHandle;
 
         // slicing via this
+        [Obsolete("Internal for tests, do not use directly.")]
         internal Vec _vec;
 
         // vectorized ops only when == 1
@@ -317,6 +318,8 @@ namespace Spreads.Collections.Internal
             GC.SuppressFinalize(this);
         }
 
+        // TODO need high-load test to detect if there is impact even with correct usage
+        // VS is owned by DataBlockStorage
         ~VectorStorage()
         {
             Dispose(false);

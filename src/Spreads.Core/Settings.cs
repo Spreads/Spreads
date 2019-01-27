@@ -1,7 +1,7 @@
 ﻿using Spreads.Serialization;
+using Spreads.Utils;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
-using Spreads.Utils;
 
 namespace Spreads
 {
@@ -193,10 +193,11 @@ namespace Spreads
         internal static int _compressionLimit = 860;
 
         /// <summary>
-        /// Minimum size to apply compression.
+        /// Minimum serialized payload size to apply compression.
         /// </summary>
         public static int CompressionLimit
         {
+            // TODO (review) for small values with all numeric (esp. non-double) fields this method call could have visible impact, maybe do the same thing as with AdditionalCorrectness
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => _compressionLimit;
             set
@@ -216,7 +217,7 @@ namespace Spreads
 
         /// <summary>
         /// This only affects known types for which interpolation search works correctly
-        /// and is expected to be significantly faster.
+        /// and is expected to be significantly faster. No reason to set it to false.
         /// </summary>
         internal const bool UseInterpolatedSearchForKnownTypes = true;
     }

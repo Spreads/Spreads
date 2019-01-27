@@ -85,6 +85,67 @@ namespace Spreads.Core.Tests
             }
         }
 
+        public class ThisIsClassWithLock : IIncrementable
+        {
+            private byte[] value = new byte[4];
+            private IntPtr ptr;
+            private GCHandle pinnedGcHandle;
+
+            public ThisIsClassWithLock()
+            {
+                pinnedGcHandle = GCHandle.Alloc(value, GCHandleType.Pinned);
+                ptr = pinnedGcHandle.AddrOfPinnedObject();
+            }
+
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public int Increment()
+            {
+                lock (this)
+                {
+                    *((int*)ptr) = *((int*)ptr) + 1;
+                    return (*((int*)ptr));
+                }
+            }
+        }
+
+        public class ThisIsClassWithManualLock : IIncrementable
+        {
+            private byte[] value = new byte[4];
+            private IntPtr ptr;
+            private GCHandle pinnedGcHandle;
+            private long* _lock;
+
+            public ThisIsClassWithManualLock()
+            {
+                pinnedGcHandle = GCHandle.Alloc(value, GCHandleType.Pinned);
+                ptr = pinnedGcHandle.AddrOfPinnedObject();
+
+                _lock = (long*)Marshal.AllocHGlobal(8);
+                *_lock = 0L;
+            }
+
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public int Increment()
+            {
+                while (true)
+                {
+                    //try
+                    //{
+                        if (Interlocked.CompareExchange(ref *_lock, 1, 0) == 0)
+                        {
+                            *((int*)ptr) = *((int*)ptr) + 1;
+                            Volatile.Write(ref *_lock, 0);
+                            return (*((int*)ptr));
+                        }
+                    //}
+                    //finally
+                    //{
+                    //    Volatile.Write(ref *_lock, 0);
+                    //}
+                }
+            }
+        }
+
         public class ThisIsBaseClass : IIncrementable
         {
             private byte[] value = new byte[4];
@@ -224,134 +285,155 @@ namespace Spreads.Core.Tests
         private void ConstrainedStruct<T>(T incrementable) where T : IIncrementable
         {
             var count = 100000000;
-            var sw = new Stopwatch();
-            sw.Restart();
+            
             for (int i = 0; i < count; i++)
             {
                 incrementable.Increment();
             }
-            sw.Stop();
-            Console.WriteLine($"Constrained struct {sw.ElapsedMilliseconds}");
+            
         }
 
         [Test, Explicit("long running")]
         public void CallVsCallVirt(int r)
         {
-            var count = 100000000;
-            var sw = new Stopwatch();
+            var count = 100_000_000;
+            // var sw = new Stopwatch();
 
-            sw.Restart();
-            int* ptr = stackalloc int[1];
 
-            int intValue = 0;
-            for (int i = 0; i < count; i++)
+            using (Benchmark.Run("Value", count))
             {
-                *((int*)ptr) = *((int*)ptr) + 1;
-                intValue = (*((int*)ptr));
-            }
-            sw.Stop();
-            Console.WriteLine($"Value {sw.ElapsedMilliseconds} ({intValue})");
+                int* ptr = stackalloc int[1];
 
-            sw.Restart();
-            var str = new ThisIsSrtuct(new byte[4]);
-            for (int i = 0; i < count; i++)
+                int intValue = 0;
+                for (int i = 0; i < count; i++)
+                {
+                    *((int*)ptr) = *((int*)ptr) + 1;
+                    intValue = (*((int*)ptr));
+                }
+            }
+
+
+            using (Benchmark.Run("Struct", count))
             {
-                str.Increment();
+                var str = new ThisIsSrtuct(new byte[4]);
+                for (int i = 0; i < count; i++)
+                {
+                    str.Increment();
+                }
             }
-            sw.Stop();
-            Console.WriteLine($"Struct {sw.ElapsedMilliseconds}");
 
-            sw.Restart();
-            IIncrementable strAsInterface = (IIncrementable)(new ThisIsSrtuct(new byte[4]));
-            for (int i = 0; i < count; i++)
+            using (Benchmark.Run("Str>Interface", count))
             {
-                strAsInterface.Increment();
+                IIncrementable strAsInterface = (IIncrementable) (new ThisIsSrtuct(new byte[4]));
+                for (int i = 0; i < count; i++)
+                {
+                    strAsInterface.Increment();
+                }
             }
-            sw.Stop();
-            Console.WriteLine($"Struct as Interface {sw.ElapsedMilliseconds}");
 
-            var constrainedStr = (new ThisIsSrtuct(new byte[4]));
-            ConstrainedStruct(constrainedStr);
-
-            sw.Restart();
-            for (int i = 0; i < count; i++)
+            using (Benchmark.Run("Str>Constr", count))
             {
-                ThisIsStaticClass.Increment();
+                var constrainedStr = (new ThisIsSrtuct(new byte[4]));
+                ConstrainedStruct(constrainedStr);
             }
-            sw.Stop();
-            Console.WriteLine($"Static Class {sw.ElapsedMilliseconds}");
 
-            sw.Restart();
-            var cl = new ThisIsClass();
-            for (int i = 0; i < count; i++)
+            using (Benchmark.Run("Static Class", count))
             {
-                cl.Increment();
+                for (int i = 0; i < count; i++)
+                {
+                    ThisIsStaticClass.Increment();
+                }
             }
-            sw.Stop();
-            Console.WriteLine($"Class {sw.ElapsedMilliseconds}");
 
-            sw.Restart();
-            var scl = new ThisIsSealedClass();
-            for (int i = 0; i < count; i++)
+            using (Benchmark.Run("Class", count))
             {
-                scl.Increment();
+                var cl = new ThisIsClass();
+                for (int i = 0; i < count; i++)
+                {
+                    cl.Increment();
+                }
             }
-            sw.Stop();
-            Console.WriteLine($"Sealed Class {sw.ElapsedMilliseconds}");
 
-            sw.Restart();
-            IIncrementable cli = (IIncrementable)new ThisIsClass();
-            for (int i = 0; i < count; i++)
+            using (Benchmark.Run("Class+Lock", count))
             {
-                cli.Increment();
+                var cl_l = new ThisIsClassWithLock();
+                for (int i = 0; i < count; i++)
+                {
+                    cl_l.Increment();
+                }
             }
-            sw.Stop();
-            Console.WriteLine($"Class as Interface {sw.ElapsedMilliseconds}");
 
-            sw.Restart();
-            var dcl = new ThisIsDerivedClass();
-            for (int i = 0; i < count; i++)
+            using (Benchmark.Run("Class+MLock", count))
             {
-                dcl.Increment();
+                var cl_ml = new ThisIsClassWithManualLock();
+                for (int i = 0; i < count; i++)
+                {
+                    cl_ml.Increment();
+                }
             }
-            sw.Stop();
-            Console.WriteLine($"Derived Class {sw.ElapsedMilliseconds}");
 
-            sw.Restart();
-            IIncrementable dcli = (IIncrementable)new ThisIsDerivedClass();
-            for (int i = 0; i < count; i++)
+            using (Benchmark.Run("Sealed Class", count))
             {
-                dcli.Increment();
+                var scl = new ThisIsSealedClass();
+                for (int i = 0; i < count; i++)
+                {
+                    scl.Increment();
+                }
             }
-            sw.Stop();
-            Console.WriteLine($"Derived Class as Interface {sw.ElapsedMilliseconds}");
 
-            sw.Restart();
-            var sdcl = new ThisIsSealedDerivedClass();
-            for (int i = 0; i < count; i++)
+            using (Benchmark.Run("Class>IFace", count))
             {
-                sdcl.Increment();
+                IIncrementable cli = (IIncrementable) new ThisIsClass();
+                for (int i = 0; i < count; i++)
+                {
+                    cli.Increment();
+                }
             }
-            sw.Stop();
-            Console.WriteLine($"Sealed Derived Class {sw.ElapsedMilliseconds}");
 
-            sw.Restart();
-            IIncrementable sdcli = (IIncrementable)new ThisIsSealedDerivedClass();
-            for (int i = 0; i < count; i++)
+            using (Benchmark.Run("Derived Class", count))
             {
-                sdcli.Increment();
+                var dcl = new ThisIsDerivedClass();
+                for (int i = 0; i < count; i++)
+                {
+                    dcl.Increment();
+                }
             }
-            sw.Stop();
-            Console.WriteLine($"Sealed Derived Class as Interface {sw.ElapsedMilliseconds}");
 
-            sw.Restart();
-            var comp = new ThisIsComposedClass();
-            for (int i = 0; i < count; i++)
-            {
-                comp.Increment();
-            }
-            sw.Stop();
-            Console.WriteLine($"Composed class {sw.ElapsedMilliseconds}");
+            //sw.Restart();
+            //IIncrementable dcli = (IIncrementable)new ThisIsDerivedClass();
+            //for (int i = 0; i < count; i++)
+            //{
+            //    dcli.Increment();
+            //}
+            //sw.Stop();
+            //Console.WriteLine($"Derived Class as Interface {sw.ElapsedMilliseconds}");
+
+            //sw.Restart();
+            //var sdcl = new ThisIsSealedDerivedClass();
+            //for (int i = 0; i < count; i++)
+            //{
+            //    sdcl.Increment();
+            //}
+            //sw.Stop();
+            //Console.WriteLine($"Sealed Derived Class {sw.ElapsedMilliseconds}");
+
+            //sw.Restart();
+            //IIncrementable sdcli = (IIncrementable)new ThisIsSealedDerivedClass();
+            //for (int i = 0; i < count; i++)
+            //{
+            //    sdcli.Increment();
+            //}
+            //sw.Stop();
+            //Console.WriteLine($"Sealed Derived Class as Interface {sw.ElapsedMilliseconds}");
+
+            //sw.Restart();
+            //var comp = new ThisIsComposedClass();
+            //for (int i = 0; i < count; i++)
+            //{
+            //    comp.Increment();
+            //}
+            //sw.Stop();
+            //Console.WriteLine($"Composed class {sw.ElapsedMilliseconds}");
         }
 
         [Test, Explicit("long running")]
@@ -362,6 +444,7 @@ namespace Spreads.Core.Tests
                 CallVsCallVirt(r);
                 Console.WriteLine("-----------------");
             }
+            Benchmark.Dump();
         }
 
         [Test, Explicit("long running")]
@@ -1130,7 +1213,7 @@ namespace Spreads.Core.Tests
         private long TestOuterMethod(long x)
         {
             x++;
-            // should perform exactly the same as with commented out 
+            // should perform exactly the same as with commented out
             if (AdditionalCorrectnessChecks.Enabled)
             {
                 if (x == 0)

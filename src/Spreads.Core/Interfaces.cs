@@ -60,6 +60,7 @@ namespace Spreads
     }
 
     // A marker interface for optional batching feature
+    [Obsolete]
     public interface IAsyncBatchEnumerator<T> // F# doesn't allow to implement this: IAsyncEnumerator<IEnumerable<T>>
     {
         // Same contract as in cursors:
@@ -132,25 +133,32 @@ namespace Spreads
     public interface ISeriesNew : IData
     {
         KeySorting KeySorting { get; }
-        bool IsIndexed { get; }
+    }
+
+    public interface ISeriesNew<TKey, TValue> : ISeriesNew
+    {
+        // while rewriting keep existing, never commit in broken state
+        // ?
     }
 
     /// <summary>
-        /// Series are navigable ordered data streams of key-value pairs.
-        /// </summary>
-        public interface ISeries<TKey, TValue> : IAsyncEnumerable<KeyValuePair<TKey, TValue>>
+    /// Series are navigable ordered data streams of key-value pairs.
+    /// </summary>
+    public interface ISeries<TKey, TValue> : IAsyncEnumerable<KeyValuePair<TKey, TValue>>
     {
         /// <summary>
         /// False if the underlying collection could be changed, true if the underlying collection is immutable or is complete
         /// for adding (e.g. after OnCompleted in Rx) or IsCompleted in terms of ICollectio/IDictionary or has fixed keys/values (all 4 definitions are the same).
         /// </summary>
+        [Obsolete("Use Mutability enum & Flags struct")]
         bool IsCompleted { get; }
 
         /// <summary>
         /// If true then elements are placed by some custom order (e.g. order of addition, index) and not sorted by keys.
         /// If false then the keys are sorted according to <see cref="Comparer"/>.
         /// </summary>
-        bool IsIndexed { get; } // TODO flip to IsSorted
+        [Obsolete("Use KeySorting enum & Flags struct")]
+        bool IsIndexed { get; }
 
         /// <summary>
         /// Get cursor, which is an advanced enumerator supporting moves to first, last, previous, next, exact
@@ -231,6 +239,33 @@ namespace Spreads
         // but is used to build efficient computation tree without interface calls.
     }
 
+    public interface ICursorNew<TKey> // TODO merge with existing
+    {
+        /// <summary>
+        /// Move by <paramref name="stride"/> elements or maximum number of elements less than stride if <paramref name="allowPartial"/> is true.
+        /// The <paramref name="stride"/> parameter could be negative.
+        /// </summary>
+        /// <param name="stride">The number of steps to move.</param>
+        /// <param name="allowPartial">Allow to move by less then Abs(stride) steps.</param>
+        /// <returns>Actual number of moves. Equals to <paramref name="stride"/> or zero if <paramref name="allowPartial"/> is false.</returns>
+        long Move(long stride, bool allowPartial);
+
+        // Alternative (previous) design was bool MoveNextBatch() + CurrentBatch, but it requires additional state in cursor and complicates implementation.
+        // Also it is impossible to move normally after MNB without checking the state on every move and this penalizes performance of simple most important MN.
+        // With TryMoveNextBatch we could calculate the batch view from current position to the end of a block and move the position there. After that moves
+        // could be done normally. The returned view could be disposable with the version check inside Dispose. However, we should disable this for
+        // mutable containers, for append-only existing ranges are immutable. TODO test when we consume by batches and add values in parallel in append-only mode.
+
+        /// <summary>
+        /// Moves the cursor to the end of the current contiguous block of underlying memory (if there is such a block).
+        /// TODO Returns a view over that memory with direct read-only access to keys and values.
+        /// TODO K/V are vectors, even if they are with stride > 1 navigating them is faster than moving this cursor.
+        /// </summary>
+        /// <param name="batch"></param>
+        /// <returns></returns>
+        bool TryMoveNextBatch(out object batch); // TODO not span, Segment or smth when we figure out what. Probably better to have ref struct for this if it will work.
+    }
+
     /// <summary>
     /// ICursor is an advanced enumerator that supports moves to first, last, previous, next, exact
     /// positions and relative LT/LE/GT/GE moves.
@@ -265,12 +300,6 @@ namespace Spreads
         KeyComparer<TKey> Comparer { get; }
 
         /// <summary>
-        /// Move the cursor to the position according to the Lookup direction. An observed value at key must exist. Use <see cref="TryGetValue"/> to get a calculated value for continuous series.
-        /// </summary>
-        /// <returns>Returns true if the cursor moved. When false is returned the cursor stays at the same position where it was before calling this method.</returns>
-        bool MoveAt(TKey key, Lookup direction);
-
-        /// <summary>
         /// Move the cursor to the first element in series.
         /// </summary>
         /// <returns>Returns true if the <see cref="Source"/> is not empty.</returns>
@@ -282,12 +311,11 @@ namespace Spreads
         /// <returns>Returns true if the <see cref="Source"/> is not empty.</returns>
         bool MoveLast();
 
-        // MoveNext is a part of IEnumerable
-
         /// <summary>
         /// Move the cursor to a previous item in the <see cref="Source"/> series.
         /// </summary>
         /// <returns>Returns true if the cursor moved. When false is returned the cursor stays at the same position where it was before calling this method.</returns>
+        [Obsolete("Must use IEnumerable slot")]
         new bool MoveNext();
 
         // NB returning zero is the same as false, no need for TryXXX/Opt<>
@@ -301,6 +329,7 @@ namespace Spreads
         /// <param name="stride"></param>
         /// <param name="allowPartial"></param>
         /// <returns>Actual number of moves. Equals to <paramref name="stride"/> or zero if <paramref name="allowPartial"/> is false.</returns>
+        [Obsolete("Use Move(2)")]
         long MoveNext(long stride, bool allowPartial);
 
         /// <summary>
@@ -312,7 +341,14 @@ namespace Spreads
         /// <summary>
         /// Opposite direction of <see cref="MoveNext(long,bool)"/>.
         /// </summary>
+        [Obsolete("Use Move(2)")]
         long MovePrevious(long stride, bool allowPartial);
+
+        /// <summary>
+        /// Move the cursor to the position according to the Lookup direction. An observed value at key must exist. Use <see cref="ICursor{TKey,TValue}.TryGetValue"/> to get a calculated value for continuous series.
+        /// </summary>
+        /// <returns>Returns true if the cursor moved. When false is returned the cursor stays at the same position where it was before calling this method.</returns>
+        bool MoveAt(TKey key, Lookup direction);
 
         /// <summary>
         /// Series key at the current cursor position.
@@ -359,7 +395,7 @@ namespace Spreads
     /// <summary>
     /// An <see cref="T:Spreads.ICursor`2" /> with a known implementation type.
     /// </summary>
-    public interface ISpecializedCursor<TKey, TValue, TCursor> : ICursor<TKey, TValue>
+    public interface ISpecializedCursor<TKey, TValue, TCursor> : ICursor<TKey, TValue> // TODO rename to ICursor'3, no clashes
         where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
     {
         /// <summary>
@@ -392,6 +428,18 @@ namespace Spreads
 
         new Series<TKey, TValue, TCursor> Source { get; }
     }
+
+    // Not needed, delete
+    //public interface IAsyncCursor<TKey, TValue> : ICursor<TKey, TValue>, IAsyncEnumerator<KeyValuePair<TKey, TValue>>
+    //{
+    //    AsyncCursor<TKey, TValue, Cursor<TKey, TValue>> GetAsyncCursor();
+    //}
+
+    //public interface IAsyncCursor<TKey, TValue, TCursor> : ISpecializedCursor<TKey, TValue, TCursor>, IAsyncEnumerator<KeyValuePair<TKey, TValue>>
+    //    where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
+    //{
+    //    AsyncCursor<TKey, TValue, Cursor<TKey, TValue>> GetAsyncCursor();
+    //}
 
     /// <summary>
     /// An untyped <see cref="ISeries{TKey, TValue}"/> interface with both keys and values as <see cref="Variant"/> types.

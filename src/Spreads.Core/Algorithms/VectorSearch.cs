@@ -1034,7 +1034,7 @@ namespace Spreads.Algorithms
             var i = InterpolationSearch(ref vecStart, length, value, comparer);
 
             var li = SearchToLookup(0, length, lookup, i);
-            
+
             if (li != i && li >= 0)
             {
                 value = Unsafe.Add(ref vecStart, li);
@@ -1075,7 +1075,7 @@ namespace Spreads.Algorithms
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int SortedSearch<T>(ref T vecStart, int length, T value, KeyComparer<T> comparer = default)
         {
-            if (KeyComparer<T>.IsDiffableSafe)
+            if (Settings.UseInterpolatedSearchForKnownTypes && KeyComparer<T>.IsDiffableSafe)
             {
                 return InterpolationSearch(ref vecStart, length, value, comparer);
             }
@@ -1089,7 +1089,7 @@ namespace Spreads.Algorithms
         public static int SortedSearch<T, TVec>(ref TVec vec, int start, int length, T value, KeyComparer<T> comparer = default)
             where TVec : IVector<T>
         {
-            if (KeyComparer<T>.IsDiffableSafe)
+            if (Settings.UseInterpolatedSearchForKnownTypes && KeyComparer<T>.IsDiffableSafe)
             {
                 return InterpolationSearch(ref vec, start, length, value, comparer);
             }
@@ -1116,7 +1116,7 @@ namespace Spreads.Algorithms
         public static int SortedLookup<T, TVec>(ref TVec vec, int start, int length, T value, Lookup lookup, KeyComparer<T> comparer = default)
             where TVec : IVector<T>
         {
-            if (KeyComparer<T>.IsDiffableSafe)
+            if (Settings.UseInterpolatedSearchForKnownTypes && KeyComparer<T>.IsDiffableSafe)
             {
                 return InterpolationLookup(ref vec, start, length, ref value, lookup, comparer);
             }

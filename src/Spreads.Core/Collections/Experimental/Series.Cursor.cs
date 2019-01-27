@@ -2,38 +2,85 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+using Spreads.Collections.Internal;
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
-using Spreads.Collections;
-using Spreads.Collections.Internal;
 
-namespace Spreads
+namespace Spreads.Collections.Experimental
 {
-
-    // For thread-safety save order version and just throw exn if that is changed on access
-    // this should be rare and that branch should be predicted well
-    // And b.t.w it's hard to test misprediction so in all our benhces it mostly predisted
-
-    // TODO this should be a SortedMap itself? Or we should generate data storage for a chunk
-    // it could be a case when getting a chunk is slower than gains from SIMD-math on them
-    // so we probably need to slice or return existing storage
-
-    // should probably do Series'3 implementation on those?
-
-    // TODO? , ISpecializedCursor<Offset, TValue, SeriesSegment<Offset, TValue>>
-
-    public struct Segment<TKey, TValue> : ISpecializedCursor<TKey, TValue, Segment<TKey, TValue>>
+    public partial class Series<TKey, TValue>
     {
-        // don't forget about negative space - it could be used for order version or flags
-        internal int _rowNumber;
-        internal int _colNumber;
-        internal DataBlock _storage;
+        // TODO review & document
+        // Maybe separate ICursor and IAsyncCursor, ISeries return IAsyncCursor, while specialized return TCursor
 
-        public Vector<TKey> Keys => throw new NotImplementedException();
-        public Vector<TValue> Values => throw new NotImplementedException();
+        IAsyncEnumerator<KeyValuePair<TKey, TValue>> IAsyncEnumerable<KeyValuePair<TKey, TValue>>.GetAsyncEnumerator()
+        {
+            return new AsyncCursor<TKey, TValue, SCursor<TKey, TValue>>(GetCursor());
+        }
+
+        public IEnumerator<KeyValuePair<TKey, TValue>> GetEnumerator()
+        {
+            return GetCursor();
+        }
+
+        IEnumerator IEnumerable.GetEnumerator()
+        {
+            return GetEnumerator();
+        }
+
+        ICursor<TKey, TValue> ISeries<TKey, TValue>.GetCursor()
+        {
+            return new AsyncCursor<TKey, TValue, SCursor<TKey, TValue>>(GetCursor());
+        }
+
+        SCursor<TKey, TValue> ISpecializedSeries<TKey, TValue, SCursor<TKey, TValue>>.GetCursor()
+        {
+            return GetCursor();
+        }
+
+        public SCursor<TKey, TValue> GetCursor()
+        {
+            throw new NotImplementedException();
+        }
+
+        public IEnumerable<TKey> Keys
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get
+            {
+                // TODO via cursor and CurrentKey
+                foreach (var keyValuePair in this)
+                {
+                    yield return keyValuePair.Key;
+                }
+            }
+        }
+
+        public IEnumerable<TValue> Values
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get
+            {
+                // TODO via cursor and CurrentValue
+                foreach (var keyValuePair in this)
+                {
+                    yield return keyValuePair.Value;
+                }
+            }
+        }
+    }
+
+    
+    /// <summary>
+    /// <see cref="Series{TKey,TValue}"/> cursor implementation.
+    /// </summary>
+    [StructLayout(LayoutKind.Sequential, Pack = 1)]
+    public struct SCursor<TKey, TValue> : ICursorNew<TKey>, ISpecializedCursor<TKey, TValue, SCursor<TKey, TValue>>
+    {
         public ValueTask<bool> MoveNextAsync()
         {
             throw new NotImplementedException();
@@ -82,7 +129,7 @@ namespace Spreads
 
         public TValue CurrentValue => throw new NotImplementedException();
 
-        public Series<TKey, TValue, Segment<TKey, TValue>> Source => new Series<TKey, TValue, Segment<TKey, TValue>>(this);
+        Series<TKey, TValue, SCursor<TKey, TValue>> ISpecializedCursor<TKey, TValue, SCursor<TKey, TValue>>.Source => throw new NotImplementedException();
 
         public IAsyncCompleter AsyncCompleter => throw new NotImplementedException();
 
@@ -90,12 +137,12 @@ namespace Spreads
 
         public bool IsContinuous => throw new NotImplementedException();
 
-        public Segment<TKey, TValue> Initialize()
+        public SCursor<TKey, TValue> Initialize()
         {
             throw new NotImplementedException();
         }
 
-        Segment<TKey, TValue> ISpecializedCursor<TKey, TValue, Segment<TKey, TValue>>.Clone()
+        SCursor<TKey, TValue> ISpecializedCursor<TKey, TValue, SCursor<TKey, TValue>>.Clone()
         {
             throw new NotImplementedException();
         }
@@ -134,6 +181,16 @@ namespace Spreads
         }
 
         public ValueTask DisposeAsync()
+        {
+            throw new NotImplementedException();
+        }
+
+        public long Move(long stride, bool allowPartial)
+        {
+            throw new NotImplementedException();
+        }
+
+        public bool TryMoveNextBatch(out object batch)
         {
             throw new NotImplementedException();
         }

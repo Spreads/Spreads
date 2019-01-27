@@ -4,6 +4,7 @@
 
 // ReSharper disable InconsistentNaming
 
+using System;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 
@@ -12,6 +13,7 @@ namespace Spreads
     /// <summary>
     /// Direction to lookup data or move from a starting point.
     /// </summary>
+    [Flags]
     public enum Lookup : byte
     {
         // NB: do not change binary, we depend on it not only in the helper

@@ -32,33 +32,30 @@ namespace Spreads
     /// behavior unless it is a part of cursor definition and is explicitly documented.
     /// The state of cursor is undefined and invalid after the exception is thrown.
     /// </summary>
-    public class OutOfOrderKeyException<K> : SpreadsException
+    public class OutOfOrderKeyException<TKey> : SpreadsException
     {
         /// <summary>
         /// Key/value before arrival of out-of-order data point
         /// </summary>
-        public K CurrentKey { get; }
+        public Opt<TKey> CurrentKey { get; }
 
         /// <summary>
         /// Key/value of an out-of-order data point
         /// </summary>
         [Obsolete]
-        public K NewKey { get; }
+        public Opt<TKey> NewKey { get; }
 
-        public bool HasKnownNewKey { get; }
 
         [Obsolete]
-        public OutOfOrderKeyException(K currentKey, K newKey, string message = "Out of order data") : base(message)
+        public OutOfOrderKeyException(TKey currentKey, TKey newKey, string message = "Out of order data") : base(message)
         {
-            CurrentKey = currentKey;
-            NewKey = newKey;
-            HasKnownNewKey = true;
+            CurrentKey = Opt.Present(currentKey);
+            NewKey = Opt.Present(newKey);
         }
 
-        public OutOfOrderKeyException(K currentKey, string message = "Out of order data") : base(message)
+        public OutOfOrderKeyException(TKey currentKey, string message = "Out of order data") : base(message)
         {
-            CurrentKey = currentKey;
-            HasKnownNewKey = false;
+            CurrentKey = Opt.Present(currentKey);
         }
     }
 }

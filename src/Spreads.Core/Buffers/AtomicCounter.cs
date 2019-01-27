@@ -148,6 +148,29 @@ namespace Spreads.Buffers
             ThrowHelper.FailFast("Decrementing counter with zero count");
         }
 
+
+
+        [System.Diagnostics.Contracts.Pure]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public int VolatileIncrement()
+        {
+            var value = Interlocked.Increment(ref *Pointer);
+            // check after is 170 MOPS vs 130 MOPS check disposed before increment
+            if (value <= 0)
+            {
+                // Was disposed but not released. Should be recoverable and at least allow to owner finalizer to clean AC.
+                var existing = Interlocked.CompareExchange(ref *Pointer, -1, 0);
+                if (existing != 0)
+                {
+                    // int overflow will be there, if reached int.Max then definitely fail fast
+                    IncrementFailReleased();
+                }
+                ThrowDisposed();
+            }
+            return value;
+        }
+
+
         public int Count
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]

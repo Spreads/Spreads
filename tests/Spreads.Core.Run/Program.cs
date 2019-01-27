@@ -6,7 +6,9 @@ using Spreads.Utils;
 using System;
 using System.Diagnostics;
 using System.Threading.Tasks;
+using Spreads.Core.Tests;
 using Spreads.Core.Tests.Collections;
+using Spreads.Core.Tests.Collections.Internal;
 
 namespace Spreads.Core.Run
 {
@@ -33,8 +35,8 @@ namespace Spreads.Core.Run
 
             // EquiJoinBench();
 
-            var test = new BaseContainerTests();
-            test.CouldTryFindChunkAtSingleChunkBench();
+            var test = new BlockCursorTests();
+            test.CouldMoveNextBench();
 
             //Console.WriteLine("Finished, press enter to exit...");
             //Console.ReadLine();

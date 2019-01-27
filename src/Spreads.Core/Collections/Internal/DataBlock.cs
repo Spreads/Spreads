@@ -1,3 +1,7 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
 using Spreads.Collections.Concurrent;
 using System;
 using System.Collections;
@@ -11,9 +15,12 @@ namespace Spreads.Collections.Internal
     /// <summary>
     /// Physycal storage for Series, Matrix and DataFrame blocks.
     /// </summary>
-    internal class DataBlockStorage : IDisposable, IData
+    internal class DataBlock : IDisposable, IData
     {
-        private static readonly ObjectPool<DataBlockStorage> ObjectPool = new ObjectPool<DataBlockStorage>(() => new DataBlockStorage(), Environment.ProcessorCount * 16);
+        // We need it as a sentinel in cursor to not penalize fast path of single-block containers
+        internal static readonly DataBlock Empty = new DataBlock();
+
+        private static readonly ObjectPool<DataBlock> ObjectPool = new ObjectPool<DataBlock>(() => new DataBlock(), Environment.ProcessorCount * 16);
 
         // for structural sharing no references to this should be exposed outside, only new object (or from pool)
 
@@ -22,7 +29,8 @@ namespace Spreads.Collections.Internal
         /// </summary>
         internal int RowLength;
 
-        internal int RowCapacity;
+        // it's calculated from context, for Matrix is different than from vec.
+        // internal int RowCapacity;
 
         // TODO these must be lazy!
         [Obsolete("Internal only for tests")]
@@ -37,9 +45,12 @@ namespace Spreads.Collections.Internal
         [Obsolete("Internal only for tests")]
         internal VectorStorage[] _columns; // arrays is allocated and GCed, so far OK
 
-        internal DataBlockStorage NextBlock;
+        internal DataBlock NextBlock;
 
-        private Mutability _mutability;
+        // TODO review: this could allow a double linked list that will automatically shrink to the closest used block.
+        // internal WeakReference<DataBlock> PreviousBlock;
+
+        private Flags _flags;
 
         internal bool HasTryGetNextBlockImpl;
 
@@ -57,7 +68,7 @@ namespace Spreads.Collections.Internal
         /// or significantly save on some constant.
         /// </remarks>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public DataBlockStorage TryGetNextBlock()
+        public DataBlock TryGetNextBlock()
         {
             if (NextBlock != null)
             {
@@ -73,7 +84,7 @@ namespace Spreads.Collections.Internal
 
         // TODO JIT could devirt this if there is only one implementation, but we have two
         // Check under what conditions this method in a derived sealed class is devirtualized.
-        public virtual DataBlockStorage TryGetNextBlockImpl()
+        public virtual DataBlock TryGetNextBlockImpl()
         {
             return null;
         }
@@ -104,10 +115,12 @@ namespace Spreads.Collections.Internal
             }
         }
 
+
+        [Obsolete("Use flags directly?")]
         public Mutability Mutability
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => _mutability;
+            get => _flags.Mutability;
         }
 
         #region Structure check
@@ -323,71 +336,11 @@ namespace Spreads.Collections.Internal
             GC.SuppressFinalize(this);
         }
 
-        ~DataBlockStorage()
+        ~DataBlock()
         {
             Dispose(false);
         }
 
         #endregion Dispose logic
-    }
-
-    internal class DataBlockSource<TKey> : ISeries<TKey, DataBlockStorage>
-    {
-        // TODO
-        /// <summary>
-        ///  For append-only containers blocks will have the same size. Last block could be only partially filled.
-        /// </summary>
-        public uint ConstantBlockLength = 0;
-
-        public IAsyncEnumerator<KeyValuePair<TKey, DataBlockStorage>> GetAsyncEnumerator()
-        {
-            throw new NotImplementedException();
-        }
-
-        public IEnumerator<KeyValuePair<TKey, DataBlockStorage>> GetEnumerator()
-        {
-            throw new NotImplementedException();
-        }
-
-        IEnumerator IEnumerable.GetEnumerator()
-        {
-            return GetEnumerator();
-        }
-
-        public bool IsCompleted => throw new NotImplementedException();
-
-        public bool IsIndexed => throw new NotImplementedException();
-
-        public ICursor<TKey, DataBlockStorage> GetCursor()
-        {
-            throw new NotImplementedException();
-        }
-
-        public KeyComparer<TKey> Comparer => throw new NotImplementedException();
-
-        public Opt<KeyValuePair<TKey, DataBlockStorage>> First => throw new NotImplementedException();
-
-        public Opt<KeyValuePair<TKey, DataBlockStorage>> Last => throw new NotImplementedException();
-
-        public DataBlockStorage this[TKey key] => throw new NotImplementedException();
-
-        public bool TryGetValue(TKey key, out DataBlockStorage value)
-        {
-            throw new NotImplementedException();
-        }
-
-        public bool TryGetAt(long index, out KeyValuePair<TKey, DataBlockStorage> kvp)
-        {
-            throw new NotImplementedException();
-        }
-
-        public bool TryFindAt(TKey key, Lookup direction, out KeyValuePair<TKey, DataBlockStorage> kvp)
-        {
-            throw new NotImplementedException();
-        }
-
-        public IEnumerable<TKey> Keys => throw new NotImplementedException();
-
-        public IEnumerable<DataBlockStorage> Values => throw new NotImplementedException();
     }
 }

@@ -1,8 +1,10 @@
-﻿using System;
-using System.Collections;
+﻿// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
+using Spreads.Collections.Internal;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
-using static Spreads.Data;
 
 namespace Spreads.Collections.Experimental
 {
@@ -10,309 +12,184 @@ namespace Spreads.Collections.Experimental
 
     // TODO will conflict with Data.Series when using static.
     // Prefer Data.XXX for discoverability, write good xml docs there
-    public static class Series
+
+    //public static class Series
+    //{
+    //    public static void Test()
+    //    {
+    //    }
+    //}
+
+    ///////////////////////////////////////////////////////////////////////////////
+
+    public partial class Series<TKey, TValue> : BaseContainer<TKey>, ISeriesNew, ISpecializedSeries<TKey, TValue, SCursor<TKey,TValue>>
     {
-        public static void Test()
-        {
-        }
-    }
+        
 
-    public class Series<TKey> : BaseContainer<TKey>, ISeries<TKey, object>, ISeriesNew
-    {
-        public IAsyncEnumerator<KeyValuePair<TKey, object>> GetAsyncEnumerator()
+        public KeySorting KeySorting
         {
-            throw new NotImplementedException();
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => _flags.KeySorting;
         }
 
-        public IEnumerator<KeyValuePair<TKey, object>> GetEnumerator()
+        public Mutability Mutability
         {
-            throw new NotImplementedException();
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => _flags.Mutability;
         }
 
-        IEnumerator IEnumerable.GetEnumerator()
+        // TODO old api to remove
+        public bool IsCompleted
         {
-            return GetEnumerator();
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => _flags.IsImmutable;
         }
 
-        public bool IsCompleted => throw new NotImplementedException();
-
-        public KeySorting KeySorting => throw new NotImplementedException();
-
-        public bool IsIndexed => throw new NotImplementedException();
-
-        public ICursor<TKey, object> GetCursor()
+        // previously only strong sorting was supported
+        public bool IsIndexed
         {
-            throw new NotImplementedException();
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => !_flags.IsStronglySorted;
         }
 
-        public KeyComparer<TKey> Comparer => throw new NotImplementedException();
-
-        public Opt<KeyValuePair<TKey, object>> First => throw new NotImplementedException();
-
-        public Opt<KeyValuePair<TKey, object>> Last => throw new NotImplementedException();
-
-        public object this[TKey key] => throw new NotImplementedException();
-
-        public bool TryGetValue(TKey key, out object value)
+        public KeyComparer<TKey> Comparer
         {
-            throw new NotImplementedException();
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => _сomparer;
+        }
+
+        public Opt<KeyValuePair<TKey, TValue>> First
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get
+            {
+                // TODO Synchronize. Append-only may skip this, but share impl
+                DataBlock block;
+                if (DataSource == null)
+                {
+                    block = DataBlock;
+                }
+                else
+                {
+                    var opt = DataSource.First;
+                    if (AdditionalCorrectnessChecks.Enabled)
+                    {
+                        block = opt.IsPresent ? opt.Present.Value : null;
+                    }
+                    else
+                    {
+                        // Opt.Missing is default and KVP is struct with default values.
+                        block = opt.Present.Value;
+                    }
+                }
+
+                if (block != null && block.RowLength > 0)
+                {
+                    var k = DataBlock.RowIndex.DangerousGetRef<TKey>(0);
+                    var v = DataBlock.Values.DangerousGetRef<TValue>(0);
+                    return Opt.Present(new KeyValuePair<TKey, TValue>(k, v));
+                }
+                return Opt<KeyValuePair<TKey, TValue>>.Missing;
+            }
+        }
+
+        public Opt<KeyValuePair<TKey, TValue>> Last
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get
+            {
+                // TODO Synchronize.
+
+                DataBlock block;
+                if (DataSource == null)
+                {
+                    block = DataBlock;
+                }
+                else
+                {
+                    var opt = DataSource.First;
+                    if (AdditionalCorrectnessChecks.Enabled)
+                    {
+                        block = opt.IsPresent ? opt.Present.Value : null;
+                    }
+                    else
+                    {
+                        // Opt.Missing is default and KVP is struct with default values.
+                        block = opt.Present.Value;
+                    }
+                }
+
+                int idx;
+                if (block != null && (idx = block.RowLength - 1) >= 0)
+                {
+                    var k = DataBlock.RowIndex.DangerousGetRef<TKey>(idx);
+                    var v = DataBlock.Values.DangerousGetRef<TValue>(idx);
+                    return Opt.Present(new KeyValuePair<TKey, TValue>(k, v));
+                }
+                return Opt<KeyValuePair<TKey, TValue>>.Missing;
+            }
+        }
+
+        public TValue this[TKey key]
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get
+            {
+                if (TryGetValue(key, out var value))
+                {
+                    return value;
+                }
+                // it's tempting to add Fill Opt<TValue> field and treat Series as continuous,
+                // but FillCursor is practically zero cost, don't mess with additional if branches here
+                // Fill cursor is visible from signature during design time - this is actually good!
+                ThrowKeyNotFound(key);
+                return default;
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static void ThrowKeyNotFound(TKey key)
+        {
+            ThrowHelper.ThrowKeyNotFoundException($"Key {key} not found in series");
+        }
+
+        public bool TryGetValue(TKey key, out TValue value)
+        {
+            if (TryGetBlock(key, out var chunk, out var chunkIndex))
+            {
+                value = chunk.Values.DangerousGet<TValue>(chunkIndex);
+                return true;
+            }
+            value = default;
+            return false;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool TryGetAt(long index, out KeyValuePair<TKey, object> kvp)
+        public bool TryGetAt(long index, out KeyValuePair<TKey, TValue> kvp)
         {
-            if(TryGetBlockAt(index, out var chunk, out var chunkIndex))
+            if (TryGetBlockAt(index, out var chunk, out var chunkIndex))
             {
                 var k = chunk.RowIndex.DangerousGet<TKey>(chunkIndex);
-                var v = chunk.Values.DangerousGet(chunkIndex);
-                kvp = new KeyValuePair<TKey, object>(k,v);
+                var v = chunk.Values.DangerousGet<TValue>(chunkIndex);
+                kvp = new KeyValuePair<TKey, TValue>(k, v);
                 return true;
             }
             kvp = default;
             return false;
         }
 
-        public bool TryFindAt(TKey key, Lookup direction, out KeyValuePair<TKey, object> kvp)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public bool TryFindAt(TKey key, Lookup direction, out KeyValuePair<TKey, TValue> kvp)
         {
-            throw new NotImplementedException();
+            if (TryFindBlockAt(ref key, direction, out var chunk, out var chunkIndex))
+            {
+                // key is updated if not EQ according to direction
+                var v = chunk.Values.DangerousGet<TValue>(chunkIndex);
+                kvp = new KeyValuePair<TKey, TValue>(key, v);
+                return true;
+            }
+            kvp = default;
+            return false;
         }
-
-        public IEnumerable<TKey> Keys => throw new NotImplementedException();
-
-        public IEnumerable<object> Values => throw new NotImplementedException();
-
-        public Mutability Mutability => throw new NotImplementedException();
     }
-
-
-    public struct SCursor<TKey> // : ISpecializedCursor<TKey, object, Cursor<TKey, object>>
-    {
-
-    }
-    ///////////////////////////////////////////////////////////////////////////////
-
-    public class Series<TKey, TValue> : Series<TKey>
-    {
-    }
-
-    public class AppendSeries<TKey>
-    {
-    }
-
-    public class AppendSeries<TKey, TValue> : AppendSeries<TKey>
-    {
-    }
-
-    public class MutableSeries<TKey>
-    {
-    }
-
-    public class MutableSeries<TKey, TValue> : MutableSeries<TKey>
-    {
-    }
-
-    //[DebuggerTypeProxy(typeof(IDictionaryDebugView<object, object>))]
-    //[DebuggerDisplay("SortedMap: Count = {Count}")]
-    //public sealed class Series<TKey, TValue> : ContainerSeries<TKey, TValue, SortedMapCursor<TKey, TValue>>, IMutableSeries<TKey, TValue>
-    //{
-    //    public override KeyComparer<TKey> Comparer => throw new NotImplementedException();
-
-    //    public override Opt<KeyValuePair<TKey, TValue>> First => throw new NotImplementedException();
-
-    //    public override Opt<KeyValuePair<TKey, TValue>> Last => throw new NotImplementedException();
-
-    //    public override bool TryGetValue(TKey key, out TValue value)
-    //    {
-    //        throw new NotImplementedException();
-    //    }
-
-    //    public override bool TryFindAt(TKey key, Lookup direction, out KeyValuePair<TKey, TValue> kvp)
-    //    {
-    //        throw new NotImplementedException();
-    //    }
-
-    //    public override bool IsIndexed => throw new NotImplementedException();
-
-    //    internal override SortedMapCursor<TKey, TValue> GetContainerCursor()
-    //    {
-    //        throw new NotImplementedException();
-    //    }
-
-    //    public long Count => throw new NotImplementedException();
-
-    //    public long Version => throw new NotImplementedException();
-
-    //    public bool IsAppendOnly => throw new NotImplementedException();
-
-    //    public Task<bool> Set(TKey key, TValue value)
-    //    {
-    //        throw new NotImplementedException();
-    //    }
-
-    //    public Task<bool> TryAdd(TKey key, TValue value)
-    //    {
-    //        throw new NotImplementedException();
-    //    }
-
-    //    public Task<bool> TryAddLast(TKey key, TValue value)
-    //    {
-    //        throw new NotImplementedException();
-    //    }
-
-    //    public Task<bool> TryAddFirst(TKey key, TValue value)
-    //    {
-    //        throw new NotImplementedException();
-    //    }
-
-    //    public ValueTask<Opt<TValue>> TryRemove(TKey key)
-    //    {
-    //        throw new NotImplementedException();
-    //    }
-
-    //    public ValueTask<Opt<KeyValuePair<TKey, TValue>>> TryRemoveFirst()
-    //    {
-    //        throw new NotImplementedException();
-    //    }
-
-    //    public ValueTask<Opt<KeyValuePair<TKey, TValue>>> TryRemoveLast()
-    //    {
-    //        throw new NotImplementedException();
-    //    }
-
-    //    public ValueTask<Opt<KeyValuePair<TKey, TValue>>> TryRemoveMany(TKey key, Lookup direction)
-    //    {
-    //        throw new NotImplementedException();
-    //    }
-
-    //    public Task<bool> TryRemoveMany(TKey key, TValue updatedAtKey, Lookup direction)
-    //    {
-    //        throw new NotImplementedException();
-    //    }
-
-    //    public ValueTask<long> TryAppend(ISeries<TKey, TValue> appendMap, AppendOption option = AppendOption.RejectOnOverlap)
-    //    {
-    //        throw new NotImplementedException();
-    //    }
-
-    //    public Task Complete()
-    //    {
-    //        throw new NotImplementedException();
-    //    }
-    //}
-
-    //[StructLayout(LayoutKind.Sequential, Pack = 1)]
-    //public struct SortedMapCursor<K, V> : ISpecializedCursor<K, V, SortedMapCursor<K, V>>, IAsyncBatchEnumerator<KeyValuePair<K, V>>
-
-    //{
-    //    public ValueTask<bool> MoveNextAsync()
-    //    {
-    //        throw new NotImplementedException();
-    //    }
-
-    //    public CursorState State => throw new NotImplementedException();
-
-    //    public KeyComparer<K> Comparer => throw new NotImplementedException();
-
-    //    public bool MoveAt(K key, Lookup direction)
-    //    {
-    //        throw new NotImplementedException();
-    //    }
-
-    //    public bool MoveFirst()
-    //    {
-    //        throw new NotImplementedException();
-    //    }
-
-    //    public bool MoveLast()
-    //    {
-    //        throw new NotImplementedException();
-    //    }
-
-    //    bool ICursor<K, V>.MoveNext()
-    //    {
-    //        throw new NotImplementedException();
-    //    }
-
-    //    public long MoveNext(long stride, bool allowPartial)
-    //    {
-    //        throw new NotImplementedException();
-    //    }
-
-    //    public bool MovePrevious()
-    //    {
-    //        throw new NotImplementedException();
-    //    }
-
-    //    public long MovePrevious(long stride, bool allowPartial)
-    //    {
-    //        throw new NotImplementedException();
-    //    }
-
-    //    public K CurrentKey => throw new NotImplementedException();
-
-    //    public V CurrentValue => throw new NotImplementedException();
-
-    //    Series<K, V, SortedMapCursor<K, V>> ISpecializedCursor<K, V, SortedMapCursor<K, V>>.Source => throw new NotImplementedException();
-
-    //    public IAsyncCompleter AsyncCompleter => throw new NotImplementedException();
-
-    //    ISeries<K, V> ICursor<K, V>.Source => throw new NotImplementedException();
-
-    //    public bool IsContinuous => throw new NotImplementedException();
-
-    //    public SortedMapCursor<K, V> Initialize()
-    //    {
-    //        throw new NotImplementedException();
-    //    }
-
-    //    SortedMapCursor<K, V> ISpecializedCursor<K, V, SortedMapCursor<K, V>>.Clone()
-    //    {
-    //        throw new NotImplementedException();
-    //    }
-
-    //    public bool IsIndexed => throw new NotImplementedException();
-
-    //    public bool IsCompleted => throw new NotImplementedException();
-
-    //    ICursor<K, V> ICursor<K, V>.Clone()
-    //    {
-    //        throw new NotImplementedException();
-    //    }
-
-    //    public bool TryGetValue(K key, out V value)
-    //    {
-    //        throw new NotImplementedException();
-    //    }
-
-    //    bool IEnumerator.MoveNext()
-    //    {
-    //        throw new NotImplementedException();
-    //    }
-
-    //    public void Reset()
-    //    {
-    //        throw new NotImplementedException();
-    //    }
-
-    //    public KeyValuePair<K, V> Current => throw new NotImplementedException();
-
-    //    object IEnumerator.Current => Current;
-
-    //    public void Dispose()
-    //    {
-    //        throw new NotImplementedException();
-    //    }
-
-    //    public ValueTask DisposeAsync()
-    //    {
-    //        throw new NotImplementedException();
-    //    }
-
-    //    public ValueTask<bool> MoveNextBatch(bool noAsync)
-    //    {
-    //        throw new NotImplementedException();
-    //    }
-
-    //    public IEnumerable<KeyValuePair<K, V>> CurrentBatch => throw new NotImplementedException();
-    //}
 }

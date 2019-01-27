@@ -7,7 +7,8 @@
     <Description />
     <FileVersion>1.0.0.0</FileVersion>
     <AssemblyVersion>1.0.0.0</AssemblyVersion>
-    <LangVersion>7.3</LangVersion>
+    <LangVersion>8.0</LangVersion>
+    <NullableReferenceTypes>true</NullableReferenceTypes>
     <DefineConstants>$(DefineConstants);SPREADS</DefineConstants>
   </PropertyGroup>
   <ItemGroup>

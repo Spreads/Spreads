@@ -9,9 +9,13 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
+using Spreads.Buffers;
 
 namespace Spreads.Collections
 {
+
+    // TODO rename all to container
+
     /// <summary>
     /// Base class for data containers implementations.
     /// </summary>
@@ -21,7 +25,12 @@ namespace Spreads.Collections
         internal BaseSeries()
         { }
 
-        internal DataBlockStorage DataBlock;
+        internal DataBlock DataBlock;
+
+        internal AtomicCounter _orderVersion;
+
+        internal long _version;
+        internal long _nextVersion;
 
         #region Attributes
 
@@ -63,8 +72,11 @@ namespace Spreads.Collections
         {
         }
 
-        internal KeyComparer<TKey> Comparer = default;
+        internal KeyComparer<TKey> _сomparer = default;
         internal DataBlockSource<TKey> DataSource;
+
+        // immutable & not sorted
+        internal readonly Flags _flags = new Flags((byte)Mutability.Immutable | (byte)KeySorting.Strong); // TODO! remove init, was testing
 
         // TODO we are forking existing series implementation from here
         // All containers inherit this.
@@ -78,14 +90,61 @@ namespace Spreads.Collections
             get => DataSource == null;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal bool TryGetBlock(TKey key, out DataBlock block, out int blockIndex,
+            bool updateDataBlock = false)
+        {
+#nullable enable
+
+            // follows TryFindBlockAt implementation, do not edit this directly
+            // * always search source with LE, do not retry, no special case since we are always searching EQ key
+            // * replace SortedLookup with SortedSearch
+
+            block = DataBlock;
+
+            if (DataSource != null)
+            {
+                TryFindBlock_ValidateOrGetBlockFromSource(ref block, key, Lookup.EQ, Lookup.LE);
+                if (updateDataBlock)
+                {
+                    DataBlock = block;
+                }
+            }
+
+            if (block != null)
+            {
+                Debug.Assert(block.RowIndex._stride == 1);
+
+                blockIndex = VectorSearch.SortedSearch(ref block.RowIndex.DangerousGetRef<TKey>(0),
+                    block.RowLength, key, _сomparer);
+
+                if (blockIndex >= 0)
+                {
+                    if (updateDataBlock)
+                    {
+                        DataBlock = block;
+                    }
+
+                    return true;
+                }
+            }
+            else
+            {
+                blockIndex = -1;
+            }
+
+            return false;
+#nullable disable
+        }
+
         /// <summary>
-        /// Returns <see cref="DataBlockStorage"/> that contains <paramref name="index"></paramref> and local index within the block as <paramref name="blockIndex"></paramref>.
+        /// Returns <see cref="DataBlock"/> that contains <paramref name="index"></paramref> and local index within the block as <paramref name="blockIndex"></paramref>.
         /// </summary>
         /// <param name="index">Index to get element at.</param>
-        /// <param name="block"><see cref="DataBlockStorage"/> that contains <paramref name="index"></paramref> or null if not found.</param>
+        /// <param name="block"><see cref="DataBlock"/> that contains <paramref name="index"></paramref> or null if not found.</param>
         /// <param name="blockIndex">Local index within the block. -1 if requested index is not range.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal bool TryGetBlockAt(long index, out DataBlockStorage block, out int blockIndex)
+        internal bool TryGetBlockAt(long index, out DataBlock block, out int blockIndex)
         {
             // Take reference, do not work directly. Reference assignment is atomic in .NET
             block = null;
@@ -133,7 +192,7 @@ namespace Spreads.Collections
 
         [MethodImpl(MethodImplOptions.NoInlining)]
         // ReSharper disable once UnusedParameter.Local
-        private static bool TryGetBlockAtSlow(long index, out DataBlockStorage block, out int blockIndex)
+        private static bool TryGetBlockAtSlow(long index, out DataBlock block, out int blockIndex)
         {
             // TODO slow path as non-inlined method
             throw new NotImplementedException();
@@ -153,7 +212,7 @@ namespace Spreads.Collections
         /// <param name="updateDataBlock"></param>
         /// <returns></returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal bool TryFindBlockAt(ref TKey key, Lookup lookup, out DataBlockStorage block, out int blockIndex, 
+        internal bool TryFindBlockAt(ref TKey key, Lookup lookup, out DataBlock block, out int blockIndex,
             bool updateDataBlock = false)
         {
             // This is non-obvious part:
@@ -211,7 +270,6 @@ namespace Spreads.Collections
                 retryOnGt = true;
                 TryFindBlock_ValidateOrGetBlockFromSource(ref block, key, lookup, lookup == Lookup.LT ? Lookup.LT : Lookup.LE);
 
-
                 // TODO (review) updating cache is not responsibility of this method
                 // There could be a situation when we know that a search is irregular
                 // Also we return the block from this method so a caller could update itself.
@@ -224,51 +282,58 @@ namespace Spreads.Collections
                 {
                     DataBlock = block;
                 }
-
-                
             }
 
         RETRY:
 
-            Debug.Assert(block != null);
-
-            // Here we use internal knowledge that for series RowIndex in contiguous vec
-            // TODO(?) do check if VS is pure, allow strides > 1 or just create Nth cursor?
-
-            Debug.Assert(block.RowIndex._stride == 1);
-
-            // TODO optimize this search via non-generic IVector with generic getter
-            // ReSharper disable once PossibleNullReferenceException
-            blockIndex = VectorSearch.SortedLookup(ref block.RowIndex.DangerousGetRef<TKey>(0), 
-                block.RowLength, ref key, lookup, Comparer);
-
-            if (blockIndex >= 0)
+            if (block != null)
             {
-                if (updateDataBlock)
+                Debug.Assert(block != null);
+
+                // Here we use internal knowledge that for series RowIndex in contiguous vec
+                // TODO(?) do check if VS is pure, allow strides > 1 or just create Nth cursor?
+
+                Debug.Assert(block.RowIndex._stride == 1);
+
+                // TODO if _stride > 1 is valid at some point, optimize this search via non-generic IVector with generic getter
+                // ReSharper disable once PossibleNullReferenceException
+                // var x = (block?.RowIndex).DangerousGetRef<TKey>(0);
+                blockIndex = VectorSearch.SortedLookup(ref block.RowIndex.DangerousGetRef<TKey>(0),
+                    block.RowLength, ref key, lookup, _сomparer);
+
+                if (blockIndex >= 0)
                 {
-                    DataBlock = block;
+                    if (updateDataBlock)
+                    {
+                        DataBlock = block;
+                    }
+
+                    return true;
                 }
-                return true;
+
+                // Check for SPECIAL CASE from the comment above
+                if (retryOnGt &&
+                    (~blockIndex) == block.RowLength
+                    && ((int)lookup & (int)Lookup.GT) != 0)
+                {
+                    retryOnGt = false;
+                    var nextBlock = block.TryGetNextBlock();
+                    if (nextBlock == null)
+                    {
+                        TryFindBlock_ValidateOrGetBlockFromSource(ref nextBlock,
+                            block.RowIndex.DangerousGetRef<TKey>(0), lookup, Lookup.GT);
+                    }
+
+                    if (nextBlock != null)
+                    {
+                        block = nextBlock;
+                        goto RETRY;
+                    }
+                }
             }
-
-            // Check for SPECIAL CASE from the comment above
-            if (retryOnGt &&
-                (~blockIndex) == block.RowLength
-                && ((int)lookup & (int)Lookup.GT) != 0)
+            else
             {
-                retryOnGt = false;
-                var nextBlock = block.TryGetNextBlock();
-                if (nextBlock == null)
-                {
-                    TryFindBlock_ValidateOrGetBlockFromSource(ref nextBlock,
-                        block.RowIndex.DangerousGetRef<TKey>(0), lookup, Lookup.GT);
-                }
-
-                if (nextBlock != null)
-                {
-                    block = nextBlock;
-                    goto RETRY;
-                }
+                blockIndex = -1;
             }
 
             return false;
@@ -276,7 +341,7 @@ namespace Spreads.Collections
 
         // TODO Test multi-block case and this attribute impact. Maybe direct call is OK without inlining
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void TryFindBlock_ValidateOrGetBlockFromSource(ref DataBlockStorage block,
+        private void TryFindBlock_ValidateOrGetBlockFromSource(ref DataBlock block,
             TKey key, Lookup direction, Lookup sourceDirection)
         {
             // for single block this should exist, for sourced blocks this value is updated by a last search
@@ -294,7 +359,7 @@ namespace Spreads.Collections
                 }
                 else
                 {
-                    var firstC = Comparer.Compare(key, block.RowIndex.DangerousGet<TKey>(0));
+                    var firstC = _сomparer.Compare(key, block.RowIndex.DangerousGet<TKey>(0));
 
                     if (firstC < 0 // not in this block even if looking LT
                         || direction == Lookup.LT // first value is >= key so LT won't find the value in this block
@@ -305,7 +370,7 @@ namespace Spreads.Collections
                     }
                     else
                     {
-                        var lastC = Comparer.Compare(key, block.RowIndex.DangerousGet<TKey>(block.RowLength - 1));
+                        var lastC = _сomparer.Compare(key, block.RowIndex.DangerousGet<TKey>(block.RowLength - 1));
 
                         if (lastC > 0
                             || direction == Lookup.GT
@@ -333,7 +398,7 @@ namespace Spreads.Collections
                 {
                     if (AdditionalCorrectnessChecks.Enabled)
                     {
-                        if (kvp.Value.RowLength <= 0 || Comparer.Compare(kvp.Key, kvp.Value.RowIndex.DangerousGet<TKey>(0)) != 0)
+                        if (kvp.Value.RowLength <= 0 || _сomparer.Compare(kvp.Key, kvp.Value.RowIndex.DangerousGet<TKey>(0)) != 0)
                         {
                             ThrowBadBlockFromSource();
                         }
@@ -345,7 +410,7 @@ namespace Spreads.Collections
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private DataBlockStorage TryFindBlockAt_LookUpSource(TKey sourceKey, Lookup direction)
+        private DataBlock TryFindBlockAt_LookUpSource(TKey sourceKey, Lookup direction)
         {
             // TODO review: next line will eventually call this method for in-memory case, so how inlining possible?
             // compiler should do magic to convert all this to a loop at JIT stage, so likely it does not
@@ -358,7 +423,7 @@ namespace Spreads.Collections
 
             if (AdditionalCorrectnessChecks.Enabled)
             {
-                if (kvp.Value.RowLength <= 0 || Comparer.Compare(kvp.Key, kvp.Value.RowIndex.DangerousGet<TKey>(0)) != 0)
+                if (kvp.Value.RowLength <= 0 || _сomparer.Compare(kvp.Key, kvp.Value.RowIndex.DangerousGet<TKey>(0)) != 0)
                 {
                     ThrowBadBlockFromSource();
                 }

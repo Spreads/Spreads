@@ -67,7 +67,7 @@ namespace Spreads
         public bool IsPresent
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return _presence != 0; }
+            get => _presence != 0;
         }
 
         /// <summary>
@@ -76,7 +76,7 @@ namespace Spreads
         public bool IsMissing
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return _presence == 0; }
+            get => _presence == 0;
         }
 
         /// <summary>
@@ -100,7 +100,7 @@ namespace Spreads
         internal int _Presence
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return _presence; }
+            get => _presence;
         }
 
         /// <summary>
