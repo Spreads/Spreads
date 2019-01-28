@@ -24,67 +24,49 @@ namespace Spreads.Collections.Internal
     /// <summary>
     /// <see cref="Collections.Experimental.Series{TKey,TValue}"/> cursor implementation.
     /// </summary>
-    [StructLayout(LayoutKind.Sequential, Pack = 1)] // This struct will be aligned to IntPtr.Size bytes because it has references, but small fields could be packed within 8 bytes.
+    [StructLayout(LayoutKind.Sequential, Pack = 4)] // This struct will be aligned to IntPtr.Size bytes because it has references, but small fields could be packed within 8 bytes.
     internal struct BlockCursor<TKey> : ICursorNew<TKey>, ISpecializedCursor<TKey, DataBlock, BlockCursor<TKey>>
     {
-        // We know TValue and container has fast generic methods, try to be less specific, maybe we could reuse SCursor for all containers
         internal BaseContainer<TKey> _source;
 
-        /// <summary>
-        /// Current DataBlock.
-        /// </summary>
         internal DataBlock _currentBlock;
 
         internal int _blockPosition;
 
-        // Should we store current? For immutables not, but then should have another place where to check flags
-        // For mutables, we cannot avoid checking version in moves because returned values could be meaningful without current key/value
-        // If we check during moves and not store current then current could be wrong
+        // TODO offtop, from empty to non-empty changes order from 0 to 1
 
-        // TODO from empty to non-empty changes order from 0 to 1
+        // TODO review/test order version overflow in AC
 
-        ///// <summary>
-        ///// Least two bytes of series order version to detect changes in series.
-        ///// Should only be checked for <see cref="Mutability.Mutable"/>, append-only does not change order.
-        ///// </summary>
-        ///// <remarks>
-        ///// Probability to miss order change is 1/65536 and very specific conditions must be met.
-        ///// E.g. the cursor should not move while data is changed exactly 65536 times.
-        ///// This is 15 micromorts (https://en.wikipedia.org/wiki/Micromort) and there is 2x more
-        ///// chance to miss order change than to die during full marathon run (7 micromorts).
-        ///// </remarks>
+        /// <summary>
+        /// Series order version saved at cursor creation to detect changes in series.
+        /// Should only be checked for <see cref="Mutability.Mutable"/>, append-only does not change order.
+        /// </summary>
+        internal int _orderVersion;
 
-        internal readonly int _orderVersionToken;
-
-        //internal int ReservedInt;
-        //internal short ReservedShort;
-        //internal byte ReservedByte;
-
-        // We need to cache CurrentKey.
-        // * in most cases it is <= 8 bytes so the entire struct should be <= 32 bytes or 1/2 cache line.
-        // * we use to to recover from OOO exceptions.
-        // * it does not affect performance too much
+        // Note: We need to cache CurrentKey:
+        // * in most cases it is <= 8 bytes so the entire struct should be <= 32 bytes or 1/2 cache line;
+        // * we use it to recover from OOO exceptions;
+        // * it does not affect performance too much and evaluation will be needed anyways in most cases.
         internal TKey _currentKey;
 
-        // TODO try make it with 32 bytes, above is 25
-        // * we do not need to cache current if we check _orderVersionToken
-
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public BlockCursor(BaseContainer<TKey> source)
         {
             _source = source;
             _blockPosition = -1;
             _currentBlock = source.DataSource == null ? source.DataBlock : DataBlock.Empty;
-            _orderVersionToken = 0; // TODO
+            _orderVersion = 0; // TODO
             _currentKey = default;
         }
 
         public ValueTask<bool> MoveNextAsync()
         {
-            throw new NotImplementedException();
+            throw new NotSupportedException("This cursor is only used as a building block of other cursors.");
         }
 
         public CursorState State
         {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
                 if (_source == null)
@@ -92,26 +74,17 @@ namespace Spreads.Collections.Internal
                     return CursorState.None;
                 }
 
-                if (_blockPosition >= 0)
-                {
-                    return CursorState.Moving;
-                }
-
-                return CursorState.Initialized;
+                return _blockPosition >= 0 ? CursorState.Moving : CursorState.Initialized;
             }
         }
 
         public KeyComparer<TKey> Comparer
         {
-            get { throw new NotImplementedException(); }
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => _source._ñomparer;
         }
 
         public bool MoveAt(TKey key, Lookup direction)
-        {
-            throw new NotImplementedException();
-        }
-
-        bool ICursor<TKey, DataBlock>.MoveNext()
         {
             throw new NotImplementedException();
         }
@@ -126,33 +99,32 @@ namespace Spreads.Collections.Internal
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public long Move(long stride, bool allowPartial)
         {
-            if (_source._flags.IsImmutable) // via source is even faster in initial tests and saves _flag field on this struct
+            // With this if NoSync case is still faster than always using Sync case,
+            // however difference is quite small and the bench has this branch perfectly
+            // predicted. TODO bench with parallel reading of mutable/immutable to test branching
+            if (_source._flags.IsImmutable)
             {
-                return MoveNoSync(stride, allowPartial); // 520 MOPS, 600 MOPS w/o if
+                return MoveNoSync(stride, allowPartial);
             }
-            return MoveSync(stride, allowPartial); // 380 MOPS, 415 MOPS w/o if
+            else
+            {
+                return MoveSync(stride, allowPartial);
+            }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal long MoveNoSync(long stride, bool allowPartial)
         {
-            long mc;
-            ulong nextPosition;
-            DataBlock nextBlock;
+            // DataBlock nextBlock;
+            // TKey k; // For NoSync case we could set _currentKey at the end. For synced one we must set it after order version check.
 
-            // TKey k; // for NoSync case we could set _currentKey at the end.
-            // For synced one we must set it after order version check.
-
-            // Synchronize this region. Read-lock code is standard but is slow/hard to implement as methods
+            // Synchronize this line. Read-lock code is standard but is slow/hard to implement as methods
             // We need to rewrite this method for synchronized case and apply synchronization over the next region
-            {
-                mc = MoveImpl(stride, allowPartial, out nextPosition, out nextBlock);
-            }
+            var mc = MoveImpl(stride, allowPartial, out var nextPosition, out var nextBlock);
 
             if (mc != 0)
             {
-                _blockPosition = (int)nextPosition;
-                _currentKey = _currentBlock.RowIndex.DangerousGetRef<TKey>((int)nextPosition); // Note: do not use _blockPosition, it's 20% slower than second cast to int
+                _currentKey = _currentBlock.RowIndex.DangerousGetRef<TKey>(_blockPosition = (int)nextPosition);
                 if (nextBlock != null)
                 {
                     _currentBlock = nextBlock;
@@ -167,7 +139,7 @@ namespace Spreads.Collections.Internal
             | MethodImplOptions.AggressiveOptimization
 #endif
         )]
-        private long MoveSync(long stride, bool allowPartial)
+        public long MoveSync(long stride, bool allowPartial)
         {
             long mc;
             ulong nextPosition;
@@ -176,18 +148,21 @@ namespace Spreads.Collections.Internal
 
             long version;
         RETRY:
-            version = Volatile.Read(ref _source._version);
-            // Synchronize this region. Read-lock code is standard but is slow/hard to implement as methods
-            // We need to rewrite this method for synchronized case and apply synchronization over the next region
+
             {
-                mc = MoveImpl(stride, allowPartial, out nextPosition, out nextBlock);
-                k = _currentBlock.RowIndex.DangerousGetRef<TKey>((int)nextPosition); // Note: do not use _blockPosition, it's 20% slower than second cast to int
+                version = Volatile.Read(ref _source._version);
+                {
+                    // Synchronize this region. Read-lock code is standard but is slow/hard to implement as methods
+                    // We need to rewrite this method for synchronized case and apply synchronization over the next region
+                    mc = MoveImpl(stride, allowPartial, out nextPosition, out nextBlock);
+                    k = _currentBlock.RowIndex.DangerousGetRef<TKey>((int)nextPosition); // Note: do not use _blockPosition, it's 20% slower than second cast to int
+                }
             }
 
             if (Volatile.Read(ref _source._nextVersion) != version)
             {
                 // TODO review if this is logically correct to check order version only here? We do check is again in value getter later
-                if (_orderVersionToken != _source._orderVersion.Count)
+                if (_orderVersion != _source._orderVersion.Count)
                 {
                     ThrowHelper.ThrowOutOfOrderKeyException(_currentKey);
                 }
@@ -326,34 +301,6 @@ namespace Spreads.Collections.Internal
             throw new NotImplementedException();
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool MoveNext()
-        {
-            // Impl via MV is not a deal breaker or not at all a difference, quick initial tests ~margin of error.
-            // Need to spend time on proper MV implementation (that of cause favors MN is there is a choice).
-            return Move(1, false) != 0;
-        }
-
-        #region Obsolete members
-
-        public long MoveNext(long stride, bool allowPartial)
-        {
-            throw new NotImplementedException();
-        }
-
-        public long MovePrevious(long stride, bool allowPartial)
-        {
-            throw new NotImplementedException();
-        }
-
-        #endregion Obsolete members
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool MovePrevious()
-        {
-            return Move(1, false) != 0;
-        }
-
         public bool MoveLast()
         {
             // TODO sync
@@ -370,8 +317,23 @@ namespace Spreads.Collections.Internal
             throw new NotImplementedException();
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public bool MoveNext()
+        {
+            // Impl via MV is not a deal breaker or not at all a difference, quick initial tests ~margin of error.
+            // Need to spend time on proper MV implementation (that of cause favors MN is there is a choice).
+            return Move(1, false) != 0;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public bool MovePrevious()
+        {
+            return Move(1, false) != 0;
+        }
+
         public TKey CurrentKey
         {
+            // No need to sync this access
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => _currentKey;
         }
@@ -381,13 +343,15 @@ namespace Spreads.Collections.Internal
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
+                // TODO order version check?
                 return _currentBlock;
             }
         }
 
         public Series<TKey, DataBlock, BlockCursor<TKey>> Source
         {
-            get { throw new NotImplementedException(); }
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => new Series<TKey, DataBlock, BlockCursor<TKey>>(this.Initialize());
         }
 
         public IAsyncCompleter AsyncCompleter
@@ -395,22 +359,78 @@ namespace Spreads.Collections.Internal
             get { throw new NotImplementedException(); }
         }
 
-        ISeries<TKey, DataBlock> ICursor<TKey, DataBlock>.Source
-        {
-            get { throw new NotImplementedException(); }
-        }
+        ISeries<TKey, DataBlock> ICursor<TKey, DataBlock>.Source => Source;
 
         public bool IsContinuous
         {
-            get { return false; }
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => false;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public BlockCursor<TKey> Initialize()
+        {
+            var c = this;
+            c.Reset();
+            return c;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public BlockCursor<TKey> Clone()
+        {
+            var c = this;
+            return c;
+        }
+
+        ICursor<TKey, DataBlock> ICursor<TKey, DataBlock>.Clone()
+        {
+            return Clone();
+        }
+
+        public bool TryGetValue(TKey key, out DataBlock value)
         {
             throw new NotImplementedException();
         }
 
-        public BlockCursor<TKey> Clone()
+        public void Reset()
+        {
+            _blockPosition = -1;
+            _currentKey = default;
+            _orderVersion = _source._orderVersion.Count;
+
+            if (_source.DataSource != null)
+            {
+                _currentBlock = DataBlock.Empty;
+            }
+        }
+
+        public KeyValuePair<TKey, DataBlock> Current
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => new KeyValuePair<TKey, DataBlock>(CurrentKey, CurrentValue);
+        }
+
+        object IEnumerator.Current => Current;
+
+        public void Dispose()
+        {
+            Reset();
+            _source = null;
+        }
+
+        public ValueTask DisposeAsync()
+        {
+            throw new NotImplementedException();
+        }
+
+        #region Obsolete members
+
+        public long MoveNext(long stride, bool allowPartial)
+        {
+            throw new NotImplementedException();
+        }
+
+        public long MovePrevious(long stride, bool allowPartial)
         {
             throw new NotImplementedException();
         }
@@ -425,39 +445,6 @@ namespace Spreads.Collections.Internal
             get { throw new NotImplementedException(); }
         }
 
-        ICursor<TKey, DataBlock> ICursor<TKey, DataBlock>.Clone()
-        {
-            throw new NotImplementedException();
-        }
-
-        public bool TryGetValue(TKey key, out DataBlock value)
-        {
-            throw new NotImplementedException();
-        }
-
-        public void Reset()
-        {
-            throw new NotImplementedException();
-        }
-
-        public KeyValuePair<TKey, DataBlock> Current
-        {
-            get { throw new NotImplementedException(); }
-        }
-
-        object IEnumerator.Current
-        {
-            get { return Current; }
-        }
-
-        public void Dispose()
-        {
-            throw new NotImplementedException();
-        }
-
-        public ValueTask DisposeAsync()
-        {
-            throw new NotImplementedException();
-        }
+        #endregion Obsolete members
     }
 }

@@ -76,7 +76,7 @@ namespace Spreads.Collections
         internal DataBlockSource<TKey> DataSource;
 
         // immutable & not sorted
-        internal readonly Flags _flags = new Flags((byte)Mutability.Immutable | (byte)KeySorting.Strong); // TODO! remove init, was testing
+        internal Flags _flags;
 
         // TODO we are forking existing series implementation from here
         // All containers inherit this.
