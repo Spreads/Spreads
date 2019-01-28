@@ -8,7 +8,7 @@ using System.Collections.Generic;
 
 namespace Spreads.Collections.Internal
 {
-    internal class DataBlockSource<TKey> : ISeries<TKey, DataBlock>
+    internal class DataBlockSource<TKey> : ISeries<TKey, DataBlock>, IDisposable
     {
         // TODO
         /// <summary>
@@ -71,5 +71,9 @@ namespace Spreads.Collections.Internal
         public IEnumerable<TKey> Keys => throw new NotImplementedException();
 
         public IEnumerable<DataBlock> Values => throw new NotImplementedException();
+        public void Dispose()
+        {
+            throw new NotImplementedException();
+        }
     }
 }

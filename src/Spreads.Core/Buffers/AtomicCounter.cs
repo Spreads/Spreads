@@ -177,6 +177,12 @@ namespace Spreads.Buffers
             get => Volatile.Read(ref *Pointer);
         }
 
+        public int CountOrZero
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => Pointer == null ? 0 : Volatile.Read(ref *Pointer);
+        }
+
         public bool IsDisposed
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]

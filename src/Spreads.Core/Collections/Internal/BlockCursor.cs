@@ -21,13 +21,19 @@ namespace Spreads.Collections.Internal
     // to be synced. If we compare order version then we throw on CV getter, otherwise
     // we will throw on next move but CV could be stale.
 
+    //public interface IDataBlockValueGetter<TValue>
+    //{
+    //    TValue GetValue(DataBlock block, int rowIndex);
+    //}
+
     /// <summary>
     /// <see cref="Collections.Experimental.Series{TKey,TValue}"/> cursor implementation.
     /// </summary>
     [StructLayout(LayoutKind.Sequential, Pack = 4)] // This struct will be aligned to IntPtr.Size bytes because it has references, but small fields could be packed within 8 bytes.
-    internal struct BlockCursor<TKey> : ICursorNew<TKey>, ISpecializedCursor<TKey, DataBlock, BlockCursor<TKey>>
+    internal struct BlockCursor<TKey, TValue, TContainer> : ICursorNew<TKey>, ISpecializedCursor<TKey, DataBlock, BlockCursor<TKey, TValue, TContainer>>
+        where TContainer : BaseContainer<TKey> // , IDataBlockValueGetter<TValue>
     {
-        internal BaseContainer<TKey> _source;
+        internal TContainer _source;
 
         internal DataBlock _currentBlock;
 
@@ -49,17 +55,18 @@ namespace Spreads.Collections.Internal
         // * it does not affect performance too much and evaluation will be needed anyways in most cases.
         internal TKey _currentKey;
 
+        internal TValue _currentValue;
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public BlockCursor(BaseContainer<TKey> source)
+        public BlockCursor(TContainer source)
         {
             _source = source;
             _blockPosition = -1;
             _currentBlock = source.DataSource == null ? source.DataBlock : DataBlock.Empty;
             OrderVersion = 0; // TODO
             _currentKey = default;
+            _currentValue = default;
         }
-
-        
 
         public CursorState State
         {
@@ -100,11 +107,11 @@ namespace Spreads.Collections.Internal
         )]
         public long Move(long stride, bool allowPartial)
         {
-            
             long mc;
             ulong nextPosition;
             DataBlock nextBlock = null;
             TKey k;
+            TValue v;
 
         RETRY:
 
@@ -122,23 +129,29 @@ namespace Spreads.Collections.Internal
                     mc = MoveRare(stride, allowPartial, ref nextPosition, ref nextBlock);
                 }
 
-                // mc = MoveImpl(stride, allowPartial, out nextPosition, out nextBlock);
-                k = _currentBlock.RowIndex.DangerousGetRef<TKey>((int)nextPosition); // Note: do not use _blockPosition, it's 20% slower than second cast to int
+                Debug.Assert(_currentBlock.RowIndex._stride == 1);
+                k = _currentBlock.RowIndex._vec.DangerousGetRef<TKey>((int)nextPosition); // Note: do not use _blockPosition, it's 20% slower than second cast to int
+
+                if (typeof(TContainer) == typeof(Collections.Experimental.Series<TKey, TValue>))
+                {
+                    Debug.Assert(_currentBlock.Values._stride == 1);
+
+                    // TODO review. Via _vec is much faster but we assume that stride is 1
+                    v = _currentBlock.Values._vec.DangerousGetRef<TValue>((int)nextPosition);
+                }
+                else
+                {
+                    v = default; // _source.GetValue(_currentBlock, (int)nextPosition);
+                }
             }
 
             if (Volatile.Read(ref _source._nextVersion) != version)
             {
                 // TODO set different versions on source Dispose and _currentBlock.RowLength  to 0, MoveRare has disposal check at the beginning
-                if (_source.DataBlock == null)
-                {
-                    ThrowCursorSourceDisposed();
-                }
+                EnsureSourceNotDisposed();
 
                 // TODO review if this is logically correct to check order version only here? We do check is again in value getter later
-                if (OrderVersion != _source._orderVersion.Count)
-                {
-                    ThrowHelper.ThrowOutOfOrderKeyException(_currentKey);
-                }
+                EnsureOrder();
                 goto RETRY;
             }
 
@@ -146,6 +159,7 @@ namespace Spreads.Collections.Internal
             {
                 _blockPosition = (int)nextPosition;
                 _currentKey = k;
+                _currentValue = v;
                 if (nextBlock != null)
                 {
                     _currentBlock = nextBlock;
@@ -153,6 +167,24 @@ namespace Spreads.Collections.Internal
             }
 
             return mc;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal void EnsureSourceNotDisposed()
+        {
+            if (_source.DataBlock == null)
+            {
+                ThrowCursorSourceDisposed();
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal void EnsureOrder()
+        {
+            if (OrderVersion != _source._orderVersion.CountOrZero)
+            {
+                ThrowHelper.ThrowOutOfOrderKeyException(_currentKey);
+            }
         }
 
         /// <summary>
@@ -166,10 +198,7 @@ namespace Spreads.Collections.Internal
         )]
         public long MoveRare(long stride, bool allowPartial, ref ulong nextPos, ref DataBlock nextBlock)
         {
-            if (_source.DataBlock == null)
-            {
-                ThrowCursorSourceDisposed();
-            }
+            EnsureSourceNotDisposed();
 
             var localBlock = _currentBlock;
 
@@ -315,10 +344,10 @@ namespace Spreads.Collections.Internal
             get => _blockPosition;
         }
 
-        public Series<TKey, DataBlock, BlockCursor<TKey>> Source
+        public Series<TKey, DataBlock, BlockCursor<TKey, TValue, TContainer>> Source
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => new Series<TKey, DataBlock, BlockCursor<TKey>>(this.Initialize());
+            get => new Series<TKey, DataBlock, BlockCursor<TKey, TValue, TContainer>>(Initialize());
         }
 
         public ValueTask<bool> MoveNextAsync()
@@ -337,7 +366,7 @@ namespace Spreads.Collections.Internal
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public BlockCursor<TKey> Initialize()
+        public BlockCursor<TKey, TValue, TContainer> Initialize()
         {
             var c = this;
             c.Reset();
@@ -345,7 +374,7 @@ namespace Spreads.Collections.Internal
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public BlockCursor<TKey> Clone()
+        public BlockCursor<TKey, TValue, TContainer> Clone()
         {
             var c = this;
             return c;

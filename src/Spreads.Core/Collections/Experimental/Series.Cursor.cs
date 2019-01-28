@@ -8,11 +8,10 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using System.Threading.Tasks;
 
 namespace Spreads.Collections.Experimental
 {
-    public partial class Series<TKey, TValue>
+    public partial class Series<TKey, TValue> // : IDataBlockValueGetter<TValue>
     {
         // TODO review & document
         // Maybe separate ICursor and IAsyncCursor, ISeries return IAsyncCursor, while specialized return TCursor
@@ -37,8 +36,6 @@ namespace Spreads.Collections.Experimental
             return new AsyncCursor<TKey, TValue, SCursor<TKey, TValue>>(GetCursor());
         }
 
-        
-
         SCursor<TKey, TValue> ISpecializedSeries<TKey, TValue, SCursor<TKey, TValue>>.GetCursor()
         {
             return GetCursor();
@@ -46,7 +43,7 @@ namespace Spreads.Collections.Experimental
 
         public SCursor<TKey, TValue> GetCursor()
         {
-            throw new NotImplementedException();
+            return new SCursor<TKey, TValue>(this);
         }
 
         IAsyncCursor<TKey, TValue> ISeries<TKey, TValue>.GetAsyncCursor()
@@ -64,10 +61,12 @@ namespace Spreads.Collections.Experimental
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
-                // TODO via cursor and CurrentKey
-                foreach (var keyValuePair in this)
+                using (var c = GetCursor())
                 {
-                    yield return keyValuePair.Key;
+                    while (c.MoveNext())
+                    {
+                        yield return c.CurrentKey;
+                    }
                 }
             }
         }
@@ -77,13 +76,21 @@ namespace Spreads.Collections.Experimental
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
-                // TODO via cursor and CurrentValue
-                foreach (var keyValuePair in this)
+                using (var c = GetCursor())
                 {
-                    yield return keyValuePair.Value;
+                    while (c.MoveNext())
+                    {
+                        yield return c.CurrentValue;
+                    }
                 }
             }
         }
+
+        //[MethodImpl(MethodImplOptions.AggressiveInlining)]
+        //public TValue GetValue(DataBlock block, int rowIndex)
+        //{
+        //    return block.Values.DangerousGetRef<TValue>(rowIndex);
+        //}
     }
 
     /// <summary>
@@ -92,71 +99,156 @@ namespace Spreads.Collections.Experimental
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     public struct SCursor<TKey, TValue> : ICursorNew<TKey>, ISpecializedCursor<TKey, TValue, SCursor<TKey, TValue>>
     {
+        // ReSharper disable once FieldCanBeMadeReadOnly.Local mutable struct
+        private BlockCursor<TKey, TValue, Series<TKey, TValue>> _cursor;
 
-        private BlockCursor<TKey> _cursor;
-
-        public ValueTask<bool> MoveNextAsync()
+        public SCursor(Series<TKey, TValue> source)
         {
-            throw new NotImplementedException();
+            _cursor = new BlockCursor<TKey, TValue, Series<TKey, TValue>>(source);
         }
 
-        public CursorState State => throw new NotImplementedException();
-
-        public KeyComparer<TKey> Comparer => throw new NotImplementedException();
-
-        public bool MoveAt(TKey key, Lookup direction)
+        public CursorState State
         {
-            throw new NotImplementedException();
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => _cursor.State;
         }
 
+        public KeyComparer<TKey> Comparer
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => _cursor.Comparer;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool MoveFirst()
         {
-            throw new NotImplementedException();
+            return _cursor.MoveFirst();
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool MoveLast()
         {
-            throw new NotImplementedException();
+            return _cursor.MoveLast();
         }
 
-        bool ICursor<TKey, TValue>.MoveNext()
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public long Move(long stride, bool allowPartial)
+        {
+            return _cursor.Move(stride, allowPartial);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public bool TryMoveNextBatch(out object batch)
         {
             throw new NotImplementedException();
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public bool MoveNext()
+        {
+            return _cursor.MoveNext();
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public bool MovePrevious()
+        {
+            return _cursor.MovePrevious();
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public bool MoveAt(TKey key, Lookup direction)
+        {
+            return _cursor.MoveAt(key, direction);
+        }
+
+        public TKey CurrentKey
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => _cursor._currentKey;
+        }
+
+        public TValue CurrentValue
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => _cursor._currentValue;
+        }
+
+        Series<TKey, TValue, SCursor<TKey, TValue>> ISpecializedCursor<TKey, TValue, SCursor<TKey, TValue>>.Source
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => new Series<TKey, TValue, SCursor<TKey, TValue>>(this);
+        }
+
+        public IAsyncCompleter AsyncCompleter
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => _cursor._source;
+        }
+
+        ISeries<TKey, TValue> ICursor<TKey, TValue>.Source
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => _cursor._source;
+        }
+
+        public bool IsContinuous
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => false;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public SCursor<TKey, TValue> Initialize()
+        {
+            return new SCursor<TKey, TValue>(_cursor._source);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public SCursor<TKey, TValue> Clone()
+        {
+            var c = this;
+            return c;
+        }
+
+        ICursor<TKey, TValue> ICursor<TKey, TValue>.Clone()
+        {
+            return Clone();
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public bool TryGetValue(TKey key, out TValue value)
+        {
+            return _cursor._source.TryGetValue(key, out value);
+        }
+
+        public void Reset()
+        {
+            _cursor.Reset();
+        }
+
+        public KeyValuePair<TKey, TValue> Current
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => new KeyValuePair<TKey, TValue>(_cursor._currentKey, CurrentValue);
+        }
+
+        object IEnumerator.Current => ((IEnumerator)_cursor).Current;
+
+        public void Dispose()
+        {
+            _cursor.Dispose();
+        }
+
+        ///////////////////////////////////////////////
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public long MoveNext(long stride, bool allowPartial)
         {
             throw new NotImplementedException();
         }
 
-        public bool MovePrevious()
-        {
-            throw new NotImplementedException();
-        }
-
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public long MovePrevious(long stride, bool allowPartial)
-        {
-            throw new NotImplementedException();
-        }
-
-        public TKey CurrentKey => throw new NotImplementedException();
-
-        public TValue CurrentValue => throw new NotImplementedException();
-
-        Series<TKey, TValue, SCursor<TKey, TValue>> ISpecializedCursor<TKey, TValue, SCursor<TKey, TValue>>.Source => throw new NotImplementedException();
-
-        public IAsyncCompleter AsyncCompleter => throw new NotImplementedException();
-
-        ISeries<TKey, TValue> ICursor<TKey, TValue>.Source => throw new NotImplementedException();
-
-        public bool IsContinuous => throw new NotImplementedException();
-
-        public SCursor<TKey, TValue> Initialize()
-        {
-            throw new NotImplementedException();
-        }
-
-        SCursor<TKey, TValue> ISpecializedCursor<TKey, TValue, SCursor<TKey, TValue>>.Clone()
         {
             throw new NotImplementedException();
         }
@@ -164,49 +256,5 @@ namespace Spreads.Collections.Experimental
         public bool IsIndexed => throw new NotImplementedException();
 
         public bool IsCompleted => throw new NotImplementedException();
-
-        ICursor<TKey, TValue> ICursor<TKey, TValue>.Clone()
-        {
-            throw new NotImplementedException();
-        }
-
-        public bool TryGetValue(TKey key, out TValue value)
-        {
-            throw new NotImplementedException();
-        }
-
-        bool IEnumerator.MoveNext()
-        {
-            throw new NotImplementedException();
-        }
-
-        public void Reset()
-        {
-            throw new NotImplementedException();
-        }
-
-        public KeyValuePair<TKey, TValue> Current => throw new NotImplementedException();
-
-        object IEnumerator.Current => Current;
-
-        public void Dispose()
-        {
-            throw new NotImplementedException();
-        }
-
-        public ValueTask DisposeAsync()
-        {
-            throw new NotImplementedException();
-        }
-
-        public long Move(long stride, bool allowPartial)
-        {
-            throw new NotImplementedException();
-        }
-
-        public bool TryMoveNextBatch(out object batch)
-        {
-            throw new NotImplementedException();
-        }
     }
 }

@@ -3,17 +3,16 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 using Spreads.Algorithms;
+using Spreads.Buffers;
 using Spreads.Collections.Internal;
 using Spreads.Utils;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
-using Spreads.Buffers;
 
 namespace Spreads.Collections
 {
-
     // TODO rename all to container
 
     /// <summary>
@@ -24,8 +23,6 @@ namespace Spreads.Collections
     {
         internal BaseSeries()
         { }
-
-        internal DataBlock DataBlock;
 
         internal AtomicCounter _orderVersion;
 
@@ -65,7 +62,7 @@ namespace Spreads.Collections
     }
 
     /// <inheritdoc />
-    public class BaseContainer<TKey> : BaseSeries
+    public class BaseContainer<TKey> : BaseSeries, IAsyncCompleter, IDisposable //, IDataBlockValueGetter<object>
     {
         // for tests only, it should have been abstract otherwise
         internal BaseContainer()
@@ -73,6 +70,8 @@ namespace Spreads.Collections
         }
 
         internal KeyComparer<TKey> _сomparer = default;
+
+        internal DataBlock DataBlock;
         internal DataBlockSource<TKey> DataSource;
 
         // immutable & not sorted
@@ -437,5 +436,26 @@ namespace Spreads.Collections
             ThrowHelper.ThrowInvalidOperationException("BaseContainer.DataSource.TryFindAt " +
                     "returned an empty block or key that doesn't match the first row index value");
         }
+
+        public IDisposable Subscribe(IAsyncCompletable subscriber)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void Dispose()
+        {
+            var block = DataBlock;
+            DataBlock = null;
+            block?.Dispose();
+
+            var ds = DataSource;
+            DataSource = null;
+            ds?.Dispose();
+        }
+
+        //object IDataBlockValueGetter<object>.GetValue(DataBlock block, int rowIndex)
+        //{
+        //    throw new NotImplementedException();
+        //}
     }
 }

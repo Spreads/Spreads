@@ -2,7 +2,9 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+using Spreads.Buffers;
 using Spreads.Collections.Internal;
+using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 
@@ -22,9 +24,53 @@ namespace Spreads.Collections.Experimental
 
     ///////////////////////////////////////////////////////////////////////////////
 
-    public partial class Series<TKey, TValue> : BaseContainer<TKey>, ISeriesNew, ISpecializedSeries<TKey, TValue, SCursor<TKey,TValue>>
+    public partial class Series<TKey, TValue> : BaseContainer<TKey>, ISeriesNew, ISpecializedSeries<TKey, TValue, SCursor<TKey, TValue>>
     {
-        
+        internal Series()
+        {
+        }
+
+        public Series(TKey[] keys, TValue[] values)
+        {
+            if (keys.Length != values.Length)
+            {
+                throw new ArgumentException("Different keys and values length");
+            }
+            var ks = KeySorting.Strong;
+            if (keys.Length > 1)
+            {
+                var cmp = KeyComparer<TKey>.Default;
+                for (int i = 1; i < keys.Length; i++)
+                {
+                    var c = cmp.Compare(keys[i], keys[i - 1]);
+                    if (c == 0)
+                    {
+                        ks = KeySorting.Weak;
+                    }
+                    else if (c < 0)
+                    {
+                        ks = KeySorting.NotSorted;
+                        break;
+                    }
+                }
+            }
+            _flags = new Flags((byte)((byte)Mutability.Immutable | (byte)ks));
+
+            var block = new DataBlock();
+            var keyMemory = ArrayMemory<TKey>.Create(keys, externallyOwned: true);
+            var keyVs = VectorStorage.Create(keyMemory, 0, keyMemory.Length, 1);
+
+            var valMemory = ArrayMemory<TValue>.Create(values, externallyOwned: true);
+            var valVs = VectorStorage.Create(valMemory, 0, valMemory.Length, 1);
+
+#pragma warning disable 618
+            block._rowIndex = keyVs;
+            block._values = valVs;
+#pragma warning restore 618
+            block.RowLength = keys.Length;
+            DataBlock = block;
+        }
+
         public KeySorting KeySorting
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
