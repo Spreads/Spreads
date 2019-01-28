@@ -166,6 +166,8 @@ namespace Spreads
         /// </summary>
         ICursor<TKey, TValue> GetCursor();
 
+        IAsyncCursor<TKey, TValue> GetAsyncCursor();
+
         /// <summary>
         /// An optimized <see cref="IComparer{T}"/> implementation with additional members to further optimize performance in certain cases.
         /// </summary>
@@ -226,17 +228,16 @@ namespace Spreads
     /// <summary>
     /// A series with a known strongly typed cursor type.
     /// </summary>
-    public interface ISpecializedSeries<TKey, TValue, out TCursor> : ISeries<TKey, TValue>
+    public interface ISpecializedSeries<TKey, TValue, TCursor> : ISeries<TKey, TValue>
         where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
     {
         /// <summary>
         /// Get a strongly typed cursor that implements the <see cref="ISpecializedCursor{TKey,TValue,TCursor}"/> interface.
         /// </summary>
         /// <returns></returns>
-        new TCursor GetCursor(); // TODO (review) review why new
+        new TCursor GetCursor();
 
-        // NB new name and not `new` keyword because this cursor does not implement MoveNextAsync,
-        // but is used to build efficient computation tree without interface calls.
+        new AsyncCursor<TKey, TValue, TCursor> GetAsyncCursor();
     }
 
     public interface ICursorNew<TKey> // TODO merge with existing
@@ -287,7 +288,7 @@ namespace Spreads
     ///    no out-of-order exception is thrown e.g. when `SortedMap.Set(k, v)` is called and the cursor is at `k` position.
     ///    Subsequent move of the cursor will throw OOO exception.
     /// </remarks>
-    public interface ICursor<TKey, TValue> : IAsyncEnumerator<KeyValuePair<TKey, TValue>>// TODO, IAsyncBatchEnumerator<KeyValuePair<TKey, TValue>>
+    public interface ICursor<TKey, TValue> : IEnumerator<KeyValuePair<TKey, TValue>>// TODO, IAsyncBatchEnumerator<KeyValuePair<TKey, TValue>>
     {
         /// <summary>
         /// Cursor current state.
@@ -430,16 +431,16 @@ namespace Spreads
     }
 
     // Not needed, delete
-    //public interface IAsyncCursor<TKey, TValue> : ICursor<TKey, TValue>, IAsyncEnumerator<KeyValuePair<TKey, TValue>>
-    //{
-    //    AsyncCursor<TKey, TValue, Cursor<TKey, TValue>> GetAsyncCursor();
-    //}
+    public interface IAsyncCursor<TKey, TValue> : ICursor<TKey, TValue>, IAsyncEnumerator<KeyValuePair<TKey, TValue>>
+    {
 
-    //public interface IAsyncCursor<TKey, TValue, TCursor> : ISpecializedCursor<TKey, TValue, TCursor>, IAsyncEnumerator<KeyValuePair<TKey, TValue>>
-    //    where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
-    //{
-    //    AsyncCursor<TKey, TValue, Cursor<TKey, TValue>> GetAsyncCursor();
-    //}
+    }
+
+    public interface IAsyncCursor<TKey, TValue, TCursor> : ISpecializedCursor<TKey, TValue, TCursor>, IAsyncEnumerator<KeyValuePair<TKey, TValue>>
+        where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
+    {
+
+    }
 
     /// <summary>
     /// An untyped <see cref="ISeries{TKey, TValue}"/> interface with both keys and values as <see cref="Variant"/> types.

@@ -97,7 +97,8 @@ namespace Spreads
     /// The default implementation of <see cref="ICursor{TKey,TValue}"/> with supported <see cref="IAsyncEnumerator{T}.MoveNextAsync"/>.
     /// </summary>
     public sealed class AsyncCursor<TKey, TValue, TCursor> : AsyncCursor,
-         ISpecializedCursor<TKey, TValue, TCursor>,
+        IAsyncCursor<TKey, TValue>,
+        IAsyncCursor<TKey, TValue, TCursor>,
          IValueTaskSource<bool>, IAsyncCompletable, IThreadPoolWorkItem
          where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
     {
@@ -895,8 +896,9 @@ namespace Spreads
 
         public ValueTask DisposeAsync()
         {
+            _innerCursor.Dispose();
             Reset();
-            return _innerCursor.DisposeAsync();
+            return new ValueTask();
         }
     }
 }

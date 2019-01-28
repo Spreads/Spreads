@@ -37,12 +37,24 @@ namespace Spreads.Collections.Experimental
             return new AsyncCursor<TKey, TValue, SCursor<TKey, TValue>>(GetCursor());
         }
 
+        
+
         SCursor<TKey, TValue> ISpecializedSeries<TKey, TValue, SCursor<TKey, TValue>>.GetCursor()
         {
             return GetCursor();
         }
 
         public SCursor<TKey, TValue> GetCursor()
+        {
+            throw new NotImplementedException();
+        }
+
+        IAsyncCursor<TKey, TValue> ISeries<TKey, TValue>.GetAsyncCursor()
+        {
+            return GetAsyncCursor();
+        }
+
+        public AsyncCursor<TKey, TValue, SCursor<TKey, TValue>> GetAsyncCursor()
         {
             throw new NotImplementedException();
         }
@@ -74,13 +86,15 @@ namespace Spreads.Collections.Experimental
         }
     }
 
-    
     /// <summary>
     /// <see cref="Series{TKey,TValue}"/> cursor implementation.
     /// </summary>
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     public struct SCursor<TKey, TValue> : ICursorNew<TKey>, ISpecializedCursor<TKey, TValue, SCursor<TKey, TValue>>
     {
+
+        private BlockCursor<TKey> _cursor;
+
         public ValueTask<bool> MoveNextAsync()
         {
             throw new NotImplementedException();

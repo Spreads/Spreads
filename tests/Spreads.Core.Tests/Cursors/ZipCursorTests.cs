@@ -532,7 +532,7 @@ namespace Spreads.Core.Tests.Cursors
             using (Benchmark.Run("Zip Async join", sm1.Count + sm2.Count))
             {
                 var zip = sm1.Zip(sm2, (v1, v2) => v1 + v2);
-                var cur = zip.GetSpecializedCursor();
+                var cur = zip.GetAsyncCursor();
                 var last = zip.Last.Present.Key;
                 Task.Run(async () =>
                     {
@@ -698,7 +698,7 @@ namespace Spreads.Core.Tests.Cursors
             using (Benchmark.Run("Zip Async join", sm1.Count + sm2.Count))
             {
                 var zip = sm1.Repeat().Zip(sm2, (v1, v2) => v1 + v2);
-                var cur = zip.GetSpecializedCursor();
+                var cur = zip.GetAsyncCursor();
                 var last = zip.Last.Present.Key;
                 Task.Run(async () =>
                     {

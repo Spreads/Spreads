@@ -40,6 +40,11 @@ namespace Spreads.Collections.Internal
             throw new NotImplementedException();
         }
 
+        public IAsyncCursor<TKey, DataBlock> GetAsyncCursor()
+        {
+            throw new NotImplementedException();
+        }
+
         public KeyComparer<TKey> Comparer => throw new NotImplementedException();
 
         public Opt<KeyValuePair<TKey, DataBlock>> First => throw new NotImplementedException();

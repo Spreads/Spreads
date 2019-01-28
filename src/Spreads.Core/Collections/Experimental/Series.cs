@@ -25,7 +25,6 @@ namespace Spreads.Collections.Experimental
     public partial class Series<TKey, TValue> : BaseContainer<TKey>, ISeriesNew, ISpecializedSeries<TKey, TValue, SCursor<TKey,TValue>>
     {
         
-
         public KeySorting KeySorting
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]

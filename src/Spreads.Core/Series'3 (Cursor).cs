@@ -10,18 +10,15 @@ using System.Runtime.CompilerServices;
 
 namespace Spreads
 {
-
-    
-
-    public struct ZipW<TKey, TValue, RV, TLC, RC> 
-        where TLC : ISpecializedCursor<TKey, TValue, TLC> 
-        where // RC : ISpecializedCursor<TKey, TValue, RC>, ISpecializedCursor<RK, TValue, RC>, 
+    public struct ZipW<TKey, TValue, RV, TLC, RC>
+        where TLC : ISpecializedCursor<TKey, TValue, TLC>
+        where // RC : ISpecializedCursor<TKey, TValue, RC>, ISpecializedCursor<RK, TValue, RC>,
         RC : ISpecializedCursor<TKey, RV, RC>
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static implicit operator ZipW<TKey, TValue, RV, TLC, RC>(Series<TKey, TValue, TLC> series)
         {
-           return default;
+            return default;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -30,6 +27,7 @@ namespace Spreads
         {
             return 1;
         }
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int operator
             +(ZipW<TKey, TValue, RV, TLC, RC> series, ZipW<TKey, TValue, RV, TLC, RC> other)
@@ -104,6 +102,16 @@ namespace Spreads
 #pragma warning disable HAA0601 // Value type to reference type conversion causing boxing allocation
             return _cursor.Initialize();
 #pragma warning restore HAA0601 // Value type to reference type conversion causing boxing allocation
+        }
+
+        IAsyncCursor<TKey, TValue> ISeries<TKey, TValue>.GetAsyncCursor()
+        {
+            return GetAsyncCursor();
+        }
+
+        public AsyncCursor<TKey, TValue, TCursor> GetAsyncCursor()
+        {
+            return new AsyncCursor<TKey, TValue, TCursor>(GetCursor());
         }
 
         /// <inheritdoc />
@@ -918,14 +926,14 @@ namespace Spreads
         /// with <see cref="Cursor{TKey,TValue}"/> as <typeparamref name="TCursor"/>.
         /// using <see cref="Cursor{TKey,TValue}"/> wrapper.
         /// </summary>
-//        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-//        public static implicit operator Series<TKey, TValue, Cursor<TKey, TValue>>(Series<TKey, TValue, TCursor> series)
-//        {
-//#pragma warning disable HAA0601 // Value type to reference type conversion causing boxing allocation
-//            var c = new Cursor<TKey, TValue>(series._cursor);
-//#pragma warning restore HAA0601 // Value type to reference type conversion causing boxing allocation
-//            return new Series<TKey, TValue, Cursor<TKey, TValue>>(c);
-//        }
+        //        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        //        public static implicit operator Series<TKey, TValue, Cursor<TKey, TValue>>(Series<TKey, TValue, TCursor> series)
+        //        {
+        //#pragma warning disable HAA0601 // Value type to reference type conversion causing boxing allocation
+        //            var c = new Cursor<TKey, TValue>(series._cursor);
+        //#pragma warning restore HAA0601 // Value type to reference type conversion causing boxing allocation
+        //            return new Series<TKey, TValue, Cursor<TKey, TValue>>(c);
+        //        }
 
         /// <summary>
         /// Erase cursor type <typeparamref name="TCursor"/> to <see cref="Cursor{TKey,TValue}"/>.

@@ -437,62 +437,62 @@ namespace Spreads.Core.Tests.DataTypes
         //}
 
 
-        [Test]
-        public async Task RangeOnVariantSeriesWorks()
-        {
+        //[Test]
+        //public async Task RangeOnVariantSeriesWorks()
+        //{
 
-            var sm = new SortedMap<DateTime, int>();
+        //    var sm = new SortedMap<DateTime, int>();
 
-            for (int i = 0; i < 100; i++)
-            {
-                sm.Add(DateTime.Today.AddSeconds(i), i);
-            }
+        //    for (int i = 0; i < 100; i++)
+        //    {
+        //        sm.Add(DateTime.Today.AddSeconds(i), i);
+        //    }
 
-            var vs = new VariantSeries<DateTime, int>(sm);
+        //    var vs = new VariantSeries<DateTime, int>(sm);
 
-            Assert.IsTrue(!vs.Comparer.Equals(KeyComparer<Variant>.Default));
+        //    Assert.IsTrue(!vs.Comparer.Equals(KeyComparer<Variant>.Default));
 
-            var rs = vs.After(Variant.Create(DateTime.Today.AddSeconds(50)));
+        //    var rs = vs.After(Variant.Create(DateTime.Today.AddSeconds(50)));
 
-            Assert.IsTrue(!rs.Comparer.Equals(KeyComparer<Variant>.Default));
+        //    Assert.IsTrue(!rs.Comparer.Equals(KeyComparer<Variant>.Default));
 
-            var expected = 0;
-            for (int i = 50; i < 100; i++)
-            {
-                expected += i;
-            }
+        //    var expected = 0;
+        //    for (int i = 50; i < 100; i++)
+        //    {
+        //        expected += i;
+        //    }
 
-            var sum = 0;
-            foreach (var variantKvp in rs)
-            {
-                sum += variantKvp.Value.Get<int>();
-            }
-            Assert.AreEqual(expected, sum);
+        //    var sum = 0;
+        //    foreach (var variantKvp in rs)
+        //    {
+        //        sum += variantKvp.Value.Get<int>();
+        //    }
+        //    Assert.AreEqual(expected, sum);
 
 
-            var t = Task.Run(async () =>
-            {
-                try
-                {
-                    for (int i = 100; i < 150; i++)
-                    {
-                        sm.Add(DateTime.Today.AddSeconds(i), i);
-                        await Task.Delay(1);
-                    }
-                    sm.Complete();
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine(ex.Message);
-                }
-            });
-            var c = rs.GetSpecializedCursor();
-            while (await c.MoveNextAsync())
-            {
-                sum += c.CurrentValue.Get<int>();
-            }
+        //    var t = Task.Run(async () =>
+        //    {
+        //        try
+        //        {
+        //            for (int i = 100; i < 150; i++)
+        //            {
+        //                sm.Add(DateTime.Today.AddSeconds(i), i);
+        //                await Task.Delay(1);
+        //            }
+        //            sm.Complete();
+        //        }
+        //        catch (Exception ex)
+        //        {
+        //            Console.WriteLine(ex.Message);
+        //        }
+        //    });
+        //    var c = rs.GetSpecializedCursor();
+        //    while (await c.MoveNextAsync())
+        //    {
+        //        sum += c.CurrentValue.Get<int>();
+        //    }
 
-        }
+        //}
 
     }
 }

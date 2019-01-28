@@ -102,6 +102,11 @@ namespace Spreads
             return _impl.GetSpecializedCursor();
         }
 
+        public IAsyncCursor<ulong, Timestamped<T>> GetAsyncCursor()
+        {
+            return new AsyncCursor<ulong, Timestamped<T>, Cursor<ulong, Timestamped<T>>>(_impl.GetSpecializedCursor());
+        }
+
         public KeyComparer<ulong> Comparer
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -213,6 +218,11 @@ namespace Spreads
         public ICursor<ulong, Timestamped<T>> GetCursor()
         {
             return _impl.GetCursor();
+        }
+
+        public IAsyncCursor<ulong, Timestamped<T>> GetAsyncCursor()
+        {
+            throw new NotImplementedException();
         }
 
         public KeyComparer<ulong> Comparer

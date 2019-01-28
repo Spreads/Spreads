@@ -408,7 +408,7 @@ and
       if this.batchCursor = null then 
         this.batchCursor <- this.source.outerMap.GetCursor()
       if noAsync then new ValueTask<bool>(this.batchCursor.MoveNext())
-      else this.batchCursor.MoveNextAsync()
+      else failwith "" // this.batchCursor.MoveNextAsync()
 
     [<MethodImplAttribute(MethodImplOptions.AggressiveInlining);RewriteAIL>]
     member this.MovePrevious() = 

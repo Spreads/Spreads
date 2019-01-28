@@ -32,7 +32,7 @@ namespace Spreads.Collections.Internal
         // it's calculated from context, for Matrix is different than from vec.
         // internal int RowCapacity;
 
-        // TODO these must be lazy!
+        // TODO these should be lazy?
         [Obsolete("Internal only for tests")]
         internal VectorStorage _rowIndex;
 
@@ -52,6 +52,7 @@ namespace Spreads.Collections.Internal
 
         private Flags _flags;
 
+        // TODO interface with a single impl for persistence so that it's methods are devirtualized
         internal bool HasTryGetNextBlockImpl;
 
         /// <summary>
@@ -284,6 +285,9 @@ namespace Spreads.Collections.Internal
 
         private void Dispose(bool disposing)
         {
+            // just break the chain, if the remaining linked list was only rooted here it will be GCed TODO review
+            NextBlock = null;
+            RowLength = 0;
             if (_columns != null)
             {
                 foreach (var vectorStorage in _columns)
@@ -311,9 +315,6 @@ namespace Spreads.Collections.Internal
                 _columnIndex.Dispose();
                 _columnIndex = null;
             }
-
-            // just break the chain, if the remaining linked list was only rooted here it will be GCed TODO review
-            NextBlock = null;
 
             ObjectPool.Free(this);
         }

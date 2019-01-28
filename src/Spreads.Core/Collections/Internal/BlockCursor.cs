@@ -41,7 +41,7 @@ namespace Spreads.Collections.Internal
         /// Series order version saved at cursor creation to detect changes in series.
         /// Should only be checked for <see cref="Mutability.Mutable"/>, append-only does not change order.
         /// </summary>
-        internal int _orderVersion;
+        internal int OrderVersion;
 
         // Note: We need to cache CurrentKey:
         // * in most cases it is <= 8 bytes so the entire struct should be <= 32 bytes or 1/2 cache line;
@@ -55,14 +55,11 @@ namespace Spreads.Collections.Internal
             _source = source;
             _blockPosition = -1;
             _currentBlock = source.DataSource == null ? source.DataBlock : DataBlock.Empty;
-            _orderVersion = 0; // TODO
+            OrderVersion = 0; // TODO
             _currentKey = default;
         }
 
-        public ValueTask<bool> MoveNextAsync()
-        {
-            throw new NotSupportedException("This cursor is only used as a building block of other cursors.");
-        }
+        
 
         public CursorState State
         {
@@ -103,6 +100,7 @@ namespace Spreads.Collections.Internal
         )]
         public long Move(long stride, bool allowPartial)
         {
+            
             long mc;
             ulong nextPosition;
             DataBlock nextBlock = null;
@@ -130,8 +128,14 @@ namespace Spreads.Collections.Internal
 
             if (Volatile.Read(ref _source._nextVersion) != version)
             {
+                // TODO set different versions on source Dispose and _currentBlock.RowLength  to 0, MoveRare has disposal check at the beginning
+                if (_source.DataBlock == null)
+                {
+                    ThrowCursorSourceDisposed();
+                }
+
                 // TODO review if this is logically correct to check order version only here? We do check is again in value getter later
-                if (_orderVersion != _source._orderVersion.Count)
+                if (OrderVersion != _source._orderVersion.Count)
                 {
                     ThrowHelper.ThrowOutOfOrderKeyException(_currentKey);
                 }
@@ -162,6 +166,11 @@ namespace Spreads.Collections.Internal
         )]
         public long MoveRare(long stride, bool allowPartial, ref ulong nextPos, ref DataBlock nextBlock)
         {
+            if (_source.DataBlock == null)
+            {
+                ThrowCursorSourceDisposed();
+            }
+
             var localBlock = _currentBlock;
 
             // var nextPosition = unchecked((ulong)(_blockPosition + stride)); // long.Max + int.Max < ulong.Max
@@ -212,6 +221,12 @@ namespace Spreads.Collections.Internal
             {
                 return MoveSlow(stride, allowPartial, ref nextPos, ref nextBlock);
             }
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static void ThrowCursorSourceDisposed()
+        {
+            throw new ObjectDisposedException("Cursor.Source");
         }
 
         [Pure]
@@ -284,14 +299,20 @@ namespace Spreads.Collections.Internal
             get => _currentKey;
         }
 
+        // Container cursors must check order before getting CV from current block
+        // but after getting the value. It helps that DataBlock cannot shrink in size,
+        // only RowLength could, so we will not overrun even if order changed.
+
         public DataBlock CurrentValue
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get
-            {
-                // TODO order version check?
-                return _currentBlock;
-            }
+            get => _currentBlock;
+        }
+
+        public int CurrentBlockPosition
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => _blockPosition;
         }
 
         public Series<TKey, DataBlock, BlockCursor<TKey>> Source
@@ -300,10 +321,12 @@ namespace Spreads.Collections.Internal
             get => new Series<TKey, DataBlock, BlockCursor<TKey>>(this.Initialize());
         }
 
-        public IAsyncCompleter AsyncCompleter
+        public ValueTask<bool> MoveNextAsync()
         {
-            get { throw new NotImplementedException(); }
+            throw new NotSupportedException("This cursor is only used as a building block of other cursors.");
         }
+
+        public IAsyncCompleter AsyncCompleter => throw new NotSupportedException("This cursor is only used as a building block of other cursors.");
 
         ISeries<TKey, DataBlock> ICursor<TKey, DataBlock>.Source => Source;
 
@@ -342,7 +365,7 @@ namespace Spreads.Collections.Internal
         {
             _blockPosition = -1;
             _currentKey = default;
-            _orderVersion = _source._orderVersion.Count;
+            OrderVersion = _source._orderVersion.Count;
 
             if (_source.DataSource != null)
             {
@@ -360,13 +383,15 @@ namespace Spreads.Collections.Internal
 
         public void Dispose()
         {
+            // DataBlock is not ref counted but just owned by container.
             Reset();
             _source = null;
         }
 
         public ValueTask DisposeAsync()
         {
-            throw new NotImplementedException();
+            Dispose();
+            return new ValueTask();
         }
 
         #region Obsolete members

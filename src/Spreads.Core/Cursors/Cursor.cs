@@ -49,13 +49,6 @@ namespace Spreads
 
         /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public ValueTask<bool> MoveNextAsync()
-        {
-            return _cursor.MoveNextAsync();
-        }
-
-        /// <inheritdoc />
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Cursor<TKey, TValue> Initialize()
         {
             return new Cursor<TKey, TValue>(_cursor.Source.GetCursor());
@@ -88,13 +81,6 @@ namespace Spreads
         public void Dispose()
         {
             _cursor.Dispose();
-        }
-
-        /// <inheritdoc />
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public ValueTask DisposeAsync()
-        {
-            return _cursor.DisposeAsync();
         }
 
         /// <inheritdoc />

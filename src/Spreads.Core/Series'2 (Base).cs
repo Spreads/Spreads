@@ -29,6 +29,16 @@ namespace Spreads
     {
         protected abstract ICursor<TKey, TValue> GetCursorImpl();
 
+        IAsyncCursor<TKey, TValue> ISeries<TKey, TValue>.GetAsyncCursor()
+        {
+            throw new NotImplementedException();
+        }
+
+        AsyncCursor<TKey, TValue, Cursor<TKey, TValue>> ISpecializedSeries<TKey, TValue, Cursor<TKey, TValue>>.GetAsyncCursor()
+        {
+            throw new NotImplementedException();
+        }
+
         /// <inheritdoc />
         public abstract KeyComparer<TKey> Comparer { get; }
 
@@ -1221,7 +1231,7 @@ namespace Spreads
             if (IsCompleted)
             {
 #pragma warning disable HAA0601 // Value type to reference type conversion causing boxing allocation
-                return GetCursor();
+                return GetAsyncCursor();
 #pragma warning restore HAA0601 // Value type to reference type conversion causing boxing allocation
             }
             var c = new AsyncCursor<TKey, TValue, TCursor>(GetCursor(), true);
@@ -1267,6 +1277,11 @@ namespace Spreads
         public TCursor GetCursor()
         {
             return GetContainerCursor();
+        }
+
+        public AsyncCursor<TKey, TValue, TCursor> GetAsyncCursor()
+        {
+            throw new NotImplementedException();
         }
 
         #region Synchronization
