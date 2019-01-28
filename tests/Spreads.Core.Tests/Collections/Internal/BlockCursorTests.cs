@@ -68,7 +68,7 @@ namespace Spreads.Core.Tests.Collections.Internal
         public void CouldMoveNextBench()
         {
             var count = 1000_000;
-            var rounds = 50;
+            var rounds = 20;
             var mult = 1_00;
 
             var bcImm = CreateIntBaseContainer(count, count);
@@ -79,12 +79,12 @@ namespace Spreads.Core.Tests.Collections.Internal
 
             BlockCursor<int>[] useMut = new BlockCursor<int>[count];
             var rng = new Random(42);
-
+            var sm = new SortedMap<int, int>(count);
             for (int i = 0; i < count; i++)
             {
                 var x = rng.NextDouble();
                 // if ((i & 1) == 0) // this is perfectly predicted on i7-8700, give ~300 MOPS
-                if(x > 0.50) // this is not predicted at all, performance drops to ~130MOPS, but if we always use the Sync implementation the perf is the same ~300 MOPS, always NoSync ~360 MOPS
+                if (x > 0.50) // this is not predicted at all, performance drops to ~130MOPS, but if we always use the Sync implementation the perf is the same ~300 MOPS, always NoSync ~360 MOPS
                 {
                     useMut[i] = new BlockCursor<int>(bcMut);
                 }
@@ -92,41 +92,146 @@ namespace Spreads.Core.Tests.Collections.Internal
                 {
                     useMut[i] = new BlockCursor<int>(bcImm);
                 }
+
+                sm.Add(i, i);
             }
 
             for (int r = 0; r < rounds; r++)
             {
-                using (Benchmark.Run("MoveNext", count * mult))
-                {
-                    for (int _ = 0; _ < mult; _++)
-                    {
+                MoveNextBenchBranch(useMut, count, mult);
 
-                        for (int i = 0; i < useMut.Length; i++)
-                        {
-                            useMut[i].MoveNext();
-                        }
+                MoveNextBenchMut(bcMut, count, mult);
 
-                        //for (int i = 0; i < count; i++)
-                        //{
-                        //    cImm.MoveNext();
-                        //    cMut.MoveNext();
+                MoveNextBenchImm(bcImm, count, mult);
 
-                        //    //if (i != c._blockPosition)
-                        //    //{
-                        //    //    // Assert.Fail("i != c._blockPosition");
-                        //    //}
-
-                        //    // var v = c.CurrentKey;
-                        //    //if (i != v)
-                        //    //{
-                        //    //    Assert.Fail("i != v");
-                        //    //}
-                        //}
-                    }
-                }
+                MoveNextBenchSM(sm, count, mult);
             }
 
             Benchmark.Dump();
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining
+#if NETCOREAPP3_0
+                    | MethodImplOptions.AggressiveOptimization
+#endif
+        )]
+        private static void MoveNextBenchSM(SortedMap<int, int> sm, int count, int mult)
+        {
+            // warm up
+            for (int _ = 0; _ < 1; _++)
+            {
+                var cSM = sm.GetCursor();
+
+                for (int i = 0; i < count; i++)
+                {
+                    cSM.MoveNext();
+                }
+            }
+
+            using (Benchmark.Run("SM", count * mult))
+            {
+                for (int _ = 0; _ < mult; _++)
+                {
+                    var cSM = sm.GetCursor();
+
+                    for (int i = 0; i < count; i++)
+                    {
+                        cSM.MoveNext();
+                    }
+                }
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining
+#if NETCOREAPP3_0
+                    | MethodImplOptions.AggressiveOptimization
+#endif
+        )]
+        private static void MoveNextBenchImm(BaseContainer<int> bcImm, int count, int mult)
+        {
+            // warm up
+            for (int _ = 0; _ < 1; _++)
+            {
+                var cImm = new BlockCursor<int>(bcImm);
+
+                for (int i = 0; i < count; i++)
+                {
+                    cImm.MoveNext();
+                }
+            }
+
+            using (Benchmark.Run("Imm", count * mult))
+            {
+                for (int _ = 0; _ < mult; _++)
+                {
+                    var cImm = new BlockCursor<int>(bcImm);
+
+                    for (int i = 0; i < count; i++)
+                    {
+                        cImm.MoveNext();
+                    }
+                }
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining
+#if NETCOREAPP3_0
+                    | MethodImplOptions.AggressiveOptimization
+#endif
+        )]
+        private static void MoveNextBenchMut(BaseContainer<int> bcMut, int count, int mult)
+        {
+            // warmup
+            for (int _ = 0; _ < 1; _++)
+            {
+                var cMut = new BlockCursor<int>(bcMut);
+
+                for (int i = 0; i < count; i++)
+                {
+                    cMut.MoveNext();
+                }
+            }
+
+            using (Benchmark.Run("Mut", count * mult))
+            {
+                for (int _ = 0; _ < mult; _++)
+                {
+                    var cMut = new BlockCursor<int>(bcMut);
+
+                    for (int i = 0; i < count; i++)
+                    {
+                        cMut.MoveNext();
+                    }
+                }
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining
+#if NETCOREAPP3_0
+                    | MethodImplOptions.AggressiveOptimization
+#endif
+        )]
+        private static void MoveNextBenchBranch(BlockCursor<int>[] useMut, int count, int mult)
+        {
+            // warmup
+            for (int _ = 0; _ < 1; _++)
+            {
+                for (int i = 0; i < useMut.Length; i++)
+                {
+                    useMut[i].MoveNext();
+                }
+            }
+
+            using (Benchmark.Run("Branch", count * mult))
+            {
+                for (int _ = 0; _ < mult; _++)
+                {
+                    for (int i = 0; i < useMut.Length; i++)
+                    {
+                        useMut[i].MoveNext();
+                    }
+                }
+            }
         }
     }
 }

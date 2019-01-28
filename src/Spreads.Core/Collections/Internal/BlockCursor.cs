@@ -96,67 +96,36 @@ namespace Spreads.Collections.Internal
             return false;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public long Move(long stride, bool allowPartial)
-        {
-            // With this if NoSync case is still faster than always using Sync case,
-            // however difference is quite small and the bench has this branch perfectly
-            // predicted. TODO bench with parallel reading of mutable/immutable to test branching
-            if (_source._flags.IsImmutable)
-            {
-                return MoveNoSync(stride, allowPartial);
-            }
-            else
-            {
-                return MoveSync(stride, allowPartial);
-            }
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal long MoveNoSync(long stride, bool allowPartial)
-        {
-            // DataBlock nextBlock;
-            // TKey k; // For NoSync case we could set _currentKey at the end. For synced one we must set it after order version check.
-
-            // Synchronize this line. Read-lock code is standard but is slow/hard to implement as methods
-            // We need to rewrite this method for synchronized case and apply synchronization over the next region
-            var mc = MoveImpl(stride, allowPartial, out var nextPosition, out var nextBlock);
-
-            if (mc != 0)
-            {
-                _currentKey = _currentBlock.RowIndex.DangerousGetRef<TKey>(_blockPosition = (int)nextPosition);
-                if (nextBlock != null)
-                {
-                    _currentBlock = nextBlock;
-                }
-            }
-
-            return mc;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining // TODO (review) in initial tests this did not penalize the no-sync path
+        [MethodImpl(MethodImplOptions.AggressiveInlining
 #if NETCOREAPP3_0
             | MethodImplOptions.AggressiveOptimization
 #endif
         )]
-        public long MoveSync(long stride, bool allowPartial)
+        public long Move(long stride, bool allowPartial)
         {
             long mc;
             ulong nextPosition;
-            DataBlock nextBlock;
+            DataBlock nextBlock = null;
             TKey k;
 
-            long version;
         RETRY:
 
+            var version = Volatile.Read(ref _source._version);
             {
-                version = Volatile.Read(ref _source._version);
+                // Note: this does not handle MP from uninitialized state (_blockPosition == -1, stride < 0). // This case is rare.
+                // Uninitialized multi-block case goes to rare as well as uninitialized MP
+                nextPosition = unchecked((ulong)(_blockPosition + stride)); // long.Max + int.Max < ulong.Max
+                if (nextPosition < (ulong)_currentBlock.RowLength)
                 {
-                    // Synchronize this region. Read-lock code is standard but is slow/hard to implement as methods
-                    // We need to rewrite this method for synchronized case and apply synchronization over the next region
-                    mc = MoveImpl(stride, allowPartial, out nextPosition, out nextBlock);
-                    k = _currentBlock.RowIndex.DangerousGetRef<TKey>((int)nextPosition); // Note: do not use _blockPosition, it's 20% slower than second cast to int
+                    mc = stride;
                 }
+                else
+                {
+                    mc = MoveRare(stride, allowPartial, ref nextPosition, ref nextBlock);
+                }
+
+                // mc = MoveImpl(stride, allowPartial, out nextPosition, out nextBlock);
+                k = _currentBlock.RowIndex.DangerousGetRef<TKey>((int)nextPosition); // Note: do not use _blockPosition, it's 20% slower than second cast to int
             }
 
             if (Volatile.Read(ref _source._nextVersion) != version)
@@ -183,39 +152,6 @@ namespace Spreads.Collections.Internal
         }
 
         /// <summary>
-        /// Move pure implementation to syncronize over.
-        /// </summary>
-        /// <param name="stride"></param>
-        /// <param name="allowPartial"></param>
-        /// <param name="nextPosition"></param>
-        /// <param name="nextBlock"></param>
-        /// <returns></returns>
-        [Pure]
-        [MethodImpl(MethodImplOptions.AggressiveInlining
-#if NETCOREAPP3_0
-                    | MethodImplOptions.AggressiveOptimization
-#endif
-        )]
-        private long MoveImpl(long stride, bool allowPartial, out ulong nextPosition, out DataBlock nextBlock)
-        {
-            // Note: this does not handle MP from uninitialized state (_blockPosition == -1, stride < 0). // This case is rare.
-            long mc;
-            // uninitialized multi-block case goes to rare as well as uninitialized MP
-            nextPosition = unchecked((ulong)(_blockPosition + stride)); // long.Max + int.Max < ulong.Max
-            if (nextPosition < (ulong)_currentBlock.RowLength)
-            {
-                nextBlock = null;
-                mc = stride;
-            }
-            else
-            {
-                mc = MoveImplRare(stride, allowPartial, out nextPosition, out nextBlock);
-            }
-
-            return mc;
-        }
-
-        /// <summary>
         /// Called when next position is outside current block. Must be pure and do not change state.
         /// </summary>
         [Pure]
@@ -224,7 +160,7 @@ namespace Spreads.Collections.Internal
                     | MethodImplOptions.AggressiveOptimization
 #endif
         )]
-        public long MoveImplRare(long stride, bool allowPartial, out ulong nextPos, out DataBlock nextBlock)
+        public long MoveRare(long stride, bool allowPartial, ref ulong nextPos, ref DataBlock nextBlock)
         {
             var localBlock = _currentBlock;
 
@@ -233,7 +169,6 @@ namespace Spreads.Collections.Internal
 
             if (_source.DataSource == null)
             {
-                nextBlock = null;
                 if (_blockPosition < 0 && stride < 0)
                 {
                     Debug.Assert(State == CursorState.Initialized);
@@ -275,13 +210,24 @@ namespace Spreads.Collections.Internal
             }
             else
             {
-                // TODO another non-inlined slow method. We need do change block, so isolate as much as possible from the fast path
-                // fetch next block, do total/remaining calcs
-                ThrowHelper.ThrowNotImplementedException();
-                nextPos = 0;
-                nextBlock = default;
-                return default;
+                return MoveSlow(stride, allowPartial, ref nextPos, ref nextBlock);
             }
+        }
+
+        [Pure]
+        [MethodImpl(MethodImplOptions.AggressiveInlining
+#if NETCOREAPP3_0
+                    | MethodImplOptions.AggressiveOptimization
+#endif
+        )]
+        private long MoveSlow(long stride, bool allowPartial, ref ulong nextPos, ref DataBlock nextBlock)
+        {
+            // TODO another non-inlined slow method. We need do change block, so isolate as much as possible from the fast path
+            // fetch next block, do total/remaining calcs
+            ThrowHelper.ThrowNotImplementedException();
+            nextPos = 0;
+            nextBlock = default;
+            return default;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
