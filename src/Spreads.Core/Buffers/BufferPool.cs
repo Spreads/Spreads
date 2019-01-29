@@ -35,7 +35,7 @@ namespace Spreads.Buffers
         public static RetainableMemoryPool<T> MemoryPool = new RetainableMemoryPool<T>(
                 factory: null,
                 minLength: Settings.MIN_POOLED_BUFFER_LEN,
-                maxLength: (Settings.LARGE_BUFFER_LIMIT * 4) / Unsafe.SizeOf<T>(),
+                maxLength: Math.Max(Settings.MIN_POOLED_BUFFER_LEN * 1024, (Settings.LARGE_BUFFER_LIMIT * 2) / Unsafe.SizeOf<T>()),
                 maxBuffersPerBucket: 64 + Environment.ProcessorCount * 16,
                 maxBucketsToTry: 2,
                 pin: false);

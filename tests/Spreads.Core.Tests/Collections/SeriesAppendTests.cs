@@ -11,6 +11,7 @@ using Spreads.Utils;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
 
 namespace Spreads.Core.Tests.Collections
 {
@@ -129,15 +130,15 @@ namespace Spreads.Core.Tests.Collections
 
             // TODO disposal
 
-            var sas = new List<AppendSeries<int, int>>();
+            var sas = new List<AppendSeries<long, long>>();
             var counts = new[] { 10, 100, 1000, 10_000, 100_000, 1_000_000, 10_000_000, 100_000_000 };
             foreach (var count in counts)
             {
                 long rounds = 10;
 
-                var sa = new AppendSeries<int, int>();
+                var sa = new AppendSeries<long, long>();
                 sas.Add(sa);
-                var sm = new SortedMap<int, int>();
+                var sm = new SortedMap<long, long>();
                 for (int i = 0; i < count; i++)
                 {
                     if (i == 3)
@@ -160,41 +161,10 @@ namespace Spreads.Core.Tests.Collections
 
                 for (int r = 0; r < rounds; r++)
                 {
-                    using (Benchmark.Run($"AS.TG {count.ToString("N")}", count * mult))
-                    {
-                        for (int _ = 0; _ < mult; _++)
-                        {
-                            for (int i = 0; i < count; i++)
-                            {
-                                if (!sa.TryGetValue(i, out var val) || val != i)
-                                {
-                                    if (i != 3)
-                                    {
-                                        Assert.Fail($"!sa.TryGetValue(i, out var val) || val {val} != i {i}");
-                                    }
-                                }
-                            }
-                        }
-                    }
+                    AppendSeriesTGBench(count, mult, sa);
 
-                    using (Benchmark.Run($"SM.TG {count.ToString("N")}", count * mult))
-                    {
-                        for (int _ = 0; _ < mult; _++)
-                        {
-                            for (int i = 0; i < count; i++)
-                            {
-                                if (!sm.TryGetValue(i, out var val) || val != i)
-                                {
-                                    if (i != 3)
-                                    {
-                                        Assert.Fail($"!sm.TryGetValue(i, out var val) || val {val} != i {i}");
-                                    }
-                                }
-                            }
-                        }
-                    }
+                    SortedMapTGBench(count, mult, sm);
                 }
-                
             }
 
             Benchmark.Dump();
@@ -202,6 +172,56 @@ namespace Spreads.Core.Tests.Collections
             foreach (var sa in sas)
             {
                 sa.Dispose();
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining
+#if NETCOREAPP3_0
+                    | MethodImplOptions.AggressiveOptimization
+#endif
+        )]
+        private static void AppendSeriesTGBench(int count, int mult, AppendSeries<long, long> sa)
+        {
+            using (Benchmark.Run($"AS.TG {count.ToString("N")}", count * mult))
+            {
+                for (int _ = 0; _ < mult; _++)
+                {
+                    for (int i = 0; i < count; i++)
+                    {
+                        if (!sa.TryGetValue(i, out var val) || val != i)
+                        {
+                            if (i != 3)
+                            {
+                                Assert.Fail($"!sa.TryGetValue(i, out var val) || val {val} != i {i}");
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining
+#if NETCOREAPP3_0
+                    | MethodImplOptions.AggressiveOptimization
+#endif
+        )]
+        private static void SortedMapTGBench(int count, int mult, SortedMap<long, long> sm)
+        {
+            using (Benchmark.Run($"SM.TG {count.ToString("N")}", count * mult))
+            {
+                for (int _ = 0; _ < mult; _++)
+                {
+                    for (int i = 0; i < count; i++)
+                    {
+                        if (!sm.TryGetValue(i, out var val) || val != i)
+                        {
+                            if (i != 3)
+                            {
+                                Assert.Fail($"!sm.TryGetValue(i, out var val) || val {val} != i {i}");
+                            }
+                        }
+                    }
+                }
             }
         }
     }

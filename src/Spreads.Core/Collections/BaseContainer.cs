@@ -11,7 +11,6 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Threading;
-using Spreads.Collections.Experimental;
 
 namespace Spreads.Collections
 {
@@ -191,7 +190,6 @@ namespace Spreads.Collections
         // for tests only, it should have been abstract otherwise
         internal BaseContainer()
         {
-            
         }
 
         protected internal KeyComparer<TKey> _сomparer = default;
@@ -239,11 +237,6 @@ namespace Spreads.Collections
 
                 if (blockIndex >= 0)
                 {
-                    if (updateDataBlock)
-                    {
-                        DataBlock = block;
-                    }
-
                     return true;
                 }
             }
@@ -253,6 +246,49 @@ namespace Spreads.Collections
             }
 
             return false;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal bool TryGetSeriesValue<TValue>(TKey key, out TValue value)
+        {
+            var sw = new SpinWait();
+            value = default;
+        SYNC:
+            var found = false;
+            var version = Volatile.Read(ref _version);
+            {
+                var block = DataBlock;
+
+                if (DataSource != null)
+                {
+                    TryFindBlock_ValidateOrGetBlockFromSource(ref block, key, Lookup.EQ, Lookup.LE);
+
+                    // this is huge when key lookup locality > 0
+                    DataBlock = block;
+                }
+
+                if (block != null)
+                {
+                    Debug.Assert(block.RowIndex._stride == 1);
+
+                    var blockIndex = VectorSearch.SortedSearch(ref block.RowIndex._vec.DangerousGetRef<TKey>(0),
+                        block.RowLength, key, _сomparer);
+
+                    if (blockIndex >= 0)
+                    {
+                        value = block.Values._vec.DangerousGetRef<TValue>(blockIndex);
+                        found = true;
+                    }
+                }
+            }
+
+            if (Volatile.Read(ref _nextVersion) != version)
+            {
+                sw.SpinOnce();
+                goto SYNC;
+            }
+
+            return found;
         }
 
         /// <summary>
@@ -478,7 +514,7 @@ namespace Spreads.Collections
                 }
                 else
                 {
-                    var firstC = _сomparer.Compare(key, block.RowIndex.DangerousGet<TKey>(0));
+                    var firstC = _сomparer.Compare(key, block.RowIndex._vec.DangerousGetRef<TKey>(0));
 
                     if (firstC < 0 // not in this block even if looking LT
                         || direction == Lookup.LT // first value is >= key so LT won't find the value in this block
@@ -489,7 +525,7 @@ namespace Spreads.Collections
                     }
                     else
                     {
-                        var lastC = _сomparer.Compare(key, block.RowIndex.Vec.DangerousGetRef<TKey>(block.RowLength - 1));
+                        var lastC = _сomparer.Compare(key, block.RowIndex._vec.DangerousGetRef<TKey>(block.RowLength - 1));
 
                         if (lastC > 0
                             || direction == Lookup.GT

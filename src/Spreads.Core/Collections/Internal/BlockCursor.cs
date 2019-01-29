@@ -101,7 +101,7 @@ namespace Spreads.Collections.Internal
 
             var version = Volatile.Read(ref _source._version);
             {
-                found = _source.TryFindBlockAt(ref key, direction, out nextBlock, out nextPosition, false);
+                found = _source.TryFindBlockAt(ref key, direction, out nextBlock, out nextPosition, updateDataBlock: false);
                 if (found)
                 {
                     if (typeof(TContainer) == typeof(Collections.Experimental.Series<TKey, TValue>))
@@ -156,7 +156,7 @@ namespace Spreads.Collections.Internal
             TKey k;
             TValue v = default;
             var sw = new SpinWait();
-        RETRY:
+        SYNC:
 
             var version = Volatile.Read(ref _source._version);
             {
@@ -196,7 +196,7 @@ namespace Spreads.Collections.Internal
                 // TODO review if this is logically correct to check order version only here? We do check is again in value getter later
                 EnsureOrder();
                 sw.SpinOnce();
-                goto RETRY;
+                goto SYNC;
             }
 
             if (mc != 0)

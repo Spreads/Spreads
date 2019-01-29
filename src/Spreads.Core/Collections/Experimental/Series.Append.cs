@@ -14,7 +14,7 @@ namespace Spreads.Collections.Experimental
 {
     public class AppendSeries<TKey, TValue> : Series<TKey, TValue>, IAppendSeries<TKey, TValue>
     {
-        private static readonly int MaxBufferLength = Settings.LARGE_BUFFER_LIMIT / Math.Max(Unsafe.SizeOf<TKey>(), Unsafe.SizeOf<TValue>());
+        private static readonly int MaxBufferLength = Math.Max(Settings.MIN_POOLED_BUFFER_LEN, Settings.LARGE_BUFFER_LIMIT / Math.Max(Unsafe.SizeOf<TKey>(), Unsafe.SizeOf<TValue>()));
 
         internal AppendSeries()
         {
