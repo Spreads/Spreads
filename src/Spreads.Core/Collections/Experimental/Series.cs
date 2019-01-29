@@ -100,7 +100,7 @@ namespace Spreads.Collections.Experimental
         public KeyComparer<TKey> Comparer
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => _сomparer;
+            get => _comparer;
         }
 
         public Opt<KeyValuePair<TKey, TValue>> First

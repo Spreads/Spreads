@@ -85,7 +85,7 @@ namespace Spreads.Collections.Internal
         public KeyComparer<TKey> Comparer
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => _source._ñomparer;
+            get => _source._comparer;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

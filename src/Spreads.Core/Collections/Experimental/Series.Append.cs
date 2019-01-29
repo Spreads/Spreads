@@ -83,8 +83,7 @@ namespace Spreads.Collections.Experimental
             {
                 var lastKey = block.RowIndex._vec.DangerousGet<TKey>(block.RowLength - 1);
 
-                // TODO why _comparer is not visible here?
-                var c = Comparer.Compare(key, lastKey);
+                var c = _comparer.Compare(key, lastKey);
                 if (c <= 0)
                 {
                     return false;

@@ -36,7 +36,7 @@ namespace Spreads.Core.Run
             // EquiJoinBench();
 
             var test = new SeriesAppendTests();
-            test.SearchOverLargeSeriesBench();
+            test.CouldAppendSeriesBench();
 
             //Console.WriteLine("Finished, press enter to exit...");
             //Console.ReadLine();

@@ -192,7 +192,7 @@ namespace Spreads.Collections
         {
         }
 
-        protected internal KeyComparer<TKey> _сomparer = default;
+        protected internal KeyComparer<TKey> _comparer = default;
 
         internal DataBlock DataBlock;
         internal DataBlockSource<TKey> DataSource;
@@ -233,7 +233,7 @@ namespace Spreads.Collections
                 Debug.Assert(block.RowIndex._stride == 1);
 
                 blockIndex = VectorSearch.SortedSearch(ref block.RowIndex.DangerousGetRef<TKey>(0),
-                    block.RowLength, key, _сomparer);
+                    block.RowLength, key, _comparer);
 
                 if (blockIndex >= 0)
                 {
@@ -272,7 +272,7 @@ namespace Spreads.Collections
                     Debug.Assert(block.RowIndex._stride == 1);
 
                     var blockIndex = VectorSearch.SortedSearch(ref block.RowIndex._vec.DangerousGetRef<TKey>(0),
-                        block.RowLength, key, _сomparer);
+                        block.RowLength, key, _comparer);
 
                     if (blockIndex >= 0)
                     {
@@ -453,7 +453,7 @@ namespace Spreads.Collections
                 // ReSharper disable once PossibleNullReferenceException
                 // var x = (block?.RowIndex).DangerousGetRef<TKey>(0);
                 blockIndex = VectorSearch.SortedLookup(ref block.RowIndex.Vec.DangerousGetRef<TKey>(0),
-                    block.RowLength, ref key, lookup, _сomparer);
+                    block.RowLength, ref key, lookup, _comparer);
 
                 if (blockIndex >= 0)
                 {
@@ -514,7 +514,7 @@ namespace Spreads.Collections
                 }
                 else
                 {
-                    var firstC = _сomparer.Compare(key, block.RowIndex._vec.DangerousGetRef<TKey>(0));
+                    var firstC = _comparer.Compare(key, block.RowIndex._vec.DangerousGetRef<TKey>(0));
 
                     if (firstC < 0 // not in this block even if looking LT
                         || direction == Lookup.LT // first value is >= key so LT won't find the value in this block
@@ -525,7 +525,7 @@ namespace Spreads.Collections
                     }
                     else
                     {
-                        var lastC = _сomparer.Compare(key, block.RowIndex._vec.DangerousGetRef<TKey>(block.RowLength - 1));
+                        var lastC = _comparer.Compare(key, block.RowIndex._vec.DangerousGetRef<TKey>(block.RowLength - 1));
 
                         if (lastC > 0
                             || direction == Lookup.GT
@@ -553,7 +553,7 @@ namespace Spreads.Collections
                 {
                     if (AdditionalCorrectnessChecks.Enabled)
                     {
-                        if (kvp.Value.RowLength <= 0 || _сomparer.Compare(kvp.Key, kvp.Value.RowIndex.Vec.DangerousGetRef<TKey>(0)) != 0)
+                        if (kvp.Value.RowLength <= 0 || _comparer.Compare(kvp.Key, kvp.Value.RowIndex.Vec.DangerousGetRef<TKey>(0)) != 0)
                         {
                             ThrowBadBlockFromSource();
                         }
@@ -578,7 +578,7 @@ namespace Spreads.Collections
 
             if (AdditionalCorrectnessChecks.Enabled)
             {
-                if (kvp.Value.RowLength <= 0 || _сomparer.Compare(kvp.Key, kvp.Value.RowIndex.DangerousGet<TKey>(0)) != 0)
+                if (kvp.Value.RowLength <= 0 || _comparer.Compare(kvp.Key, kvp.Value.RowIndex.DangerousGet<TKey>(0)) != 0)
                 {
                     ThrowBadBlockFromSource();
                 }
