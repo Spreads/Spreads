@@ -42,6 +42,12 @@ namespace Spreads.Core.Tests.Collections.Internal
             Assert.IsTrue(vs.IsDisposed);
         }
 
+        [Test]
+        public void CouldDisposeEmpty()
+        {
+            VectorStorage.Empty.Dispose();
+        }
+
         [Test, Explicit("long running")]
         public void VectorStorageReadBench()
         {
@@ -105,7 +111,7 @@ namespace Spreads.Core.Tests.Collections.Internal
                 {
                     for (int i = 0; i < count; i++)
                     {
-                        var vs1 = vs.Slice(0, vs._vec.Length, 1, true);
+                        var vs1 = vs.Slice(0, vs.Vec.Length, 1, externallyOwned: true);
                         vs1.Dispose();
                     }
                 }

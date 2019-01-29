@@ -240,7 +240,7 @@ namespace Spreads
         new AsyncCursor<TKey, TValue, TCursor> GetAsyncCursor();
     }
 
-    public interface ICursorNew<TKey> // TODO merge with existing
+    public interface ICursorNew<TKey, TValue> // TODO merge with existing
     {
         /// <summary>
         /// Move by <paramref name="stride"/> elements or maximum number of elements less than stride if <paramref name="allowPartial"/> is true.
@@ -264,7 +264,7 @@ namespace Spreads
         /// </summary>
         /// <param name="batch"></param>
         /// <returns></returns>
-        bool TryMoveNextBatch(out object batch); // TODO not span, Segment or smth when we figure out what. Probably better to have ref struct for this if it will work.
+        bool TryMoveNextBatch(out Segment<TKey, TValue> batch);
     }
 
     /// <summary>
@@ -316,7 +316,6 @@ namespace Spreads
         /// Move the cursor to a previous item in the <see cref="Source"/> series.
         /// </summary>
         /// <returns>Returns true if the cursor moved. When false is returned the cursor stays at the same position where it was before calling this method.</returns>
-        [Obsolete("Must use IEnumerable slot")]
         new bool MoveNext();
 
         // NB returning zero is the same as false, no need for TryXXX/Opt<>
@@ -433,13 +432,11 @@ namespace Spreads
     // Not needed, delete
     public interface IAsyncCursor<TKey, TValue> : ICursor<TKey, TValue>, IAsyncEnumerator<KeyValuePair<TKey, TValue>>
     {
-
     }
 
     public interface IAsyncCursor<TKey, TValue, TCursor> : ISpecializedCursor<TKey, TValue, TCursor>, IAsyncEnumerator<KeyValuePair<TKey, TValue>>
         where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
     {
-
     }
 
     /// <summary>
@@ -468,15 +465,27 @@ namespace Spreads
     /// <summary>
     /// Mutable series
     /// </summary>
-    public interface IMutableSeries<TKey, TValue> : ISeries<TKey, TValue> //, IDictionary<TKey, TValue>
+    public interface IAppendSeries<TKey, TValue> : ISeries<TKey, TValue> //, IDictionary<TKey, TValue>
+    {
+        /// <summary>
+        /// Adds key and value to the end of the series.
+        /// </summary>
+        /// <returns>True on successful addition. False if the key already exists or the new key breaks sorting order.</returns>
+        Task<bool> TryAddLast(TKey key, TValue value);
+    }
+
+    /// <summary>
+    /// Mutable series
+    /// </summary>
+    public interface IMutableSeries<TKey, TValue> : IAppendSeries<TKey, TValue> //, IDictionary<TKey, TValue>
     {
         // NB even if Async methods add some overhead in sync case, it is small due to caching if Task<bool> return values
         // In persistence layer is used to be a PITA to deal with sync methods with async IO
-
+        [Obsolete] // TODO this should be extension method that knows implementation details.
         long Count { get; }
 
         /// <summary>
-        /// Incremented after any change to data, including setting of the same value to the same key
+        /// Incremented after any change to data, including setting the same value to the same key.
         /// </summary>
         long Version { get; }
 
@@ -491,13 +500,6 @@ namespace Spreads
         /// Attempts to add new key and value to map.
         /// </summary>
         Task<bool> TryAdd(TKey key, TValue value);
-
-        /// <summary>
-        /// Checked addition, checks that new element's key is larger/later than the Last element's key
-        /// and adds element to this map
-        /// throws ArgumentOutOfRangeException if new key is smaller than the last
-        /// </summary>
-        Task<bool> TryAddLast(TKey key, TValue value);
 
         /// <summary>
         /// Checked addition, checks that new element's key is smaller/earlier than the First element's key

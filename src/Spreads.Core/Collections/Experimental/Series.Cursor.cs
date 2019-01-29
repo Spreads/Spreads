@@ -97,7 +97,7 @@ namespace Spreads.Collections.Experimental
     /// <see cref="Series{TKey,TValue}"/> cursor implementation.
     /// </summary>
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    public struct SCursor<TKey, TValue> : ICursorNew<TKey>, ISpecializedCursor<TKey, TValue, SCursor<TKey, TValue>>
+    public struct SCursor<TKey, TValue> : ICursorNew<TKey, TValue>, ISpecializedCursor<TKey, TValue, SCursor<TKey, TValue>>
     {
         // ReSharper disable once FieldCanBeMadeReadOnly.Local mutable struct
         private BlockCursor<TKey, TValue, Series<TKey, TValue>> _cursor;
@@ -138,7 +138,7 @@ namespace Spreads.Collections.Experimental
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool TryMoveNextBatch(out object batch)
+        public bool TryMoveNextBatch(out Segment<TKey, TValue> batch)
         {
             throw new NotImplementedException();
         }
@@ -169,6 +169,16 @@ namespace Spreads.Collections.Experimental
 
         public TValue CurrentValue
         {
+            // Note: alternative to storing CV is accessing it by index, but then we need to check
+            // order that was already checked during MN - otherwise CV could mismatch CK.
+            // But if we do not store CV and then use it after accessing this property
+            // there is still a possibility that underlying data order is changed after CV is read.
+            // We cannot do anything with that and checking order in CV getter is not "more correct"
+            // than caching it. Caching guarantees that the pair was correct during MN and
+            // caching is significantly faster (~295 vs 250 MOPS). We now have Move(stride)
+            // method so we could avoid reading not needed values.
+            // MAt should use keys directly and not use Move for binary search.
+
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => _cursor._currentValue;
         }

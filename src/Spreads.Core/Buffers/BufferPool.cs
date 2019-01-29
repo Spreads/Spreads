@@ -29,6 +29,15 @@ namespace Spreads.Buffers
         {
             ArrayPoolImpl.Return(array, clearArray);
         }
+
+        // TODO Review parameters. The goal is to work mostly with 128kb buffers, all smaller ones are just slices of 128kb ones
+        // Those buffers are in LOH and always pinning them is OK and does not interfere with normal GC.
+        public static RetainableMemoryPool<T> MemoryPool = new RetainableMemoryPool<T>(
+                factory: null, 
+                minLength: Settings.MIN_POOLED_BUFFER_LEN,
+                maxLength: (Settings.LARGE_BUFFER_LIMIT * 4) / Unsafe.SizeOf<T>(),
+                maxBuffersPerBucket: 64 + Environment.ProcessorCount * 16,
+                maxBucketsToTry: 2);
     }
 
     public class BufferPool

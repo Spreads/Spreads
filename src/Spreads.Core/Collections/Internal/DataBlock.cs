@@ -2,10 +2,10 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+using Spreads.Buffers;
 using Spreads.Collections.Concurrent;
+using Spreads.Utils;
 using System;
-using System.Collections;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Runtime.CompilerServices;
@@ -15,7 +15,7 @@ namespace Spreads.Collections.Internal
     /// <summary>
     /// Physycal storage for Series, Matrix and DataFrame blocks.
     /// </summary>
-    internal class DataBlock : IDisposable, IData
+    internal class DataBlock : IDisposable
     {
         // We need it as a sentinel in cursor to not penalize fast path of single-block containers
         internal static readonly DataBlock Empty = new DataBlock();
@@ -34,13 +34,13 @@ namespace Spreads.Collections.Internal
 
         // TODO these should be lazy?
         [Obsolete("Internal only for tests")]
-        internal VectorStorage _rowIndex;
+        internal VectorStorage _rowIndex = VectorStorage.Empty;
 
         [Obsolete("Internal only for tests")]
-        internal VectorStorage _values;
+        internal VectorStorage _values = VectorStorage.Empty;
 
         [Obsolete("Internal only for tests")]
-        internal VectorStorage _columnIndex;
+        internal VectorStorage _columnIndex = VectorStorage.Empty;
 
         [Obsolete("Internal only for tests")]
         internal VectorStorage[] _columns; // arrays is allocated and GCed, so far OK
@@ -49,8 +49,6 @@ namespace Spreads.Collections.Internal
 
         // TODO review: this could allow a double linked list that will automatically shrink to the closest used block.
         // internal WeakReference<DataBlock> PreviousBlock;
-
-        private Flags _flags;
 
         // TODO interface with a single impl for persistence so that it's methods are devirtualized
         internal bool HasTryGetNextBlockImpl;
@@ -116,12 +114,101 @@ namespace Spreads.Collections.Internal
             }
         }
 
-
-        [Obsolete("Use flags directly?")]
-        public Mutability Mutability
+        /// <summary>
+        /// Insert key to RowIndex and value in Values only if there is enought capacity.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining
+#if NETCOREAPP3_0
+            | MethodImplOptions.AggressiveOptimization
+#endif
+        )]
+        internal void InsertSeries<TKey, TValue>(int index, TKey key, TValue value)
         {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => _flags.Mutability;
+            EnsureNotSentinel();
+
+            if ((uint)index > RowLength)
+            {
+                ThrowHelper.ThrowArgumentOutOfRangeException("index");
+            }
+
+            if (RowLength == _rowIndex.Length)
+            {
+                ThrowHelper.ThrowInvalidOperationException("Not enough capacity");
+            }
+
+            if (AdditionalCorrectnessChecks.Enabled)
+            {
+                if (RowLength > _rowIndex.Length || _rowIndex.Length != _values.Length)
+                {
+                    ThrowHelper.FailFast("Bad layout of Series DataBlock");
+                }
+            }
+
+            // Append to the end
+            if (index < RowLength)
+            {
+                var len = RowLength - index;
+                var rsp = _rowIndex.Vec.AsSpan<TKey>();
+                rsp.Slice(index, len).CopyTo(rsp.Slice(index + 1, len));
+                var vsp = _values.Vec.AsSpan<TValue>();
+                vsp.Slice(index, len).CopyTo(vsp.Slice(index + 1, len));
+            }
+            _rowIndex.DangerousGetRef<TKey>(index) = key;
+            _values.DangerousGetRef<TValue>(index) = value;
+            RowLength++;
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining
+#if NETCOREAPP3_0
+            | MethodImplOptions.AggressiveOptimization
+#endif
+        )]
+        internal int DoubleSeriesCapacity<TKey, TValue>()
+        {
+            EnsureNotSentinel();
+
+            // TODO _rowIndex.Vec.Length could be already 2x larger because array pool could have returned larger array on previous doubling
+            // We ignore this now
+
+            var ri = _rowIndex;
+            var newLen = Math.Max(Settings.MIN_POOLED_BUFFER_LEN, BitUtil.FindNextPositivePowerOfTwo(ri.Length + 1));
+            var newRiBuffer = BufferPool<TKey>.MemoryPool.RentMemory(newLen);
+            var newRi = VectorStorage.Create(newRiBuffer, 0, newRiBuffer.Length, elementLength: newLen); // new buffer could be larger
+            if (ri.Length > 0)
+            {
+                ri.Vec.AsSpan<TKey>().CopyTo(newRi.Vec.AsSpan<TKey>());
+            }
+            // dispose and not return, if rec count == 1 it will be returned
+            ri.Dispose();
+            _rowIndex = newRi;
+
+            var vals = _values;
+            var newValsBuffer = BufferPool<TValue>.MemoryPool.RentMemory(newLen);
+            var newVals = VectorStorage.Create(newValsBuffer, 0, newValsBuffer.Length, elementLength: newLen);
+            if (vals.Length > 0)
+            {
+                vals.Vec.AsSpan<TValue>().CopyTo(newVals.Vec.AsSpan<TValue>());
+            }
+            vals.Dispose();
+            _values = newVals;
+
+            return _rowIndex.Length;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void EnsureNotSentinel()
+        {
+            if (AdditionalCorrectnessChecks.Enabled)
+            {
+                if (ReferenceEquals(this, Empty))
+                {
+                    DoThrow();
+                }
+                void DoThrow()
+                {
+                    ThrowHelper.ThrowInvalidOperationException("DataBlock.Empty must only be used as sentinel");
+                }
+            }
         }
 
         #region Structure check
@@ -265,7 +352,7 @@ namespace Spreads.Collections.Internal
                     }
                     else
                     {
-                        Debug.Assert(vectorStorage._vec._runtimeTypeId == _values._vec._runtimeTypeId);
+                        Debug.Assert(vectorStorage.Vec._runtimeTypeId == _values.Vec._runtimeTypeId);
                     }
                 }
 

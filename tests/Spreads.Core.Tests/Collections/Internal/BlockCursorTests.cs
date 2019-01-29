@@ -6,13 +6,12 @@ using NUnit.Framework;
 using Spreads.Buffers;
 using Spreads.Collections;
 using Spreads.Collections.Internal;
-using Spreads.DataTypes;
 using Spreads.Utils;
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using Spreads.DataTypes;
 
 namespace Spreads.Core.Tests.Collections.Internal
 {
@@ -34,20 +33,20 @@ namespace Spreads.Core.Tests.Collections.Internal
             return bc;
         }
 
-        //[Test]
-        //public void SizeOfBlockCursor()
-        //{
-        //    var size = Unsafe.SizeOf<BlockCursor<Timestamp, int, BaseContainer<Timestamp>>>();
-        //    Console.WriteLine(size);
-        //    if (IntPtr.Size == 8)
-        //    {
-        //        Assert.IsTrue(size == 32);
-        //    }
-        //    else
-        //    {
-        //        Assert.IsTrue(size == 24);
-        //    }
-        //}
+        [Test]
+        public void SizeOfBlockCursor()
+        {
+            var size = Unsafe.SizeOf<BlockCursor<Timestamp, object, BaseContainer<Timestamp>>>();
+            Console.WriteLine(size);
+            if (IntPtr.Size == 8)
+            {
+                Assert.AreEqual(32, size);
+            }
+            else
+            {
+                Assert.IsTrue(size == 24);
+            }
+        }
 
         [Test]
         public void CouldMoveNext()
@@ -83,6 +82,7 @@ namespace Spreads.Core.Tests.Collections.Internal
             var rng = new Random(42);
 
             var sm = new SortedMap<int, int>(count);
+            var scm = new SortedChunkedMap<int, int>();
             var sl = new SortedList<int, int>(count);
             for (int i = 0; i < count; i++)
             {
@@ -98,7 +98,8 @@ namespace Spreads.Core.Tests.Collections.Internal
                 }
 
                 sm.Add(i, i);
-                sl.Add(i,i);
+                scm.Add(i, i);
+                sl.Add(i, i);
             }
 
             var series = new Spreads.Collections.Experimental.Series<int, int>(Enumerable.Range(0, count).ToArray(),
@@ -115,6 +116,8 @@ namespace Spreads.Core.Tests.Collections.Internal
                 //MoveNextBenchSL(sl, count, mult);
 
                 MoveNextBenchSM(sm, count, mult);
+
+                // MoveNextBenchSCM(scm, count, mult);
 
                 MoveNextBenchSeries(series, count, mult);
             }
@@ -150,7 +153,42 @@ namespace Spreads.Core.Tests.Collections.Internal
                     for (int i = 0; i < count; i++)
                     {
                         cSM.MoveNext();
-                        // sum = cSM.CurrentValue;
+                        sum = cSM.CurrentValue;
+                    }
+                }
+                Assert.IsTrue(sum != 0);
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining
+#if NETCOREAPP3_0
+                    | MethodImplOptions.AggressiveOptimization
+#endif
+        )]
+        private static void MoveNextBenchSCM(SortedChunkedMap<int, int> sm, int count, int mult)
+        {
+            // warm up
+            for (int _ = 0; _ < 1; _++)
+            {
+                var cSM = sm.GetCursor();
+
+                for (int i = 0; i < count; i++)
+                {
+                    cSM.MoveNext();
+                }
+            }
+
+            using (Benchmark.Run("SCM", count * mult))
+            {
+                long sum = 1L;
+                for (int _ = 0; _ < mult; _++)
+                {
+                    var cSM = sm.GetCursor();
+
+                    for (int i = 0; i < count; i++)
+                    {
+                        cSM.MoveNext();
+                        sum = cSM.CurrentValue;
                     }
                 }
                 Assert.IsTrue(sum != 0);
@@ -185,7 +223,7 @@ namespace Spreads.Core.Tests.Collections.Internal
                     for (int i = 0; i < count; i++)
                     {
                         cSM.MoveNext();
-                        // sum = cSM.CurrentValue;
+                        sum = cSM.CurrentValue;
                     }
                 }
                 Assert.IsTrue(sum != 0);

@@ -278,14 +278,15 @@ namespace Spreads
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
-                if (typeof(TCursor) == typeof(Segment<TKey, TValue>))
-                {
-                    var sc = (Segment<TKey, TValue>)(object)_cursor;
-                    var c = _cursor;
-                    var sc2 = Unsafe.As<TCursor, Segment<TKey, TValue>>(ref c);
-                    // at least we could specialize on implementation
-                    throw new NotImplementedException();
-                }
+                // TODO delete
+                //if (typeof(TCursor) == typeof(Segment<TKey, TValue>))
+                //{
+                //    var sc = (Segment<TKey, TValue>)(object)_cursor;
+                //    var c = _cursor;
+                //    var sc2 = Unsafe.As<TCursor, Segment<TKey, TValue>>(ref c);
+                //    // at least we could specialize on implementation
+                //    throw new NotImplementedException();
+                //}
 
                 using (var c = _cursor.Initialize())
                 {

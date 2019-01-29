@@ -374,7 +374,7 @@ namespace Spreads.Buffers
                 if (_factory == null)
                 {
                     ArrayMemory<T> arrayMemory;
-                    if (_bufferLength <= 64 * 1024)
+                    if (_bufferLength * Unsafe.SizeOf<T>() <= Settings.LARGE_BUFFER_LIMIT)
                     {
                         if (_sliceBucket == null)
                         {

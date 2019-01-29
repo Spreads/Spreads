@@ -30,7 +30,7 @@ namespace Spreads.Collections.Internal
     /// <see cref="Collections.Experimental.Series{TKey,TValue}"/> cursor implementation.
     /// </summary>
     [StructLayout(LayoutKind.Sequential, Pack = 4)] // This struct will be aligned to IntPtr.Size bytes because it has references, but small fields could be packed within 8 bytes.
-    internal struct BlockCursor<TKey, TValue, TContainer> : ICursorNew<TKey>, ISpecializedCursor<TKey, DataBlock, BlockCursor<TKey, TValue, TContainer>>
+    internal struct BlockCursor<TKey, TValue, TContainer> : ICursorNew<TKey, TValue>, ISpecializedCursor<TKey, DataBlock, BlockCursor<TKey, TValue, TContainer>>
         where TContainer : BaseContainer<TKey> // , IDataBlockValueGetter<TValue>
     {
         internal TContainer _source;
@@ -63,7 +63,7 @@ namespace Spreads.Collections.Internal
             _source = source;
             _blockPosition = -1;
             _currentBlock = source.DataSource == null ? source.DataBlock : DataBlock.Empty;
-            OrderVersion = 0; // TODO
+            OrderVersion = _source._orderVersion.CountOrZero; // TODO
             _currentKey = default;
             _currentValue = default;
         }
@@ -94,7 +94,7 @@ namespace Spreads.Collections.Internal
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool TryMoveNextBatch(out object batch)
+        public bool TryMoveNextBatch(out Segment<TKey, TValue> batch)
         {
             batch = default;
             return false;
@@ -111,8 +111,8 @@ namespace Spreads.Collections.Internal
             ulong nextPosition;
             DataBlock nextBlock = null;
             TKey k;
-            TValue v;
-
+            TValue v = default;
+            var sw = new SpinWait();
         RETRY:
 
             var version = Volatile.Read(ref _source._version);
@@ -139,10 +139,10 @@ namespace Spreads.Collections.Internal
                     // TODO review. Via _vec is much faster but we assume that stride is 1
                     v = _currentBlock.Values._vec.DangerousGetRef<TValue>((int)nextPosition);
                 }
-                else
-                {
-                    v = default; // _source.GetValue(_currentBlock, (int)nextPosition);
-                }
+                //else // TODO value getter for other containers or they could do in CV getter but need to call EnsureOrder after reading value.
+                //{
+                //    v = default; // _source.GetValue(_currentBlock, (int)nextPosition);
+                //}
             }
 
             if (Volatile.Read(ref _source._nextVersion) != version)
@@ -152,6 +152,7 @@ namespace Spreads.Collections.Internal
 
                 // TODO review if this is logically correct to check order version only here? We do check is again in value getter later
                 EnsureOrder();
+                sw.SpinOnce();
                 goto RETRY;
             }
 
@@ -179,8 +180,10 @@ namespace Spreads.Collections.Internal
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal void EnsureOrder()
+        private void EnsureOrder()
         {
+            // this should be false for all cases
+
             if (OrderVersion != _source._orderVersion.CountOrZero)
             {
                 ThrowHelper.ThrowOutOfOrderKeyException(_currentKey);
@@ -338,6 +341,14 @@ namespace Spreads.Collections.Internal
             get => _currentBlock;
         }
 
+        //[MethodImpl(MethodImplOptions.AggressiveInlining)]
+        //public ref T GetValue<T>()
+        //{
+        //    ref var v = ref _currentBlock.Values._vec.DangerousGetRef<T>(_blockPosition);
+        //    EnsureOrder();
+        //    return ref v;
+        //}
+
         public int CurrentBlockPosition
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -394,7 +405,7 @@ namespace Spreads.Collections.Internal
         {
             _blockPosition = -1;
             _currentKey = default;
-            OrderVersion = _source._orderVersion.Count;
+            OrderVersion = _source._orderVersion.CountOrZero;
 
             if (_source.DataSource != null)
             {

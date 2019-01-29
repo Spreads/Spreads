@@ -109,7 +109,7 @@ namespace Spreads.Collections
         internal Vector(VectorStorage vectorStorage)
         {
             var vtidx = VecTypeHelper<T>.RuntimeVecInfo.RuntimeTypeId;
-            if (vtidx != vectorStorage._vec._runtimeTypeId)
+            if (vtidx != vectorStorage.Vec._runtimeTypeId)
             {
                 VecThrowHelper.ThrowVecTypeMismatchException();
             }

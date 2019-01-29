@@ -59,6 +59,8 @@ namespace Spreads.Collections.Internal
     [StructLayout(LayoutKind.Sequential)]
     internal sealed class VectorStorage : IDisposable, IVector
     {
+        public static readonly VectorStorage Empty = new VectorStorage();
+
         private static readonly ObjectPool<VectorStorage> ObjectPool = new ObjectPool<VectorStorage>(() => new VectorStorage(), Environment.ProcessorCount * 16);
 
         private VectorStorage()
@@ -74,7 +76,6 @@ namespace Spreads.Collections.Internal
         internal MemoryHandle _memoryHandle;
 
         // slicing via this
-        [Obsolete("Internal for tests, do not use directly.")]
         internal Vec _vec;
 
         // vectorized ops only when == 1
@@ -90,12 +91,9 @@ namespace Spreads.Collections.Internal
         // also need to cache _vec.Length/_stride result because it is used by bound-checking getter
         internal int _length;
 
-        // TODO flags in a single byte/int
-        internal Mutability _mutability;
-
         // internal Sorting Sorting;
 
-        internal bool _isSorted;
+        // internal bool _isSorted;
 
         public void Unpin()
         {
@@ -113,6 +111,7 @@ namespace Spreads.Collections.Internal
         public VectorStorage Slice(int memoryStart,
             int memoryLength,
             int stride = 1,
+            int elementLength = -1,
             bool externallyOwned = false)
         {
             Debug.Assert(stride > 0);
@@ -140,6 +139,18 @@ namespace Spreads.Collections.Internal
                 }
             }
 
+            if (elementLength != -1)
+            {
+                if ((uint)elementLength < numberOfStridesFromZero)
+                {
+                    numberOfStridesFromZero = elementLength;
+                }
+                else
+                {
+                    ThrowHelper.ThrowArgumentOutOfRangeException("elementLength");
+                }
+            }
+
             vs._length = numberOfStridesFromZero;
 
             return vs;
@@ -150,6 +161,7 @@ namespace Spreads.Collections.Internal
             int memoryStart,
             int memoryLength,
             int stride = 1,
+            int elementLength = -1,
             bool externallyOwned = false)
         {
             Debug.Assert(stride > 0);
@@ -174,6 +186,18 @@ namespace Spreads.Collections.Internal
                 if (vs._vec.Length - numberOfStridesFromZero * stride > 0)
                 {
                     numberOfStridesFromZero++;
+                }
+            }
+
+            if (elementLength != -1)
+            {
+                if ((uint)elementLength <= numberOfStridesFromZero)
+                {
+                    numberOfStridesFromZero = elementLength;
+                }
+                else
+                {
+                    ThrowHelper.ThrowArgumentOutOfRangeException("elementLength");
                 }
             }
 
@@ -262,6 +286,18 @@ namespace Spreads.Collections.Internal
             return ref _vec.DangerousGetRef<T>(index * _stride);
         }
 
+        public int Stride
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => _stride;
+        }
+
+        public Vec Vec
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => _vec;
+        }
+
         #region Dispose logic
 
         public bool IsDisposed
@@ -270,9 +306,15 @@ namespace Spreads.Collections.Internal
             get => _memorySource == null;
         }
 
-        private void Dispose(bool disposing, bool unpin = true)
+        private void Dispose(bool disposing)
         {
-            lock (_memorySource)
+            var ms = _memorySource;
+            if (ms == null)
+            {
+                Debug.Assert(ReferenceEquals(this, Empty));
+                return;
+            }
+            lock (ms)
             {
                 if (!disposing)
                 {
@@ -291,9 +333,8 @@ namespace Spreads.Collections.Internal
             // clear all fields before pooling
             _memoryHandle = default;
             _vec = default;
-            _isSorted = default;
+            // _isSorted = default;
             _length = default;
-            _mutability = default;
             // Sorting = default;
             _stride = default;
 

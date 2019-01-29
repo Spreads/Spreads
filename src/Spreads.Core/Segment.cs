@@ -12,7 +12,6 @@ using Spreads.Collections.Internal;
 
 namespace Spreads
 {
-
     // For thread-safety save order version and just throw exn if that is changed on access
     // this should be rare and that branch should be predicted well
     // And b.t.w it's hard to test misprediction so in all our benhces it mostly predisted
@@ -25,7 +24,7 @@ namespace Spreads
 
     // TODO? , ISpecializedCursor<Offset, TValue, SeriesSegment<Offset, TValue>>
 
-    public struct Segment<TKey, TValue> : ISpecializedCursor<TKey, TValue, Segment<TKey, TValue>>
+    public ref struct Segment<TKey, TValue> // : ISpecializedCursor<TKey, TValue, Segment<TKey, TValue>>
     {
         // don't forget about negative space - it could be used for order version or flags
         internal int _rowNumber;
@@ -34,108 +33,104 @@ namespace Spreads
 
         public Vector<TKey> Keys => throw new NotImplementedException();
         public Vector<TValue> Values => throw new NotImplementedException();
-        public ValueTask<bool> MoveNextAsync()
-        {
-            throw new NotImplementedException();
-        }
 
-        public CursorState State => throw new NotImplementedException();
+        //public CursorState State => throw new NotImplementedException();
 
-        public KeyComparer<TKey> Comparer => throw new NotImplementedException();
+        //public KeyComparer<TKey> Comparer => throw new NotImplementedException();
 
-        public bool MoveAt(TKey key, Lookup direction)
-        {
-            throw new NotImplementedException();
-        }
+        //public bool MoveAt(TKey key, Lookup direction)
+        //{
+        //    throw new NotImplementedException();
+        //}
 
-        public bool MoveFirst()
-        {
-            throw new NotImplementedException();
-        }
+        //public bool MoveFirst()
+        //{
+        //    throw new NotImplementedException();
+        //}
 
-        public bool MoveLast()
-        {
-            throw new NotImplementedException();
-        }
+        //public bool MoveLast()
+        //{
+        //    throw new NotImplementedException();
+        //}
 
-        bool ICursor<TKey, TValue>.MoveNext()
-        {
-            throw new NotImplementedException();
-        }
+        //bool ICursor<TKey, TValue>.MoveNext()
+        //{
+        //    throw new NotImplementedException();
+        //}
 
-        public long MoveNext(long stride, bool allowPartial)
-        {
-            throw new NotImplementedException();
-        }
+        //public long MoveNext(long stride, bool allowPartial)
+        //{
+        //    throw new NotImplementedException();
+        //}
 
-        public bool MovePrevious()
-        {
-            throw new NotImplementedException();
-        }
+        //public bool MovePrevious()
+        //{
+        //    throw new NotImplementedException();
+        //}
 
-        public long MovePrevious(long stride, bool allowPartial)
-        {
-            throw new NotImplementedException();
-        }
+        //public long MovePrevious(long stride, bool allowPartial)
+        //{
+        //    throw new NotImplementedException();
+        //}
 
-        public TKey CurrentKey => throw new NotImplementedException();
+        //public TKey CurrentKey => throw new NotImplementedException();
 
-        public TValue CurrentValue => throw new NotImplementedException();
+        //public TValue CurrentValue => throw new NotImplementedException();
 
-        public Series<TKey, TValue, Segment<TKey, TValue>> Source => new Series<TKey, TValue, Segment<TKey, TValue>>(this);
+        //public Series<TKey, TValue, Segment<TKey, TValue>> Source => new Series<TKey, TValue, Segment<TKey, TValue>>(this);
 
-        public IAsyncCompleter AsyncCompleter => throw new NotImplementedException();
+        //public IAsyncCompleter AsyncCompleter => throw new NotImplementedException();
 
-        ISeries<TKey, TValue> ICursor<TKey, TValue>.Source => throw new NotImplementedException();
+        //ISeries<TKey, TValue> ICursor<TKey, TValue>.Source => throw new NotImplementedException();
 
-        public bool IsContinuous => throw new NotImplementedException();
+        //public bool IsContinuous => throw new NotImplementedException();
 
-        public Segment<TKey, TValue> Initialize()
-        {
-            throw new NotImplementedException();
-        }
+        //public Segment<TKey, TValue> Initialize()
+        //{
+        //    throw new NotImplementedException();
+        //}
 
-        Segment<TKey, TValue> ISpecializedCursor<TKey, TValue, Segment<TKey, TValue>>.Clone()
-        {
-            throw new NotImplementedException();
-        }
+        //Segment<TKey, TValue> ISpecializedCursor<TKey, TValue, Segment<TKey, TValue>>.Clone()
+        //{
+        //    throw new NotImplementedException();
+        //}
 
-        public bool IsIndexed => throw new NotImplementedException();
+        //public bool IsIndexed => throw new NotImplementedException();
 
-        public bool IsCompleted => throw new NotImplementedException();
+        //public bool IsCompleted => throw new NotImplementedException();
 
-        ICursor<TKey, TValue> ICursor<TKey, TValue>.Clone()
-        {
-            throw new NotImplementedException();
-        }
+        //ICursor<TKey, TValue> ICursor<TKey, TValue>.Clone()
+        //{
+        //    throw new NotImplementedException();
+        //}
 
-        public bool TryGetValue(TKey key, out TValue value)
-        {
-            throw new NotImplementedException();
-        }
+        //public bool TryGetValue(TKey key, out TValue value)
+        //{
+        //    throw new NotImplementedException();
+        //}
 
-        bool IEnumerator.MoveNext()
-        {
-            throw new NotImplementedException();
-        }
+        //bool IEnumerator.MoveNext()
+        //{
+        //    throw new NotImplementedException();
+        //}
 
-        public void Reset()
-        {
-            throw new NotImplementedException();
-        }
+        //public void Reset()
+        //{
+        //    throw new NotImplementedException();
+        //}
 
-        public KeyValuePair<TKey, TValue> Current => throw new NotImplementedException();
+        //public KeyValuePair<TKey, TValue> Current => throw new NotImplementedException();
 
-        object IEnumerator.Current => Current;
+        //object IEnumerator.Current => Current;
 
-        public void Dispose()
-        {
-            throw new NotImplementedException();
-        }
+        //public void Dispose()
+        //{
+        //    throw new NotImplementedException();
+        //}
 
-        public ValueTask DisposeAsync()
-        {
-            throw new NotImplementedException();
-        }
+        //public ValueTask DisposeAsync()
+        //{
+        //    throw new NotImplementedException();
+        //}
     }
 }

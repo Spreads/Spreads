@@ -28,6 +28,9 @@ namespace Spreads
         // ReSharper disable once InconsistentNaming
         internal const int LARGE_BUFFER_LIMIT = 64 * 1024;
 
+        // ReSharper disable once InconsistentNaming
+        internal const int MIN_POOLED_BUFFER_LEN = 16;
+
         // TODO find best values
         /// <summary>
         ///
