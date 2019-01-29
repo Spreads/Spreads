@@ -52,6 +52,7 @@ namespace Spreads.Buffers
         private readonly int _minBufferLength;
         private readonly int _maxBufferLength;
         private readonly int _maxBucketsToTry;
+        private readonly bool _pin;
         private const int DefaultMinArrayLength = 2048;
 
         /// <summary>The default maximum length of each array in the pool (2^20).</summary>
@@ -70,7 +71,7 @@ namespace Spreads.Buffers
         { }
 
         public RetainableMemoryPool(Func<RetainableMemoryPool<T>, int, RetainableMemory<T>> factory, int minLength,
-            int maxLength, int maxBuffersPerBucket, int maxBucketsToTry = 2)
+            int maxLength, int maxBuffersPerBucket, int maxBucketsToTry = 2, bool pin = false)
         {
             IsRentAlwaysClean = false;
 
@@ -93,6 +94,13 @@ namespace Spreads.Buffers
             }
 
             _maxBucketsToTry = maxBucketsToTry;
+
+            if (pin && !TypeHelper<T>.IsPinnable)
+            {
+                ThrowHelper.ThrowInvalidOperationException($"Type {typeof(T).Name} is not pinnable. Cannot create RetainableMemoryPool with pinnable option.");
+            }
+
+            _pin = pin;
 
             if (maxLength <= 0)
             {
@@ -142,7 +150,7 @@ namespace Spreads.Buffers
 
             if (_factory == null)
             {
-                var am = ArrayMemory<T>.Create(length);
+                var am = ArrayMemory<T>.Create(length, _pin);
                 am._pool = Unsafe.As<RetainableMemoryPool<T>>(this);
                 return Unsafe.As<RetainableMemory<T>>(am);
             }
@@ -374,7 +382,7 @@ namespace Spreads.Buffers
                 if (_factory == null)
                 {
                     ArrayMemory<T> arrayMemory;
-                    if (_bufferLength * Unsafe.SizeOf<T>() <= Settings.LARGE_BUFFER_LIMIT)
+                    if (_pool._pin && _bufferLength * Unsafe.SizeOf<T>() <= Settings.LARGE_BUFFER_LIMIT)
                     {
                         if (_sliceBucket == null)
                         {
@@ -385,7 +393,7 @@ namespace Spreads.Buffers
                     }
                     else
                     {
-                        arrayMemory = ArrayMemory<T>.Create(_bufferLength);
+                        arrayMemory = ArrayMemory<T>.Create(_bufferLength, _pool._pin);
                     }
 
                     arrayMemory._pool = _pool;

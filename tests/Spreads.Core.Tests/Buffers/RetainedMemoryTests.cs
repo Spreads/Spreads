@@ -85,7 +85,7 @@ namespace Spreads.Core.Tests.Buffers
         public void OffsetsAreOk()
         {
             var array = new byte[100];
-            var rm = new RetainedMemory<byte>(ArrayMemory<byte>.Create(array, 50, 50, true), 25, 25, true);
+            var rm = new RetainedMemory<byte>(ArrayMemory<byte>.Create(array, 50, 50, true, pin:true), 25, 25, true);
 
             // 85 - 95
             var rmc = rm.Clone().Slice(10, 10);
@@ -171,7 +171,7 @@ namespace Spreads.Core.Tests.Buffers
         public void WorksWithNonBlittables()
         {
             var arr = new string[] { "a" };
-            var r = ArrayMemory<string>.Create(arr, 0, arr.Length, externallyOwned: true);
+            var r = ArrayMemory<string>.Create(arr, 0, arr.Length, externallyOwned: true, pin: true);
 
             var h0 = r.Pin();
 

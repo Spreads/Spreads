@@ -21,7 +21,7 @@ namespace Spreads.Core.Tests.Collections.Internal
             var block = new DataBlock();
             Assert.AreEqual(0, block.RowLength);
 
-            block.DoubleSeriesCapacity<int, int>();
+            block.IncreaseSeriesCapacity<int, int>();
 
             Assert.AreEqual(block.RowIndex.Length, Settings.MIN_POOLED_BUFFER_LEN);
 
@@ -36,7 +36,7 @@ namespace Spreads.Core.Tests.Collections.Internal
             Assert.IsTrue(keys.IsPoolable);
             Assert.IsFalse(keys.IsPooled);
 
-            block.DoubleSeriesCapacity<int, int>();
+            block.IncreaseSeriesCapacity<int, int>();
 
             // keys were returned to the pool after doubling capacity
             Assert.IsTrue(keys.IsPooled);
@@ -52,7 +52,7 @@ namespace Spreads.Core.Tests.Collections.Internal
 
             for (int i = 0; i < 10; i++)
             {
-                block.DoubleSeriesCapacity<int, int>();
+                block.IncreaseSeriesCapacity<int, int>();
                 Console.WriteLine(block.RowIndex.Length);
             }
 

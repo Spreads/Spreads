@@ -24,7 +24,7 @@ namespace Spreads.Collections.Experimental
 
     ///////////////////////////////////////////////////////////////////////////////
 
-    public partial class Series<TKey, TValue> : BaseContainer<TKey>, ISeriesNew, ISpecializedSeries<TKey, TValue, SCursor<TKey, TValue>>
+    public partial class Series<TKey, TValue> : BaseContainer<TKey>, ISeriesNew, ISpecializedSeries<TKey, TValue, SCursor<TKey, TValue>>, ISeriesNew<TKey, TValue>
     {
         internal Series()
         {
@@ -138,6 +138,55 @@ namespace Spreads.Collections.Experimental
             }
         }
 
+        public bool IsEmpty
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get
+            {
+                DataBlock block;
+                if (DataSource == null)
+                {
+                    block = DataBlock;
+                }
+                else
+                {
+                    block = DataSource.LastOrDefault;
+                }
+
+                if (block != null && block.RowLength > 0)
+                {
+                    return false;
+                }
+                return true;
+            }
+        }
+
+        internal TValue LastOrDefault
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get
+            {
+                // TODO Synchronize.
+
+                DataBlock block;
+                if (DataSource == null)
+                {
+                    block = DataBlock;
+                }
+                else
+                {
+                    block = DataSource.LastOrDefault;
+                }
+
+                int idx;
+                if (block != null && (idx = block.RowLength - 1) >= 0)
+                {
+                    return block.Values._vec.DangerousGetRef<TValue>(idx);
+                }
+                return default;
+            }
+        }
+
         public Opt<KeyValuePair<TKey, TValue>> Last
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -152,12 +201,12 @@ namespace Spreads.Collections.Experimental
                 }
                 else
                 {
-                    var opt = DataSource.First;
-                    if (AdditionalCorrectnessChecks.Enabled)
-                    {
-                        block = opt.IsPresent ? opt.Present.Value : null;
-                    }
-                    else
+                    var opt = DataSource.Last;
+                    //if (AdditionalCorrectnessChecks.Enabled)
+                    //{
+                    //    block = opt.IsPresent ? opt.Present.Value : null;
+                    //}
+                    //else
                     {
                         // Opt.Missing is default and KVP is struct with default values.
                         block = opt.Present.Value;
@@ -167,9 +216,9 @@ namespace Spreads.Collections.Experimental
                 int idx;
                 if (block != null && (idx = block.RowLength - 1) >= 0)
                 {
-                    var k = DataBlock.RowIndex.DangerousGetRef<TKey>(idx);
-                    var v = DataBlock.Values.DangerousGetRef<TValue>(idx);
-                    return Opt.Present(new KeyValuePair<TKey, TValue>(k, v));
+                    var k = block.RowIndex._vec.DangerousGetRef<TKey>(idx);
+                    var v = block.Values._vec.DangerousGetRef<TValue>(idx);
+                    return new Opt<KeyValuePair<TKey, TValue>>(new KeyValuePair<TKey, TValue>(k, v));
                 }
                 return Opt<KeyValuePair<TKey, TValue>>.Missing;
             }

@@ -14,6 +14,8 @@ namespace Spreads.Collections.Experimental
 {
     public class AppendSeries<TKey, TValue> : Series<TKey, TValue>, IAppendSeries<TKey, TValue>
     {
+        private static readonly int MaxBufferLength = Settings.LARGE_BUFFER_LIMIT / Math.Max(Unsafe.SizeOf<TKey>(), Unsafe.SizeOf<TValue>());
+
         internal AppendSeries()
         {
             DataBlock = new DataBlock();
@@ -36,55 +38,98 @@ namespace Spreads.Collections.Experimental
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)] // if devirt works
         public virtual Task<bool> TryAddLast(TKey key, TValue value)
         {
-            lock (SyncRoot)
+#pragma warning disable 618
+            BeforeWrite();
+            var added = false;
+            try
             {
-                var last = Last;
-                if (last.IsPresent)
-                {
-                    var c = Comparer.Compare(key, last.Present.Key);
-                    if (c <= 0)
-                    {
-                        return TaskUtil.FalseTask;
-                    }
-                }
-
-                if (DataSource != null)
-                {
-                    throw new NotImplementedException();
-                }
-
-                // we need to get the last data block and insert to it,
-                // double it's capacity until it fits to LOH,
-                // then switch to in-memory DataSource
-
-                var block = DataBlock;
-
-                Debug.Assert(block != null);
-
-                if (block.RowLength == block.RowIndex.Length)
-                {
-                    var byteSize = block.RowIndex.Length * Math.Max(Unsafe.SizeOf<TKey>(), Unsafe.SizeOf<TValue>()) ;
-                    // next increment will be 128kb, first pow2 buffer in LOH
-                    if (byteSize <= Settings.LARGE_BUFFER_LIMIT)
-                    {
-                        block.DoubleSeriesCapacity<TKey, TValue>();
-                    }
-                    else
-                    {
-                        // TODO switch to in-memory DataSource
-                        throw new NotImplementedException();
-                    }
-                }
-
-                block.InsertSeries(block.RowLength, key, value);
-                return TaskUtil.TrueTask;
+                added = TryAddLastDirect(key, value);
             }
+            finally
+            {
+                AfterWrite(added);
+            }
+            return added ? TaskUtil.TrueTask : TaskUtil.FalseTask;
         }
 
-        internal static void Insert(DataBlock block, int index, TKey key, TValue value)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal bool TryAddLastDirect(TKey key, TValue value)
         {
+            DataBlock block;
+            if (DataSource == null)
+            {
+                block = DataBlock;
+            }
+            else
+            {
+                block = DataSource.LastOrDefault;
+                //if (lastBlockOpt.IsPresent)
+                //{
+                //    block = lastBlockOpt.Present.Value;
+                //}
+                //else
+                //{
+                //    // TODO this should not happen
+                //    block = null;
+                //}
+            }
+
+            Debug.Assert(block != null);
+
+            if (block.RowLength > 0)
+            {
+                var lastKey = block.RowIndex._vec.DangerousGet<TKey>(block.RowLength - 1);
+
+                // TODO why _comparer is not visible here?
+                var c = Comparer.Compare(key, lastKey);
+                if (c <= 0)
+                {
+                    return false;
+                }
+            }
+
+            if (block.RowLength == block.RowIndex.Length)
+            {
+                block = GrowCapacity(key, block);
+            }
+
+            block.InsertSeries(block.RowLength, key, value);
+            return true;
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining
+#if NETCOREAPP3_0
+                     | MethodImplOptions.AggressiveOptimization
+#endif
+        )]
+        private DataBlock GrowCapacity(TKey key, DataBlock block)
+        {
+            // TODO review: do we want buffers in LOH or not? <= vs <
+            // next increment will be 64kb, avoid buffer in LOH
+            if (block.RowIndex.Length < MaxBufferLength)
+            {
+                block.IncreaseSeriesCapacity<TKey, TValue>();
+            }
+            else
+            {
+                if (DataSource == null)
+                {
+                    DataSource = new DataBlockSource<TKey>();
+                    DataSource.AddLast(block.RowIndex.DangerousGetRef<TKey>(0), block);
+                    DataBlock = null;
+                }
+
+                var minCapacity = block.RowIndex.Length;
+                var newBlock = new DataBlock();
+                newBlock.IncreaseSeriesCapacity<TKey, TValue>(minCapacity); // sets capacity to min len
+                DataSource.AddLast(key, newBlock);
+                block = newBlock;
+            }
+
+            return block;
         }
     }
 }

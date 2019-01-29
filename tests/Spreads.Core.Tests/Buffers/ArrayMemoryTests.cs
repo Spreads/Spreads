@@ -20,7 +20,7 @@ namespace Spreads.Core.Tests.Buffers
         [Test]
         public void CannotDisposeRetained()
         {
-            var memory = ArrayMemory<byte>.Create(32 * 1024);
+            var memory = ArrayMemory<byte>.Create(32 * 1024, pin: true);
             var rm = memory.Retain();
             Assert.Throws<InvalidOperationException>(() => { ((IDisposable)memory).Dispose(); });
             rm.Dispose();
@@ -29,7 +29,7 @@ namespace Spreads.Core.Tests.Buffers
         [Test]
         public void CannotDoubleDispose()
         {
-            var memory = ArrayMemory<byte>.Create(32 * 1024);
+            var memory = ArrayMemory<byte>.Create(32 * 1024, pin: true);
             ((IDisposable)memory).Dispose();
             Assert.Throws<ObjectDisposedException>(() => { ((IDisposable)memory).Dispose(); });
         }
@@ -77,7 +77,7 @@ namespace Spreads.Core.Tests.Buffers
             {
                 for (int i = 0; i < count; i++)
                 {
-                    var memory = ArrayMemory<byte>.Create(32 * 1024);
+                    var memory = ArrayMemory<byte>.Create(32 * 1024, pin: true);
                     ((IDisposable)memory).Dispose();
                 }
             }
@@ -181,7 +181,7 @@ namespace Spreads.Core.Tests.Buffers
             var batch = capacity * 2;
             var pool = new RetainableMemoryPool<byte>((p, l) =>
                 {
-                    var am = ArrayMemory<byte>.Create(l);
+                    var am = ArrayMemory<byte>.Create(l, pin: true);
                     // Attach pool
                     am._pool = p;
                     return am;
@@ -219,7 +219,7 @@ namespace Spreads.Core.Tests.Buffers
             {
                 for (int i = 0; i < count; i++)
                 {
-                    var memory = ArrayMemory<byte>.Create(32 * 1024);
+                    var memory = ArrayMemory<byte>.Create(32 * 1024, pin: true);
                     if (memory.Array.Length != 32 * 1024)
                     {
                         Assert.Fail("Length");

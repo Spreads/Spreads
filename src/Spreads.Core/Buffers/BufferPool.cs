@@ -33,11 +33,12 @@ namespace Spreads.Buffers
         // TODO Review parameters. The goal is to work mostly with 128kb buffers, all smaller ones are just slices of 128kb ones
         // Those buffers are in LOH and always pinning them is OK and does not interfere with normal GC.
         public static RetainableMemoryPool<T> MemoryPool = new RetainableMemoryPool<T>(
-                factory: null, 
+                factory: null,
                 minLength: Settings.MIN_POOLED_BUFFER_LEN,
                 maxLength: (Settings.LARGE_BUFFER_LIMIT * 4) / Unsafe.SizeOf<T>(),
                 maxBuffersPerBucket: 64 + Environment.ProcessorCount * 16,
-                maxBucketsToTry: 2);
+                maxBucketsToTry: 2,
+                pin: false);
     }
 
     public class BufferPool
@@ -45,10 +46,13 @@ namespace Spreads.Buffers
         internal static BufferPool Shared = new BufferPool();
 
         internal static RetainableMemoryPool<byte> PinnedArrayMemoryPool =
-            new RetainableMemoryPool<byte>(null,
-                2048,
-                8 * 1024 * 1024,
-                64, 2);
+            new RetainableMemoryPool<byte>(
+                factory: null,
+                minLength: 2048,
+                maxLength: 8 * 1024 * 1024,
+                maxBuffersPerBucket: 64,
+                maxBucketsToTry: 2,
+                pin: true);
 
         /// <summary>
         /// Default OffHeap pool has capacity of 4. This static field could be changed to a new instance.

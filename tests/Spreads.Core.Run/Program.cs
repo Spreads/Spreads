@@ -35,8 +35,8 @@ namespace Spreads.Core.Run
 
             // EquiJoinBench();
 
-            var test = new BlockCursorTests();
-            test.CouldMoveNextBench();
+            var test = new SeriesAppendTests();
+            test.CouldAppendSeriesBench();
 
             //Console.WriteLine("Finished, press enter to exit...");
             //Console.ReadLine();

@@ -139,6 +139,9 @@ namespace Spreads
     {
         // while rewriting keep existing, never commit in broken state
         // ?
+        bool IsEmpty { get; }
+        
+        // TODO LastOrDefault - via Opt<> is terribly slow. Already implemented for DataSource.
     }
 
     /// <summary>

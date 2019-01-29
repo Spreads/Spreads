@@ -2,23 +2,95 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+using Spreads.Collections.Experimental;
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.Linq;
+using System.Runtime.CompilerServices;
+using Spreads.Utils;
 
 namespace Spreads.Collections.Internal
 {
     internal class DataBlockSource<TKey> : ISeries<TKey, DataBlock>, IDisposable
     {
-        // TODO
         /// <summary>
-        ///  For append-only containers blocks will have the same size. Last block could be only partially filled.
+        /// For append-only containers blocks will have the same size. Last block could be only partially filled.
         /// </summary>
-        public uint ConstantBlockLength = 0;
+        internal uint ConstantBlockLength = 0;
+
+        /// <summary>
+        /// DataBlock has Next property to form a linked list. If _root is set then all blocks after it are GC-rooted and won't be collected.
+        /// </summary>
+        private DataBlock _root;
+
+        // This is used from locked context, do not use locked methods
+        private MutableSeries<TKey, WeakReference<DataBlock>> _weakSeries;
+
+        //public static DataBlockSource<TKey> CreateAppendSeries(DataBlock initialBlock)
+        //{
+        //    var ds = new DataBlockSource<TKey>();
+        //    ds._root = initialBlock;
+        //    ds._weakSeries = new MutableSeries<TKey, WeakReference<DataBlock>>();
+        //    ds._weakSeries.TryAddLastDirect(initialBlock.RowIndex.DangerousGetRef<TKey>(0), new WeakReference<DataBlock>(initialBlock));
+        //}
+
+        public DataBlockSource()
+        {
+            _weakSeries = new MutableSeries<TKey, WeakReference<DataBlock>>();
+        }
 
         public IAsyncEnumerator<KeyValuePair<TKey, DataBlock>> GetAsyncEnumerator()
         {
             throw new NotImplementedException();
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining
+#if NETCOREAPP3_0
+            | MethodImplOptions.AggressiveOptimization
+#endif
+        )]
+        public bool AddLast(TKey key, DataBlock value)
+        {
+            
+            var wr = new WeakReference<DataBlock>(value);
+            DataBlock lastBlock = null;
+            var last = _weakSeries.Last;
+            if (last.IsPresent)
+            {
+                // Console.WriteLine($"LAST: {last.Present.Key} adding: {key}");
+                if (!last.Present.Value.TryGetTarget(out lastBlock))
+                {
+                    // Console.WriteLine("CANNOT GET LAST");
+                    // TODO cleanup
+                    // Assert that all do not have target
+                }
+            }
+            else
+            {
+                // Console.WriteLine("Cannot get last: " + key);
+                // last = _weakSeries.Last;
+            }
+
+            var added = _weakSeries.TryAddLastDirect(key, wr);
+            if (!added)
+            {
+                ThrowHelper.ThrowInvalidOperationException("This should always succeed");
+                return false;
+            }
+
+            if (lastBlock != null)
+            {
+                lastBlock.NextBlock = value;
+            }
+            else
+            {
+                // Console.WriteLine("SETTING ROOT");
+                _root = value;
+            }
+            // GC.KeepAlive(value);
+            return true;
         }
 
         public IEnumerator<KeyValuePair<TKey, DataBlock>> GetEnumerator()
@@ -47,9 +119,46 @@ namespace Spreads.Collections.Internal
 
         public KeyComparer<TKey> Comparer => throw new NotImplementedException();
 
-        public Opt<KeyValuePair<TKey, DataBlock>> First => throw new NotImplementedException();
+        public Opt<KeyValuePair<TKey, DataBlock>> First
+        {
+            get
+            {
+                var wOpt = _weakSeries.First;
+                if (wOpt.IsPresent && wOpt.Present.Value.TryGetTarget(out var block))
+                {
+                    return Opt.Present(new KeyValuePair<TKey, DataBlock>(wOpt.Present.Key, block));
+                }
+                return Opt<KeyValuePair<TKey, DataBlock>>.Missing;
+            }
+        }
 
-        public Opt<KeyValuePair<TKey, DataBlock>> Last => throw new NotImplementedException();
+        public DataBlock LastOrDefault
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get
+            {
+                var wOpt = _weakSeries.LastOrDefault;
+                if (wOpt.TryGetTarget(out var block))
+                {
+                    return block;
+                }
+                return default;
+            }
+        }
+
+        public Opt<KeyValuePair<TKey, DataBlock>> Last
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get
+            {
+                var wOpt = _weakSeries.Last;
+                if (wOpt.IsPresent && wOpt.Present.Value.TryGetTarget(out var block))
+                {
+                    return new Opt<KeyValuePair<TKey, DataBlock>>(new KeyValuePair<TKey, DataBlock>(wOpt.Present.Key, block));
+                }
+                return Opt<KeyValuePair<TKey, DataBlock>>.Missing;
+            }
+        }
 
         public DataBlock this[TKey key] => throw new NotImplementedException();
 
@@ -68,12 +177,14 @@ namespace Spreads.Collections.Internal
             throw new NotImplementedException();
         }
 
-        public IEnumerable<TKey> Keys => throw new NotImplementedException();
+        public IEnumerable<TKey> Keys => _weakSeries.Keys;
 
-        public IEnumerable<DataBlock> Values => throw new NotImplementedException();
+        public IEnumerable<DataBlock> Values => _weakSeries.Values.Select(x => x.TryGetTarget(out var tgt) ? tgt : null);
+
         public void Dispose()
         {
-            throw new NotImplementedException();
+            _root = null;
+            _weakSeries.Dispose();
         }
     }
 }

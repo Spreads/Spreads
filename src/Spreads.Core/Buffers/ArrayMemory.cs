@@ -33,7 +33,7 @@ namespace Spreads.Buffers
             // NOTE: allocateOnEmpty = true
             _pool = new LockedObjectPool<ArrayMemorySlice<T>>(maxBufferCount, Factory, allocateOnEmpty: true);
 
-            _slab = ArrayMemory<T>.Create(Settings.SlabLength);
+            _slab = ArrayMemory<T>.Create(Settings.SlabLength, true);
             _slabFreeCount = _slab.Length / _bufferLength;
         }
 
@@ -52,7 +52,7 @@ namespace Spreads.Buffers
                 {
                     // drop previous slab, it is owned by previous slices
                     // and will be returned to the pool when all slices are disposed
-                    _slab = ArrayMemory<T>.Create(Settings.SlabLength);
+                    _slab = ArrayMemory<T>.Create(Settings.SlabLength, true);
                     _slabFreeCount = _slab.Length / _bufferLength;
                 }
 
@@ -73,6 +73,11 @@ namespace Spreads.Buffers
 
         public unsafe ArrayMemorySlice(ArrayMemory<T> slab, LockedObjectPool<ArrayMemorySlice<T>> slicesPool, int offset, int length)
         {
+            if (!TypeHelper<T>.IsPinnable)
+            {
+                ThrowHelper.FailFast("Do not use slices for not pinnable");
+            }
+
 #pragma warning disable 618
             _slab = slab;
             _slab.Increment();
@@ -158,9 +163,9 @@ namespace Spreads.Buffers
         /// Create <see cref="ArrayMemory{T}"/> backed by an array from shared array pool.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static ArrayMemory<T> Create(int minLength)
+        public static ArrayMemory<T> Create(int minLength, bool pin)
         {
-            return Create(BufferPool<T>.Rent(minLength));
+            return Create(BufferPool<T>.Rent(minLength), false, pin);
         }
 
         /// <summary>
@@ -178,21 +183,27 @@ namespace Spreads.Buffers
         /// Create <see cref="ArrayMemory{T}"/> backed by the provided array.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static ArrayMemory<T> Create(T[] array, bool externallyOwned)
+        internal static ArrayMemory<T> Create(T[] array, bool externallyOwned, bool pin = false)
         {
-            return Create(array, 0, array.Length, false);
+            return Create(array, 0, array.Length, externallyOwned, pin);
         }
 
         /// <summary>
         /// Create <see cref="ArrayMemory{T}"/> backed by the provided array.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static unsafe ArrayMemory<T> Create(T[] array, int offset, int length, bool externallyOwned)
+        internal static unsafe ArrayMemory<T> Create(T[] array, int offset, int length, bool externallyOwned, bool pin)
         {
             var arrayMemory = ObjectPool.Allocate();
             arrayMemory._array = array;
-            if (TypeHelper<T>.IsPinnable)
+
+            if (pin)
             {
+                if (!TypeHelper<T>.IsPinnable)
+                {
+                    ThrowNotPinnable();
+                }
+
                 arrayMemory._handle = GCHandle.Alloc(arrayMemory._array, GCHandleType.Pinned);
                 arrayMemory._pointer = Unsafe.AsPointer(ref arrayMemory._array[offset]);
             }
@@ -222,7 +233,13 @@ namespace Spreads.Buffers
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
-        private static unsafe void ThrowBadCounterAfterAllocate(ArrayMemory<T> arrayMemory)
+        private static void ThrowNotPinnable()
+        {
+            ThrowHelper.ThrowInvalidOperationException($"Type {typeof(T).Name} is not pinnable.");
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static void ThrowBadCounterAfterAllocate(ArrayMemory<T> arrayMemory)
         {
             ThrowHelper.ThrowInvalidOperationException(
                 $"Allocated ArrayMemory with non-zero counter: arrayMemory.Counter.Count != 0 [{arrayMemory.Counter.Count}]");

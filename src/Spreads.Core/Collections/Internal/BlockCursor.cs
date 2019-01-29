@@ -47,7 +47,7 @@ namespace Spreads.Collections.Internal
         /// Series order version saved at cursor creation to detect changes in series.
         /// Should only be checked for <see cref="Mutability.Mutable"/>, append-only does not change order.
         /// </summary>
-        internal int OrderVersion;
+        internal int _orderVersion;
 
         // Note: We need to cache CurrentKey:
         // * in most cases it is <= 8 bytes so the entire struct should be <= 32 bytes or 1/2 cache line;
@@ -63,7 +63,7 @@ namespace Spreads.Collections.Internal
             _source = source;
             _blockPosition = -1;
             _currentBlock = source.DataSource == null ? source.DataBlock : DataBlock.Empty;
-            OrderVersion = _source._orderVersion.CountOrZero; // TODO
+            _orderVersion = _source._orderVersion.CountOrZero; // TODO
             _currentKey = default;
             _currentValue = default;
         }
@@ -88,9 +88,52 @@ namespace Spreads.Collections.Internal
             get => _source._ñomparer;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool MoveAt(TKey key, Lookup direction)
         {
-            throw new NotImplementedException();
+            bool found;
+            int nextPosition;
+            DataBlock nextBlock;
+            TValue v = default;
+            var sw = new SpinWait();
+
+        RETRY:
+
+            var version = Volatile.Read(ref _source._version);
+            {
+                found = _source.TryFindBlockAt(ref key, direction, out nextBlock, out nextPosition, false);
+                if (found)
+                {
+                    if (typeof(TContainer) == typeof(Collections.Experimental.Series<TKey, TValue>))
+                    {
+                        Debug.Assert(_currentBlock.Values._stride == 1);
+                        // TODO review. Via _vec is much faster but we assume that stride is 1
+                        v = _currentBlock.Values._vec.DangerousGetRef<TValue>(nextPosition);
+                    }
+                }
+            }
+
+            if (Volatile.Read(ref _source._nextVersion) != version)
+            {
+                // See Move comments
+                EnsureSourceNotDisposed();
+                EnsureOrder();
+                sw.SpinOnce();
+                goto RETRY;
+            }
+
+            if (found)
+            {
+                _blockPosition = nextPosition;
+                _currentKey = key;
+                _currentValue = v;
+                if (nextBlock != null)
+                {
+                    _currentBlock = nextBlock;
+                }
+            }
+
+            return found;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -184,7 +227,7 @@ namespace Spreads.Collections.Internal
         {
             // this should be false for all cases
 
-            if (OrderVersion != _source._orderVersion.CountOrZero)
+            if (_orderVersion != _source._orderVersion.CountOrZero)
             {
                 ThrowHelper.ThrowOutOfOrderKeyException(_currentKey);
             }
@@ -405,7 +448,7 @@ namespace Spreads.Collections.Internal
         {
             _blockPosition = -1;
             _currentKey = default;
-            OrderVersion = _source._orderVersion.CountOrZero;
+            _orderVersion = _source._orderVersion.CountOrZero;
 
             if (_source.DataSource != null)
             {

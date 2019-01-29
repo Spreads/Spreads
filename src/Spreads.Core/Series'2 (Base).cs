@@ -1201,15 +1201,8 @@ namespace Spreads
 #pragma warning restore 660, 661
         where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
     {
-        internal AtomicCounter _ac;
-
         [Obsolete("use _ac")]
         internal long Locker;
-
-        // ReSharper disable InconsistentNaming
-        internal long _version;
-
-        internal long _nextVersion;
 
         // ReSharper restore InconsistentNaming
         internal bool _isSynchronized = true; // todo _ac == default? or MutabilityEnum and always synchronize if not immutable?

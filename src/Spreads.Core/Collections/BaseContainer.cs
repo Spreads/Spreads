@@ -10,6 +10,8 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
+using System.Threading;
+using Spreads.Collections.Experimental;
 
 namespace Spreads.Collections
 {
@@ -24,10 +26,133 @@ namespace Spreads.Collections
         internal BaseSeries()
         { }
 
-        internal AtomicCounter _orderVersion;
+        // immutable & not sorted
+        internal Flags _flags;
 
+        internal AtomicCounter _orderVersion;
+        internal int _locker;
         internal long _version;
         internal long _nextVersion;
+
+        #region Synchronization
+
+        /// <summary>
+        /// Takes a write lock, increments _nextVersion field and returns the current value of the _version field.
+        /// </summary>
+        /// <returns></returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [Obsolete("Use this ONLY for IMutableSeries operations")]
+        internal void BeforeWrite()
+        {
+            // TODO review (recall) why SCM needed access to this
+            // TODO Use AdditionalCorrectnessChecks instead of #if DEBUG
+            // Failing to unlock in-memory is FailFast condition
+            // But before that move DS unlock logic to Utils
+            // If high-priority thread is writing in a hot loop on a machine/container
+            // with small number of cores it hypothetically could make other threads
+            // wait for a long time, and scheduler could switch to this thread
+            // when the higher-priority thread is holding the lock.
+            // Need to investigate more if thread scheduler if affected by CERs.
+#if DEBUG
+            var sw = new Stopwatch();
+            sw.Start();
+#endif
+            var spinwait = new SpinWait();
+            // NB try{} finally{ .. code here .. } prevents method inlining, therefore should be used at the caller place, not here
+            var doSpin = !_flags.IsImmutable;
+            // ReSharper disable once LoopVariableIsNeverChangedInsideLoop
+            while (doSpin)
+            {
+                if (Interlocked.CompareExchange(ref _locker, 1, 0) == 0L)
+                {
+                    if (IntPtr.Size == 8)
+                    {
+                        Volatile.Write(ref _nextVersion, _nextVersion + 1L);
+                        // see the aeron.net 49 & related coreclr issues
+                        _nextVersion = Volatile.Read(ref _nextVersion);
+                    }
+                    else
+                    {
+                        Interlocked.Increment(ref _nextVersion);
+                    }
+
+                    // do not return from a loop, see CoreClr #9692
+                    break;
+                }
+#if DEBUG
+                sw.Stop();
+                var elapsed = sw.ElapsedMilliseconds;
+                if (elapsed > 1000)
+                {
+                    TryUnlock();
+                }
+#endif
+                spinwait.SpinOnce();
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        [Conditional("DEBUG")]
+        internal virtual void TryUnlock()
+        {
+            ThrowHelper.FailFast("This should never happen. Locks are only in memory and should not take longer than a millisecond.");
+        }
+
+        /// <summary>
+        /// Release write lock and increment _version field or decrement _nextVersion field if no updates were made.
+        /// Call NotifyUpdate if doVersionIncrement is true
+        /// </summary>
+        /// <param name="doVersionIncrement"></param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [Obsolete("Use this ONLY for IMutableSeries operations")]
+        internal void AfterWrite(bool doVersionIncrement)
+        {
+            if (_flags.IsImmutable)
+            {
+                if (doVersionIncrement)
+                {
+                    _version++;
+                    _nextVersion = _version;
+                }
+            }
+            else if (doVersionIncrement)
+            {
+                if (IntPtr.Size == 8)
+                {
+                    Volatile.Write(ref _version, _version + 1L);
+                }
+                else
+                {
+                    Interlocked.Increment(ref _version);
+                }
+                // TODO
+                // NotifyUpdate(false);
+            }
+            else
+            {
+                // set nextVersion back to original version, no changes were made
+                if (IntPtr.Size == 8)
+                {
+                    Volatile.Write(ref _nextVersion, _version);
+                }
+                else
+                {
+                    Interlocked.Exchange(ref _nextVersion, _version);
+                }
+            }
+
+            // release write lock
+            if (IntPtr.Size == 8)
+            {
+                Volatile.Write(ref _locker, 0);
+            }
+            else
+            {
+                Interlocked.Exchange(ref _locker, 0);
+            }
+        }
+
+        #endregion Synchronization
 
         #region Attributes
 
@@ -61,21 +186,18 @@ namespace Spreads.Collections
         #endregion Attributes
     }
 
-    /// <inheritdoc />
     public class BaseContainer<TKey> : BaseSeries, IAsyncCompleter, IDisposable //, IDataBlockValueGetter<object>
     {
         // for tests only, it should have been abstract otherwise
         internal BaseContainer()
         {
+            
         }
 
-        internal KeyComparer<TKey> _сomparer = default;
+        protected internal KeyComparer<TKey> _сomparer = default;
 
         internal DataBlock DataBlock;
         internal DataBlockSource<TKey> DataSource;
-
-        // immutable & not sorted
-        internal Flags _flags;
 
         // TODO we are forking existing series implementation from here
         // All containers inherit this.
@@ -93,8 +215,6 @@ namespace Spreads.Collections
         internal bool TryGetBlock(TKey key, out DataBlock block, out int blockIndex,
             bool updateDataBlock = false)
         {
-#nullable enable
-
             // follows TryFindBlockAt implementation, do not edit this directly
             // * always search source with LE, do not retry, no special case since we are always searching EQ key
             // * replace SortedLookup with SortedSearch
@@ -133,7 +253,6 @@ namespace Spreads.Collections
             }
 
             return false;
-#nullable disable
         }
 
         /// <summary>
@@ -302,6 +421,7 @@ namespace Spreads.Collections
 
                 if (blockIndex >= 0)
                 {
+                    // TODO this is not needed? left from initial?
                     if (updateDataBlock)
                     {
                         DataBlock = block;

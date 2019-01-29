@@ -124,6 +124,27 @@ namespace Spreads.Collections.Internal
         )]
         internal void InsertSeries<TKey, TValue>(int index, TKey key, TValue value)
         {
+            if (AdditionalCorrectnessChecks.Enabled)
+            {
+                DoAdditoinalInsertChecks(index);
+            }
+
+            if (index < RowLength)
+            {
+                var len = RowLength - index;
+                var rsp = _rowIndex.Vec.AsSpan<TKey>();
+                rsp.Slice(index, len).CopyTo(rsp.Slice(index + 1, len));
+                var vsp = _values.Vec.AsSpan<TValue>();
+                vsp.Slice(index, len).CopyTo(vsp.Slice(index + 1, len));
+            }
+            _rowIndex.Vec.DangerousGetRef<TKey>(index) = key;
+            _values.Vec.DangerousGetRef<TValue>(index) = value;
+            RowLength++;
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private void DoAdditoinalInsertChecks(int index)
+        {
             EnsureNotSentinel();
 
             if ((uint)index > RowLength)
@@ -136,26 +157,10 @@ namespace Spreads.Collections.Internal
                 ThrowHelper.ThrowInvalidOperationException("Not enough capacity");
             }
 
-            if (AdditionalCorrectnessChecks.Enabled)
+            if (RowLength > _rowIndex.Length || _rowIndex.Length != _values.Length)
             {
-                if (RowLength > _rowIndex.Length || _rowIndex.Length != _values.Length)
-                {
-                    ThrowHelper.FailFast("Bad layout of Series DataBlock");
-                }
+                ThrowHelper.FailFast("Bad layout of Series DataBlock");
             }
-
-            // Append to the end
-            if (index < RowLength)
-            {
-                var len = RowLength - index;
-                var rsp = _rowIndex.Vec.AsSpan<TKey>();
-                rsp.Slice(index, len).CopyTo(rsp.Slice(index + 1, len));
-                var vsp = _values.Vec.AsSpan<TValue>();
-                vsp.Slice(index, len).CopyTo(vsp.Slice(index + 1, len));
-            }
-            _rowIndex.DangerousGetRef<TKey>(index) = key;
-            _values.DangerousGetRef<TValue>(index) = value;
-            RowLength++;
         }
 
         [MethodImpl(MethodImplOptions.NoInlining
@@ -163,7 +168,7 @@ namespace Spreads.Collections.Internal
             | MethodImplOptions.AggressiveOptimization
 #endif
         )]
-        internal int DoubleSeriesCapacity<TKey, TValue>()
+        internal int IncreaseSeriesCapacity<TKey, TValue>(int newCapacity = -1)
         {
             EnsureNotSentinel();
 
@@ -171,7 +176,9 @@ namespace Spreads.Collections.Internal
             // We ignore this now
 
             var ri = _rowIndex;
-            var newLen = Math.Max(Settings.MIN_POOLED_BUFFER_LEN, BitUtil.FindNextPositivePowerOfTwo(ri.Length + 1));
+            var minCapacity = Math.Max(newCapacity, Settings.MIN_POOLED_BUFFER_LEN);
+            var newLen = Math.Max(minCapacity, BitUtil.FindNextPositivePowerOfTwo(ri.Length + 1));
+
             var newRiBuffer = BufferPool<TKey>.MemoryPool.RentMemory(newLen);
             var newRi = VectorStorage.Create(newRiBuffer, 0, newRiBuffer.Length, elementLength: newLen); // new buffer could be larger
             if (ri.Length > 0)
@@ -426,6 +433,7 @@ namespace Spreads.Collections.Internal
 
         ~DataBlock()
         {
+            ThrowHelper.ThrowInvalidOperationException("Finalizing DataBlock");
             Dispose(false);
         }
 

@@ -24,6 +24,7 @@ namespace Spreads
         /// }
         /// </code>
         /// </example>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Opt<T> Present<T>(T value) // NB never create extensions on T
         {
             return new Opt<T>(value);
@@ -49,12 +50,14 @@ namespace Spreads
         /// Create new optional value with a given present value.
         /// </summary>
         /// <param name="value"></param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Opt(in T value)
         {
             _presence = 1;
             _present = value;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal Opt(T value, int presence)
         {
             _presence = presence | 1;

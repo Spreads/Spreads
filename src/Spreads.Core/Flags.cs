@@ -39,7 +39,14 @@ namespace Spreads
             get => (KeySorting)(_value & (int)KeySorting.Strong);
         }
 
-        public bool IsAppend
+        public bool IsAppendOnly
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => (_value & (int)Mutability.Mutable) == (int)Mutability.AppendOnly;
+        }
+
+        // [Obsolete("This only checks is we could append, not ONLY append")]
+        public bool CouldAppend
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => (_value & (int)Mutability.AppendOnly) != 0;

@@ -10,6 +10,7 @@ using System.Buffers;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using Spreads.Utils;
 
 namespace Spreads.Collections.Internal
 {
@@ -59,6 +60,8 @@ namespace Spreads.Collections.Internal
     [StructLayout(LayoutKind.Sequential)]
     internal sealed class VectorStorage : IDisposable, IVector
     {
+        // private string StackTrace = Environment.StackTrace;
+
         public static readonly VectorStorage Empty = new VectorStorage();
 
         private static readonly ObjectPool<VectorStorage> ObjectPool = new ObjectPool<VectorStorage>(() => new VectorStorage(), Environment.ProcessorCount * 16);
@@ -324,9 +327,8 @@ namespace Spreads.Collections.Internal
                 {
                     ThrowDisposed();
                 }
-                _memorySource = null;
-
                 _memoryHandle.Dispose();
+                _memorySource = null;
             }
             // now we do not care about _source, it is either borrowed by other VectorStorage instances or returned to a pool/GC
 
@@ -342,9 +344,10 @@ namespace Spreads.Collections.Internal
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
-        private static void WarnFinalizing()
+        private void WarnFinalizing()
         {
-            Trace.TraceWarning("Finalizing VectorStorage. It must be properly disposed.");
+
+            Trace.TraceWarning("Finalizing VectorStorage. It must be properly disposed. \n "); // + StackTrace);
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]

@@ -233,6 +233,11 @@ namespace Spreads.Buffers
             {
                 ThrowDisposed<RetainableMemory<T>>();
             }
+
+            if (_pointer != null && _array != null)
+            {
+                Console.WriteLine("Catch me");
+            }
             // if disposed Pointer & _len are null/0, no way to corrupt data, will just throw
             return _pointer == null ? new Span<T>(_array, _arrayOffset, _length) : new Span<T>(Pointer, _length);
         }

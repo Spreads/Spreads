@@ -51,7 +51,7 @@ namespace Spreads.Buffers
             }
             else if (MemoryMarshal.TryGetArray<T>(memory, out var segment))
             {
-                _manager = ArrayMemory<T>.Create(segment.Array, segment.Offset, segment.Count, true);
+                _manager = ArrayMemory<T>.Create(segment.Array, segment.Offset, segment.Count, true, pin:true);
                 _manager.Increment();
                 _offset = 0;
                 _length = _manager.Length;

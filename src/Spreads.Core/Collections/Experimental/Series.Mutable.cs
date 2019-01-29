@@ -6,7 +6,7 @@ namespace Spreads.Collections.Experimental
 {
     public sealed class MutableSeries<TKey, TValue> : AppendSeries<TKey, TValue>
     {
-        internal MutableSeries()
+        internal MutableSeries() : base()
         {
             
         }

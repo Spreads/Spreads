@@ -20,7 +20,7 @@ namespace Spreads.Core.Tests.Collections.Internal
         {
             var count = 1000;
             var arr = Enumerable.Range(0, count).ToArray();
-            var r = ArrayMemory<int>.Create(arr, 0, arr.Length, externallyOwned: true);
+            var r = ArrayMemory<int>.Create(arr, 0, arr.Length, externallyOwned: true, pin: true);
             var vs = VectorStorage.Create(r, 0, r.Length);
 
             Assert.AreEqual(arr.Length, vs.Length);
@@ -56,7 +56,7 @@ namespace Spreads.Core.Tests.Collections.Internal
             var mult = 500;
             var arr = Enumerable.Range(0, count).ToArray();
 
-            var mem = ArrayMemory<int>.Create(arr, 0, arr.Length, externallyOwned: true);
+            var mem = ArrayMemory<int>.Create(arr, 0, arr.Length, externallyOwned: true, pin: true);
 
             var stride = 2;
 
@@ -101,7 +101,7 @@ namespace Spreads.Core.Tests.Collections.Internal
             var rounds = 10;
             var arrSize = 1000;
             var arr = Enumerable.Range(0, arrSize).ToArray();
-            var mem = ArrayMemory<int>.Create(arr, 0, arr.Length, externallyOwned: true);
+            var mem = ArrayMemory<int>.Create(arr, 0, arr.Length, externallyOwned: true, pin: true);
             var vs = VectorStorage.Create(mem, 0, mem.Length);
 
             Assert.AreEqual(arr.Length, vs.Length);
