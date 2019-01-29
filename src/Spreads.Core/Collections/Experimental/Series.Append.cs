@@ -115,7 +115,7 @@ namespace Spreads.Collections.Experimental
             {
                 // TODO review: do we want buffers in LOH or not? <= vs <
                 // next increment will be 64kb, avoid buffer in LOH
-                if (block.RowIndex.Length <= MaxBufferLength)
+                if (block.RowIndex.Length < MaxBufferLength)
                 {
                     if (block.IncreaseSeriesCapacity<TKey, TValue>() < 0)
                     {

@@ -72,7 +72,7 @@ namespace Spreads.Core.Tests.Collections
             }
 
             long count = 10_000_000;
-            long rounds = 200;
+            long rounds = 20;
 
             var sa = new AppendSeries<long, long>();
             var sl = new SortedList<long, long>();
@@ -83,7 +83,7 @@ namespace Spreads.Core.Tests.Collections
                 {
                     for (long i = r * count; i < (r + 1) * count; i++)
                     {
-                        if (!sa.TryAddLastDirect(i, (uint)i))
+                        if (!sa.TryAddLast(i, i).Result)
                         {
                             Console.WriteLine("Cannot add " + i);
                             return;
@@ -94,21 +94,21 @@ namespace Spreads.Core.Tests.Collections
                 Console.WriteLine($"Added {((r + 1) * count / 1000000).ToString("N")}");
             }
 
-            //for (int r = 0; r < rounds; r++)
-            //{
-            //    using (Benchmark.Run("SL.Append", count))
-            //    {
-            //        for (int i = r * count; i < (r + 1) * count; i++)
-            //        {
-            //            sl.Add(i, (uint)i);
-            //            //if (!sa.TryAddLast(i, i).Result)
-            //            //{
-            //            //    Assert.Fail("Cannot add " + i);
-            //            //}
-            //        }
-            //    }
-            //    Console.WriteLine($"Added {((r + 1) * count / 1000000).ToString("N")}");
-            //}
+            for (int r = 0; r < rounds; r++)
+            {
+                using (Benchmark.Run("SCG.SortedList.Add", count))
+                {
+                    for (long i = r * count; i < (r + 1) * count; i++)
+                    {
+                        sl.Add(i, i);
+                        //if (!sa.TryAddLast(i, i).Result)
+                        //{
+                        //    Assert.Fail("Cannot add " + i);
+                        //}
+                    }
+                }
+                Console.WriteLine($"Added {((r + 1) * count / 1000000).ToString("N")}");
+            }
 
             Benchmark.Dump();
 
