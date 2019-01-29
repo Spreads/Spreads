@@ -172,34 +172,91 @@ namespace Spreads.Collections.Internal
         {
             EnsureNotSentinel();
 
+            // TODO handle OutOfMemory in RentMemory, operation must be atomic in a sense that any error does not change existing data
+
             // TODO _rowIndex.Vec.Length could be already 2x larger because array pool could have returned larger array on previous doubling
             // We ignore this now
+            //if (_rowIndex.Vec.Length != _rowIndex.Length)
+            //{
+            //    Console.WriteLine($"_rowIndex.Vec.Length {_rowIndex.Vec.Length} != _rowIndex.Length {_rowIndex.Length}");
+            //}
 
             var ri = _rowIndex;
+            var vals = _values;
+
             var minCapacity = Math.Max(newCapacity, Settings.MIN_POOLED_BUFFER_LEN);
             var newLen = Math.Max(minCapacity, BitUtil.FindNextPositivePowerOfTwo(ri.Length + 1));
 
-            var newRiBuffer = BufferPool<TKey>.MemoryPool.RentMemory(newLen);
-            var newRi = VectorStorage.Create(newRiBuffer, 0, newRiBuffer.Length, elementLength: newLen); // new buffer could be larger
-            if (ri.Length > 0)
-            {
-                ri.Vec.AsSpan<TKey>().CopyTo(newRi.Vec.AsSpan<TKey>());
-            }
-            // dispose and not return, if rec count == 1 it will be returned
-            ri.Dispose();
-            _rowIndex = newRi;
+            RetainableMemory<TKey> newRiBuffer = null;
+            VectorStorage newRi = null;
+            RetainableMemory<TValue> newValsBuffer = null;
+            VectorStorage newVals = null;
 
-            var vals = _values;
-            var newValsBuffer = BufferPool<TValue>.MemoryPool.RentMemory(newLen);
-            var newVals = VectorStorage.Create(newValsBuffer, 0, newValsBuffer.Length, elementLength: newLen);
-            if (vals.Length > 0)
+            try
             {
-                vals.Vec.AsSpan<TValue>().CopyTo(newVals.Vec.AsSpan<TValue>());
-            }
-            vals.Dispose();
-            _values = newVals;
+                newRiBuffer = BufferPool<TKey>.MemoryPool.RentMemory(newLen);
 
-            return _rowIndex.Length;
+                newRi = VectorStorage.Create(newRiBuffer, 0, newRiBuffer.Length,
+                    elementLength: newLen); // new buffer could be larger
+                if (ri.Length > 0)
+                {
+                    ri.Vec.AsSpan<TKey>().CopyTo(newRi.Vec.AsSpan<TKey>());
+                }
+
+                newValsBuffer = BufferPool<TValue>.MemoryPool.RentMemory(newLen);
+
+                newVals = VectorStorage.Create(newValsBuffer, 0, newValsBuffer.Length, elementLength: newLen);
+                if (vals.Length > 0)
+                {
+                    vals.Vec.AsSpan<TValue>().CopyTo(newVals.Vec.AsSpan<TValue>());
+                }
+            }
+            catch (OutOfMemoryException)
+            {
+                if (newRi != null)
+                {
+                    newRi.Dispose();
+                }
+                else
+                {
+                    newRiBuffer?.DecrementIfOne();
+                }
+
+                if (newVals != null)
+                {
+                    newVals.Dispose();
+                }
+                else
+                {
+                    newValsBuffer?.DecrementIfOne();
+                }
+
+                // TODO log this event
+                return -1;
+            }
+
+            try
+            {
+                try
+                {
+                }
+                finally
+                {
+                    // we have all needed buffers, must switch in one operation
+
+                    _rowIndex = newRi;
+                    _values = newVals;
+
+                    ri.Dispose();
+                    vals.Dispose();
+                }
+
+                return _rowIndex.Length;
+            }
+            catch
+            {
+                return -1;
+            }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

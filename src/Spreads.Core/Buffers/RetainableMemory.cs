@@ -4,6 +4,7 @@ using System;
 using System.Buffers;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
+using Spreads.Serialization;
 using static Spreads.Buffers.BuffersThrowHelper;
 
 namespace Spreads.Buffers
@@ -180,10 +181,10 @@ namespace Spreads.Buffers
         {
             if (_isPooled)
             {
-                ThrowAlreadyPooled<OffHeapMemory<T>>();
+                ThrowAlreadyPooled<RetainableMemory<T>>();
             }
 
-            _pool?.ReturnNoChecks(this, clearMemory: false);
+            _pool?.ReturnNoChecks(this, clearMemory: !TypeHelper<T>.IsPinnable);
 
             if (!_isPooled)
             {

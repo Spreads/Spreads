@@ -2,14 +2,14 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-using System;
 using NUnit.Framework;
+using Spreads.Buffers;
 using Spreads.Collections.Experimental;
+using Spreads.Collections.Internal;
 using Spreads.Utils;
+using System;
 using System.Collections.Generic;
 using System.Linq;
-using Spreads.Buffers;
-using Spreads.Collections.Internal;
 
 namespace Spreads.Core.Tests.Collections
 {
@@ -24,7 +24,6 @@ namespace Spreads.Core.Tests.Collections
             Assert.IsTrue(srrm.Pointer == null);
         }
 
-        
         [Test]
         public void CouldAppendSeries()
         {
@@ -72,30 +71,28 @@ namespace Spreads.Core.Tests.Collections
                 Console.WriteLine("AdditionalCorrectnessChecks.Enabled");
             }
 
-            var count = 10_000_000;
-            var rounds = 200;
+            long count = 10_000_000;
+            long rounds = 200;
 
-            var sa = new AppendSeries<int, uint>();
-            var sl = new SortedList<int, uint>();
+            var sa = new AppendSeries<long, long>();
+            var sl = new SortedList<long, long>();
 
             for (int r = 0; r < rounds; r++)
             {
                 using (Benchmark.Run("Append", count))
                 {
-                    for (int i = r * count; i < (r + 1) * count; i++)
+                    for (long i = r * count; i < (r + 1) * count; i++)
                     {
-                        var _ = sa.TryAddLastDirect(i, (uint)i);
-                        //if (!sa.TryAddLast(i, i).Result)
-                        //{
-                        //    Assert.Fail("Cannot add " + i);
-                        //}
+                        if (!sa.TryAddLastDirect(i, (uint)i))
+                        {
+                            Console.WriteLine("Cannot add " + i);
+                            return;
+                        }
                     }
                 }
 
                 Console.WriteLine($"Added {((r + 1) * count / 1000000).ToString("N")}");
             }
-
-            
 
             //for (int r = 0; r < rounds; r++)
             //{
@@ -113,9 +110,12 @@ namespace Spreads.Core.Tests.Collections
             //    Console.WriteLine($"Added {((r + 1) * count / 1000000).ToString("N")}");
             //}
 
-
-            // sa.Dispose();
             Benchmark.Dump();
+
+            Console.WriteLine("Finished, press enter");
+            Console.ReadLine();
+
+            sa.Dispose();
         }
     }
 }

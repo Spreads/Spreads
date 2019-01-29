@@ -94,6 +94,10 @@ namespace Spreads.Collections.Experimental
             if (block.RowLength == block.RowIndex.Length)
             {
                 block = GrowCapacity(key, block);
+                if (block == null)
+                {
+                    return false;
+                }
             }
 
             block.InsertSeries(block.RowLength, key, value);
@@ -107,29 +111,43 @@ namespace Spreads.Collections.Experimental
         )]
         private DataBlock GrowCapacity(TKey key, DataBlock block)
         {
-            // TODO review: do we want buffers in LOH or not? <= vs <
-            // next increment will be 64kb, avoid buffer in LOH
-            if (block.RowIndex.Length < MaxBufferLength)
+            try
             {
-                block.IncreaseSeriesCapacity<TKey, TValue>();
-            }
-            else
-            {
-                if (DataSource == null)
+                // TODO review: do we want buffers in LOH or not? <= vs <
+                // next increment will be 64kb, avoid buffer in LOH
+                if (block.RowIndex.Length <= MaxBufferLength)
                 {
-                    DataSource = new DataBlockSource<TKey>();
-                    DataSource.AddLast(block.RowIndex.DangerousGetRef<TKey>(0), block);
-                    DataBlock = null;
+                    if (block.IncreaseSeriesCapacity<TKey, TValue>() < 0)
+                    {
+                        return null;
+                    }
+                }
+                else
+                {
+                    if (DataSource == null)
+                    {
+                        DataSource = new DataBlockSource<TKey>();
+                        DataSource.AddLast(block.RowIndex.DangerousGetRef<TKey>(0), block);
+                        DataBlock = null;
+                    }
+
+                    var minCapacity = block.RowIndex.Length;
+                    var newBlock = new DataBlock();
+                    if (newBlock.IncreaseSeriesCapacity<TKey, TValue>(minCapacity) < 0)
+                    {
+                        return null;
+                    };
+                    DataSource.AddLast(key, newBlock);
+                    block = newBlock;
                 }
 
-                var minCapacity = block.RowIndex.Length;
-                var newBlock = new DataBlock();
-                newBlock.IncreaseSeriesCapacity<TKey, TValue>(minCapacity); // sets capacity to min len
-                DataSource.AddLast(key, newBlock);
-                block = newBlock;
+                return block;
             }
-
-            return block;
+            catch(Exception ex)
+            {
+                Trace.TraceError(ex.ToString());
+                return null;
+            }
         }
     }
 }
