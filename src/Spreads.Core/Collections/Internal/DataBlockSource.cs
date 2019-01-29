@@ -76,7 +76,7 @@ namespace Spreads.Collections.Internal
             var added = _weakSeries.TryAddLastDirect(key, wr);
             if (!added)
             {
-                ThrowHelper.ThrowInvalidOperationException("This should always succeed");
+                // ThrowHelper.ThrowInvalidOperationException("This should always succeed");
                 return false;
             }
 
@@ -172,9 +172,17 @@ namespace Spreads.Collections.Internal
             throw new NotImplementedException();
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool TryFindAt(TKey key, Lookup direction, out KeyValuePair<TKey, DataBlock> kvp)
         {
-            throw new NotImplementedException();
+            if (_weakSeries.TryFindAt(key, direction, out var kvpBlock) && kvpBlock.Value.TryGetTarget(out var block))
+            {
+                kvp = new KeyValuePair<TKey, DataBlock>(kvpBlock.Key, block);
+                return true;
+            }
+            // TODO handle weak reference collected case
+            kvp = default;
+            return false;
         }
 
         public IEnumerable<TKey> Keys => _weakSeries.Keys;

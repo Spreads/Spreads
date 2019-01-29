@@ -416,7 +416,7 @@ namespace Spreads.Collections
                 // TODO if _stride > 1 is valid at some point, optimize this search via non-generic IVector with generic getter
                 // ReSharper disable once PossibleNullReferenceException
                 // var x = (block?.RowIndex).DangerousGetRef<TKey>(0);
-                blockIndex = VectorSearch.SortedLookup(ref block.RowIndex.DangerousGetRef<TKey>(0),
+                blockIndex = VectorSearch.SortedLookup(ref block.RowIndex.Vec.DangerousGetRef<TKey>(0),
                     block.RowLength, ref key, lookup, _сomparer);
 
                 if (blockIndex >= 0)
@@ -440,7 +440,7 @@ namespace Spreads.Collections
                     if (nextBlock == null)
                     {
                         TryFindBlock_ValidateOrGetBlockFromSource(ref nextBlock,
-                            block.RowIndex.DangerousGetRef<TKey>(0), lookup, Lookup.GT);
+                            block.RowIndex.Vec.DangerousGetRef<TKey>(0), lookup, Lookup.GT);
                     }
 
                     if (nextBlock != null)
@@ -489,7 +489,7 @@ namespace Spreads.Collections
                     }
                     else
                     {
-                        var lastC = _сomparer.Compare(key, block.RowIndex.DangerousGet<TKey>(block.RowLength - 1));
+                        var lastC = _сomparer.Compare(key, block.RowIndex.Vec.DangerousGetRef<TKey>(block.RowLength - 1));
 
                         if (lastC > 0
                             || direction == Lookup.GT
@@ -517,7 +517,7 @@ namespace Spreads.Collections
                 {
                     if (AdditionalCorrectnessChecks.Enabled)
                     {
-                        if (kvp.Value.RowLength <= 0 || _сomparer.Compare(kvp.Key, kvp.Value.RowIndex.DangerousGet<TKey>(0)) != 0)
+                        if (kvp.Value.RowLength <= 0 || _сomparer.Compare(kvp.Key, kvp.Value.RowIndex.Vec.DangerousGetRef<TKey>(0)) != 0)
                         {
                             ThrowBadBlockFromSource();
                         }
@@ -551,6 +551,7 @@ namespace Spreads.Collections
             return kvp.Value;
         }
 
+        [MethodImpl(MethodImplOptions.NoInlining)]
         private static void ThrowBadBlockFromSource()
         {
             ThrowHelper.ThrowInvalidOperationException("BaseContainer.DataSource.TryFindAt " +

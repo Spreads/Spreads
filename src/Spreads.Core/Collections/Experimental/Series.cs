@@ -247,11 +247,12 @@ namespace Spreads.Collections.Experimental
             ThrowHelper.ThrowKeyNotFoundException($"Key {key} not found in series");
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool TryGetValue(TKey key, out TValue value)
         {
-            if (TryGetBlock(key, out var chunk, out var chunkIndex))
+            if (TryGetBlock(key, out var chunk, out var chunkIndex, true))
             {
-                value = chunk.Values.DangerousGet<TValue>(chunkIndex);
+                value = chunk.Values.Vec.DangerousGetRef<TValue>(chunkIndex);
                 return true;
             }
             value = default;
@@ -278,7 +279,7 @@ namespace Spreads.Collections.Experimental
             if (TryFindBlockAt(ref key, direction, out var chunk, out var chunkIndex))
             {
                 // key is updated if not EQ according to direction
-                var v = chunk.Values.DangerousGet<TValue>(chunkIndex);
+                var v = chunk.Values.Vec.DangerousGetRef<TValue>(chunkIndex);
                 kvp = new KeyValuePair<TKey, TValue>(key, v);
                 return true;
             }

@@ -4,6 +4,7 @@
 
 using NUnit.Framework;
 using Spreads.Buffers;
+using Spreads.Collections;
 using Spreads.Collections.Experimental;
 using Spreads.Collections.Internal;
 using Spreads.Utils;
@@ -116,6 +117,92 @@ namespace Spreads.Core.Tests.Collections
             Console.ReadLine();
 
             sa.Dispose();
+        }
+
+        [Test, Explicit("long running")]
+        public void SearchOverLargeSeriesBench()
+        {
+            if (AdditionalCorrectnessChecks.Enabled)
+            {
+                Console.WriteLine("AdditionalCorrectnessChecks.Enabled");
+            }
+
+            // TODO disposal
+
+            var sas = new List<AppendSeries<int, int>>();
+            var counts = new[] { 10, 100, 1000, 10_000, 100_000, 1_000_000, 10_000_000, 100_000_000 };
+            foreach (var count in counts)
+            {
+                long rounds = 10;
+
+                var sa = new AppendSeries<int, int>();
+                sas.Add(sa);
+                var sm = new SortedMap<int, int>();
+                for (int i = 0; i < count; i++)
+                {
+                    if (i == 3)
+                    {
+                        continue;
+                    }
+
+                    if (!sa.TryAddLastDirect(i, i))
+                    {
+                        Assert.Fail("Cannot add " + i);
+                    }
+
+                    if (!sm.TryAddLast(i, i).Result)
+                    {
+                        Assert.Fail("Cannot add " + i);
+                    }
+                }
+
+                var mult = Math.Max(1, 1_000_000 / count);
+
+                for (int r = 0; r < rounds; r++)
+                {
+                    using (Benchmark.Run($"AS.TG {count.ToString("N")}", count * mult))
+                    {
+                        for (int _ = 0; _ < mult; _++)
+                        {
+                            for (int i = 0; i < count; i++)
+                            {
+                                if (!sa.TryGetValue(i, out var val) || val != i)
+                                {
+                                    if (i != 3)
+                                    {
+                                        Assert.Fail($"!sa.TryGetValue(i, out var val) || val {val} != i {i}");
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    using (Benchmark.Run($"SM.TG {count.ToString("N")}", count * mult))
+                    {
+                        for (int _ = 0; _ < mult; _++)
+                        {
+                            for (int i = 0; i < count; i++)
+                            {
+                                if (!sm.TryGetValue(i, out var val) || val != i)
+                                {
+                                    if (i != 3)
+                                    {
+                                        Assert.Fail($"!sm.TryGetValue(i, out var val) || val {val} != i {i}");
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                
+            }
+
+            Benchmark.Dump();
+
+            foreach (var sa in sas)
+            {
+                sa.Dispose();
+            }
         }
     }
 }
