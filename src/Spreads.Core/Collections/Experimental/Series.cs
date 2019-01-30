@@ -166,8 +166,6 @@ namespace Spreads.Collections.Experimental
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
-                // TODO Synchronize.
-
                 DataBlock block;
                 if (DataSource == null)
                 {

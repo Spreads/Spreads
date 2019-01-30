@@ -73,18 +73,41 @@ namespace Spreads.Core.Tests.Collections
                 Console.WriteLine("AdditionalCorrectnessChecks.Enabled");
             }
 
-            long count = 10_000_000;
-            long rounds = 20;
+            int count = 10_000_000;
+            int rounds = 100;
 
-            var sa = new AppendSeries<long, long>();
-            var sl = new SortedList<long, long>();
+            var sa = new AppendSeries<int, int>();
+            var sm = new SortedMap<int, int>();
+
+            for (int r = 0; r < rounds; r++)
+            {
+                using (Benchmark.Run("SM.TryAddLast", count))
+                {
+                    for (int i = r * count; i < (r + 1) * count; i++)
+                    {
+                        if (i == r * count + 3)
+                        {
+                            continue;
+                        }
+                        if (!sm.TryAddLast(i, i).Result)
+                        {
+                            Assert.Fail("Cannot add " + i);
+                        }
+                    }
+                }
+                Console.WriteLine($"Added {((r + 1) * count / 1000000).ToString("N")}");
+            }
 
             for (int r = 0; r < rounds; r++)
             {
                 using (Benchmark.Run("Append", count))
                 {
-                    for (long i = r * count; i < (r + 1) * count; i++)
+                    for (int i = r * count; i < (r + 1) * count; i++)
                     {
+                        if (i == r * count + 3)
+                        {
+                            continue;
+                        }
                         if (!sa.TryAddLast(i, i).Result)
                         {
                             Console.WriteLine("Cannot add " + i);
@@ -96,21 +119,7 @@ namespace Spreads.Core.Tests.Collections
                 Console.WriteLine($"Added {((r + 1) * count / 1000000).ToString("N")}");
             }
 
-            for (int r = 0; r < rounds; r++)
-            {
-                using (Benchmark.Run("SCG.SortedList.Add", count))
-                {
-                    for (long i = r * count; i < (r + 1) * count; i++)
-                    {
-                        sl.Add(i, i);
-                        //if (!sa.TryAddLast(i, i).Result)
-                        //{
-                        //    Assert.Fail("Cannot add " + i);
-                        //}
-                    }
-                }
-                Console.WriteLine($"Added {((r + 1) * count / 1000000).ToString("N")}");
-            }
+            
 
             Benchmark.Dump();
 

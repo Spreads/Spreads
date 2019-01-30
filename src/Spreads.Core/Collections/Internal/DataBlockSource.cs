@@ -6,10 +6,8 @@ using Spreads.Collections.Experimental;
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 using System.Runtime.CompilerServices;
-using Spreads.Utils;
 
 namespace Spreads.Collections.Internal
 {
@@ -23,18 +21,16 @@ namespace Spreads.Collections.Internal
         /// <summary>
         /// DataBlock has Next property to form a linked list. If _root is set then all blocks after it are GC-rooted and won't be collected.
         /// </summary>
+        // ReSharper disable once NotAccessedField.Local
         private DataBlock _root;
 
-        // This is used from locked context, do not use locked methods
-        private MutableSeries<TKey, WeakReference<DataBlock>> _weakSeries;
+        /// <summary>
+        /// Last block is always rooted and speeds up most frequent operations.
+        /// </summary>
+        private DataBlock _last;
 
-        //public static DataBlockSource<TKey> CreateAppendSeries(DataBlock initialBlock)
-        //{
-        //    var ds = new DataBlockSource<TKey>();
-        //    ds._root = initialBlock;
-        //    ds._weakSeries = new MutableSeries<TKey, WeakReference<DataBlock>>();
-        //    ds._weakSeries.TryAddLastDirect(initialBlock.RowIndex.DangerousGetRef<TKey>(0), new WeakReference<DataBlock>(initialBlock));
-        //}
+        // This is used from locked context, do not use locked methods
+        private readonly MutableSeries<TKey, WeakReference<DataBlock>> _weakSeries;
 
         public DataBlockSource()
         {
@@ -53,7 +49,6 @@ namespace Spreads.Collections.Internal
         )]
         public bool AddLast(TKey key, DataBlock value)
         {
-            
             var wr = new WeakReference<DataBlock>(value);
             DataBlock lastBlock = null;
             var last = _weakSeries.Last;
@@ -90,6 +85,7 @@ namespace Spreads.Collections.Internal
                 _root = value;
             }
             // GC.KeepAlive(value);
+            _last = value;
             return true;
         }
 
@@ -137,6 +133,10 @@ namespace Spreads.Collections.Internal
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
+                if (_last != null)
+                {
+                    return _last;
+                }
                 var wOpt = _weakSeries.LastOrDefault;
                 if (wOpt.TryGetTarget(out var block))
                 {
