@@ -20,13 +20,6 @@ namespace Spreads.Core.Tests.Collections
     public unsafe class SeriesAppendTests
     {
         [Test]
-        public void ArrayOfStrongRefsHasNullPointer()
-        {
-            var srrm = BufferPool<StrongReference<DataBlock>>.MemoryPool.RentMemory(1024);
-            Assert.IsTrue(srrm.Pointer == null);
-        }
-
-        [Test]
         public void CouldAppendSeries()
         {
             var sa = new AppendSeries<int, int>();
@@ -36,11 +29,10 @@ namespace Spreads.Core.Tests.Collections
 
             Assert.IsTrue(sa.TryAddLast(2, 2).Result);
 
-            // TODO uncomment for CI, annoying for debug
-            //Assert.Throws<KeyNotFoundException>(() =>
-            //{
-            //    var _ = sa[0];
-            //});
+            Assert.Throws<KeyNotFoundException>(() =>
+            {
+                var _ = sa[0];
+            });
 
             Assert.AreEqual(1, sa[1]);
             Assert.AreEqual(2, sa[2]);

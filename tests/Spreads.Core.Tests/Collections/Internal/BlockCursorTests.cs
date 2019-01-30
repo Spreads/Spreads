@@ -36,15 +36,15 @@ namespace Spreads.Core.Tests.Collections.Internal
         [Test]
         public void SizeOfBlockCursor()
         {
-            var size = Unsafe.SizeOf<BlockCursor<Timestamp, object, BaseContainer<Timestamp>>>();
+            var size = Unsafe.SizeOf<BlockCursor<Timestamp, long, BaseContainer<Timestamp>>>();
             Console.WriteLine(size);
             if (IntPtr.Size == 8)
             {
-                Assert.AreEqual(32, size);
+                Assert.AreEqual(40, size);
             }
             else
             {
-                Assert.IsTrue(size == 24);
+                Assert.IsTrue(size == 32);
             }
         }
 
@@ -63,6 +63,8 @@ namespace Spreads.Core.Tests.Collections.Internal
             }
 
             Assert.AreEqual(1 - len, c.Move(long.MinValue, true));
+
+            bc.Dispose();
         }
 
         [Test, Explicit("long running")]
@@ -123,6 +125,9 @@ namespace Spreads.Core.Tests.Collections.Internal
             }
 
             Benchmark.Dump();
+
+            bcImm.Dispose();
+            bcMut.Dispose();
         }
 
         [MethodImpl(MethodImplOptions.NoInlining

@@ -99,7 +99,7 @@ namespace Spreads.Buffers
                 ArrayMemory<byte> CreateThreadStaticBuffer()
                 {
                     // TODO review this mess with externally owned
-                    _threadStaticBuffer = ArrayMemory<byte>.Create(new byte[StaticBufferSize], true);
+                    _threadStaticBuffer = ArrayMemory<byte>.Create(new byte[StaticBufferSize], true, pin:true);
                     _threadStaticMemory = new RetainedMemory<byte>(_threadStaticBuffer, 0, _threadStaticBuffer.Memory.Length, false);
                     return _threadStaticBuffer;
                 }

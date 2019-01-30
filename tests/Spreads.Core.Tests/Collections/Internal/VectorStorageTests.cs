@@ -11,7 +11,7 @@ using Spreads.Utils;
 
 namespace Spreads.Core.Tests.Collections.Internal
 {
-    [Category("CI")]
+    // [Category("CI")]
     [TestFixture]
     public unsafe class VectorStorageTests
     {
@@ -42,11 +42,11 @@ namespace Spreads.Core.Tests.Collections.Internal
             Assert.IsTrue(vs.IsDisposed);
         }
 
-        [Test]
-        public void CouldDisposeEmpty()
-        {
-            VectorStorage.Empty.Dispose();
-        }
+        //[Test]
+        //public void CouldDisposeEmpty()
+        //{
+        //    VectorStorage.Empty.Dispose();
+        //}
 
         [Test, Explicit("long running")]
         public void VectorStorageReadBench()

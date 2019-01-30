@@ -17,6 +17,8 @@ namespace Spreads.Collections.Internal
     /// </summary>
     internal class DataBlock : IDisposable
     {
+        private string StackTrace = Environment.StackTrace;
+
         // We need it as a sentinel in cursor to not penalize fast path of single-block containers
         internal static readonly DataBlock Empty = new DataBlock();
 
@@ -490,7 +492,7 @@ namespace Spreads.Collections.Internal
 
         ~DataBlock()
         {
-            ThrowHelper.ThrowInvalidOperationException("Finalizing DataBlock");
+            ThrowHelper.ThrowInvalidOperationException("Finalizing DataBlock: " + StackTrace);
             Dispose(false);
         }
 

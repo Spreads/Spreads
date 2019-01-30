@@ -191,6 +191,15 @@ namespace Spreads.Collections.Internal
 
         public void Dispose()
         {
+            foreach (var weakSeriesValue in _weakSeries.Values)
+            {
+                if (weakSeriesValue.TryGetTarget(out var block))
+                {
+                    weakSeriesValue.SetTarget(null);
+                    block.Dispose();
+                }
+            }
+
             _root = null;
             _weakSeries.Dispose();
         }

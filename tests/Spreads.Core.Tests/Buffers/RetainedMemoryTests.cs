@@ -171,7 +171,7 @@ namespace Spreads.Core.Tests.Buffers
         public void WorksWithNonBlittables()
         {
             var arr = new string[] { "a" };
-            var r = ArrayMemory<string>.Create(arr, 0, arr.Length, externallyOwned: true, pin: true);
+            var r = ArrayMemory<string>.Create(arr, 0, arr.Length, externallyOwned: true, pin: false);
 
             var h0 = r.Pin();
 
