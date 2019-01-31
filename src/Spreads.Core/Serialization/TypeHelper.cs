@@ -10,6 +10,7 @@ using System.IO;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using Spreads.Collections.Internal;
 using Spreads.Native;
 using static System.Runtime.CompilerServices.Unsafe;
 
@@ -419,6 +420,17 @@ namespace Spreads.Serialization
                 if (elementSize > 0)
                 { // only for blittable types
                     converter = (IBinaryConverter<T>)ArrayConverterFactory.Create(elementType);
+                }
+            }
+
+            var ti = typeof(T);
+            if (ti.IsGenericType && ti.GetGenericTypeDefinition() == typeof(VectorStorage<>))
+            {
+                var elementType = ti.GenericTypeArguments[0];
+                var elementSize = TypeHelper.GetSize(elementType);
+                if (elementSize > 0)
+                { // only for blittable types
+                    converter = (IBinaryConverter<T>)VectorStorageConverterFactory.Create(elementType);
                 }
             }
 

@@ -7,55 +7,7 @@ using System.Runtime.InteropServices;
 
 namespace Spreads
 {
-    [Obsolete("TODO")]
-    [Flags]
-    internal enum ContainerLayout : byte
-    {
-        /// <summary>
-        /// Instance having this flag is none of the containers but a data stream or projection.
-        /// It does not own DataBlockStorage/DataBlockSource and does not inherit from BaseContainer.
-        /// </summary>
-        None = 0,
-
-        /// <summary>
-        /// TODO (review)
-        /// Only contiguous (stride = 1) Values and
-        /// borrowed columns pointing to the values storage with offset/stride IF NUMBER OF COLUMNS > 1.
-        /// TODO (?) this is not required for virtual/projection? For a single column values with stride 1 is the column.
-        /// </summary>
-        Matrix = 0b_0001_0000,
-
-        // TODO (TDB, review) just start working with those, will figure out during coding
-        // Idea is that Series/Frame/Panels add features/properties (interface inheritance)
-        // and if they have same storage layout
-
-        /// <summary>
-        /// Series is a matrix with single column and row index.
-        /// </summary>
-        Series = 0b_0011_0000,
-
-        /// <summary>
-        /// TODO What series owns storage but is not single-column matrix? Maybe a projection with the same keys but lazy values?
-        /// E.g. vector math could use SIMD, but only for horizontal operations and this could be done via MoveNextBatch.
-        /// Frame/Panel could return columns with some projection.
-        /// </summary>
-        SeriesX = 0b_0010_0000,
-
-        // Frame could always be used as series of rows
-        Frame = 0b_0110_0000,
-
-        FrameT = 0b_0111_0000,
-
-        /// <summary>
-        ///
-        /// </summary>
-        Panel = 0b_1000_0000,
-
-        // ?? PanelSeries =  0b_0000_1010, it's about storage layout, not feature
-        PanelFrame = 0b_1110_0000,
-
-        PanelFrameT = 0b_1111_0000
-    }
+    
 
     /// <summary>
     /// Indicates where a tick/instant is relative to a period.

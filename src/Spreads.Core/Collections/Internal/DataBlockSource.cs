@@ -6,6 +6,7 @@ using Spreads.Collections.Experimental;
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Runtime.CompilerServices;
 
@@ -30,11 +31,16 @@ namespace Spreads.Collections.Internal
         private DataBlock _last;
 
         // This is used from locked context, do not use locked methods
-        private readonly MutableSeries<TKey, WeakReference<DataBlock>> _weakSeries;
+        internal IMutableSeries<TKey, WeakReference<DataBlock>> _weakSeries;
 
         public DataBlockSource()
         {
-            _weakSeries = new MutableSeries<TKey, WeakReference<DataBlock>>();
+            _weakSeries = new MutableSeries<TKey, WeakReference<DataBlock>>(DataBlock.Create());
+        }
+
+        internal DataBlockSource(IMutableSeries<TKey, WeakReference<DataBlock>> blockSeries)
+        {
+            _weakSeries = blockSeries;
         }
 
         public IAsyncEnumerator<KeyValuePair<TKey, DataBlock>> GetAsyncEnumerator()
@@ -68,7 +74,7 @@ namespace Spreads.Collections.Internal
                 // last = _weakSeries.Last;
             }
 
-            var added = _weakSeries.TryAddLastDirect(key, wr);
+            var added = _weakSeries.TryAddLast(key, wr).Result;
             if (!added)
             {
                 // ThrowHelper.ThrowInvalidOperationException("This should always succeed");
@@ -128,7 +134,7 @@ namespace Spreads.Collections.Internal
             }
         }
 
-        public DataBlock LastOrDefault
+        public DataBlock LastValueOrDefault
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
@@ -137,9 +143,11 @@ namespace Spreads.Collections.Internal
                 {
                     return _last;
                 }
-                var wOpt = _weakSeries.LastOrDefault;
+
+                var wOpt = _weakSeries.LastValueOrDefault;
                 if (wOpt.TryGetTarget(out var block))
                 {
+                    _last = block;
                     return block;
                 }
                 return default;
@@ -154,6 +162,8 @@ namespace Spreads.Collections.Internal
                 var wOpt = _weakSeries.Last;
                 if (wOpt.IsPresent && wOpt.Present.Value.TryGetTarget(out var block))
                 {
+                    // TODO use _last
+                    Debug.Assert(_last == null || block == _last);
                     return new Opt<KeyValuePair<TKey, DataBlock>>(new KeyValuePair<TKey, DataBlock>(wOpt.Present.Key, block));
                 }
                 return Opt<KeyValuePair<TKey, DataBlock>>.Missing;
@@ -201,7 +211,7 @@ namespace Spreads.Collections.Internal
             }
 
             _root = null;
-            _weakSeries.Dispose();
+            // _weakSeries.Dispose();
         }
     }
 }

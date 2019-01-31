@@ -2,12 +2,13 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-using System;
-using System.Linq;
 using NUnit.Framework;
 using Spreads.Buffers;
 using Spreads.Collections.Internal;
+using Spreads.Serialization;
 using Spreads.Utils;
+using System;
+using System.Linq;
 
 namespace Spreads.Core.Tests.Collections.Internal
 {
@@ -39,6 +40,44 @@ namespace Spreads.Core.Tests.Collections.Internal
 
             vs.Dispose();
 
+            Assert.IsTrue(vs.IsDisposed);
+        }
+
+        [Test]
+        public void CouldSerializeVectorStorage()
+        {
+            var count = 1_000_000;
+            var arr = Enumerable.Range(0, count).ToArray();
+            var r = ArrayMemory<int>.Create(arr, 0, arr.Length, externallyOwned: true, pin: true);
+            var vs = VectorStorage.Create(r, 0, r.Length);
+
+            var vsT = new VectorStorage<int>(vs);
+
+            foreach (SerializationFormat format in ((SerializationFormat[])Enum.GetValues(typeof(SerializationFormat))).OrderBy(e => e.ToString()))
+            {
+                var len = BinarySerializer.SizeOf(in vsT, out var rm, format);
+
+                var destination = BufferPool.Retain(len);
+                var destinationDb = new DirectBuffer(destination);
+
+                var len1 = BinarySerializer.Write(in vsT, ref destinationDb, in rm, format);
+                Assert.AreEqual(destination.Length, destinationDb.Length);
+
+                Assert.AreEqual(len, len1);
+
+                var len2 = BinarySerializer.Read(ref destinationDb, out VectorStorage<int> value);
+                Assert.AreEqual(destination.Length, destinationDb.Length);
+
+                Assert.AreEqual(len, len2);
+                Assert.AreEqual(vs.Length, value.Storage.Length);
+
+                Console.WriteLine($"{format} len: {len:N0}");
+
+                destination.Dispose();
+                value.Storage.Dispose();
+            }
+
+            vs.Dispose();
             Assert.IsTrue(vs.IsDisposed);
         }
 

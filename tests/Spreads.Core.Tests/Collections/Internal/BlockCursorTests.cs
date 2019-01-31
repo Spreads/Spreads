@@ -22,13 +22,11 @@ namespace Spreads.Core.Tests.Collections.Internal
         private static BaseContainer<int> CreateIntBaseContainer(int capacity, int length)
         {
             var bc = new BaseContainer<int>();
-            var block = new DataBlock();
+            
             var rm = ArrayMemory<int>.Create(Enumerable.Range(0, capacity).ToArray(), externallyOwned: true);
             var vs = VectorStorage.Create(rm, 0, rm.Length, 1);
-#pragma warning disable 618
-            block._rowIndex = vs;
-#pragma warning restore 618
-            block.RowLength = length;
+
+            var block = DataBlock.Create(rowIndex:vs, rowLength: length);
             bc.DataBlock = block;
             return bc;
         }

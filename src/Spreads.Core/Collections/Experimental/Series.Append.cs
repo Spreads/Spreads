@@ -16,9 +16,9 @@ namespace Spreads.Collections.Experimental
     {
         private static readonly int MaxBufferLength = Math.Max(Settings.MIN_POOLED_BUFFER_LEN, Settings.LARGE_BUFFER_LIMIT / Math.Max(Unsafe.SizeOf<TKey>(), Unsafe.SizeOf<TValue>()));
 
-        internal AppendSeries()
+        internal AppendSeries(DataBlock initialBlock)
         {
-            DataBlock = new DataBlock();
+            DataBlock = initialBlock;
         }
 
         // We could afford simple locking for mutation. We have API to create series from batches, uncontended lock is not so slow.
@@ -55,6 +55,12 @@ namespace Spreads.Collections.Experimental
             return added ? TaskUtil.TrueTask : TaskUtil.FalseTask;
         }
 
+        // TODO MarkComplete
+        public Task Complete()
+        {
+            throw new NotImplementedException();
+        }
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal bool TryAddLastDirect(TKey key, TValue value)
         {
@@ -65,7 +71,7 @@ namespace Spreads.Collections.Experimental
             }
             else
             {
-                block = DataSource.LastOrDefault;
+                block = DataSource.LastValueOrDefault;
                 //if (lastBlockOpt.IsPresent)
                 //{
                 //    block = lastBlockOpt.Present.Value;
@@ -123,6 +129,7 @@ namespace Spreads.Collections.Experimental
                 }
                 else
                 {
+                    // refactor switching to source logic to reuse in MutableSeries
                     if (DataSource == null)
                     {
                         DataSource = new DataBlockSource<TKey>();
@@ -131,11 +138,11 @@ namespace Spreads.Collections.Experimental
                     }
 
                     var minCapacity = block.RowIndex.Length;
-                    var newBlock = new DataBlock();
+                    var newBlock = DataBlock.Create();
                     if (newBlock.IncreaseSeriesCapacity<TKey, TValue>(minCapacity) < 0)
                     {
                         return null;
-                    };
+                    }
                     DataSource.AddLast(key, newBlock);
                     block = newBlock;
                 }

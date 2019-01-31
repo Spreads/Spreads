@@ -26,6 +26,9 @@ namespace Spreads.Serialization
         }
     }
 
+    /// <summary>
+    /// Simple copy of blittable array data. No shuffle.
+    /// </summary>
     internal class ArrayBinaryConverter<TElement> : IBinaryConverter<TElement[]>
     {
         internal static ArrayBinaryConverter<TElement> Instance =

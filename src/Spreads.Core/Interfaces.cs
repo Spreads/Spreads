@@ -187,6 +187,14 @@ namespace Spreads
         Opt<KeyValuePair<TKey, TValue>> Last { get; }
 
         /// <summary>
+        /// Optimized access to last value. For value types <see cref="IsEmpty"/> could be used to distinguish between a present default value and a missing value.
+        /// </summary>
+        /// <remarks>
+        /// <see cref="Last"/> property is convenient but slowish in hot loops.
+        /// </remarks>
+        TValue LastValueOrDefault { get; }
+
+        /// <summary>
         /// A throwing equivalent of <see cref="ICursor{TKey,TValue}.TryGetValue"/> and a series counterpart of <see cref="ICursor{TKey,TValue}.TryGetValue"/>.
         /// </summary>
         /// <exception cref="KeyNotFoundException">Throws if key was not found in a series.</exception>
@@ -209,17 +217,12 @@ namespace Spreads
         /// LT/GT search is done by index rather than by key and is possible only when a key exists.
         /// TryFindAt works only with observed keys and is a series counterpart of <see cref="ICursor{TKey,TValue}.MoveAt"/>.
         /// </summary>
-        /// <exception cref="InvalidOperationException">The <param name="direction">direction</param> is <see cref="Lookup.LE"/> or <see cref="Lookup.GE"/> for indexed series (<see cref="IsIndexed"/> = true). </exception>
+        /// <exception cref="InvalidOperationException">The <paramref name="direction">direction</paramref> is <see cref="Lookup.LE"/> or <see cref="Lookup.GE"/> for indexed series (<see cref="IsIndexed"/> = true). </exception>
         bool TryFindAt(TKey key, Lookup direction, out KeyValuePair<TKey, TValue> kvp);
-
-        // NB: Key/Values are not async ones. Sometimes it's useful for optimization when we check underlying type.
-
-        // TODO when default interfaces are implemented in C# 7.3/8 then Keys/Values should just redirect
-        // to cursor.CurrentKey/CurrentValue (important not to Current.Key/Current.Value - slower)
 
         /// <summary>
         /// Keys enumerable.
-        /// </summary>
+        /// </summary> 
         IEnumerable<TKey> Keys { get; }
 
         /// <summary>
@@ -475,12 +478,18 @@ namespace Spreads
         /// </summary>
         /// <returns>True on successful addition. False if the key already exists or the new key breaks sorting order.</returns>
         Task<bool> TryAddLast(TKey key, TValue value);
+
+        /// <summary>
+        /// Make the map read-only and disable all subsequent Add/Remove/Set methods (they will throw InvalidOperationException)
+        /// </summary>
+        [Obsolete]
+        Task Complete();
     }
 
     /// <summary>
     /// Mutable series
     /// </summary>
-    public interface IMutableSeries<TKey, TValue> : IAppendSeries<TKey, TValue> //, IDictionary<TKey, TValue>
+    public interface IMutableSeries<TKey, TValue> : IAppendSeries<TKey, TValue>
     {
         // NB even if Async methods add some overhead in sync case, it is small due to caching if Task<bool> return values
         // In persistence layer is used to be a PITA to deal with sync methods with async IO
@@ -492,6 +501,7 @@ namespace Spreads
         /// </summary>
         long Version { get; }
 
+        [Obsolete]
         bool IsAppendOnly { get; }
 
         /// <summary>
@@ -544,10 +554,12 @@ namespace Spreads
         /// </summary>
         ValueTask<long> TryAppend(ISeries<TKey, TValue> appendMap, AppendOption option = AppendOption.RejectOnOverlap);
 
-        /// <summary>
-        /// Make the map read-only and disable all subsequent Add/Remove/Set methods (they will throw InvalidOperationException)
-        /// </summary>
-        Task Complete();
+        
+        // TODO Methods 
+        // MarkComplete
+        // MarkAppendOnly
+        // All mutating methods must check mutability
+
     }
 
     /// <summary>

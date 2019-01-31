@@ -181,6 +181,8 @@ namespace Spreads
             }
         }
 
+        public TValue LastValueOrDefault => throw new NotImplementedException();
+
         [Pure]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool TryGetValue(TKey key, out TValue value)

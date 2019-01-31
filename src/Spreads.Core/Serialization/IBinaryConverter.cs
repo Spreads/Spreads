@@ -60,7 +60,7 @@ namespace Spreads.Serialization
         /// <param name="value">A value to serialize.</param>
         /// <param name="temporaryBuffer">A buffer where a value is serialized into if it is not possible to calculate serialized buffer size
         /// without actually performing serialization.</param>
-        /// <param name="withPadding">True if temporaryBuffer is padded with 16 bytes. This requires to avoid a copy. Try to pad the buffer if possible.</param>
+        /// <param name="withPadding">True if temporaryBuffer is padded with 16 bytes. This is required to avoid a copy. Try to pad the buffer if possible.</param>
         int SizeOf(T value, out RetainedMemory<byte> temporaryBuffer, out bool withPadding);
 
         /// <summary>

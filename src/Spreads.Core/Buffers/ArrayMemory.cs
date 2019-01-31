@@ -152,11 +152,16 @@ namespace Spreads.Buffers
         protected ArrayMemory() : base(AtomicCounterService.AcquireCounter())
         { }
 
-        [Obsolete("Use Array Segment, this must be removed very soon, remove static buffers completely")]
         internal T[] Array
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => _array;
+        }
+
+        public ArraySegment<T> ArraySegment
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => new ArraySegment<T>(_array, _arrayOffset, _length);
         }
 
         /// <summary>

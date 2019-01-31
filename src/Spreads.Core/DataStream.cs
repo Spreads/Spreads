@@ -125,6 +125,8 @@ namespace Spreads
             get => _impl.Last;
         }
 
+        public Timestamped<T> LastValueOrDefault => throw new NotImplementedException();
+
         public Timestamped<T> this[ulong key]
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -238,6 +240,8 @@ namespace Spreads
         }
 
         public Opt<KeyValuePair<ulong, Timestamped<T>>> Last => _impl.Last;
+
+        public Timestamped<T> LastValueOrDefault => throw new NotImplementedException();
 
         public Timestamped<T> this[ulong key] => _impl[key];
 

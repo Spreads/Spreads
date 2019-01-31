@@ -5,12 +5,13 @@
 using Spreads.Buffers;
 using Spreads.Collections.Concurrent;
 using Spreads.Native;
+using Spreads.Serialization;
 using System;
 using System.Buffers;
 using System.Diagnostics;
+using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using Spreads.Utils;
 
 namespace Spreads.Collections.Internal
 {
@@ -346,7 +347,6 @@ namespace Spreads.Collections.Internal
         [MethodImpl(MethodImplOptions.NoInlining)]
         private void WarnFinalizing()
         {
-
             Trace.TraceWarning("Finalizing VectorStorage. It must be properly disposed. \n "); // + StackTrace);
         }
 
@@ -370,5 +370,129 @@ namespace Spreads.Collections.Internal
         }
 
         #endregion Dispose logic
+    }
+
+    internal delegate void VectorStorageToDirectBuffer(VectorStorage vs, DirectBuffer db);
+
+    // TODO is we register it similarly to ArrayBinaryConverter only for blittable Ts
+    // then we could just use BinarySerializer over the wrapper and it will automatically
+    // use JSON and set the right header. We do not want to use JSON inside binary with confusing header.
+
+    internal readonly struct VectorStorage<T>
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public VectorStorage(VectorStorage storage)
+        {
+            if (VecTypeHelper<T>.RuntimeVecInfo.RuntimeTypeId != storage.Vec.RuntimeTypeId)
+            {
+                VecThrowHelper.ThrowVecTypeMismatchException();
+            }
+            Storage = storage;
+        }
+
+        public readonly VectorStorage Storage;
+    }
+
+    internal static class VectorStorageConverterFactory
+    {
+        public static IBinaryConverter<VectorStorage<TElement>> GenericCreate<TElement>()
+        {
+            return new VectorStorageConverter<TElement>();
+        }
+
+        public static object Create(Type type)
+        {
+            var method = typeof(VectorStorageConverterFactory).GetTypeInfo().GetMethod("GenericCreate");
+            var generic = method?.MakeGenericMethod(type);
+            return generic?.Invoke(null, null);
+        }
+    }
+
+    internal struct VectorStorageConverter<T> : IBinaryConverter<VectorStorage<T>>
+    {
+        public byte ConverterVersion => 1;
+
+        public int SizeOf(VectorStorage<T> value, out RetainedMemory<byte> temporaryBuffer, out bool withPadding)
+        {
+            if (value.Storage.Stride != 1 || !TypeHelper<T>.IsFixedSize)
+            {
+                ThrowHelper.ThrowNotSupportedException();
+            }
+
+            temporaryBuffer = default;
+            withPadding = default;
+            return 4 + value.Storage.Length * Unsafe.SizeOf<T>();
+        }
+
+        public unsafe int Write(VectorStorage<T> value, ref DirectBuffer destination)
+        {
+            if (value.Storage.Stride != 1 || !TypeHelper<T>.IsFixedSize)
+            {
+                ThrowHelper.ThrowNotSupportedException();
+            }
+
+            // TODO we will use negative length as shuffled flag
+            // but will need to add support for ArrayConverter for this.
+
+            destination.Write(0, -value.Storage.Length); // Minus for shuffled
+            if (value.Storage.Length > 0)
+            {
+                var byteLen = Unsafe.SizeOf<T>() * value.Storage.Length;
+                Debug.Assert(destination.Length >= 4 + byteLen);
+
+                fixed (byte* sPtr = &Unsafe.As<T, byte>(ref value.Storage.Vec.DangerousGetRef<T>(0)))
+                {
+                    var srcDb = new DirectBuffer(byteLen, sPtr);
+                    var destDb = destination.Slice(4);
+                    BinarySerializer.Shuffle(in srcDb, in destDb, (byte)Unsafe.SizeOf<T>());
+                }
+                return 4 + byteLen;
+            }
+            return 4;
+        }
+
+        public unsafe int Read(ref DirectBuffer source, out VectorStorage<T> value)
+        {
+            var arraySize = source.Read<int>(0);
+            if (arraySize > 0)
+            {
+                ThrowHelper.ThrowNotImplementedException("Non-shuffled arrays are not implemented yet"); // TODO
+            }
+
+            arraySize = -arraySize;
+
+            var position = 4;
+            var payloadSize = arraySize * Unsafe.SizeOf<T>();
+            if (4 + payloadSize > source.Length || arraySize < 0)
+            {
+                value = default;
+                return -1;
+            }
+
+            if (arraySize > 0)
+            {
+                var byteLen = Unsafe.SizeOf<T>() * arraySize;
+                var rm = BufferPool<T>.MemoryPool.RentMemory(arraySize) as ArrayMemory<T>;
+                Debug.Assert(rm != null);
+
+                fixed (byte* dPtr = &Unsafe.As<T, byte>(ref rm.Vec.DangerousGetRef(0)))
+                {
+                    var srcDb = source.Slice(4);
+                    var destDb = new DirectBuffer(byteLen, dPtr);
+
+                    BinarySerializer.Unshuffle(in srcDb, in destDb, (byte)Unsafe.SizeOf<T>());
+                }
+
+                var vs = VectorStorage.Create<T>(rm, 0, arraySize);
+
+                value = new VectorStorage<T>(vs);
+            }
+            else
+            {
+                value = new VectorStorage<T>(VectorStorage.Empty);
+            }
+
+            return 4 + payloadSize;
+        }
     }
 }

@@ -14,15 +14,13 @@ using System.Threading;
 
 namespace Spreads.Collections
 {
-    // TODO rename all to container
-
     /// <summary>
     /// Base class for data containers implementations.
     /// </summary>
     [CannotApplyEqualityOperator]
-    public class BaseSeries // TODO rename to BaseContainer
+    public class BaseContainer : IAsyncCompleter, IDisposable
     {
-        internal BaseSeries()
+        internal BaseContainer()
         { }
 
         // immutable & not sorted
@@ -125,7 +123,7 @@ namespace Spreads.Collections
                     Interlocked.Increment(ref _version);
                 }
                 // TODO
-                // NotifyUpdate(false);
+                NotifyUpdate(false);
             }
             else
             {
@@ -153,10 +151,225 @@ namespace Spreads.Collections
 
         #endregion Synchronization
 
+        // Union of ContainerSubscription | ConcurrentHashSet<ContainerSubscription>
+        private object _cursors;
+
+        private class ContainerSubscription : IAsyncSubscription
+        {
+            private readonly BaseContainer _container;
+
+            // TODO instead of weak reference (which is now replaced with strong one because of issues)
+            // we could break string reference in another place?
+            public readonly StrongReference<IAsyncCompletable> Wr;
+
+            // Public interface exposes only IDisposable, only if subscription is IAsyncSubscription cursor knows what to do
+            // Otherwise this number will stay at 1 and NotifyUpdate will send all updates
+            private long _requests;
+
+            [Obsolete("Temp solution to keep strong ref while the async issue is not sorted out")]
+            // ReSharper disable once NotAccessedField.Local
+            private IAsyncCompletable _sr;
+
+            public long Requests
+            {
+                [MethodImpl(MethodImplOptions.AggressiveInlining)]
+                get => Volatile.Read(ref _requests);
+            }
+
+            public ContainerSubscription(BaseContainer container, StrongReference<IAsyncCompletable> wr)
+            {
+                _container = container;
+                Wr = wr;
+                if (wr.TryGetTarget(out var target))
+                {
+#pragma warning disable 618
+                    _sr = target;
+#pragma warning restore 618
+                }
+            }
+
+            // ReSharper disable once UnusedParameter.Local
+            private void Dispose(bool disposing)
+            {
+                try
+                {
+                    Volatile.Write(ref _requests, 0);
+                    var existing = Interlocked.CompareExchange(ref _container._cursors, null, this);
+                    if (existing == this)
+                    {
+                        return;
+                    }
+                    if (existing is HashSet<ContainerSubscription> hashSet)
+                    {
+                        lock (hashSet)
+                        {
+                            hashSet.Remove(this);
+                        }
+                    }
+                    else
+                    {
+                        Console.WriteLine("Subscription was GCed");
+                        //var message = "Wrong cursors type";
+                        //Trace.TraceError(message);
+                        //ThrowHelper.FailFast(message);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    var message = "Error in unsubscribe: " + ex;
+                    Trace.TraceError(message);
+                    ThrowHelper.FailFast(message);
+                    throw;
+                }
+            }
+
+            public void Dispose()
+            {
+                GC.SuppressFinalize(this);
+                Dispose(true);
+            }
+
+            public void RequestNotification(int count)
+            {
+                Interlocked.Add(ref _requests, count);
+            }
+
+            ~ContainerSubscription()
+            {
+                Console.WriteLine("Container subscription is finalized");
+                Dispose(false);
+            }
+        }
+
+        public IDisposable Subscribe(IAsyncCompletable subscriber)
+        {
+            var wr = new StrongReference<IAsyncCompletable>(subscriber);
+            var subscription = new ContainerSubscription(this, wr);
+            try
+            {
+                while (true)
+                {
+                    var existing1 = Interlocked.CompareExchange<object>(ref _cursors, subscription, null);
+                    if (existing1 == null)
+                    {
+                        break;
+                    }
+
+                    if (existing1 is HashSet<ContainerSubscription> hashSet)
+                    {
+                        lock (hashSet)
+                        {
+                            if (hashSet.Contains(subscription))
+                            {
+                                // NB not failfast, existing are not affected
+                                ThrowHelper.ThrowInvalidOperationException("Already subscribed");
+                            }
+                            hashSet.Add(subscription);
+                        }
+
+                        break;
+                    }
+
+                    if (!(existing1 is ContainerSubscription existing2))
+                    {
+                        ThrowHelper.FailFast("Wrong _cursors type.");
+                        return default;
+                    }
+                    var newHashSet = new HashSet<ContainerSubscription>();
+                    if (existing2.Wr.TryGetTarget(out _))
+                    {
+                        newHashSet.Add(existing2);
+                    }
+                    // ReSharper disable once RedundantIfElseBlock
+                    else
+                    {
+                        // No need for existing2.Dispose(), it will be GCed, save one recursive call -
+                        // otherwise Dispose will set _cursors to null vs existing2:
+                    }
+
+                    if (newHashSet.Contains(subscription))
+                    {
+                        // NB not failfast, existing are not affected
+                        ThrowHelper.ThrowInvalidOperationException("Already subscribed");
+                    }
+                    newHashSet.Add(subscription);
+                    var existing3 = Interlocked.CompareExchange<object>(ref _cursors, newHashSet, existing2);
+                    if (existing3 == existing2)
+                    {
+                        break;
+                    }
+                }
+                return subscription;
+            }
+            catch (Exception ex)
+            {
+                var message = "Error in ContainerSeries.Subscribe: " + ex;
+                Trace.TraceError(message);
+                ThrowHelper.FailFast(message);
+                throw;
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal void NotifyUpdate(bool force)
+        {
+            var cursors = _cursors;
+            if (cursors != null)
+            {
+                DoNotifyUpdate(force);
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private void DoNotifyUpdate(bool force)
+        {
+            var cursors = _cursors;
+
+            if (cursors is ContainerSubscription sub)
+            {
+                if ((sub.Requests > 0 || force) && sub.Wr.TryGetTarget(out var tg))
+                {
+                    // ReSharper disable once InconsistentlySynchronizedField
+                    DoNotifyUpdateSingleSync(tg);
+                    // SpreadsThreadPool.Default.UnsafeQueueCompletableItem(_doNotifyUpdateSingleSyncCallback, tg, true);
+                }
+            }
+            else if (cursors is HashSet<ContainerSubscription> hashSet)
+            {
+                lock (hashSet)
+                {
+                    foreach (var kvp in hashSet)
+                    {
+                        var sub1 = kvp;
+                        if ((sub1.Requests > 0 || force) && sub1.Wr.TryGetTarget(out var tg))
+                        {
+                            DoNotifyUpdateSingleSync(tg);
+                            // SpreadsThreadPool.Default.UnsafeQueueCompletableItem(_doNotifyUpdateSingleSyncCallback, tg, true);
+                        }
+                    }
+                }
+            }
+            else if (!(cursors is null))
+            {
+                ThrowHelper.FailFast("Wrong cursors subscriptions type");
+            }
+            else
+            {
+                Console.WriteLine("Cursors field is null");
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static void DoNotifyUpdateSingleSync(object obj)
+        {
+            var cursor = (IAsyncCompletable)obj;
+            cursor.TryComplete(false);
+        }
+
         #region Attributes
 
-        private static readonly ConditionalWeakTable<BaseSeries, Dictionary<string, object>> Attributes =
-            new ConditionalWeakTable<BaseSeries, Dictionary<string, object>>();
+        private static readonly ConditionalWeakTable<BaseContainer, Dictionary<string, object>> Attributes =
+            new ConditionalWeakTable<BaseContainer, Dictionary<string, object>>();
 
         /// <summary>
         /// Get an attribute that was set using SetAttribute() method.
@@ -183,9 +396,46 @@ namespace Spreads.Collections
         }
 
         #endregion Attributes
+
+        protected virtual void Dispose(bool disposing)
+        {
+        }
+
+        void IDisposable.Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        ~BaseContainer()
+        {
+            // Containers are root objects that own data and usually are relatively long-lived.
+            // Most containers use memory from some kind of a memory pool, including native
+            // memory, and properly releasing that memory is important to avoid GC and high 
+            // peaks of memory usage.
+
+            Trace.TraceWarning("Finalizing BaseContainer. This should not normally happen.");
+            try
+            {
+                Dispose(false);
+            }
+            catch(Exception ex)
+            {
+                Trace.TraceError("Exception in BaseContainer finalizer: " + ex.ToString());
+#if DEBUG
+                // Kill it in debug. Should not finalize but in the end we just ask GC for disposing 
+                // it and we do often have native resources. But classes where this is important should
+                // have their own finalizers.
+                throw;
+#endif
+            }
+        }
     }
 
-    public class BaseContainer<TKey> : BaseSeries, IAsyncCompleter, IDisposable //, IDataBlockValueGetter<object>
+    /// <summary>
+    /// Base container with row keys of type <typeparamref name="TKey"/>.
+    /// </summary>
+    public class BaseContainer<TKey> : BaseContainer, IDisposable
     {
         // for tests only, it should have been abstract otherwise
         internal BaseContainer()

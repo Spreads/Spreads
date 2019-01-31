@@ -56,18 +56,15 @@ namespace Spreads.Collections.Experimental
             }
             _flags = new Flags((byte)((byte)Mutability.Immutable | (byte)ks));
 
-            var block = new DataBlock();
+            
             var keyMemory = ArrayMemory<TKey>.Create(keys, externallyOwned: true);
             var keyVs = VectorStorage.Create(keyMemory, 0, keyMemory.Length, 1);
 
             var valMemory = ArrayMemory<TValue>.Create(values, externallyOwned: true);
             var valVs = VectorStorage.Create(valMemory, 0, valMemory.Length, 1);
 
-#pragma warning disable 618
-            block._rowIndex = keyVs;
-            block._values = valVs;
-#pragma warning restore 618
-            block.RowLength = keys.Length;
+            var block = DataBlock.Create(rowIndex: keyVs, values: valVs, rowLength: keys.Length);
+
             DataBlock = block;
         }
 
@@ -150,7 +147,7 @@ namespace Spreads.Collections.Experimental
                 }
                 else
                 {
-                    block = DataSource.LastOrDefault;
+                    block = DataSource.LastValueOrDefault;
                 }
 
                 if (block != null && block.RowLength > 0)
@@ -161,7 +158,7 @@ namespace Spreads.Collections.Experimental
             }
         }
 
-        internal TValue LastOrDefault
+        public TValue LastValueOrDefault
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
@@ -173,7 +170,7 @@ namespace Spreads.Collections.Experimental
                 }
                 else
                 {
-                    block = DataSource.LastOrDefault;
+                    block = DataSource.LastValueOrDefault;
                 }
 
                 int idx;

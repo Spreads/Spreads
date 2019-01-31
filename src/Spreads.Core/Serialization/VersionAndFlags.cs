@@ -25,7 +25,7 @@ namespace Spreads.Serialization
     ///     01 - GZip
     ///     10 - Lz4
     ///     11 - Zstd
-    /// T - Timestamped. A value has Timestamp (8 bytes) as the first element of payload. It is included in payload length for varsized types.
+    /// T - Timestamped. A value has Timestamp (8 bytes) as the first element of payload. It is included in payload length for var-sized types.
     /// R - reserved.
     /// CNV - Converter version.
     /// 0 - will need completely new layout when this is not zero.

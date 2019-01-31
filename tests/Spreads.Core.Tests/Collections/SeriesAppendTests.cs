@@ -22,7 +22,7 @@ namespace Spreads.Core.Tests.Collections
         [Test]
         public void CouldAppendSeries()
         {
-            var sa = new AppendSeries<int, int>();
+            var sa = new AppendSeries<int, int>(DataBlock.Create());
 
             Assert.IsTrue(sa.TryAddLast(1, 1).Result);
             Assert.IsFalse(sa.TryAddLast(1, 1).Result);
@@ -68,27 +68,27 @@ namespace Spreads.Core.Tests.Collections
             int count = 10_000_000;
             int rounds = 100;
 
-            var sa = new AppendSeries<int, int>();
+            var sa = new AppendSeries<int, int>(DataBlock.Create());
             var sm = new SortedMap<int, int>();
 
-            for (int r = 0; r < rounds; r++)
-            {
-                using (Benchmark.Run("SM.TryAddLast", count))
-                {
-                    for (int i = r * count; i < (r + 1) * count; i++)
-                    {
-                        if (i == r * count + 3)
-                        {
-                            continue;
-                        }
-                        if (!sm.TryAddLast(i, i).Result)
-                        {
-                            Assert.Fail("Cannot add " + i);
-                        }
-                    }
-                }
-                Console.WriteLine($"Added {((r + 1) * count / 1000000).ToString("N")}");
-            }
+            //for (int r = 0; r < rounds; r++)
+            //{
+            //    using (Benchmark.Run("SM.TryAddLast", count))
+            //    {
+            //        for (int i = r * count; i < (r + 1) * count; i++)
+            //        {
+            //            if (i == r * count + 3)
+            //            {
+            //                continue;
+            //            }
+            //            if (!sm.TryAddLast(i, i).Result)
+            //            {
+            //                Assert.Fail("Cannot add " + i);
+            //            }
+            //        }
+            //    }
+            //    Console.WriteLine($"Added {((r + 1) * count / 1000000).ToString("N")}");
+            //}
 
             for (int r = 0; r < rounds; r++)
             {
@@ -137,7 +137,7 @@ namespace Spreads.Core.Tests.Collections
             {
                 long rounds = 10;
 
-                var sa = new AppendSeries<long, long>();
+                var sa = new AppendSeries<long, long>(DataBlock.Create());
                 sas.Add(sa);
                 var sm = new SortedMap<long, long>();
                 for (int i = 0; i < count; i++)

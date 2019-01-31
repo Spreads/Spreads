@@ -421,7 +421,9 @@ namespace Spreads.Serialization
         [MethodImpl(MethodImplOptions.NoInlining)]
         private static int ReadSlow<T>(ref DirectBuffer source, out T value, out Timestamp timestamp)
         {
-            var header = source.Read<DataTypeHeader>(0);
+            var srcDb = source;
+
+            var header = srcDb.Read<DataTypeHeader>(0);
 
             IBinaryConverter<T> bc = null;
 
@@ -433,13 +435,13 @@ namespace Spreads.Serialization
             var tsSize = header.VersionAndFlags.IsTimestamped ? Timestamp.Size : 0;
             var offset = DataTypeHeader.Size + 4 + tsSize;
 
-            timestamp = tsSize > 0 ? source.Read<Timestamp>(DataTypeHeader.Size + 4) : default;
+            timestamp = tsSize > 0 ? srcDb.Read<Timestamp>(DataTypeHeader.Size + 4) : default;
 
-            var payloadSize = source.Read<int>(DataTypeHeader.Size);
+            var payloadSize = srcDb.Read<int>(DataTypeHeader.Size);
 
             var calculatedSourceSize = DataTypeHeader.Size + 4 + payloadSize;
 
-            if (payloadSize < 0 || calculatedSourceSize > source.Length)
+            if (payloadSize < 0 || calculatedSourceSize > srcDb.Length)
             {
                 goto INVALID_RETURN;
             }
@@ -451,20 +453,20 @@ namespace Spreads.Serialization
 
             if (header.VersionAndFlags.CompressionMethod != CompressionMethod.None)
             {
-                var uncompressedBufferSize = offset + source.Read<int>(offset);
+                var uncompressedBufferSize = offset + srcDb.Read<int>(offset);
                 tempMemory = BufferPool.RetainTemp(uncompressedBufferSize);
                 var sourceUncompressed = new DirectBuffer(tempMemory.Length, (byte*)tempMemory.Pointer).Slice(0, uncompressedBufferSize);
                 // we must return readSize = this is how many bytes we have read from original source
-                readSize = DecompressWithHeader(source, sourceUncompressed);
+                readSize = DecompressWithHeader(srcDb, sourceUncompressed);
                 // use sourceUncompressed as if there was no compression
-                source = sourceUncompressed;
+                srcDb = sourceUncompressed;
             }
 
             if (bc == null)
             {
                 bc = JsonBinaryConverter<T>.Instance;
             }
-            var slice = source.Slice(offset, readSize - offset);
+            var slice = srcDb.Slice(offset, readSize - offset);
             var readSize1 = offset + bc.Read(ref slice, out value);
             if (readSize > 0 && readSize1 != readSize)
             {

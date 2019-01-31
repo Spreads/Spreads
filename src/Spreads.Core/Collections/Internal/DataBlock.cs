@@ -12,40 +12,104 @@ using System.Runtime.CompilerServices;
 
 namespace Spreads.Collections.Internal
 {
+    internal interface INextBlockGetter
+    {
+        DataBlock GetNextBlock(DataBlock current);
+    }
+
     /// <summary>
     /// Physycal storage for Series, Matrix and DataFrame blocks.
     /// </summary>
-    internal class DataBlock : IDisposable
+    internal sealed class DataBlock : IDisposable
     {
-        private string StackTrace = Environment.StackTrace;
-
-        // We need it as a sentinel in cursor to not penalize fast path of single-block containers
+        // We need it as a sentinel with RowLength == 0 in cursor to not penalize fast path of single-block containers
         internal static readonly DataBlock Empty = new DataBlock();
 
         private static readonly ObjectPool<DataBlock> ObjectPool = new ObjectPool<DataBlock>(() => new DataBlock(), Environment.ProcessorCount * 16);
+
+        private DataBlock()
+        { }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static DataBlock Create(VectorStorage rowIndex = null, VectorStorage columnIndex = null, VectorStorage values = null, VectorStorage[] columns = null, int rowLength = -1)
+        {
+            var block = ObjectPool.Allocate();
+
+            Debug.Assert(block._rowLength == -1);
+            Debug.Assert(block._values == VectorStorage.Empty);
+            Debug.Assert(block._rowIndex == VectorStorage.Empty);
+            Debug.Assert(block._columnIndex == VectorStorage.Empty);
+            Debug.Assert(block._columns == null);
+
+            var maxRowLen = 0;
+
+            if (rowIndex != null)
+            {
+                block._rowIndex = rowIndex;
+                maxRowLen = rowIndex.Length;
+            }
+
+            if (columnIndex != null)
+            {
+                block._columnIndex = columnIndex;
+            }
+
+            if (values != null)
+            {
+                block._values = values;
+                maxRowLen = Math.Min(maxRowLen, values.Length);
+            }
+
+            if (columns != null)
+            {
+                if (columns.Length == 0)
+                {
+                    ThrowHelper.ThrowArgumentException("Empty columns array. Pass null instead.");
+                }
+                block._columns = columns;
+                foreach (var column in columns)
+                {
+                    maxRowLen = Math.Min(maxRowLen, column.Length);
+                }
+            }
+
+            if (rowLength == -1)
+            {
+                block._rowLength = maxRowLen;
+            }
+            else
+            {
+                if ((uint)rowLength > maxRowLen)
+                {
+                    ThrowHelper.ThrowArgumentOutOfRangeException("rowLength");
+                }
+                else
+                {
+                    block._rowLength = rowLength;
+                }
+            }
+
+            return block;
+        }
 
         // for structural sharing no references to this should be exposed outside, only new object (or from pool)
 
         /// <summary>
         /// Length of existing data vs storage capacity. Owners set this value and determine capacity from vector storages.
         /// </summary>
-        internal int RowLength;
+        internal int _rowLength = -1;
 
         // it's calculated from context, for Matrix is different than from vec.
         // internal int RowCapacity;
 
         // TODO these should be lazy?
-        [Obsolete("Internal only for tests")]
-        internal VectorStorage _rowIndex = VectorStorage.Empty;
+        private VectorStorage _rowIndex = VectorStorage.Empty;
 
-        [Obsolete("Internal only for tests")]
-        internal VectorStorage _values = VectorStorage.Empty;
+        private VectorStorage _columnIndex = VectorStorage.Empty;
 
-        [Obsolete("Internal only for tests")]
-        internal VectorStorage _columnIndex = VectorStorage.Empty;
+        private VectorStorage _values = VectorStorage.Empty;
 
-        [Obsolete("Internal only for tests")]
-        internal VectorStorage[] _columns; // arrays is allocated and GCed, so far OK
+        private VectorStorage[] _columns; // arrays is allocated and GCed, so far OK
 
         internal DataBlock NextBlock;
 
@@ -53,7 +117,7 @@ namespace Spreads.Collections.Internal
         // internal WeakReference<DataBlock> PreviousBlock;
 
         // TODO interface with a single impl for persistence so that it's methods are devirtualized
-        internal bool HasTryGetNextBlockImpl;
+        // internal bool HasTryGetNextBlockImpl;
 
         /// <summary>
         /// Fast path to get the next block from the current one.
@@ -76,18 +140,25 @@ namespace Spreads.Collections.Internal
                 // In-memory implementation just externally manages this field without TryGetNextBlockImpl
                 return NextBlock;
             }
-            if (HasTryGetNextBlockImpl)
-            {
-                return TryGetNextBlockImpl();
-            }
+            // TODO we cannot have virtual methods in a pooled object
+            //if (HasTryGetNextBlockImpl)
+            //{
+            //    return TryGetNextBlockImpl();
+            //}
             return null;
         }
 
-        // TODO JIT could devirt this if there is only one implementation, but we have two
-        // Check under what conditions this method in a derived sealed class is devirtualized.
-        public virtual DataBlock TryGetNextBlockImpl()
+        //// TODO JIT could devirt this if there is only one implementation, but we have two
+        //// Check under what conditions this method in a derived sealed class is devirtualized.
+        //public virtual DataBlock TryGetNextBlockImpl()
+        //{
+        //    return null;
+        //}
+
+        public int RowLength
         {
-            return null;
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => _rowLength;
         }
 
         public VectorStorage RowIndex
@@ -141,7 +212,7 @@ namespace Spreads.Collections.Internal
             }
             _rowIndex.Vec.DangerousGetRef<TKey>(index) = key;
             _values.Vec.DangerousGetRef<TValue>(index) = value;
-            RowLength++;
+            _rowLength++;
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
@@ -433,14 +504,20 @@ namespace Spreads.Collections.Internal
         public bool IsDisposed
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => _values == null && _columns == null;
+            get => RowLength < 0;
         }
 
         private void Dispose(bool disposing)
         {
+            if (IsDisposed)
+            {
+                ThrowHelper.ThrowObjectDisposedException("DataBlock");
+            }
+            _rowLength = -1;
+
             // just break the chain, if the remaining linked list was only rooted here it will be GCed TODO review
             NextBlock = null;
-            RowLength = 0;
+
             if (_columns != null)
             {
                 foreach (var vectorStorage in _columns)
@@ -451,22 +528,22 @@ namespace Spreads.Collections.Internal
                 _columns = null;
             }
 
-            if (_values != null)
-            {
-                _values.Dispose();
-                _values = null;
-            }
-
-            if (_rowIndex != null)
+            if (_rowIndex != VectorStorage.Empty)
             {
                 _rowIndex.Dispose();
-                _rowIndex = null;
+                _rowIndex = VectorStorage.Empty;
             }
 
-            if (_columnIndex != null)
+            if (_columnIndex != VectorStorage.Empty)
             {
                 _columnIndex.Dispose();
-                _columnIndex = null;
+                _columnIndex = VectorStorage.Empty;
+            }
+
+            if (_values != VectorStorage.Empty)
+            {
+                _values.Dispose();
+                _values = VectorStorage.Empty;
             }
 
             ObjectPool.Free(this);
@@ -492,7 +569,7 @@ namespace Spreads.Collections.Internal
 
         ~DataBlock()
         {
-            ThrowHelper.ThrowInvalidOperationException("Finalizing DataBlock: " + StackTrace);
+            ThrowHelper.ThrowInvalidOperationException("Finalizing DataBlock");
             Dispose(false);
         }
 

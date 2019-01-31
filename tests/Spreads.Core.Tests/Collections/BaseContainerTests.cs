@@ -13,24 +13,20 @@ using System.Linq;
 
 namespace Spreads.Core.Tests.Collections
 {
+    [Category("CI")]
     [TestFixture]
-    public unsafe class BaseContainerTests
+    public class BaseContainerTests
     {
-
-
         [Test]
         public void CouldTryGetBlockAtSingleChunk()
         {
             var capacity = 100;
             var bc = new BaseContainer<int>();
-            var block = new DataBlock();
+
             var rm = ArrayMemory<int>.Create(Enumerable.Range(0, capacity).ToArray(), externallyOwned: true);
             var vs = VectorStorage.Create(rm, 0, rm.Length, 1);
 
-            block._rowIndex = vs;
-
-            // half the size
-            block.RowLength = vs.Length / 2;
+            var block = DataBlock.Create(rowIndex: vs, rowLength: vs.Length / 2);
 
             bc.DataBlock = block;
 
@@ -39,6 +35,8 @@ namespace Spreads.Core.Tests.Collections
             Assert.IsTrue(found);
             Assert.AreSame(block, c);
             Assert.AreEqual(searchIndex, ci);
+
+            bc.Dispose();
         }
 
         [Test]
@@ -46,13 +44,11 @@ namespace Spreads.Core.Tests.Collections
         {
             var capacity = 100;
             var bc = new BaseContainer<long>();
-            var block = new DataBlock();
+
             var rm = ArrayMemory<long>.Create(Enumerable.Range(0, capacity).Select(x => (long)x).ToArray(), externallyOwned: true);
             var vs = VectorStorage.Create(rm, 0, rm.Length, 1);
 
-            block._rowIndex = vs;
-            // half the size
-            block.RowLength = vs.Length / 2;
+            var block = DataBlock.Create(rowIndex: vs, rowLength: vs.Length / 2);
 
             bc.DataBlock = block;
 
@@ -63,6 +59,8 @@ namespace Spreads.Core.Tests.Collections
             Assert.AreSame(block, c);
             Assert.AreEqual(searchIndex - 1, ci);
             Assert.AreEqual(searchIndex - 1, searchIndexRef);
+
+            bc.Dispose();
         }
 
         [Test, Explicit("long running")]
@@ -74,13 +72,10 @@ namespace Spreads.Core.Tests.Collections
             // for this test capacity is irrelevant - interpolation search hits exact position on first try
             var capacity = count / 100;
             var bc = new BaseContainer<int>();
-            var block = new DataBlock();
             var rm = ArrayMemory<int>.Create(Enumerable.Range(0, capacity).ToArray(), externallyOwned: true);
             var vs = VectorStorage.Create(rm, 0, rm.Length, 1);
 
-            block._rowIndex = vs;
-            // half the size
-            block.RowLength = vs.Length;
+            var block = DataBlock.Create(rowIndex: vs, rowLength: vs.Length);
 
             bc.DataBlock = block;
 
@@ -109,31 +104,29 @@ namespace Spreads.Core.Tests.Collections
             }
 
             Benchmark.Dump();
+            bc.Dispose();
         }
-
 
         [Test]
         public void CouldTryGetBlockSingleChunk()
         {
             var capacity = 100;
             var bc = new BaseContainer<long>();
-            var chunk = new DataBlock();
             var rm = ArrayMemory<long>.Create(Enumerable.Range(0, capacity).Select(x => (long)x).ToArray(), externallyOwned: true);
             var vs = VectorStorage.Create(rm, 0, rm.Length, 1);
 
-            chunk._rowIndex = vs;
-            // half the size
-            chunk.RowLength = vs.Length / 2;
+            var block = DataBlock.Create(rowIndex: vs, rowLength: vs.Length / 2);
 
-            bc.DataBlock = chunk;
+            bc.DataBlock = block;
 
             var searchIndex = 40L;
             var searchIndexRef = searchIndex;
             var found = bc.TryGetBlock(searchIndexRef, out var c, out var ci);
             Assert.IsTrue(found);
-            Assert.AreSame(chunk, c);
+            Assert.AreSame(block, c);
             Assert.AreEqual(searchIndex, ci);
             Assert.AreEqual(searchIndex, searchIndexRef);
+            bc.Dispose();
         }
 
         [Test, Explicit("long running")]
@@ -145,13 +138,11 @@ namespace Spreads.Core.Tests.Collections
             // for this test capacity is irrelevant - interpolation search hits exact position on first try
             var capacity = count / 100;
             var bc = new BaseContainer<int>();
-            var block = new DataBlock();
+
             var rm = ArrayMemory<int>.Create(Enumerable.Range(0, capacity).ToArray(), externallyOwned: true);
             var vs = VectorStorage.Create(rm, 0, rm.Length, 1);
 
-            block._rowIndex = vs;
-            // half the size
-            block.RowLength = vs.Length;
+            var block = DataBlock.Create(rowIndex: vs, rowLength: vs.Length);
 
             bc.DataBlock = block;
 
@@ -178,6 +169,7 @@ namespace Spreads.Core.Tests.Collections
             }
 
             Benchmark.Dump();
+            bc.Dispose();
         }
     }
 }

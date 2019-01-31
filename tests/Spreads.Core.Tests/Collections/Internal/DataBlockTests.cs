@@ -11,14 +11,14 @@ namespace Spreads.Core.Tests.Collections.Internal
 {
     [Category("CI")]
     [TestFixture]
-    public unsafe class DataBlockTests
+    public class DataBlockTests
     {
         [Test]
         public void CouldDoubleSeriesCapacity()
         {
             // Debug this test to see buffer management errors during finalization, normal test run survives them in VS
 
-            var block = new DataBlock();
+            var block = DataBlock.Create();
             Assert.AreEqual(0, block.RowLength);
 
             block.IncreaseSeriesCapacity<int, int>();

@@ -23,7 +23,7 @@ namespace Spreads
     /// <typeparam name="TValue">Type of series values.</typeparam>
 #pragma warning disable 660, 661
 
-    public abstract class Series<TKey, TValue> : BaseSeries,
+    public abstract class Series<TKey, TValue> : BaseContainer,
         ISpecializedSeries<TKey, TValue, Cursor<TKey, TValue>>, IAsyncCompleter, IDisposable
 #pragma warning restore 660, 661
     {
@@ -91,6 +91,8 @@ namespace Spreads
 
         /// <inheritdoc />
         public abstract Opt<KeyValuePair<TKey, TValue>> Last { get; }
+
+        public TValue LastValueOrDefault => throw new NotImplementedException();
 
         /// <inheritdoc />
         public TValue this[TKey key]
