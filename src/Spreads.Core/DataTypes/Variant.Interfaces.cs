@@ -59,7 +59,7 @@ namespace Spreads.DataTypes
                     case TypeEnum.Decimal:
                         return (Get<decimal>()).CompareTo(other.Get<decimal>());
 
-                    case TypeEnum.Price:
+                    case TypeEnum.SmallDecimal:
                         return (Get<SmallDecimal>()).CompareTo(other.Get<SmallDecimal>());
 
                     case TypeEnum.Money:

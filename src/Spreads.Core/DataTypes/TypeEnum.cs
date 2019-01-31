@@ -43,7 +43,7 @@ namespace Spreads.DataTypes
         Float64 = 10,
 
         Decimal = 11,
-        Price = 12,
+        SmallDecimal = 12,
         Money = 13,
 
         // TODO handling of DT.Kind should be in serializer settings later, by default we fail on any non UTC in serializer
@@ -109,7 +109,7 @@ namespace Spreads.DataTypes
         Matrix = 71, // same as array must have a subtype defined
         Table = 72,  // matrix of variants,
 
-        ArrayBasedMap = 73,
+        VectorStorage = 73,
 
         TaggedKeyValue = 74,
         

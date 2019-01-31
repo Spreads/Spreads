@@ -2,6 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+using Spreads.Collections.Internal;
 using Spreads.Serialization;
 using System;
 using System.Reflection;
@@ -50,7 +51,7 @@ namespace Spreads.DataTypes
             if (typeof(T) == typeof(float)) return TypeEnum.Float32;
             if (typeof(T) == typeof(double)) return TypeEnum.Float64;
             if (typeof(T) == typeof(decimal)) return TypeEnum.Decimal;
-            if (typeof(T) == typeof(SmallDecimal)) return TypeEnum.Price;
+            if (typeof(T) == typeof(SmallDecimal)) return TypeEnum.SmallDecimal;
             //if (typeof(T) == typeof(Money)) return TypeEnum.Money;
             if (typeof(T) == typeof(DateTime)) return TypeEnum.DateTime;
             if (typeof(T) == typeof(Timestamp)) return TypeEnum.Timestamp;
@@ -64,6 +65,12 @@ namespace Spreads.DataTypes
             if (typeof(T) == typeof(string)) return TypeEnum.String;
             if (typeof(T) == typeof(ErrorCode)) return TypeEnum.ErrorCode;
             if (typeof(T).IsArray) return TypeEnum.Array;
+            
+            if (typeof(T).GetTypeInfo().IsGenericType &&
+                typeof(T).GetGenericTypeDefinition() == typeof(VectorStorage<>))
+            {
+                return TypeEnum.VectorStorage;
+            }
 
             if (typeof(T) == typeof(Table)) return TypeEnum.Table;
             if (typeof(T).GetTypeInfo().IsGenericType && typeof(T).GetGenericTypeDefinition() == typeof(Matrix<>)) return TypeEnum.Matrix;
@@ -95,6 +102,15 @@ namespace Spreads.DataTypes
                 var elTypeEnum = VariantHelper.GetTypeEnum(elTy);
                 return elTypeEnum;
             }
+
+            if (typeof(T).GetTypeInfo().IsGenericType &&
+                typeof(T).GetGenericTypeDefinition() == typeof(VectorStorage<>))
+            {
+                var elTy = typeof(T).GenericTypeArguments[0];
+                var elTypeEnum = VariantHelper.GetTypeEnum(elTy);
+                return elTypeEnum;
+            }
+
             return TypeEnum.None;
         }
 
@@ -113,14 +129,21 @@ namespace Spreads.DataTypes
         internal static int GetElementTypeSize()
         {
             var ty = typeof(T);
-            if (!ty.IsArray)
+            if (ty.IsArray)
             {
-                return -1;
+                var elTy = ty.GetElementType();
+
+                return TypeHelper.GetSize(elTy);
             }
-            var elTy = ty.GetElementType();
-#pragma warning disable 618
-            return TypeHelper.GetSize(elTy);
-#pragma warning restore 618
+
+            if (typeof(T).GetTypeInfo().IsGenericType &&
+                typeof(T).GetGenericTypeDefinition() == typeof(VectorStorage<>))
+            {
+                var elTy = typeof(T).GenericTypeArguments[0];
+                return TypeHelper.GetSize(elTy);
+            }
+
+            return -1;
         }
     }
 
@@ -144,7 +167,7 @@ namespace Spreads.DataTypes
             if (ty == typeof(float)) return TypeEnum.Float32;
             if (ty == typeof(double)) return TypeEnum.Float64;
             if (ty == typeof(decimal)) return TypeEnum.Decimal;
-            if (ty == typeof(SmallDecimal)) return TypeEnum.Price;
+            if (ty == typeof(SmallDecimal)) return TypeEnum.SmallDecimal;
             //if (ty == typeof(Money)) return TypeEnum.Money;
             if (ty == typeof(DateTime)) return TypeEnum.DateTime;
             if (ty == typeof(Timestamp)) return TypeEnum.Timestamp;
@@ -158,6 +181,14 @@ namespace Spreads.DataTypes
             if (ty == typeof(ErrorCode)) return TypeEnum.ErrorCode;
 
             if (ty.IsArray) return TypeEnum.Array;
+
+            if (ty.GetTypeInfo().IsGenericType &&
+                ty.GetGenericTypeDefinition() == typeof(VectorStorage<>))
+            {
+                return TypeEnum.VectorStorage;
+            }
+
+
             if (ty == typeof(Matrix<>)) return TypeEnum.Matrix;
             if (ty == typeof(Table)) return TypeEnum.Table;
 
@@ -221,7 +252,7 @@ namespace Spreads.DataTypes
                     case TypeEnum.Decimal:
                         return typeof(decimal);
 
-                    case TypeEnum.Price:
+                    case TypeEnum.SmallDecimal:
                         return typeof(SmallDecimal);
 
                     case TypeEnum.Money:
@@ -255,6 +286,12 @@ namespace Spreads.DataTypes
             {
                 var elementType = GetType(subTypeEnum);
                 return elementType.MakeArrayType();
+            }
+
+            if (typeEnum == TypeEnum.VectorStorage)
+            {
+                var elementType = GetType(subTypeEnum);
+                return typeof(VectorStorage<>).MakeGenericType(elementType);
             }
 
             if (typeEnum == TypeEnum.Matrix)

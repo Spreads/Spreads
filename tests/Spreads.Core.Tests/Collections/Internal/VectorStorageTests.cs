@@ -60,7 +60,6 @@ namespace Spreads.Core.Tests.Collections.Internal
             }
             // arr = Enumerable.Range(0, count).Select(x => new SmallDecimal(1000 + (double)x + (double)Math.Round(0.1 * rng.NextDouble(), 5), precision:3)).ToArray();
 
-
             var r = ArrayMemory<SmallDecimal>.Create(arr, 0, arr.Length, externallyOwned: true, pin: true);
             var vs = VectorStorage.Create(r, 0, r.Length);
 
@@ -79,6 +78,13 @@ namespace Spreads.Core.Tests.Collections.Internal
                 Assert.AreEqual(destination.Length, destinationDb.Length);
 
                 Assert.AreEqual(len, len1);
+
+                var flags = destinationDb.Read<VersionAndFlags>(0);
+                Assert.AreEqual(format, flags.SerializationFormat);
+                var header = destinationDb.Read<DataTypeHeader>(0);
+                Assert.AreEqual(TypeEnum.VectorStorage, header.TypeEnum);
+                Assert.AreEqual(TypeEnum.SmallDecimal, header.ElementTypeEnum);
+                Assert.AreEqual(Unsafe.SizeOf<SmallDecimal>(), header.TypeSize);
 
                 var len2 = BinarySerializer.Read(ref destinationDb, out VectorStorage<SmallDecimal> value);
                 Assert.AreEqual(destination.Length, destinationDb.Length);

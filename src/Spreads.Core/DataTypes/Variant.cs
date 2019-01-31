@@ -169,7 +169,7 @@ namespace Spreads.DataTypes
                     case TypeEnum.Decimal:
                         return Create((decimal)value);
 
-                    case TypeEnum.Price:
+                    case TypeEnum.SmallDecimal:
                         return Create((SmallDecimal)value);
 
                     case TypeEnum.Money:
@@ -296,7 +296,7 @@ namespace Spreads.DataTypes
                     case TypeEnum.Decimal:
                         return Get<decimal>();
 
-                    case TypeEnum.Price:
+                    case TypeEnum.SmallDecimal:
                         return Get<SmallDecimal>();
 
                     case TypeEnum.Money:
