@@ -9,6 +9,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using Spreads.Native;
 
 namespace Spreads.DataTypes
 {
@@ -33,7 +34,7 @@ namespace Spreads.DataTypes
     [BinarySerialization(Size)]
     [DebuggerDisplay("{" + nameof(ToString) + "()}")]
     [JsonFormatter(typeof(Formatter))]
-    public readonly struct SmallDecimal : IComparable<SmallDecimal>, IEquatable<SmallDecimal>, IConvertible // TODO IInt64Diffable
+    public readonly struct SmallDecimal : IComparable<SmallDecimal>, IEquatable<SmallDecimal>, IConvertible//, IDelta<SmallDecimal> // TODO IInt64Diffable
     {
         static SmallDecimal()
         {
@@ -114,7 +115,7 @@ namespace Spreads.DataTypes
             100000000000000,
             1000000000000000,
         };
-
+        
         public int Exponent
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -518,8 +519,18 @@ namespace Spreads.DataTypes
 
                 reader.ReadIsEndArrayWithVerify();
 
-                return new SmallDecimal(exponent, mantissa); ;
+                return new SmallDecimal(exponent, mantissa);
             }
         }
+
+        //public SmallDecimal AddDelta(SmallDecimal delta)
+        //{
+        //    return this + delta;
+        //}
+
+        //public SmallDecimal GetDelta(SmallDecimal other)
+        //{
+        //    return other - this;
+        //}
     }
 }

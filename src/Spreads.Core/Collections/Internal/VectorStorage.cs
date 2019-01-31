@@ -4,6 +4,7 @@
 
 using Spreads.Buffers;
 using Spreads.Collections.Concurrent;
+using Spreads.DataTypes;
 using Spreads.Native;
 using Spreads.Serialization;
 using System;
@@ -372,7 +373,18 @@ namespace Spreads.Collections.Internal
         #endregion Dispose logic
     }
 
-    internal delegate void VectorStorageToDirectBuffer(VectorStorage vs, DirectBuffer db);
+    internal delegate int SizeOfDelegate(VectorStorage value,
+        out RetainedMemory<byte> temporaryBuffer,
+        SerializationFormat format = default,
+        Timestamp timestamp = default);
+
+    internal delegate int WriteDelegate(VectorStorage value,
+        ref DirectBuffer pinnedDestination,
+        RetainedMemory<byte> temporaryBuffer = default,
+        SerializationFormat format = default,
+        Timestamp timestamp = default);
+
+    internal delegate int ReadDelegate(ref DirectBuffer source, out VectorStorage value, out Timestamp timestamp);
 
     // TODO is we register it similarly to ArrayBinaryConverter only for blittable Ts
     // then we could just use BinarySerializer over the wrapper and it will automatically
@@ -380,6 +392,41 @@ namespace Spreads.Collections.Internal
 
     internal readonly struct VectorStorage<T>
     {
+        // ReSharper disable StaticMemberInGenericType
+
+        public static SizeOfDelegate SizeOfDelegate = SizeOf;
+
+        public static WriteDelegate WriteDelegate = Write;
+
+        public static ReadDelegate ReadDelegate = Read;
+
+        // ReSharper restore StaticMemberInGenericType
+
+        private static int Read(ref DirectBuffer source, out VectorStorage value, out Timestamp timestamp)
+        {
+            var len = BinarySerializer.Read(ref source, out VectorStorage<T> valueT, out timestamp);
+            value = valueT.Storage;
+            return len;
+        }
+
+        private static int Write(VectorStorage value,
+            ref DirectBuffer pinnedDestination,
+            RetainedMemory<byte> temporaryBuffer = default,
+            SerializationFormat format = default,
+            Timestamp timestamp = default)
+        {
+            return BinarySerializer.Write(new VectorStorage<T>(value), ref pinnedDestination,
+                temporaryBuffer, format, timestamp);
+        }
+
+        private static int SizeOf(VectorStorage value, out RetainedMemory<byte> temporaryBuffer,
+            SerializationFormat format = default,
+            Timestamp timestamp = default)
+        {
+            return BinarySerializer.SizeOf(new VectorStorage<T>(value), out temporaryBuffer,
+                format, timestamp);
+        }
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public VectorStorage(VectorStorage storage)
         {
@@ -410,7 +457,7 @@ namespace Spreads.Collections.Internal
 
     internal struct VectorStorageConverter<T> : IBinaryConverter<VectorStorage<T>>
     {
-        public byte ConverterVersion => 1;
+        public byte ConverterVersion => 0;
 
         public int SizeOf(VectorStorage<T> value, out RetainedMemory<byte> temporaryBuffer, out bool withPadding)
         {
@@ -440,12 +487,38 @@ namespace Spreads.Collections.Internal
                 var byteLen = Unsafe.SizeOf<T>() * value.Storage.Length;
                 Debug.Assert(destination.Length >= 4 + byteLen);
 
-                fixed (byte* sPtr = &Unsafe.As<T, byte>(ref value.Storage.Vec.DangerousGetRef<T>(0)))
+                if (TypeHelper<T>.IsIDelta)
                 {
-                    var srcDb = new DirectBuffer(byteLen, sPtr);
-                    var destDb = destination.Slice(4);
-                    BinarySerializer.Shuffle(in srcDb, in destDb, (byte)Unsafe.SizeOf<T>());
+                    // one boxing TODO this is wrong direction, we need i - first, maybe add reverse delta or for binary it's OK?
+                    var first = (IDelta<T>)value.Storage.DangerousGetRef<T>(0);
+                    var arr = BufferPool<T>.Rent(value.Storage.Length);
+                    arr[0] = value.Storage.DangerousGetRef<T>(0);
+                    for (int i = 1; i < value.Storage.Length; i++)
+                    {
+                        arr[i] = first.GetDelta(value.Storage.DangerousGetRef<T>(i));
+                    }
+
+                    fixed (byte* sPtr = &Unsafe.As<T, byte>(ref arr[0]))
+                    {
+                        var srcDb = new DirectBuffer(byteLen, sPtr);
+                        var destDb = destination.Slice(4);
+                        // srcDb.CopyTo(destDb);
+                        BinarySerializer.Shuffle(in srcDb, in destDb, (byte)Unsafe.SizeOf<T>());
+                    }
+
+                    BufferPool<T>.Return(arr);
                 }
+                else
+                {
+                    fixed (byte* sPtr = &Unsafe.As<T, byte>(ref value.Storage.Vec.DangerousGetRef<T>(0)))
+                    {
+                        var srcDb = new DirectBuffer(byteLen, sPtr);
+                        var destDb = destination.Slice(4);
+                        // srcDb.CopyTo(destDb);
+                        BinarySerializer.Shuffle(in srcDb, in destDb, (byte)Unsafe.SizeOf<T>());
+                    }
+                }
+
                 return 4 + byteLen;
             }
             return 4;
@@ -461,7 +534,7 @@ namespace Spreads.Collections.Internal
 
             arraySize = -arraySize;
 
-            var position = 4;
+            // var position = 4;
             var payloadSize = arraySize * Unsafe.SizeOf<T>();
             if (4 + payloadSize > source.Length || arraySize < 0)
             {
@@ -475,12 +548,23 @@ namespace Spreads.Collections.Internal
                 var rm = BufferPool<T>.MemoryPool.RentMemory(arraySize) as ArrayMemory<T>;
                 Debug.Assert(rm != null);
 
+                // ReSharper disable once PossibleNullReferenceException
                 fixed (byte* dPtr = &Unsafe.As<T, byte>(ref rm.Vec.DangerousGetRef(0)))
                 {
                     var srcDb = source.Slice(4);
                     var destDb = new DirectBuffer(byteLen, dPtr);
 
+                    // srcDb.CopyTo(destDb);
                     BinarySerializer.Unshuffle(in srcDb, in destDb, (byte)Unsafe.SizeOf<T>());
+                }
+
+                if (TypeHelper<T>.IsIDelta)
+                {
+                    var first = (IDelta<T>)rm.Array[0];
+                    for (int i = 1; i < arraySize; i++)
+                    {
+                        rm.Array[i] = first.AddDelta(rm.Array[i]);
+                    }
                 }
 
                 var vs = VectorStorage.Create<T>(rm, 0, arraySize);

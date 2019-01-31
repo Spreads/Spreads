@@ -9,6 +9,8 @@ using Spreads.Serialization;
 using Spreads.Utils;
 using System;
 using System.Linq;
+using System.Runtime.CompilerServices;
+using Spreads.DataTypes;
 
 namespace Spreads.Core.Tests.Collections.Internal
 {
@@ -46,12 +48,25 @@ namespace Spreads.Core.Tests.Collections.Internal
         [Test]
         public void CouldSerializeVectorStorage()
         {
+            var rng = new Random(42);
             var count = 1_000_000;
-            var arr = Enumerable.Range(0, count).ToArray();
-            var r = ArrayMemory<int>.Create(arr, 0, arr.Length, externallyOwned: true, pin: true);
+            var arr = new SmallDecimal[count];
+
+            arr[0] = new SmallDecimal(count * 1.0, 4);
+
+            for (int i = 1; i < count; i++)
+            {
+                arr[i] = arr[i - 1] + new SmallDecimal((double)arr[i - 1] * (0.02 + rng.NextDouble() * -0.04), 4);
+            }
+            // arr = Enumerable.Range(0, count).Select(x => new SmallDecimal(1000 + (double)x + (double)Math.Round(0.1 * rng.NextDouble(), 5), precision:3)).ToArray();
+
+
+            var r = ArrayMemory<SmallDecimal>.Create(arr, 0, arr.Length, externallyOwned: true, pin: true);
             var vs = VectorStorage.Create(r, 0, r.Length);
 
-            var vsT = new VectorStorage<int>(vs);
+            var vsT = new VectorStorage<SmallDecimal>(vs);
+
+            var payload = count * Unsafe.SizeOf<double>() + 4;
 
             foreach (SerializationFormat format in ((SerializationFormat[])Enum.GetValues(typeof(SerializationFormat))).OrderBy(e => e.ToString()))
             {
@@ -65,13 +80,26 @@ namespace Spreads.Core.Tests.Collections.Internal
 
                 Assert.AreEqual(len, len1);
 
-                var len2 = BinarySerializer.Read(ref destinationDb, out VectorStorage<int> value);
+                var len2 = BinarySerializer.Read(ref destinationDb, out VectorStorage<SmallDecimal> value);
                 Assert.AreEqual(destination.Length, destinationDb.Length);
 
                 Assert.AreEqual(len, len2);
                 Assert.AreEqual(vs.Length, value.Storage.Length);
 
-                Console.WriteLine($"{format} len: {len:N0}");
+
+                for (int i = 0; i < count; i++)
+                {
+                    SmallDecimal left;
+                    SmallDecimal right;
+                    if ((left = vs.Vec.DangerousGetRef<SmallDecimal>(i)) != (right = value.Storage.DangerousGetRef<SmallDecimal>(i)))
+                    {
+                        Console.WriteLine("Not equals");
+                    }
+                }
+
+                Assert.IsTrue(vs.Vec.Slice(0, vs.Length).AsSpan<SmallDecimal>().SequenceEqual(value.Storage.Vec.Slice(0, value.Storage.Length).AsSpan<SmallDecimal>()));
+
+                Console.WriteLine($"{format} len: {len:N0} x{Math.Round((double)payload/len, 2)}");
 
                 destination.Dispose();
                 value.Storage.Dispose();
