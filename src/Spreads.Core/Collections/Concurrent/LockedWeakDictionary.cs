@@ -2,9 +2,9 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+using Spreads.Collections.Generic;
 using System;
 using System.Runtime.CompilerServices;
-using Spreads.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Threading;
 
@@ -13,17 +13,20 @@ namespace Spreads.Collections.Concurrent
     public sealed class LockedWeakDictionary<TKey> where TKey : IEquatable<TKey>
     {
 #pragma warning disable CS0618 // Type or member is obsolete
-        private DictionarySlim<TKey, GCHandle> _inner = new DictionarySlim<TKey, GCHandle>();
+        private readonly DictionarySlim<TKey, GCHandle> _inner = new DictionarySlim<TKey, GCHandle>();
 #pragma warning restore CS0618 // Type or member is obsolete
-        private long _locker;
+        private int _locker;
+
+        internal DictionarySlim<TKey, GCHandle> InnerDictionary
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => _inner;
+        }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool TryAdd(TKey key, object obj)
         {
-            // prefer reader
-
-            //var incr = Interlocked.Increment(ref _locker);
-            //if (incr != 1L)
+            // prefer reader, use CompareExchange directly
             {
                 var sw = new SpinWait();
                 while (true)
@@ -34,10 +37,6 @@ namespace Spreads.Collections.Concurrent
                         break;
                     }
                     sw.SpinOnce();
-                    //if (sw.NextSpinWillYield)
-                    //{
-                    //    sw.Reset();
-                    //}
                 }
             }
 
@@ -54,7 +53,7 @@ namespace Spreads.Collections.Concurrent
                 hr = h;
             }
 
-            Volatile.Write(ref _locker, 0L);
+            Volatile.Write(ref _locker, 0);
             return added;
         }
 
@@ -101,7 +100,7 @@ namespace Spreads.Collections.Concurrent
                 value = null;
             }
 
-            Volatile.Write(ref _locker, 0L);
+            Volatile.Write(ref _locker, 0);
 
             return found;
         }

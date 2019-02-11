@@ -16,7 +16,6 @@ namespace Spreads.Core.Tests.Collections.Concurrent
     [TestFixture]
     public class LockedWeakDictionaryTests
     {
-
         public class Dummy : IStorageIndexed
         {
             public int StorageIndex
@@ -63,133 +62,142 @@ namespace Spreads.Core.Tests.Collections.Concurrent
 
             var mult = 100_000;
 
-            var sum1 = 0.0;
-            using (Benchmark.Run("CD", count * mult))
+            for (int r = 0; r < 10; r++)
             {
-                for (int i = 0; i < count * mult; i++)
+                //var sum1 = 0.0;
+                //using (Benchmark.Run("CD", count * mult))
+                //{
+                //    for (int i = 0; i < count * mult; i++)
+                //    {
+                //        if (cd.TryGetValue(i / mult, out var obj))
+                //        {
+                //            //sum1 += (int)obj;
+                //        }
+                //        else
+                //        {
+                //            Assert.Fail();
+                //        }
+                //    }
+                //}
+
+                //var sum2 = 0.0;
+                //using (Benchmark.Run("WCD", count * mult))
+                //{
+                //    // Not so bad, this just needs to save something more in other places
+
+                //    for (int i = 0; i < count * mult; i++)
+                //    {
+                //        wcd.TryGetValue(i / mult, out var wr);
+                //        if (wr.TryGetTarget(out var tgt))
+                //        {
+                //            //sum2 += (int)tgt;
+                //        }
+                //        else
+                //        {
+                //            Assert.Fail();
+                //        }
+                //    }
+                //}
+
+                //Assert.AreEqual(sum1, sum2);
+
+                //var sum4 = 0.0;
+                //using (Benchmark.Run("WCD2", count * mult))
+                //{
+                //    // Not so bad, this just needs to save something more in other places
+
+                //    for (int i = 0; i < count * mult; i++)
+                //    {
+                //        wcd2.TryGetValue(i / mult, out var wr2);
+                //        if (wr2.Target != null)
+                //        {
+                //            sum4 += (int)wr2.Target;
+                //        }
+                //        else
+                //        {
+                //            Assert.Fail();
+                //        }
+                //    }
+                //}
+                //Assert.AreEqual(sum1, sum4);
+
+                var sum5 = 0.0;
+                using (Benchmark.Run("WCD H", count * mult))
                 {
-                    if (cd.TryGetValue(i / mult, out var obj))
+                    // Not so bad, this just needs to save something more in other places
+
+                    for (int i = 0; i < count * mult; i++)
                     {
-                        //sum1 += (int)obj;
-                    }
-                    else
-                    {
-                        Assert.Fail();
+                        if (wcd3.TryGetValue(i / mult, out var wr2))
+                        {
+
+                        }
+                        else
+                        {
+                            Assert.Fail();
+                        }
+                        //if (wr2.Target is Dummy val)
+                        //{
+                        //    //sum5 += val;
+                        //}
+
+
                     }
                 }
-            }
 
-            var sum2 = 0.0;
-            using (Benchmark.Run("WCD", count * mult))
-            {
-                // Not so bad, this just needs to save something more in other places
+                // Assert.AreEqual(sum1, sum5);
 
-                for (int i = 0; i < count * mult; i++)
+                //var sum3 = 0.0;
+                //using (Benchmark.Run("LD", count * mult))
+                //{
+                //    for (int i = 0; i < count * mult; i++)
+                //    {
+                //        lock (d)
+                //        {
+                //            if (d.TryGetValue(i / mult, out var obj))
+                //            {
+                //                sum3 += (int)obj;
+                //            }
+                //            else
+                //            {
+                //                Assert.Fail();
+                //            }
+                //        }
+                //    }
+                //}
+
+                var sum6 = 0.0;
+                using (Benchmark.Run("LWD", count * mult))
                 {
-                    wcd.TryGetValue(i / mult, out var wr);
-                    if (wr.TryGetTarget(out var tgt))
+                    for (int i = 0; i < count * mult; i++)
                     {
-                        //sum2 += (int)tgt;
-                    }
-                    else
-                    {
-                        Assert.Fail();
+                        if (lockedWeakDictionary.TryGetValue(i / mult, out var val))
+                        {
+                            //sum6 += (int)val;
+                        }
+                        else
+                        {
+                            Assert.Fail();
+                        }
                     }
                 }
+
+                //var sum7 = 0.0;
+                //using (Benchmark.Run("ILWD", count * mult))
+                //{
+                //    for (int i = 0; i < count * mult; i++)
+                //    {
+                //        if (indexedLockedWeakDictionary.TryGetValue(i / mult, out var val))
+                //        {
+                //            //sum7 += (int)val.StorageIndex;
+                //        }
+                //        else
+                //        {
+                //            Assert.Fail();
+                //        }
+                //    }
+                //}
             }
-            Assert.AreEqual(sum1, sum2);
-
-            //var sum4 = 0.0;
-            //using (Benchmark.Run("WCD2", count * mult))
-            //{
-            //    // Not so bad, this just needs to save something more in other places
-
-            //    for (int i = 0; i < count * mult; i++)
-            //    {
-            //        wcd2.TryGetValue(i / mult, out var wr2);
-            //        if (wr2.Target != null)
-            //        {
-            //            sum4 += (int)wr2.Target;
-            //        }
-            //        else
-            //        {
-            //            Assert.Fail();
-            //        }
-            //    }
-            //}
-            //Assert.AreEqual(sum1, sum4);
-
-            var sum5 = 0.0;
-            using (Benchmark.Run("WCD H", count * mult))
-            {
-                // Not so bad, this just needs to save something more in other places
-
-                for (int i = 0; i < count * mult; i++)
-                {
-                    wcd3.TryGetValue(i / mult, out var wr2);
-
-                    if (wr2.Target is Dummy val)
-                    {
-                        //sum5 += val;
-                    }
-                    //else
-                    //{
-                    //    Assert.Fail();
-                    //}
-                }
-            }
-            Assert.AreEqual(sum1, sum5);
-
-            //var sum3 = 0.0;
-            //using (Benchmark.Run("LD", count * mult))
-            //{
-            //    for (int i = 0; i < count * mult; i++)
-            //    {
-            //        lock (d)
-            //        {
-            //            if (d.TryGetValue(i / mult, out var obj))
-            //            {
-            //                sum3 += (int)obj;
-            //            }
-            //            else
-            //            {
-            //                Assert.Fail();
-            //            }
-            //        }
-            //    }
-            //}
-
-            var sum6 = 0.0;
-            using (Benchmark.Run("LWD", count * mult))
-            {
-                for (int i = 0; i < count * mult; i++)
-                {
-                    if (lockedWeakDictionary.TryGetValue(i / mult, out var val))
-                    {
-                        //sum6 += (int)val;
-                    }
-                    else
-                    {
-                        Assert.Fail();
-                    }
-                }
-            }
-
-            //var sum7 = 0.0;
-            //using (Benchmark.Run("ILWD", count * mult))
-            //{
-            //    for (int i = 0; i < count * mult; i++)
-            //    {
-            //        if (indexedLockedWeakDictionary.TryGetValue(i / mult, out var val))
-            //        {
-            //            //sum7 += (int)val.StorageIndex;
-            //        }
-            //        else
-            //        {
-            //            Assert.Fail();
-            //        }
-            //    }
-            //}
 
             Benchmark.Dump();
 

@@ -138,6 +138,7 @@ namespace Spreads.Collections.Generic
         /// <param name="key">Key to look for</param>
         /// <param name="value">Value found, otherwise default(TValue)</param>
         /// <returns>true if the key is present, otherwise false</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool TryGetValue(TKey key, out TValue value)
         {
             Entry[] entries = _entries;
