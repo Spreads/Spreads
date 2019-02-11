@@ -168,6 +168,29 @@ namespace Spreads.Collections.Generic
         }
 
         /// <summary>
+        /// Assumes no concurrent updates are possible.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public bool DangerousTryGetValue(TKey key, out TValue value)
+        {
+            Entry[] entries = _entries;
+
+            for (int i = _buckets[key.GetHashCode() & (_buckets.Length - 1)] - 1;
+                unchecked((uint)i) < (uint)entries.Length;
+                i = entries[i].next)
+            {
+                if (key.Equals(entries[i].key))
+                {
+                    value = entries[i].value;
+                    return true;
+                }
+            }
+
+            value = default;
+            return false;
+        }
+
+        /// <summary>
         /// Removes the entry if present with the specified key.
         /// </summary>
         /// <param name="key">Key to look for</param>

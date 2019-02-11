@@ -121,29 +121,8 @@ namespace Spreads.Core.Tests.Collections.Concurrent
                 //}
                 //Assert.AreEqual(sum1, sum4);
 
-                var sum5 = 0.0;
-                using (Benchmark.Run("WCD H", count * mult))
-                {
-                    // Not so bad, this just needs to save something more in other places
-
-                    for (int i = 0; i < count * mult; i++)
-                    {
-                        if (wcd3.TryGetValue(i / mult, out var wr2))
-                        {
-
-                        }
-                        else
-                        {
-                            Assert.Fail();
-                        }
-                        //if (wr2.Target is Dummy val)
-                        //{
-                        //    //sum5 += val;
-                        //}
-
-
-                    }
-                }
+                //var sum5 = 0.0;
+                WCD_H(count, mult, wcd3);
 
                 // Assert.AreEqual(sum1, sum5);
 
@@ -167,20 +146,7 @@ namespace Spreads.Core.Tests.Collections.Concurrent
                 //}
 
                 var sum6 = 0.0;
-                using (Benchmark.Run("LWD", count * mult))
-                {
-                    for (int i = 0; i < count * mult; i++)
-                    {
-                        if (lockedWeakDictionary.TryGetValue(i / mult, out var val))
-                        {
-                            //sum6 += (int)val;
-                        }
-                        else
-                        {
-                            Assert.Fail();
-                        }
-                    }
-                }
+                LWD(count, mult, lockedWeakDictionary);
 
                 //var sum7 = 0.0;
                 //using (Benchmark.Run("ILWD", count * mult))
@@ -202,6 +168,50 @@ namespace Spreads.Core.Tests.Collections.Concurrent
             Benchmark.Dump();
 
             Console.WriteLine(d.Count);
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining | MethodImplOptions.AggressiveOptimization)]
+        private static void LWD(int count, int mult, LockedWeakDictionary<long> lockedWeakDictionary)
+        {
+            using (Benchmark.Run("LWD", count * mult))
+            {
+                for (int i = 0; i < count * mult; i++)
+                {
+                    if (lockedWeakDictionary.TryGetValue(i / mult, out var val))
+                    {
+                        //sum6 += (int)val;
+                    }
+                    else
+                    {
+                        Assert.Fail();
+                    }
+                }
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining | MethodImplOptions.AggressiveOptimization)]
+        private static void WCD_H(int count, int mult, ConcurrentDictionary<long, GCHandle> wcd3)
+        {
+            using (Benchmark.Run("WCD H", count * mult))
+            {
+                // Not so bad, this just needs to save something more in other places
+
+                for (int i = 0; i < count * mult; i++)
+                {
+                    if (wcd3.TryGetValue(i / mult, out var wr2))
+                    {
+                    }
+                    else
+                    {
+                        Assert.Fail();
+                    }
+
+                    //if (wr2.Target is Dummy val)
+                    //{
+                    //    //sum5 += val;
+                    //}
+                }
+            }
         }
     }
 }
