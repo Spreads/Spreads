@@ -5,6 +5,7 @@ using System.Buffers;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using Spreads.Serialization;
+using Spreads.Threading;
 using static Spreads.Buffers.BuffersThrowHelper;
 
 namespace Spreads.Buffers
