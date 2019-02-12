@@ -49,14 +49,14 @@ namespace Spreads.Core.Tests.Collections.Internal
         public void CouldSerializeVectorStorage()
         {
             var rng = new Random(42);
-            var count = 1_000_000;
+            var count = 100_000;
             var arr = new SmallDecimal[count];
 
-            arr[0] = new SmallDecimal(count * 1.0, 4);
+            arr[0] = new SmallDecimal(1000 * 1.0, 4);
 
             for (int i = 1; i < count; i++)
             {
-                arr[i] = arr[i - 1] + new SmallDecimal((double)arr[i - 1] * (0.02 + rng.NextDouble() * -0.04), 4);
+                arr[i] = arr[i - 1] + new SmallDecimal((double)arr[i - 1] * (0.02 + -0.04 * rng.NextDouble()), 4);
             }
             // arr = Enumerable.Range(0, count).Select(x => new SmallDecimal(1000 + (double)x + (double)Math.Round(0.1 * rng.NextDouble(), 5), precision:3)).ToArray();
 

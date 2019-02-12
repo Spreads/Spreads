@@ -26,10 +26,25 @@ namespace Spreads.Collections
         // immutable & not sorted
         internal Flags _flags;
 
+        // We need 20-32 bytes of fixed memory. Could use PinnedArrayMemory for 32-bytes slices
+        // 
+
         internal AtomicCounter _orderVersion;
         internal int _locker;
         internal long _version;
         internal long _nextVersion;
+
+        internal long Version
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => Volatile.Read(ref _version);
+        }
+
+        internal long NextVersion
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => Volatile.Read(ref _nextVersion);
+        }
 
         #region Synchronization
 
@@ -498,6 +513,9 @@ namespace Spreads.Collections
             return false;
         }
 
+        /// <summary>
+        /// Read synced
+        /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal bool TryGetSeriesValue<TValue>(TKey key, out TValue value)
         {

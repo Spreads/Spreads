@@ -34,7 +34,7 @@ namespace Spreads.DataTypes
     [BinarySerialization(Size)]
     [DebuggerDisplay("{" + nameof(ToString) + "()}")]
     [JsonFormatter(typeof(Formatter))]
-    public readonly struct SmallDecimal : IComparable<SmallDecimal>, IEquatable<SmallDecimal>, IConvertible//, IDelta<SmallDecimal> // TODO IInt64Diffable
+    public readonly struct SmallDecimal : IComparable<SmallDecimal>, IEquatable<SmallDecimal>, IConvertible //, IDelta<SmallDecimal> // TODO IInt64Diffable
     {
         static SmallDecimal()
         {

@@ -198,7 +198,7 @@ namespace Spreads.Core.Tests.Collections.Concurrent
 
                 for (int i = 0; i < count * mult; i++)
                 {
-                    if (wcd3.TryGetValue(i / mult, out var wr2))
+                    if (wcd3.TryGetValue(i / mult, out var wr2) && wr2.Target is Dummy val)
                     {
                     }
                     else

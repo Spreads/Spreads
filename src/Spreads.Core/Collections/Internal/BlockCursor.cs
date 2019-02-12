@@ -99,7 +99,7 @@ namespace Spreads.Collections.Internal
 
         RETRY:
 
-            var version = Volatile.Read(ref _source._version);
+            var version = _source.Version;
             {
                 found = _source.TryFindBlockAt(ref key, direction, out nextBlock, out nextPosition, updateDataBlock: false);
                 if (found)
@@ -113,7 +113,7 @@ namespace Spreads.Collections.Internal
                 }
             }
 
-            if (Volatile.Read(ref _source._nextVersion) != version)
+            if (_source.NextVersion != version)
             {
                 // See Move comments
                 EnsureSourceNotDisposed();
@@ -158,7 +158,7 @@ namespace Spreads.Collections.Internal
             var sw = new SpinWait();
         SYNC:
 
-            var version = Volatile.Read(ref _source._version);
+            var version = _source.Version;
             {
                 // Note: this does not handle MP from uninitialized state (_blockPosition == -1, stride < 0). // This case is rare.
                 // Uninitialized multi-block case goes to rare as well as uninitialized MP
@@ -188,7 +188,7 @@ namespace Spreads.Collections.Internal
                 //}
             }
 
-            if (Volatile.Read(ref _source._nextVersion) != version)
+            if (_source.NextVersion != version)
             {
                 // TODO set different versions on source Dispose and _currentBlock.RowLength  to 0, MoveRare has disposal check at the beginning
                 EnsureSourceNotDisposed();

@@ -198,7 +198,7 @@ namespace Spreads.Buffers
         /// </summary>
         internal void DisposeFinalize()
         {
-            // Do not detach from the pool yet, Dispose(false) may need it for custom finalization implemented by the pool:  _pool = null;
+            // Do not detach from the pool yet, Dispose(false) may need it for custom finalization implemented by the pool: don't set _pool = null;
             GC.SuppressFinalize(this);
             Dispose(false);
         }
@@ -262,7 +262,7 @@ namespace Spreads.Buffers
                 return new MemoryHandle(null, handle: default, this);
             }
 
-            // NOTE: even for the array-based memory the handle is create when array is taken from pool
+            // NOTE: even for the array-based memory the handle is created when array is taken from pool
             // and is stored in MemoryManager until the array is released back to the pool.
             return new MemoryHandle(_pointer == null ? null : Unsafe.Add<T>(_pointer, elementIndex), handle: default, this);
         }

@@ -367,6 +367,10 @@ namespace Spreads.Collections.Internal
         // VS is owned by DataBlockStorage
         ~VectorStorage()
         {
+            //if (Environment.HasShutdownStarted)
+            //{
+            //    return;
+            //}
             Dispose(false);
         }
 

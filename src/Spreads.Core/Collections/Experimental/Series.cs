@@ -7,6 +7,7 @@ using Spreads.Collections.Internal;
 using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
+using System.Threading;
 
 namespace Spreads.Collections.Experimental
 {
@@ -56,7 +57,6 @@ namespace Spreads.Collections.Experimental
             }
             _flags = new Flags((byte)((byte)Mutability.Immutable | (byte)ks));
 
-            
             var keyMemory = ArrayMemory<TKey>.Create(keys, externallyOwned: true);
             var keyVs = VectorStorage.Create(keyMemory, 0, keyMemory.Length, 1);
 
@@ -158,6 +158,7 @@ namespace Spreads.Collections.Experimental
             }
         }
 
+        // TODO internal & remove from interfaces or synced
         public TValue LastValueOrDefault
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -251,35 +252,70 @@ namespace Spreads.Collections.Experimental
                 return false;
             }
 
+            // this method is already read synced
             return TryGetSeriesValue(key, out value);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool TryGetAt(long index, out KeyValuePair<TKey, TValue> kvp)
         {
-            if (TryGetBlockAt(index, out var chunk, out var chunkIndex))
+            bool result;
+            var sw = new SpinWait();
+
+        SYNC:
+            var version = Version;
             {
-                var k = chunk.RowIndex.DangerousGet<TKey>(chunkIndex);
-                var v = chunk.Values.DangerousGet<TValue>(chunkIndex);
-                kvp = new KeyValuePair<TKey, TValue>(k, v);
-                return true;
+                if (TryGetBlockAt(index, out var chunk, out var chunkIndex))
+                {
+                    var k = chunk.RowIndex.DangerousGet<TKey>(chunkIndex);
+                    var v = chunk.Values.DangerousGet<TValue>(chunkIndex);
+                    kvp = new KeyValuePair<TKey, TValue>(k, v);
+                    result = true;
+                }
+                else
+                {
+                    kvp = default;
+                    result = false;
+                }
             }
-            kvp = default;
-            return false;
+            if (NextVersion != version)
+            {
+                sw.SpinOnce();
+                goto SYNC;
+            }
+
+            return result;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool TryFindAt(TKey key, Lookup direction, out KeyValuePair<TKey, TValue> kvp)
         {
-            if (TryFindBlockAt(ref key, direction, out var chunk, out var chunkIndex))
+            bool result;
+            var sw = new SpinWait();
+
+        SYNC:
+            var version = Version;
             {
-                // key is updated if not EQ according to direction
-                var v = chunk.Values._vec.DangerousGetRef<TValue>(chunkIndex);
-                kvp = new KeyValuePair<TKey, TValue>(key, v);
-                return true;
+                if (TryFindBlockAt(ref key, direction, out var chunk, out var chunkIndex))
+                {
+                    // key is updated if not EQ according to direction
+                    var v = chunk.Values._vec.DangerousGetRef<TValue>(chunkIndex);
+                    kvp = new KeyValuePair<TKey, TValue>(key, v);
+                    result = true;
+                }
+                else
+                {
+                    kvp = default;
+                    result = false;
+                }
             }
-            kvp = default;
-            return false;
+            if (NextVersion != version)
+            {
+                sw.SpinOnce();
+                goto SYNC;
+            }
+
+            return result;
         }
     }
 }

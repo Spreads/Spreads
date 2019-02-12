@@ -174,6 +174,11 @@ namespace Spreads
         {
             return ds._impl;
         }
+
+        public void Dispose()
+        {
+            throw new NotImplementedException();
+        }
     }
 
     public readonly struct DataStream<T, TSeries> : IDataStream<T>
@@ -285,6 +290,11 @@ namespace Spreads
         public static implicit operator TSeries(DataStream<T, TSeries> ds)
         {
             return ds._impl;
+        }
+
+        public void Dispose()
+        {
+            throw new NotImplementedException();
         }
     }
 }

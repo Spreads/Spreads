@@ -147,7 +147,7 @@ namespace Spreads
     /// <summary>
     /// Series are navigable ordered data streams of key-value pairs.
     /// </summary>
-    public interface ISeries<TKey, TValue> : IAsyncEnumerable<KeyValuePair<TKey, TValue>>
+    public interface ISeries<TKey, TValue> : IAsyncEnumerable<KeyValuePair<TKey, TValue>>, IDisposable
     {
         /// <summary>
         /// False if the underlying collection could be changed, true if the underlying collection is immutable or is complete
@@ -493,13 +493,15 @@ namespace Spreads
     {
         // NB even if Async methods add some overhead in sync case, it is small due to caching if Task<bool> return values
         // In persistence layer is used to be a PITA to deal with sync methods with async IO
-        [Obsolete] // TODO this should be extension method that knows implementation details.
+        [Obsolete] // TODO make this Nullable and move up to Series.
         long Count { get; }
 
         /// <summary>
         /// Incremented after any change to data, including setting the same value to the same key.
         /// </summary>
-        long Version { get; }
+        long Version { get; } // TODO move up to Series
+
+        // TODO review Should we expose OrderVersion?
 
         [Obsolete]
         bool IsAppendOnly { get; }

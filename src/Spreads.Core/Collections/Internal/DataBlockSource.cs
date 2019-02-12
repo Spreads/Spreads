@@ -12,7 +12,7 @@ using System.Runtime.CompilerServices;
 
 namespace Spreads.Collections.Internal
 {
-    internal class DataBlockSource<TKey> : ISeries<TKey, DataBlock>, IDisposable
+    internal class DataBlockSource<TKey> : IDisposable //  ISeries<TKey, DataBlock>, // TODO review: we do not need ISeries, we expose only needed methods and could inject inner implementation
     {
         /// <summary>
         /// For append-only containers blocks will have the same size. Last block could be only partially filled.
@@ -31,16 +31,16 @@ namespace Spreads.Collections.Internal
         private DataBlock _last;
 
         // This is used from locked context, do not use locked methods
-        internal IMutableSeries<TKey, WeakReference<DataBlock>> _weakSeries;
+        internal IMutableSeries<TKey, DataBlock> _blockSeries;
 
         public DataBlockSource()
         {
-            _weakSeries = new MutableSeries<TKey, WeakReference<DataBlock>>(DataBlock.Create());
+            _blockSeries = new MutableSeries<TKey, DataBlock>(DataBlock.Create());
         }
 
-        internal DataBlockSource(IMutableSeries<TKey, WeakReference<DataBlock>> blockSeries)
+        internal DataBlockSource(IMutableSeries<TKey, DataBlock> blockSeries)
         {
-            _weakSeries = blockSeries;
+            _blockSeries = blockSeries;
         }
 
         public IAsyncEnumerator<KeyValuePair<TKey, DataBlock>> GetAsyncEnumerator()
@@ -55,18 +55,19 @@ namespace Spreads.Collections.Internal
         )]
         public bool AddLast(TKey key, DataBlock value)
         {
-            var wr = new WeakReference<DataBlock>(value);
+            // var wr = new WeakReference<DataBlock>(value);
             DataBlock lastBlock = null;
-            var last = _weakSeries.Last;
+            var last = _blockSeries.Last;
             if (last.IsPresent)
             {
+                lastBlock = last.Present.Value;
                 // Console.WriteLine($"LAST: {last.Present.Key} adding: {key}");
-                if (!last.Present.Value.TryGetTarget(out lastBlock))
-                {
-                    // Console.WriteLine("CANNOT GET LAST");
-                    // TODO cleanup
-                    // Assert that all do not have target
-                }
+                //if (!last.Present.Value.TryGetTarget(out lastBlock))
+                //{
+                //    // Console.WriteLine("CANNOT GET LAST");
+                //    // TODO cleanup
+                //    // Assert that all do not have target
+                //}
             }
             else
             {
@@ -74,7 +75,7 @@ namespace Spreads.Collections.Internal
                 // last = _weakSeries.Last;
             }
 
-            var added = _weakSeries.TryAddLast(key, wr).Result;
+            var added = _blockSeries.TryAddLast(key, value).Result;
             if (!added)
             {
                 // ThrowHelper.ThrowInvalidOperationException("This should always succeed");
@@ -100,10 +101,10 @@ namespace Spreads.Collections.Internal
             throw new NotImplementedException();
         }
 
-        IEnumerator IEnumerable.GetEnumerator()
-        {
-            return GetEnumerator();
-        }
+        //IEnumerator IEnumerable.GetEnumerator()
+        //{
+        //    return GetEnumerator();
+        //}
 
         public bool IsCompleted => throw new NotImplementedException();
 
@@ -125,10 +126,10 @@ namespace Spreads.Collections.Internal
         {
             get
             {
-                var wOpt = _weakSeries.First;
-                if (wOpt.IsPresent && wOpt.Present.Value.TryGetTarget(out var block))
+                var wOpt = _blockSeries.First;
+                if (wOpt.IsPresent) // && wOpt.Present.Value.TryGetTarget(out var block))
                 {
-                    return Opt.Present(new KeyValuePair<TKey, DataBlock>(wOpt.Present.Key, block));
+                    return Opt.Present(wOpt.Present); //new KeyValuePair<TKey, DataBlock>(wOpt.Present.Key, block));
                 }
                 return Opt<KeyValuePair<TKey, DataBlock>>.Missing;
             }
@@ -144,13 +145,13 @@ namespace Spreads.Collections.Internal
                     return _last;
                 }
 
-                var wOpt = _weakSeries.LastValueOrDefault;
-                if (wOpt.TryGetTarget(out var block))
-                {
-                    _last = block;
-                    return block;
-                }
-                return default;
+                var wOpt = _blockSeries.LastValueOrDefault;
+                //if (wOpt.TryGetTarget(out var block))
+                //{
+                //    _last = block;
+                //    return block;
+                //}
+                return wOpt;
             }
         }
 
@@ -159,12 +160,12 @@ namespace Spreads.Collections.Internal
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
-                var wOpt = _weakSeries.Last;
-                if (wOpt.IsPresent && wOpt.Present.Value.TryGetTarget(out var block))
+                var wOpt = _blockSeries.Last;
+                if (wOpt.IsPresent) // && wOpt.Present.Value.TryGetTarget(out var block))
                 {
                     // TODO use _last
-                    Debug.Assert(_last == null || block == _last);
-                    return new Opt<KeyValuePair<TKey, DataBlock>>(new KeyValuePair<TKey, DataBlock>(wOpt.Present.Key, block));
+                    // Debug.Assert(_last == null || block == _last);
+                    return new Opt<KeyValuePair<TKey, DataBlock>>(wOpt.Present); // new KeyValuePair<TKey, DataBlock>(wOpt.Present.Key, block));
                 }
                 return Opt<KeyValuePair<TKey, DataBlock>>.Missing;
             }
@@ -185,9 +186,9 @@ namespace Spreads.Collections.Internal
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool TryFindAt(TKey key, Lookup direction, out KeyValuePair<TKey, DataBlock> kvp)
         {
-            if (_weakSeries.TryFindAt(key, direction, out var kvpBlock) && kvpBlock.Value.TryGetTarget(out var block))
+            if (_blockSeries.TryFindAt(key, direction, out var kvpBlock)) // && kvpBlock.Value.TryGetTarget(out var block))
             {
-                kvp = new KeyValuePair<TKey, DataBlock>(kvpBlock.Key, block);
+                kvp = kvpBlock; // new KeyValuePair<TKey, DataBlock>(kvpBlock.Key, block);
                 return true;
             }
             // TODO handle weak reference collected case
@@ -195,23 +196,19 @@ namespace Spreads.Collections.Internal
             return false;
         }
 
-        public IEnumerable<TKey> Keys => _weakSeries.Keys;
+        public IEnumerable<TKey> Keys => _blockSeries.Keys;
 
-        public IEnumerable<DataBlock> Values => _weakSeries.Values.Select(x => x.TryGetTarget(out var tgt) ? tgt : null);
+        public IEnumerable<DataBlock> Values => _blockSeries.Values; //.Select(x => x.TryGetTarget(out var tgt) ? tgt : null);
 
-        public void Dispose()
+        public virtual void Dispose()
         {
-            foreach (var weakSeriesValue in _weakSeries.Values)
+            foreach (var block in _blockSeries.Values)
             {
-                if (weakSeriesValue.TryGetTarget(out var block))
-                {
-                    weakSeriesValue.SetTarget(null);
-                    block.Dispose();
-                }
+                block.Dispose();
             }
 
             _root = null;
-            // _weakSeries.Dispose();
+            _blockSeries.Dispose();
         }
     }
 }

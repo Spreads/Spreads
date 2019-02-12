@@ -961,5 +961,13 @@ namespace Spreads
         {
             return _cursor.AsyncCompleter?.Subscribe(subscriber);
         }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Dispose()
+        {
+            // TODO review if we must check cursor state before that or all cursors
+            // could be disposed from any state withour exception
+            _cursor.Dispose();
+        }
     }
 }
