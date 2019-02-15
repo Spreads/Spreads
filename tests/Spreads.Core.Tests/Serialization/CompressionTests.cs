@@ -8,6 +8,7 @@ using Spreads.Serialization;
 using Spreads.Utils;
 using System;
 using System.Runtime.InteropServices;
+using Spreads.Threading;
 
 namespace Spreads.Core.Tests.Serialization
 {

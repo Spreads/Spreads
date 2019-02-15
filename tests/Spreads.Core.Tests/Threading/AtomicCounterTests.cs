@@ -2,18 +2,18 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-using NUnit.Framework;
-using Spreads.Buffers;
-using Spreads.Utils;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
+using NUnit.Framework;
+using Spreads.Buffers;
 using Spreads.Threading;
+using Spreads.Utils;
 
 // ReSharper disable ReturnValueOfPureMethodIsNotUsed
 
-namespace Spreads.Core.Tests.Buffers
+namespace Spreads.Core.Tests.Threading
 {
     [TestFixture]
     public class AtomicCounterTests

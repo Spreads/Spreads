@@ -2,13 +2,15 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+using NUnit.Framework;
+using Spreads.Threading;
+using Spreads.Utils;
 using System;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading;
-using NUnit.Framework;
-using Spreads.Utils;
 
-namespace Spreads.Core.Tests.Utils
+namespace Spreads.Core.Tests.Threading
 {
     [TestFixture]
     public class TimeServiceTests
@@ -18,7 +20,7 @@ namespace Spreads.Core.Tests.Utils
         public void TimeServiceProducesUniqueValues()
         {
             var ptr = Marshal.AllocHGlobal(8);
-            var ts = new TimeService(ptr, 10);
+            var ts = new TimeService(ptr, 1);
 
             var previous = ts.CurrentTime;
             for (int i = 0; i < 1_00_000_000; i++)
@@ -32,7 +34,7 @@ namespace Spreads.Core.Tests.Utils
                 var delta = current.Nanos - previous.Nanos;
                 if (delta > 1)
                 {
-                    Console.WriteLine($"{current.Nanos} - {delta}");
+                    Console.WriteLine($"{current.Nanos} - {delta.ToString("N")}");
                 }
 
                 if (i % 50_000_000 == 0)
@@ -43,6 +45,54 @@ namespace Spreads.Core.Tests.Utils
             }
         }
 
+        [Test]
+        [Explicit("long running")]
+        public void TimeServiceProducesUniqueValuesWithSpinner()
+        {
+            var ptr = Marshal.AllocHGlobal(8);
+            var ts = new TimeService(ptr, 1);
+            var cts = new CancellationTokenSource();
+            ts.StartSpinUpdate(cts.Token, ThreadPriority.Lowest, spinCount: 150);
+            Thread.Sleep(100);
+            var previous = ts.CurrentTime;
+            var count = 100_000_000;
+            var deltas = new int[count];
+
+            for (int i = 0; i < count; i++)
+            {
+                var current = ts.CurrentTime;
+                if (current <= previous)
+                {
+                    Assert.Fail();
+                }
+
+                var delta = current.Nanos - previous.Nanos;
+                if (delta < int.MaxValue)
+                {
+                    deltas[i] = (int)delta;
+                }
+                //if (delta > 1)
+                //{
+                //    Console.WriteLine($"{current.Nanos} - {delta.ToString("N")}");
+                //}
+
+                //if (i % 50_000_000 == 0)
+                //{
+                //    ts.UpdateTime();
+                //}
+                previous = current;
+            }
+            cts.Cancel();
+
+            var nonOnes = deltas.Where(d => d > 1).ToArray();
+            Array.Sort(nonOnes);
+
+            Console.WriteLine("Average delta: " + nonOnes.Average());
+            Console.WriteLine("Median delta: " + nonOnes[nonOnes.Length / 2]);
+            Console.WriteLine($"NonOne count: {nonOnes.Length} {Math.Round(nonOnes.Length * 100.0 / count, 2)}%");
+
+            Console.WriteLine("FINISHED");
+        }
 
         [Test]
         [Explicit("long running")]
@@ -58,7 +108,6 @@ namespace Spreads.Core.Tests.Utils
                     var current = TimeService.Default.CurrentTime;
                 }
             }
-            
         }
 
         [Test]
@@ -77,10 +126,7 @@ namespace Spreads.Core.Tests.Utils
                     TimeService.Default.UpdateTime();
                 }
             }
-
         }
-
-
 
         [Test]
         [Explicit("long running")]
@@ -91,12 +137,8 @@ namespace Spreads.Core.Tests.Utils
             var _cts = new CancellationTokenSource();
             ts.StartSpinUpdate(_cts.Token);
             Thread.Sleep(1000);
-            
-
 
             const int count = 100_000_000;
-
-
 
             Action act = () =>
             {
@@ -128,8 +170,6 @@ namespace Spreads.Core.Tests.Utils
             t4.Join();
 
             _cts.Cancel();
-
         }
-
     }
 }

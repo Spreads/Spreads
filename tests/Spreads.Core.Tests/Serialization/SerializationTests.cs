@@ -13,6 +13,7 @@ using System;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
+using Spreads.Threading;
 using SerializationFormat = Spreads.Serialization.SerializationFormat;
 
 namespace Spreads.Core.Tests.Serialization
