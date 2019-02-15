@@ -4,14 +4,9 @@
 
 using NUnit.Framework;
 using Spreads.Threading;
-using Spreads.Utils;
 using System;
 using System.Diagnostics;
-using System.Linq;
-using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
 using System.Threading;
-using System.Threading.Tasks;
 
 namespace Spreads.Core.Tests.Threading
 {
@@ -21,31 +16,32 @@ namespace Spreads.Core.Tests.Threading
         [Test]
         public unsafe void CouldSendReceive()
         {
-            var connection0 = new LocalMulticast<long>(51311);
-            var connection1 = new LocalMulticast<long>(51311);
-            var connection2 = new LocalMulticast<long>(51311);
-            var connection3 = new LocalMulticast<long>(51311);
+            var connection0 = new LocalMulticast<long>(51311, x => Console.WriteLine("0: " + x), "0");
+            var connection1 = new LocalMulticast<long>(51311, x => Console.WriteLine("1: " + x), "1");
+            var connection2 = new LocalMulticast<long>(51311, x => Console.WriteLine("2: " + x), "2");
+            var connection3 = new LocalMulticast<long>(51311, x => Console.WriteLine("3: " + x), "3");
 
             connection0.StartReceive();
+            Thread.Sleep(100);
             connection1.StartReceive();
+            Thread.Sleep(100);
             connection2.StartReceive();
+            Thread.Sleep(100);
             connection3.StartReceive();
 
             Thread.Sleep(100);
 
-            var buffer = new byte[] {1, 2, 3};
+            connection0.Send(1);
+            Thread.Sleep(100);
+            connection0.Send(2);
+            Thread.Sleep(100);
+            connection0.Send(3);
+            Thread.Sleep(100);
+            connection0.Send(4);
 
-            connection0.Send(0);
-            Thread.Sleep(100);
-            connection1.Send(1);
-            Thread.Sleep(100);
-            connection2.Send(2);
-            Thread.Sleep(100);
-            connection3.Send(3);
+            Thread.Sleep(1000);
 
-            Thread.Sleep(100);
-
-            connection0.Dispose();
+            // connection0.Dispose();
         }
 
         [Test, Explicit("long running")]
@@ -66,7 +62,6 @@ namespace Spreads.Core.Tests.Threading
             subscriberThread.Start();
             publisherThread.Start();
 
-
             Thread.Sleep(100000);
             //Console.WriteLine("Press any key to stop...");
             //Console.Read();
@@ -78,7 +73,6 @@ namespace Spreads.Core.Tests.Threading
             rateReporterThread.Join();
         }
 
-        private static readonly int MessageLength = 1;
 
         private static volatile bool running = true;
 
@@ -97,8 +91,11 @@ namespace Spreads.Core.Tests.Threading
 
             public void Run()
             {
-                var lastReceivedTotalBytes = Subscriber.TotalBytes();
-                var lastSentTotalBytes = Publisher.TotalBytes();
+                var lastReceivedSub = Subscriber.Connection.ReceiveCounter;
+                var lastReceivedPub = Publisher.Connection.ReceiveCounter;
+
+                var lastSentSub = Subscriber.Connection.SendCounter;
+                var lastSentPub = Publisher.Connection.SendCounter;
 
                 while (running)
                 {
@@ -106,39 +103,45 @@ namespace Spreads.Core.Tests.Threading
 
                     var duration = _stopwatch.ElapsedMilliseconds;
 
-                    var newSentTotalBytes = Publisher.TotalBytes();
-                    var bytesSent = newSentTotalBytes - lastSentTotalBytes;
+                    var newTotalReceivedSub = Subscriber.Connection.ReceiveCounter;
+                    var receivedSub = newTotalReceivedSub - lastReceivedSub;
 
-                    var newTotalReceivedBytes = Subscriber.TotalBytes();
-                    var bytesReceived = newTotalReceivedBytes - lastReceivedTotalBytes;
+                    var newTotalReceivedPub = Publisher.Connection.ReceiveCounter;
+                    var receivedPub = newTotalReceivedPub - lastReceivedPub;
+
+                    var newSentSub = Subscriber.Connection.SendCounter;
+                    var sentSub = newSentSub - lastSentSub;
+
+                    var newSentPub = Publisher.Connection.SendCounter;
+                    var sentPub = newSentPub - lastSentPub;
+
+                    var cumLoss = -1.0 + ((double) lastSentSub + lastSentPub) /
+                                  (0.5 * (newTotalReceivedSub + newTotalReceivedPub));
 
                     Console.WriteLine(
-                        $"Duration {duration:N0}ms | {bytesReceived / MessageLength:N0} in msgs | {bytesReceived:N0} in bytes | {bytesSent / MessageLength:N0} out msg | {bytesSent:N0} out bytes | {(bytesSent - bytesReceived) / MessageLength} lost, GC0 {GC.CollectionCount(0)}, GC1 {GC.CollectionCount(1)}, GC2 {GC.CollectionCount(2)}");
+                        $"[{duration:N0}ms] | {receivedSub:N0} IN SUB | {receivedPub:N0} IN PUB | {sentSub:N0} OUT SUB | {sentPub:N0} OUT PUB | {Math.Round(100.0 * cumLoss, 2)}% -CL | {sentPub + sentSub - receivedSub} -SUB | {sentPub + sentSub - receivedPub} -PUB | GC0 {GC.CollectionCount(0)}, GC1 {GC.CollectionCount(1)}, GC2 {GC.CollectionCount(2)}");
 
                     _stopwatch.Restart();
-                    lastReceivedTotalBytes = newTotalReceivedBytes;
-                    lastSentTotalBytes = newSentTotalBytes;
+                    lastReceivedSub = newTotalReceivedSub;
+                    lastReceivedPub = newTotalReceivedPub;
+                    lastSentSub = newSentSub;
+                    lastSentPub = newSentPub;
                 }
             }
         }
 
         public sealed class Publisher
         {
-            public readonly LocalMulticast<long> Connection;
+            public readonly LocalMulticast<byte> Connection;
 
             public Publisher()
             {
-                Connection = new LocalMulticast<long>(51311);
-            }
-
-            public long TotalBytes()
-            {
-                return Connection.SendCounter * MessageLength;
+                Connection = new LocalMulticast<byte>(51311, name: "PUB");
             }
 
             public void Run()
             {
-                var buffer = new byte[MessageLength];
+                // Connection.StartReceive();
                 while (running)
                 {
                     Connection.Send(42);
@@ -148,23 +151,20 @@ namespace Spreads.Core.Tests.Threading
 
         public class Subscriber
         {
-            public readonly LocalMulticast<long> Connection;
-
-            private long _totalBytes;
+            public readonly LocalMulticast<byte> Connection;
 
             public Subscriber()
             {
-                Connection = new LocalMulticast<long>(51311);
-            }
-
-            public long TotalBytes()
-            {
-                return Connection.ReceiveCounter * MessageLength;
+                Connection = new LocalMulticast<byte>(51311, name: "SUB");
             }
 
             public void Run()
             {
-                Connection.StartReceive();
+                // Connection.StartReceive();
+                while (running)
+                {
+                    Connection.Send(43);
+                }
             }
         }
     }

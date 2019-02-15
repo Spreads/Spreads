@@ -9,6 +9,8 @@
     <DockerComposeProjectPath>..\..\docker-compose.dcproj</DockerComposeProjectPath>
     <LangVersion>7.2</LangVersion>
     <Prefer32Bit>false</Prefer32Bit>
+    <ServerGarbageCollection>false</ServerGarbageCollection>
+    <ConcurrentGarbageCollection>true</ConcurrentGarbageCollection>
   </PropertyGroup>
 
   <PropertyGroup>

@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using Spreads.Core.Tests;
 using Spreads.Core.Tests.Collections;
 using Spreads.Core.Tests.Collections.Internal;
+using Spreads.Core.Tests.Threading;
 
 namespace Spreads.Core.Run
 {
@@ -29,14 +30,17 @@ namespace Spreads.Core.Run
     {
         private static async Task Main(string[] args)
         {
+            Trace.Listeners.Clear();
             Trace.Listeners.Add(new ConsoleListener());
 
             Settings.DoAdditionalCorrectnessChecks = false;
-
+            // Process.GetCurrentProcess().ProcessorAffinity = (IntPtr) 0b_0011_0000;
             // EquiJoinBench();
 
-            var test = new SeriesAppendTests();
-            test.CouldAppendSeriesBench();
+            Settings.SharedSpinLockNotificationPort = 53412;
+
+            var test = new SharedSpinLockTests();
+            test.ContentedBench();
 
             //Console.WriteLine("Finished, press enter to exit...");
             //Console.ReadLine();

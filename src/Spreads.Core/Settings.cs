@@ -224,5 +224,7 @@ namespace Spreads
         /// and is expected to be significantly faster. No reason to set it to false.
         /// </summary>
         internal const bool UseInterpolatedSearchForKnownTypes = true;
+
+        public static int SharedSpinLockNotificationPort = 0;
     }
 }
