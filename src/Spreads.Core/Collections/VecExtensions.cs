@@ -154,8 +154,7 @@ namespace Spreads.Collections
         /// Performs standard binary search and returns index of the value or its negative binary complement.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int BinarySearch<T, TVector>(this TVector vec, T value, KeyComparer<T> comparer = default)
-            where TVector : IVector<T>
+        public static int BinarySearch<T>(this ArrayVector<T> vec, T value, KeyComparer<T> comparer = default)
         {
             return VectorSearch.BinarySearch(ref vec, 0, vec.Length, value, comparer);
         }
@@ -164,22 +163,20 @@ namespace Spreads.Collections
         /// Performs standard binary search and returns index of the value or its negative binary complement.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int BinarySearch<T, TVector>(this TVector vec, int start, int length, T value, KeyComparer<T> comparer = default)
-            where TVector : IVector<T>
+        public static int BinarySearch<T>(this ArrayVector<T> vec, int start, int length, T value, KeyComparer<T> comparer = default)
         {
-            BoundCheck<T, TVector>(vec, start, length);
+            BoundCheck<T, ArrayVector<T>>(vec, start, length);
 #pragma warning disable 618
             return DangerousBinarySearch(vec, start, length, value, comparer);
 #pragma warning restore 618
         }
 
         /// <summary>
-        /// <see cref="BinarySearch{T,TVector}(TVector,int,int,T,KeyComparer{T})"/> without bound checks.
+        /// <see cref="BinarySearch{T}(ArrayVector{T} ,int,int,T,KeyComparer{T})"/> without bound checks.
         /// </summary>
         [Obsolete("Dangerous, justify usage in mute warning comment")]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int DangerousBinarySearch<T, TVector>(this TVector vec, int start, int length, T value, KeyComparer<T> comparer = default)
-            where TVector : IVector<T>
+        public static int DangerousBinarySearch<T>(this ArrayVector<T> vec, int start, int length, T value, KeyComparer<T> comparer = default)
         {
             // not needed
             //if (length == 0)
@@ -275,8 +272,7 @@ namespace Spreads.Collections
         /// Find value using binary search according to the lookup direction.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int BinaryLookup<T, TVector>(this TVector vec, ref T value, Lookup lookup, KeyComparer<T> comparer = default)
-            where TVector : IVector<T>
+        public static int BinaryLookup<T>(this ArrayVector<T> vec, ref T value, Lookup lookup, KeyComparer<T> comparer = default)
         {
             return VectorSearch.BinaryLookup(ref vec, 0, vec.Length, ref value, lookup, comparer);
         }
@@ -285,20 +281,18 @@ namespace Spreads.Collections
         /// Find value using binary search according to the lookup direction.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int BinaryLookup<T, TVector>(this TVector vec, int start, int length, ref T value, Lookup lookup, KeyComparer<T> comparer = default)
-            where TVector : IVector<T>
+        public static int BinaryLookup<T>(this ArrayVector<T> vec, int start, int length, ref T value, Lookup lookup, KeyComparer<T> comparer = default)
         {
-            BoundCheck<T, TVector>(vec, start, length);
+            BoundCheck<T, ArrayVector<T>>(vec, start, length);
             return VectorSearch.BinaryLookup(ref vec, start, length, ref value, lookup, comparer);
         }
 
         /// <summary>
-        /// <see cref="BinaryLookup{T,TVector}(TVector,int,int,ref T,Lookup,KeyComparer{T})"/> without bound checks.
+        /// <see cref="BinaryLookup{T}(ArrayVector{T} ,int,int,ref T,Lookup,KeyComparer{T})"/> without bound checks.
         /// </summary>
         [Obsolete("Dangerous, justify usage in mute warning comment")]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int DangerousBinaryLookup<T, TVector>(this TVector vec, int start, int length, ref T value, Lookup lookup, KeyComparer<T> comparer = default)
-            where TVector : IVector<T>
+        public static int DangerousBinaryLookup<T>(this ArrayVector<T> vec, int start, int length, ref T value, Lookup lookup, KeyComparer<T> comparer = default)
         {
             // not needed
             //if (length == 0)
@@ -393,8 +387,7 @@ namespace Spreads.Collections
         /// Performs interpolation search and returns index of the value or its negative binary complement.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int InterpolationSearch<T, TVector>(this TVector vec, T value, KeyComparer<T> comparer = default)
-            where TVector : IVector<T>
+        public static int InterpolationSearch<T>(this ArrayVector<T> vec, T value, KeyComparer<T> comparer = default)
         {
             return VectorSearch.InterpolationSearch(ref vec, 0, vec.Length, value, comparer);
         }
@@ -403,20 +396,18 @@ namespace Spreads.Collections
         /// Performs interpolation search and returns index of the value or its negative binary complement.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int InterpolationSearch<T, TVector>(this TVector vec, int start, int length, T value, KeyComparer<T> comparer = default)
-            where TVector : IVector<T>
+        public static int InterpolationSearch<T>(this ArrayVector<T> vec, int start, int length, T value, KeyComparer<T> comparer = default)
         {
-            BoundCheck<T, TVector>(vec, start, length);
+            BoundCheck<T, ArrayVector<T>>(vec, start, length);
             return VectorSearch.InterpolationSearch(ref vec, start, length, value, comparer);
         }
 
         /// <summary>
-        /// <see cref="InterpolationSearch{T,TVector}(TVector,int,int,T,KeyComparer{T})"/> without bound checks.
+        /// <see cref="InterpolationSearch{T}(ArrayVector{T} ,int,int,T,KeyComparer{T})"/> without bound checks.
         /// </summary>
         [Obsolete("Dangerous, justify usage in mute warning comment")]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int DangerousInterpolationSearch<T, TVector>(this TVector vec, int start, int length, T value, Lookup lookup, KeyComparer<T> comparer = default)
-            where TVector : IVector<T>
+        public static int DangerousInterpolationSearch<T>(this ArrayVector<T> vec, int start, int length, T value, Lookup lookup, KeyComparer<T> comparer = default)
         {
             return VectorSearch.InterpolationSearch(ref vec, start, length, value, comparer);
         }
@@ -503,8 +494,7 @@ namespace Spreads.Collections
         /// Find value using interpolation search according to the lookup direction.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int InterpolationLookup<T, TVector>(this TVector vec, ref T value, Lookup lookup, KeyComparer<T> comparer = default)
-            where TVector : IVector<T>
+        public static int InterpolationLookup<T>(this ArrayVector<T> vec, ref T value, Lookup lookup, KeyComparer<T> comparer = default)
         {
             return VectorSearch.InterpolationLookup(ref vec, 0, vec.Length, ref value, lookup, comparer);
         }
@@ -513,20 +503,18 @@ namespace Spreads.Collections
         /// Find value using interpolation search according to the lookup direction.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int InterpolationLookup<T, TVector>(this TVector vec, int start, int length, ref T value, Lookup lookup, KeyComparer<T> comparer = default)
-            where TVector : IVector<T>
+        public static int InterpolationLookup<T>(this ArrayVector<T> vec, int start, int length, ref T value, Lookup lookup, KeyComparer<T> comparer = default)
         {
-            BoundCheck<T, TVector>(vec, start, length);
+            BoundCheck<T, ArrayVector<T>>(vec, start, length);
             return VectorSearch.InterpolationLookup(ref vec, start, length, ref value, lookup, comparer);
         }
 
         /// <summary>
-        /// <see cref="InterpolationLookup{T,TVector}(TVector,int,int,ref T,Lookup,KeyComparer{T})"/> without bound checks.
+        /// <see cref="InterpolationLookup{T}(ArrayVector{T},int,int,ref T,Lookup,KeyComparer{T})"/> without bound checks.
         /// </summary>
         [Obsolete("Dangerous, justify usage in mute warning comment")]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int DangerousInterpolationLookup<T, TVector>(this TVector vec, int start, int length, ref T value, Lookup lookup, KeyComparer<T> comparer = default)
-            where TVector : IVector<T>
+        public static int DangerousInterpolationLookup<T>(this ArrayVector<T> vec, int start, int length, ref T value, Lookup lookup, KeyComparer<T> comparer = default)
         {
             return VectorSearch.InterpolationLookup(ref vec, start, length, ref value, lookup, comparer);
         }
