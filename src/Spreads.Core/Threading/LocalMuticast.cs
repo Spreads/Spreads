@@ -76,7 +76,7 @@ namespace Spreads.Threading
             // synchronously communicate with a remote host.
             // If you do call Connect, any datagrams that arrive from
             // an address other than the specified default will be discarded.
-            _socket.Connect(_inEndPoint);
+            // _socket.Connect(_mcEndPoint);
 
             _socket.SetSocketOption(SocketOptionLevel.IP,
                 SocketOptionName.MulticastLoopback,
@@ -168,6 +168,7 @@ namespace Spreads.Threading
             switch (e.LastOperation)
             {
                 case SocketAsyncOperation.Receive:
+                case SocketAsyncOperation.ReceiveFrom:
                     ProcessReceive(e);
                     break;
 
@@ -200,6 +201,8 @@ namespace Spreads.Threading
             var buffer = new byte[_bufferLength];
             args.Completed += IO_Completed;
             args.SetBuffer(buffer, 0, _bufferLength);
+            // args.RemoteEndPoint = _mcEndPoint;
+            
             return args;
         }
 

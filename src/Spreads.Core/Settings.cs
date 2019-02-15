@@ -1,4 +1,5 @@
-﻿using Spreads.Serialization;
+﻿using System;
+using Spreads.Serialization;
 using Spreads.Utils;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
@@ -226,5 +227,8 @@ namespace Spreads
         internal const bool UseInterpolatedSearchForKnownTypes = true;
 
         public static int SharedSpinLockNotificationPort = 0;
+
+        internal static Action ZeroValueNotificationCallback = null;
+
     }
 }

@@ -5,6 +5,7 @@ using Spreads.Core.Tests.Serialization;
 using Spreads.Utils;
 using System;
 using System.Diagnostics;
+using System.Threading;
 using System.Threading.Tasks;
 using Spreads.Core.Tests;
 using Spreads.Core.Tests.Collections;
@@ -36,11 +37,11 @@ namespace Spreads.Core.Run
             Settings.DoAdditionalCorrectnessChecks = false;
             // Process.GetCurrentProcess().ProcessorAffinity = (IntPtr) 0b_0011_0000;
             // EquiJoinBench();
-
+            ExecutionContext.SuppressFlow();
             Settings.SharedSpinLockNotificationPort = 53412;
 
-            var test = new SharedSpinLockTests();
-            test.ContentedBench();
+            var test = new LocalMulticastTests();
+            test.CouldSendReceiveBench();
 
             //Console.WriteLine("Finished, press enter to exit...");
             //Console.ReadLine();

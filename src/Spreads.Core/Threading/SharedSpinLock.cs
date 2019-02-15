@@ -222,9 +222,16 @@ namespace Spreads.Threading
             ?
             new LocalMulticast<long>(Settings.SharedSpinLockNotificationPort, (wpid) =>
             {
-                // Console.WriteLine($"Received nitification for {wpid}");
-                var sem = GetSemaphore(wpid);
-                sem.Release();
+                if (wpid == 0)
+                {
+                    Settings.ZeroValueNotificationCallback?.Invoke();
+                }
+                else
+                {
+                    // Console.WriteLine($"Received notification for {wpid}");
+                    var sem = GetSemaphore(wpid);
+                    sem.Release();
+                }
             })
             : null;
 
@@ -253,7 +260,7 @@ namespace Spreads.Threading
             // effectively we assume Pid is always smaller that 2 ^ 24
             // TODO review: could use InstanceId high bits instead, but we could find Pid by instance id and instance id is mor important in general
             Debug.Assert((wpid & ThreadIdTagMask) == 0);
-            return (((long) Thread.CurrentThread.ManagedThreadId & 127) << 56) | (~ThreadIdTagMask & wpid);
+            return (((long)Thread.CurrentThread.ManagedThreadId & 127) << 56) | (~ThreadIdTagMask & wpid);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -481,7 +488,7 @@ namespace Spreads.Threading
             while (true)
             {
                 sw.SpinOnce();
-                
+
                 long existing;
                 // if (0 == (existing = *(long*)(Pointer))) // TTAS doesn't help here either
                 {
@@ -586,7 +593,7 @@ namespace Spreads.Threading
                 {
                     if (_multicast != null)
                     {
-                        sem = sem ?? GetSemaphore((Wpid) Math.Abs(existing));
+                        sem = sem ?? GetSemaphore((Wpid)Math.Abs(existing));
                         if (backOffStarted == default)
                         {
                             backOffStarted = DateTime.Now;
