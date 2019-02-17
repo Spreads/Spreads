@@ -2,7 +2,6 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-using Spreads.Buffers;
 using Spreads.Serialization;
 using System;
 using System.Diagnostics;
@@ -10,14 +9,14 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
 
+// ReSharper disable PrivateFieldCanBeConvertedToLocalVariable
+
 namespace Spreads.DataTypes
 {
-
-    // TODO Equality is not implemented for len > 16
-
     // See https://codeblog.jonskeet.uk/2011/04/05/of-memory-and-strings/
     // why this has a lot of sense in some cases: on x64 a string takes 26 + length * 2,
     // so we always win for small strings even with padding.
+    // For Ascii UTF8 takes 2x less than C# string so we win here as well.
 
     /// <summary>
     /// A struct to store up to 16 UTF8 chars.
@@ -42,9 +41,10 @@ namespace Spreads.DataTypes
                 ThrowArgumentOutOfRangeException(nameof(symbol));
             }
             fixed (char* charPtr = symbol)
-            fixed (byte* ptr = Bytes)
             {
-                Encoding.UTF8.GetBytes(charPtr, symbol.Length, ptr, Size);
+                var ptr = (byte*)Unsafe.AsPointer(ref this);
+                Unsafe.InitBlockUnaligned(ptr, 0, Size);
+                Encoding.UTF8.GetBytes(charPtr, symbol.Length, ptr, byteCount);
             }
         }
 
@@ -52,16 +52,23 @@ namespace Spreads.DataTypes
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool Equals(Symbol other)
         {
-            var ptr = Unsafe.AsPointer(ref this);
-            return *(long*)(ptr) == *(long*)(other.Bytes) && *(long*)((byte*)ptr + 8) == *(long*)(other.Bytes + 8);
+            var ptr = (byte*)Unsafe.AsPointer(ref this);
+            var ptrOther = (byte*)Unsafe.AsPointer(ref other);
+            for (int i = 0; i < Size; i += 8)
+            {
+                if (*(long*)(ptr + i) != *(long*)(ptrOther + i))
+                {
+                    return false;
+                }
+            }
+
+            return true;
         }
 
         /// <inheritdoc />
         public override string ToString()
         {
-            var buffer = BufferPool.StaticBuffer.Memory;
             var len = 0;
-            var span = buffer.Span;
             var ptr = (byte*)Unsafe.AsPointer(ref this);
             for (int i = 0; i < Size; i++)
             {
@@ -70,28 +77,17 @@ namespace Spreads.DataTypes
                 {
                     break;
                 }
-                span[i] = b;
                 len = i + 1;
             }
 
-            // TODO use CoreFxLab new encoding features
-            if (MemoryMarshal.TryGetArray((ReadOnlyMemory<byte>)buffer, out var segment))
-            {
-                // ReSharper disable once AssignNullToNotNullAttribute
-                return Encoding.UTF8.GetString(segment.Array, segment.Offset, len);
-            }
-            else
-            {
-                ThrowApplicationException();
-                return String.Empty;
-            }
+            return Encoding.UTF8.GetString(ptr, len);
         }
 
         /// <inheritdoc />
         public override bool Equals(object obj)
         {
-            if (ReferenceEquals(null, obj)) return false;
-            return obj is Symbol && Equals((Symbol)obj);
+            if (obj is null) return false;
+            return obj is Symbol sym && Equals(sym);
         }
 
         /// <inheritdoc />
@@ -133,12 +129,6 @@ namespace Spreads.DataTypes
         {
             throw new ArgumentOutOfRangeException(argumentName, "Symbol length is too large");
         }
-
-        [MethodImpl(MethodImplOptions.NoInlining)]
-        private void ThrowApplicationException()
-        {
-            throw new ApplicationException();
-        }
     }
 
     /// <summary>
@@ -163,9 +153,10 @@ namespace Spreads.DataTypes
                 ThrowArgumentOutOfRangeException(nameof(symbol));
             }
             fixed (char* charPtr = symbol)
-            fixed (byte* ptr = Bytes)
             {
-                Encoding.UTF8.GetBytes(charPtr, symbol.Length, ptr, Size);
+                var ptr = (byte*)Unsafe.AsPointer(ref this);
+                Unsafe.InitBlockUnaligned(ptr, 0, Size);
+                Encoding.UTF8.GetBytes(charPtr, symbol.Length, ptr, byteCount);
             }
         }
 
@@ -173,17 +164,23 @@ namespace Spreads.DataTypes
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool Equals(Symbol32 other)
         {
-            throw new NotImplementedException();
-            var ptr = Unsafe.AsPointer(ref this);
-            return *(long*)(ptr) == *(long*)(other.Bytes) && *(long*)((byte*)ptr + 8) == *(long*)(other.Bytes + 8);
+            var ptr = (byte*)Unsafe.AsPointer(ref this);
+            var ptrOther = (byte*)Unsafe.AsPointer(ref other);
+            for (int i = 0; i < Size; i += 8)
+            {
+                if (*(long*)(ptr + i) != *(long*)(ptrOther + i))
+                {
+                    return false;
+                }
+            }
+
+            return true;
         }
 
         /// <inheritdoc />
         public override string ToString()
         {
-            var buffer = BufferPool.StaticBuffer.Memory;
             var len = 0;
-            var span = buffer.Span;
             var ptr = (byte*)Unsafe.AsPointer(ref this);
             for (int i = 0; i < Size; i++)
             {
@@ -192,28 +189,17 @@ namespace Spreads.DataTypes
                 {
                     break;
                 }
-                span[i] = b;
                 len = i + 1;
             }
 
-            // TODO use CoreFxLab new encoding features
-            if (MemoryMarshal.TryGetArray((ReadOnlyMemory<byte>)buffer, out var segment))
-            {
-                // ReSharper disable once AssignNullToNotNullAttribute
-                return Encoding.UTF8.GetString(segment.Array, segment.Offset, len);
-            }
-            else
-            {
-                ThrowApplicationException();
-                return String.Empty;
-            }
+            return Encoding.UTF8.GetString(ptr, len);
         }
 
         /// <inheritdoc />
         public override bool Equals(object obj)
         {
-            if (ReferenceEquals(null, obj)) return false;
-            return obj is Symbol32 && Equals((Symbol32)obj);
+            if (obj is null) return false;
+            return obj is Symbol32 sym && Equals(sym);
         }
 
         /// <inheritdoc />
@@ -255,12 +241,6 @@ namespace Spreads.DataTypes
         {
             throw new ArgumentOutOfRangeException(argumentName, "Symbol length is too large");
         }
-
-        [MethodImpl(MethodImplOptions.NoInlining)]
-        private void ThrowApplicationException()
-        {
-            throw new ApplicationException();
-        }
     }
 
     /// <summary>
@@ -285,9 +265,10 @@ namespace Spreads.DataTypes
                 ThrowArgumentOutOfRangeException(nameof(symbol));
             }
             fixed (char* charPtr = symbol)
-            fixed (byte* ptr = Bytes)
             {
-                Encoding.UTF8.GetBytes(charPtr, symbol.Length, ptr, Size);
+                var ptr = (byte*)Unsafe.AsPointer(ref this);
+                Unsafe.InitBlockUnaligned(ptr, 0, Size);
+                Encoding.UTF8.GetBytes(charPtr, symbol.Length, ptr, byteCount);
             }
         }
 
@@ -295,17 +276,23 @@ namespace Spreads.DataTypes
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool Equals(Symbol64 other)
         {
-            throw new NotImplementedException();
-            var ptr = Unsafe.AsPointer(ref this);
-            return *(long*)(ptr) == *(long*)(other.Bytes) && *(long*)((byte*)ptr + 8) == *(long*)(other.Bytes + 8);
+            var ptr = (byte*)Unsafe.AsPointer(ref this);
+            var ptrOther = (byte*)Unsafe.AsPointer(ref other);
+            for (int i = 0; i < Size; i += 8)
+            {
+                if (*(long*)(ptr + i) != *(long*)(ptrOther + i))
+                {
+                    return false;
+                }
+            }
+
+            return true;
         }
 
         /// <inheritdoc />
         public override string ToString()
         {
-            var buffer = BufferPool.StaticBuffer.Memory;
             var len = 0;
-            var span = buffer.Span;
             var ptr = (byte*)Unsafe.AsPointer(ref this);
             for (int i = 0; i < Size; i++)
             {
@@ -314,28 +301,17 @@ namespace Spreads.DataTypes
                 {
                     break;
                 }
-                span[i] = b;
                 len = i + 1;
             }
 
-            // TODO use CoreFxLab new encoding features
-            if (MemoryMarshal.TryGetArray((ReadOnlyMemory<byte>)buffer, out var segment))
-            {
-                // ReSharper disable once AssignNullToNotNullAttribute
-                return Encoding.UTF8.GetString(segment.Array, segment.Offset, len);
-            }
-            else
-            {
-                ThrowApplicationException();
-                return String.Empty;
-            }
+            return Encoding.UTF8.GetString(ptr, len);
         }
 
         /// <inheritdoc />
         public override bool Equals(object obj)
         {
-            if (ReferenceEquals(null, obj)) return false;
-            return obj is Symbol64 && Equals((Symbol64)obj);
+            if (obj is null) return false;
+            return obj is Symbol64 sym && Equals(sym);
         }
 
         /// <inheritdoc />
@@ -377,12 +353,6 @@ namespace Spreads.DataTypes
         {
             throw new ArgumentOutOfRangeException(argumentName, "Symbol length is too large");
         }
-
-        [MethodImpl(MethodImplOptions.NoInlining)]
-        private void ThrowApplicationException()
-        {
-            throw new ApplicationException();
-        }
     }
 
     /// <summary>
@@ -407,9 +377,10 @@ namespace Spreads.DataTypes
                 ThrowArgumentOutOfRangeException(nameof(symbol));
             }
             fixed (char* charPtr = symbol)
-            fixed (byte* ptr = Bytes)
             {
-                Encoding.UTF8.GetBytes(charPtr, symbol.Length, ptr, Size);
+                var ptr = (byte*)Unsafe.AsPointer(ref this);
+                Unsafe.InitBlockUnaligned(ptr, 0, Size);
+                Encoding.UTF8.GetBytes(charPtr, symbol.Length, ptr, byteCount);
             }
         }
 
@@ -417,17 +388,23 @@ namespace Spreads.DataTypes
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool Equals(Symbol128 other)
         {
-            throw new NotImplementedException();
-            var ptr = Unsafe.AsPointer(ref this);
-            return *(long*)(ptr) == *(long*)(other.Bytes) && *(long*)((byte*)ptr + 8) == *(long*)(other.Bytes + 8);
+            var ptr = (byte*)Unsafe.AsPointer(ref this);
+            var ptrOther = (byte*)Unsafe.AsPointer(ref other);
+            for (int i = 0; i < Size; i += 8)
+            {
+                if (*(long*)(ptr + i) != *(long*)(ptrOther + i))
+                {
+                    return false;
+                }
+            }
+
+            return true;
         }
 
         /// <inheritdoc />
         public override string ToString()
         {
-            var buffer = BufferPool.StaticBuffer.Memory;
             var len = 0;
-            var span = buffer.Span;
             var ptr = (byte*)Unsafe.AsPointer(ref this);
             for (int i = 0; i < Size; i++)
             {
@@ -436,28 +413,17 @@ namespace Spreads.DataTypes
                 {
                     break;
                 }
-                span[i] = b;
                 len = i + 1;
             }
 
-            // TODO use CoreFxLab new encoding features
-            if (MemoryMarshal.TryGetArray((ReadOnlyMemory<byte>)buffer, out var segment))
-            {
-                // ReSharper disable once AssignNullToNotNullAttribute
-                return Encoding.UTF8.GetString(segment.Array, segment.Offset, len);
-            }
-            else
-            {
-                ThrowApplicationException();
-                return String.Empty;
-            }
+            return Encoding.UTF8.GetString(ptr, len);
         }
 
         /// <inheritdoc />
         public override bool Equals(object obj)
         {
-            if (ReferenceEquals(null, obj)) return false;
-            return obj is Symbol128 && Equals((Symbol128)obj);
+            if (obj is null) return false;
+            return obj is Symbol128 sym && Equals(sym);
         }
 
         /// <inheritdoc />
@@ -499,12 +465,6 @@ namespace Spreads.DataTypes
         {
             throw new ArgumentOutOfRangeException(argumentName, "Symbol length is too large");
         }
-
-        [MethodImpl(MethodImplOptions.NoInlining)]
-        private void ThrowApplicationException()
-        {
-            throw new ApplicationException();
-        }
     }
 
     /// <summary>
@@ -529,9 +489,10 @@ namespace Spreads.DataTypes
                 ThrowArgumentOutOfRangeException(nameof(symbol));
             }
             fixed (char* charPtr = symbol)
-            fixed (byte* ptr = Bytes)
             {
-                Encoding.UTF8.GetBytes(charPtr, symbol.Length, ptr, Size);
+                var ptr = (byte*)Unsafe.AsPointer(ref this);
+                Unsafe.InitBlockUnaligned(ptr, 0, Size);
+                Encoding.UTF8.GetBytes(charPtr, symbol.Length, ptr, byteCount);
             }
         }
 
@@ -539,17 +500,23 @@ namespace Spreads.DataTypes
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool Equals(Symbol256 other)
         {
-            throw new NotImplementedException();
-            var ptr = Unsafe.AsPointer(ref this);
-            return *(long*)(ptr) == *(long*)(other.Bytes) && *(long*)((byte*)ptr + 8) == *(long*)(other.Bytes + 8);
+            var ptr = (byte*)Unsafe.AsPointer(ref this);
+            var ptrOther = (byte*)Unsafe.AsPointer(ref other);
+            for (int i = 0; i < Size; i += 8)
+            {
+                if (*(long*)(ptr + i) != *(long*)(ptrOther + i))
+                {
+                    return false;
+                }
+            }
+
+            return true;
         }
 
         /// <inheritdoc />
         public override string ToString()
         {
-            var buffer = BufferPool.StaticBuffer.Memory;
             var len = 0;
-            var span = buffer.Span;
             var ptr = (byte*)Unsafe.AsPointer(ref this);
             for (int i = 0; i < Size; i++)
             {
@@ -558,28 +525,17 @@ namespace Spreads.DataTypes
                 {
                     break;
                 }
-                span[i] = b;
                 len = i + 1;
             }
 
-            // TODO use CoreFxLab new encoding features
-            if (MemoryMarshal.TryGetArray((ReadOnlyMemory<byte>)buffer, out var segment))
-            {
-                // ReSharper disable once AssignNullToNotNullAttribute
-                return Encoding.UTF8.GetString(segment.Array, segment.Offset, len);
-            }
-            else
-            {
-                ThrowApplicationException();
-                return String.Empty;
-            }
+            return Encoding.UTF8.GetString(ptr, len);
         }
 
         /// <inheritdoc />
         public override bool Equals(object obj)
         {
-            if (ReferenceEquals(null, obj)) return false;
-            return obj is Symbol256 && Equals((Symbol256)obj);
+            if (obj is null) return false;
+            return obj is Symbol256 sym && Equals(sym);
         }
 
         /// <inheritdoc />
@@ -620,12 +576,6 @@ namespace Spreads.DataTypes
         private void ThrowArgumentOutOfRangeException(string argumentName)
         {
             throw new ArgumentOutOfRangeException(argumentName, "Symbol length is too large");
-        }
-
-        [MethodImpl(MethodImplOptions.NoInlining)]
-        private void ThrowApplicationException()
-        {
-            throw new ApplicationException();
         }
     }
 }
