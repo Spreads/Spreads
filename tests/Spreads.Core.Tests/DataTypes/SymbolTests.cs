@@ -25,6 +25,7 @@ namespace Spreads.Core.Tests.DataTypes
                 str2 = sym256.ToString();
                 Assert.AreEqual(str, str2);
                 Assert.IsTrue(sym256 == new Symbol256(str2));
+                Assert.AreEqual(256 - i, sym256.ByteLength);
             }
 
             for (int i = 0; i <= 128; i++)
@@ -34,6 +35,7 @@ namespace Spreads.Core.Tests.DataTypes
                 str2 = sym128.ToString();
                 Assert.AreEqual(str, str2);
                 Assert.IsTrue(sym128 == new Symbol128(str2));
+                Assert.AreEqual(128 - i, sym128.ByteLength);
             }
 
             for (int i = 0; i <= 64; i++)
@@ -43,6 +45,7 @@ namespace Spreads.Core.Tests.DataTypes
                 str2 = sym64.ToString();
                 Assert.AreEqual(str, str2);
                 Assert.IsTrue(sym64 == new Symbol64(str2));
+                Assert.AreEqual(64 - i, sym64.ByteLength);
             }
 
             for (int i = 0; i <= 32; i++)
@@ -52,6 +55,7 @@ namespace Spreads.Core.Tests.DataTypes
                 str2 = sym32.ToString();
                 Assert.AreEqual(str, str2);
                 Assert.IsTrue(sym32 == new Symbol32(str2));
+                Assert.AreEqual(32 - i, sym32.ByteLength);
             }
 
             for (int i = 0; i <= 16; i++)
@@ -61,6 +65,7 @@ namespace Spreads.Core.Tests.DataTypes
                 str2 = sym.ToString();
                 Assert.AreEqual(str, str2);
                 Assert.IsTrue(sym == new Symbol(str2));
+                Assert.AreEqual(16 - i, sym.ByteLength);
             }
         }
 

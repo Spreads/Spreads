@@ -2,6 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+using Spreads.Algorithms;
 using Spreads.Serialization;
 using System;
 using System.Diagnostics;
@@ -16,7 +17,6 @@ namespace Spreads.DataTypes
     // See https://codeblog.jonskeet.uk/2011/04/05/of-memory-and-strings/
     // why this has a lot of sense in some cases: on x64 a string takes 26 + length * 2,
     // so we always win for small strings even with padding.
-    // For Ascii UTF8 takes 2x less than C# string so we win here as well.
 
     /// <summary>
     /// A struct to store up to 16 UTF8 chars.
@@ -48,6 +48,21 @@ namespace Spreads.DataTypes
             }
         }
 
+        public int ByteLength
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get
+            {
+                var len = VectorSearch.IndexOf(ref Unsafe.As<Symbol, byte>(ref this), (byte)0, Size);
+                if (len == -1)
+                {
+                    return Size;
+                }
+
+                return len;
+            }
+        }
+
         /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool Equals(Symbol other)
@@ -56,7 +71,7 @@ namespace Spreads.DataTypes
             var ptrOther = (byte*)Unsafe.AsPointer(ref other);
             for (int i = 0; i < Size; i += 8)
             {
-                if (*(long*)(ptr + i) != *(long*)(ptrOther + i))
+                if (Unsafe.ReadUnaligned<long>(ptr + i) != Unsafe.ReadUnaligned<long>(ptrOther + i))
                 {
                     return false;
                 }
@@ -160,6 +175,21 @@ namespace Spreads.DataTypes
             }
         }
 
+        public int ByteLength
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get
+            {
+                var len = VectorSearch.IndexOf(ref Unsafe.As<Symbol32, byte>(ref this), (byte)0, Size);
+                if (len == -1)
+                {
+                    return Size;
+                }
+
+                return len;
+            }
+        }
+
         /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool Equals(Symbol32 other)
@@ -168,7 +198,7 @@ namespace Spreads.DataTypes
             var ptrOther = (byte*)Unsafe.AsPointer(ref other);
             for (int i = 0; i < Size; i += 8)
             {
-                if (*(long*)(ptr + i) != *(long*)(ptrOther + i))
+                if (Unsafe.ReadUnaligned<long>(ptr + i) != Unsafe.ReadUnaligned<long>(ptrOther + i))
                 {
                     return false;
                 }
@@ -272,6 +302,21 @@ namespace Spreads.DataTypes
             }
         }
 
+        public int ByteLength
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get
+            {
+                var len = VectorSearch.IndexOf(ref Unsafe.As<Symbol64, byte>(ref this), (byte)0, Size);
+                if (len == -1)
+                {
+                    return Size;
+                }
+
+                return len;
+            }
+        }
+
         /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool Equals(Symbol64 other)
@@ -280,7 +325,7 @@ namespace Spreads.DataTypes
             var ptrOther = (byte*)Unsafe.AsPointer(ref other);
             for (int i = 0; i < Size; i += 8)
             {
-                if (*(long*)(ptr + i) != *(long*)(ptrOther + i))
+                if (Unsafe.ReadUnaligned<long>(ptr + i) != Unsafe.ReadUnaligned<long>(ptrOther + i))
                 {
                     return false;
                 }
@@ -384,6 +429,21 @@ namespace Spreads.DataTypes
             }
         }
 
+        public int ByteLength
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get
+            {
+                var len = VectorSearch.IndexOf(ref Unsafe.As<Symbol128, byte>(ref this), (byte)0, Size);
+                if (len == -1)
+                {
+                    return Size;
+                }
+
+                return len;
+            }
+        }
+
         /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool Equals(Symbol128 other)
@@ -392,7 +452,7 @@ namespace Spreads.DataTypes
             var ptrOther = (byte*)Unsafe.AsPointer(ref other);
             for (int i = 0; i < Size; i += 8)
             {
-                if (*(long*)(ptr + i) != *(long*)(ptrOther + i))
+                if (Unsafe.ReadUnaligned<long>(ptr + i) != Unsafe.ReadUnaligned<long>(ptrOther + i))
                 {
                     return false;
                 }
@@ -496,6 +556,21 @@ namespace Spreads.DataTypes
             }
         }
 
+        public int ByteLength
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get
+            {
+                var len = VectorSearch.IndexOf(ref Unsafe.As<Symbol256, byte>(ref this), (byte)0, Size);
+                if (len == -1)
+                {
+                    return Size;
+                }
+
+                return len;
+            }
+        }
+
         /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool Equals(Symbol256 other)
@@ -504,7 +579,7 @@ namespace Spreads.DataTypes
             var ptrOther = (byte*)Unsafe.AsPointer(ref other);
             for (int i = 0; i < Size; i += 8)
             {
-                if (*(long*)(ptr + i) != *(long*)(ptrOther + i))
+                if (Unsafe.ReadUnaligned<long>(ptr + i) != Unsafe.ReadUnaligned<long>(ptrOther + i))
                 {
                     return false;
                 }

@@ -1273,7 +1273,7 @@ namespace Spreads.Algorithms
                         }
 
                         // Find offset of first match
-                        return IndexOfSimple(ref Unsafe.Add(ref searchSpace, offset), value, System.Numerics.Vector<T>.Count);
+                        return (int)(byte*)offset + IndexOfSimple(ref Unsafe.Add(ref searchSpace, offset), value, System.Numerics.Vector<T>.Count);
                         // return (int)(byte*)offset + LocateFirstFoundByte(vMatches);
                     }
 
