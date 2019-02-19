@@ -10,7 +10,6 @@ using System.Diagnostics;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading;
-using System.Threading.Tasks;
 
 namespace Spreads.Core.Tests.Threading
 {
@@ -38,6 +37,50 @@ namespace Spreads.Core.Tests.Threading
             Assert.AreEqual(wpid, sl.TryAcquireLock(wpid2, spinLimit: 1000));
             sw.Stop();
             Console.WriteLine($"Elapsed: {sw.ElapsedMilliseconds}");
+
+            Assert.AreEqual(Wpid.Empty, sl.TryReleaseLock(wpid));
+        }
+
+        [Test]
+        public unsafe void CouldAcquireReleaseExlusiveLock()
+        {
+            var ptr = (long*)Marshal.AllocHGlobal(8);
+            *ptr = 0;
+            var wpid = Wpid.Create();
+            var wpid2 = Wpid.Create();
+
+            var sl = new SharedSpinLock(ptr);
+
+            Assert.AreEqual(Wpid.Empty, sl.TryAcquireExclusiveLock(wpid, spinLimit: 0)); // fast path
+
+            Assert.AreEqual(Wpid.Empty, sl.TryReleaseLock(wpid));
+
+            Assert.AreEqual(Wpid.Empty, sl.TryAcquireExclusiveLock(wpid));
+
+            var sw = new Stopwatch();
+            sw.Start();
+            Assert.AreEqual(wpid, sl.TryAcquireExclusiveLock(wpid2, spinLimit: 1000));
+            sw.Stop();
+            Console.WriteLine($"Elapsed: {sw.ElapsedMilliseconds}");
+
+            Assert.AreEqual(Wpid.Empty, sl.TryReleaseLock(wpid));
+        }
+
+        [Test]
+        public unsafe void CouldAcquireEnterExitReleaseExlusiveLock()
+        {
+            var ptr = (long*)Marshal.AllocHGlobal(8);
+            *ptr = 0;
+            var wpid = Wpid.Create();
+            var wpid2 = Wpid.Create();
+
+            var sl = new SharedSpinLock(ptr);
+
+            Assert.AreEqual(Wpid.Empty, sl.TryAcquireExclusiveLock(wpid, spinLimit: 0));
+            Assert.AreEqual(Wpid.Empty, sl.TryReEnterExclusiveLock(wpid, spinLimit: 0));
+
+            Assert.Throws<InvalidOperationException>(() => { sl.TryReleaseLock(wpid); });
+            Assert.AreEqual(Wpid.Empty, sl.TryExitExclusiveLock(wpid));
 
             Assert.AreEqual(Wpid.Empty, sl.TryReleaseLock(wpid));
         }
@@ -81,8 +124,8 @@ namespace Spreads.Core.Tests.Threading
         public unsafe void ContentedBenchImpl()
         {
             var count = 1000;
-            var threadCountPerLock = 4;
-            var lockCount = 96;
+            var threadCountPerLock = 5;
+            var lockCount = 5;
             var jobLength = 1000;
 
             var timings = new long[count * threadCountPerLock * lockCount];
@@ -196,115 +239,115 @@ namespace Spreads.Core.Tests.Threading
             //}
         }
 
-        public void ContentedBenchImplTasks()
-        {
-            var count = 1000000;
-            var threadCountPerLock = 2;
-            var lockCount = 2;
-            var jobLength = 1000;
+        //public void ContentedBenchImplTasks()
+        //{
+        //    var count = 1000000;
+        //    var threadCountPerLock = 2;
+        //    var lockCount = 2;
+        //    var jobLength = 1000;
 
-            var timings = new long[count * threadCountPerLock * lockCount];
-            var commitTimingsArr = new (long, long)[count * threadCountPerLock * lockCount];
+        //    var timings = new long[count * threadCountPerLock * lockCount];
+        //    var commitTimingsArr = new (long, long)[count * threadCountPerLock * lockCount];
 
-            var threads = new Task[lockCount][];
-            var locks = new SharedSpinLock[lockCount];
-            var sums = new long[lockCount];
+        //    var threads = new Task[lockCount][];
+        //    var locks = new SharedSpinLock[lockCount];
+        //    var sums = new long[lockCount];
 
-            for (int i = 0; i < lockCount; i++)
-            {
-                var ptr = Marshal.AllocHGlobal(8);
-                Marshal.WriteInt64(ptr, 0, 0);
+        //    for (int i = 0; i < lockCount; i++)
+        //    {
+        //        var ptr = Marshal.AllocHGlobal(8);
+        //        Marshal.WriteInt64(ptr, 0, 0);
 
-                var sl = new SharedSpinLock(ptr);
-                locks[i] = sl;
-                threads[i] = new Task[threadCountPerLock];
-            }
-            
-            var cts = new CancellationTokenSource();
-            var startMre = new ManualResetEventSlim(false);
-            var pauseMre = new ManualResetEventSlim(false);
-            var endEvent = new CountdownEvent(lockCount * threadCountPerLock);
+        //        var sl = new SharedSpinLock(ptr);
+        //        locks[i] = sl;
+        //        threads[i] = new Task[threadCountPerLock];
+        //    }
 
-            // how many jobs we could do while number of threads is much bigger then number of cores
-            using (Benchmark.Run("Contented", count * threadCountPerLock * lockCount))
-            {
-                for (int li = 0; li < lockCount; li++)
-                {
-                    var liLocal = li;
-                    var lockLi = locks[liLocal];
-                    var threadArrayLi = threads[liLocal];
+        //    var cts = new CancellationTokenSource();
+        //    var startMre = new ManualResetEventSlim(false);
+        //    var pauseMre = new ManualResetEventSlim(false);
+        //    var endEvent = new CountdownEvent(lockCount * threadCountPerLock);
 
-                    for (int ti = 0; ti < threadCountPerLock; ti++)
-                    {
-                        var t = Task.Run(async () =>
-                        {
-                            try
-                            {
-                                // while (!cts.IsCancellationRequested)
-                                {
-                                    var wpid = Wpid.Create((uint)ti + 1);
-                                    for (int i = 0; i < count; i++)
-                                    {
-                                        if (default != lockLi.TryAcquireLock(wpid))
-                                        {
-                                            Assert.Fail("Cannot acquire lock");
-                                        }
+        //    // how many jobs we could do while number of threads is much bigger then number of cores
+        //    using (Benchmark.Run("Contented", count * threadCountPerLock * lockCount))
+        //    {
+        //        for (int li = 0; li < lockCount; li++)
+        //        {
+        //            var liLocal = li;
+        //            var lockLi = locks[liLocal];
+        //            var threadArrayLi = threads[liLocal];
 
-                                        // pathological case when lock holder is blocked/preempted
-                                        Thread.Yield();
+        //            for (int ti = 0; ti < threadCountPerLock; ti++)
+        //            {
+        //                var t = Task.Run(async () =>
+        //                {
+        //                    try
+        //                    {
+        //                        // while (!cts.IsCancellationRequested)
+        //                        {
+        //                            var wpid = Wpid.Create((uint)ti + 1);
+        //                            for (int i = 0; i < count; i++)
+        //                            {
+        //                                if (default != lockLi.TryAcquireLock(wpid))
+        //                                {
+        //                                    Assert.Fail("Cannot acquire lock");
+        //                                }
 
-                                        for (int j = 0; j < jobLength; j++)
-                                        {
-                                            Volatile.Write(ref sums[liLocal], Volatile.Read(ref sums[liLocal]) + 1);
-                                        }
+        //                                // pathological case when lock holder is blocked/preempted
+        //                                Thread.Yield();
 
-                                        if (default != lockLi.TryReleaseLock(wpid))
-                                        {
-                                            Assert.Fail("Cannot release lock");
-                                        }
-                                    }
+        //                                for (int j = 0; j < jobLength; j++)
+        //                                {
+        //                                    Volatile.Write(ref sums[liLocal], Volatile.Read(ref sums[liLocal]) + 1);
+        //                                }
 
-                                    // Console.WriteLine("restarted");
-                                }
+        //                                if (default != lockLi.TryReleaseLock(wpid))
+        //                                {
+        //                                    Assert.Fail("Cannot release lock");
+        //                                }
+        //                            }
 
-                                // Console.WriteLine("EXITED");
-                            }
-                            catch (Exception ex)
-                            {
-                                Console.WriteLine("ERROR: " + ex);
-                            }
-                        });
+        //                            // Console.WriteLine("restarted");
+        //                        }
 
-                        threadArrayLi[ti] = t;
-                    }
-                }
+        //                        // Console.WriteLine("EXITED");
+        //                    }
+        //                    catch (Exception ex)
+        //                    {
+        //                        Console.WriteLine("ERROR: " + ex);
+        //                    }
+        //                });
 
-                Task.WaitAll(threads.SelectMany(x => x).ToArray());
-            }
+        //                threadArrayLi[ti] = t;
+        //            }
+        //        }
 
-            //for (int _ = 0; _ < 20; _++)
-            //{
-            //    // how many jobs we could do while number of threads is much bigger then number of cores
-            //    using (Benchmark.Run("Contented", count * threadCountPerLock * lockCount))
-            //    {
-            //        startMre.Set();
-            //        endEvent.Wait();
-            //    }
+        //        Task.WaitAll(threads.SelectMany(x => x).ToArray());
+        //    }
 
-            //    endEvent.Reset();
-            //    startMre.Reset();
+        //    //for (int _ = 0; _ < 20; _++)
+        //    //{
+        //    //    // how many jobs we could do while number of threads is much bigger then number of cores
+        //    //    using (Benchmark.Run("Contented", count * threadCountPerLock * lockCount))
+        //    //    {
+        //    //        startMre.Set();
+        //    //        endEvent.Wait();
+        //    //    }
 
-            //    pauseMre.Set();
-            //    Thread.Sleep(100);
-            //    pauseMre.Reset();
-            //}
+        //    //    endEvent.Reset();
+        //    //    startMre.Reset();
 
-            cts.Cancel();
-            //foreach (var thread in threads.SelectMany(t => t))
-            //{
-            //    thread.Join();
-            //}
-            Thread.Sleep(1000);
-        }
+        //    //    pauseMre.Set();
+        //    //    Thread.Sleep(100);
+        //    //    pauseMre.Reset();
+        //    //}
+
+        //    cts.Cancel();
+        //    //foreach (var thread in threads.SelectMany(t => t))
+        //    //{
+        //    //    thread.Join();
+        //    //}
+        //    Thread.Sleep(1000);
+        //}
     }
 }

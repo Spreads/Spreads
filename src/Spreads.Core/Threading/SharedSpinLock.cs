@@ -7,7 +7,6 @@ using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Threading;
-using System.Threading.Tasks;
 
 namespace Spreads.Threading
 {
@@ -22,13 +21,13 @@ namespace Spreads.Threading
         /// </summary>
         Wpid MyWpid { get; }
 
-        /// <summary>
-        /// Do not fail if we try to take lock while it is already taken by <see cref="Wpid"/> of this helper.
-        /// If this property returns false we call <see cref="Environment.FailFast(string)"/> because it is wrong
-        /// lock usage and not a recoverable exception. The true case simplifies some implementation on a cold path.
-        /// </summary>
-        [Obsolete("If this is still in use we should refactor to nevel allow reentrancy")]
-        bool IgnoreReentrant { get; }
+        ///// <summary>
+        ///// Do not fail if we try to take lock while it is already taken by <see cref="Wpid"/> of this helper.
+        ///// If this property returns false we call <see cref="Environment.FailFast(string)"/> because it is wrong
+        ///// lock usage and not a recoverable exception. The true case simplifies some implementation on a cold path.
+        ///// </summary>
+        //[Obsolete("If this is still in use we should refactor to nevel allow reentrancy")]
+        //bool IgnoreReentrant { get; }
 
         /// <summary>
         /// Both <see cref="Wpid.Pid"/> and <see cref="Wpid.InstanceId"/> must be alive.
@@ -209,7 +208,19 @@ namespace Spreads.Threading
         internal static int UnlockCheckThreshold = 500; // 500 is around 1 second
         internal static int DeadLockThreshold = 200_000; // 100_000 is 187 seconds on i7-8700
 
-        private const long ThreadIdTagMask = (long)0b_0111_1111 << 56;
+        internal const long WpidTagsMask = (long)0b_1111_1111 << 56;
+
+        internal const long PriorityTagMask = (long)0b_1000_0000 << 56;
+
+        // Exclusive mode:
+        // First acquire lock with negative wpid so all other attempts will just back off instantly.
+        // Re-enter by setting ExclusiveTagMask bit. This is needed to protect from from usage
+        // from exclusive wpid process, e.g. nothing will stop multi-threaded access when lock is already
+        // taken if we just ignore reentrant.
+
+        internal const long ExclusiveTagMask = (long)0b_0100_0000 << 56;
+
+        internal const long ThreadIdTagMask = (long)0b_0011_1111 << 56;
 
         // normally Wpid number is very limited, 2-20 should be normal range
         internal static (long, SemaphoreSlim)[] _semaphores = new (long, SemaphoreSlim)[32];
@@ -257,16 +268,86 @@ namespace Spreads.Threading
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private long WpidToLockValue(Wpid wpid)
         {
-            // effectively we assume Pid is always smaller that 2 ^ 24
-            // TODO review: could use InstanceId high bits instead, but we could find Pid by instance id and instance id is mor important in general
-            Debug.Assert((wpid & ThreadIdTagMask) == 0);
-            return (((long)Thread.CurrentThread.ManagedThreadId & 127) << 56) | (~ThreadIdTagMask & wpid);
+            // Effectively we assume Pid is always smaller that 2 ^ 24. It is on Linux and should be on Windows.
+            // Could have used InstanceId high bits instead, but we could find Pid by instance id and instance id is mor important in general
+            Debug.Assert((wpid & WpidTagsMask) == 0);
+            return (((long)Thread.CurrentThread.ManagedThreadId & 63) << 56) | (~WpidTagsMask & wpid);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private Wpid LockValueToWpid(long lockValue)
         {
-            return (Wpid)(Math.Abs(lockValue) & ~ThreadIdTagMask);
+            return (Wpid)(lockValue & ~WpidTagsMask);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public unsafe Wpid TryAcquireExclusiveLock(Wpid wpid, int spinLimit = 0, IWpidHelper wpidHelper = null)
+        {
+            // Priority so that others back off instantly without spinning
+            var lockValue = WpidToLockValue(wpid) | PriorityTagMask;
+
+            // TTAS significantly slower for uncontended case, which is often the case, do not check: 0 == *(long*)Pointer &&
+            if (0 == Interlocked.CompareExchange(ref *(long*)Pointer, lockValue, 0))
+            {
+                return default;
+            }
+            return TryAcquireLockContended(lockValue, spinLimit, wpidHelper);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public unsafe Wpid TryReEnterExclusiveLock(Wpid wpid, int spinLimit = 0, IWpidHelper wpidHelper = null)
+        {
+            // Priority so that others back off instantly without spinning
+            var expectedLockValue = WpidToLockValue(wpid) | PriorityTagMask;
+            var reenteredLockValue = expectedLockValue | ExclusiveTagMask;
+            var sw = new SpinWait();
+            while (true)
+            {
+                var existing = Interlocked.CompareExchange(ref *(long*)Pointer, reenteredLockValue, expectedLockValue);
+                if (expectedLockValue == existing)
+                {
+                    return default;
+                }
+
+                if (LockValueToWpid(existing) != wpid)
+                {
+                    ThrowNotHoldingLockForReenter();
+                }
+
+                sw.SpinOnce();
+
+                if (spinLimit > 0 && sw.Count > spinLimit)
+                {
+                    return LockValueToWpid(existing);
+                }
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal unsafe Wpid TryExitExclusiveLock(Wpid wpid)
+        {
+            var expectedLockValue = WpidToLockValue(wpid) | PriorityTagMask | ExclusiveTagMask;
+            var lockValue = expectedLockValue & ~ExclusiveTagMask;
+            if (expectedLockValue == Interlocked.CompareExchange(ref *(long*)(Pointer), lockValue, expectedLockValue))
+            {
+                return default;
+            }
+
+            ThrowNotInExclusiveLock();
+            return default;
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static void ThrowNotHoldingLockForReenter()
+        {
+            ThrowHelper.ThrowInvalidOperationException(
+                "Trying to re-enter exlusive lock while not holding a lock, existing wpid is different from the given one");
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static void ThrowNotInExclusiveLock()
+        {
+            ThrowHelper.ThrowInvalidOperationException("Not entered exclusive lock, cannot exit it.");
         }
 
         /// <summary>
@@ -290,7 +371,7 @@ namespace Spreads.Threading
             | MethodImplOptions.AggressiveOptimization // first call could be problematic with the loop if tiered compilation is on
 #endif
         )]
-        private unsafe Wpid TryAcquireLockContended(long wpid, int spinLimit, IWpidHelper wpidHelper)
+        private unsafe Wpid TryAcquireLockContended(long lockValue, int spinLimit, IWpidHelper wpidHelper)
         {
             DateTime backOffStarted = default;
             SemaphoreSlim sem = null;
@@ -311,7 +392,7 @@ namespace Spreads.Threading
                 long existing;
                 // if (0 == (existing = *(long*)(Pointer))) // TTAS doesn't help here either
                 {
-                    existing = Interlocked.CompareExchange(ref *(long*)(Pointer), wpid, 0);
+                    existing = Interlocked.CompareExchange(ref *(long*)(Pointer), lockValue, 0);
                 }
 
                 if (existing == 0)
@@ -319,19 +400,16 @@ namespace Spreads.Threading
                     return default;
                 }
 
-#pragma warning disable 618
-                if (existing == wpid && wpidHelper?.IgnoreReentrant != true)
-#pragma warning restore 618
+                if ((existing & ~WpidTagsMask) == (lockValue & ~WpidTagsMask))
                 {
-                    // Unexpected reentrancy is wrong usage and not an exception. User code is wrong.
-                    ThrowHelper.FailFast("Lock reentry is not supported");
+                    FailReentry();
                 }
 
-                // needs to be above counter = UnlockCheckThreshold; so that counter % UnlockCheckThreshold == 0
+                // needs to be above `counter = UnlockCheckThreshold;` so that counter % UnlockCheckThreshold == 0
                 counter++;
 
                 // 2.2.1.
-                if (existing < 0 && !priority)
+                if ((existing & PriorityTagMask) != 0 && !priority)
                 {
                     // Console.WriteLine("BO");
                     if (backOffStarted == default)
@@ -358,7 +436,7 @@ namespace Spreads.Threading
                 // 2.2.2. We were waiting but existing has become positive, priority waiter took the lock and we are waiting for it now.
                 if (backOffStarted != default)
                 {
-                    Debug.Assert(existing > 0); // checks are above
+                    Debug.Assert((existing & PriorityTagMask) == 0); // checks are above
                     backOffStarted = default;
                     // Start anew, go to 1.
                     counter = PriorityThreshold; // will try to get priority
@@ -366,11 +444,11 @@ namespace Spreads.Threading
 
                 if (counter >= PriorityThreshold)
                 {
-                    if (!priority && existing > 0)
+                    if (!priority && (existing & PriorityTagMask) == 0)
                     {
                         // first waiter that reached here is the first that started, no yields before PriorityThreshold,
                         // only preemption could have kicked it out before trying to acquire priority.
-                        var replaced = Interlocked.CompareExchange(ref *(long*)(Pointer), -existing, existing);
+                        var replaced = Interlocked.CompareExchange(ref *(long*)(Pointer), (existing | PriorityTagMask), existing);
                         if (replaced == existing)
                         {
                             priority = true;
@@ -387,12 +465,12 @@ namespace Spreads.Threading
                     // TODO add stopwatch if was waiting via semaphore
                     if (counter % UnlockCheckThreshold == 0) // Try force unlock
                     {
-                        if (wpidHelper != null && !wpidHelper.IsWpidAlive((Wpid)Math.Abs(existing)))
+                        if (wpidHelper != null && !wpidHelper.IsWpidAlive(LockValueToWpid(existing)))
                         {
-                            var replaced = Interlocked.CompareExchange(ref *(long*)(Pointer), wpid, existing);
+                            var replaced = Interlocked.CompareExchange(ref *(long*)(Pointer), lockValue, existing);
                             if (replaced == existing)
                             {
-                                wpidHelper.OnForceUnlock((Wpid)Math.Abs(existing));
+                                wpidHelper.OnForceUnlock(LockValueToWpid(existing));
                                 return default;
                             }
                         }
@@ -413,15 +491,16 @@ namespace Spreads.Threading
 
                 if (priority && sw.NextSpinWillYield && _multicast != null)
                 {
-                    sem = sem ?? GetSemaphore((Wpid)Math.Abs(existing));
+                    sem = sem ?? GetSemaphore(existing & ~(PriorityTagMask | ExclusiveTagMask));
 
-                    existing = Interlocked.CompareExchange(ref *(long*)(Pointer), wpid, 0);
+                    // retry before wait
+                    existing = Interlocked.CompareExchange(ref *(long*)(Pointer), lockValue, 0);
                     if (existing == 0)
                     {
                         return default;
                     }
 
-                    if (existing < 0)
+                    if ((existing & PriorityTagMask) != 0)
                     {
                         if (sem.Wait(40))
                         {
@@ -443,186 +522,191 @@ namespace Spreads.Threading
                 // Note: not counter, we sometimes set it to a special value.
                 if (spinLimit > 0 && sw.Count > spinLimit)
                 {
-                    return (Wpid)Math.Abs(existing);
+                    return LockValueToWpid(existing);
                 }
             }
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public unsafe ValueTask<Wpid> TryAcquireLockAsync(Wpid wpid, int spinLimit = 0, IWpidHelper wpidHelper = null)
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static void FailReentry()
         {
-            var lockValue = WpidToLockValue(wpid);
-
-            if (0 == Interlocked.CompareExchange(ref *(long*)Pointer, lockValue, 0))
-            {
-                return new ValueTask<Wpid>(default(Wpid));
-            }
-
-            return TryAcquireLockContendedAsync(lockValue, spinLimit, wpidHelper);
+            // Reentrancy is wrong usage and not an exception. User code is wrong.
+            ThrowHelper.FailFast("Lock reentry is not supported");
         }
 
-        private unsafe ref long PointerAsRef()
-        {
-            return ref *(long*)Pointer;
-        }
+        //        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        //        public unsafe ValueTask<Wpid> TryAcquireLockAsync(Wpid wpid, int spinLimit = 0, IWpidHelper wpidHelper = null)
+        //        {
+        //            var lockValue = WpidToLockValue(wpid);
 
-        [MethodImpl(MethodImplOptions.NoInlining
-#if NETCOREAPP3_0
-            | MethodImplOptions.AggressiveOptimization // first call could be problematic with the loop if tiered compilation is on
-#endif
-        )]
-        private async ValueTask<Wpid> TryAcquireLockContendedAsync(long wpid, int spinLimit, IWpidHelper wpidHelper)
-        {
-            DateTime backOffStarted = default;
-            SemaphoreSlim sem = null;
+        //            if (0 == Interlocked.CompareExchange(ref *(long*)Pointer, lockValue, 0))
+        //            {
+        //                return new ValueTask<Wpid>(default(Wpid));
+        //            }
 
-            // true if this loop flipped the sign of existing
-            var priority = false;
+        //            return TryAcquireLockContendedAsync(lockValue, spinLimit, wpidHelper);
+        //        }
 
-            // Let SpinWait do it's well tuned job, do not reset or try to outsmart.
-            // Just jump ahead of it once to get priority and start over.
-            var sw = new SpinWait();
+        //        private unsafe ref long PointerAsRef()
+        //        {
+        //            return ref *(long*)Pointer;
+        //        }
 
-            var counter = 0;
+        //        [MethodImpl(MethodImplOptions.NoInlining
+        //#if NETCOREAPP3_0
+        //            | MethodImplOptions.AggressiveOptimization // first call could be problematic with the loop if tiered compilation is on
+        //#endif
+        //        )]
+        //        private async ValueTask<Wpid> TryAcquireLockContendedAsync(long wpid, int spinLimit, IWpidHelper wpidHelper)
+        //        {
+        //            DateTime backOffStarted = default;
+        //            SemaphoreSlim sem = null;
 
-            while (true)
-            {
-                sw.SpinOnce();
+        //            // true if this loop flipped the sign of existing
+        //            var priority = false;
 
-                long existing;
-                // if (0 == (existing = *(long*)(Pointer))) // TTAS doesn't help here either
-                {
-                    existing = Interlocked.CompareExchange(ref PointerAsRef(), wpid, 0);
-                }
+        //            // Let SpinWait do it's well tuned job, do not reset or try to outsmart.
+        //            // Just jump ahead of it once to get priority and start over.
+        //            var sw = new SpinWait();
 
-                if (existing == 0)
-                {
-                    return default;
-                }
+        //            var counter = 0;
 
-#pragma warning disable 618
-                if (existing == wpid && wpidHelper?.IgnoreReentrant != true)
-#pragma warning restore 618
-                {
-                    // Unexpected reentrancy is wrong usage and not an exception. User code is wrong.
-                    ThrowHelper.FailFast("Lock reentry is not supported");
-                }
+        //            while (true)
+        //            {
+        //                sw.SpinOnce();
 
-                // needs to be above counter = UnlockCheckThreshold; so that counter % UnlockCheckThreshold == 0
-                counter++;
+        //                long existing;
+        //                // if (0 == (existing = *(long*)(Pointer))) // TTAS doesn't help here either
+        //                {
+        //                    existing = Interlocked.CompareExchange(ref PointerAsRef(), wpid, 0);
+        //                }
 
-                // 2.2.1.
-                if (existing < 0 && !priority)
-                {
-                    // Console.WriteLine("BO");
-                    if (backOffStarted == default)
-                    {
-                        backOffStarted = DateTime.Now;
-                    }
+        //                if (existing == 0)
+        //                {
+        //                    return default;
+        //                }
 
-                    // back off, others are waiting, don't waste CPU and cache
-                    await Task.Delay(1);
+        //                if ((existing & ~WpidTagsMask) == wpid) // && wpidHelper?.IgnoreReentrant != true)
+        //                {
+        //                    // Unexpected reentrancy is wrong usage and not an exception. User code is wrong.
+        //                    ThrowHelper.FailFast("Lock reentry is not supported");
+        //                }
 
-                    if (DateTime.Now - backOffStarted < TimeSpan.FromSeconds(1))
-                    {
-                        continue;
-                    }
-                    // We waited for entire second, maybe priority waiter had some problems.
-                    // Become a normal waiter and try to do checks.
-                    backOffStarted = default;
-                    counter = UnlockCheckThreshold;
-                }
+        //                // needs to be above counter = UnlockCheckThreshold; so that counter % UnlockCheckThreshold == 0
+        //                counter++;
 
-                // 2.2.2. We were waiting but existing has become positive, priority waiter took the lock and we are waiting for it now.
-                if (backOffStarted != default)
-                {
-                    Debug.Assert(existing > 0); // checks are above
-                    backOffStarted = default;
-                    // Start anew, go to 1.
-                    counter = PriorityThreshold; // will try to get priority
-                }
+        //                // 2.2.1.
+        //                if (existing < 0 && !priority)
+        //                {
+        //                    // Console.WriteLine("BO");
+        //                    if (backOffStarted == default)
+        //                    {
+        //                        backOffStarted = DateTime.Now;
+        //                    }
 
-                if (counter >= PriorityThreshold)
-                {
-                    if (!priority && existing > 0)
-                    {
-                        // first waiter that reached here is the first that started, no yields before PriorityThreshold,
-                        // only preemption could have kicked it out before trying to acquire priority.
-                        var replaced = Interlocked.CompareExchange(ref PointerAsRef(), -existing, existing);
-                        if (replaced == existing)
-                        {
-                            priority = true;
-                        }
-                        //else
-                        //{
-                        //    // Someone took the lock, but we should have been the first
-                        //    // try to regain priority quickly without SpinOnce.
-                        //    // Also if we are from 2.2.1. after backing off we deserve priority.
-                        //    continue; // TODO review
-                        //}
-                    }
+        //                    // back off, others are waiting, don't waste CPU and cache
+        //                    await Task.Delay(1);
 
-                    // TODO add stopwatch if was waiting via semaphore
-                    if (counter % UnlockCheckThreshold == 0) // Try force unlock
-                    {
-                        if (wpidHelper != null && !wpidHelper.IsWpidAlive((Wpid)Math.Abs(existing)))
-                        {
-                            var replaced = Interlocked.CompareExchange(ref PointerAsRef(), wpid, existing);
-                            if (replaced == existing)
-                            {
-                                wpidHelper.OnForceUnlock((Wpid)Math.Abs(existing));
-                                return default;
-                            }
-                        }
+        //                    if (DateTime.Now - backOffStarted < TimeSpan.FromSeconds(1))
+        //                    {
+        //                        continue;
+        //                    }
+        //                    // We waited for entire second, maybe priority waiter had some problems.
+        //                    // Become a normal waiter and try to do checks.
+        //                    backOffStarted = default;
+        //                    counter = UnlockCheckThreshold;
+        //                }
 
-                        //if (counter > DeadLockThreshold)
-                        //{
-                        //    if (wpidHelper != null)
-                        //    {
-                        //        wpidHelper.Suicide();
-                        //    }
-                        //    else
-                        //    {
-                        //        ThrowHelper.FailFast("Deadlock");
-                        //    }
-                        //}
-                    }
-                }
+        //                // 2.2.2. We were waiting but existing has become positive, priority waiter took the lock and we are waiting for it now.
+        //                if (backOffStarted != default)
+        //                {
+        //                    Debug.Assert(existing > 0); // checks are above
+        //                    backOffStarted = default;
+        //                    // Start anew, go to 1.
+        //                    counter = PriorityThreshold; // will try to get priority
+        //                }
 
-                if (priority && sw.NextSpinWillYield)
-                {
-                    if (_multicast != null)
-                    {
-                        sem = sem ?? GetSemaphore((Wpid)Math.Abs(existing));
-                        if (backOffStarted == default)
-                        {
-                            backOffStarted = DateTime.Now;
-                        }
+        //                if (counter >= PriorityThreshold)
+        //                {
+        //                    if (!priority && existing > 0)
+        //                    {
+        //                        // first waiter that reached here is the first that started, no yields before PriorityThreshold,
+        //                        // only preemption could have kicked it out before trying to acquire priority.
+        //                        var replaced = Interlocked.CompareExchange(ref PointerAsRef(), -existing, existing);
+        //                        if (replaced == existing)
+        //                        {
+        //                            priority = true;
+        //                        }
+        //                        //else
+        //                        //{
+        //                        //    // Someone took the lock, but we should have been the first
+        //                        //    // try to regain priority quickly without SpinOnce.
+        //                        //    // Also if we are from 2.2.1. after backing off we deserve priority.
+        //                        //    continue; // TODO review
+        //                        //}
+        //                    }
 
-                        if (await sem.WaitAsync(40))
-                        {
-                            // Console.WriteLine("Entered semaphore");
-                        }
-                        else
-                        {
-                            //Console.WriteLine("Semaphore timeout");
-                            Interlocked.Increment(ref SemaphoreTimeoutCount);
-                        }
-                    }
-                    else
-                    {
-                        // what if we just sleep?
-                        // Thread.Sleep(1);
-                    }
-                }
+        //                    // TODO add stopwatch if was waiting via semaphore
+        //                    if (counter % UnlockCheckThreshold == 0) // Try force unlock
+        //                    {
+        //                        if (wpidHelper != null && !wpidHelper.IsWpidAlive((Wpid)Math.Abs(existing)))
+        //                        {
+        //                            var replaced = Interlocked.CompareExchange(ref PointerAsRef(), wpid, existing);
+        //                            if (replaced == existing)
+        //                            {
+        //                                wpidHelper.OnForceUnlock((Wpid)Math.Abs(existing));
+        //                                return default;
+        //                            }
+        //                        }
 
-                // Note: not counter, we sometimes set it to a special value.
-                if (spinLimit > 0 && sw.Count > spinLimit)
-                {
-                    return (Wpid)Math.Abs(existing);
-                }
-            }
-        }
+        //                        //if (counter > DeadLockThreshold)
+        //                        //{
+        //                        //    if (wpidHelper != null)
+        //                        //    {
+        //                        //        wpidHelper.Suicide();
+        //                        //    }
+        //                        //    else
+        //                        //    {
+        //                        //        ThrowHelper.FailFast("Deadlock");
+        //                        //    }
+        //                        //}
+        //                    }
+        //                }
+
+        //                if (priority && sw.NextSpinWillYield)
+        //                {
+        //                    if (_multicast != null)
+        //                    {
+        //                        sem = sem ?? GetSemaphore((Wpid)Math.Abs(existing));
+        //                        if (backOffStarted == default)
+        //                        {
+        //                            backOffStarted = DateTime.Now;
+        //                        }
+
+        //                        if (await sem.WaitAsync(40))
+        //                        {
+        //                            // Console.WriteLine("Entered semaphore");
+        //                        }
+        //                        else
+        //                        {
+        //                            //Console.WriteLine("Semaphore timeout");
+        //                            Interlocked.Increment(ref SemaphoreTimeoutCount);
+        //                        }
+        //                    }
+        //                    else
+        //                    {
+        //                        // what if we just sleep?
+        //                        // Thread.Sleep(1);
+        //                    }
+        //                }
+
+        //                // Note: not counter, we sometimes set it to a special value.
+        //                if (spinLimit > 0 && sw.Count > spinLimit)
+        //                {
+        //                    return (Wpid)Math.Abs(existing);
+        //                }
+        //            }
+        //        }
 
         /// <summary>
         /// Returns zero if released lock.
@@ -645,6 +729,12 @@ namespace Spreads.Threading
         {
             var lockValue = WpidToLockValue(wpid);
             long existing = *(long*)(Pointer);
+
+            if ((existing & ExclusiveTagMask) != 0)
+            {
+                ThrowReleasingExclusiveLockInEnteredState();
+            }
+
             if (LockValueToWpid(existing) == wpid &&
                 Interlocked.CompareExchange(ref *(long*)(Pointer), 0, existing) == existing)
             {
@@ -653,6 +743,12 @@ namespace Spreads.Threading
             }
 
             return LockValueToWpid(lockValue);
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static void ThrowReleasingExclusiveLockInEnteredState()
+        {
+            ThrowHelper.ThrowInvalidOperationException("Exclusive lock is in entered state.");
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
