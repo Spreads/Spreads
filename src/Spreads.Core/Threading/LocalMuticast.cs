@@ -6,9 +6,11 @@ using Spreads.Collections.Concurrent;
 using Spreads.Serialization;
 using System;
 using System.Diagnostics;
+using System.Linq;
 using System.Net;
 using System.Net.NetworkInformation;
 using System.Net.Sockets;
+using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Threading;
 
@@ -30,8 +32,18 @@ namespace Spreads.Threading
 
         private readonly CancellationTokenSource _cts = new CancellationTokenSource();
         private readonly CachedEndPoint _mcEndPoint;
+
+        [ThreadStatic]
+        private static byte[] _threadStaticBuffer;
+
         private readonly ObjectPool<SocketAsyncEventArgs> _sendArgsPool;
         private readonly string _name;
+#if NETCOREAPP3_0
+        private SendToDelegate _sendToDelegate;
+        private SafeSocketHandle _handle;
+        private int _mcAddressSize;
+        private byte[] _mcAddressBuffer;
+#endif
 
         public LocalMulticast(int port, Action<TMessage> handler = null, string name = null)
         {
@@ -59,12 +71,16 @@ namespace Spreads.Threading
                 SocketOptionName.ReuseAddress,
                 true);
 
+            _socket.SetSocketOption(SocketOptionLevel.Udp,
+                SocketOptionName.NoChecksum,
+                1);
+
             _socket.SetSocketOption(SocketOptionLevel.IP,
                 SocketOptionName.MulticastTimeToLive,
                 2);
 
             _socket.ExclusiveAddressUse = false;
-            _socket.Blocking = false;
+            _socket.Blocking = true;
             _socket.EnableBroadcast = true;
             // Maybe a fluke, bit perf drops and definitely not improves with this: _socket.UseOnlyOverlappedIO = true;
 
@@ -106,7 +122,39 @@ namespace Spreads.Threading
             //    membershipAddresses);
 
             StartReceive();
+
+#if NETCOREAPP3_0
+            try
+            {
+                _handle = _socket.SafeHandle;
+                var address = _mcEndPoint.Serialize();
+                _mcAddressSize = address.Size;
+                _mcAddressBuffer = new byte[_mcAddressSize];
+                for (int i = 0; i < _mcAddressSize; i++)
+                {
+                    _mcAddressBuffer[i] = address[i];
+                }
+
+                var assembly = typeof(Socket).Assembly;
+                var socketPalType = assembly.GetTypes().FirstOrDefault(x => x.Name.ToLower().StartsWith("socketpal"));
+
+                var method = socketPalType
+                    ?.GetMethods(BindingFlags.Static | BindingFlags.NonPublic | BindingFlags.Public)
+                    .FirstOrDefault(m => m.Name == "SendTo");
+
+                _sendToDelegate = Delegate.CreateDelegate(typeof(SendToDelegate), method) as SendToDelegate;
+            }
+            catch
+            {
+                Trace.TraceInformation("Cannot get SocketPal.SendTo method");
+            }
+#endif
         }
+
+#if NETCOREAPP3_0
+        public delegate SocketError SendToDelegate(SafeSocketHandle handle, byte[] buffer, int offset, int size,
+            SocketFlags socketFlags, byte[] peerAddress, int peerAddressSize, out int bytesTransferred);
+#endif
 
         /// <summary>
         /// Instance name useful for debugging.
@@ -129,13 +177,23 @@ namespace Spreads.Threading
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Send(TMessage message)
         {
-            var args = _sendArgsPool.Allocate();
-            Unsafe.WriteUnaligned(ref args.Buffer[0], message);
+            var buffer = _threadStaticBuffer ?? (_threadStaticBuffer = new byte[_bufferLength]);
 
-            if (!_socket.SendToAsync(args))
+            Unsafe.WriteUnaligned(ref buffer[0], message);
+            
+#if NETCOREAPP3_0
+            if (_sendToDelegate != null)
             {
-                ProcessSend(args);
+                _sendToDelegate.Invoke(_handle, buffer, 0, _bufferLength, SocketFlags.None, _mcAddressBuffer,
+                    _mcAddressSize, out _);
             }
+            else
+#endif
+            {
+                _socket.SendTo(buffer, 0, _bufferLength, SocketFlags.None, _mcEndPoint);
+            }
+
+            Interlocked.Increment(ref SendCounter);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -202,7 +260,7 @@ namespace Spreads.Threading
             args.Completed += IO_Completed;
             args.SetBuffer(buffer, 0, _bufferLength);
             // args.RemoteEndPoint = _mcEndPoint;
-            
+
             return args;
         }
 
