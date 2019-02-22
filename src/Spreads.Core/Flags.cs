@@ -5,7 +5,6 @@
 using System;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using Newtonsoft.Json.Bson;
 
 namespace Spreads
 {
@@ -43,7 +42,7 @@ namespace Spreads
             get => (KeySorting)(_value & (int)KeySorting.Strong);
         }
 
-        internal ContainerLayout ContainerLayout
+        public ContainerLayout ContainerLayout
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => (ContainerLayout)(_value & (int)ContainerLayout.PanelFrameT);
@@ -134,10 +133,10 @@ namespace Spreads
         /// <summary>
         /// Data cannot be modified.
         /// </summary>
-        Immutable = 0b_0000_0000,
+        ReadOnly = 0b_0000_0000,
 
         /// <summary>
-        /// Data could be added without changing existing order. Segments of existing data could be treated as <see cref="Immutable"/>.
+        /// Data could be added without changing existing order. Segments of existing data could be treated as <see cref="ReadOnly"/>.
         /// </summary>
         AppendOnly = 0b_0000_0001,
 
@@ -155,14 +154,14 @@ namespace Spreads
     public enum KeySorting : byte
     {
         /// <summary>
-        /// Data is not sorted by keys (or sorted by accident).
+        /// Data is not sorted by keys (or sorted by accident but the sort order is neither enforced nor tracked).
         /// </summary>
         NotSorted = 0b_0000_0000,
 
         /// <summary>
         /// Keys are weakly monotonically sorted according to <see cref="KeyComparer{T}.Default"/> comparer.
         /// Repeating equal keys are possible.
-        /// Search by key always returns the first item with the same key. (TODO)
+        /// Search by a key always returns the first item with the same key (or throws NotSupportedException).
         /// </summary>
         Weak = 0b_0000_0100,
 

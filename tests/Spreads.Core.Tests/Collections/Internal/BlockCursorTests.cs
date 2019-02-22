@@ -73,7 +73,7 @@ namespace Spreads.Core.Tests.Collections.Internal
             var mult = 1_00;
 
             var bcImm = CreateIntBaseContainer(count, count);
-            bcImm._flags = new Flags((byte)Mutability.Immutable | (byte)KeySorting.Strong);
+            bcImm._flags = new Flags((byte)Mutability.ReadOnly | (byte)KeySorting.Strong);
 
             var bcMut = CreateIntBaseContainer(count, count);
             bcMut._flags = new Flags((byte)Mutability.Mutable | (byte)KeySorting.Strong);

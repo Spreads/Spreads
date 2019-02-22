@@ -2,6 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+using Spreads.Extensions;
 using System;
 using System.Diagnostics;
 
@@ -60,10 +61,26 @@ namespace Spreads
         public static readonly MatrixData Matrix = default;
         public static readonly FrameData Frame = default;
         public static readonly PanelData Panel = default;
+        public static readonly PersistentData Storage = default;
         internal static readonly QueryData Q = default;
 
         // Reverse naming
+    }
 
+    // TODO dynamic operations + interface
+    public readonly struct DataObject : IData
+    {
+        private void Test()
+        {
+            var x = Data.Q["asd"];
+            // Data.Series.CreateFrom()
+        }
+
+        public Mutability Mutability => throw new NotImplementedException();
+    }
+
+    namespace Extensions
+    {
         public readonly struct StreamData
         {
             // TODO we do not have a DataSpteam container, only interface - it's just series
@@ -117,6 +134,14 @@ namespace Spreads
         public readonly struct PanelData
         { }
 
+        public readonly struct PersistentData
+        { }
+
+        internal interface IQueryHandler
+        {
+            DataObject Query(string query);
+        }
+
         public readonly struct QueryData
         {
             internal static IQueryHandler QueryHandler;
@@ -125,28 +150,21 @@ namespace Spreads
             {
                 get
                 {
-                    if (QueryHandler != null)
+                    if (QueryHandler == null)
                     {
-                        return QueryHandler.Query(query);
+                        if (Settings.QueryHandlerFactory != null)
+                        {
+                            QueryHandler = Settings.QueryHandlerFactory();
+                        }
+
+                        if (QueryHandler == null)
+                        {
+                            throw new NotImplementedException("Query handler is not implemented.");
+                        }
                     }
-                    throw new NotImplementedException("Query handler is not implemented.");
+                    return QueryHandler.Query(query);
                 }
             }
-        }
-
-        internal interface IQueryHandler
-        {
-            DataObject Query(string query);
-        }
-    }
-
-    // TODO dynamic operations + interface
-    public readonly struct DataObject
-    {
-        private void Test()
-        {
-            var x = Data.Q["asd"];
-            // Data.Series.CreateFrom()
         }
     }
 }

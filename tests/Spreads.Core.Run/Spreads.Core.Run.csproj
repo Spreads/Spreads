@@ -3,6 +3,8 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>netcoreapp3.0</TargetFramework>
+    <!--<RuntimeFrameworkVersion>3.0.0-preview-27324-5</RuntimeFrameworkVersion>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>-->
     <TieredCompilation>false</TieredCompilation>
     <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
     <DockerTargetOS>Linux</DockerTargetOS>
@@ -16,10 +18,14 @@
   <PropertyGroup>
     <PlatformTarget>AnyCPU</PlatformTarget>
   </PropertyGroup>
-
+  <!--<PropertyGroup>
+    <PackageConflictPreferredPackages>Microsoft.Private.CoreFx.NETCoreApp;runtime.win-x64.Microsoft.Private.CoreFx.NETCoreApp;$(PackageConflictPreferredPackages)</PackageConflictPreferredPackages>
+  </PropertyGroup>-->
   <ItemGroup>
     <ProjectReference Include="..\..\src\Spreads.Core\Spreads.Core.csproj" />
     <ProjectReference Include="..\Spreads.Core.Tests\Spreads.Core.Tests.csproj" />
   </ItemGroup>
-
+  <!--<ItemGroup>
+    <PackageReference Include="runtime.win-x64.Microsoft.Private.CoreFx.NETCoreApp" Version="4.6.0-dev.19120.1" />
+  </ItemGroup>-->
 </Project>

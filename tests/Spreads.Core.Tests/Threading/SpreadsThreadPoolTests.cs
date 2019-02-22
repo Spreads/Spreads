@@ -12,7 +12,7 @@ using System.Threading;
 namespace Spreads.Core.Tests.Threading
 {
     [TestFixture]
-    public class SpinningThreadpoolTests
+    public class SpinningThreadPoolTests
     {
         public class Completable : IThreadPoolWorkItem
         {

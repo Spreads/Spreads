@@ -3,6 +3,7 @@ using Spreads.Serialization;
 using Spreads.Utils;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
+using Spreads.Extensions;
 
 namespace Spreads
 {
@@ -228,7 +229,10 @@ namespace Spreads
 
         public static int SharedSpinLockNotificationPort = 0;
 
+
+
         internal static Action ZeroValueNotificationCallback = null;
+        internal static Func<IQueryHandler> QueryHandlerFactory = null;
 
     }
 }

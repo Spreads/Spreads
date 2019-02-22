@@ -30,6 +30,9 @@ namespace Spreads.Collections
         // We need 20-32 bytes of fixed memory. Could use PinnedArrayMemory for 32-bytes slices
         // 
 
+        // TODO these sync fields need rework: move to in-mem only containers or use TLocker object so that persistent series could have their own locking logic without cost
+        // But remember that all series must inherit from Series'2
+
         internal AtomicCounter _orderVersion;
         internal int _locker;
         internal long _version;

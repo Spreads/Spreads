@@ -55,7 +55,7 @@ namespace Spreads.Collections.Experimental
                     }
                 }
             }
-            _flags = new Flags((byte)((byte)Mutability.Immutable | (byte)ks));
+            _flags = new Flags((byte)((byte)Mutability.ReadOnly | (byte)ks));
 
             var keyMemory = ArrayMemory<TKey>.Create(keys, externallyOwned: true);
             var keyVs = VectorStorage.Create(keyMemory, 0, keyMemory.Length, 1);

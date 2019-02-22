@@ -136,10 +136,8 @@ namespace Spreads.Threading
                 }
 
                 var assembly = typeof(Socket).Assembly;
-                var socketPalType = assembly.GetTypes().FirstOrDefault(x => x.Name.ToLower().StartsWith("socketpal"));
-
-                var method = socketPalType
-                    ?.GetMethods(BindingFlags.Static | BindingFlags.NonPublic | BindingFlags.Public)
+                var socketPalType = assembly.GetTypes().FirstOrDefault(x => x.Name == "SocketPal");
+                var method = socketPalType?.GetMethods(BindingFlags.Static | BindingFlags.NonPublic | BindingFlags.Public)
                     .FirstOrDefault(m => m.Name == "SendTo");
 
                 _sendToDelegate = Delegate.CreateDelegate(typeof(SendToDelegate), method) as SendToDelegate;
@@ -180,7 +178,7 @@ namespace Spreads.Threading
             var buffer = _threadStaticBuffer ?? (_threadStaticBuffer = new byte[_bufferLength]);
 
             Unsafe.WriteUnaligned(ref buffer[0], message);
-            
+
 #if NETCOREAPP3_0
             if (_sendToDelegate != null)
             {

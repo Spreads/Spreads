@@ -131,12 +131,12 @@ namespace Spreads.Core.Tests
                 {
                     //try
                     //{
-                        if (Interlocked.CompareExchange(ref *_lock, 1, 0) == 0)
-                        {
-                            *((int*)ptr) = *((int*)ptr) + 1;
-                            Volatile.Write(ref *_lock, 0);
-                            return (*((int*)ptr));
-                        }
+                    if (Interlocked.CompareExchange(ref *_lock, 1, 0) == 0)
+                    {
+                        *((int*)ptr) = *((int*)ptr) + 1;
+                        Volatile.Write(ref *_lock, 0);
+                        return (*((int*)ptr));
+                    }
                     //}
                     //finally
                     //{
@@ -148,7 +148,7 @@ namespace Spreads.Core.Tests
 
         public class ThisIsBaseClass : IIncrementable
         {
-            private byte[] value = new byte[4];
+            internal byte[] value = new byte[4];
             private IntPtr ptr;
             private GCHandle pinnedGcHandle;
 
@@ -168,8 +168,9 @@ namespace Spreads.Core.Tests
 
         public class ThisIsDerivedClass : ThisIsBaseClass, IIncrementable
         {
-            private byte[] value = new byte[4];
+            // internal byte[] value = new byte[4];
             private IntPtr ptr;
+
             private GCHandle pinnedGcHandle;
 
             public ThisIsDerivedClass()
@@ -188,11 +189,33 @@ namespace Spreads.Core.Tests
 
         public class ThisIsDerivedClass2 : ThisIsBaseClass, IIncrementable
         {
-            private byte[] value = new byte[4];
+            // internal byte[] value = new byte[4];
             private IntPtr ptr;
+
             private GCHandle pinnedGcHandle;
 
             public ThisIsDerivedClass2()
+            {
+                pinnedGcHandle = GCHandle.Alloc(value, GCHandleType.Pinned);
+                ptr = pinnedGcHandle.AddrOfPinnedObject();
+            }
+
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public override int Increment()
+            {
+                *((int*)ptr) = *((int*)ptr) + 1;
+                return (*((int*)ptr));
+            }
+        }
+
+        public class ThisIsDerivedClass3 : ThisIsBaseClass, IIncrementable
+        {
+            // internal byte[] value = new byte[4];
+            private IntPtr ptr;
+
+            private GCHandle pinnedGcHandle;
+
+            public ThisIsDerivedClass3()
             {
                 pinnedGcHandle = GCHandle.Alloc(value, GCHandleType.Pinned);
                 ptr = pinnedGcHandle.AddrOfPinnedObject();
@@ -285,12 +308,11 @@ namespace Spreads.Core.Tests
         private void ConstrainedStruct<T>(T incrementable) where T : IIncrementable
         {
             var count = 100000000;
-            
+
             for (int i = 0; i < count; i++)
             {
                 incrementable.Increment();
             }
-            
         }
 
         [Test, Explicit("long running")]
@@ -298,7 +320,6 @@ namespace Spreads.Core.Tests
         {
             var count = 100_000_000;
             // var sw = new Stopwatch();
-
 
             using (Benchmark.Run("Value", count))
             {
@@ -312,7 +333,6 @@ namespace Spreads.Core.Tests
                 }
             }
 
-
             using (Benchmark.Run("Struct", count))
             {
                 var str = new ThisIsSrtuct(new byte[4]);
@@ -324,7 +344,7 @@ namespace Spreads.Core.Tests
 
             using (Benchmark.Run("Str>Interface", count))
             {
-                IIncrementable strAsInterface = (IIncrementable) (new ThisIsSrtuct(new byte[4]));
+                IIncrementable strAsInterface = (IIncrementable)(new ThisIsSrtuct(new byte[4]));
                 for (int i = 0; i < count; i++)
                 {
                     strAsInterface.Increment();
@@ -383,20 +403,26 @@ namespace Spreads.Core.Tests
 
             using (Benchmark.Run("Class>IFace", count))
             {
-                IIncrementable cli = (IIncrementable) new ThisIsClass();
+                IIncrementable cli = (IIncrementable)new ThisIsClass();
                 for (int i = 0; i < count; i++)
                 {
                     cli.Increment();
                 }
             }
 
+            ThisIsBaseClass dcl = new ThisIsDerivedClass2();
+            dcl.Increment();
+            dcl = new ThisIsDerivedClass();
             using (Benchmark.Run("Derived Class", count))
             {
-                var dcl = new ThisIsDerivedClass();
+                
                 for (int i = 0; i < count; i++)
                 {
                     dcl.Increment();
                 }
+
+                //dcl = new ThisIsDerivedClass3();
+                //dcl.Increment();
             }
 
             //sw.Restart();

@@ -2,28 +2,34 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+using Spreads.Utils;
 using System;
-using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using Spreads.Utils;
 
 namespace Spreads.DataTypes
 {
     /// <summary>
-    /// A simpler, faster, comparable and blittable replacement for GUID.
+    /// GUID-like structure that do not promise any RFC compliance and
+    /// could be treated as securely random 16 bytes.
     /// </summary>
     [StructLayout(LayoutKind.Sequential)]
     public readonly unsafe struct UUID : IEquatable<UUID>, IComparable<UUID>
     {
-        // opaque 16 bytes, ulongs help for equality/comparison and union fields in structs
-        private readonly ulong _first;
-        private readonly ulong _second;
+        // opaque 16 bytes
+        // ReSharper disable once PrivateFieldCanBeConvertedToLocalVariable
+        private readonly Guid _guid;
 
-        public UUID(ulong first, ulong second)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static UUID NewUUID()
         {
-            _first = first;
-            _second = second;
+            return new UUID(Guid.NewGuid());
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public UUID(Guid guid)
+        {
+            _guid = guid;
         }
 
         // TODO! test if this is the same as reading directly from fb, endianness could affect this
@@ -37,18 +43,6 @@ namespace Spreads.DataTypes
             {
                 this = *(UUID*)ptr;
             }
-        }
-
-        internal ulong FirstHalfAsULong
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return _first; }
-        }
-
-        internal ulong SecondHalfAsULong
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return _second; }
         }
 
         [Obsolete("Use AsSpan() method")]
@@ -65,39 +59,46 @@ namespace Spreads.DataTypes
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ReadOnlySpan<byte> AsSpan()
         {
-            var ptr = Unsafe.AsPointer(ref System.Runtime.CompilerServices.Unsafe.AsRef<UUID>(in this));
+            var ptr = Unsafe.AsPointer(ref Unsafe.AsRef(in this));
             return new ReadOnlySpan<byte>(ptr, 16);
         }
 
-        public UUID(Guid guid) : this(guid.ToByteArray())
-        {
-        }
-
+        [Obsolete]
         public UUID(string value) : this(value.MD5Bytes())
         {
         }
 
-        [Obsolete]
-        [SuppressMessage("ReSharper", "ImpureMethodCallOnReadonlyValueField")]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public int CompareTo(UUID other)
         {
-            var f = _first.CompareTo(other._first);
-            if (f == 0)
+            var ptr = (byte*)Unsafe.AsPointer(ref Unsafe.AsRef(in this));
+            var ptrOther = (byte*)Unsafe.AsPointer(ref Unsafe.AsRef(in other));
+
+            for (int i = 0; i < 16; i++)
             {
-                return _second.CompareTo(other._second);
+                var c = *(ptr + i) - *(ptrOther + i);
+                if (c != 0)
+                {
+                    return c;
+                }
             }
-            return f;
+
+            return 0;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool Equals(UUID other)
         {
-            return _first == other._first && _second == other._second;
+            var ptr = Unsafe.AsPointer(ref Unsafe.AsRef(in this));
+            var ptrOther = Unsafe.AsPointer(ref Unsafe.AsRef(in other));
+
+            return Unsafe.ReadUnaligned<long>(ptr) == Unsafe.ReadUnaligned<long>(ptrOther)
+                   && Unsafe.ReadUnaligned<long>((byte*)ptr + 8) == Unsafe.ReadUnaligned<long>((byte*)ptrOther + 8);
         }
 
         public override int GetHashCode()
         {
-            ulong mask = int.MaxValue;
-            return (int)(_first & mask);
+            return _guid.GetHashCode();
         }
 
         public override bool Equals(object obj)
