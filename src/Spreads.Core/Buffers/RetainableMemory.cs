@@ -1,11 +1,11 @@
 ﻿using Spreads.Native;
+using Spreads.Serialization;
+using Spreads.Threading;
 using Spreads.Utils;
 using System;
 using System.Buffers;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
-using Spreads.Serialization;
-using Spreads.Threading;
 using static Spreads.Buffers.BuffersThrowHelper;
 
 namespace Spreads.Buffers
@@ -20,16 +20,19 @@ namespace Spreads.Buffers
     /// Initialization could be from a pool of arrays or from native memory. When pooled, RetainableMemory
     /// is in disposed state, underlying arrays are unpinned and returned to array pool.
     /// </summary>
+
     public abstract unsafe class RetainableMemory<T> : MemoryManager<T>
     {
-        internal AtomicCounter Counter;
-
         // [p*<-len---------------->] we must only check capacity at construction and then work from pointer
         // [p*<-len-[<--lenPow2-->]>] buffer could be larger, pooling always by max pow2 we could store
 
         internal T[] _array;
-        internal int _arrayOffset;
         internal void* _pointer;
+
+        internal AtomicCounter Counter;
+
+        internal int _arrayOffset;
+
         protected int _length;
 
         // Internals with private-like _name are not intended for usage outside RMP and tests.
@@ -39,6 +42,8 @@ namespace Spreads.Buffers
         // Pool sets this value on Rent/Return
         internal bool _isPooled;
 
+        internal byte _poolIdx;
+
         /// <summary>
         /// True if the memory is already clean (all zeros) on return. Useful for the case when
         /// the pool has <see cref="RetainableMemoryPool{T}.IsRentAlwaysClean"/> set to true
@@ -46,14 +51,6 @@ namespace Spreads.Buffers
         /// is obvious and when cost of cleaning could be high (larger buffers).
         /// </summary>
         internal bool SkipCleaning;
-
-        // Whenever a memory becomes a storage of app data and not a temp buffer
-        // this must be cleared. Decrement to zero causes pooling before checks
-        // and we need to somehow refactor logic without introducing another
-        // virtual method and just follow the rule that app data buffers are not
-        // poolable in this context. When app finishes working with the buffer
-        // it could set this field back to original value.
-        internal RetainableMemoryPool<T> _pool;
 
         // Length for pool buckets. To simplify and speedup implementation we just
         // use default pow2 pool logic without virtual methods and complexity of
@@ -75,6 +72,19 @@ namespace Spreads.Buffers
             }
             Counter = counter;
         }
+
+        // Whenever a memory becomes a storage of app data and not a temp buffer
+        // this must be cleared. Decrement to zero causes pooling before checks
+        // and we need to somehow refactor logic without introducing another
+        // virtual method and just follow the rule that app data buffers are not
+        // poolable in this context. When app finishes working with the buffer
+        // it could set this field back to original value.
+        internal RetainableMemoryPool<T> Pool => _poolIdx >= 2 ? RetainableMemoryPool<T>.KnownPools[_poolIdx] : null;
+
+        /// <summary>
+        /// An array was allocated manually. Otherwise even if _pool == null we return the array to default array pool on Dispose.
+        /// </summary>
+        protected bool ExternallyOwned => _poolIdx == 0;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal int Increment()
@@ -165,10 +175,10 @@ namespace Spreads.Buffers
             get => _isPooled;
         }
 
-        public bool IsPoolable
+        internal bool IsPoolable
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => _pool != null;
+            get => _poolIdx > 1;
         }
 
         public int ReferenceCount
@@ -185,7 +195,7 @@ namespace Spreads.Buffers
                 ThrowAlreadyPooled<RetainableMemory<T>>();
             }
 
-            _pool?.ReturnNoChecks(this, clearMemory: !TypeHelper<T>.IsPinnable);
+            Pool?.ReturnNoChecks(this, clearMemory: !TypeHelper<T>.IsPinnable);
 
             if (!_isPooled)
             {

@@ -3,20 +3,55 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 using NUnit.Framework;
+using ObjectLayoutInspector;
 using Spreads.Buffers;
 using Spreads.Utils;
 using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
+using Spreads.Threading;
 
 namespace Spreads.Core.Tests.Buffers
 {
+    
+
     [Category("CI")]
     [TestFixture]
     public class ArrayMemoryTests
     {
+        class DummyRetainableMemory : RetainableMemory<byte>
+        {
+            public DummyRetainableMemory(AtomicCounter counter) : base(counter)
+            {
+            }
+
+            protected override void Dispose(bool disposing)
+            {
+                throw new NotImplementedException();
+            }
+        }
+
+        [Test, Explicit("")]
+        public void PointerOrHandleLayout()
+        {
+            TypeLayout.PrintLayout<PointerOrHandle>();
+        }
+
+        [Test, Explicit("")]
+        public void RetainableMemoryLayout()
+        {
+            TypeLayout.PrintLayout<DummyRetainableMemory>();
+        }
+
+        [Test, Explicit("")]
+        public void ArrayMemoryLayout()
+        {
+            TypeLayout.PrintLayout<ArrayMemory<byte>>();
+        }
+
         [Test]
         public void CannotDisposeRetained()
         {
@@ -68,21 +103,47 @@ namespace Spreads.Core.Tests.Buffers
             Console.WriteLine(sum);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
         [Test, Explicit("long running")]
         public void RentReturnBenchmark()
         {
-            var count = 100_000_000;
+            var count = 100_000_000; //_000;
 
             using (Benchmark.Run("FullCycle", count))
             {
                 for (int i = 0; i < count; i++)
                 {
-                    var memory = ArrayMemory<byte>.Create(32 * 1024, pin: true);
+                    var memory = ArrayMemory<byte>.Create(32, pin: false);
                     ((IDisposable)memory).Dispose();
                 }
             }
         }
 
+        [Test, Ignore("not working")]
+        public void RefCountOfPooled()
+        {
+            var pool = new RetainableMemoryPool<byte>(null, 16,
+                1024 * 1024, 50, 2);
+
+            var buf = (ArrayMemory<byte>)pool.Rent(100);
+
+            Assert.IsTrue(buf.IsPoolable);
+
+            Console.WriteLine($"rented: {buf.ReferenceCount}");
+
+            pool.Return(buf);
+
+            Console.WriteLine($"returned: {buf.ReferenceCount}");
+            Console.WriteLine($"pooled: {buf.IsPooled}");
+
+            // TODO this must throw
+            var rm = buf.Retain();
+            rm.Dispose();
+
+            pool.Dispose();
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
         [Test, Explicit("long running")]
         public void RentReturnBenchmarkRetainablePool()
         {
@@ -133,7 +194,6 @@ namespace Spreads.Core.Tests.Buffers
             var tasks = new List<Task>();
             var taskCount = 1; // 6x2 cores
 
-
             var mre = new ManualResetEventSlim(false);
 
             Action action = () =>
@@ -183,7 +243,7 @@ namespace Spreads.Core.Tests.Buffers
                 {
                     var am = ArrayMemory<byte>.Create(l, pin: true);
                     // Attach pool
-                    am._pool = p;
+                    am._poolIdx = p.PoolIdx;
                     return am;
                 }, 16,
                 1024 * 1024, capacity, 0);

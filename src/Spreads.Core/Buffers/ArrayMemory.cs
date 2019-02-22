@@ -94,7 +94,7 @@ namespace Spreads.Buffers
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         protected override void Dispose(bool disposing)
         {
-            if (_externallyOwned)
+            if (ExternallyOwned)
             {
                 ThrowHelper.ThrowNotSupportedException();
             }
@@ -109,7 +109,7 @@ namespace Spreads.Buffers
             else
             {
                 Debug.Assert(!_isPooled);
-                _pool = null;
+                _poolIdx = default;
 
                 // we still could add this to the pool of free pinned slices that are backed by an existing slab
                 var pooledToFreeSlicesPool = _slicesPool.Return(this);
@@ -147,7 +147,6 @@ namespace Spreads.Buffers
         private static readonly ObjectPool<ArrayMemory<T>> ObjectPool = new ObjectPool<ArrayMemory<T>>(() => new ArrayMemory<T>(), Environment.ProcessorCount * 16);
 
         protected GCHandle _handle;
-        protected bool _externallyOwned;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         protected ArrayMemory() : base(AtomicCounterService.AcquireCounter())
@@ -198,7 +197,7 @@ namespace Spreads.Buffers
         /// Create <see cref="ArrayMemory{T}"/> backed by the provided array.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static unsafe ArrayMemory<T> Create(T[] array, int offset, int length, bool externallyOwned, bool pin)
+        internal static unsafe ArrayMemory<T> Create(T[] array, int offset, int length, bool externallyOwned, bool pin, RetainableMemoryPool<T> pool = null)
         {
             var arrayMemory = ObjectPool.Allocate();
             arrayMemory._array = array;
@@ -221,7 +220,11 @@ namespace Spreads.Buffers
 
             arrayMemory._arrayOffset = offset;
             arrayMemory._length = length;
-            arrayMemory._externallyOwned = externallyOwned;
+            // arrayMemory._externallyOwned = externallyOwned;
+            arrayMemory._poolIdx =
+                pool is null
+                ? externallyOwned ? (byte)0 : (byte)1
+                : pool.PoolIdx;
 
             // ObjectPool.Allocate creates a valid AC from Factory, reused objects have AC disposed
             if (arrayMemory.Counter.Pointer != null)
@@ -264,7 +267,7 @@ namespace Spreads.Buffers
             else
             {
                 Debug.Assert(!_isPooled);
-                _pool = null;
+                _poolIdx = default;
 
                 Counter.Dispose();
                 AtomicCounterService.ReleaseCounter(Counter);
@@ -277,7 +280,7 @@ namespace Spreads.Buffers
                     _handle.Free();
                     _handle = default;
                     // special value that is not normally possible - to keep thread-static buffer non-disposable
-                    if (!_externallyOwned)
+                    if (!ExternallyOwned)
                     {
                         BufferPool<T>.Return(array, !TypeHelper<T>.IsFixedSize);
                     }

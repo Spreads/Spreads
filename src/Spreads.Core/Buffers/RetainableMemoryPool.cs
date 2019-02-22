@@ -41,6 +41,9 @@ namespace Spreads.Buffers
     /// </summary>
     public class RetainableMemoryPool<T> : MemoryPool<T>
     {
+        internal static RetainableMemoryPool<T>[] KnownPools = new RetainableMemoryPool<T>[256];
+        internal byte PoolIdx;
+
         /// <summary>
         /// Set to true to always clean on return and clean buffers produced by factory.
         /// </summary>
@@ -73,6 +76,10 @@ namespace Spreads.Buffers
         public RetainableMemoryPool(Func<RetainableMemoryPool<T>, int, RetainableMemory<T>> factory, int minLength,
             int maxLength, int maxBuffersPerBucket, int maxBucketsToTry = 2, bool pin = false)
         {
+            
+
+
+
             IsRentAlwaysClean = false;
 
             _factory = factory;
@@ -135,6 +142,24 @@ namespace Spreads.Buffers
                 buckets[i] = new Bucket(this, _factory, GetMaxSizeForBucket(i), maxBuffersPerBucket, poolId);
             }
             _buckets = buckets;
+
+
+            lock (KnownPools)
+            {
+                // start from 2,
+                // pool idx == 0 is always null which means a buffer is not from pool
+                // pool idx == 1 means a buffer is from default pool, e.g. static array pool
+                for (int i = 2; i < KnownPools.Length; i++)
+                {
+                    if (KnownPools[i] == null)
+                    {
+                        PoolIdx = checked((byte)i);
+                        KnownPools[i] = this;
+                        return;
+                    }
+                }
+                ThrowHelper.ThrowInvalidOperationException("KnownPools slots exhausted. 254 pools ought to be enough for anybody.");
+            }
         }
 
         /// <summary>Gets an ID for the pool to use with events.</summary>
@@ -150,8 +175,8 @@ namespace Spreads.Buffers
 
             if (_factory == null)
             {
-                var am = ArrayMemory<T>.Create(length, _pin);
-                am._pool = Unsafe.As<RetainableMemoryPool<T>>(this);
+                var am = ArrayMemory<T>.Create(BufferPool<T>.Rent(length), 0, length, false, _pin, this);
+                // am._pool = this;
                 return Unsafe.As<RetainableMemory<T>>(am);
             }
 
@@ -260,7 +285,7 @@ namespace Spreads.Buffers
                 return false;
             }
 
-            if (memory._pool != this)
+            if (memory._poolIdx != PoolIdx)
             {
                 ThrowNotFromPool<RetainableMemory<T>>();
             }
@@ -396,7 +421,7 @@ namespace Spreads.Buffers
                         arrayMemory = ArrayMemory<T>.Create(_bufferLength, _pool._pin);
                     }
 
-                    arrayMemory._pool = _pool;
+                    arrayMemory._poolIdx = _pool.PoolIdx;
                     if (arrayMemory.LengthPow2 != _bufferLength)
                     {
                         // TODO proper exception, this is for args
