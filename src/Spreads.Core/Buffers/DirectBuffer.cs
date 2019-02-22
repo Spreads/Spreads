@@ -2,15 +2,16 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+using Spreads.DataTypes;
 using System;
 using System.Buffers;
 using System.Diagnostics;
 using System.Diagnostics.Contracts;
+using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
-using Spreads.DataTypes;
 using static System.Runtime.CompilerServices.Unsafe;
 
 namespace Spreads.Buffers
@@ -21,13 +22,16 @@ namespace Spreads.Buffers
     [DebuggerTypeProxy(typeof(SpreadsBuffers_DirectBufferDebugView))]
     [DebuggerDisplay("Length={" + nameof(Length) + ("}"))]
     [StructLayout(LayoutKind.Sequential)]
-    public readonly unsafe struct DirectBuffer
+    public readonly unsafe struct DirectBuffer : IEquatable<DirectBuffer>
     {
         public static DirectBuffer Invalid = new DirectBuffer(0, (byte*)IntPtr.Zero);
 
         // NB this is used for Spreads.LMDB as MDB_val, where length is IntPtr. However, LMDB works normally only on x64
         // if we even support x86 we will have to create a DTO with IntPtr length. But for x64 casting IntPtr to/from long
         // is surprisingly expensive, e.g. Slice and ctor show up in profiler.
+
+        // TODO this should be (U)IntPtr. The comment above was probably with tiered on, need to review.
+        // LMDB 1.0 will work OK-ish on x86
 
         internal readonly long _length;
         internal readonly byte* _pointer;
@@ -784,6 +788,101 @@ namespace Spreads.Buffers
         }
 
         #endregion Debugger proxy class
+
+        public override int GetHashCode()
+        {
+            if (_length >= 4)
+            {
+                return ReadUnaligned<int>(_pointer);
+            }
+            // as if zero padded
+            var fourBytes = stackalloc byte[4];
+            *fourBytes = 0;
+            for (int i = 0; i < _length; i++)
+            {
+                *(fourBytes + i) = *(_pointer + i);
+            }
+
+            return *(int*)fourBytes;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public bool Equals(DirectBuffer other)
+        {
+            if (_length != other._length)
+            {
+                return false;
+            }
+
+            return SequenceEqual(ref *_pointer, ref *other._pointer, checked((uint)_length));
+        }
+
+        // Methods from https://source.dot.net/#System.Private.CoreLib/shared/System/SpanHelpers.Byte.cs,ae8b63bad07668b3
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static UIntPtr LoadUIntPtr(ref byte start, IntPtr offset)
+            => ReadUnaligned<UIntPtr>(ref AddByteOffset(ref start, offset));
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static Vector<byte> LoadVector(ref byte start, IntPtr offset)
+            => ReadUnaligned<Vector<byte>>(ref AddByteOffset(ref start, offset));
+
+#if NETCOREAPP3_0
+        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
+
+        public static bool SequenceEqual(ref byte first, ref byte second, uint length)
+        {
+            if (AreSame(ref first, ref second))
+            {
+                goto Equal;
+            }
+
+            IntPtr offset = (IntPtr)0; // Use IntPtr for arithmetic to avoid unnecessary 64->32->64 truncations
+            IntPtr lengthToExamine = (IntPtr)(void*)length;
+
+            if (Vector.IsHardwareAccelerated && (byte*)lengthToExamine >= (byte*)Vector<byte>.Count)
+            {
+                lengthToExamine -= Vector<byte>.Count;
+                while ((byte*)lengthToExamine > (byte*)offset)
+                {
+                    if (LoadVector(ref first, offset) != LoadVector(ref second, offset))
+                    {
+                        goto NotEqual;
+                    }
+                    offset += Vector<byte>.Count;
+                }
+                return LoadVector(ref first, lengthToExamine) == LoadVector(ref second, lengthToExamine);
+            }
+
+            if ((byte*)lengthToExamine >= (byte*)sizeof(UIntPtr))
+            {
+                lengthToExamine -= sizeof(UIntPtr);
+                while ((byte*)lengthToExamine > (byte*)offset)
+                {
+                    if (LoadUIntPtr(ref first, offset) != LoadUIntPtr(ref second, offset))
+                    {
+                        goto NotEqual;
+                    }
+                    offset += sizeof(UIntPtr);
+                }
+                return LoadUIntPtr(ref first, lengthToExamine) == LoadUIntPtr(ref second, lengthToExamine);
+            }
+
+            while ((byte*)lengthToExamine > (byte*)offset)
+            {
+                if (AddByteOffset(ref first, offset) != AddByteOffset(ref second, offset))
+                {
+                    goto NotEqual;
+                }
+                offset += 1;
+            }
+
+        Equal:
+            return true;
+        NotEqual: // Workaround for https://github.com/dotnet/coreclr/issues/13549
+            return false;
+        }
     }
 
     public static unsafe class DirectBufferExtensions
