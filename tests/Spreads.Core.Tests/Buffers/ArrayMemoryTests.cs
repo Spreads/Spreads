@@ -12,6 +12,7 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
+using Spreads.Native;
 using Spreads.Threading;
 
 namespace Spreads.Core.Tests.Buffers
@@ -35,9 +36,9 @@ namespace Spreads.Core.Tests.Buffers
         }
 
         [Test, Explicit("")]
-        public void PointerOrHandleLayout()
+        public void VecLayout()
         {
-            TypeLayout.PrintLayout<PointerOrHandle>();
+            TypeLayout.PrintLayout<Vec<byte>>();
         }
 
         [Test, Explicit("")]

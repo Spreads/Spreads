@@ -17,10 +17,8 @@ namespace Spreads.Buffers
 
     /// <summary>
     /// Base class for retainable memory. Buffers are pinned during initialization if that is possible.
-    /// Initialization could be from a pool of arrays or from native memory. When pooled, RetainableMemory
-    /// is in disposed state, underlying arrays are unpinned and returned to array pool.
+    /// Initialization could be from a pool of arrays or from native memory.
     /// </summary>
-
     public abstract unsafe class RetainableMemory<T> : MemoryManager<T>
     {
         // [p*<-len---------------->] we must only check capacity at construction and then work from pointer
@@ -34,6 +32,11 @@ namespace Spreads.Buffers
         internal int _arrayOffset;
 
         protected int _length;
+
+        /// <summary>
+        /// With current layout this field is padded on x64, better to reuse it in SM for BR, so we save 8 bytes there (4 for BR + new padding to 8).
+        /// </summary>
+        protected int _reservedPadding;
 
         // Internals with private-like _name are not intended for usage outside RMP and tests.
 
@@ -51,11 +54,6 @@ namespace Spreads.Buffers
         /// is obvious and when cost of cleaning could be high (larger buffers).
         /// </summary>
         internal bool SkipCleaning;
-
-        // Length for pool buckets. To simplify and speedup implementation we just
-        // use default pow2 pool logic without virtual methods and complexity of
-        // calculating lengths. A buffer is pooled by max pow2 it could fit into.
-        internal int _pow2Length;
 
 #if DEBUG
         internal string _stackTrace = Environment.StackTrace;
@@ -226,17 +224,15 @@ namespace Spreads.Buffers
             get => _length;
         }
 
+        /// <summary>
+        /// Length for pool buckets. To simplify and speedup implementation we just
+        /// use default pow2 pool logic without virtual methods and complexity of
+        /// calculating lengths. A buffer is pooled by max pow2 it could fit into.
+        /// </summary>
         internal int LengthPow2
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get
-            {
-                if (_pow2Length == 0)
-                {
-                    return _pow2Length = (BitUtil.FindNextPositivePowerOfTwo(_length + 1) / 2);
-                }
-                return _pow2Length;
-            }
+            get => 1 << (31 - IntUtil.NumberOfLeadingZeros(_length));
         }
 
         public override Span<T> GetSpan()
@@ -343,7 +339,7 @@ namespace Spreads.Buffers
         {
             _pointer = null;
             _length = default;
-            _pow2Length = default;
+            // _pow2Length = default;
             Counter = default;
         }
 

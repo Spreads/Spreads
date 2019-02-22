@@ -32,7 +32,7 @@ namespace Spreads.Buffers
             // for shared-memory backed counters. Base class doesn't know about ACS.
             base(AtomicCounterService.AcquireCounter())
         {
-            _poolIdx = pool.PoolIdx;
+            _poolIdx = pool == null ? (byte)0 : pool.PoolIdx;
             Init(minLength);
         }
 
