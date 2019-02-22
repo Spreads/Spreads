@@ -264,6 +264,17 @@ namespace Spreads.Threading
             return (Wpid)Volatile.Read(ref *pointer);
         }
 
+        /// <summary>
+        /// Wpid is holding a lock with priority, which is only possible when the lock is exclusive.
+        /// Normally priority has a waiter that first reached a threshold spin number.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe bool GetIsExclusiveLock(long* pointer, Wpid wpid)
+        {
+            var existing = (Wpid)Volatile.Read(ref *pointer);
+            return LockValueToWpid(existing) == wpid && (PriorityTagMask & existing) != 0;
+        }
+
         public unsafe Wpid LockHolder
         {
             [DebuggerStepThrough]
@@ -301,6 +312,30 @@ namespace Spreads.Threading
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe Wpid TryUpgradeToExclusiveLock(long* pointer, Wpid wpid)
+        {
+            var existing = (Wpid)Volatile.Read(ref *pointer);
+            if (LockValueToWpid(existing) == wpid)
+            {
+                if ((PriorityTagMask & existing) != 0)
+                {
+                    ThrowAlreadyInExclusiveLock();
+                }
+
+                Volatile.Write(ref *pointer, existing | PriorityTagMask);
+            }
+
+            ThrowNotHoldingLockForUpgrade();
+            return default;
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static void ThrowAlreadyInExclusiveLock()
+        {
+            ThrowHelper.ThrowInvalidOperationException("Already holding an exclusive lock.");
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public unsafe Wpid TryAcquireExclusiveLock(Wpid wpid, int spinLimit = 0, IWpidHelper wpidHelper = null)
         {
             return TryAcquireExclusiveLock((long*)Pointer, wpid, spinLimit, wpidHelper);
@@ -319,6 +354,11 @@ namespace Spreads.Threading
                 if (expectedLockValue == existing)
                 {
                     return default;
+                }
+
+                if ((existing & PriorityTagMask) == 0)
+                {
+                    ThrowNotInExclusiveLock();
                 }
 
                 if (LockValueToWpid(existing) != wpid)
@@ -362,16 +402,23 @@ namespace Spreads.Threading
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
+        private static void ThrowNotHoldingLockForUpgrade()
+        {
+            ThrowHelper.ThrowInvalidOperationException(
+                "Trying to upgrade to exclusive lock while not holding a lock, existing wpid is different from the given one");
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
         private static void ThrowNotHoldingLockForReenter()
         {
             ThrowHelper.ThrowInvalidOperationException(
-                "Trying to re-enter exlusive lock while not holding a lock, existing wpid is different from the given one");
+                "Trying to re-enter exclusive lock while not holding a lock, existing wpid is different from the given one");
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
         private static void ThrowNotInExclusiveLock()
         {
-            ThrowHelper.ThrowInvalidOperationException("Not entered exclusive lock, cannot exit it.");
+            ThrowHelper.ThrowInvalidOperationException("Not in exclusive lock.");
         }
 
         /// <summary>
@@ -746,6 +793,8 @@ namespace Spreads.Threading
         {
             var lockValue = WpidToLockValue(wpid);
 
+            // TODO test value first (in contended case as well). CAS is too expensive, one per roundtrip is enough
+
             if (lockValue == Interlocked.CompareExchange(ref *(long*)(pointer), 0, lockValue))
             {
                 return default;
@@ -764,6 +813,8 @@ namespace Spreads.Threading
         private static unsafe Wpid TryReleaseLockContended(long* pointer, Wpid wpid)
         {
             var lockValue = WpidToLockValue(wpid);
+
+            // TODO Debug.Assert everywhere that ptr is aligned. For locking it must be.
             long existing = *pointer;
 
             if ((existing & ExclusiveTagMask) != 0)
