@@ -1,5 +1,4 @@
 ﻿using Spreads.Native;
-using Spreads.Serialization;
 using Spreads.Threading;
 using Spreads.Utils;
 using System;
@@ -24,28 +23,21 @@ namespace Spreads.Buffers
         // [p*<-len---------------->] we must only check capacity at construction and then work from pointer
         // [p*<-len-[<--lenPow2-->]>] buffer could be larger, pooling always by max pow2 we could store
 
-        internal T[] _array;
         internal void* _pointer;
 
-        internal AtomicCounter Counter;
-
-        internal int _arrayOffset;
+        [Obsolete("Must be used only from CounterRef or for custom storage when _isNativeWithHeader == true")]
+        internal int _counterOrReserved;
 
         protected int _length;
 
-        /// <summary>
-        /// With current layout this field is padded on x64, better to reuse it in SM for BR, so we save 8 bytes there (4 for BR + new padding to 8).
-        /// </summary>
-        protected int _reservedPadding;
-
-        // Internals with private-like _name are not intended for usage outside RMP and tests.
-
-        // NOTE: this could be replaced by _pool == null, but ambiguous for never pooled managers
-        // and we do not save object size in the presence of SkipCleaning field (at least 4 bytes padding)
-        // Pool sets this value on Rent/Return
-        internal bool _isPooled;
+        // Internals with private-like _name are not intended for usage outside RMPool and tests.
 
         internal byte _poolIdx;
+
+        /// <summary>
+        /// A pool sets this value atomically from a SpinLock.
+        /// </summary>
+        internal volatile bool _isPooled;
 
         /// <summary>
         /// True if the memory is already clean (all zeros) on return. Useful for the case when
@@ -55,20 +47,32 @@ namespace Spreads.Buffers
         /// </summary>
         internal bool SkipCleaning;
 
+        /// <summary>
+        /// True if there is a header at <see cref="NativeHeaderSize"/> before the <see cref="_pointer"/>.
+        /// Special case for DS's SM.
+        /// </summary>
+        internal bool _isNativeWithHeader;
+
+        internal const int NativeHeaderSize = 8;
+
 #if DEBUG
-        internal string _stackTrace = Environment.StackTrace;
+        internal string _ctorStackTrace = Environment.StackTrace;
 #endif
 
-        protected RetainableMemory(AtomicCounter counter)
+        internal ref int CounterRef
         {
-            if (counter.IsValid)
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get
             {
-                if (counter.Count != 0)
+                if (_isNativeWithHeader)
                 {
-                    ThrowHelper.ThrowArgumentException("counter.Count != 0");
+                    return ref Unsafe.AsRef<int>((byte*)_pointer - NativeHeaderSize);
                 }
+
+#pragma warning disable 618
+                return ref _counterOrReserved;
+#pragma warning restore 618
             }
-            Counter = counter;
         }
 
         // Whenever a memory becomes a storage of app data and not a temp buffer
@@ -77,36 +81,44 @@ namespace Spreads.Buffers
         // virtual method and just follow the rule that app data buffers are not
         // poolable in this context. When app finishes working with the buffer
         // it could set this field back to original value.
-        internal RetainableMemoryPool<T> Pool => _poolIdx >= 2 ? RetainableMemoryPool<T>.KnownPools[_poolIdx] : null;
+        internal RetainableMemoryPool<T> Pool
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => _poolIdx >= 2 ? RetainableMemoryPool<T>.KnownPools[_poolIdx] : null;
+        }
 
         /// <summary>
         /// An array was allocated manually. Otherwise even if _pool == null we return the array to default array pool on Dispose.
         /// </summary>
-        protected bool ExternallyOwned => _poolIdx == 0;
+        protected bool ExternallyOwned
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => _poolIdx == 0;
+        }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal int Increment()
         {
-            return Counter.Increment();
+            return AtomicCounter.Increment(ref CounterRef);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal int IncrementIfRetained()
         {
-            return Counter.IncrementIfRetained();
+            return AtomicCounter.IncrementIfRetained(ref CounterRef);
         }
 
         /// <summary>
-        /// Returns true if there are outstanding references after decrement.
+        /// Returns count value after decrement.
         /// </summary>
         /// <returns></returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal int Decrement()
         {
-            var newRefCount = Counter.Decrement();
+            var newRefCount = AtomicCounter.Decrement(ref CounterRef);
             if (newRefCount == 0)
             {
-                TryReturnThisToPoolOrFinalize();
+                Dispose(true);
             }
             return newRefCount;
         }
@@ -114,27 +126,12 @@ namespace Spreads.Buffers
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal int DecrementIfOne()
         {
-            var newRefCount = Counter.DecrementIfOne();
+            var newRefCount = AtomicCounter.DecrementIfOne(ref CounterRef);
             if (newRefCount == 0)
             {
-                TryReturnThisToPoolOrFinalize();
+                Dispose(true);
             }
             return newRefCount;
-        }
-
-        /// <summary>
-        /// Returns <see cref="Vec{T}"/> backed by this instance memory.
-        /// </summary>
-        public Vec<T> Vec
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get
-            {
-                // var tid = VecTypeHelper<T>.RuntimeVecInfo.RuntimeTypeId;
-                var vec = _pointer == null ? new Vec<T>(_array, _arrayOffset, _length) : new Vec<T>(_pointer, _length);
-                Debug.Assert(vec.AsVec().Type == typeof(T));
-                return vec;
-            }
         }
 
         internal void* Pointer
@@ -164,7 +161,7 @@ namespace Spreads.Buffers
         public bool IsRetained
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => Counter.Count > 0;
+            get => AtomicCounter.GetIsRetained(ref CounterRef);
         }
 
         public bool IsPooled
@@ -182,40 +179,13 @@ namespace Spreads.Buffers
         public int ReferenceCount
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => Counter.Count;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        protected void TryReturnThisToPoolOrFinalize()
-        {
-            if (_isPooled)
-            {
-                ThrowAlreadyPooled<RetainableMemory<T>>();
-            }
-
-            Pool?.ReturnNoChecks(this, clearMemory: !TypeHelper<T>.IsPinnable);
-
-            if (!_isPooled)
-            {
-                DisposeFinalize();
-            }
-        }
-
-        /// <summary>
-        /// Call Dispose(False) as if finalizing.
-        /// Useful when we internally rent a temp buffer and manually return it with clearMemory = false.
-        /// </summary>
-        internal void DisposeFinalize()
-        {
-            // Do not detach from the pool yet, Dispose(false) may need it for custom finalization implemented by the pool: don't set _pool = null;
-            GC.SuppressFinalize(this);
-            Dispose(false);
+            get => AtomicCounter.GetCount(ref CounterRef);
         }
 
         public bool IsDisposed
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => Counter.Count < 0;
+            get => AtomicCounter.GetIsDisposed(ref CounterRef);
         }
 
         public int Length
@@ -232,7 +202,21 @@ namespace Spreads.Buffers
         internal int LengthPow2
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => 1 << (31 - IntUtil.NumberOfLeadingZeros(_length));
+            get => BitUtil.FindPreviousPositivePowerOfTwo(_length);
+        }
+
+        /// <summary>
+        /// Returns <see cref="Vec{T}"/> backed by this instance memory.
+        /// </summary>
+        public virtual Vec<T> Vec
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get
+            {
+                var vec = new Vec<T>(_pointer, _length);
+                Debug.Assert(vec.AsVec().Type == typeof(T));
+                return vec;
+            }
         }
 
         public override Span<T> GetSpan()
@@ -242,12 +226,8 @@ namespace Spreads.Buffers
                 ThrowDisposed<RetainableMemory<T>>();
             }
 
-            //if (_pointer != null && _array != null)
-            //{
-            //    Console.WriteLine("Catch me");
-            //}
             // if disposed Pointer & _len are null/0, no way to corrupt data, will just throw
-            return _pointer == null ? new Span<T>(_array, _arrayOffset, _length) : new Span<T>(Pointer, _length);
+            return new Span<T>(Pointer, _length);
         }
 
         internal DirectBuffer DirectBuffer
@@ -296,25 +276,10 @@ namespace Spreads.Buffers
         }
 
         /// <summary>
-        /// Retain buffer memory.
-        /// </summary>
-        [Obsolete("This differs from Slice that takes start, could be source of error")]
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public RetainedMemory<T> Retain(int length)
-        {
-            if ((uint)length > (uint)_length)
-            {
-                ThrowBadLength();
-            }
-
-            return Retain(0, length);
-        }
-
-        /// <summary>
         /// Retain buffer memory without pinning it.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public RetainedMemory<T> Retain(int start, int length)
+        public virtual RetainedMemory<T> Retain(int start, int length)
         {
             if ((uint)start + (uint)length > (uint)_length)
             {
@@ -326,21 +291,25 @@ namespace Spreads.Buffers
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal void EnsureNotRetainedAndNotDisposed()
         {
-            var count = Counter.IsValid ? Counter.Count : -1;
-            if (count != 0)
+            if (IsDisposed)
             {
-                if (count > 0) { ThrowDisposingRetained<RetainableMemory<T>>(); }
-                else { ThrowDisposed<RetainableMemory<T>>(); }
+                ThrowDisposed<RetainableMemory<T>>();
+            }
+
+            if (IsRetained)
+            {
+                ThrowDisposingRetained<RetainableMemory<T>>();
             }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal void ClearAfterDispose()
         {
+            // Do not clear counter, it is in disposed state in the pool or it will be GCed.
+            Debug.Assert(AtomicCounter.GetIsDisposed(ref CounterRef));
+            Debug.Assert(!_isPooled);
             _pointer = null;
-            _length = default;
-            // _pow2Length = default;
-            Counter = default;
+            _length = default; // not -1, we have uint cast. Also len = 0 should not corrupt existing data
         }
 
         internal string Tag
@@ -366,15 +335,19 @@ namespace Spreads.Buffers
         ~RetainableMemory()
         {
             // always dies in Debug
-            if (Counter.IsValid && IsRetained)
+            if (IsRetained)
             {
                 if (Tag != null)
                 {
                     // in general we do not know that Dispose(false) will throw/fail, so just print it here
                     Trace.TraceWarning("Finalizing retained RM: " + Tag);
                 }
+                else
+                {
+                    Trace.TraceWarning("Finalizing retained RM");
+                }
 #if DEBUG
-                throw new ApplicationException("Finalizing retained RM: " + _stackTrace);
+                throw new ApplicationException("Finalizing retained RM: " + _ctorStackTrace);
 #endif
             }
 

@@ -2,27 +2,32 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+using Spreads.Buffers;
+using Spreads.Utils;
 using System;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Threading;
-using Spreads.Buffers;
-using Spreads.Utils;
 
 namespace Spreads.Threading
 {
-    // TODO Scan disposed but not released counters (value == -1)
-    // However we should rather guarantee release in finalizer even
-    // when counter > 0 if the object being finalized is exclusive owner.
-    // Owners should be pooled and such events should be quite rare.
-    // TODO logging and/or performanc counters for AC Acquire/Release.
-
     /// <summary>
     /// Counts non-negative value and stores it in provided pointer in pinned/native memory.
     /// </summary>
     [DebuggerDisplay("{" + nameof(Count) + "}")]
     public readonly unsafe struct AtomicCounter
     {
+        // We use interlocked operations which are very expensive. Limit the number of bits used
+        // for ref count so that other bits could be used for flags. 2^23 should be enough for
+        // ref count. Interlocked incr/decr will work with flags without additional logic.
+
+        // All operations must be atomic even if this requires testing value + CAS instead
+        // of IL.Incr/Decr. We need correctness first. When justified
+        // we could work with the pointer directly.
+
+        public const int CountMask = 0b_11111111_11111111_11111111;
+        public const int CountLimit = CountMask >> 1;
+
         /// <summary>
         /// Value in pointer:
         /// 0 - not retained, could be taken from pool for temp usage with e.g. return in finally
@@ -39,143 +44,221 @@ namespace Spreads.Threading
             {
                 ThowNullPointerInCtor();
             }
+
+            // prevent disposed and just bad values.
+            if ((uint)(*pointer & CountMask) >= CountLimit)
+            {
+                ThrowBadCounter(*pointer & CountMask);
+            }
+
             Pointer = pointer;
         }
 
-        // TODO wrap in AdditionalCorrectnessCheck when stable. Probably owners already check IsDisposed on every call.
+        [MethodImpl(MethodImplOptions.NoInlining
+#if NETCOREAPP3_0
+            | MethodImplOptions.AggressiveOptimization
+#endif
+        )]
+        public static int GetCount(ref int counter)
+        {
+            return counter & CountMask;
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining
+#if NETCOREAPP3_0
+            | MethodImplOptions.AggressiveOptimization
+#endif
+        )]
+        public static int Increment(ref int counter)
+        {
+            int newValue;
+            while (true)
+            {
+                // no volatile read, CAS will do the barriers and on next retry it will be ok.
+                var currentValue = counter;
+
+                if (unchecked((uint)(currentValue & CountMask)) >= CountLimit)
+                {
+                    // Counter was negative before increment or there is a counter leak
+                    // and we reached 8M values. For any conceivable use case
+                    // count should not exceed that number and be even close to it.
+                    // In imaginary case when this happens we decrement back before throwing.
+
+                    ThrowBadCounter(currentValue & CountMask);
+                }
+
+                newValue = currentValue + 1;
+                var existing = Interlocked.CompareExchange(ref counter, newValue, currentValue);
+                if (existing == currentValue)
+                {
+                    // do not return from while loop
+                    break;
+                }
+
+                if ((existing & ~CountMask) != (currentValue & ~CountMask))
+                {
+                    ThrowCounterChanged();
+                }
+            }
+            return newValue & CountMask;
+        }
+
+        /// <summary>
+        /// Decrement a positive counter. Throws if counter is zero.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.NoInlining
+#if NETCOREAPP3_0
+            | MethodImplOptions.AggressiveOptimization
+#endif
+        )]
+        public static int Decrement(ref int counter)
+        {
+            int newValue;
+            while (true)
+            {
+                // no volatile read, CAS will do the barriers and on next retry it will be ok.
+                var currentValue = counter;
+
+                // after decrement the value must remain in the range
+                if (unchecked((uint)((currentValue & CountMask) - 1)) >= CountLimit)
+                {
+                    ThrowBadCounter(currentValue & CountMask);
+                }
+
+                newValue = currentValue - 1;
+                var existing = Interlocked.CompareExchange(ref counter, newValue, currentValue);
+                if (existing == currentValue)
+                {
+                    break;
+                }
+
+                if ((existing & ~CountMask) != (currentValue & ~CountMask))
+                {
+                    ThrowCounterChanged();
+                }
+            }
+            return newValue & CountMask;
+        }
+
+        /// <summary>
+        /// Returns new count value if incremented or zero if the current count value is zero.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.NoInlining
+#if NETCOREAPP3_0
+                    | MethodImplOptions.AggressiveOptimization
+#endif
+        )]
+        public static int IncrementIfRetained(ref int counter)
+        {
+            int newValue;
+            while (true)
+            {
+                var currentValue = Volatile.Read(ref counter);
+                var currentCount = currentValue & CountMask;
+                if (unchecked((uint)(currentCount)) >= CountLimit)
+                {
+                    ThrowBadCounter(currentValue & CountMask);
+                }
+
+                if (currentCount > 0)
+                {
+                    newValue = currentValue + 1;
+                    var existing = Interlocked.CompareExchange(ref counter, newValue, currentValue);
+                    if (existing == currentValue)
+                    {
+                        break;
+                    }
+
+                    if ((existing & ~CountMask) != (currentValue & ~CountMask))
+                    {
+                        ThrowCounterChanged();
+                    }
+                }
+                else
+                {
+                    newValue = 0;
+                    break;
+                }
+            }
+            return newValue & CountMask;
+        }
+
+        /// <summary>
+        /// Returns zero if decremented the last reference or current count if it is more than one.
+        /// Throws if current count is zero.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.NoInlining
+#if NETCOREAPP3_0
+                    | MethodImplOptions.AggressiveOptimization
+#endif
+        )]
+        internal static int DecrementIfOne(ref int counter)
+        {
+            int newValue;
+            while (true)
+            {
+                var currentValue = Volatile.Read(ref counter);
+                var currentCount = currentValue & CountMask;
+                if (unchecked((uint)(currentCount - 1)) >= CountLimit)
+                {
+                    ThrowBadCounter(currentValue & CountMask);
+                }
+
+                if (currentCount == 1)
+                {
+                    newValue = currentValue - 1;
+                    var existing = Interlocked.CompareExchange(ref counter, newValue, currentValue);
+                    if (existing == currentValue)
+                    {
+                        break;
+                    }
+
+                    if ((existing & ~CountMask) != (currentValue & ~CountMask))
+                    {
+                        ThrowCounterChanged();
+                    }
+                }
+                else
+                {
+                    newValue = currentValue;
+                    break;
+                }
+            }
+            return newValue & CountMask;
+        }
 
         [System.Diagnostics.Contracts.Pure]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public int Increment()
         {
-            var value = Interlocked.Increment(ref *Pointer);
-            // check after is 170 MOPS vs 130 MOPS check disposed before increment
-            if (value <= 0)
-            {
-                // Was disposed but not released. Should be recoverable and at least allow to owner finalizer to clean AC.
-                var existing = Interlocked.CompareExchange(ref *Pointer, -1, 0);
-                if (existing != 0)
-                {
-                    // int overflow will be there, if reached int.Max then definitely fail fast
-                    IncrementFailReleased();
-                }
-                ThrowDisposed();
-            }
-            return value;
-        }
-
-        [System.Diagnostics.Contracts.Pure]
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal int IncrementIfZero()
-        {
-            // TODO
-            throw new NotImplementedException();
-        }
-
-        [System.Diagnostics.Contracts.Pure]
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal int IncrementIfRetained()
-        {
-            // Pooled buffers have zero counter and not disposed one.
-            // The recovery logic above (if (value <= 0)) is bad and not atomic.
-            while (true)
-            {
-                var current = Volatile.Read(ref *Pointer);
-                if (current > 0)
-                {
-                    var target = current + 1;
-                    if (current == Interlocked.CompareExchange(ref *Pointer, target, current))
-                    {
-                        return target;
-                    }
-                }
-                else
-                {
-                    return current;
-                }
-            }
-        }
-
-        [System.Diagnostics.Contracts.Pure]
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal int DecrementIfOne()
-        {
-            while (true)
-            {
-                var current = Volatile.Read(ref *Pointer);
-                if (current == 1)
-                {
-                    const int target = 0;
-                    if (1 == Interlocked.CompareExchange(ref *Pointer, 0, 1))
-                    {
-                        return target;
-                    }
-                }
-                else
-                {
-                    return current;
-                }
-            }
-        }
-
-        [MethodImpl(MethodImplOptions.NoInlining)]
-        private static void IncrementFailReleased()
-        {
-            ThrowHelper.FailFast("Incrementing released or renewed AtomicCounter, possibly corrupted free list");
+            return Increment(ref *Pointer);
         }
 
         [System.Diagnostics.Contracts.Pure]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public int Decrement()
         {
-            var value = Interlocked.Decrement(ref *Pointer);
-            if (value < 0)
-            {
-                // had zero and noone (esp. Increment above) has changed this after wrong decrement
-                var existing = Interlocked.CompareExchange(ref *Pointer, 0, -1);
-                if (existing != -1)
-                {
-                    DecrementFailZeroCount();
-                }
-                // now in disposed state
-                ThowNegativeRefCount(Count);
-            }
-            return value;
+            return Decrement(ref *Pointer);
         }
-
-        [MethodImpl(MethodImplOptions.NoInlining)]
-        private static void DecrementFailZeroCount()
-        {
-            ThrowHelper.FailFast("Decrementing counter with zero count");
-        }
-
-
 
         [System.Diagnostics.Contracts.Pure]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public int VolatileIncrement()
+        internal int IncrementIfRetained()
         {
-            var value = Interlocked.Increment(ref *Pointer);
-            // check after is 170 MOPS vs 130 MOPS check disposed before increment
-            if (value <= 0)
-            {
-                // Was disposed but not released. Should be recoverable and at least allow to owner finalizer to clean AC.
-                var existing = Interlocked.CompareExchange(ref *Pointer, -1, 0);
-                if (existing != 0)
-                {
-                    // int overflow will be there, if reached int.Max then definitely fail fast
-                    IncrementFailReleased();
-                }
-                ThrowDisposed();
-            }
-            return value;
+            return IncrementIfRetained(ref *Pointer);
         }
 
+        [System.Diagnostics.Contracts.Pure]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal int DecrementIfOne()
+        {
+            return DecrementIfOne(ref *Pointer);
+        }
 
         public int Count
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => Volatile.Read(ref *Pointer);
+            get => Volatile.Read(ref *Pointer) & CountMask;
         }
 
         public int CountOrZero
@@ -184,16 +267,28 @@ namespace Spreads.Threading
             get => Pointer == null ? 0 : Volatile.Read(ref *Pointer);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static bool GetIsRetained(ref int counter)
+        {
+            return unchecked((uint)((counter & CountMask) - 1)) <= CountLimit;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static bool GetIsDisposed(ref int counter)
+        {
+            return (counter & CountMask) == CountMask;
+        }
+
+        public bool IsRetained
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => GetIsRetained(ref *Pointer);
+        }
+
         public bool IsDisposed
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => Count < 0;
-        }
-
-        public bool IsReleased
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => Count < -1;
+            get => Count == CountMask;
         }
 
         public bool IsValid
@@ -202,18 +297,56 @@ namespace Spreads.Threading
             get => Pointer != null;
         }
 
+        [MethodImpl(MethodImplOptions.NoInlining
+#if NETCOREAPP3_0
+                    | MethodImplOptions.AggressiveOptimization
+#endif
+        )]
+        public static void Dispose(ref int counter)
+        {
+            var currentValue = Volatile.Read(ref counter);
+            var currentCount = currentValue & CountMask;
+            if (currentCount == CountMask)
+            {
+                ThrowDisposed();
+            }
+
+            if (currentCount != 0)
+            {
+                ThrowPositiveRefCount(currentCount);
+            }
+
+            if ((uint)(currentValue & CountMask) >= CountLimit)
+            {
+                ThrowBadCounter(currentValue & CountMask);
+            }
+
+            var newValue = currentValue | CountMask; // set all count bits to 1, make counter unusable for Incr/Decr methods
+
+            var existing = Interlocked.CompareExchange(ref counter, newValue, currentValue);
+            if (existing != currentValue)
+            {
+                ThrowCounterChanged();
+            }
+        }
+
         [System.Diagnostics.Contracts.Pure]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Dispose()
         {
-            var existing = Interlocked.CompareExchange(ref *Pointer, -1, 0);
-            if (existing > 0)
-            {
-                ThowPositiveRefCount(Count);
-            }
-            if (existing < 0)
+            Dispose(ref *Pointer);
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static void ThrowBadCounter(int current)
+        {
+            if (current == CountMask)
             {
                 ThrowDisposed();
+            }
+            else
+            {
+                ThrowHelper.ThrowInvalidOperationException($"Bad counter: current count {current}");
             }
         }
 
@@ -230,15 +363,16 @@ namespace Spreads.Threading
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
-        private static void ThowNegativeRefCount(int count)
+        private static void ThrowPositiveRefCount(int count)
         {
-            ThrowHelper.ThrowInvalidOperationException($"AtomicCounter.Count {count} < 0");
+            ThrowHelper.ThrowInvalidOperationException($"AtomicCounter.Count {count} > 0");
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
-        private static void ThowPositiveRefCount(int count)
+        private static void ThrowCounterChanged()
         {
-            ThrowHelper.ThrowInvalidOperationException($"AtomicCounter.Count {count} > 0");
+            // If this is needed we could easily work directly with pointer.
+            ThrowHelper.ThrowInvalidOperationException($"Counter flags changed during operation or count increased during disposal.");
         }
     }
 
@@ -369,6 +503,8 @@ namespace Spreads.Threading
                     if (existing == nextFreeLink)
                     {
                         counter = new AtomicCounter(currentFreePointer);
+                        // clear content
+                        *currentFreePointer = 0;
                         return true;
                     }
                 }
@@ -391,7 +527,7 @@ namespace Spreads.Threading
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void ReleaseCounter(AtomicCounter counter)
         {
-            if (counter.Count != -1)
+            if (!counter.IsDisposed)
             {
                 ReleaseCounterFailNotDisposed();
             }

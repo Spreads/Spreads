@@ -3,14 +3,15 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 using Spreads.Collections.Concurrent;
+using Spreads.Native;
 using Spreads.Serialization;
+using Spreads.Threading;
 using Spreads.Utils;
 using System;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Threading;
-using Spreads.Threading;
 using static Spreads.Buffers.BuffersThrowHelper;
 
 namespace Spreads.Buffers
@@ -99,46 +100,53 @@ namespace Spreads.Buffers
                 ThrowHelper.ThrowNotSupportedException();
             }
 
-            EnsureNotRetainedAndNotDisposed();
-
-            // disposing == false when finalizing and detected that non pooled
             if (disposing)
             {
-                TryReturnThisToPoolOrFinalize();
-            }
-            else
-            {
-                Debug.Assert(!_isPooled);
-                _poolIdx = default;
+                if (_isPooled)
+                {
+                    ThrowAlreadyPooled<RetainableMemory<T>>();
+                }
 
-                // we still could add this to the pool of free pinned slices that are backed by an existing slab
-                var pooledToFreeSlicesPool = _slicesPool.Return(this);
-                if (pooledToFreeSlicesPool)
+                Pool?.ReturnNoChecks(this, clearMemory: !TypeHelper<T>.IsPinnable);
+
+                if (_isPooled)
                 {
                     return;
                 }
-
-                Counter.Dispose();
-                AtomicCounterService.ReleaseCounter(Counter);
-                ClearAfterDispose();
-
-                // destroy the object and release resources
-                var array = Interlocked.Exchange(ref _array, null);
-                if (array != null)
-                {
-                    Debug.Assert(_handle.IsAllocated);
-#pragma warning disable 618
-                    _slab.Decrement();
-                    _handle.Free();
-#pragma warning restore 618
-                }
-                else
-                {
-                    ThrowDisposed<ArrayMemory<T>>();
-                }
-
-                Debug.Assert(!_handle.IsAllocated);
+                // not pooled, doing finalization work now
+                GC.SuppressFinalize(this);
             }
+
+            // Finalization
+
+            AtomicCounter.Dispose(ref CounterRef);
+
+            Debug.Assert(!_isPooled);
+            _poolIdx = default;
+
+            // we still could add this to the pool of free pinned slices that are backed by an existing slab
+            var pooledToFreeSlicesPool = _slicesPool.Return(this);
+            if (pooledToFreeSlicesPool)
+            {
+                return;
+            }
+
+            var array = Interlocked.Exchange(ref _array, null);
+            if (array != null)
+            {
+                ClearAfterDispose();
+                Debug.Assert(_handle.IsAllocated);
+#pragma warning disable 618
+                _slab.Decrement();
+                _handle.Free();
+#pragma warning restore 618
+            }
+            else
+            {
+                ThrowDisposed<ArrayMemorySlice<T>>();
+            }
+
+            Debug.Assert(!_handle.IsAllocated);
         }
     }
 
@@ -147,9 +155,11 @@ namespace Spreads.Buffers
         private static readonly ObjectPool<ArrayMemory<T>> ObjectPool = new ObjectPool<ArrayMemory<T>>(() => new ArrayMemory<T>(), Environment.ProcessorCount * 16);
 
         protected GCHandle _handle;
+        internal T[] _array;
+        internal int _arrayOffset;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        protected ArrayMemory() : base(AtomicCounterService.AcquireCounter())
+        protected ArrayMemory()
         { }
 
         internal T[] Array
@@ -226,19 +236,40 @@ namespace Spreads.Buffers
                 ? externallyOwned ? (byte)0 : (byte)1
                 : pool.PoolIdx;
 
-            // ObjectPool.Allocate creates a valid AC from Factory, reused objects have AC disposed
-            if (arrayMemory.Counter.Pointer != null)
-            {
-                if (arrayMemory.Counter.Count != 0)
-                {
-                    ThrowBadCounterAfterAllocate(arrayMemory);
-                }
-            }
-            else
-            {
-                arrayMemory.Counter = AtomicCounterService.AcquireCounter();
-            }
+            // Clear counter. We cannot tell if ObjectPool allocated a new one or took from pool
+            // other then by checking if the counter is disposed, so we cannot require
+            // that the counter is disposed. We only need that pooled object has the counter
+            // in disposed state so that no-one accidentally uses the object while it is in the pool.
+            // Just clear it now
+            arrayMemory.CounterRef = 0;
+
             return arrayMemory;
+        }
+
+        /// <summary>
+        /// Returns <see cref="Vec{T}"/> backed by this instance memory.
+        /// </summary>
+        public sealed override unsafe Vec<T> Vec
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get
+            {
+                // var tid = VecTypeHelper<T>.RuntimeVecInfo.RuntimeTypeId;
+                var vec = _pointer == null ? new Vec<T>(_array, _arrayOffset, _length) : new Vec<T>(_pointer, _length);
+                Debug.Assert(vec.AsVec().Type == typeof(T));
+                return vec;
+            }
+        }
+
+        public override unsafe Span<T> GetSpan()
+        {
+            if (_isPooled)
+            {
+                ThrowDisposed<RetainableMemory<T>>();
+            }
+
+            // if disposed Pointer & _len are null/0, no way to corrupt data, will just throw
+            return _pointer == null ? new Span<T>(_array, _arrayOffset, _length) : new Span<T>(Pointer, _length);
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
@@ -247,57 +278,60 @@ namespace Spreads.Buffers
             ThrowHelper.ThrowInvalidOperationException($"Type {typeof(T).Name} is not pinnable.");
         }
 
-        [MethodImpl(MethodImplOptions.NoInlining)]
-        private static void ThrowBadCounterAfterAllocate(ArrayMemory<T> arrayMemory)
-        {
-            ThrowHelper.ThrowInvalidOperationException(
-                $"Allocated ArrayMemory with non-zero counter: arrayMemory.Counter.Count != 0 [{arrayMemory.Counter.Count}]");
-        }
-
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         protected override void Dispose(bool disposing)
         {
-            EnsureNotRetainedAndNotDisposed();
-
-            // disposing == false when finalizing and detected that non pooled
             if (disposing)
             {
-                TryReturnThisToPoolOrFinalize();
+                if (_isPooled)
+                {
+                    ThrowAlreadyPooled<RetainableMemory<T>>();
+                }
+
+                Pool?.ReturnNoChecks(this, clearMemory: !TypeHelper<T>.IsPinnable);
+
+                if (_isPooled)
+                {
+                    return;
+                }
+                // not pooled, doing finalization work now
+                GC.SuppressFinalize(this);
+            }
+
+            // Finalization
+
+            AtomicCounter.Dispose(ref CounterRef);
+
+            Debug.Assert(!_isPooled);
+
+            var array = Interlocked.Exchange(ref _array, null);
+            if (array != null)
+            {
+                ClearAfterDispose();
+                if (!ExternallyOwned)
+                {
+                    BufferPool<T>.Return(array, !TypeHelper<T>.IsFixedSize);
+                }
+                Debug.Assert(_handle.IsAllocated);
+                _handle.Free();
+                _handle = default;
+                _arrayOffset = -1; // make it unusable if not re-initialized
+                _poolIdx = default; // after ExternallyOwned check!
             }
             else
             {
-                Debug.Assert(!_isPooled);
-                _poolIdx = default;
-
-                Counter.Dispose();
-                AtomicCounterService.ReleaseCounter(Counter);
-                ClearAfterDispose();
-
-                var array = Interlocked.Exchange(ref _array, null);
-                if (array != null)
-                {
-                    Debug.Assert(_handle.IsAllocated);
-                    _handle.Free();
-                    _handle = default;
-                    // special value that is not normally possible - to keep thread-static buffer non-disposable
-                    if (!ExternallyOwned)
-                    {
-                        BufferPool<T>.Return(array, !TypeHelper<T>.IsFixedSize);
-                    }
-                }
-                else
-                {
-                    ThrowDisposed<ArrayMemory<T>>();
-                }
-
-                Debug.Assert(!_handle.IsAllocated);
-
-                // we cannot tell is this object is pooled, so we rely on finalizer
-                // that will be called only if the object is not in the pool.
-                // But if we tried to pool above then we called GC.SuppressFinalize(this)
-                // and finalizer won't be called if the object is dropped from ObjectPool.
-                ObjectPool.Free(this);
+                ThrowDisposed<ArrayMemory<T>>();
             }
+
+            Debug.Assert(!_handle.IsAllocated);
+
+            // We cannot tell if this object is pooled, so we rely on finalizer
+            // that will be called only if the object is not in the pool.
+            // But if we tried to pool the buffer to RMP but failed above
+            // then we called GC.SuppressFinalize(this)
+            // and finalizer won't be called if the object is dropped from ObjectPool.
+            // We have done buffer clean-up job and this object could die normally.
+            ObjectPool.Free(this);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

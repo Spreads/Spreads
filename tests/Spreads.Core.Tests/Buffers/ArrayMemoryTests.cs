@@ -3,7 +3,6 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 using NUnit.Framework;
-using ObjectLayoutInspector;
 using Spreads.Buffers;
 using Spreads.Utils;
 using System;
@@ -12,47 +11,13 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
-using Spreads.Native;
-using Spreads.Threading;
 
 namespace Spreads.Core.Tests.Buffers
 {
-    
-
     [Category("CI")]
     [TestFixture]
     public class ArrayMemoryTests
     {
-        class DummyRetainableMemory : RetainableMemory<byte>
-        {
-            public DummyRetainableMemory(AtomicCounter counter) : base(counter)
-            {
-            }
-
-            protected override void Dispose(bool disposing)
-            {
-                throw new NotImplementedException();
-            }
-        }
-
-        [Test, Explicit("")]
-        public void VecLayout()
-        {
-            TypeLayout.PrintLayout<Vec<byte>>();
-        }
-
-        [Test, Explicit("")]
-        public void RetainableMemoryLayout()
-        {
-            TypeLayout.PrintLayout<DummyRetainableMemory>();
-        }
-
-        [Test, Explicit("")]
-        public void ArrayMemoryLayout()
-        {
-            TypeLayout.PrintLayout<ArrayMemory<byte>>();
-        }
-
         [Test]
         public void CannotDisposeRetained()
         {
@@ -70,10 +35,18 @@ namespace Spreads.Core.Tests.Buffers
             Assert.Throws<ObjectDisposedException>(() => { ((IDisposable)memory).Dispose(); });
         }
 
-        [Test, Explicit("long running")]
-        public unsafe void GCHandleTest()
+        [Test
+#if !DEBUG
+         , Explicit("long running")
+#endif
+        ]
+        public unsafe void GcHandleTest()
         {
+#if !DEBUG
             var count = 100_000_000;
+#else
+            var count = 1_000;
+#endif
             var bytes = new byte[10000];
 
             // if we work with Memory abstraction GCHandle is no-go
@@ -104,11 +77,19 @@ namespace Spreads.Core.Tests.Buffers
             Console.WriteLine(sum);
         }
 
+        [Test
+#if !DEBUG
+         , Explicit("long running")
+#endif
+        ]
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
-        [Test, Explicit("long running")]
         public void RentReturnBenchmark()
         {
-            var count = 100_000_000; //_000;
+#if !DEBUG
+            var count = 100_000_000;
+#else
+            var count = 1_000;
+#endif
 
             using (Benchmark.Run("FullCycle", count))
             {
@@ -120,7 +101,7 @@ namespace Spreads.Core.Tests.Buffers
             }
         }
 
-        [Test, Ignore("not working")]
+        [Test]
         public void RefCountOfPooled()
         {
             var pool = new RetainableMemoryPool<byte>(null, 16,
@@ -134,21 +115,33 @@ namespace Spreads.Core.Tests.Buffers
 
             pool.Return(buf);
 
+            Assert.IsTrue(buf.IsDisposed);
+            Assert.IsTrue(buf.IsPooled);
+
             Console.WriteLine($"returned: {buf.ReferenceCount}");
             Console.WriteLine($"pooled: {buf.IsPooled}");
 
-            // TODO this must throw
-            var rm = buf.Retain();
-            rm.Dispose();
+            Assert.Throws<ObjectDisposedException>(() =>
+            {
+                var _ = buf.Retain();
+            });
 
             pool.Dispose();
         }
 
+        [Test
+#if !DEBUG
+         , Explicit("long running")
+#endif
+        ]
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
-        [Test, Explicit("long running")]
         public void RentReturnBenchmarkRetainablePool()
         {
-            var count = 100_000_000;
+#if !DEBUG
+            var count = 10_000_000;
+#else
+            var count = 1_000;
+#endif
 
             var pool = new RetainableMemoryPool<byte>(null, 16,
                 1024 * 1024, 50, 2);
@@ -167,28 +160,39 @@ namespace Spreads.Core.Tests.Buffers
                 // pool.Return(memory);
             }
 
-            using (Benchmark.Run("FullCycle", count))
+            for (int _ = 0; _ < 20; _++)
             {
-                for (int i = 0; i < count; i++)
+                using (Benchmark.Run("FullCycle", count))
                 {
-                    var memory = pool.RentMemory(32 * 1024);
-                    //(memory.Pin(0)).Dispose();
-                    //if (memory.IsDisposed || memory.IsRetained)
-                    //{
-                    //    Assert.Fail();
-                    //}
-                    pool.Return(memory);
+                    for (int i = 0; i < count; i++)
+                    {
+                        var memory = pool.RentMemory(32 * 1024);
+                        //(memory.Pin(0)).Dispose();
+                        //if (memory.IsDisposed || memory.IsRetained)
+                        //{
+                        //    Assert.Fail();
+                        //}
+                        pool.Return(memory);
+                    }
                 }
             }
-
+            Benchmark.Dump();
             pool.Dispose();
         }
 
-        [Test, Explicit("long running")]
+        [Test
+#if !DEBUG
+         , Explicit("long running")
+#endif
+        ]
+        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
         public void ConcurrentRentReturn()
         {
+#if !DEBUG
             var count = 100_000_000;
-
+#else
+            var count = 1_000;
+#endif
             var pool = new RetainableMemoryPool<byte>(null, 16,
                 1024 * 1024, 50, 2);
 
@@ -202,13 +206,18 @@ namespace Spreads.Core.Tests.Buffers
                 mre.Wait();
                 for (int i = 0; i < count; i++)
                 {
+                    // ReSharper disable once AccessToDisposedClosure
                     var memory = pool.RentMemory(32 * 1024);
+
                     //(memory.Pin(0)).Dispose();
                     //if (memory.IsDisposed || memory.IsRetained)
                     //{
                     //    Assert.Fail();
                     //}
+
+                    // ReSharper disable once AccessToDisposedClosure
                     pool.Return(memory);
+
                     //if (i % 1000000 == 0)
                     //{
                     //    Console.WriteLine(i);
@@ -234,10 +243,19 @@ namespace Spreads.Core.Tests.Buffers
             pool.Dispose();
         }
 
-        [Test, Explicit("long running")]
+        [Test
+#if !DEBUG
+         , Explicit("long running")
+#endif
+        ]
+        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
         public void RentReturnBenchmarkRetainablePoolOverCapacity()
         {
-            var count = 1_000_000;
+#if !DEBUG
+            var count = 10_000;
+#else
+            var count = 1_000;
+#endif
             var capacity = 25;
             var batch = capacity * 2;
             var pool = new RetainableMemoryPool<byte>((p, l) =>
@@ -271,10 +289,19 @@ namespace Spreads.Core.Tests.Buffers
             pool.Dispose();
         }
 
-        [Test, Explicit("long running")]
+        [Test
+#if !DEBUG
+         , Explicit("long running")
+#endif
+        ]
+        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
         public void RentReturnPinUnpinBenchmark()
         {
+#if !DEBUG
             var count = 10_000_000;
+#else
+            var count = 1_000;
+#endif
 
             using (Benchmark.Run("FullCyclePinUnpin", count))
             {
@@ -286,7 +313,7 @@ namespace Spreads.Core.Tests.Buffers
                         Assert.Fail("Length");
                     }
                     (memory.Pin(0)).Dispose();
-                    if (memory.IsDisposed || memory.IsRetained)
+                    if (memory.IsRetained)
                     {
                         Assert.Fail();
                     }
@@ -345,7 +372,7 @@ namespace Spreads.Core.Tests.Buffers
             pool.Dispose();
         }
 
-        [Test, Explicit("long running")]
+        [Test]
         public void RentReturnPinnedSlicesRetainablePoolBadBehavior()
         {
             // Rent many then return many
@@ -375,13 +402,22 @@ namespace Spreads.Core.Tests.Buffers
             pool.Dispose();
         }
 
-        [Test, Explicit("long running")]
+        [Test
+#if !DEBUG
+         , Explicit("long running")
+#endif
+        ]
         public void RentReturnPinnedSlicesRetainablePoolBadBehaviorDropped()
         {
             // Rent many then return many
 
             var maxBuffers = 32; // 2
-            var buffersToTake = 1_000_000;
+
+#if !DEBUG
+            var buffersToTake = 1_00_000;
+#else
+            var buffersToTake = 1_000;
+#endif
 
             var pool = new RetainableMemoryPool<byte>(null, 32 * 1024,
                 1024 * 1024, maxBuffers, 0);
@@ -390,19 +426,20 @@ namespace Spreads.Core.Tests.Buffers
             {
                 for (int i = 0; i < buffersToTake; i++)
                 {
+                    // ReSharper disable once UnusedVariable
                     var memory = pool.RentMemory(64 * 1024);
                     // pool.Return(memory);
                     //if (i % 100_000 == 0)
                     //{
                     //    Console.WriteLine(i);
                     //}
-                    //if (i % 1000 == 0)
-                    //{
-                    //    GC.Collect(2, GCCollectionMode.Forced, true);
-                    //    GC.WaitForPendingFinalizers();
-                    //    GC.Collect(2, GCCollectionMode.Forced, true);
-                    //    GC.WaitForPendingFinalizers();
-                    //}
+                    if (i % 1000 == 0)
+                    {
+                        GC.Collect(2, GCCollectionMode.Forced, true);
+                        GC.WaitForPendingFinalizers();
+                        GC.Collect(2, GCCollectionMode.Forced, true);
+                        GC.WaitForPendingFinalizers();
+                    }
                 }
 
                 GC.Collect(2, GCCollectionMode.Forced, true);

@@ -8,6 +8,7 @@
 // Return returns bool=true when an object is pooled.
 
 using Spreads.Serialization;
+using Spreads.Threading;
 using Spreads.Utils;
 using System;
 using System.Buffers;
@@ -76,10 +77,6 @@ namespace Spreads.Buffers
         public RetainableMemoryPool(Func<RetainableMemoryPool<T>, int, RetainableMemory<T>> factory, int minLength,
             int maxLength, int maxBuffersPerBucket, int maxBucketsToTry = 2, bool pin = false)
         {
-            
-
-
-
             IsRentAlwaysClean = false;
 
             _factory = factory;
@@ -142,7 +139,6 @@ namespace Spreads.Buffers
                 buckets[i] = new Bucket(this, _factory, GetMaxSizeForBucket(i), maxBuffersPerBucket, poolId);
             }
             _buckets = buckets;
-
 
             lock (KnownPools)
             {
@@ -337,6 +333,7 @@ namespace Spreads.Buffers
                     if (disposable != null)
                     {
                         sharedMemoryBuffer._isPooled = false;
+                        sharedMemoryBuffer.CounterRef = 0;
                         ((IDisposable)disposable).Dispose();
                     }
                 }
@@ -494,9 +491,15 @@ namespace Spreads.Buffers
                 }
                 else
                 {
-                    if (buffer != null && !buffer._isPooled)
+                    if (buffer != null)
                     {
-                        ThrowNotFromPool<RetainableMemory<T>>();
+                        if (!buffer._isPooled)
+                        {
+                            ThrowNotFromPool<RetainableMemory<T>>();
+                        }
+
+                        Debug.Assert(buffer.IsDisposed);
+                        buffer.CounterRef = 0;
                     }
                 }
 
@@ -531,6 +534,7 @@ namespace Spreads.Buffers
                     if (pooled)
                     {
                         _buffers[--_index] = memory;
+                        memory.CounterRef |= AtomicCounter.CountMask;
                         memory._isPooled = true;
                     }
                 }

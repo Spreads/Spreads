@@ -146,6 +146,29 @@ namespace Spreads.Core.Tests
             }
         }
 
+        public class ThisIsClassWithInterlockedIncrement : IIncrementable
+        {
+            private byte[] value = new byte[4];
+            private IntPtr ptr;
+            private GCHandle pinnedGcHandle;
+            private long* _lock;
+
+            public ThisIsClassWithInterlockedIncrement()
+            {
+                pinnedGcHandle = GCHandle.Alloc(value, GCHandleType.Pinned);
+                ptr = pinnedGcHandle.AddrOfPinnedObject();
+
+                _lock = (long*)Marshal.AllocHGlobal(8);
+                *_lock = 0L;
+            }
+
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public int Increment()
+            {
+                return Interlocked.Increment(ref *((int*)ptr));
+            }
+        }
+
         public class ThisIsBaseClass : IIncrementable
         {
             internal byte[] value = new byte[4];
@@ -305,125 +328,55 @@ namespace Spreads.Core.Tests
             }
         }
 
-        private void ConstrainedStruct<T>(T incrementable) where T : IIncrementable
+        private void ConstrainedStruct<T>(T incrementable, int count) where T : IIncrementable
         {
-            var count = 100000000;
-
             for (int i = 0; i < count; i++)
             {
                 incrementable.Increment();
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
         [Test, Explicit("long running")]
         public void CallVsCallVirt(int r)
         {
-            var count = 100_000_000;
+            var count = 200_000_000;
             // var sw = new Stopwatch();
 
-            using (Benchmark.Run("Value", count))
-            {
-                int* ptr = stackalloc int[1];
+            CallVsCallVirt_Value(count);
 
-                int intValue = 0;
-                for (int i = 0; i < count; i++)
-                {
-                    *((int*)ptr) = *((int*)ptr) + 1;
-                    intValue = (*((int*)ptr));
-                }
-            }
+            CallVsCallVirt_Struct(count);
 
-            using (Benchmark.Run("Struct", count))
-            {
-                var str = new ThisIsSrtuct(new byte[4]);
-                for (int i = 0; i < count; i++)
-                {
-                    str.Increment();
-                }
-            }
+            CallVsCallVirt_Struct_IFace(count);
 
-            using (Benchmark.Run("Str>Interface", count))
-            {
-                IIncrementable strAsInterface = (IIncrementable)(new ThisIsSrtuct(new byte[4]));
-                for (int i = 0; i < count; i++)
-                {
-                    strAsInterface.Increment();
-                }
-            }
+            CallVsCallVirt_Constr_Struct(count);
 
-            using (Benchmark.Run("Str>Constr", count))
-            {
-                var constrainedStr = (new ThisIsSrtuct(new byte[4]));
-                ConstrainedStruct(constrainedStr);
-            }
+            CallVsCallVirt_StaticClass(count);
 
-            using (Benchmark.Run("Static Class", count))
-            {
-                for (int i = 0; i < count; i++)
-                {
-                    ThisIsStaticClass.Increment();
-                }
-            }
+            CallVsCallVirt_Class(count);
 
-            using (Benchmark.Run("Class", count))
-            {
-                var cl = new ThisIsClass();
-                for (int i = 0; i < count; i++)
-                {
-                    cl.Increment();
-                }
-            }
+            //using (Benchmark.Run("Class+Lock", count))
+            //{
+            //    var cl_l = new ThisIsClassWithLock();
+            //    for (int i = 0; i < count; i++)
+            //    {
+            //        cl_l.Increment();
+            //    }
+            //}
 
-            using (Benchmark.Run("Class+Lock", count))
-            {
-                var cl_l = new ThisIsClassWithLock();
-                for (int i = 0; i < count; i++)
-                {
-                    cl_l.Increment();
-                }
-            }
+            CallVsCallVirt_Class_ILIcr(count);
+            CallVsCallVirt_Class_CAS(count);
 
-            using (Benchmark.Run("Class+MLock", count))
-            {
-                var cl_ml = new ThisIsClassWithManualLock();
-                for (int i = 0; i < count; i++)
-                {
-                    cl_ml.Increment();
-                }
-            }
+            CallVsCallVirt_SealedClass(count);
 
-            using (Benchmark.Run("Sealed Class", count))
-            {
-                var scl = new ThisIsSealedClass();
-                for (int i = 0; i < count; i++)
-                {
-                    scl.Increment();
-                }
-            }
-
-            using (Benchmark.Run("Class>IFace", count))
-            {
-                IIncrementable cli = (IIncrementable)new ThisIsClass();
-                for (int i = 0; i < count; i++)
-                {
-                    cli.Increment();
-                }
-            }
+            CallVsCallVirt_Class_IFace(count);
 
             ThisIsBaseClass dcl = new ThisIsDerivedClass2();
             dcl.Increment();
             dcl = new ThisIsDerivedClass();
-            using (Benchmark.Run("Derived Class", count))
-            {
-                
-                for (int i = 0; i < count; i++)
-                {
-                    dcl.Increment();
-                }
-
-                //dcl = new ThisIsDerivedClass3();
-                //dcl.Increment();
-            }
+            CallVsCallVirt_Derived(count, dcl);
+            dcl = new ThisIsDerivedClass3();
+            dcl.Increment();
 
             //sw.Restart();
             //IIncrementable dcli = (IIncrementable)new ThisIsDerivedClass();
@@ -460,6 +413,151 @@ namespace Spreads.Core.Tests
             //}
             //sw.Stop();
             //Console.WriteLine($"Composed class {sw.ElapsedMilliseconds}");
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveOptimization | MethodImplOptions.NoInlining)]
+        private static void CallVsCallVirt_Value(int count)
+        {
+            using (Benchmark.Run("Value", count))
+            {
+                int* ptr = stackalloc int[1];
+
+                int intValue = 0;
+                for (int i = 0; i < count; i++)
+                {
+                    (*((int*)ptr))++;
+                    //* ((int*)ptr) = *((int*)ptr) + 1;
+                }
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveOptimization | MethodImplOptions.NoInlining)]
+        private static void CallVsCallVirt_Struct(int count)
+        {
+            using (Benchmark.Run("Struct", count))
+            {
+                var str = new ThisIsSrtuct(new byte[4]);
+                for (int i = 0; i < count; i++)
+                {
+                    str.Increment();
+                }
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveOptimization | MethodImplOptions.NoInlining)]
+        private static void CallVsCallVirt_Struct_IFace(int count)
+        {
+            using (Benchmark.Run("Str>Interface", count))
+            {
+                IIncrementable strAsInterface = (IIncrementable)(new ThisIsSrtuct(new byte[4]));
+                for (int i = 0; i < count; i++)
+                {
+                    strAsInterface.Increment();
+                }
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveOptimization | MethodImplOptions.NoInlining)]
+        private void CallVsCallVirt_Constr_Struct(int count)
+        {
+            using (Benchmark.Run("Str>Constr", count))
+            {
+                var constrainedStr = (new ThisIsSrtuct(new byte[4]));
+                ConstrainedStruct(constrainedStr, count);
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveOptimization | MethodImplOptions.NoInlining)]
+        private static void CallVsCallVirt_StaticClass(int count)
+        {
+            using (Benchmark.Run("Static Class", count))
+            {
+                for (int i = 0; i < count; i++)
+                {
+                    ThisIsStaticClass.Increment();
+                }
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveOptimization | MethodImplOptions.NoInlining)]
+        private static void CallVsCallVirt_Class(int count)
+        {
+            using (Benchmark.Run("Class", count))
+            {
+                var cl = new ThisIsClass();
+                for (int i = 0; i < count; i++)
+                {
+                    cl.Increment();
+                }
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveOptimization | MethodImplOptions.NoInlining)]
+        private static void CallVsCallVirt_Class_ILIcr(int count)
+        {
+            using (Benchmark.Run("Class+ILIncr", count))
+            {
+                var cl_ml = new ThisIsClassWithInterlockedIncrement();
+                for (int i = 0; i < count; i++)
+                {
+                    cl_ml.Increment();
+                }
+            }
+        }
+
+
+        [MethodImpl(MethodImplOptions.AggressiveOptimization | MethodImplOptions.NoInlining)]
+        private static void CallVsCallVirt_Class_CAS(int count)
+        {
+            using (Benchmark.Run("Class+CASLock", count))
+            {
+                var cl_ml = new ThisIsClassWithManualLock();
+                for (int i = 0; i < count; i++)
+                {
+                    cl_ml.Increment();
+                }
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveOptimization | MethodImplOptions.NoInlining)]
+        private static void CallVsCallVirt_SealedClass(int count)
+        {
+            using (Benchmark.Run("Sealed Class", count))
+            {
+                var scl = new ThisIsSealedClass();
+                for (int i = 0; i < count; i++)
+                {
+                    scl.Increment();
+                }
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveOptimization | MethodImplOptions.NoInlining)]
+        private static void CallVsCallVirt_Class_IFace(int count)
+        {
+            using (Benchmark.Run("Class>IFace", count))
+            {
+                IIncrementable cli = (IIncrementable)new ThisIsClass();
+                for (int i = 0; i < count; i++)
+                {
+                    cli.Increment();
+                }
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveOptimization | MethodImplOptions.NoInlining)]
+        private static void CallVsCallVirt_Derived(int count, ThisIsBaseClass dcl)
+        {
+            using (Benchmark.Run("Derived Class", count))
+            {
+                for (int i = 0; i < count; i++)
+                {
+                    dcl.Increment();
+                }
+
+                //dcl = new ThisIsDerivedClass3();
+                //dcl.Increment();
+            }
         }
 
         [Test, Explicit("long running")]

@@ -8,6 +8,8 @@ using Spreads.Utils;
 using System;
 using System.Linq;
 
+#pragma warning disable 618
+
 namespace Spreads.Core.Tests.Buffers
 {
     [Category("CI")]
@@ -72,35 +74,35 @@ namespace Spreads.Core.Tests.Buffers
             ob.Dispose();
         }
 
-        [Test, Explicit("long running")]
+        [Test]
         public void OffHeapPoolRentReturnPerformance()
         {
 #pragma warning disable 618
             Settings.DoAdditionalCorrectnessChecks = false; // no difference
 #pragma warning restore 618
 
-            var sizesKb = new[] { 32, 64, 128, 256, 512, 1024, 2048, 4096 };
-            var count = 10_000_000;
+            var sizes = new[] { Settings.LARGE_BUFFER_LIMIT/8, Settings.LARGE_BUFFER_LIMIT / 4, Settings.LARGE_BUFFER_LIMIT / 2, Settings.LARGE_BUFFER_LIMIT / 1, Settings.LARGE_BUFFER_LIMIT * 2 };
+            var count = 1_000;
 
             var pool = new OffHeapMemoryPool<byte>(2);
 
             // warmup
-            foreach (var size in sizesKb)
+            foreach (var size in sizes)
             {
                 for (int i = 0; i < 1; i++)
                 {
-                    var offHeapMemory = pool.RentMemory(size * 1024);
+                    var offHeapMemory = pool.RentMemory(size);
                     pool.Return(offHeapMemory);
                 }
             }
 
-            foreach (var size in sizesKb)
+            foreach (var size in sizes)
             {
                 using (Benchmark.Run(size + " kb", count))
                 {
                     for (int i = 0; i < count; i++)
                     {
-                        var offHeapMemory = pool.RentMemory(size * 1024);
+                        var offHeapMemory = pool.RentMemory(size);
                         pool.Return(offHeapMemory);
                     }
                 }
@@ -108,10 +110,12 @@ namespace Spreads.Core.Tests.Buffers
 
             Benchmark.Dump();
 
-            Assert.AreEqual(1, pool.InspectObjects().Count());
+            var objs = pool.InspectObjects().ToArray();
+
+            Assert.AreEqual(2, objs.Count());
         }
 
-        [Test, Explicit("long running")]
+        [Test]
         public void OffHeapPoolRetainDisposePerformance()
         {
 #pragma warning disable 618
@@ -119,7 +123,7 @@ namespace Spreads.Core.Tests.Buffers
 #pragma warning restore 618
 
             var sizesKb = new[] { 32, 64, 128, 256, 512, 1024, 2048, 4096 };
-            var count = 5_000_000;
+            var count = 1_000;
             var maxSize = 4096 * 1024;
             var pool = new OffHeapMemoryPool<byte>(2, maxSize);
 
@@ -161,7 +165,7 @@ namespace Spreads.Core.Tests.Buffers
 
             Benchmark.Dump();
 
-            Assert.AreEqual(1, pool.InspectObjects().Count());
+            Assert.AreEqual(sizesKb.Select(x => x * 1024).Count(x => x >= Settings.LARGE_BUFFER_LIMIT), pool.InspectObjects().Count());
         }
 
         [Test]
@@ -187,8 +191,8 @@ namespace Spreads.Core.Tests.Buffers
             ((IDisposable)offHeapMemory2).Dispose();
             ((IDisposable)offHeapMemory3).Dispose();
 
-            Assert.Throws<InvalidOperationException>(() => { pool.Return(offHeapMemory); });
-            Assert.Throws<InvalidOperationException>(() => { pool.Return(offHeapMemory2); });
+            Assert.Throws<ObjectDisposedException>(() => { pool.Return(offHeapMemory); });
+            Assert.Throws<ObjectDisposedException>(() => { pool.Return(offHeapMemory2); });
             Assert.Throws<ObjectDisposedException>(() => { pool.Return(offHeapMemory3); });
             Assert.AreEqual(2, pool.InspectObjects().Count());
         }
@@ -213,7 +217,7 @@ namespace Spreads.Core.Tests.Buffers
             var offHeapMemory = pool.RentMemory(32 * 1024);
             ((IDisposable)offHeapMemory).Dispose();
 
-            Assert.Throws<InvalidOperationException>(() => { pool.Return(offHeapMemory); });
+            Assert.Throws<ObjectDisposedException>(() => { pool.Return(offHeapMemory); });
 
             Assert.AreEqual(1, pool.InspectObjects().Count());
 

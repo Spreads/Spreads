@@ -23,15 +23,10 @@ namespace Spreads.Buffers
         // internal DirectBuffer _db;
         private int _itemLength;
 
-        // cache it because it accessed a lot and OffHeapBuffers are intended
-        // to be alive for a long time and pooled so there are not too many of them
-        private DirectBuffer _directBuffer;
-
         public OffHeapBuffer(int length)
         {
             _itemLength = default;
             _pointer = null;
-            _directBuffer = default;
             // ReSharper disable once ExpressionIsAlwaysNull
             EnsureCapacitySlow(length);
         }
@@ -73,7 +68,7 @@ namespace Spreads.Buffers
         public DirectBuffer DirectBuffer
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => _directBuffer;
+            get => new DirectBuffer(_itemLength * Unsafe.SizeOf<T>(), (byte*)_pointer);
         }
 
         /// <inheritdoc />
@@ -116,8 +111,6 @@ namespace Spreads.Buffers
                     (IntPtr)(Unsafe.SizeOf<T>() * newLength));
             }
             _itemLength = newLength;
-
-            _directBuffer = new DirectBuffer(_itemLength * Unsafe.SizeOf<T>(), (byte*)_pointer);
         }
 
         public void Dispose()

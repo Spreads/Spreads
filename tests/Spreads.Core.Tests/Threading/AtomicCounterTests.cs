@@ -5,6 +5,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using NUnit.Framework;
 using Spreads.Buffers;
@@ -152,6 +153,7 @@ namespace Spreads.Core.Tests.Threading
 
         private int _field;
 
+        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
         [Test, Explicit("long running")]
         public void IncrementDecrementBenchmark()
         {

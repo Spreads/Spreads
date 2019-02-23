@@ -82,6 +82,10 @@ namespace Spreads.Buffers
         internal RetainedMemory(RetainableMemory<T> memory, int offset, int length, bool borrow)
 #endif
         {
+            if (memory.IsDisposed)
+            {
+                BuffersThrowHelper.ThrowDisposed<RetainableMemory<T>>();
+            }
             Debug.Assert(unchecked((uint)offset + (uint)length <= memory.Length));
 
             if (borrow)

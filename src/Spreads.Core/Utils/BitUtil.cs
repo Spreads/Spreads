@@ -114,6 +114,16 @@ namespace Spreads.Utils
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int FindPreviousPositivePowerOfTwo(int value)
+        {
+            unchecked
+            {
+                return 1 << (31 - IntUtil.NumberOfLeadingZeros(value));
+            }
+        }
+
+
         /// <summary>
         /// Align a value to the next multiple up of alignment.
         /// If the value equals an alignment multiple then it is returned unchanged.
