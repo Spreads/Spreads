@@ -9,12 +9,12 @@ namespace Spreads.Buffers
 {
     public class OffHeapMemoryPool<T> : RetainableMemoryPool<T>
     {
-        public OffHeapMemoryPool(int maxBuffersCount, int maxLength = 16 * 1024 * 1024)
-            : this(Settings.LARGE_BUFFER_LIMIT, maxLength, maxBuffersCount, 0)
+        public OffHeapMemoryPool(int maxBuffersCount, int maxLength = 16 * 1024 * 1024, bool rentAlwaysClean = false)
+            : this(Settings.LARGE_BUFFER_LIMIT, maxLength, maxBuffersCount, 0, rentAlwaysClean)
         { }
 
-        public OffHeapMemoryPool(int minLength, int maxLength, int maxBuffersPerBucket, int maxBucketsToTry = 2)
-            : base((p, l) => new OffHeapMemory<T>(p, l), minLength, maxLength, maxBuffersPerBucket, maxBucketsToTry)
+        public OffHeapMemoryPool(int minLength, int maxLength, int maxBuffersPerBucket, int maxBucketsToTry = 2, bool rentAlwaysClean = false)
+            : base((p, l) => new OffHeapMemory<T>(p, l), minLength, maxLength, maxBuffersPerBucket, maxBucketsToTry, rentAlwaysClean:rentAlwaysClean)
         { }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

@@ -342,7 +342,13 @@ namespace Spreads.Buffers
             }
         }
 
-        [Obsolete("For debugging to detect leaks, will be removed later.")]
+        /// <summary>
+        /// We need a finalizer because reference count and backing memory is a native resource.
+        /// If object dies without releasing a reference then it is an error.
+        /// Current code kills application by throwing in finalizer and this is what we want
+        /// for DS - ensure correct memory management. Maybe we should just decrement the counter
+        /// and trace a warning.
+        /// </summary>
         ~RetainableMemory()
         {
             // always dies in Debug

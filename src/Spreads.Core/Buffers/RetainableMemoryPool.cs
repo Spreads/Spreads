@@ -48,7 +48,7 @@ namespace Spreads.Buffers
         /// <summary>
         /// Set to true to always clean on return and clean buffers produced by factory.
         /// </summary>
-        protected bool IsRentAlwaysClean;
+        public readonly bool IsRentAlwaysClean;
 
         private readonly bool _typeHasReferences = !TypeHelper<T>.IsPinnable;
 
@@ -75,10 +75,9 @@ namespace Spreads.Buffers
         { }
 
         public RetainableMemoryPool(Func<RetainableMemoryPool<T>, int, RetainableMemory<T>> factory, int minLength,
-            int maxLength, int maxBuffersPerBucket, int maxBucketsToTry = 2, bool pin = false)
+            int maxLength, int maxBuffersPerBucket, int maxBucketsToTry = 2, bool pin = false, bool rentAlwaysClean = false)
         {
-            IsRentAlwaysClean = false;
-
+            IsRentAlwaysClean = rentAlwaysClean;
             _factory = factory;
 
             if (minLength <= 16)
@@ -334,16 +333,18 @@ namespace Spreads.Buffers
             _disposed = true;
             foreach (var bucket in _buckets)
             {
-                foreach (var sharedMemoryBuffer in bucket._buffers)
+                foreach (var retainableMemory in bucket._buffers)
                 {
-                    var disposable = sharedMemoryBuffer;
+                    var disposable = retainableMemory;
                     // ReSharper disable once UseNullPropagation : Debug
                     if (disposable != null)
                     {
-                        sharedMemoryBuffer._poolIdx = 0;
-                        sharedMemoryBuffer._isPooled = false;
-                        sharedMemoryBuffer.CounterRef = 0;
-                        ((IDisposable)disposable).Dispose();
+                        // keep all flags but clear the counter
+                        retainableMemory.CounterRef &= ~AtomicCounter.CountMask;
+
+                        retainableMemory._isPooled = false;
+                        // must keep retainableMemory._poolIdx
+                        retainableMemory.DisposeFinalize();
                     }
                 }
             }
@@ -508,7 +509,11 @@ namespace Spreads.Buffers
                         }
 
                         Debug.Assert(buffer.IsDisposed);
-                        buffer.CounterRef = 0;
+
+                        // Set counter to zero, keep other flags
+                        // Do not need atomic CAS here because the buffer is inside the
+                        // pool and this assignment is inside the spin lock
+                        buffer.CounterRef &= ~AtomicCounter.CountMask;
                     }
                 }
 
