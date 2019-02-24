@@ -259,22 +259,18 @@ namespace Spreads.Buffers
             return buffer;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal bool Return(RetainableMemory<T> memory, bool clearArray = false)
+        [MethodImpl(MethodImplOptions.NoInlining
+#if NETCOREAPP3_0
+                    | MethodImplOptions.AggressiveOptimization
+#endif
+        )]
+        public bool Return(RetainableMemory<T> memory, bool clearMemory = true)
         {
-            // These checks for internal code that could Return directly without Dispose on memory
-            memory.EnsureNotRetainedAndNotDisposed();
-
-            if (memory._isPooled)
-            {
-                ThrowAlreadyPooled<RetainableMemory<T>>();
-            }
-
-            return ReturnNoChecks(memory, clearArray);
+            return ReturnInternal(memory, clearMemory);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal bool ReturnNoChecks(RetainableMemory<T> memory, bool clearMemory = true)
+        internal bool ReturnInternal(RetainableMemory<T> memory, bool clearMemory = true)
         {
             if (_disposed)
             {
@@ -283,7 +279,19 @@ namespace Spreads.Buffers
 
             if (memory._poolIdx != PoolIdx)
             {
-                ThrowNotFromPool<RetainableMemory<T>>();
+                if (memory.IsDisposed)
+                {
+                    ThrowDisposed<RetainableMemory<T>>();
+                }
+                else
+                {
+                    ThrowNotFromPool<RetainableMemory<T>>();
+                }
+            }
+
+            if (memory._isPooled)
+            {
+                ThrowAlreadyPooled<RetainableMemory<T>>();
             }
 
             // Determine with what bucket this array length is associated
@@ -332,6 +340,7 @@ namespace Spreads.Buffers
                     // ReSharper disable once UseNullPropagation : Debug
                     if (disposable != null)
                     {
+                        sharedMemoryBuffer._poolIdx = 0;
                         sharedMemoryBuffer._isPooled = false;
                         sharedMemoryBuffer.CounterRef = 0;
                         ((IDisposable)disposable).Dispose();
@@ -519,7 +528,7 @@ namespace Spreads.Buffers
                 // put the buffer into the next available slot.  Otherwise, we just drop it.
                 // The try/finally is necessary to properly handle thread aborts on platforms
                 // which have them.
-
+                int disposed = 0;
 #if !NETCOREAPP
                 try
 #endif
@@ -531,11 +540,19 @@ namespace Spreads.Buffers
                     }
 
                     var pooled = _index != 0;
+
                     if (pooled)
                     {
-                        _buffers[--_index] = memory;
-                        memory.CounterRef |= AtomicCounter.CountMask;
-                        memory._isPooled = true;
+                        if ((disposed = AtomicCounter.TryDispose(ref memory.CounterRef)) == 0)
+                        {
+                            _buffers[--_index] = memory;
+                            Debug.Assert(AtomicCounter.GetIsDisposed(ref memory.CounterRef));
+                            memory._isPooled = true;
+                        }
+                    }
+                    else
+                    {
+                        memory.DisposeFinalize();
                     }
                 }
 #if !NETCOREAPP
@@ -543,6 +560,11 @@ namespace Spreads.Buffers
 #endif
                 {
                     Volatile.Write(ref _locker, 0);
+                }
+                // after unlock
+                if (disposed != 0)
+                {
+                    AtomicCounter.ThrowNonZeroTryDispose(disposed);
                 }
             }
         }

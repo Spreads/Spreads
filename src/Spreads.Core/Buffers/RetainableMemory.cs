@@ -25,11 +25,11 @@ namespace Spreads.Buffers
 
         internal void* _pointer;
 
-        [Obsolete("Must be used only from CounterRef or for custom storage when _isNativeWithHeader == true")]
-        internal int _counterOrReserved;
-
         protected int _length;
 
+        [Obsolete("Must be used only from CounterRef or for custom storage when _isNativeWithHeader == true")]
+        internal int _counterOrReserved;
+        
         // Internals with private-like _name are not intended for usage outside RMPool and tests.
 
         internal byte _poolIdx;
@@ -53,6 +53,10 @@ namespace Spreads.Buffers
         /// </summary>
         internal bool _isNativeWithHeader;
 
+        // One byte slot is padded anyway, so _isNativeWithHeader takes no space. 
+        // Storing offset as int will increase object size by 4 bytes.
+        // (actually in this class 4 bytes are padded as well to 24, but ArrayMemory
+        //  uses that and adding a new field will increase AM size by 8 bytes)
         internal const int NativeHeaderSize = 8;
 
 #if DEBUG
@@ -301,6 +305,13 @@ namespace Spreads.Buffers
                 ThrowDisposingRetained<RetainableMemory<T>>();
             }
         }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal void DisposeFinalize()
+        {
+            Dispose(false);
+        }
+
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal void ClearAfterDispose()

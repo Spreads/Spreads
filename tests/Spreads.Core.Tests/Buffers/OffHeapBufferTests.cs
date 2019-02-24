@@ -92,7 +92,7 @@ namespace Spreads.Core.Tests.Buffers
                 for (int i = 0; i < 1; i++)
                 {
                     var offHeapMemory = pool.RentMemory(size);
-                    pool.Return(offHeapMemory);
+                    pool.ReturnInternal(offHeapMemory);
                 }
             }
 
@@ -103,7 +103,7 @@ namespace Spreads.Core.Tests.Buffers
                     for (int i = 0; i < count; i++)
                     {
                         var offHeapMemory = pool.RentMemory(size);
-                        pool.Return(offHeapMemory);
+                        pool.ReturnInternal(offHeapMemory);
                     }
                 }
             }
@@ -133,7 +133,7 @@ namespace Spreads.Core.Tests.Buffers
                 for (int i = 0; i < 1; i++)
                 {
                     var offHeapMemory = pool.RentMemory(size * 1024);
-                    pool.Return(offHeapMemory);
+                    pool.ReturnInternal(offHeapMemory);
                 }
             }
 
@@ -174,7 +174,7 @@ namespace Spreads.Core.Tests.Buffers
             var pool = new OffHeapMemoryPool<byte>(1);
             var offHeapMemory = pool.RentMemory(32 * 1024);
             var rm = offHeapMemory.Retain();
-            Assert.Throws<InvalidOperationException>(() => { pool.Return(offHeapMemory); });
+            Assert.Throws<InvalidOperationException>(() => { pool.ReturnInternal(offHeapMemory); });
             rm.Dispose();
             pool.Dispose();
         }
@@ -187,13 +187,15 @@ namespace Spreads.Core.Tests.Buffers
             var offHeapMemory2 = pool.RentMemory(32 * 1024);
             var offHeapMemory3 = pool.RentMemory(32 * 1024);
 
+            Assert.AreEqual(pool.PoolIdx, offHeapMemory3._poolIdx, "pool idx of newlly allocated");
+
             ((IDisposable)offHeapMemory).Dispose();
             ((IDisposable)offHeapMemory2).Dispose();
             ((IDisposable)offHeapMemory3).Dispose();
 
-            Assert.Throws<ObjectDisposedException>(() => { pool.Return(offHeapMemory); });
-            Assert.Throws<ObjectDisposedException>(() => { pool.Return(offHeapMemory2); });
-            Assert.Throws<ObjectDisposedException>(() => { pool.Return(offHeapMemory3); });
+            Assert.Throws<ObjectDisposedException>(() => { pool.ReturnInternal(offHeapMemory); });
+            Assert.Throws<ObjectDisposedException>(() => { pool.ReturnInternal(offHeapMemory2); });
+            Assert.Throws<ObjectDisposedException>(() => { pool.ReturnInternal(offHeapMemory3); });
             Assert.AreEqual(2, pool.InspectObjects().Count());
         }
 
@@ -204,8 +206,8 @@ namespace Spreads.Core.Tests.Buffers
             var offHeapMemory = pool.RentMemory(32 * 1024);
             var offHeapMemory2 = pool.RentMemory(32 * 1024);
 
-            pool.Return(offHeapMemory);
-            pool.Return(offHeapMemory2);
+            pool.ReturnInternal(offHeapMemory);
+            pool.ReturnInternal(offHeapMemory2);
             Assert.AreEqual(2, pool.InspectObjects().Count());
             pool.Dispose();
         }
@@ -217,7 +219,7 @@ namespace Spreads.Core.Tests.Buffers
             var offHeapMemory = pool.RentMemory(32 * 1024);
             ((IDisposable)offHeapMemory).Dispose();
 
-            Assert.Throws<ObjectDisposedException>(() => { pool.Return(offHeapMemory); });
+            Assert.Throws<ObjectDisposedException>(() => { pool.ReturnInternal(offHeapMemory); });
 
             Assert.AreEqual(1, pool.InspectObjects().Count());
 
@@ -238,7 +240,7 @@ namespace Spreads.Core.Tests.Buffers
 
             Assert.Throws<InvalidOperationException>(() => { buffer.Unpin(); });
 
-            Assert.Throws<InvalidOperationException>(() => { pool.Return(buffer); });
+            Assert.Throws<InvalidOperationException>(() => { pool.ReturnInternal(buffer); });
 
             ((IDisposable)buffer).Dispose();
 

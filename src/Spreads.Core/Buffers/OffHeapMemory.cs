@@ -42,17 +42,15 @@ namespace Spreads.Buffers
             // disposing == false when finilizing and detected that non pooled
             if (disposing)
             {
-                if (_isPooled)
-                {
-                    ThrowAlreadyPooled<RetainableMemory<T>>();
-                }
 
-                Pool?.ReturnNoChecks(this, clearMemory: false); // OffHeap cannot have reference, do not clear
-
-                if (_isPooled)
+                var pool = Pool;
+                if (pool != null)
                 {
+                    pool.ReturnInternal(this, clearMemory: false);
+                    // pool calls Dispose(false) is a bucket is full
                     return;
                 }
+
                 // not pooled, doing finalization work now
                 GC.SuppressFinalize(this);
             }

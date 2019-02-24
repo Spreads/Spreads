@@ -102,17 +102,14 @@ namespace Spreads.Buffers
 
             if (disposing)
             {
-                if (_isPooled)
+                var pool = Pool;
+                if (pool != null)
                 {
-                    ThrowAlreadyPooled<RetainableMemory<T>>();
-                }
-
-                Pool?.ReturnNoChecks(this, clearMemory: !TypeHelper<T>.IsPinnable);
-
-                if (_isPooled)
-                {
+                    pool.ReturnInternal(this, clearMemory: !TypeHelper<T>.IsPinnable);
+                    // pool calls Dispose(false) is a bucket is full
                     return;
                 }
+
                 // not pooled, doing finalization work now
                 GC.SuppressFinalize(this);
             }
@@ -236,11 +233,11 @@ namespace Spreads.Buffers
                 ? externallyOwned ? (byte)0 : (byte)1
                 : pool.PoolIdx;
 
-            // Clear counter. We cannot tell if ObjectPool allocated a new one or took from pool
+            // Clear counter (with flags, AM does not have any flags).
+            // We cannot tell if ObjectPool allocated a new one or took from pool
             // other then by checking if the counter is disposed, so we cannot require
             // that the counter is disposed. We only need that pooled object has the counter
             // in disposed state so that no-one accidentally uses the object while it is in the pool.
-            // Just clear it now
             arrayMemory.CounterRef = 0;
 
             return arrayMemory;
@@ -283,24 +280,21 @@ namespace Spreads.Buffers
         {
             if (disposing)
             {
-                if (_isPooled)
+                var pool = Pool;
+                if (pool != null)
                 {
-                    ThrowAlreadyPooled<RetainableMemory<T>>();
-                }
-
-                Pool?.ReturnNoChecks(this, clearMemory: !TypeHelper<T>.IsPinnable);
-
-                if (_isPooled)
-                {
+                    pool.ReturnInternal(this, clearMemory: !TypeHelper<T>.IsPinnable);
+                    // pool calls Dispose(false) is a bucket is full
                     return;
                 }
-                // not pooled, doing finalization work now
+                
+                // not poolable, doing finalization work now
                 GC.SuppressFinalize(this);
             }
 
-            // Finalization
-
             AtomicCounter.Dispose(ref CounterRef);
+
+            // Finalization
 
             Debug.Assert(!_isPooled);
 

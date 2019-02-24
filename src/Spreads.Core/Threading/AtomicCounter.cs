@@ -306,19 +306,15 @@ namespace Spreads.Threading
         {
             var currentValue = Volatile.Read(ref counter);
             var currentCount = currentValue & CountMask;
-            if (currentCount == CountMask)
+
+            if ((uint)(currentValue & CountMask) >= CountLimit)
             {
-                ThrowDisposed();
+                ThrowBadCounter(currentValue & CountMask);
             }
 
             if (currentCount != 0)
             {
                 ThrowPositiveRefCount(currentCount);
-            }
-
-            if ((uint)(currentValue & CountMask) >= CountLimit)
-            {
-                ThrowBadCounter(currentValue & CountMask);
             }
 
             var newValue = currentValue | CountMask; // set all count bits to 1, make counter unusable for Incr/Decr methods
@@ -328,6 +324,48 @@ namespace Spreads.Threading
             {
                 ThrowCounterChanged();
             }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static int TryDispose(ref int counter)
+        {
+            var currentValue = counter;
+            var currentCount = currentValue & CountMask;
+            
+            if (currentCount != 0)
+            {
+                return currentCount;
+            }
+
+            var newValue = currentValue | CountMask;
+
+            var existing = currentValue; Interlocked.CompareExchange(ref counter, newValue, currentValue);
+            if (existing != currentValue)
+            {
+                return -1;
+            }
+
+            return 0;
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        internal static void ThrowNonZeroTryDispose(int count)
+        {
+            if ((uint)(count & CountMask) >= CountLimit)
+            {
+                ThrowBadCounter(count & CountMask);
+            }
+
+            if (count > 0)
+            {
+                ThrowPositiveRefCount(count);
+            }
+
+            if (count == -1)
+            {
+                ThrowCounterChanged();
+            }
+            ThrowHelper.FailFast("Wrong value from TryDispose");
         }
 
         [System.Diagnostics.Contracts.Pure]

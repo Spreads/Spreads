@@ -113,7 +113,7 @@ namespace Spreads.Core.Tests.Buffers
 
             Console.WriteLine($"rented: {buf.ReferenceCount}");
 
-            pool.Return(buf);
+            pool.ReturnInternal(buf);
 
             Assert.IsTrue(buf.IsDisposed);
             Assert.IsTrue(buf.IsPooled);
@@ -172,7 +172,7 @@ namespace Spreads.Core.Tests.Buffers
                         //{
                         //    Assert.Fail();
                         //}
-                        pool.Return(memory);
+                        pool.ReturnInternal(memory, false);
                     }
                 }
             }
@@ -216,7 +216,7 @@ namespace Spreads.Core.Tests.Buffers
                     //}
 
                     // ReSharper disable once AccessToDisposedClosure
-                    pool.Return(memory);
+                    pool.ReturnInternal(memory);
 
                     //if (i % 1000000 == 0)
                     //{
@@ -280,7 +280,7 @@ namespace Spreads.Core.Tests.Buffers
 
                     foreach (var arrayMemory in list)
                     {
-                        pool.Return(arrayMemory);
+                        pool.ReturnInternal(arrayMemory);
                     }
                     list.Clear();
                 }
@@ -345,7 +345,7 @@ namespace Spreads.Core.Tests.Buffers
 
                 for (int i = 2; i < maxBuffers * 2; i++)
                 {
-                    pool.Return(list[i]);
+                    pool.ReturnInternal(list[i]);
                 }
             }
 
@@ -365,7 +365,7 @@ namespace Spreads.Core.Tests.Buffers
                 for (int i = 0; i < maxBuffers / 2; i++)
                 {
                     var memory = pool.RentMemory(64 * 1024);
-                    pool.Return(memory);
+                    pool.ReturnInternal(memory);
                 }
             }
 
