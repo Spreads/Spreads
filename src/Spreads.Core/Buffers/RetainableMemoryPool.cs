@@ -84,8 +84,9 @@ namespace Spreads.Buffers
             {
                 minLength = 16;
             }
-            _minBufferLength = BitUtil.FindNextPositivePowerOfTwo(minLength);
-            _minBufferLengthPow2 = (int)Math.Log(_minBufferLength, 2);
+
+            _minBufferLengthPow2 = 32 - IntUtil.NumberOfLeadingZeros(minLength - 1);
+            _minBufferLength = 1 << _minBufferLengthPow2;
 
             if (maxBucketsToTry < 0)
             {
@@ -579,6 +580,11 @@ namespace Spreads.Buffers
         {
             Debug.Assert(bufferSize >= 0);
 
+            var intUtil = Math.Max(0, (32 - IntUtil.NumberOfLeadingZeros(bufferSize - 1)) - _minBufferLengthPow2);
+
+#if DEBUG
+            // TODO remove this check after some usage, see if this is not the same on some edge case
+
             // bufferSize of 0 will underflow here, causing a huge
             // index which the caller will discard because it is not
             // within the bounds of the bucket array.
@@ -590,8 +596,11 @@ namespace Spreads.Buffers
             if (bitsRemaining > 0xF) { bitsRemaining >>= 4; poolIndex += 4; }
             if (bitsRemaining > 0x3) { bitsRemaining >>= 2; poolIndex += 2; }
             if (bitsRemaining > 0x1) { bitsRemaining >>= 1; poolIndex += 1; }
+            var manual = poolIndex + (int)bitsRemaining;
 
-            return poolIndex + (int)bitsRemaining;
+            Debug.Assert(manual == intUtil);
+#endif
+            return intUtil;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

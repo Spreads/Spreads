@@ -259,9 +259,9 @@ namespace Spreads.Threading
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe Wpid GetLockHolder(long* pointer)
+        public static Wpid GetLockHolder(ref long locker)
         {
-            return (Wpid)Volatile.Read(ref *pointer);
+            return (Wpid)Volatile.Read(ref locker);
         }
 
         /// <summary>
@@ -269,9 +269,9 @@ namespace Spreads.Threading
         /// Normally priority has a waiter that first reached a threshold spin number.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe bool GetIsExclusiveLock(long* pointer, Wpid wpid)
+        public static bool GetIsExclusiveLock(ref long locker, Wpid wpid)
         {
-            var existing = (Wpid)Volatile.Read(ref *pointer);
+            var existing = (Wpid)Volatile.Read(ref locker);
             return LockValueToWpid(existing) == wpid && (PriorityTagMask & existing) != 0;
         }
 
@@ -279,7 +279,7 @@ namespace Spreads.Threading
         {
             [DebuggerStepThrough]
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => (Wpid)Volatile.Read(ref *(long*)(Pointer));
+            get => GetLockHolder(ref *(long*)(Pointer));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -298,23 +298,23 @@ namespace Spreads.Threading
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe Wpid TryAcquireExclusiveLock(long* pointer, Wpid wpid, int spinLimit = 0, IWpidHelper wpidHelper = null)
+        public static Wpid TryAcquireExclusiveLock(ref long locker, Wpid wpid, int spinLimit = 0, IWpidHelper wpidHelper = null)
         {
             // Priority so that others back off instantly without spinning
             var lockValue = WpidToLockValue(wpid) | PriorityTagMask;
 
             // TTAS significantly slower for uncontended case, which is often the case, do not check: 0 == *(long*)Pointer &&
-            if (0 == Interlocked.CompareExchange(ref *pointer, lockValue, 0))
+            if (0 == Interlocked.CompareExchange(ref locker, lockValue, 0))
             {
                 return default;
             }
-            return TryAcquireLockContended(pointer, lockValue, spinLimit, wpidHelper);
+            return TryAcquireLockContended(ref locker, lockValue, spinLimit, wpidHelper);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe Wpid TryUpgradeToExclusiveLock(long* pointer, Wpid wpid)
+        public static Wpid TryUpgradeToExclusiveLock(ref long locker, Wpid wpid)
         {
-            var existing = (Wpid)Volatile.Read(ref *pointer);
+            var existing = (Wpid)Volatile.Read(ref locker);
             if (LockValueToWpid(existing) == wpid)
             {
                 if ((PriorityTagMask & existing) != 0)
@@ -322,7 +322,7 @@ namespace Spreads.Threading
                     ThrowAlreadyInExclusiveLock();
                 }
 
-                Volatile.Write(ref *pointer, existing | PriorityTagMask);
+                Volatile.Write(ref locker, existing | PriorityTagMask);
             }
 
             ThrowNotHoldingLockForUpgrade();
@@ -338,11 +338,11 @@ namespace Spreads.Threading
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public unsafe Wpid TryAcquireExclusiveLock(Wpid wpid, int spinLimit = 0, IWpidHelper wpidHelper = null)
         {
-            return TryAcquireExclusiveLock((long*)Pointer, wpid, spinLimit, wpidHelper);
+            return TryAcquireExclusiveLock(ref *(long*)Pointer, wpid, spinLimit, wpidHelper);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe Wpid TryReEnterExclusiveLock(long* pointer, Wpid wpid, int spinLimit = 0, IWpidHelper wpidHelper = null)
+        public static Wpid TryReEnterExclusiveLock(ref long locker, Wpid wpid, int spinLimit = 0, IWpidHelper wpidHelper = null)
         {
             // Priority so that others back off instantly without spinning
             var expectedLockValue = WpidToLockValue(wpid) | PriorityTagMask;
@@ -350,7 +350,7 @@ namespace Spreads.Threading
             var sw = new SpinWait();
             while (true)
             {
-                var existing = Interlocked.CompareExchange(ref *pointer, reenteredLockValue, expectedLockValue);
+                var existing = Interlocked.CompareExchange(ref locker, reenteredLockValue, expectedLockValue);
                 if (expectedLockValue == existing)
                 {
                     return default;
@@ -378,15 +378,15 @@ namespace Spreads.Threading
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public unsafe Wpid TryReEnterExclusiveLock(Wpid wpid, int spinLimit = 0, IWpidHelper wpidHelper = null)
         {
-            return TryReEnterExclusiveLock((long*)Pointer, wpid, spinLimit, wpidHelper);
+            return TryReEnterExclusiveLock(ref *(long*)Pointer, wpid, spinLimit, wpidHelper);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe Wpid TryExitExclusiveLock(long* pointer, Wpid wpid)
+        public static Wpid TryExitExclusiveLock(ref long locker, Wpid wpid)
         {
             var expectedLockValue = WpidToLockValue(wpid) | PriorityTagMask | ExclusiveTagMask;
             var lockValue = expectedLockValue & ~ExclusiveTagMask;
-            if (expectedLockValue == Interlocked.CompareExchange(ref *pointer, lockValue, expectedLockValue))
+            if (expectedLockValue == Interlocked.CompareExchange(ref locker, lockValue, expectedLockValue))
             {
                 return default;
             }
@@ -398,7 +398,7 @@ namespace Spreads.Threading
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public unsafe Wpid TryExitExclusiveLock(Wpid wpid)
         {
-            return TryExitExclusiveLock((long*)Pointer, wpid);
+            return TryExitExclusiveLock(ref *(long*)Pointer, wpid);
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
@@ -425,22 +425,22 @@ namespace Spreads.Threading
         /// Returns zero if acquired lock or Wpid of existing lock holder.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe Wpid TryAcquireLock(long* pointer, Wpid wpid, int spinLimit = 0, IWpidHelper wpidHelper = null)
+        public static Wpid TryAcquireLock(ref long locker, Wpid wpid, int spinLimit = 0, IWpidHelper wpidHelper = null)
         {
             var lockValue = WpidToLockValue(wpid);
 
             // TTAS significantly slower for uncontended case, which is often the case, do not check: 0 == *(long*)Pointer &&
-            if (0 == Interlocked.CompareExchange(ref *pointer, lockValue, 0))
+            if (0 == Interlocked.CompareExchange(ref locker, lockValue, 0))
             {
                 return default;
             }
-            return TryAcquireLockContended(pointer, lockValue, spinLimit, wpidHelper);
+            return TryAcquireLockContended(ref locker, lockValue, spinLimit, wpidHelper);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public unsafe Wpid TryAcquireLock(Wpid wpid, int spinLimit = 0, IWpidHelper wpidHelper = null)
         {
-            return TryAcquireLock((long*)Pointer, wpid, spinLimit, wpidHelper);
+            return TryAcquireLock(ref *(long*)Pointer, wpid, spinLimit, wpidHelper);
         }
 
         [MethodImpl(MethodImplOptions.NoInlining
@@ -448,7 +448,7 @@ namespace Spreads.Threading
             | MethodImplOptions.AggressiveOptimization // first call could be problematic with the loop if tiered compilation is on
 #endif
         )]
-        private static unsafe Wpid TryAcquireLockContended(long* pointer, long lockValue, int spinLimit, IWpidHelper wpidHelper)
+        private static Wpid TryAcquireLockContended(ref long locker, long lockValue, int spinLimit, IWpidHelper wpidHelper)
         {
             DateTime backOffStarted = default;
             SemaphoreSlim sem = null;
@@ -469,7 +469,7 @@ namespace Spreads.Threading
                 long existing;
                 // if (0 == (existing = *(long*)(Pointer))) // TTAS doesn't help here either
                 {
-                    existing = Interlocked.CompareExchange(ref *pointer, lockValue, 0);
+                    existing = Interlocked.CompareExchange(ref locker, lockValue, 0);
                 }
 
                 if (existing == 0)
@@ -525,7 +525,7 @@ namespace Spreads.Threading
                     {
                         // first waiter that reached here is the first that started, no yields before PriorityThreshold,
                         // only preemption could have kicked it out before trying to acquire priority.
-                        var replaced = Interlocked.CompareExchange(ref *pointer, (existing | PriorityTagMask), existing);
+                        var replaced = Interlocked.CompareExchange(ref locker, (existing | PriorityTagMask), existing);
                         if (replaced == existing)
                         {
                             priority = true;
@@ -544,7 +544,7 @@ namespace Spreads.Threading
                     {
                         if (wpidHelper != null && !wpidHelper.IsWpidAlive(LockValueToWpid(existing)))
                         {
-                            var replaced = Interlocked.CompareExchange(ref *pointer, lockValue, existing);
+                            var replaced = Interlocked.CompareExchange(ref locker, lockValue, existing);
                             if (replaced == existing)
                             {
                                 wpidHelper.OnForceUnlock(LockValueToWpid(existing));
@@ -571,7 +571,7 @@ namespace Spreads.Threading
                     sem = sem ?? GetSemaphore(existing & ~(PriorityTagMask | ExclusiveTagMask));
 
                     // retry before wait
-                    existing = Interlocked.CompareExchange(ref *pointer, lockValue, 0);
+                    existing = Interlocked.CompareExchange(ref locker, lockValue, 0);
                     if (existing == 0)
                     {
                         return default;
@@ -789,33 +789,33 @@ namespace Spreads.Threading
         /// Returns zero if released lock.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe Wpid TryReleaseLock(long* pointer, Wpid wpid)
+        public static Wpid TryReleaseLock(ref long locker, Wpid wpid)
         {
             var lockValue = WpidToLockValue(wpid);
 
             // TODO test value first (in contended case as well). CAS is too expensive, one per roundtrip is enough
 
-            if (lockValue == Interlocked.CompareExchange(ref *(long*)(pointer), 0, lockValue))
+            if (lockValue == Interlocked.CompareExchange(ref locker, 0, lockValue))
             {
                 return default;
             }
 
-            return TryReleaseLockContended(pointer, wpid);
+            return TryReleaseLockContended(ref locker, wpid);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public unsafe Wpid TryReleaseLock(Wpid wpid)
         {
-            return TryReleaseLock((long*)Pointer, wpid);
+            return TryReleaseLock(ref *(long*)Pointer, wpid);
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
-        private static unsafe Wpid TryReleaseLockContended(long* pointer, Wpid wpid)
+        private static Wpid TryReleaseLockContended(ref long locker, Wpid wpid)
         {
             var lockValue = WpidToLockValue(wpid);
 
             // TODO Debug.Assert everywhere that ptr is aligned. For locking it must be.
-            long existing = *pointer;
+            long existing = locker;
 
             if ((existing & ExclusiveTagMask) != 0)
             {
@@ -823,7 +823,7 @@ namespace Spreads.Threading
             }
 
             if (LockValueToWpid(existing) == wpid &&
-                Interlocked.CompareExchange(ref *pointer, 0, existing) == existing)
+                Interlocked.CompareExchange(ref locker, 0, existing) == existing)
             {
                 _multicast?.Send(lockValue);
                 return default;
