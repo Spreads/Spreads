@@ -222,6 +222,9 @@ namespace Spreads.Threading
 
         internal const long ThreadIdTagMask = (long)0b_0011_1111 << 56;
 
+        [ThreadStatic]
+        internal static int ThreadId;
+
         // normally Wpid number is very limited, 2-20 should be normal range
         internal static (long, SemaphoreSlim)[] _semaphores = new (long, SemaphoreSlim)[32];
 
@@ -283,12 +286,29 @@ namespace Spreads.Threading
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static int GetThreadId()
+        {
+            if (ThreadId == 0)
+            {
+                CreateThreadId();
+            }
+
+            return ThreadId;
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static void CreateThreadId()
+        {
+            ThreadId = Environment.CurrentManagedThreadId;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static long WpidToLockValue(Wpid wpid)
         {
             // Effectively we assume Pid is always smaller that 2 ^ 24. It is on Linux and should be on Windows.
             // Could have used InstanceId high bits instead, but we could find Pid by instance id and instance id is mor important in general
             Debug.Assert((wpid & WpidTagsMask) == 0);
-            return (((long)Thread.CurrentThread.ManagedThreadId & 63) << 56) | (~WpidTagsMask & wpid);
+            return (((long)GetThreadId() & 63) << 56) | (~WpidTagsMask & wpid);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -425,7 +445,7 @@ namespace Spreads.Threading
         /// Returns zero if acquired lock or Wpid of existing lock holder.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Wpid TryAcquireLock(ref long locker, Wpid wpid, int spinLimit = 0, IWpidHelper wpidHelper = null)
+        public static Wpid TryAcquireLock(ref long locker, Wpid wpid, int spinLimit = 0, IWpidHelper wpidHelper = null, bool pinned = false)
         {
             var lockValue = WpidToLockValue(wpid);
 
@@ -434,13 +454,13 @@ namespace Spreads.Threading
             {
                 return default;
             }
-            return TryAcquireLockContended(ref locker, lockValue, spinLimit, wpidHelper);
+            return TryAcquireLockContended(ref locker, lockValue, spinLimit, wpidHelper, pinned);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public unsafe Wpid TryAcquireLock(Wpid wpid, int spinLimit = 0, IWpidHelper wpidHelper = null)
+        public unsafe Wpid TryAcquireLock(Wpid wpid, int spinLimit = 0, IWpidHelper wpidHelper = null, bool pinned = false)
         {
-            return TryAcquireLock(ref *(long*)Pointer, wpid, spinLimit, wpidHelper);
+            return TryAcquireLock(ref *(long*)Pointer, wpid, spinLimit, wpidHelper, true);
         }
 
         [MethodImpl(MethodImplOptions.NoInlining
@@ -448,7 +468,7 @@ namespace Spreads.Threading
             | MethodImplOptions.AggressiveOptimization // first call could be problematic with the loop if tiered compilation is on
 #endif
         )]
-        private static Wpid TryAcquireLockContended(ref long locker, long lockValue, int spinLimit, IWpidHelper wpidHelper)
+        private static Wpid TryAcquireLockContended(ref long locker, long lockValue, int spinLimit, IWpidHelper wpidHelper, bool pinned = false)
         {
             DateTime backOffStarted = default;
             SemaphoreSlim sem = null;
@@ -568,6 +588,8 @@ namespace Spreads.Threading
 
                 if (priority && sw.NextSpinWillYield && _multicast != null)
                 {
+                    
+
                     sem = sem ?? GetSemaphore(existing & ~(PriorityTagMask | ExclusiveTagMask));
 
                     // retry before wait
@@ -579,6 +601,18 @@ namespace Spreads.Threading
 
                     if ((existing & PriorityTagMask) != 0)
                     {
+                        // TODO this won't work across processes now
+                        //if (pinned && RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+                        //{
+                        //    var compareAddress = Unsafe.AsPointer(ref existing);
+                        //    WaitOnAddress(Unsafe.AsPointer(ref locker), compareAddress, (IntPtr)8, 40);
+                        //}
+                        //existing = Interlocked.CompareExchange(ref locker, lockValue, 0);
+                        //if (existing == 0)
+                        //{
+                        //    return default;
+                        //}
+
                         if (sem.Wait(40))
                         {
                             // Console.WriteLine("Entered semaphore");
@@ -789,7 +823,7 @@ namespace Spreads.Threading
         /// Returns zero if released lock.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Wpid TryReleaseLock(ref long locker, Wpid wpid)
+        public static Wpid TryReleaseLock(ref long locker, Wpid wpid, bool pinned = false)
         {
             var lockValue = WpidToLockValue(wpid);
 
@@ -800,17 +834,17 @@ namespace Spreads.Threading
                 return default;
             }
 
-            return TryReleaseLockContended(ref locker, wpid);
+            return TryReleaseLockContended(ref locker, wpid, pinned);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public unsafe Wpid TryReleaseLock(Wpid wpid)
         {
-            return TryReleaseLock(ref *(long*)Pointer, wpid);
+            return TryReleaseLock(ref *(long*)Pointer, wpid, true);
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
-        private static Wpid TryReleaseLockContended(ref long locker, Wpid wpid)
+        private static unsafe Wpid TryReleaseLockContended(ref long locker, Wpid wpid, bool pinned = false)
         {
             var lockValue = WpidToLockValue(wpid);
 
@@ -825,6 +859,12 @@ namespace Spreads.Threading
             if (LockValueToWpid(existing) == wpid &&
                 Interlocked.CompareExchange(ref locker, 0, existing) == existing)
             {
+                // for pinned + Windows case cannot send address, x-proc they are in different address spaces
+                //if (pinned && RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+                //{
+                //    WakeByAddressAll(Unsafe.AsPointer(ref locker));
+                //}
+
                 _multicast?.Send(lockValue);
                 return default;
             }
@@ -898,5 +938,16 @@ namespace Spreads.Threading
                 }
             }
         }
+
+        // TODO review, this is useful only inside a single process
+        //[DllImport("api-ms-win-core-synch-l1-2-0.dll", SetLastError = true, ExactSpelling = true)]
+        //[return: MarshalAs(UnmanagedType.Bool)]
+        //internal static extern unsafe bool WaitOnAddress(void* address, void* compareAddress, IntPtr addressSize, uint dwMilliseconds);
+
+        //[DllImport("api-ms-win-core-synch-l1-2-0.dll", SetLastError = false, ExactSpelling = true)]
+        //internal static extern unsafe void WakeByAddressSingle(void* address);
+
+        //[DllImport("api-ms-win-core-synch-l1-2-0.dll", SetLastError = false, ExactSpelling = true)]
+        //internal static extern unsafe void WakeByAddressAll(void* address);
     }
 }
