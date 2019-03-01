@@ -2,11 +2,11 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-using System.Diagnostics;
 using Spreads.Buffers;
-using Spreads.Serialization.Utf8Json;
-using System.Runtime.CompilerServices;
 using Spreads.Native;
+using Spreads.Serialization.Utf8Json;
+using System.Diagnostics;
+using System.Runtime.CompilerServices;
 
 namespace Spreads.Serialization
 {
@@ -20,9 +20,17 @@ namespace Spreads.Serialization
     // AdditionalCorrectnessCheck, which protects from wrong usage of DirectBuffer API, but not
     // from direct pointer write overruns.
 
-    public enum BinaryConverterErrorCode
+    public enum BinarySerializerErrorCode : int
     {
-        NotEnoughCapacity = -1
+        /// <summary>
+        /// Destination buffer is smaller than serialized payload size.
+        /// </summary>
+        NotEnoughCapacity = -1,
+
+        /// <summary>
+        /// Value header does not match expected header.
+        /// </summary>
+        HeaderMismatch = -2,
     }
 
     /// <summary>
@@ -49,8 +57,9 @@ namespace Spreads.Serialization
         /// </summary>
         byte ConverterVersion { get; }
 
+        // TODO docs are outdated even for signature
         /// <summary>
-        /// Returns the size of serialized bytes without the version+lenght header.
+        /// Returns the size of serialized bytes without the version+length header.
         /// For types with non-fixed size this method could serialize value into a temporary buffer if it is not
         /// possible to calculate serialized bytes length without actually performing serialization.
         /// The temporaryBuffer ArraySegment should use a buffer from <see cref="BufferPool{T}.Rent"/>
@@ -64,27 +73,25 @@ namespace Spreads.Serialization
         int SizeOf(T value, out RetainedMemory<byte> temporaryBuffer, out bool withPadding);
 
         /// <summary>
-        /// Write serialized value to the destination. Use SizeOf to prepare destination of required size.
+        /// Write serialized value prepended with <see cref="DataTypeHeader"/> to <paramref name="destination"/> buffer. Use SizeOf to prepare destination of required size.
         /// This method is called by <see cref="BinarySerializer"/> only when <see cref="SizeOf"/> returned
         /// positive length with default/empty temporaryBuffer.
         /// </summary>
         /// <param name="value">A value to serialize.</param>
         /// <param name="destination">A pinned pointer to a buffer to serialize the value into. It must have at least number of bytes returned by SizeOf().</param>
-        /// <returns>Returns the number of bytes written to the destination buffer or a negative error code that corresponds to <see cref="BinaryConverterErrorCode"/>.</returns>
+        /// <returns>Returns the number of bytes written to the destination buffer or a negative error code that corresponds to <see cref="BinarySerializerErrorCode"/>.</returns>
         int Write(T value, ref DirectBuffer destination);
 
         /// <summary>
         /// Reads new value or fill existing value with data from the pointer,
         /// returns number of bytes read including any header.
-        /// If not IsFixedSize, checks that version from the pointer equals the Version property.
+        /// If not <see cref="TypeHelper{T}.IsFixedSize"/>, checks that version from the pointer equals the Version property.
         /// </summary>
         int Read(ref DirectBuffer source, out T value);
     }
 
     public sealed class JsonBinaryConverter<T> : IBinaryConverter<T>
     {
-
-
         private JsonBinaryConverter()
         {
         }
@@ -124,7 +131,7 @@ namespace Spreads.Serialization
 
                 if (size > destination.Length)
                 {
-                    return (int)BinaryConverterErrorCode.NotEnoughCapacity;
+                    return (int)BinarySerializerErrorCode.NotEnoughCapacity;
                 }
 
                 retainedMemory.Span.Slice(BinarySerializer.BC_PADDING).CopyTo(destination.Span);
