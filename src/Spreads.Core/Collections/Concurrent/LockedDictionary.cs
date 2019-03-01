@@ -59,7 +59,7 @@ namespace Spreads.Collections.Concurrent
             EnterLock();
 
             var removed = false;
-
+            value = default;
 #if DEBUG
             try
             {
@@ -94,7 +94,7 @@ namespace Spreads.Collections.Concurrent
             EnterLock();
 
             var removed = false;
-
+            pair = default;
 #if DEBUG
             try
             {
