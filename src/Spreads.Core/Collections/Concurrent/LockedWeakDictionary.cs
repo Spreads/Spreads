@@ -72,13 +72,12 @@ namespace Spreads.Collections.Concurrent
         public bool TryGetValue(TKey key, out object value)
         {
             EnterLock();
-            bool found = default;
 #if DEBUG
             value = default;
             try
             {
 #endif
-            found = _inner.DangerousTryGetValue(key, out var h);
+            var found = _inner.DangerousTryGetValue(key, out var h);
 
             if (found) // TODO what if GC between the lines?
             {
