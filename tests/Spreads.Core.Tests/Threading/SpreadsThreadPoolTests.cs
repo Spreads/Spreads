@@ -14,7 +14,7 @@ namespace Spreads.Core.Tests.Threading
     [TestFixture]
     public class SpinningThreadPoolTests
     {
-        public class Completable : IThreadPoolWorkItem
+        public class Completable : ISpreadsThreadPoolWorkItem
         {
             private readonly SpreadsThreadPool _tp;
             public static long TotalCount;

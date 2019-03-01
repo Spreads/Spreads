@@ -6,9 +6,7 @@
 #endif
 
 using System;
-using System.Buffers;
 using System.Diagnostics;
-using System.Diagnostics.Contracts;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -51,7 +49,7 @@ namespace Spreads.Buffers
             }
             else if (MemoryMarshal.TryGetArray<T>(memory, out var segment))
             {
-                _manager = ArrayMemory<T>.Create(segment.Array, segment.Offset, segment.Count, true, pin:true);
+                _manager = ArrayMemory<T>.Create(segment.Array, segment.Offset, segment.Count, true, pin: true);
                 _manager.Increment();
                 _offset = 0;
                 _length = _manager.Length;
@@ -134,7 +132,7 @@ namespace Spreads.Buffers
             get => _manager.Memory.Slice(_offset, _length);
         }
 
-        public unsafe Span<T> Span
+        public Span<T> Span
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => _manager.GetSpan().Slice(_offset, _length); // new Span<T>(Pointer, _length);
@@ -271,7 +269,7 @@ namespace Spreads.Buffers
 
         internal readonly PanicOnFinalize _finalizeChecker;
 #endif
-        }
+    }
 
     public static class RetainedMemoryExtensions
     {
@@ -279,6 +277,15 @@ namespace Spreads.Buffers
         public static bool TryGetArray(this RetainedMemory<byte> rm, out ArraySegment<byte> segment)
         {
             return MemoryMarshal.TryGetArray(rm.Memory, out segment);
+        }
+
+        /// <summary>
+        /// A shortcut to <see cref="DirectBuffer"/> ctor that accepts <see cref="RetainedMemory{T}"/>
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static DirectBuffer ToDirectBuffer(this RetainedMemory<byte> rm)
+        {
+            return new DirectBuffer(rm);
         }
 
         [Obsolete("Do not use streams if possible")]

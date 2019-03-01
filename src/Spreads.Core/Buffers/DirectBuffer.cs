@@ -93,6 +93,12 @@ namespace Spreads.Buffers
             get => _length == 0;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public bool IsFilledWithValue(byte value)
+        {
+            return IsFilledWithValue(ref *Data, (ulong)_length, value);
+        }
+
         public Span<byte> Span
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -656,6 +662,10 @@ namespace Spreads.Buffers
             WriteUnaligned(_pointer + index, value);
         }
 
+        /// <summary>
+        /// Unaligned read starting from index.
+        /// A shortcut to <see cref="Unsafe.ReadUnaligned{T}(void*)"/>.
+        /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         [Pure]
         public T Read<T>(long index)
@@ -668,8 +678,13 @@ namespace Spreads.Buffers
             return ReadUnaligned<T>(_pointer + index);
         }
 
+        /// <summary>
+        /// Unaligned read starting from index.
+        /// A shortcut to <see cref="Unsafe.ReadUnaligned{T}(void*)"/>.
+        /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         [Pure]
+        [Obsolete("Use SizeOf<T> and Read<T>")]
         public int Read<T>(long index, out T value)
         {
             var size = SizeOf<T>();
@@ -694,6 +709,15 @@ namespace Spreads.Buffers
             { Assert(index, length); }
             var destination = _pointer + index;
             InitBlockUnaligned(destination, 0, (uint)length);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Fill(long index, int length, byte value)
+        {
+            if (AdditionalCorrectnessChecks.Enabled)
+            { Assert(index, length); }
+            var destination = _pointer + index;
+            InitBlockUnaligned(destination, value, (uint)length);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -879,6 +903,59 @@ namespace Spreads.Buffers
             }
 
         Equal:
+            return true;
+        NotEqual: // Workaround for https://github.com/dotnet/coreclr/issues/13549
+            return false;
+        }
+
+#if NETCOREAPP3_0
+        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
+
+        public static bool IsFilledWithValue(ref byte first, ulong length, byte value)
+        {
+            var zeroVector = new Vector<byte>(value);
+            IntPtr offset = (IntPtr)0; // Use IntPtr for arithmetic to avoid unnecessary 64->32->64 truncations
+            IntPtr lengthToExamine = (IntPtr)(void*)length;
+
+            if (Vector.IsHardwareAccelerated && (byte*)lengthToExamine >= (byte*)Vector<byte>.Count)
+            {
+                lengthToExamine -= Vector<byte>.Count;
+                while ((byte*)lengthToExamine > (byte*)offset)
+                {
+                    if (LoadVector(ref first, offset) != zeroVector)
+                    {
+                        goto NotEqual;
+                    }
+                    offset += Vector<byte>.Count;
+                }
+                return LoadVector(ref first, lengthToExamine) == zeroVector;
+            }
+
+            // TODO UIntPtr or at least uint/ulong from value
+            //if ((byte*)lengthToExamine >= (byte*)sizeof(UIntPtr))
+            //{
+            //    lengthToExamine -= sizeof(UIntPtr);
+            //    while ((byte*)lengthToExamine > (byte*)offset)
+            //    {
+            //        if (LoadUIntPtr(ref first, offset) != UIntPtr.Zero)
+            //        {
+            //            goto NotEqual;
+            //        }
+            //        offset += sizeof(UIntPtr);
+            //    }
+            //    return LoadUIntPtr(ref first, lengthToExamine) == UIntPtr.Zero;
+            //}
+
+            while ((byte*)lengthToExamine > (byte*)offset)
+            {
+                if (AddByteOffset(ref first, offset) != value)
+                {
+                    goto NotEqual;
+                }
+                offset += 1;
+            }
+
             return true;
         NotEqual: // Workaround for https://github.com/dotnet/coreclr/issues/13549
             return false;
