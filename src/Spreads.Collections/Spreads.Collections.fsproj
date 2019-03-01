@@ -15,7 +15,6 @@
         <Compile Include="Common/SIMDArrayUtils.fs" />
         <Compile Include="Common/SIMDArray.fs" />
         <Compile Include="Interfaces.fs" />
-        <Compile Include="Collections\Experimental\CHAMT.fs" />
         <Compile Include="Collections/Collections.fs" />
         <Compile Include="Collections/SortedMap.fs" />
         <Compile Include="Collections/SortedChunkedMap.fs" />
