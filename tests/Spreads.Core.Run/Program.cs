@@ -1,5 +1,5 @@
 ﻿using Spreads.Collections;
-using Spreads.Core.Tests.Algorithms;
+using Spreads.Core.Tests.Buffers;
 using Spreads.Core.Tests.Collections.Concurrent;
 using Spreads.Core.Tests.Serialization;
 using Spreads.Utils;
@@ -7,11 +7,6 @@ using System;
 using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
-using Spreads.Core.Tests;
-using Spreads.Core.Tests.Buffers;
-using Spreads.Core.Tests.Collections;
-using Spreads.Core.Tests.Collections.Internal;
-using Spreads.Core.Tests.Threading;
 
 namespace Spreads.Core.Run
 {
@@ -41,11 +36,15 @@ namespace Spreads.Core.Run
             ExecutionContext.SuppressFlow();
             Settings.SharedSpinLockNotificationPort = 53412;
 
-            var test = new ArrayMemoryTests();
-            test.RentReturnBenchmarkRetainablePool();
+            var test = new DirectBufferTests();
+            for (int i = 0; i < 10; i++)
+            {
+                test.CouldCompareDbs();
+                test.CouldFillDbs();
+            }
 
-            //Console.WriteLine("Finished, press enter to exit...");
-            //Console.ReadLine();
+            // Console.WriteLine("Finished, press enter to exit...");
+            // Console.ReadLine();
         }
 
         private static void IlwdBenchmark()

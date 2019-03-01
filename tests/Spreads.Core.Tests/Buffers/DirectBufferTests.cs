@@ -9,60 +9,68 @@ using System.Threading;
 
 namespace Spreads.Core.Tests.Buffers
 {
-    // [Category("CI")]
+    [Category("CI")]
     [TestFixture]
     public class DirectBufferTests
     {
         [Test]
         public void CouldCompareDbs()
         {
-            var rm0 = BufferPool.Retain(100, true);
-            var rm1 = BufferPool.Retain(100, true);
+            for (int _ = 0; _ < 10; _++)
+            {
+                var rm0 = BufferPool.Retain(100, true);
+                var rm1 = BufferPool.Retain(100, true);
 
-            var db0 = rm0.ToDirectBuffer();
-            var db1 = rm1.ToDirectBuffer();
+                var db0 = rm0.ToDirectBuffer();
+                var db1 = rm1.ToDirectBuffer();
 
-            Assert.IsTrue(db0.Equals(db0));
-            Assert.IsTrue(db0.Equals(db1));
+                db0.Clear(0, db0.Length);
+                db1.Clear(0, db1.Length);
 
-            rm0.Dispose();
-            rm1.Dispose();
+                Assert.IsTrue(db0.Equals(db0));
+                Assert.IsTrue(db0.Equals(db1));
 
-            GC.Collect(2, GCCollectionMode.Forced, true, true);
-            GC.WaitForPendingFinalizers();
-            Thread.Sleep(100);
-            GC.Collect(2, GCCollectionMode.Forced, true, true);
-            GC.WaitForPendingFinalizers();
-            Thread.Sleep(100);
-            GC.Collect(2, GCCollectionMode.Forced, true, true);
-            GC.WaitForPendingFinalizers();
+                rm0.Dispose();
+                rm1.Dispose();
+
+                GC.Collect(2, GCCollectionMode.Forced, true, true);
+                GC.WaitForPendingFinalizers();
+                GC.Collect(2, GCCollectionMode.Forced, true, true);
+                GC.WaitForPendingFinalizers();
+            }
         }
 
         [Test]
         public void CouldFillDbs()
         {
-            var rm0 = BufferPool.Retain(100, true);
-            var rm1 = BufferPool.Retain(100, true);
+            for (int _ = 0; _ < 10; _++)
+            {
+                var rm0 = BufferPool.Retain(100, true);
+                var rm1 = BufferPool.Retain(100, true);
 
-            var db0 = rm0.ToDirectBuffer();
-            var db1 = rm1.ToDirectBuffer();
+                var db0 = rm0.ToDirectBuffer();
+                var db1 = rm1.ToDirectBuffer();
 
-            Assert.IsTrue(db0.IsFilledWithValue(0));
-            Assert.IsTrue(db1.IsFilledWithValue(0));
+                db0.Clear(0, db0.Length);
+                db1.Clear(0, db1.Length);
 
-            Assert.IsTrue(db0.Equals(db0));
-            Assert.IsTrue(db0.Equals(db1));
+                Assert.IsTrue(db0.IsFilledWithValue(0));
+                Assert.IsTrue(db1.IsFilledWithValue(0));
 
-            db0.Fill(0, db1.Length, 1);
+                Assert.IsTrue(db0.Equals(db0));
+                Assert.IsTrue(db0.Equals(db1));
 
-            Assert.IsFalse(db0.Equals(db1));
-            Assert.IsTrue(db0.IsFilledWithValue(1));
+                db0.Fill(0, db1.Length, 1);
 
-            db1.Fill(0, db1.Length, 1);
-            Assert.IsTrue(db0.Equals(db0));
+                Assert.IsFalse(db0.Equals(db1));
+                Assert.IsTrue(db0.IsFilledWithValue(1));
 
-            rm0.Dispose();
-            rm1.Dispose();
+                db1.Fill(0, db1.Length, 1);
+                Assert.IsTrue(db0.Equals(db0));
+
+                rm0.Dispose();
+                rm1.Dispose();
+            }
         }
     }
 }
