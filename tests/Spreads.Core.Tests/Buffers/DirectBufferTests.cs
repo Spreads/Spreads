@@ -4,10 +4,12 @@
 
 using NUnit.Framework;
 using Spreads.Buffers;
+using System;
+using System.Threading;
 
 namespace Spreads.Core.Tests.Buffers
 {
-    [Category("CI")]
+    // [Category("CI")]
     [TestFixture]
     public class DirectBufferTests
     {
@@ -25,6 +27,15 @@ namespace Spreads.Core.Tests.Buffers
 
             rm0.Dispose();
             rm1.Dispose();
+
+            GC.Collect(2, GCCollectionMode.Forced, true, true);
+            GC.WaitForPendingFinalizers();
+            Thread.Sleep(100);
+            GC.Collect(2, GCCollectionMode.Forced, true, true);
+            GC.WaitForPendingFinalizers();
+            Thread.Sleep(100);
+            GC.Collect(2, GCCollectionMode.Forced, true, true);
+            GC.WaitForPendingFinalizers();
         }
 
         [Test]
