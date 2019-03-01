@@ -138,7 +138,7 @@ namespace Spreads.Threading
         internal sealed class WorkStealingQueue
         {
             private const int INITIAL_SIZE = 32;
-            internal volatile IThreadPoolWorkItem[] m_array = new IThreadPoolWorkItem[INITIAL_SIZE]; // SOS's ThreadPool command depends on this name
+            internal volatile ISpreadsThreadPoolWorkItem[] m_array = new ISpreadsThreadPoolWorkItem[INITIAL_SIZE]; // SOS's ThreadPool command depends on this name
             private volatile int m_mask = INITIAL_SIZE - 1;
 
 #if DEBUG
@@ -153,7 +153,7 @@ namespace Spreads.Threading
 
             private SpinLock m_foreignLock = new SpinLock(enableThreadOwnerTracking: false);
 
-            public void LocalPush(IThreadPoolWorkItem obj)
+            public void LocalPush(ISpreadsThreadPoolWorkItem obj)
             {
                 int tail = m_tailIndex;
 
@@ -210,7 +210,7 @@ namespace Spreads.Threading
                         if (count >= m_mask)
                         {
                             // We're full; expand the queue by doubling its size.
-                            var newArray = new IThreadPoolWorkItem[m_array.Length << 1];
+                            var newArray = new ISpreadsThreadPoolWorkItem[m_array.Length << 1];
                             for (int i = 0; i < m_array.Length; i++)
                                 newArray[i] = m_array[(i + head) & m_mask];
 
@@ -289,10 +289,10 @@ namespace Spreads.Threading
                 return false;
             }
 
-            public IThreadPoolWorkItem LocalPop() => m_headIndex < m_tailIndex ? LocalPopCore() : null;
+            public ISpreadsThreadPoolWorkItem LocalPop() => m_headIndex < m_tailIndex ? LocalPopCore() : null;
 
             [SuppressMessage("Microsoft.Concurrency", "CA8001", Justification = "Reviewed for thread safety")]
-            private IThreadPoolWorkItem LocalPopCore()
+            private ISpreadsThreadPoolWorkItem LocalPopCore()
             {
                 while (true)
                 {
@@ -310,7 +310,7 @@ namespace Spreads.Threading
                     if (m_headIndex <= tail)
                     {
                         int idx = tail & m_mask;
-                        IThreadPoolWorkItem obj = Volatile.Read(ref m_array[idx]);
+                        ISpreadsThreadPoolWorkItem obj = Volatile.Read(ref m_array[idx]);
 
                         // Check for nulls in the array.
                         if (obj == null) continue;
@@ -330,7 +330,7 @@ namespace Spreads.Threading
                             {
                                 // Element still available. Take it.
                                 int idx = tail & m_mask;
-                                IThreadPoolWorkItem obj = Volatile.Read(ref m_array[idx]);
+                                ISpreadsThreadPoolWorkItem obj = Volatile.Read(ref m_array[idx]);
 
                                 // Check for nulls in the array.
                                 if (obj == null) continue;
@@ -356,7 +356,7 @@ namespace Spreads.Threading
 
             public bool CanSteal => m_headIndex < m_tailIndex;
 
-            public IThreadPoolWorkItem TrySteal(ref bool missedSteal)
+            public ISpreadsThreadPoolWorkItem TrySteal(ref bool missedSteal)
             {
                 while (true)
                 {
@@ -375,7 +375,7 @@ namespace Spreads.Threading
                                 if (head < m_tailIndex)
                                 {
                                     int idx = head & m_mask;
-                                    IThreadPoolWorkItem obj = Volatile.Read(ref m_array[idx]);
+                                    ISpreadsThreadPoolWorkItem obj = Volatile.Read(ref m_array[idx]);
 
                                     // Check for nulls in the array.
                                     if (obj == null) continue;
@@ -404,7 +404,7 @@ namespace Spreads.Threading
             }
         }
 
-        internal readonly ConcurrentQueue<IThreadPoolWorkItem> workItems = new ConcurrentQueue<IThreadPoolWorkItem>();
+        internal readonly ConcurrentQueue<ISpreadsThreadPoolWorkItem> workItems = new ConcurrentQueue<ISpreadsThreadPoolWorkItem>();
 
 #pragma warning disable 169
         private readonly PaddingFor32 pad1;
@@ -470,7 +470,7 @@ namespace Spreads.Threading
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Enqueue(IThreadPoolWorkItem callback, bool forceGlobal)
+        public void Enqueue(ISpreadsThreadPoolWorkItem callback, bool forceGlobal)
         {
             ThreadPoolWorkQueueThreadLocals tl = null;
             if (!forceGlobal)
@@ -490,17 +490,17 @@ namespace Spreads.Threading
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal bool LocalFindAndPop(IThreadPoolWorkItem callback)
+        internal bool LocalFindAndPop(ISpreadsThreadPoolWorkItem callback)
         {
             ThreadPoolWorkQueueThreadLocals tl = ThreadPoolWorkQueueThreadLocals.threadLocals;
             return tl != null && tl.workStealingQueue.LocalFindAndPop(callback);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public IThreadPoolWorkItem Dequeue(ThreadPoolWorkQueueThreadLocals tl, ref bool missedSteal)
+        public ISpreadsThreadPoolWorkItem Dequeue(ThreadPoolWorkQueueThreadLocals tl, ref bool missedSteal)
         {
             WorkStealingQueue localWsq = tl.workStealingQueue;
-            IThreadPoolWorkItem callback;
+            ISpreadsThreadPoolWorkItem callback;
 
             if ((callback = localWsq.LocalPop()) == null && // first try the local queue
                 !workItems.TryDequeue(out callback)) // then try the global queue
@@ -622,7 +622,7 @@ namespace Spreads.Threading
                 {
                     if (null != workQueue)
                     {
-                        IThreadPoolWorkItem cb;
+                        ISpreadsThreadPoolWorkItem cb;
                         while ((cb = workStealingQueue.LocalPop()) != null)
                         {
                             Debug.Assert(null != cb);

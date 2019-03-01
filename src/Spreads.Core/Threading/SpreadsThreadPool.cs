@@ -24,8 +24,6 @@ using System.Threading.Tasks;
 
 namespace Spreads.Threading
 {
-
-
     /// <summary>
     /// The type of threads to use - either foreground or background threads.
     /// </summary>
@@ -192,7 +190,7 @@ namespace Spreads.Threading
 
         [Obsolete("SpreadsThreadPool does not support working with ExecutionContext, use UnsafeQueueCompletableItem method.")]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void QueueCompletableItem(IThreadPoolWorkItem workItem, bool preferLocal)
+        public void QueueCompletableItem(ISpreadsThreadPoolWorkItem workItem, bool preferLocal)
         {
             if (workItem == null)
             {
@@ -202,7 +200,7 @@ namespace Spreads.Threading
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void UnsafeQueueCompletableItem(IThreadPoolWorkItem workItem, bool preferLocal)
+        public void UnsafeQueueCompletableItem(ISpreadsThreadPoolWorkItem workItem, bool preferLocal)
         {
             if (workItem == null)
             {
@@ -218,7 +216,7 @@ namespace Spreads.Threading
         }
 
         // Get all workitems.  Called by TaskScheduler in its debugger hooks.
-        internal IEnumerable<IThreadPoolWorkItem> GetQueuedWorkItems()
+        internal IEnumerable<ISpreadsThreadPoolWorkItem> GetQueuedWorkItems()
         {
             // Enumerate global queue
             foreach (var workItem in workQueue.workItems)
@@ -231,10 +229,10 @@ namespace Spreads.Threading
             {
                 if (wsq != null && wsq.m_array != null)
                 {
-                    IThreadPoolWorkItem[] items = wsq.m_array;
+                    ISpreadsThreadPoolWorkItem[] items = wsq.m_array;
                     for (int i = 0; i < items.Length; i++)
                     {
-                        IThreadPoolWorkItem item = items[i];
+                        ISpreadsThreadPoolWorkItem item = items[i];
                         if (item != null)
                         {
                             yield return item;
@@ -244,24 +242,24 @@ namespace Spreads.Threading
             }
         }
 
-        internal IEnumerable<IThreadPoolWorkItem> GetLocallyQueuedWorkItems()
+        internal IEnumerable<ISpreadsThreadPoolWorkItem> GetLocallyQueuedWorkItems()
         {
             ThreadPoolWorkQueue.WorkStealingQueue wsq = ThreadPoolWorkQueue.ThreadPoolWorkQueueThreadLocals.threadLocals.workStealingQueue;
             if (wsq != null && wsq.m_array != null)
             {
-                IThreadPoolWorkItem[] items = wsq.m_array;
+                ISpreadsThreadPoolWorkItem[] items = wsq.m_array;
                 for (int i = 0; i < items.Length; i++)
                 {
-                    IThreadPoolWorkItem item = items[i];
+                    ISpreadsThreadPoolWorkItem item = items[i];
                     if (item != null)
                         yield return item;
                 }
             }
         }
 
-        internal IEnumerable<IThreadPoolWorkItem> GetGloballyQueuedWorkItems() => workQueue.workItems;
+        internal IEnumerable<ISpreadsThreadPoolWorkItem> GetGloballyQueuedWorkItems() => workQueue.workItems;
 
-        private object[] ToObjectArray(IEnumerable<IThreadPoolWorkItem> workitems)
+        private object[] ToObjectArray(IEnumerable<ISpreadsThreadPoolWorkItem> workitems)
         {
             int i = 0;
             // ReSharper disable once PossibleMultipleEnumeration
@@ -364,7 +362,7 @@ namespace Spreads.Threading
     /// <summary>
     /// TaskScheduler for working with a <see cref="SpreadsThreadPool"/> instance
     /// </summary>
-    internal class SpreadsThreadPoolTaskScheduler : TaskScheduler, IThreadPoolWorkItem
+    internal class SpreadsThreadPoolTaskScheduler : TaskScheduler, ISpreadsThreadPoolWorkItem
     {
         // Indicates whether the current thread is processing work items.
         [ThreadStatic]
@@ -502,8 +500,4 @@ namespace Spreads.Threading
             finally { _currentThreadIsRunningTasks = false; }
         }
     }
-
-    #region UnfairSemaphore implementation
-
-    #endregion UnfairSemaphore implementation
 }

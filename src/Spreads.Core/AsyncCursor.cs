@@ -99,7 +99,7 @@ namespace Spreads
     public sealed class AsyncCursor<TKey, TValue, TCursor> : AsyncCursor,
         IAsyncCursor<TKey, TValue>,
         IAsyncCursor<TKey, TValue, TCursor>,
-         IValueTaskSource<bool>, IAsyncCompletable, IThreadPoolWorkItem
+         IValueTaskSource<bool>, IAsyncCompletable, ISpreadsThreadPoolWorkItem
          where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
     {
         // TODO (?,low) Pooling, but see #84
