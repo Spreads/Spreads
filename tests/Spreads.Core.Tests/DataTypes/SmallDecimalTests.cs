@@ -69,18 +69,14 @@ namespace Spreads.Core.Tests.DataTypes
         }
 
         [Test]
-        public void CouldNegatePrice()
+        public void CouldNegate()
         {
             var first = new SmallDecimal(12345.6);
             var second = -first;
             Assert.AreEqual(-(decimal)first, (decimal)second);
         }
 
-        [Test
-#if !DEBUG
-         , Explicit("long running")
-#endif
-        ]
+        [Test, Explicit("long running")]
         public void CouldConvertToDoubleDynamic()
         {
 #if DEBUG
@@ -257,6 +253,17 @@ namespace Spreads.Core.Tests.DataTypes
             Assert.AreEqual((decimal)sd, (decimal)sd2);
             Assert.AreEqual((decimal)sd, d1);
             Assert.AreEqual((decimal)sd, d2);
+        }
+
+        [Test, Ignore("wrong impl")]
+        public void IInt64DiffableWorks()
+        {
+            var sd = new SmallDecimal(123.456);
+            var sd1 = KeyComparer<SmallDecimal>.Default.Add(sd, 1);
+            Assert.AreEqual(123.457, (decimal)sd1);
+
+            var diff = KeyComparer<SmallDecimal>.Default.Diff(sd1, sd);
+            Assert.AreEqual(1, diff);
         }
     }
 }

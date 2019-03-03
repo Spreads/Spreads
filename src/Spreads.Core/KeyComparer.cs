@@ -439,6 +439,7 @@ namespace Spreads
         }
 
         /// <inheritdoc />
+        [Pure]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public T Add(T value, long diff)
         {

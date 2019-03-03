@@ -2,6 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+using Spreads.Native;
 using Spreads.Serialization;
 using Spreads.Serialization.Utf8Json;
 using System;
@@ -39,7 +40,11 @@ namespace Spreads.DataTypes
     [BinarySerialization(Size)]
     [DebuggerDisplay("{" + nameof(ToString) + "()}")]
     [JsonFormatter(typeof(Formatter))]
-    public readonly unsafe struct SmallDecimal : IComparable<SmallDecimal>, IEquatable<SmallDecimal>, IConvertible //, IDelta<SmallDecimal> // TODO IInt64Diffable
+    public readonly unsafe struct SmallDecimal :
+        IInt64Diffable<SmallDecimal>,
+        IEquatable<SmallDecimal>,
+        IConvertible //, IDelta<SmallDecimal> // TODO IInt64Diffable
+
     {
         [StructLayout(LayoutKind.Explicit)]
         internal ref struct DecCalc
@@ -217,22 +222,27 @@ namespace Spreads.DataTypes
             : this(value, decimals, MidpointRounding.ToEven, false)
         { }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public SmallDecimal(double value)
             : this(new decimal(value), -1)
         { }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public SmallDecimal(double value, int decimals)
             : this(new decimal(value), decimals)
         { }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public SmallDecimal(float value)
             : this(new decimal(value), -1)
         { }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public SmallDecimal(float value, int decimals)
             : this(new decimal(value), decimals)
         { }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public SmallDecimal(long value)
         {
             if (value > MaxValueLong || value < MinValueLong)
@@ -418,21 +428,25 @@ namespace Spreads.DataTypes
             return new SmallDecimal(newValue, false); // private ctor
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static SmallDecimal operator +(SmallDecimal x, SmallDecimal y)
         {
             return new SmallDecimal(x + (decimal)y, (int)x.Scale);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static SmallDecimal operator -(SmallDecimal x, SmallDecimal y)
         {
             return new SmallDecimal(x - (decimal)y, (int)x.Scale);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static SmallDecimal operator *(SmallDecimal x, int y)
         {
             return new SmallDecimal((decimal)x * y, (int)x.Scale);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static SmallDecimal operator *(int y, SmallDecimal x)
         {
             return new SmallDecimal((decimal)x * y, (int)x.Scale);
@@ -587,5 +601,38 @@ namespace Spreads.DataTypes
         //{
         //    return other - this;
         //}
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public SmallDecimal Add(long diff)
+        {
+            var newInt56Value = (long)UInt56 + diff;
+
+            if (newInt56Value > MaxValueLong || newInt56Value < MinValueLong)
+            {
+                ThrowValueTooBigOrTooSmall();
+            }
+
+            ulong newValue;
+            if (newInt56Value < 0)
+            {
+                newValue = SignMask
+                           | ((ulong)Scale << ScaleShift)
+                           | (ulong)(-newInt56Value);
+            }
+            else
+            {
+                newValue = ((ulong)Scale << ScaleShift)
+                           | (ulong)newInt56Value;
+            }
+
+            return new SmallDecimal(newValue, false);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public long Diff(SmallDecimal other)
+        {
+            throw new NotImplementedException("This is completely wrong");
+            return (long)UInt56 - (long)other.UInt56;
+        }
     }
 }
