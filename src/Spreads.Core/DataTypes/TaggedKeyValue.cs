@@ -21,7 +21,7 @@ namespace Spreads.DataTypes
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     // NB cannot use JsonFormatter attribute, this is hardcoded in DynamicGenericResolverGetFormatterHelper
     public readonly struct TaggedKeyValue<TKey, TValue> : IEquatable<TaggedKeyValue<TKey, TValue>>, 
-        IBinaryConverter<TaggedKeyValue<TKey, TValue>>
+        IBinarySerializer<TaggedKeyValue<TKey, TValue>>
     {
         private static readonly int KeySize = TypeHelper<TKey>.FixedSize;
         private static readonly int ValueSize = TypeHelper<TValue>.FixedSize;

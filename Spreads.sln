@@ -65,6 +65,7 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "articles", "articles", "{FB2D7CAF-0D1E-451D-B61F-534C6E81C1B4}"
 	ProjectSection(SolutionItems) = preProject
 		docs\articles\intro.md = docs\articles\intro.md
+		docs\articles\Sandbox.md = docs\articles\Sandbox.md
 	EndProjectSection
 EndProject
 Global

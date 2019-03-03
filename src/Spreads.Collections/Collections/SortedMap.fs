@@ -164,7 +164,7 @@ type SortedMap<'K,'V>
 
   static member internal Init() =
     let converter = {
-      new ArrayBasedMapConverter<'K,'V, SortedMap<'K,'V>>() with
+      new ArrayBasedMapSerializer<'K,'V, SortedMap<'K,'V>>() with
         member __.Read(ptr : IntPtr, [<Out>]value: byref<SortedMap<'K,'V>>, [<Out>]timestamp: byref<Timestamp> ) = 
           ThrowHelper.ThrowNotImplementedException("TODO Headers & timestamp")
           -1

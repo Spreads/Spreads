@@ -103,17 +103,17 @@ namespace Spreads.Serialization
         // Just in case, do not use static ctor in any critical paths: https://github.com/Spreads/Spreads/issues/66
         // static TypeHelper() { }
 
-        internal static IBinaryConverter<T> BinaryConverter;
+        internal static IBinarySerializer<T> BinarySerializer;
 
         public static bool HasBinaryConverter
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => BinaryConverter != null;
+            get => BinarySerializer != null;
         }
 
         /// <summary>
         /// Returns a positive size of a pinnable type T, -1 if the type T is not pinnable or has
-        /// a registered <see cref="IBinaryConverter{T}"/> converter.
+        /// a registered <see cref="IBinarySerializer{T}"/> converter.
         /// We assume the type T is pinnable if `GCHandle.Alloc(T[2], GCHandleType.Pinned) = true`.
         /// This is more relaxed than Marshal.SizeOf, but still doesn't cover cases such as
         /// an array of KVP[DateTime,double], which has contiguous layout in memory.
@@ -342,7 +342,7 @@ namespace Spreads.Serialization
                 }
                 if (hasSizeAttribute)
                 {
-                    if (typeof(IBinaryConverter<T>).IsAssignableFrom(typeof(T)))
+                    if (typeof(IBinarySerializer<T>).IsAssignableFrom(typeof(T)))
                     {
                         // NB: this makes no sense, because blittable is version 0, if we have any change
                         // to struct layout later, we won't be able to work with version 0 anymore
@@ -362,18 +362,18 @@ namespace Spreads.Serialization
 
             // by this line the type is not blittable
 
-            IBinaryConverter<T> converter = null;
+            IBinarySerializer<T> serializer = null;
 
             if (sa != null && sa.ConverterType != null)
             {
-                if (!typeof(IBinaryConverter<T>).IsAssignableFrom(sa.ConverterType))
+                if (!typeof(IBinarySerializer<T>).IsAssignableFrom(sa.ConverterType))
                 {
                     Environment.FailFast($"ConverterType `{sa.ConverterType.FullName}` in Serialization attribute does not implement IBinaryConverter<T> for the type `{typeof(T).FullName}`");
                 }
 
                 try
                 {
-                    converter = (IBinaryConverter<T>)Activator.CreateInstance(sa.ConverterType);
+                    serializer = (IBinarySerializer<T>)Activator.CreateInstance(sa.ConverterType);
                 }
                 catch
                 {
@@ -385,22 +385,22 @@ namespace Spreads.Serialization
             // could implement IBinaryConverter<T> but still be blittable for certain types,
             // e.g. DateTime vs long in PersistentMap<K,V>.Entry
             //if (tmp is IBinaryConverter<T>) {
-            if (typeof(IBinaryConverter<T>).IsAssignableFrom(typeof(T)))
+            if (typeof(IBinarySerializer<T>).IsAssignableFrom(typeof(T)))
             {
-                if (converter != null)
+                if (serializer != null)
                 {
-                    Environment.FailFast($"Converter `{converter.GetType().FullName}` is already set via Serialization attribute. The type `{typeof(T).FullName}` should not implement IBinaryConverter<T> interface or the attribute should not include ConverterType property.");
+                    Environment.FailFast($"Converter `{serializer.GetType().FullName}` is already set via Serialization attribute. The type `{typeof(T).FullName}` should not implement IBinaryConverter<T> interface or the attribute should not include ConverterType property.");
                 }
                 try
                 {
-                    converter = (IBinaryConverter<T>)Activator.CreateInstance<T>();
+                    serializer = (IBinarySerializer<T>)Activator.CreateInstance<T>();
                 }
                 catch
                 {
                     //Trace.TraceWarning($"Type {typeof(T).FullName} is marked as IBinaryConverter and so it must have a parameterless constructor");
                     Environment.FailFast($"Type T ({typeof(T).FullName}) is marked as IBinaryConverter<T> and therefore must have a parameterless constructor.");
                 }
-                if (converter.ConverterVersion <= 0)
+                if (serializer.ConverterVersion <= 0)
                 {
                     Environment.FailFast("User IBinaryConverter<T> implementation for a type T should have a positive version.");
                 }
@@ -419,7 +419,7 @@ namespace Spreads.Serialization
                 var elementSize = TypeHelper.GetSize(elementType);
                 if (elementSize > 0)
                 { // only for blittable types
-                    converter = (IBinaryConverter<T>)ArrayConverterFactory.Create(elementType);
+                    serializer = (IBinarySerializer<T>)ArrayConverterFactory.Create(elementType);
                 }
             }
 
@@ -430,14 +430,14 @@ namespace Spreads.Serialization
                 var elementSize = TypeHelper.GetSize(elementType);
                 if (elementSize > 0)
                 { // only for blittable types
-                    converter = (IBinaryConverter<T>)VectorStorageConverterFactory.Create(elementType);
+                    serializer = (IBinarySerializer<T>)VectorStorageConverterFactory.Create(elementType);
                 }
             }
 
             // Do not add Json converter as fallback, it is not "binary", it implements the interface for
             // simpler implementation in BinarySerializer and fallback happens there
 
-            BinaryConverter = converter;
+            BinarySerializer = serializer;
 
             return -1;
         }
@@ -522,17 +522,17 @@ namespace Spreads.Serialization
         public static byte ConverterVersion
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => BinaryConverter?.ConverterVersion ?? 0;
+            get => BinarySerializer?.ConverterVersion ?? 0;
         }
 
-        public static void RegisterConverter(IBinaryConverter<T> converter,
+        public static void RegisterConverter(IBinarySerializer<T> serializer,
             bool overrideExisting = false)
         {
-            if (converter == null) { throw new ArgumentNullException(nameof(converter)); }
+            if (serializer == null) { throw new ArgumentNullException(nameof(serializer)); }
             if (FixedSize > 0) { throw new InvalidOperationException("Cannot register a custom converter for pinnable types"); }
 
             // NB TypeHelper is internal, we could provide some hooks later e.g. for char or bool
-            if (converter.ConverterVersion == 0 || converter.ConverterVersion > 15)
+            if (serializer.ConverterVersion == 0 || serializer.ConverterVersion > 15)
             {
                 ThrowHelper.ThrowArgumentException("User-implemented converter version must be in the range 1-15.");
             }
@@ -547,7 +547,7 @@ namespace Spreads.Serialization
             {
                 Environment.FailFast($"Blittable types must not have IBinaryConverter<T>.");
             }
-            BinaryConverter = converter;
+            BinarySerializer = serializer;
         }
     }
 }

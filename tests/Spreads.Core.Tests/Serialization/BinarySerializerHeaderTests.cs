@@ -16,7 +16,7 @@ namespace Spreads.Core.Tests.Serialization
     [TestFixture]
     public class BinarySerializerHeaderTests
     {
-        [BinarySerialization((TypeEnum)123, converterType: typeof(Converter))]
+        [BinarySerialization((TypeEnum)123, converterType: typeof(Serializer))]
         [JsonFormatter(typeof(Formatter))]
         public struct SampleStruct
         {
@@ -27,7 +27,7 @@ namespace Spreads.Core.Tests.Serialization
                 Value = value;
             }
 
-            internal readonly struct Converter : IBinaryConverter<SampleStruct>
+            internal readonly struct Serializer : IBinarySerializer<SampleStruct>
             {
                 public byte ConverterVersion
                 {

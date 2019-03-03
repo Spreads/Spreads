@@ -50,14 +50,14 @@ namespace Spreads.Serialization
                     return TypeHelper<T>.FixedSize;
                 }
 
-                var bc = TypeHelper<T>.BinaryConverter;
+                var bc = TypeHelper<T>.BinarySerializer;
                 if (bc != null)
                 {
                     return bc.SizeOf(value, out temporaryBuffer, out withPadding);
                 }
             }
 
-            return JsonBinaryConverter<T>.SizeOf(value, out temporaryBuffer, out withPadding);
+            return JsonBinarySerializer<T>.SizeOf(value, out temporaryBuffer, out withPadding);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -130,7 +130,7 @@ namespace Spreads.Serialization
 
             // now we need to form temporaryBuffer that is ready for copying to a final destination
 
-            IBinaryConverter<T> bc = null;
+            IBinarySerializer<T> bc = null;
 
             // reuse the raw buffer or create one in case it is empty or without padding.
             var rawOffset = BC_PADDING;
@@ -139,7 +139,7 @@ namespace Spreads.Serialization
 
             if (rawTemporaryBuffer.IsEmpty) // requested compression, empty is possible only when TypeHelper<T>.BinaryConverter != null
             {
-                bc = TypeHelper<T>.BinaryConverter;
+                bc = TypeHelper<T>.BinarySerializer;
                 ThrowHelper.AssertFailFast(bc != null, "TypeHelper<T>.BinaryConverter != null, in other cases raw temp buffer should be present");
                 rawOffset = DataTypeHeader.Size + 4 + tsSize;
                 tempMemory = BufferPool.RetainTemp(rawOffset + rawSize);
@@ -169,7 +169,7 @@ namespace Spreads.Serialization
 
             if (bc == null)
             {
-                bc = JsonBinaryConverter<T>.Instance;
+                bc = JsonBinarySerializer<T>.Instance;
             }
 
             var header = TypeHelper<T>.DefaultBinaryHeader;
@@ -179,7 +179,7 @@ namespace Spreads.Serialization
             // not! header.VersionAndFlags.CompressionMethod = compressionMethod;
 
             // NB binary is best effort
-            header.VersionAndFlags.IsBinary = bc != JsonBinaryConverter<T>.Instance; // not from format but what we are actually using now
+            header.VersionAndFlags.IsBinary = bc != JsonBinarySerializer<T>.Instance; // not from format but what we are actually using now
 
             var firstOffset = rawOffset - tsSize - 4 - DataTypeHeader.Size;
 
@@ -245,7 +245,7 @@ namespace Spreads.Serialization
         {
             var isBinary = ((int)format & 1) == 1;
 
-            IBinaryConverter<T> bc = null;
+            IBinarySerializer<T> bc = null;
 
             // if fixed & binary just write
             if (isBinary)
@@ -257,7 +257,7 @@ namespace Spreads.Serialization
                     return TypeHelper<T>.WriteWithHeader(in value, pinnedDestination, timestamp);
                 }
                 // Use custom TypeHelper<T>.BinaryConverter only when asked for isBinary
-                bc = TypeHelper<T>.BinaryConverter ?? JsonBinaryConverter<T>.Instance;
+                bc = TypeHelper<T>.BinarySerializer ?? JsonBinarySerializer<T>.Instance;
             }
 
             return WriteVarSize(value, ref pinnedDestination, in temporaryBuffer, format, timestamp, bc);
@@ -268,7 +268,7 @@ namespace Spreads.Serialization
             ref DirectBuffer pinnedDestination,
             in RetainedMemory<byte> temporaryBuffer,
             SerializationFormat format,
-            Timestamp timestamp, IBinaryConverter<T> bc)
+            Timestamp timestamp, IBinarySerializer<T> bc)
         {
             RetainedMemory<byte> rm = temporaryBuffer;
             try
@@ -315,7 +315,7 @@ namespace Spreads.Serialization
 
                 if (bc == null)
                 {
-                    bc = JsonBinaryConverter<T>.Instance;
+                    bc = JsonBinarySerializer<T>.Instance;
                 }
 
                 var header = TypeHelper<T>.DefaultBinaryHeader;
@@ -326,7 +326,7 @@ namespace Spreads.Serialization
 
                 // NB binary is best effort
                 header.VersionAndFlags.IsBinary =
-                    bc != JsonBinaryConverter<T>.Instance; // not from format but what we are actually using now
+                    bc != JsonBinarySerializer<T>.Instance; // not from format but what we are actually using now
 
                 if (sizeOf > pinnedDestination.Length)
                 {
@@ -425,11 +425,11 @@ namespace Spreads.Serialization
 
             var header = srcDb.Read<DataTypeHeader>(0);
 
-            IBinaryConverter<T> bc = null;
+            IBinarySerializer<T> bc = null;
 
             if (header.VersionAndFlags.IsBinary)
             {
-                bc = TypeHelper<T>.BinaryConverter;
+                bc = TypeHelper<T>.BinarySerializer;
             }
 
             var tsSize = header.VersionAndFlags.IsTimestamped ? Timestamp.Size : 0;
@@ -464,7 +464,7 @@ namespace Spreads.Serialization
 
             if (bc == null)
             {
-                bc = JsonBinaryConverter<T>.Instance;
+                bc = JsonBinarySerializer<T>.Instance;
             }
             var slice = srcDb.Slice(offset, readSize - offset);
             var readSize1 = offset + bc.Read(ref slice, out value);

@@ -20,7 +20,7 @@ namespace Spreads.Serialization
         TValue[] Values { get; }
     }
 
-    internal abstract class ArrayBasedMapConverter<TKey, TValue, T> : IBinaryConverter<T> where T : IArrayBasedMap<TKey, TValue>
+    internal abstract class ArrayBasedMapSerializer<TKey, TValue, T> : IBinarySerializer<T> where T : IArrayBasedMap<TKey, TValue>
     {
 #pragma warning disable 0618
 

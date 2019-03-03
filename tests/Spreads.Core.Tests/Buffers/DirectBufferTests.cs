@@ -5,7 +5,6 @@
 using NUnit.Framework;
 using Spreads.Buffers;
 using System;
-using System.Threading;
 
 namespace Spreads.Core.Tests.Buffers
 {
@@ -16,10 +15,10 @@ namespace Spreads.Core.Tests.Buffers
         [Test]
         public void CouldCompareDbs()
         {
-            for (int _ = 0; _ < 10; _++)
+            for (int i = 0; i < 20; i++)
             {
-                var rm0 = BufferPool.Retain(100, true);
-                var rm1 = BufferPool.Retain(100, true);
+                var rm0 = BufferPool.Retain(1 << i, true);
+                var rm1 = BufferPool.Retain(1 << i, true);
 
                 var db0 = rm0.ToDirectBuffer();
                 var db1 = rm1.ToDirectBuffer();
@@ -43,10 +42,10 @@ namespace Spreads.Core.Tests.Buffers
         [Test]
         public void CouldFillDbs()
         {
-            for (int _ = 0; _ < 10; _++)
+            for (int i = 0; i < 20; i++)
             {
-                var rm0 = BufferPool.Retain(100, true);
-                var rm1 = BufferPool.Retain(100, true);
+                var rm0 = BufferPool.Retain(1 << i, true);
+                var rm1 = BufferPool.Retain(1 << i, true);
 
                 var db0 = rm0.ToDirectBuffer();
                 var db1 = rm1.ToDirectBuffer();

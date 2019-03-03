@@ -446,9 +446,9 @@ namespace Spreads.Collections.Internal
 
     internal static class VectorStorageConverterFactory
     {
-        public static IBinaryConverter<VectorStorage<TElement>> GenericCreate<TElement>()
+        public static IBinarySerializer<VectorStorage<TElement>> GenericCreate<TElement>()
         {
-            return new VectorStorageConverter<TElement>();
+            return new VectorStorageSerializer<TElement>();
         }
 
         public static object Create(Type type)
@@ -459,7 +459,7 @@ namespace Spreads.Collections.Internal
         }
     }
 
-    internal struct VectorStorageConverter<T> : IBinaryConverter<VectorStorage<T>>
+    internal struct VectorStorageSerializer<T> : IBinarySerializer<VectorStorage<T>>
     {
         public byte ConverterVersion => 0;
 

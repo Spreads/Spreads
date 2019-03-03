@@ -192,7 +192,7 @@ namespace Spreads.DataTypes
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public void Serialize(ref JsonWriter writer, Timestamp value, IJsonFormatterResolver formatterResolver)
             {
-                // need a string so that JS could string last 3 digits to get int53 as micros and not loose precision
+                // need a string so that JS could strip last 3 digits to get int53 as micros and not loose precision
                 writer.WriteQuotation();
                 writer.WriteInt64((long)value);
                 writer.WriteQuotation();

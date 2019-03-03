@@ -662,6 +662,8 @@ namespace Spreads.Buffers
             WriteUnaligned(_pointer + index, value);
         }
 
+#pragma warning disable 1574
+#pragma warning disable 1584
         /// <summary>
         /// Unaligned read starting from index.
         /// A shortcut to <see cref="Unsafe.ReadUnaligned{T}(void*)"/>.
@@ -693,6 +695,8 @@ namespace Spreads.Buffers
             value = ReadUnaligned<T>(_pointer + index);
             return size;
         }
+#pragma warning restore 1574
+#pragma warning restore 1584
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Write<T>(long index, T value)
@@ -914,7 +918,7 @@ namespace Spreads.Buffers
 
         public static bool IsFilledWithValue(ref byte first, ulong length, byte value)
         {
-            var zeroVector = new Vector<byte>(value);
+            var valueVector = new Vector<byte>(value);
             IntPtr offset = (IntPtr)0; // Use IntPtr for arithmetic to avoid unnecessary 64->32->64 truncations
             IntPtr lengthToExamine = (IntPtr)(void*)length;
 
@@ -923,29 +927,39 @@ namespace Spreads.Buffers
                 lengthToExamine -= Vector<byte>.Count;
                 while ((byte*)lengthToExamine > (byte*)offset)
                 {
-                    if (LoadVector(ref first, offset) != zeroVector)
+                    if (LoadVector(ref first, offset) != valueVector)
                     {
                         goto NotEqual;
                     }
                     offset += Vector<byte>.Count;
                 }
-                return LoadVector(ref first, lengthToExamine) == zeroVector;
+                return LoadVector(ref first, lengthToExamine) == valueVector;
             }
 
             // TODO UIntPtr or at least uint/ulong from value
-            //if ((byte*)lengthToExamine >= (byte*)sizeof(UIntPtr))
-            //{
-            //    lengthToExamine -= sizeof(UIntPtr);
-            //    while ((byte*)lengthToExamine > (byte*)offset)
-            //    {
-            //        if (LoadUIntPtr(ref first, offset) != UIntPtr.Zero)
-            //        {
-            //            goto NotEqual;
-            //        }
-            //        offset += sizeof(UIntPtr);
-            //    }
-            //    return LoadUIntPtr(ref first, lengthToExamine) == UIntPtr.Zero;
-            //}
+            if ((byte*)lengthToExamine >= (byte*)sizeof(UIntPtr))
+            {
+                lengthToExamine -= sizeof(UIntPtr);
+                UIntPtr uintPtrValue;
+                if (UIntPtr.Size == 8)
+                {
+                    uintPtrValue = (UIntPtr)Vector.AsVectorUInt64(valueVector)[0];
+                }
+                else
+                {
+                    uintPtrValue = (UIntPtr)Vector.AsVectorUInt32(valueVector)[0];
+                }
+
+                while ((byte*)lengthToExamine > (byte*)offset)
+                {
+                    if (LoadUIntPtr(ref first, offset) != uintPtrValue)
+                    {
+                        goto NotEqual;
+                    }
+                    offset += sizeof(UIntPtr);
+                }
+                return LoadUIntPtr(ref first, lengthToExamine) == uintPtrValue;
+            }
 
             while ((byte*)lengthToExamine > (byte*)offset)
             {

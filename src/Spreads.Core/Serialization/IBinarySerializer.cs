@@ -4,9 +4,6 @@
 
 using Spreads.Buffers;
 using Spreads.Native;
-using Spreads.Serialization.Utf8Json;
-using System.Diagnostics;
-using System.Runtime.CompilerServices;
 
 namespace Spreads.Serialization
 {
@@ -19,19 +16,9 @@ namespace Spreads.Serialization
     // should not change). This should be on by default and a separate setting, not a part of
     // AdditionalCorrectnessCheck, which protects from wrong usage of DirectBuffer API, but not
     // from direct pointer write overruns.
-
-    public enum BinarySerializerErrorCode : int
-    {
-        /// <summary>
-        /// Destination buffer is smaller than serialized payload size.
-        /// </summary>
-        NotEnoughCapacity = -1,
-
-        /// <summary>
-        /// Value header does not match expected header.
-        /// </summary>
-        HeaderMismatch = -2,
-    }
+    // This is data corruption issue and could happen not intentionally, e.g. wrong write method
+    // implementation, so it's important to have. (we ignore possible corruption from intentional
+    // or plain wrong misuse).
 
     /// <summary>
     /// Serialize a generic object T to a pointer, prefixed with version and length.
@@ -50,7 +37,7 @@ namespace Spreads.Serialization
     /// B - app/context-specific custom (binary) format . If not set then the payload is JSON.
     /// T - value has Timestamp as the first element of payload for binary case or Timestamp field on JSON object.
     /// </remarks>
-    public interface IBinaryConverter<T>
+    public interface IBinarySerializer<T>
     {
         /// <summary>
         /// Version of the converter. 15 (4 bits) max.
@@ -88,93 +75,5 @@ namespace Spreads.Serialization
         /// If not <see cref="TypeHelper{T}.IsFixedSize"/>, checks that version from the pointer equals the Version property.
         /// </summary>
         int Read(ref DirectBuffer source, out T value);
-    }
-
-    public sealed class JsonBinaryConverter<T> : IBinaryConverter<T>
-    {
-        private JsonBinaryConverter()
-        {
-        }
-
-        // This is not a "binary" converter, but a fallback with the same interface
-        public static JsonBinaryConverter<T> Instance = new JsonBinaryConverter<T>();
-
-        public byte ConverterVersion
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => 0;
-        }
-
-        public static int SizeOf(T value, out RetainedMemory<byte> temporaryBuffer, out bool withPadding)
-        {
-            // offset 16 to allow writing header + length + ts without copy
-            Debug.Assert(DataTypeHeader.Size + 4 + 8 == 16);
-            Debug.Assert(BinarySerializer.BC_PADDING == 16);
-            temporaryBuffer = JsonSerializer.SerializeToRetainedMemory(value, BinarySerializer.BC_PADDING);
-            withPadding = true;
-            return temporaryBuffer.Length - BinarySerializer.BC_PADDING;
-        }
-
-        int IBinaryConverter<T>.SizeOf(T value, out RetainedMemory<byte> temporaryBuffer, out bool withPadding)
-        {
-            return SizeOf(value, out temporaryBuffer, out withPadding);
-        }
-
-        public static int Write(T value, ref DirectBuffer destination)
-        {
-            var size = SizeOf(value, out var retainedMemory, out var withPadding);
-            Debug.Assert(withPadding);
-            try
-            {
-                // in general buffer could be empty/default if size is known, but not with Json
-                ThrowHelper.AssertFailFast(size == retainedMemory.Length - BinarySerializer.BC_PADDING, "size == buffer.Count");
-
-                if (size > destination.Length)
-                {
-                    return (int)BinarySerializerErrorCode.NotEnoughCapacity;
-                }
-
-                retainedMemory.Span.Slice(BinarySerializer.BC_PADDING).CopyTo(destination.Span);
-
-                return size;
-            }
-            finally
-            {
-                retainedMemory.Dispose();
-            }
-        }
-
-        int IBinaryConverter<T>.Write(T value, ref DirectBuffer destination)
-        {
-            return Write(value, ref destination);
-        }
-
-        public static int Read(ref DirectBuffer source, out T value)
-        {
-            //if (MemoryMarshal.TryGetArray(source, out var segment))
-            //{
-            //    var reader = new JsonReader(segment.Array, segment.Offset);
-            //    value = JsonSerializer.Deserialize<T>(ref reader);
-            //    return reader.GetCurrentOffsetUnsafe();
-            //}
-
-            // var buffer = BufferPool<byte>.Rent(checked((int)(uint)source.Length));
-            //try
-            //{
-            // source.Span.CopyTo(((Span<byte>)buffer));
-            var reader = new JsonReader(source);
-            value = JsonSerializer.Deserialize<T>(ref reader);
-            return reader.GetCurrentOffsetUnsafe();
-            //}
-            //finally
-            //{
-            //    BufferPool<byte>.Return(buffer);
-            //}
-        }
-
-        int IBinaryConverter<T>.Read(ref DirectBuffer source, out T value)
-        {
-            return Read(ref source, out value);
-        }
     }
 }

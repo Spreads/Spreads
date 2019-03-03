@@ -47,7 +47,7 @@ namespace Spreads.Core.Tests
             public int Value1;
         }
 
-        public class MyPocoWithConvertor : IBinaryConverter<MyPocoWithConvertor>
+        public class MyPocoWithConvertor : IBinarySerializer<MyPocoWithConvertor>
         {
             public string String { get; set; }
             public long Long { get; set; }

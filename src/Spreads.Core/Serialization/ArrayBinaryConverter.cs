@@ -13,9 +13,9 @@ namespace Spreads.Serialization
 {
     internal static class ArrayConverterFactory
     {
-        public static IBinaryConverter<TElement[]> GenericCreate<TElement>()
+        public static IBinarySerializer<TElement[]> GenericCreate<TElement>()
         {
-            return new ArrayBinaryConverter<TElement>();
+            return new ArrayBinarySerializer<TElement>();
         }
 
         public static object Create(Type type)
@@ -29,10 +29,10 @@ namespace Spreads.Serialization
     /// <summary>
     /// Simple copy of blittable array data. No shuffle.
     /// </summary>
-    internal class ArrayBinaryConverter<TElement> : IBinaryConverter<TElement[]>
+    internal class ArrayBinarySerializer<TElement> : IBinarySerializer<TElement[]>
     {
-        internal static ArrayBinaryConverter<TElement> Instance =
-            new ArrayBinaryConverter<TElement>();
+        internal static ArrayBinarySerializer<TElement> Instance =
+            new ArrayBinarySerializer<TElement>();
 
         // This is special, TypeHelper is aware of it (for others version must be > 0)
         public byte ConverterVersion

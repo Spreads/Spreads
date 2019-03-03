@@ -19,7 +19,7 @@ namespace Spreads.Core.Tests.Serialization
     [TestFixture]
     public class BinaryConverterTests
     {
-        [BinarySerialization(converterType: typeof(Converter),  KnownTypeId = 123)]
+        [BinarySerialization(converterType: typeof(Serializer),  KnownTypeId = 123)]
         [JsonFormatter(typeof(Formatter))]
         public struct SampleStruct : IEquatable<SampleStruct>
         {
@@ -76,7 +76,7 @@ namespace Spreads.Core.Tests.Serialization
                 return 4;
             }
 
-            internal readonly struct Converter : IBinaryConverter<SampleStruct>
+            internal readonly struct Serializer : IBinarySerializer<SampleStruct>
             {
                 public byte ConverterVersion
                 {
