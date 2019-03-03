@@ -76,7 +76,7 @@ namespace Spreads.Utils
 
             if (typeof(TValue) == typeof(SmallDecimal))
             {
-                return ((SmallDecimal)(object)value).AsDouble;
+                return (double)((SmallDecimal)(object)value);
             }
 
             return GetDoubleDynamic(value);
@@ -122,7 +122,7 @@ namespace Spreads.Utils
 
             if (value is SmallDecimal)
             {
-                return ((SmallDecimal)(object)value).AsDouble;
+                return (double)((SmallDecimal)(object)value);
             }
 
             return (double)((dynamic)value);

@@ -2,19 +2,30 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-using System;
 using NUnit.Framework;
 using Spreads.DataTypes;
+using Spreads.Serialization.Utf8Json;
 using Spreads.Utils;
+using System;
 
 namespace Spreads.Core.Tests.DataTypes
 {
     [Category("CI")]
     [TestFixture]
-    public class PriceTests
+    public unsafe class SmallDecimalTests
     {
+        [Test, Explicit("output")]
+        public void PrintDecimalLayout()
+        {
+            decimal d = new decimal(0.1);
+            d = Math.Round(d, 5);
+
+            var dc = *(SmallDecimal.DecCalc*)&d;
+            Console.WriteLine(dc.ToString());
+        }
+
         [Test]
-        public void CouldAddDecimalPrice()
+        public void CouldSubtractDecimalPrice()
         {
             var first = new SmallDecimal(12345.6M);
             var fd = (decimal)first;
@@ -36,7 +47,7 @@ namespace Spreads.Core.Tests.DataTypes
         }
 
         [Test]
-        public void CouldAddDoublePrice()
+        public void CouldSubtractDoublePrice()
         {
             var first = new SmallDecimal(12345.6);
             var fd = (double)first;
@@ -65,10 +76,18 @@ namespace Spreads.Core.Tests.DataTypes
             Assert.AreEqual(-(decimal)first, (decimal)second);
         }
 
-        [Test, Explicit("long running")]
+        [Test
+#if !DEBUG
+         , Explicit("long running")
+#endif
+        ]
         public void CouldConvertToDoubleDynamic()
         {
+#if DEBUG
+            var count = 10_000;
+#else
             var count = 10_000_000;
+#endif
             for (int r = 0; r < 20; r++)
             {
                 var sum = 0.0;
@@ -78,6 +97,7 @@ namespace Spreads.Core.Tests.DataTypes
                     {
                         var price = new SmallDecimal((double)i);
                         var dyn = (dynamic)price;
+                        // ReSharper disable once PossibleInvalidCastException
                         var dbl = (double)dyn;
                         sum += dbl;
                     }
@@ -128,7 +148,7 @@ namespace Spreads.Core.Tests.DataTypes
                     for (int i = 0; i < count; i++)
                     {
                         var price = new SmallDecimal((double)i);
-                        var dbl = price.AsDouble;
+                        var dbl = (double)price;
                         sum += dbl;
                     }
                 }
@@ -136,6 +156,107 @@ namespace Spreads.Core.Tests.DataTypes
                 Assert.IsTrue(sum > 0);
             }
             Benchmark.Dump();
+        }
+
+        [Test]
+        public void WorksWithNegative()
+        {
+            var sd = new SmallDecimal(-1);
+            Assert.AreEqual(-1, (int)(decimal)sd);
+
+            sd = new SmallDecimal(-1m);
+            Assert.AreEqual(-1, (int)(decimal)sd);
+
+            sd = new SmallDecimal(-1.0);
+            Assert.AreEqual(-1, (int)(decimal)sd);
+        }
+
+        [Test]
+        public void ThrowsOnLargeSmallValues()
+        {
+            Assert.Throws<ArgumentException>(() =>
+            {
+                var _ = new SmallDecimal(long.MaxValue);
+            });
+
+            Assert.Throws<ArgumentException>(() =>
+            {
+                var _ = new SmallDecimal(long.MinValue);
+            });
+
+            Assert.Throws<ArgumentException>(() =>
+            {
+                var _ = new SmallDecimal((decimal)long.MaxValue);
+            });
+
+            Assert.Throws<ArgumentException>(() =>
+            {
+                var _ = new SmallDecimal((decimal)long.MinValue);
+            });
+
+            Assert.Throws<ArgumentException>(() =>
+            {
+                var _ = new SmallDecimal((double)long.MaxValue);
+            });
+
+            Assert.Throws<ArgumentException>(() =>
+            {
+                var _ = new SmallDecimal((double)long.MinValue);
+            });
+        }
+
+        [Test]
+        public void DecimalsWork()
+        {
+            var sd = new SmallDecimal(2.5, 0);
+
+            Assert.AreEqual(2.0M, (decimal)sd);
+
+            sd = new SmallDecimal(3.5, 0);
+
+            Assert.AreEqual(4.0M, (decimal)sd);
+
+            sd = new SmallDecimal(3.5M, 0, MidpointRounding.AwayFromZero);
+
+            Assert.AreEqual(4.0M, (decimal)sd);
+
+            sd = new SmallDecimal(3.5M, 0, MidpointRounding.ToZero);
+
+            Assert.AreEqual(3.0M, (decimal)sd);
+
+            sd = new SmallDecimal(3.5M, 16, MidpointRounding.ToZero);
+
+            Assert.AreEqual(3.5M, (decimal)sd);
+
+            Assert.Throws<ArgumentOutOfRangeException>(() =>
+            {
+                sd = new SmallDecimal(3.5M, 17);
+            });
+
+            Assert.Throws<ArgumentOutOfRangeException>(() =>
+            {
+                sd = new SmallDecimal(3.5M, -2);
+            });
+        }
+
+        [Test]
+        public void JsonSerializationWorks()
+        {
+            var sd = new SmallDecimal(-123.456);
+            var str = JsonSerializer.ToJsonString(sd);
+            Console.WriteLine(str);
+            Assert.AreEqual("-123.456", str);
+
+            var sd1 = JsonSerializer.Deserialize<SmallDecimal>(str);
+            var sd2 = JsonSerializer.Deserialize<SmallDecimal>("\"-123.456000000\"");
+
+            var d1 = JsonSerializer.Deserialize<decimal>(str);
+            var d2 = JsonSerializer.Deserialize<decimal>("\"-123.456000000\"");
+
+            Assert.AreEqual((decimal)sd, (decimal)sd1);
+            Assert.AreEqual((decimal)sd, (decimal)sd2);
+            Assert.AreEqual((decimal)sd, d1);
+            Assert.AreEqual((decimal)sd, d2);
         }
     }
 }

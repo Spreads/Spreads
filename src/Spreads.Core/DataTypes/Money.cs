@@ -7,13 +7,14 @@ using System.Runtime.InteropServices;
 
 namespace Spreads.DataTypes
 {
-    
     /// <summary>
     /// Fixed-point high-precision value.
     /// </summary>
-    [StructLayout(LayoutKind.Sequential, Pack = 8, Size = 16)]
+    [Obsolete("Use .NET's decimal or IEEE decimal128 if it is even implemented.")]
+    [StructLayout(LayoutKind.Sequential, Pack = 8, Size = Size)]
     public struct Money
     {
+        public const int Size = 16;
         // Both integer and fraction are longs. This allows to store Ethereum wei (smallest known and widely used unit)
         // and 184467x of World GDP in USD or c.1.5x in IRR.
 

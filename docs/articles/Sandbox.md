@@ -15,7 +15,11 @@ Unstructured snippets of documentation drafts that need to bew reviewed, polishe
 Highest bit zero indicates a known type.
 
 Unknown fized-sized types have the highest bit set. Next 7 bits represent the fixed size 
-of an unknown type. Values with fixed size > 127 are treated as var-sized. These should be 
+of an unknown type less 1. So 10000000 means size of 1. Less 1 is needed to allow the 
+size of 128, which is probably for likely that any of 65-127, and because size of zero
+doesn't make any sense. We have None/Unit type for that.
+
+Values with fixed size > 128 are treated as var-sized. These should be 
 extremely rare. If a wide row of fixed-size value is needed we have frame + schema (TODO).
 
 ```

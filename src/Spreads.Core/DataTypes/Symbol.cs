@@ -26,7 +26,7 @@ namespace Spreads.DataTypes
     [BinarySerialization(Size)]
     public unsafe struct Symbol : IEquatable<Symbol>
     {
-        private const int Size = 16;
+        public const int Size = 16;
         private fixed byte Bytes[Size];
 
         /// <summary>

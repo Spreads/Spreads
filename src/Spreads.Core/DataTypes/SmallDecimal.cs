@@ -9,40 +9,109 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using Spreads.Native;
 
 namespace Spreads.DataTypes
 {
-
-    // TODO missing/invalid value. Mantissa zero while exponent is not zero or minus zero. Useful for absense of price, e.g. on illiquid markets
-
     /// <summary>
-    /// A blittable structure to store small(ish) fixed-point decimal values with precision up to 15 digits.
+    /// A blittable structure to store small(ish) fixed-point decimal values with precision up to 16 digits.
     /// </summary>
     /// <remarks>
     ///  0                   1                   2                   3
     ///  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
     /// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-    /// |S R R R|  -exp |        Int56 mantissa                         |
+    /// |S|B|O|  Scale  |                  UInt56                       |
     /// +-------------------------------+-+-+---------------------------+
     /// |               Int56 mantissa                                  |
     /// +-------------------------------+-+-+---------------------------+
+    ///
+    /// <para />
     /// S - sign
-    /// R - reserved
+    /// <para />
+    /// B/O - could be used for buy(bid)/sell(offer) flags. It is safer to use
+    /// a non-default value for trade direction because that catches errors when
+    /// some value accidentally fed into the system. This is internal-only for
+    /// other data types that has price fields such as Order.
+    /// When both set it is NaN (and doesn't make sense in B/O context).
+    /// <para />
+    /// Scale - 0-28 power of 10 to divide Int56 to get a value.
     /// </remarks>
     [StructLayout(LayoutKind.Sequential, Pack = 8, Size = 8)]
     [BinarySerialization(Size)]
     [DebuggerDisplay("{" + nameof(ToString) + "()}")]
     [JsonFormatter(typeof(Formatter))]
-    public readonly struct SmallDecimal : IComparable<SmallDecimal>, IEquatable<SmallDecimal>, IConvertible //, IDelta<SmallDecimal> // TODO IInt64Diffable
+    public readonly unsafe struct SmallDecimal : IComparable<SmallDecimal>, IEquatable<SmallDecimal>, IConvertible //, IDelta<SmallDecimal> // TODO IInt64Diffable
     {
-        static SmallDecimal()
+        [StructLayout(LayoutKind.Explicit)]
+        internal ref struct DecCalc
         {
-            if (!BitConverter.IsLittleEndian)
+            [FieldOffset(0)]
+            internal uint uflags;
+
+            [FieldOffset(4)]
+            internal uint uhi;
+
+            [FieldOffset(8)]
+            internal uint ulo;
+
+            [FieldOffset(12)]
+            internal uint umid;
+
+            /// <summary>
+            /// The low and mid fields combined in little-endian order
+            /// </summary>
+            [FieldOffset(8)]
+            internal ulong ulomidLE;
+
+            // Sign mask for the flags field. A value of zero in this bit indicates a
+            // positive Decimal value, and a value of one in this bit indicates a
+            // negative Decimal value.
+            //
+            // Look at OleAut's DECIMAL_NEG constant to check for negative values
+            // in native code.
+            internal const int SignOffsetDc = 31;
+
+            internal const uint SignMaskDc = 1u << 31;
+
+            // Scale mask for the flags field. This byte in the flags field contains
+            // the power of 10 to divide the Decimal value by. The scale byte must
+            // contain a value between 0 and 28 inclusive.
+            internal const int ScaleMaskDc = 0x00FF0000;
+
+            // Number of bits scale is shifted by.
+            internal const int ScaleShiftDc = 16;
+
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public static DecCalc FromDecimal(decimal value)
             {
-                // Just in case. Should follow this pannern of failing fast when any method could depend
-                // on endianess, then in version 42+ it will be easy to find all such occurencies
-                Environment.FailFast("BigEndian is not supported");
+                return *(DecCalc*)&value;
+            }
+
+            internal int Scale
+            {
+                [MethodImpl(MethodImplOptions.AggressiveInlining)]
+                get => (byte)((uflags & ScaleMaskDc) >> ScaleShiftDc);
+                [MethodImpl(MethodImplOptions.AggressiveInlining)]
+                set => uflags = (uint)((value << ScaleShiftDc) & ScaleMaskDc);
+            }
+
+            internal uint Negative
+            {
+                [MethodImpl(MethodImplOptions.AggressiveInlining)]
+                get => (uflags & SignMaskDc) >> 31;
+                [MethodImpl(MethodImplOptions.AggressiveInlining)]
+                set => uflags |= value << 31;
+            }
+
+            // for debug
+            public override string ToString()
+            {
+                return $"{Convert.ToString(uflags, 2)} - scale {Scale} - hi {uhi} - lo {ulo} - mid {umid} - ulomidLE {ulomidLE}";
+            }
+
+            public void Truncate()
+            {
+                // if cannot truncate throw
+                ThrowValueTooBigOrTooSmall();
             }
         }
 
@@ -50,261 +119,260 @@ namespace Spreads.DataTypes
 
         public static SmallDecimal Zero = default(SmallDecimal);
 
-        /// <summary>
-        /// 4-7 bits
-        /// </summary>
-        private const ulong ExponentMask = ((15UL << 56));
+        private const int SignShift = 63;
+        private const ulong SignMask = (1UL << SignShift);
 
-        private const ulong MantissaValueMask = ((1L << 55) - 1L);
+        // TODO (?)
+        // private const ulong NaNMask = (0b_11 << 61);
+
+        private const int ScaleShift = 56;
+        private const ulong ScaleMask = 31UL;
+
+        private const ulong UInt56Mask = (1UL << ScaleShift) - 1UL;
+
+        private const long MaxValueLong = (1L << ScaleShift) - 1L;
+        private const long MinValueLong = -MaxValueLong;
+
+        public static SmallDecimal MaxValue = new SmallDecimal(MaxValueLong);
+        public static SmallDecimal MinValue = new SmallDecimal(MinValueLong);
 
         private readonly ulong _value;
 
-        private static decimal[] DecimalFractions10 = new decimal[] {
-            1M,
-            0.1M,
-            0.01M,
-            0.001M,
-            0.0001M,
-            0.00001M,
-            0.000001M,
-            0.0000001M,
-            0.00000001M,
-            0.000000001M,
-            0.0000000001M,
-            0.00000000001M,
-            0.000000000001M,
-            0.0000000000001M,
-            0.00000000000001M,
-            0.000000000000001M,
-        };
+        // ReSharper disable once UnusedParameter.Local
+        private SmallDecimal(ulong value, bool _)
+        {
+            _value = value;
+        }
 
-        private static double[] DoubleFractions10 = new double[] {
-            1,
-            0.1,
-            0.01,
-            0.001,
-            0.0001,
-            0.00001,
-            0.000001,
-            0.0000001,
-            0.00000001,
-            0.000000001,
-            0.0000000001,
-            0.00000000001,
-            0.000000000001,
-            0.0000000000001,
-            0.00000000000001,
-            0.000000000000001,
-        };
+        /// <summary>
+        ///
+        /// </summary>
+        /// <param name="value">Decimal value.</param>
+        /// <param name="decimals">The number of decimal places in the return value.</param>
+        /// <param name="rounding">Rounding option.</param>
+        /// <param name="truncate">
+        /// True means precision loss is allowed by reducing decimals number.
+        /// False means the constructor will throw an
+        /// exception if it is not possible to store <paramref name="value"/>
+        /// without precision loss
+        /// </param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private SmallDecimal(decimal value, int decimals,
+            MidpointRounding rounding,
+            bool truncate)
+        {
+            if (decimals != -1)
+            {
+                if (unchecked((uint)decimals) > 16)
+                {
+                    ThrowWrongDecimals();
+                }
+                else
+                {
+                    value = Math.Round(value, decimals, rounding);
+                }
+            }
 
-        private static long[] Powers10 = new long[] {
-            1,
-            10,
-            100,
-            1000,
-            10000,
-            100000,
-            1000000,
-            10000000,
-            100000000,
-            1000000000,
-            10000000000,
-            100000000000,
-            1000000000000,
-            10000000000000,
-            100000000000000,
-            1000000000000000,
-        };
-        
-        public int Exponent
+            var dc = DecCalc.FromDecimal(value);
+
+            if ((dc.uhi != 0 || dc.ulomidLE > UInt56Mask))
+            {
+                if (truncate)
+                {
+                    // will throw if cannot truncate
+                    dc.Truncate();
+                }
+                else
+                {
+                    if (dc.Scale == 0)
+                    {
+                        ThrowValueTooBigOrTooSmall();
+                    }
+                    ThrowPrecisionLossNoTruncate();
+                }
+            }
+
+            _value = FromDecCalc(dc);
+        }
+
+        // TODO decimals and truncate are exclusive, private ctor with overloads
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public SmallDecimal(decimal value)
+            : this(value, -1, default, false)
+        { }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public SmallDecimal(decimal value, bool truncate)
+            : this(value, -1, default, truncate)
+        { }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public SmallDecimal(decimal value, int decimals, MidpointRounding rounding)
+            : this(value, decimals, rounding, false)
+        { }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public SmallDecimal(decimal value, int decimals)
+            : this(value, decimals, MidpointRounding.ToEven, false)
+        { }
+
+        public SmallDecimal(double value)
+            : this(new decimal(value), -1)
+        { }
+
+        public SmallDecimal(double value, int decimals)
+            : this(new decimal(value), decimals)
+        { }
+
+        public SmallDecimal(float value)
+            : this(new decimal(value), -1)
+        { }
+
+        public SmallDecimal(float value, int decimals)
+            : this(new decimal(value), decimals)
+        { }
+
+        public SmallDecimal(long value)
+        {
+            if (value > MaxValueLong || value < MinValueLong)
+            {
+                ThrowValueTooBigOrTooSmall();
+            }
+
+            _value = (unchecked((ulong)value) & SignMask) | (ulong)Math.Abs(value);
+        }
+
+        public SmallDecimal(ulong value)
+        {
+            if (value > MaxValueLong)
+            {
+                ThrowValueTooBigOrTooSmall();
+            }
+
+            _value = value;
+        }
+
+        public SmallDecimal(int value)
+        {
+            var abs = (ulong)Math.Abs(value);
+            _value = (unchecked((ulong)value) & SignMask) | abs;
+        }
+
+        public SmallDecimal(uint value)
+        {
+            _value = value;
+        }
+
+        // smaller ints are expanded to int/uint automatically
+
+        internal uint Sign
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return (int)(((ulong)_value & ExponentMask) >> 56); }
+            get => (uint)(_value >> SignShift);
         }
 
-        public long Mantissa
+        internal uint Scale
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get
-            {
-                unchecked
-                {
-                    var sign = (_value >> 55) & 1;
-                    var signMask = -(long)sign;
-                    var absValue = _value & MantissaValueMask;
-                    var mantissaValue = (absValue - sign) ^ (ulong)signMask;
-                    return (long)mantissaValue;
-                }
-            }
+            get => (uint)((_value >> ScaleShift) & ScaleMask);
         }
 
-        public decimal AsDecimal => (this);
-
-        public double AsDouble
+        internal ulong UInt56
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get { return Mantissa * DoubleFractions10[Exponent]; }
+            get => _value & UInt56Mask;
         }
 
-        // TODO internal?
-        public SmallDecimal(int exponent, long mantissaValue)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static ulong FromDecCalc(DecCalc dc)
         {
-            if ((ulong)exponent > 15)
-            {
-                ThrowHelper.ThrowArgumentOutOfRangeException(nameof(exponent));
-            }
-
-            unchecked
-            {
-                var signMask = mantissaValue >> 63;
-                var sign = (signMask & 1);
-                var absValue = (mantissaValue ^ signMask) + sign;
-
-                // enough bits
-                if (((ulong)absValue & ~MantissaValueMask) != 0UL)
-                {
-                    ThrowHelper.ThrowArgumentOutOfRangeException(nameof(mantissaValue));
-                }
-
-                var mantissaPart = absValue | (sign << 55);
-
-                // now mantissa is checked to have 0-7th bits from left as zero, just write exponent to it
-                var exponentPart = ((ulong)exponent << 56) & ExponentMask;
-
-                _value = (ulong)mantissaPart | exponentPart;
-            }
+            return ((ulong)dc.Negative << SignShift)
+                   | (((ulong)dc.Scale & ScaleMask) << ScaleShift)
+                   | (dc.ulomidLE & UInt56Mask);
         }
 
-        public SmallDecimal(decimal value, int precision = 5)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal DecCalc ToDecCalc()
         {
-            if ((ulong)precision > 15)
+            var dc = new DecCalc
             {
-                ThrowHelper.ThrowArgumentOutOfRangeException(nameof(precision));
-            }
-
-            unchecked
-            {
-                var mantissaValue = decimal.ToInt64(value * Powers10[precision]);
-
-                var signMask = mantissaValue >> 63;
-                var sign = (signMask & 1);
-                var absValue = (mantissaValue ^ signMask) + sign;
-
-                // enough bits
-                if (((ulong)absValue & ~MantissaValueMask) != 0UL)
-                {
-                    ThrowHelper.ThrowArgumentOutOfRangeException(nameof(mantissaValue));
-                }
-
-                var mantissaPart = absValue | (sign << 55);
-                var exponentPart = ((ulong)precision << 56) & ExponentMask;
-
-                _value = (ulong)mantissaPart | exponentPart;
-            }
+                ulomidLE = UInt56,
+                uflags = (Sign << DecCalc.SignOffsetDc) | (Scale << DecCalc.ScaleShiftDc)
+            };
+            return dc;
         }
 
-        public SmallDecimal(double value, int precision = 5)
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        internal static void ThrowWrongDecimals()
         {
-            if ((ulong)precision > 15)
-            {
-                ThrowHelper.ThrowArgumentOutOfRangeException(nameof(precision));
-            }
+            ThrowHelper.ThrowArgumentOutOfRangeException(
+                "Decimals must be in 0-16 range.");
+        }
 
-            var mantissaValue = checked((long)(value * Powers10[precision]));
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        internal static void ThrowPrecisionLossNoTruncate()
+        {
+            ThrowHelper.ThrowArgumentException(
+                "Cannot store the given value without precision loss and truncate parameter is false");
+        }
 
-            unchecked
-            {
-                var signMask = mantissaValue >> 63;
-                var sign = (signMask & 1);
-                var absValue = (mantissaValue ^ signMask) + sign;
-
-                // enough bits
-                if (((ulong)absValue & ~MantissaValueMask) != 0UL)
-                {
-                    ThrowHelper.ThrowArgumentOutOfRangeException(nameof(mantissaValue));
-                }
-
-                var mantissaPart = absValue | (sign << 55);
-                var exponentPart = ((ulong)precision << 56) & ExponentMask;
-
-                _value = (ulong)mantissaPart | exponentPart;
-            }
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        internal static void ThrowValueTooBigOrTooSmall()
+        {
+            ThrowHelper.ThrowArgumentException(
+                "Value is either too big (> MaxValue) or too small (< MinValue).");
         }
 
         // NB only decimal is implicit because it doesn't lose precision
-        // there are no conversions to other direction, only ctor
+        // there is no implicit conversions from decimal, only ctor
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static explicit operator double(SmallDecimal price)
+        public static explicit operator double(SmallDecimal value)
         {
-            return price.Mantissa * DoubleFractions10[price.Exponent];
+            return (double)(decimal)value;
         }
 
-        public static explicit operator float(SmallDecimal price)
+        public static explicit operator float(SmallDecimal value)
         {
-            //Unsafe.Add(ref DoubleFractions10[0], price.Exponent);
-            return (float)(price.Mantissa * DoubleFractions10[price.Exponent]);
+            return (float)(decimal)value;
         }
 
-        public static implicit operator decimal(SmallDecimal price)
+        public static implicit operator decimal(SmallDecimal value)
         {
-            return price.Mantissa * DecimalFractions10[price.Exponent];
+            DecCalc dc = value.ToDecCalc();
+            return *(decimal*)&dc;
         }
 
         public static implicit operator SmallDecimal(int value)
         {
-            return new SmallDecimal(0, (long)value);
+            return new SmallDecimal(value);
+        }
+
+        public static implicit operator SmallDecimal(uint value)
+        {
+            return new SmallDecimal(value);
         }
 
         /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public int CompareTo(SmallDecimal other)
         {
-            var c = (int)this.Exponent - (int)other.Exponent;
-            if (c == 0)
-            {
-                return this.Mantissa.CompareTo(other.Mantissa);
-            }
-            if (c > 0)
-            {
-                return (this.Mantissa * Powers10[c]).CompareTo(other.Mantissa);
-            }
-            else
-            {
-                return this.Mantissa.CompareTo(other.Mantissa * Powers10[-c]);
-            }
+            return ((decimal)this).CompareTo(other);
         }
 
         /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool Equals(SmallDecimal other)
         {
-            if (_value == other._value)
-            {
-                return true;
-            }
-            var c = Exponent - other.Exponent;
-            if (c == 0)
-            {
-                // NB if exponents are equal, then equality is possible only if mantissas are equal,
-                // but we have covered this case in _value comparison, therefore return just false
-                return false;
-            }
-            if (c > 0)
-            {
-                return Mantissa * Powers10[c] == other.Mantissa;
-            }
-            else
-            {
-                return Mantissa == other.Mantissa * Powers10[-c];
-            }
+            return this == (decimal)other;
         }
 
         /// <inheritdoc />
         public override bool Equals(object obj)
         {
-            if (ReferenceEquals(null, obj)) return false;
-            return obj is SmallDecimal && Equals((SmallDecimal)obj);
+            if (obj is null) return false;
+            return obj is SmallDecimal value && Equals(value);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -344,33 +412,30 @@ namespace Spreads.DataTypes
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static SmallDecimal operator -(SmallDecimal x)
+        public static SmallDecimal operator -(SmallDecimal value)
         {
-            var newPrice = new SmallDecimal(x.Exponent, -x.Mantissa);
-            return newPrice;
+            var newValue = value._value ^ SignMask;
+            return new SmallDecimal(newValue, false); // private ctor
         }
 
         public static SmallDecimal operator +(SmallDecimal x, SmallDecimal y)
         {
-            if (x.Exponent == y.Exponent)
-            {
-                return new SmallDecimal((int)x.Exponent, (long)(x.Mantissa + y.Mantissa));
-            }
-            return new SmallDecimal((decimal)x + (decimal)y, (int)Math.Max(x.Exponent, y.Exponent));
+            return new SmallDecimal(x + (decimal)y, (int)x.Scale);
         }
 
         public static SmallDecimal operator -(SmallDecimal x, SmallDecimal y)
         {
-            if (x.Exponent == y.Exponent)
-            {
-                return new SmallDecimal((int)x.Exponent, (long)(x.Mantissa - y.Mantissa));
-            }
-            return new SmallDecimal((decimal)x - (decimal)y, (int)Math.Max(x.Exponent, y.Exponent));
+            return new SmallDecimal(x - (decimal)y, (int)x.Scale);
         }
 
         public static SmallDecimal operator *(SmallDecimal x, int y)
         {
-            return new SmallDecimal((int)x.Exponent, (long)(x.Mantissa * y));
+            return new SmallDecimal((decimal)x * y, (int)x.Scale);
+        }
+
+        public static SmallDecimal operator *(int y, SmallDecimal x)
+        {
+            return new SmallDecimal((decimal)x * y, (int)x.Scale);
         }
 
         /// <inheritdoc />
@@ -383,7 +448,7 @@ namespace Spreads.DataTypes
         /// <inheritdoc />
         public override int GetHashCode()
         {
-            return (int)(_value & int.MaxValue);
+            return ((decimal)this).GetHashCode();
         }
 
         #region IConvertible
@@ -391,7 +456,7 @@ namespace Spreads.DataTypes
         /// <inheritdoc />
         public TypeCode GetTypeCode()
         {
-            return TypeCode.Decimal;
+            return TypeCode.Object;
         }
 
         /// <inheritdoc />
@@ -469,7 +534,7 @@ namespace Spreads.DataTypes
         /// <inheritdoc />
         public decimal ToDecimal(IFormatProvider provider)
         {
-            return (decimal)this;
+            return this;
         }
 
         /// <inheritdoc />
@@ -481,7 +546,7 @@ namespace Spreads.DataTypes
         /// <inheritdoc />
         public string ToString(IFormatProvider provider)
         {
-            return this.ToString();
+            return ((decimal)this).ToString(provider);
         }
 
         /// <inheritdoc />
@@ -496,30 +561,20 @@ namespace Spreads.DataTypes
         {
             public void Serialize(ref JsonWriter writer, SmallDecimal value, IJsonFormatterResolver formatterResolver)
             {
-                writer.WriteBeginArray();
-
-                writer.WriteInt64(value.Mantissa);
-
-                writer.WriteValueSeparator();
-
-                writer.WriteInt32(value.Exponent);
-
-                writer.WriteEndArray();
+                var df = formatterResolver.GetFormatter<decimal>();
+                df.Serialize(ref writer, value, formatterResolver);
             }
 
             public SmallDecimal Deserialize(ref JsonReader reader, IJsonFormatterResolver formatterResolver)
             {
-                reader.ReadIsBeginArrayWithVerify();
+                var df = formatterResolver.GetFormatter<decimal>();
 
-                var mantissa = reader.ReadInt64();
+                var d = df.Deserialize(ref reader, formatterResolver);
 
-                reader.ReadIsValueSeparatorWithVerify();
-
-                var exponent = reader.ReadInt32();
-
-                reader.ReadIsEndArrayWithVerify();
-
-                return new SmallDecimal(exponent, mantissa);
+                // if we are reading SD then it was probably written as SD
+                // if we are reading decimal we cannot silently truncate from serialized
+                // value - that's the point of storing as decimal: not to lose precision
+                return new SmallDecimal(d, truncate: false);
             }
         }
 

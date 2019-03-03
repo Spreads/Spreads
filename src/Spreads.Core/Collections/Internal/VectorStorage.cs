@@ -444,7 +444,7 @@ namespace Spreads.Collections.Internal
         public readonly VectorStorage Storage;
     }
 
-    internal static class VectorStorageConverterFactory
+    internal static class VectorStorageSerializerFactory
     {
         public static IBinarySerializer<VectorStorage<TElement>> GenericCreate<TElement>()
         {
@@ -453,7 +453,7 @@ namespace Spreads.Collections.Internal
 
         public static object Create(Type type)
         {
-            var method = typeof(VectorStorageConverterFactory).GetTypeInfo().GetMethod("GenericCreate");
+            var method = typeof(VectorStorageSerializerFactory).GetTypeInfo().GetMethod("GenericCreate");
             var generic = method?.MakeGenericMethod(type);
             return generic?.Invoke(null, null);
         }

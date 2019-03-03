@@ -430,7 +430,7 @@ namespace Spreads.Serialization
                 var elementSize = TypeHelper.GetSize(elementType);
                 if (elementSize > 0)
                 { // only for blittable types
-                    serializer = (IBinarySerializer<T>)VectorStorageConverterFactory.Create(elementType);
+                    serializer = (IBinarySerializer<T>)VectorStorageSerializerFactory.Create(elementType);
                 }
             }
 
