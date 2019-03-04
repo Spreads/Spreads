@@ -20,7 +20,7 @@ namespace Spreads.Core.Tests.Serialization
 
         public ulong Number8 { get; set; }
 
-        public double Number9 { get; set; }
+        // public double Number9 { get; set; }
 
         public static TestValue Create(Random random, bool withDouble = false)
         {
@@ -36,7 +36,7 @@ namespace Spreads.Core.Tests.Serialization
                     Number6 = (ushort)random.Next(),
                     Number7 = (uint)random.Next(),
                     Number8 = (ulong)new LongUnion { Int1 = random.Next(), Int2 = random.Next() }.Long,
-                    Number9 = withDouble ? random.NextDouble()*1000 : 0,
+                    // Number9 = withDouble ? random.NextDouble()*1000 : 0,
                 };
             }
         }
@@ -51,7 +51,8 @@ namespace Spreads.Core.Tests.Serialization
                    && Number6 == other.Number6 
                    && Number7 == other.Number7 
                    && Number8 == other.Number8 
-                   && Number9.Equals(other.Number9);
+                   //&& Number9.Equals(other.Number9)
+                ;
         }
 
         public override bool Equals(object obj)
@@ -72,7 +73,7 @@ namespace Spreads.Core.Tests.Serialization
                 hashCode = (hashCode * 397) ^ Number6.GetHashCode();
                 hashCode = (hashCode * 397) ^ (int) Number7;
                 hashCode = (hashCode * 397) ^ Number8.GetHashCode();
-                hashCode = (hashCode * 397) ^ Number9.GetHashCode();
+                // hashCode = (hashCode * 397) ^ Number9.GetHashCode();
                 return hashCode;
             }
         }

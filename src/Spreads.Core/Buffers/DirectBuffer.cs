@@ -163,9 +163,13 @@ namespace Spreads.Buffers
                 {
                     ThrowHelper.ThrowInvalidOperationException("DirectBuffer is invalid");
                 }
-                if ((ulong)index + (ulong)length > (ulong)_length)
+
+                unchecked
                 {
-                    ThrowHelper.ThrowArgumentException("Not enough space in DirectBuffer");
+                    if ((ulong)index + (ulong)length > (ulong)_length)
+                    {
+                        ThrowHelper.ThrowArgumentException("Not enough space in DirectBuffer");
+                    }
                 }
             }
         }
@@ -270,20 +274,6 @@ namespace Spreads.Buffers
                 { Assert(index, 1); }
 
                 *(_pointer + index) = value;
-            }
-        }
-
-        [Pure]
-        public ref byte this[int index]
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get
-            {
-                if (AdditionalCorrectnessChecks.Enabled)
-                {
-                    Assert(index, 1);
-                }
-                return ref AsRef<byte>(*(_pointer + index));
             }
         }
 
@@ -664,6 +654,7 @@ namespace Spreads.Buffers
 
 #pragma warning disable 1574
 #pragma warning disable 1584
+
         /// <summary>
         /// Unaligned read starting from index.
         /// A shortcut to <see cref="Unsafe.ReadUnaligned{T}(void*)"/>.
@@ -695,6 +686,7 @@ namespace Spreads.Buffers
             value = ReadUnaligned<T>(_pointer + index);
             return size;
         }
+
 #pragma warning restore 1574
 #pragma warning restore 1584
 

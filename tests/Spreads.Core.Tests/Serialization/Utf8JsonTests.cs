@@ -8,6 +8,7 @@ using Spreads.Serialization.Utf8Json;
 using Spreads.Utils;
 using System;
 using System.IO;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
 
@@ -45,7 +46,7 @@ namespace Spreads.Core.Tests.Serialization
             public int Num1 { get; set; }
             public int Num2 { get; set; }
 
-            // public Decimal Dec { get; set; }
+            //public Decimal Dec { get; set; }
 
             //public double Dbl { get; set; }
             //public double Dbl1 { get; set; }
@@ -53,13 +54,14 @@ namespace Spreads.Core.Tests.Serialization
             public bool Boo { get; set; }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
         [Test, Explicit("long running")]
         public unsafe void CompareUtf8JsonWithBinarySerializer()
         {
             var rand = new Random(34151513);
 
             Settings.DoAdditionalCorrectnessChecks = false;
-            var count = 100_000;
+            var count = 5000_000;
             var bytes = new byte[100_000];
             var mem = (Memory<byte>)bytes;
             var h = mem.Pin();
@@ -68,77 +70,18 @@ namespace Spreads.Core.Tests.Serialization
             var values = new Serialization.TestValue[count];
             for (int i = 0; i < count; i++)
             {
-                values[i] = Serialization.TestValue.Create(rand);
+                values[i] = Serialization.TestValue.Create(rand, withDouble: false);
             }
 
             for (int r = 0; r < 20; r++)
             {
-                using (Benchmark.Run("Spreads Write", count))
-                {
-                    var lenSum = 0L;
+                CompareUtf8JsonWithBinarySerializer_SW(count, bytes, values);
 
-                    for (int i = 0; i < count; i++)
-                    {
-                        var writer = new Spreads.Serialization.Utf8Json.JsonWriter(bytes);
-                        Spreads.Serialization.Utf8Json.JsonSerializer.Serialize(ref writer, values[i]);
-                        //Spreads.Serialization.Utf8Json.JsonSerializer.Deserialize<TestValue>(bytes);
-                        //lenSum += writer.CurrentOffset;
-                    }
-                    //Console.WriteLine("Spreads len " + lenSum);
-                }
+                CompareUtf8JsonWithBinarySerializer_SR(count, db);
 
-                using (Benchmark.Run("Spreads Write+Read", count))
-                {
-                    var lenSum = 0L;
+                CompareUtf8JsonWithBinarySerializer_UW(count, bytes, values);
 
-                    for (int i = 0; i < count; i++)
-                    {
-                        //var writer = new Spreads.Serialization.Utf8Json.JsonWriter(bytes);
-                        //Spreads.Serialization.Utf8Json.JsonSerializer.Serialize(ref writer, values[i]);
-                        var val = Spreads.Serialization.Utf8Json.JsonSerializer.Deserialize<Serialization.TestValue>(db);
-                        //if (val.Num != values[i].Num)
-                        //{
-                        //    // var val1 = Utf8Json.JsonSerializer.Deserialize<TestValue>(bytes);
-                        //    Console.WriteLine($"val.Num {val.Num} != values[i].Num {values[i].Num} for i={i}");
-                        //    // Assert.Fail("val.Num != values[i].Num");
-                        //}
-                        //lenSum += writer.CurrentOffset;
-                    }
-                    // Console.WriteLine("Spreads len " + lenSum);
-                }
-
-                using (Benchmark.Run("Utf8Json Write", count))
-                {
-                    var lenSum = 0L;
-
-                    for (int i = 0; i < count; i++)
-                    {
-                        var writer = new Utf8Json.JsonWriter(bytes);
-                        Utf8Json.JsonSerializer.Serialize(ref writer, values[i]);
-                        //Utf8Json.JsonSerializer.Deserialize<TestValue>(bytes);
-                        //lenSum += writer.CurrentOffset;
-                    }
-                    // Console.WriteLine("Utf8Json len " + lenSum);
-                }
-
-                using (Benchmark.Run("Utf8Json Write+Read", count))
-                {
-                    var lenSum = 0L;
-
-                    for (int i = 0; i < count; i++)
-                    {
-                        //var writer = new Utf8Json.JsonWriter(bytes);
-                        //Utf8Json.JsonSerializer.Serialize(ref writer, values[i]);
-                        var val = Utf8Json.JsonSerializer.Deserialize<Serialization.TestValue>(bytes);
-                        //if (val.Num != values[i].Num)
-                        //{
-                        //    Console.WriteLine($"val.Num {val.Num} != values[i].Num {values[i].Num} for i={i}");
-                        //    // Assert.Fail("val.Num != values[i].Num");
-                        //}
-                        //lenSum += writer.CurrentOffset;
-                    }
-                    // Console.WriteLine("Utf8Json len " + lenSum);
-                }
+                CompareUtf8JsonWithBinarySerializer_UR(count, bytes);
 
                 //using (Benchmark.Run("Spreads BinarySerializer", count))
                 //{
@@ -154,6 +97,94 @@ namespace Spreads.Core.Tests.Serialization
                 //}
             }
             Benchmark.Dump();
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveOptimization | MethodImplOptions.NoInlining)]
+        private static void CompareUtf8JsonWithBinarySerializer_UR(int count, byte[] bytes)
+        {
+            using (Benchmark.Run("Utf8Json Read", count))
+            {
+                var lenSum = 0L;
+
+                for (int i = 0; i < count; i++)
+                {
+                    //var writer = new Utf8Json.JsonWriter(bytes);
+                    //Utf8Json.JsonSerializer.Serialize(ref writer, values[i]);
+                    var val = Utf8Json.JsonSerializer.Deserialize<Serialization.TestValue>(bytes);
+                    //if (val.Num != values[i].Num)
+                    //{
+                    //    Console.WriteLine($"val.Num {val.Num} != values[i].Num {values[i].Num} for i={i}");
+                    //    // Assert.Fail("val.Num != values[i].Num");
+                    //}
+                    //lenSum += writer.CurrentOffset;
+                }
+
+                // Console.WriteLine("Utf8Json len " + lenSum);
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveOptimization | MethodImplOptions.NoInlining)]
+        private static void CompareUtf8JsonWithBinarySerializer_UW(int count, byte[] bytes, Serialization.TestValue[] values)
+        {
+            using (Benchmark.Run("Utf8Json Write", count))
+            {
+                var lenSum = 0L;
+
+                for (int i = 0; i < count; i++)
+                {
+                    var writer = new Utf8Json.JsonWriter(bytes);
+                    Utf8Json.JsonSerializer.Serialize(ref writer, values[i]);
+                    //Utf8Json.JsonSerializer.Deserialize<TestValue>(bytes);
+                    //lenSum += writer.CurrentOffset;
+                }
+
+                // Console.WriteLine("Utf8Json len " + lenSum);
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveOptimization | MethodImplOptions.NoInlining)]
+        private static void CompareUtf8JsonWithBinarySerializer_SR(int count, DirectBuffer db)
+        {
+            using (Benchmark.Run("Spreads Read", count))
+            {
+                var lenSum = 0L;
+
+                for (int i = 0; i < count; i++)
+                {
+                    //var writer = new Spreads.Serialization.Utf8Json.JsonWriter(bytes);
+                    //Spreads.Serialization.Utf8Json.JsonSerializer.Serialize(ref writer, values[i]);
+                    var val = JsonSerializer.Deserialize<Serialization.TestValue>(db);
+                    //if (val.Num != values[i].Num)
+                    //{
+                    //    // var val1 = Utf8Json.JsonSerializer.Deserialize<TestValue>(bytes);
+                    //    Console.WriteLine($"val.Num {val.Num} != values[i].Num {values[i].Num} for i={i}");
+                    //    // Assert.Fail("val.Num != values[i].Num");
+                    //}
+                    //lenSum += writer.CurrentOffset;
+                }
+
+                // Console.WriteLine("Spreads len " + lenSum);
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveOptimization | MethodImplOptions.NoInlining)]
+        private static void CompareUtf8JsonWithBinarySerializer_SW(int count, byte[] bytes, Serialization.TestValue[] values)
+        {
+            using (Benchmark.Run("Spreads Write", count))
+            {
+                var lenSum = 0L;
+
+                for (int i = 0; i < count; i++)
+                {
+                    var writer = new JsonWriter(bytes);
+                    JsonSerializer.Serialize(ref writer, values[i]);
+
+                    //Spreads.Serialization.Utf8Json.JsonSerializer.Deserialize<TestValue>(bytes);
+                    //lenSum += writer.CurrentOffset;
+                }
+
+                //Console.WriteLine("Spreads len " + lenSum);
+            }
         }
 
         [Test, Explicit("long running")]
