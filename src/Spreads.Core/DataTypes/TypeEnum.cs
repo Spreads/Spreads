@@ -6,10 +6,9 @@ using System;
 
 namespace Spreads.DataTypes
 {
-
-    // TODO Values < 64 used for Variant with 16 bytes limit, but Variant is not used currently much 
-    // and there is not so many 16-byte predefined types. Limit 16-byte types to <32, from 32 to 63 could 
-    // be types with size up to 255 bytes. Above 64 we have a lot of space to define any containers and 
+    // TODO Values < 64 used for Variant with 16 bytes limit, but Variant is not used currently much
+    // and there is not so many 16-byte predefined types. Limit 16-byte types to <32, from 32 to 63 could
+    // be types with size up to 255 bytes. Above 64 we have a lot of space to define any containers and
     // other var-size types.
     // 64 is for user-defined blittable types, they could have subtype with known type id (WIP, TODO)
     // Should limit Spreads type to < 127, the other half should go to DS types.
@@ -24,7 +23,7 @@ namespace Spreads.DataTypes
 
         // NB Enum values themselves should never be used directly, only the array below should depend on them
         // However, for non-.NET clients they should stabilize rather sooner than later
-        
+
         None = 0,
 
         // Fixed-length known types - their length is defined by code
@@ -77,6 +76,7 @@ namespace Spreads.DataTypes
         Id = 21,
 
         Symbol = 22, // we have several implementations, but all fixed. example when same fixed TypeEnum has different sizes. TODO Should we support this?
+
         // ReSharper disable once InconsistentNaming
         UUID = 23,
 
@@ -89,13 +89,16 @@ namespace Spreads.DataTypes
         // Comparison [(byte)(TypeEnum) < 64 = true] means known fixed type
         // ----------------------------------------------------------------
 
+#if SPREADS
         /// <summary>
         /// Used for blittable types (fixed-length type with fixed layout)
         /// </summary>
         FixedBinary = DataTypes.Variant.KnownSmallTypesLimit, // 64
-
+#else
+        FixedBinary = 64,
+#endif
         // Variable size types
-        
+
         String = 66,
         Json = 65,
         Binary = 67,
@@ -112,10 +115,8 @@ namespace Spreads.DataTypes
         VectorStorage = 73,
 
         TaggedKeyValue = 74,
-        
-        // Up to 127 are reserved for Spreads hard-coded types
 
-        
+        // Up to 127 are reserved for Spreads hard-coded types
     }
 
     public partial struct Variant
@@ -123,9 +124,13 @@ namespace Spreads.DataTypes
         #region Known Type Sizes
 
         // TODO use Offheap buffer: byte[] has object header so this doesn't fit one cache line. Need to ensure alignment of offheap allocatoin as well
-
+#if SPREADS
         // ReSharper disable once RedundantExplicitArraySize
         internal static readonly byte[] KnownTypeSizes = new byte[KnownSmallTypesLimit]
+#else
+
+        internal static readonly byte[] KnownTypeSizes = new byte[64]
+#endif
         {
             // Unknown
             0, // None
@@ -146,7 +151,6 @@ namespace Spreads.DataTypes
             8,  // Price
             16, // Money
 
-            
             8, // DateTime
             8, // 15 - Timestamp
 
@@ -157,7 +161,6 @@ namespace Spreads.DataTypes
             0,
             0, // 19
 
-            
             1, // 20 - Bool
             4, // 21 - Id
             16, // 22 - Symbol

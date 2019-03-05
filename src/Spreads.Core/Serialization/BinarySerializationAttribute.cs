@@ -44,10 +44,12 @@ namespace Spreads.Serialization
 
         internal BinarySerializationAttribute(TypeEnum typeEnum, int blittableSize = 0, bool preferBlittable = false, Type converterType = null)
         {
+#if SPREADS
             if (typeEnum != TypeEnum.None && (int) typeEnum <= Variant.KnownSmallTypesLimit && converterType != null)
             {
                 Environment.FailFast("Cannot use Converter for fixed-sized types");
             }
+#endif
             BlittableSize = blittableSize;
             PreferBlittable = preferBlittable;
             ConverterType = converterType;

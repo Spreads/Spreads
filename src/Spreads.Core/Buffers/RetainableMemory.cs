@@ -218,7 +218,9 @@ namespace Spreads.Buffers
             get
             {
                 var vec = new Vec<T>(_pointer, _length);
+#if SPREADS
                 Debug.Assert(vec.AsVec().Type == typeof(T));
+#endif
                 return vec;
             }
         }

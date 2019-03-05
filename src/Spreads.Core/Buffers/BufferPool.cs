@@ -183,8 +183,12 @@ namespace Spreads.Buffers
             // TODO assert here
             for (int i = offset; i < offset + len; i++)
             {
+#if SPREADS
                 // TODO test it!
                 Native.UnsafeEx.DisposeConstrained(ref array[i]); // ((IDisposable)array[i]).Dispose();
+#else
+                (array[i] as IDisposable)?.Dispose();
+#endif
             }
         }
 

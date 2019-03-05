@@ -253,7 +253,9 @@ namespace Spreads.Buffers
             {
                 // var tid = VecTypeHelper<T>.RuntimeVecInfo.RuntimeTypeId;
                 var vec = _pointer == null ? new Vec<T>(_array, _arrayOffset, _length) : new Vec<T>(_pointer, _length);
+#if SPREADS
                 Debug.Assert(vec.AsVec().Type == typeof(T));
+#endif
                 return vec;
             }
         }

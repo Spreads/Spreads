@@ -10,7 +10,6 @@ using System.IO;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using Spreads.Collections.Internal;
 using Spreads.Native;
 using static System.Runtime.CompilerServices.Unsafe;
 
@@ -179,6 +178,7 @@ namespace Spreads.Serialization
 
         private static TypeEnum InitTypeEnum()
         {
+#if SPREADS
             // re-read, happens once per type
             var sa = BinarySerializationAttribute.GetSerializationAttribute(typeof(T));
 
@@ -205,17 +205,25 @@ namespace Spreads.Serialization
                 Environment.FailFast("Do not provide TypeEnum for pre-defined types in Spreads.Core assembly.");
             }
             return VariantHelper<T>.TypeEnum;
+#else
+            return default;
+#endif
         }
 
         private static byte InitTypeSize()
         {
+#if SPREADS
             return (FixedSize > 0 && FixedSize <= 255)
                 ? (byte)FixedSize
                 : VariantHelper<T>.GetElementTypeSizeForHeader();
+#else
+            return default;
+#endif
         }
 
         internal static readonly DataTypeHeader DefaultBinaryHeader = new DataTypeHeader
         {
+#if SPREADS
             VersionAndFlags =
             {
                 ConverterVersion = 0,
@@ -225,6 +233,7 @@ namespace Spreads.Serialization
             TypeEnum = InitTypeEnum(),
             TypeSize = InitTypeSize(),
             ElementTypeEnum = VariantHelper<T>.ElementTypeEnum // TODO if TypeEnum == None | FixedBinary, check KnownTypeId
+#endif
         };
 
         internal static readonly DataTypeHeader DefaultBinaryHeaderWithTs = new DataTypeHeader
@@ -411,7 +420,7 @@ namespace Spreads.Serialization
             // /{
             // /    BinaryConverter = (IBinaryConverter<T>)(new StringBinaryConverter());
             // /}
-
+#if SPREADS
             // TODO
             if (typeof(T).IsArray)
             {
@@ -424,19 +433,19 @@ namespace Spreads.Serialization
             }
 
             var ti = typeof(T);
-            if (ti.IsGenericType && ti.GetGenericTypeDefinition() == typeof(VectorStorage<>))
+            if (ti.IsGenericType && ti.GetGenericTypeDefinition() == typeof(Collections.Internal.VectorStorage<>))
             {
                 var elementType = ti.GenericTypeArguments[0];
                 var elementSize = TypeHelper.GetSize(elementType);
                 if (elementSize > 0)
                 { // only for blittable types
-                    serializer = (IBinarySerializer<T>)VectorStorageSerializerFactory.Create(elementType);
+                    serializer = (IBinarySerializer<T>)Collections.Internal.VectorStorageSerializerFactory.Create(elementType);
                 }
             }
 
             // Do not add Json converter as fallback, it is not "binary", it implements the interface for
             // simpler implementation in BinarySerializer and fallback happens there
-
+#endif
             BinarySerializer = serializer;
 
             return -1;

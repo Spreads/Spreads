@@ -51,9 +51,13 @@ namespace Spreads.Serialization
 
         public bool IsTypeFixedSize
         {
+#if SPREADS
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             // LE, if equal than this is unknown but fixed size. TypeSize could be > 0 for containers (e.g. arrays), so need to check type enum
             get => unchecked((uint)(TypeEnum - 1)) < Variant.KnownSmallTypesLimit;
+#else
+            get => unchecked((uint)(TypeEnum - 1)) < 64;
+#endif
         }
 
         public unsafe int FirstPayloadByteOffset

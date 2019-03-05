@@ -2,7 +2,6 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-using Spreads.DataTypes;
 using System;
 using System.Buffers;
 using System.Diagnostics;
@@ -716,24 +715,26 @@ namespace Spreads.Buffers
             InitBlockUnaligned(destination, value, (uint)length);
         }
 
+#if SPREADS
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         [Pure]
         // ReSharper disable once InconsistentNaming
-        public UUID ReadUUID(long index)
+        public DataTypes.UUID ReadUUID(long index)
         {
             if (AdditionalCorrectnessChecks.Enabled)
             { Assert(index, 16); }
-            return ReadUnaligned<UUID>(_pointer + index);
+            return ReadUnaligned<DataTypes.UUID>(_pointer + index);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         // ReSharper disable once InconsistentNaming
-        public void WriteUUID(long index, UUID value)
+        public void WriteUUID(long index, DataTypes.UUID value)
         {
             if (AdditionalCorrectnessChecks.Enabled)
             { Assert(index, 16); }
             WriteUnaligned(_pointer + index, value);
         }
+#endif
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         [Pure]

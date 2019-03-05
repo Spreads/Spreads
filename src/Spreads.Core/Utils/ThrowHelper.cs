@@ -84,6 +84,7 @@ namespace Spreads
             throw GetNotSupportedException(message);
         }
 
+#if SPREADS
         [MethodImpl(MethodImplOptions.NoInlining)]
         public static void ThrowOutOfOrderKeyException<TKey>(TKey key)
         {
@@ -95,6 +96,7 @@ namespace Spreads
         {
             throw GetOutOfOrderKeyException(key, message);
         }
+#endif
 
         [MethodImpl(MethodImplOptions.NoInlining)]
         public static void ThrowKeyNotFoundException(string message)
@@ -215,6 +217,7 @@ namespace Spreads
             return new NotSupportedException(message);
         }
 
+#if SPREADS
         [MethodImpl(MethodImplOptions.NoInlining)]
         private static OutOfOrderKeyException<TKey> GetOutOfOrderKeyException<TKey>(TKey key)
         {
@@ -226,6 +229,7 @@ namespace Spreads
         {
             return new OutOfOrderKeyException<TKey>(key, message);
         }
+#endif
 
         [MethodImpl(MethodImplOptions.NoInlining)]
         private static KeyNotFoundException GetKeyNotFoundException(string message)

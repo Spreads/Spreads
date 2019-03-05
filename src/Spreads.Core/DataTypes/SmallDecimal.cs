@@ -431,7 +431,11 @@ namespace Spreads.DataTypes
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool Equals(SmallDecimal other)
         {
-            return this == (decimal)other;
+            if (Scale == other.Scale)
+            {
+                return _value == other._value;
+            }
+            return (decimal)this == (decimal)other;
         }
 
         /// <inheritdoc />
