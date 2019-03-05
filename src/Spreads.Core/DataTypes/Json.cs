@@ -12,7 +12,7 @@ using System.Text;
 namespace Spreads.DataTypes
 {
     /// <summary>
-    /// Wrapper for UTF8 json string
+    /// Wrapper for UTF8 JSON string.
     /// </summary>
     [DebuggerDisplay("{" + nameof(ToString) + "()}")]
     [StructLayout(LayoutKind.Auto)]

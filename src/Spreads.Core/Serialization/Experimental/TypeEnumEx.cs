@@ -7,21 +7,23 @@ using System;
 
 namespace Spreads.Serialization.Experimental
 {
-    // TODO Values < 64 used for Variant with 16 bytes limit, but Variant is not used currently much
-    // and there is not so many 16-byte predefined types. Limit 16-byte types to <32, from 32 to 63 could
-    // be types with size up to 255 bytes. Above 64 we have a lot of space to define any containers and
-    // other var-size types.
-    // 64 is for user-defined blittable types, they could have subtype with known type id (WIP, TODO)
-    // Should limit Spreads type to < 127, the other half should go to DS types.
-    // None type is opaque var-sized, it could have known type at app level.
-
     /// <summary>
     /// Known types and containers enumeration.
+    /// </summary>
+    /// <remarks>
+    /// The goal of this enumeration is to have a unique small ids for frequently used
+    /// types, provision ids for likely future types and set ids to main containers.
+    /// Types that cannot be described with this simple enumeration must have user-defined
+    /// <see cref="IBinarySerializer{T}"/> or use a schema (TODO)
+    /// <para />
+    ///
     /// Integer types are always serialized as little-endian.
     /// Big-endian is completely not and won't be supported in foreseeable future.
-    /// </summary>
+    /// </remarks>
     public enum TypeEnumEx : byte
     {
+        // Note: TypeEnum must be enough to create a correct non-generic System.Object from a raw byte pointer.
+
         /// <summary>
         /// Unit type, meaningful absence of any value.
         /// Compare to default/null which are a special values of some type.
@@ -130,7 +132,7 @@ namespace Spreads.Serialization.Experimental
         /// <summary>
         /// See <see cref="decimal"/>.
         /// </summary>
-        DecimalDotNet = 18,
+        Decimal = 18,
 
         /// <summary>
         /// See <see cref="SmallDecimal"/>.
@@ -138,36 +140,38 @@ namespace Spreads.Serialization.Experimental
         SmallDecimal = 19,
 
         /// <summary>
-        /// See <see cref="Money"/>.
-        /// </summary>
-        Money = 20,
-
-        /// <summary>
         /// See <see cref="bool"/>.
         /// </summary>
-        Bool = 21,
+        Bool = 20,
 
         /// <summary>
         /// See <see cref="char"/>
         /// </summary>
-        Utf16Char = 22,
+        Utf16Char = 21,
 
         /// <summary>
         /// See <see cref="UUID"/>. Could store <see cref="Guid"/> as well, but there is no restrictions on format.
         /// </summary>
-        UUID = 23,
-
-        Symbol = 24,
+        UUID = 22,
 
         /// <summary>
         /// <see cref="DateTime"/> UTC ticks (100ns intervals since zero) as UInt64
         /// </summary>
-        DateTime = 25,
+        DateTime = 23,
 
         /// <summary>
         /// <see cref="Timestamp"/> as nanoseconds since Unix epoch as UInt64
         /// </summary>
-        Timestamp = 26,
+        Timestamp = 24,
+
+        Symbol = 31,
+
+        // Try to keep scalars with sizes <= 16 below 32.
+
+        Symbol32 = 32,
+        Symbol64 = 33,
+        Symbol128 = 34,
+        Symbol256 = 35,
 
         // ----------------------------------------------------------------
         // Comparison [(byte)(TypeEnum) < 64 = true] means known fixed type
@@ -180,22 +184,24 @@ namespace Spreads.Serialization.Experimental
         // Non-container values are schema hints, payload is just a byte string.
 
         /// <summary>
-        /// Opaque binary string.
+        /// Opaque binary string prefixed by <see cref="int"/> length in bytes.
+        /// Alias for <see cref="Array"/> of <see cref="UInt8"/>.
         /// </summary>
         Binary = 64,
 
         /// <summary>
-        /// A Utf8 string prefixed by <see cref="int"/> length.
+        /// A Utf8 string prefixed by <see cref="int"/> length in bytes.
         /// </summary>
-        Utf8String = 65,
+        Utf8String = 65, // this is not exactly
 
         /// <summary>
-        /// A Utf16 <see cref="string"/> prefixed by <see cref="int"/> length.
+        /// A Utf16 <see cref="string"/> prefixed by <see cref="int"/> length in bytes.
+        /// Alias for <see cref="Array"/> of <see cref="Utf16Char"/>.
         /// </summary>
         Utf16String = 66,
 
         /// <summary>
-        /// Utf8 JSON prefixed by <see cref="int"/> length.
+        /// Utf8 JSON prefixed by <see cref="int"/> length in bytes.
         /// </summary>
         Json = 67,
 
@@ -204,27 +210,59 @@ namespace Spreads.Serialization.Experimental
         #region Tuple-like structures that do not need TEOFS3
 
         /// <summary>
-        /// Fixed-length array with up to 127 elements of the same type.
+        /// A fixed-length collection with up to 127 elements of the same type.
         /// Element type is stored in <see cref="DataTypeHeaderEx.TEOFS1"/> and count is stored in  <see cref="DataTypeHeaderEx.TEOFS2"/>.
         /// This covers all same fixed-size type tuples from 1 to 127.
         /// </summary>
         FixedArrayT = 70, // Note: FixedArray without T is Schema.
+
+        // TupleNT are aliases to FixedArrayT for sizes 1-5.
+
+        /// <summary>
+        /// A tuple with two elements of same type. Element type are stored
+        /// in <see cref="DataTypeHeaderEx.TEOFS1"/>.
+        /// </summary>
+        Tuple2T = 71,
+
+        /// <summary>
+        /// A tuple with three elements of same type. Element type are stored
+        /// in <see cref="DataTypeHeaderEx.TEOFS1"/>.
+        /// </summary>
+        Tuple3T = 72,
+
+        /// <summary>
+        /// A tuple with four elements of same type. Element type are stored
+        /// in <see cref="DataTypeHeaderEx.TEOFS1"/>.
+        /// </summary>
+        Tuple4T = 73,
+
+        /// <summary>
+        /// A tuple with five elements of same type. Element type are stored
+        /// in <see cref="DataTypeHeaderEx.TEOFS1"/>.
+        /// </summary>
+        Tuple5T = 74,
+
+        /// <summary>
+        /// A tuple with five elements of same type. Element type are stored
+        /// in <see cref="DataTypeHeaderEx.TEOFS1"/>.
+        /// </summary>
+        Tuple6T = 75,
 
         /// <summary>
         /// A tuple with two elements of different types. Element types are stored
         /// in <see cref="DataTypeHeaderEx.TEOFS1"/> and <see cref="DataTypeHeaderEx.TEOFS2"/>
         /// slots.
         /// </summary>
-        Tuple2 = 71,
+        Tuple2 = 76,
 
         /// <summary>
         /// A tuple with two elements of different types prefixed with <see cref="byte"/> tag. Element types are stored
         /// in <see cref="DataTypeHeaderEx.TEOFS1"/> and <see cref="DataTypeHeaderEx.TEOFS2"/>
         /// slots.
         /// </summary>
-        Tuple2Tag = 72, // If we need a tag with a different type use Tuple3
+        Tuple2Tag = 77, // If we need a tag with a different type use Tuple3
 
-        Tuple2Version = 73,
+        Tuple2Version = 78,
 
         // TODO return here when start working with frames.
 
@@ -233,14 +271,14 @@ namespace Spreads.Serialization.Experimental
         /// Used for <see cref="Matrix{T}"/> and <see cref="Frame{TRow,TCol}"/> in-place value updates.
         /// </summary>
         [Obsolete("Not used actually. Just an idea how to serialize updates.")]
-        KeyIndexValue = 74,
+        KeyIndexValue = 79,
 
         #endregion Tuple-like structures that do not need TEOFS3
 
         #region Containers with 1-2 subtypes
 
         /// <summary>
-        /// Element type is stored in <see cref="DataTypeHeaderEx.TEOFS1"/>.
+        /// A variable-length collection of elements of the same type. Element type is stored in <see cref="DataTypeHeaderEx.TEOFS1"/>.
         /// <see cref="DataTypeHeaderEx.TEOFS2"/> slot is used for a single subtype
         /// of array element, e.g. for jugged array.
         /// Always followed by payload length in bytes as <see cref="int"/>. If length is negative
@@ -252,29 +290,42 @@ namespace Spreads.Serialization.Experimental
         // For some types delta is highly efficient because some fields do not change and we have zeros.
 
         /// <summary>
+        /// Depth is stored in <see cref="DataTypeHeaderEx.TEOFS1"/> and type in <see cref="DataTypeHeaderEx.TEOFS2"/>.
+        /// </summary>
+        JaggedArray = 81,
+
+        /// <summary>
         /// Inner array element type is stored in <see cref="DataTypeHeaderEx.TEOFS1"/> and it's size in <see cref="DataTypeHeaderEx.TEOFS2"/>.
         /// This covers array of all same fixed-size type tuples from 1 to 127.
         /// </summary>
-        ArrayOfFixedArraysT = 81,
+        ArrayOfFixedArraysT = 82,
 
+        // TODO number of dimensions is runtime parameter or not? Should it be in payload header?
         /// <summary>
-        /// See <see cref="Matrix{T}"/>.
+        /// Multidimensional array with up to 127 dimensions. Value type is stored in <see cref="DataTypeHeaderEx.TEOFS1"/> and number of dimensions
+        /// in <see cref="DataTypeHeaderEx.TEOFS2"/>.
+        /// E.g. <see cref="Matrix{T}"/> is NDArray with 2 dimensions.
         /// </summary>
-        MatrixT = 82, // same as array must have a subtype defined
+        NDArray = 83, // same as array must have a subtype defined
 
         /// <summary>
         /// Table is a frame with <see cref="string"/> row and column keys and <see cref="Variant"/> data type.
         /// </summary>
-        Table = 83,
+        Table = 84,
 
         /// <summary>
+        /// <see cref="Array"/> of <see cref="Tuple2"/> with unique keys. Key type is stored in <see cref="DataTypeHeaderEx.TEOFS1"/>
+        /// and value type is stored in <see cref="DataTypeHeaderEx.TEOFS2"/>.
+        /// </summary>
+        Map = 85, // Need this to fit type info in 3 TEOFS as in DataTypeHeader and avoid TEOFS3 in VariantHeader.
+
+        /// <summary>
+        /// Two-array map (dictionary).
         /// Key type is stored in <see cref="DataTypeHeaderEx.TEOFS1"/> and value type in <see cref="DataTypeHeaderEx.TEOFS2"/>.
         /// </summary>
-        Series = 84,
+        Series = 86,
 
-        //VectorStorage = 73,
-
-        //TaggedKeyValue = 74,
+        Frame = 87,
 
         #endregion Containers with 1-2 subtypes
 
@@ -308,18 +359,23 @@ namespace Spreads.Serialization.Experimental
         Variant = 120,
 
         /// <summary>
-        /// Stores schema id in <see cref="DataTypeHeader"/> two subtype slots as <see cref="ushort"/>.
+        /// Stores schema id in <see cref="VariantHeader"/> two subtype slots as <see cref="ushort"/>.
         /// </summary>
-        Schema = 125,
+        Schema = 124,
 
         /// <summary>
-        /// Stores user-provided known type id in <see cref="DataTypeHeader"/> two subtype slots as <see cref="ushort"/>.
+        /// A custom user type that has a binary serializer.
         /// </summary>
-        UserKnownType = 126,
+        UserKnownType = 125,
+
+        /// <summary>
+        /// A custom user type without binary serializer. Serialized data is JSON.
+        /// </summary>
+        UserType = 126,
 
         /// <summary>
         /// A virtual type enum used as return value of <see cref="TypeEnumOrFixedSize.TypeEnum"/> for blittable types (fixed-length type with fixed layout).
         /// </summary>
-        FixedBinary = TypeEnumOrFixedSize.MaxTypeEnum, // 127
+        FixedSize = TypeEnumOrFixedSize.MaxTypeEnum, // 127
     }
 }

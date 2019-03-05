@@ -1,5 +1,6 @@
 ﻿namespace Spreads.Collections.Internal.Experimental
 {
+
     public interface ISeries<TKey> // where TKey : IIntDiffable
     {
     }
@@ -52,6 +53,10 @@
         {
             throw new System.NotImplementedException();
         }
+    }
+
+    public class NDArray<T>
+    {
     }
 
     public class Series

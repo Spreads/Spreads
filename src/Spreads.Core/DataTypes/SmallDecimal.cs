@@ -14,27 +14,47 @@ using System.Runtime.InteropServices;
 namespace Spreads.DataTypes
 {
     /// <summary>
-    /// A blittable structure to store small(ish) fixed-point decimal values with precision up to 16 digits.
+    /// A blittable 64-bit structure to store small(ish) fixed-point decimal values with precision up to 16 digits.
+    /// It is implemented similarly to <see cref="decimal"/> and only uses Int56 to stores significant digits
+    /// instead of Int96 in <see cref="decimal"/>. All conversion to and from other numeric types and string
+    /// are done via <see cref="decimal"/>.
+    ///
+    /// <para />
+    ///
+    /// Note that this is not IEEE 754-2008 decimal64 but a smaller counterpart
+    /// to <see cref="decimal"/> that is easy to implement cross-platform and
+    /// is useful for storing small precise values such as prices or small
+    /// quantities such as Ethereum wei.
+    /// This is also not DEC64 (http://dec64.com/) that has similar design but
+    /// different binary layout.
+    ///
     /// </summary>
     /// <remarks>
+    ///
+    /// Binary layout:
+    ///
+    /// ```
     ///  0                   1                   2                   3
     ///  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
     /// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-    /// |S|B|O|  Scale  |                  UInt56                       |
+    /// |S|NaN|  Scale  |                  UInt56                       |
     /// +-------------------------------+-+-+---------------------------+
-    /// |               Int56 mantissa                                  |
-    /// +-------------------------------+-+-+---------------------------+
+    /// ```
+    /// <para />
+    ///
+    /// S - sign.
     ///
     /// <para />
-    /// S - sign
+    ///
+    /// NaN - when both bits are set then the value is not a valid SmallDecimal and is
+    /// equivalent to <see cref="double.NaN"/> or <see cref="double.PositiveInfinity"/>
+    /// or or <see cref="double.NegativeInfinity"/>. Used only when converting
+    /// from <see cref="double"/> or <see cref="float"/>.
+    ///
     /// <para />
-    /// B/O - could be used for buy(bid)/sell(offer) flags. It is safer to use
-    /// a non-default value for trade direction because that catches errors when
-    /// some value accidentally fed into the system. This is internal-only for
-    /// other data types that has price fields such as Order.
-    /// When both set it is NaN (and doesn't make sense in B/O context).
-    /// <para />
+    ///
     /// Scale - 0-28 power of 10 to divide Int56 to get a value.
+    ///
     /// </remarks>
     [StructLayout(LayoutKind.Sequential, Pack = 8, Size = 8)]
     [BinarySerialization(Size)]
@@ -43,7 +63,7 @@ namespace Spreads.DataTypes
     public readonly unsafe struct SmallDecimal :
         IInt64Diffable<SmallDecimal>,
         IEquatable<SmallDecimal>,
-        IConvertible //, IDelta<SmallDecimal> // TODO IInt64Diffable
+        IConvertible //, IDelta<SmallDecimal>
 
     {
         [StructLayout(LayoutKind.Explicit)]
@@ -70,10 +90,7 @@ namespace Spreads.DataTypes
             // Sign mask for the flags field. A value of zero in this bit indicates a
             // positive Decimal value, and a value of one in this bit indicates a
             // negative Decimal value.
-            //
-            // Look at OleAut's DECIMAL_NEG constant to check for negative values
-            // in native code.
-            internal const int SignOffsetDc = 31;
+            internal const int SignShiftDc = 31;
 
             internal const uint SignMaskDc = 1u << 31;
 
@@ -127,8 +144,8 @@ namespace Spreads.DataTypes
         private const int SignShift = 63;
         private const ulong SignMask = (1UL << SignShift);
 
-        // TODO (?)
-        // private const ulong NaNMask = (0b_11 << 61);
+        private const int NaNShift = 61;
+        private const ulong NaNMask = 0b_11;
 
         private const int ScaleShift = 56;
         private const ulong ScaleMask = 31UL;
@@ -140,6 +157,7 @@ namespace Spreads.DataTypes
 
         public static SmallDecimal MaxValue = new SmallDecimal(MaxValueLong);
         public static SmallDecimal MinValue = new SmallDecimal(MinValueLong);
+        public static SmallDecimal NaN = new SmallDecimal(unchecked((ulong)(-1)), false); // all bits are set to avoid misuse, not just two NaN ones.
 
         private readonly ulong _value;
 
@@ -200,8 +218,6 @@ namespace Spreads.DataTypes
             _value = FromDecCalc(dc);
         }
 
-        // TODO decimals and truncate are exclusive, private ctor with overloads
-
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public SmallDecimal(decimal value)
             : this(value, -1, default, false)
@@ -223,7 +239,7 @@ namespace Spreads.DataTypes
         { }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public SmallDecimal(double value)
+        internal SmallDecimal(double value)
             : this(new decimal(value), -1)
         { }
 
@@ -233,7 +249,7 @@ namespace Spreads.DataTypes
         { }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public SmallDecimal(float value)
+        internal SmallDecimal(float value)
             : this(new decimal(value), -1)
         { }
 
@@ -276,6 +292,14 @@ namespace Spreads.DataTypes
 
         // smaller ints are expanded to int/uint automatically
 
+        public bool IsNaN
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => ((_value >> NaNShift) & NaNMask) == NaNMask;
+        }
+
+        #region Internal members
+
         internal uint Sign
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -305,34 +329,19 @@ namespace Spreads.DataTypes
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal DecCalc ToDecCalc()
         {
+            if (IsNaN)
+            {
+                ThrowNaN();
+            }
             var dc = new DecCalc
             {
                 ulomidLE = UInt56,
-                uflags = (Sign << DecCalc.SignOffsetDc) | (Scale << DecCalc.ScaleShiftDc)
+                uflags = (Sign << DecCalc.SignShiftDc) | (Scale << DecCalc.ScaleShiftDc)
             };
             return dc;
         }
 
-        [MethodImpl(MethodImplOptions.NoInlining)]
-        internal static void ThrowWrongDecimals()
-        {
-            ThrowHelper.ThrowArgumentOutOfRangeException(
-                "Decimals must be in 0-16 range.");
-        }
-
-        [MethodImpl(MethodImplOptions.NoInlining)]
-        internal static void ThrowPrecisionLossNoTruncate()
-        {
-            ThrowHelper.ThrowArgumentException(
-                "Cannot store the given value without precision loss and truncate parameter is false");
-        }
-
-        [MethodImpl(MethodImplOptions.NoInlining)]
-        internal static void ThrowValueTooBigOrTooSmall()
-        {
-            ThrowHelper.ThrowArgumentException(
-                "Value is either too big (> MaxValue) or too small (< MinValue).");
-        }
+        #endregion Internal members
 
         // NB only decimal is implicit because it doesn't lose precision
         // there is no implicit conversions from decimal, only ctor
@@ -343,23 +352,70 @@ namespace Spreads.DataTypes
             return (double)(decimal)value;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static explicit operator float(SmallDecimal value)
         {
             return (float)(decimal)value;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static implicit operator decimal(SmallDecimal value)
         {
             DecCalc dc = value.ToDecCalc();
             return *(decimal*)&dc;
         }
 
+        // Casts from floats could produce NaN. Such cast implies truncate operation
+        // and usually the intent is to convert floats to SmallDecimals for better
+        // compression, while precision loss is OK.
+        // TODO (review) this is opinionated, NaN should be out of scope. However this is also not important ATM.
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static explicit operator SmallDecimal(double value)
+        {
+#if NETCOREAPP3_0
+            if (double.IsNaN(value) || !double.IsFinite(value))
+#else
+            if (double.IsNaN(value) || double.IsPositiveInfinity(value) || double.IsNegativeInfinity(value))
+#endif
+            {
+                return NaN;
+            }
+
+            return new SmallDecimal(value);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static explicit operator SmallDecimal(float value)
+        {
+#if NETCOREAPP3_0
+            if (float.IsNaN(value) || !float.IsFinite(value))
+#else
+            if (float.IsNaN(value) || float.IsPositiveInfinity(value) || float.IsNegativeInfinity(value))
+#endif
+            {
+                return NaN;
+            }
+
+            return new SmallDecimal(value);
+        }
+
+        // int <=32 to SmallDecimal are implicit
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static implicit operator SmallDecimal(int value)
         {
             return new SmallDecimal(value);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static implicit operator SmallDecimal(uint value)
+        {
+            return new SmallDecimal(value);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static implicit operator SmallDecimal(decimal value)
         {
             return new SmallDecimal(value);
         }
@@ -431,13 +487,13 @@ namespace Spreads.DataTypes
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static SmallDecimal operator +(SmallDecimal x, SmallDecimal y)
         {
-            return new SmallDecimal(x + (decimal)y, (int)x.Scale);
+            return new SmallDecimal((decimal)x + (decimal)y, (int)x.Scale);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static SmallDecimal operator -(SmallDecimal x, SmallDecimal y)
         {
-            return new SmallDecimal(x - (decimal)y, (int)x.Scale);
+            return new SmallDecimal((decimal)x - (decimal)y, (int)x.Scale);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -571,26 +627,7 @@ namespace Spreads.DataTypes
 
         #endregion IConvertible
 
-        internal class Formatter : IJsonFormatter<SmallDecimal>
-        {
-            public void Serialize(ref JsonWriter writer, SmallDecimal value, IJsonFormatterResolver formatterResolver)
-            {
-                var df = formatterResolver.GetFormatter<decimal>();
-                df.Serialize(ref writer, value, formatterResolver);
-            }
-
-            public SmallDecimal Deserialize(ref JsonReader reader, IJsonFormatterResolver formatterResolver)
-            {
-                var df = formatterResolver.GetFormatter<decimal>();
-
-                var d = df.Deserialize(ref reader, formatterResolver);
-
-                // if we are reading SD then it was probably written as SD
-                // if we are reading decimal we cannot silently truncate from serialized
-                // value - that's the point of storing as decimal: not to lose precision
-                return new SmallDecimal(d, truncate: false);
-            }
-        }
+        #region IDelta (TODO)
 
         //public SmallDecimal AddDelta(SmallDecimal delta)
         //{
@@ -601,6 +638,10 @@ namespace Spreads.DataTypes
         //{
         //    return other - this;
         //}
+
+        #endregion IDelta (TODO)
+
+        #region IInt64Diffable
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public SmallDecimal Add(long diff)
@@ -631,8 +672,71 @@ namespace Spreads.DataTypes
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public long Diff(SmallDecimal other)
         {
-            throw new NotImplementedException("This is completely wrong");
+            if (Scale != other.Scale)
+            {
+                ThrowScalesNotEqualInDiff();
+            }
             return (long)UInt56 - (long)other.UInt56;
         }
+
+        #endregion IInt64Diffable
+
+        internal class Formatter : IJsonFormatter<SmallDecimal>
+        {
+            public void Serialize(ref JsonWriter writer, SmallDecimal value, IJsonFormatterResolver formatterResolver)
+            {
+                var df = formatterResolver.GetFormatter<decimal>();
+                df.Serialize(ref writer, value, formatterResolver);
+            }
+
+            public SmallDecimal Deserialize(ref JsonReader reader, IJsonFormatterResolver formatterResolver)
+            {
+                var df = formatterResolver.GetFormatter<decimal>();
+
+                var d = df.Deserialize(ref reader, formatterResolver);
+
+                // if we are reading SD then it was probably written as SD
+                // if we are reading decimal we cannot silently truncate from serialized
+                // value - that's the point of storing as decimal: not to lose precision
+                return new SmallDecimal(d, truncate: false);
+            }
+        }
+
+        #region Throw helpers
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        internal static void ThrowWrongDecimals()
+        {
+            ThrowHelper.ThrowArgumentOutOfRangeException(
+                "Decimals must be in 0-16 range.");
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        internal static void ThrowNaN()
+        {
+            ThrowHelper.ThrowInvalidOperationException("Value is NaN");
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        internal static void ThrowPrecisionLossNoTruncate()
+        {
+            ThrowHelper.ThrowArgumentException(
+                "Cannot store the given value without precision loss and truncate parameter is false");
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        internal static void ThrowValueTooBigOrTooSmall()
+        {
+            ThrowHelper.ThrowArgumentException(
+                "Value is either too big (> MaxValue) or too small (< MinValue).");
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static void ThrowScalesNotEqualInDiff()
+        {
+            ThrowHelper.ThrowNotSupportedException("Scales must be equal for Diff");
+        }
+
+        #endregion Throw helpers
     }
 }

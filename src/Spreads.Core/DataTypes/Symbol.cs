@@ -154,7 +154,7 @@ namespace Spreads.DataTypes
     [BinarySerialization(Size)]
     public unsafe struct Symbol32 : IEquatable<Symbol32>
     {
-        private const int Size = 32;
+        public const int Size = 32;
         private fixed byte Bytes[Size];
 
         /// <summary>
@@ -281,7 +281,7 @@ namespace Spreads.DataTypes
     [BinarySerialization(Size)]
     public unsafe struct Symbol64 : IEquatable<Symbol64>
     {
-        private const int Size = 64;
+        public const int Size = 64;
         private fixed byte Bytes[Size];
 
         /// <summary>
@@ -408,7 +408,7 @@ namespace Spreads.DataTypes
     [BinarySerialization(Size)]
     public unsafe struct Symbol128 : IEquatable<Symbol128>
     {
-        private const int Size = 128;
+        public const int Size = 128;
         private fixed byte Bytes[Size];
 
         /// <summary>
@@ -535,7 +535,7 @@ namespace Spreads.DataTypes
     [BinarySerialization(Size)]
     public unsafe struct Symbol256 : IEquatable<Symbol256>
     {
-        private const int Size = 256;
+        public const int Size = 256;
         private fixed byte Bytes[Size];
 
         /// <summary>

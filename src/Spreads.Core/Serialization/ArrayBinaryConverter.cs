@@ -20,7 +20,7 @@ namespace Spreads.Serialization
 
         public static object Create(Type type)
         {
-            var method = typeof(ArrayConverterFactory).GetTypeInfo().GetMethod("GenericCreate");
+            var method = typeof(ArrayConverterFactory).GetTypeInfo().GetMethod(nameof(GenericCreate));
             var generic = method?.MakeGenericMethod(type);
             return generic?.Invoke(null, null);
         }

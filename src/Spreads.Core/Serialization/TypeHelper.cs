@@ -105,7 +105,7 @@ namespace Spreads.Serialization
 
         internal static IBinarySerializer<T> BinarySerializer;
 
-        public static bool HasBinaryConverter
+        public static bool HasBinarySerializer
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => BinarySerializer != null;
@@ -537,7 +537,7 @@ namespace Spreads.Serialization
                 ThrowHelper.ThrowArgumentException("User-implemented converter version must be in the range 1-15.");
             }
 
-            if (HasBinaryConverter && !overrideExisting)
+            if (HasBinarySerializer && !overrideExisting)
             {
                 ThrowHelper.ThrowInvalidOperationException(
                     $"Type {typeof(T)} already implements IBinaryConverter<{typeof(T)}> interface. Use versioning to add a new converter (not supported yet)");

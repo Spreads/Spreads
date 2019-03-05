@@ -49,12 +49,12 @@ namespace Spreads.Core.Tests.DataTypes
         [Test]
         public void CouldSubtractDoublePrice()
         {
-            var first = new SmallDecimal(12345.6);
+            var first = (SmallDecimal)(12345.6);
             var fd = (double)first;
 
             Assert.AreEqual(12345.6, fd);
 
-            var second = new SmallDecimal(12340.6);
+            var second = (SmallDecimal)(12340.6);
             var sd = (double)second;
 
             Assert.AreEqual(12340.6, sd);
@@ -71,7 +71,7 @@ namespace Spreads.Core.Tests.DataTypes
         [Test]
         public void CouldNegate()
         {
-            var first = new SmallDecimal(12345.6);
+            var first = (SmallDecimal)(12345.6);
             var second = -first;
             Assert.AreEqual(-(decimal)first, (decimal)second);
         }
@@ -91,7 +91,7 @@ namespace Spreads.Core.Tests.DataTypes
                 {
                     for (int i = 0; i < count; i++)
                     {
-                        var price = new SmallDecimal((double)i);
+                        var price = (SmallDecimal)((double)i);
                         var dyn = (dynamic)price;
                         // ReSharper disable once PossibleInvalidCastException
                         var dbl = (double)dyn;
@@ -103,7 +103,7 @@ namespace Spreads.Core.Tests.DataTypes
                 {
                     for (int i = 0; i < count; i++)
                     {
-                        var price = new SmallDecimal((double)i);
+                        var price = (SmallDecimal)((double)i);
                         var dbl = Convert.ToDouble(price);
                         sum += dbl;
                     }
@@ -113,7 +113,7 @@ namespace Spreads.Core.Tests.DataTypes
                 {
                     for (int i = 0; i < count; i++)
                     {
-                        var price = new SmallDecimal((double)i);
+                        var price = (SmallDecimal)((double)i);
                         var dbl = Convert.ToDouble((object)price); // (double)dyn;
                         sum += dbl;
                     }
@@ -123,7 +123,7 @@ namespace Spreads.Core.Tests.DataTypes
                 {
                     for (int i = 0; i < count; i++)
                     {
-                        var price = new SmallDecimal((double)i);
+                        var price = (SmallDecimal)((double)i);
                         var dbl = DoubleUtil.GetDouble(price); // (double)dyn;
                         sum += dbl;
                     }
@@ -133,7 +133,7 @@ namespace Spreads.Core.Tests.DataTypes
                 {
                     for (int i = 0; i < count; i++)
                     {
-                        var price = new SmallDecimal((double)i);
+                        var price = (SmallDecimal)((double)i);
                         var dbl = DoubleUtil.GetDouble((object)price); // (double)dyn;
                         sum += dbl;
                     }
@@ -143,7 +143,7 @@ namespace Spreads.Core.Tests.DataTypes
                 {
                     for (int i = 0; i < count; i++)
                     {
-                        var price = new SmallDecimal((double)i);
+                        var price = (SmallDecimal)((double)i);
                         var dbl = (double)price;
                         sum += dbl;
                     }
@@ -163,7 +163,7 @@ namespace Spreads.Core.Tests.DataTypes
             sd = new SmallDecimal(-1m);
             Assert.AreEqual(-1, (int)(decimal)sd);
 
-            sd = new SmallDecimal(-1.0);
+            sd = (SmallDecimal)(-1.0);
             Assert.AreEqual(-1, (int)(decimal)sd);
         }
 
@@ -192,12 +192,12 @@ namespace Spreads.Core.Tests.DataTypes
 
             Assert.Throws<ArgumentException>(() =>
             {
-                var _ = new SmallDecimal((double)long.MaxValue);
+                var _ = (SmallDecimal)((double)long.MaxValue);
             });
 
             Assert.Throws<ArgumentException>(() =>
             {
-                var _ = new SmallDecimal((double)long.MinValue);
+                var _ = (SmallDecimal)((double)long.MinValue);
             });
         }
 
@@ -238,7 +238,7 @@ namespace Spreads.Core.Tests.DataTypes
         [Test]
         public void JsonSerializationWorks()
         {
-            var sd = new SmallDecimal(-123.456);
+            var sd = (SmallDecimal)(-123.456);
             var str = JsonSerializer.ToJsonString(sd);
             Console.WriteLine(str);
             Assert.AreEqual("-123.456", str);
@@ -256,14 +256,26 @@ namespace Spreads.Core.Tests.DataTypes
         }
 
         [Test, Ignore("wrong impl")]
+        // ReSharper disable once InconsistentNaming
         public void IInt64DiffableWorks()
         {
-            var sd = new SmallDecimal(123.456);
+            var sd = (SmallDecimal)(123.456);
             var sd1 = KeyComparer<SmallDecimal>.Default.Add(sd, 1);
             Assert.AreEqual(123.457, (decimal)sd1);
 
             var diff = KeyComparer<SmallDecimal>.Default.Diff(sd1, sd);
             Assert.AreEqual(1, diff);
+        }
+
+        [Test]
+        public void NaNThrows()
+        {
+            var sd = (SmallDecimal)(double.NaN);
+
+            Assert.Throws<InvalidOperationException>(() =>
+            {
+                var _ = sd + 1;
+            });
         }
     }
 }

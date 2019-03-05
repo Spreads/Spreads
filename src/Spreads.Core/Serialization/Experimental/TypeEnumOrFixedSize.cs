@@ -2,6 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+using System;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
@@ -12,8 +13,9 @@ namespace Spreads.Serialization.Experimental
     /// Abbreviated as TEOFS in code and comments.
     /// </summary>
     [StructLayout(LayoutKind.Sequential, Size = 1, Pack = 1)]
-    public readonly unsafe struct TypeEnumOrFixedSize
+    public readonly unsafe struct TypeEnumOrFixedSize : IEquatable<TypeEnumOrFixedSize>
     {
+        public const int MaxScalarEnum = 63;
         public const int MaxTypeEnum = 127;
         public const int MaxFixedSize = 128;
         public const int UnknownFixedSizeFlag = 128;
@@ -56,7 +58,7 @@ namespace Spreads.Serialization.Experimental
             {
                 if (_value > 127)
                 {
-                    return TypeEnumEx.FixedBinary;
+                    return TypeEnumEx.FixedSize;
                 }
                 return (TypeEnumEx)_value;
             }
@@ -96,5 +98,40 @@ namespace Spreads.Serialization.Experimental
 
         // Do not use static ctor, ensure beforefieldinit.
         private static readonly short* _sizes = TypeEnumHelper.Sizes;
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public bool Equals(TypeEnumOrFixedSize other)
+        {
+            return _value == other._value;
+        }
+
+        public override bool Equals(object obj)
+        {
+            if (ReferenceEquals(null, obj)) return false;
+            return obj is TypeEnumOrFixedSize other && Equals(other);
+        }
+
+        public override int GetHashCode()
+        {
+            return _value.GetHashCode();
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static bool operator ==(TypeEnumOrFixedSize x, TypeEnumOrFixedSize y)
+        {
+            return x.Equals(y);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static bool operator !=(TypeEnumOrFixedSize x, TypeEnumOrFixedSize y)
+        {
+            return !x.Equals(y);
+        }
+
+
+        public override string ToString()
+        {
+            return $"{TypeEnum} - [{Size}]";
+        }
     }
 }

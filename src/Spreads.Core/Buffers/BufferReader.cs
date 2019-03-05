@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 
 namespace Spreads.Buffers
 {
@@ -54,7 +55,7 @@ namespace Spreads.Buffers
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public T DangerousRead2<T>() where T : unmanaged
         {
-            var value = Unsafe.ReadUnaligned<T>(ref _span[_offset]);
+            var value = Unsafe.ReadUnaligned<T>(ref Unsafe.AddByteOffset(ref MemoryMarshal.GetReference(_span), (IntPtr)_offset));
             _offset += Unsafe.SizeOf<T>();
             return value;
         }
