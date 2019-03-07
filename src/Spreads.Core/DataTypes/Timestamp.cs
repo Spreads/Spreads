@@ -12,6 +12,11 @@ using System.Runtime.InteropServices;
 namespace Spreads.DataTypes
 {
     // TODO JS serialization: [seconds, nanos] or [millis, nanos] or just float?
+    // Store as decimal seconds
+    // microtime has such format with micros, JS will just drop nanos precision,
+    // but the other way values produced by microtime are read as decimals and 
+    // multiplied by 10e9.
+
 
     /// <summary>
     /// A Timestamp stored as nanos since Unix epoch as Int64.

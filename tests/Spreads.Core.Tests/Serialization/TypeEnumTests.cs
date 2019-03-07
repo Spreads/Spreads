@@ -17,6 +17,55 @@ namespace Spreads.Core.Tests.Serialization
     [TestFixture]
     public class TypeEnumTests
     {
+        [StructLayout(LayoutKind.Sequential, Pack = 8)]
+        private struct Symbol256xLong
+        {
+            public Symbol256 Symbol256;
+            public long Long;
+        }
+
+        [StructLayout(LayoutKind.Sequential, Pack = 8)]
+        private struct Symbol128Wrapper
+        {
+            public Symbol128 Symbol128;
+        }
+
+        [Test]
+        public void LargeFixedSize()
+        {
+            var header = TypeEnumHelper<Symbol256xLong>.DataTypeHeader;
+
+            Assert.AreEqual(TypeEnumEx.FixedSize, header.TEOFS.TypeEnum);
+            Assert.AreEqual(256 + 8, header.FixedSizeSize);
+
+            var size = TypeEnumHelper<Symbol256xLong>.FixedSize;
+            Assert.AreEqual(256 + 8, size);
+        }
+
+        [Test]
+        public void MaxInlinedFixedSize()
+        {
+            var header = TypeEnumHelper<Symbol128Wrapper>.DataTypeHeader;
+
+            Assert.AreEqual(128, header.TEOFS.Size);
+            Assert.AreEqual(0, header.FixedSizeSize);
+
+            var size = TypeEnumHelper<Symbol128Wrapper>.FixedSize;
+            Assert.AreEqual(128, size);
+        }
+
+        [Test]
+        public void Symbol256Size()
+        {
+            var header = TypeEnumHelper<Symbol256>.DataTypeHeader;
+
+            Assert.AreEqual(TypeEnumEx.Symbol256, header.TEOFS.TypeEnum);
+            Assert.AreEqual(256, header.FixedSizeSize);
+
+            var size = TypeEnumHelper<Symbol256>.FixedSize;
+            Assert.AreEqual(256, size);
+        }
+
         [Test]
         public void CouldGetUnknownFixedSize()
         {
