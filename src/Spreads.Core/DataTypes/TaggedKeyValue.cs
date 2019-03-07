@@ -12,7 +12,7 @@ namespace Spreads.DataTypes
 {
     // It is Tuple3 from serialization point of view and has custom binary converter.
 
-    [StructLayout(LayoutKind.Auto)]
+    [StructLayout(LayoutKind.Sequential, Pack = 1)]
     public readonly struct TaggedKeyValue<TKey, TValue> : IEquatable<TaggedKeyValue<TKey, TValue>>
     {
         [DataMember(Name = "t", Order = 0)]
