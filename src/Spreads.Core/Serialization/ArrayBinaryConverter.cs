@@ -11,16 +11,16 @@ using static System.Runtime.CompilerServices.Unsafe;
 
 namespace Spreads.Serialization
 {
-    internal static class ArrayConverterFactory
+    internal static class ArraySerializerFactory
     {
         public static IBinarySerializer<TElement[]> GenericCreate<TElement>()
         {
-            return new ArrayBinarySerializer<TElement>();
+            return new ArraySerializer<TElement>();
         }
 
         public static object Create(Type type)
         {
-            var method = typeof(ArrayConverterFactory).GetTypeInfo().GetMethod(nameof(GenericCreate));
+            var method = typeof(ArraySerializerFactory).GetTypeInfo().GetMethod(nameof(GenericCreate));
             var generic = method?.MakeGenericMethod(type);
             return generic?.Invoke(null, null);
         }
@@ -29,13 +29,13 @@ namespace Spreads.Serialization
     /// <summary>
     /// Simple copy of blittable array data. No shuffle.
     /// </summary>
-    internal class ArrayBinarySerializer<TElement> : IBinarySerializer<TElement[]>
+    internal class ArraySerializer<TElement> : IBinarySerializer<TElement[]>
     {
-        internal static ArrayBinarySerializer<TElement> Instance =
-            new ArrayBinarySerializer<TElement>();
+        internal static ArraySerializer<TElement> Instance =
+            new ArraySerializer<TElement>();
 
         // This is special, TypeHelper is aware of it (for others version must be > 0)
-        public byte ConverterVersion
+        public byte SerializerVersion
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => 0;

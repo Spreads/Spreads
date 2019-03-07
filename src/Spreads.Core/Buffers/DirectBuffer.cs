@@ -40,6 +40,7 @@ namespace Spreads.Buffers
         /// </summary>
         /// <param name="data">Unmanaged byte buffer</param>
         /// <param name="length">Length of the buffer</param>
+        [DebuggerStepThrough]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public DirectBuffer(long length, IntPtr data)
         {
@@ -58,6 +59,7 @@ namespace Spreads.Buffers
         /// <summary>
         /// Unsafe constructors performs no input checks.
         /// </summary>
+        [DebuggerStepThrough]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public DirectBuffer(long length, byte* pointer)
         {
@@ -65,6 +67,7 @@ namespace Spreads.Buffers
             _pointer = pointer;
         }
 
+        [DebuggerStepThrough]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public DirectBuffer(RetainedMemory<byte> retainedMemory)
         {
@@ -81,6 +84,7 @@ namespace Spreads.Buffers
 
         public bool IsValid
         {
+            [DebuggerStepThrough]
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => _pointer != null;
         }
@@ -88,10 +92,12 @@ namespace Spreads.Buffers
         // TODO review: empty could be a result from Slice and perfectly valid, so it is not the same as IsValid which checks pointer.
         public bool IsEmpty
         {
+            [DebuggerStepThrough]
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => _length == 0;
         }
 
+        [DebuggerStepThrough]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool IsFilledWithValue(byte value)
         {
@@ -100,6 +106,7 @@ namespace Spreads.Buffers
 
         public Span<byte> Span
         {
+            [DebuggerStepThrough]
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => new Span<byte>(_pointer, (int)_length);
         }
@@ -109,18 +116,21 @@ namespace Spreads.Buffers
         /// </summary>
         public int Length
         {
+            [DebuggerStepThrough]
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => checked((int)_length);
         }
 
         public long LongLength
         {
+            [DebuggerStepThrough]
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => _length;
         }
 
         public byte* Data
         {
+            [DebuggerStepThrough]
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => _pointer;
         }
@@ -128,11 +138,13 @@ namespace Spreads.Buffers
         // for cases when unsafe is not allowed, e.g. async
         public IntPtr IntPtr
         {
+            [DebuggerStepThrough]
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => (IntPtr)_pointer;
         }
 
         [Pure]
+        [DebuggerStepThrough]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public DirectBuffer Slice(long start)
         {
@@ -143,6 +155,7 @@ namespace Spreads.Buffers
         }
 
         [Pure]
+        [DebuggerStepThrough]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public DirectBuffer Slice(long start, long length)
         {
@@ -152,6 +165,7 @@ namespace Spreads.Buffers
             return new DirectBuffer(length, _pointer + start);
         }
 
+        [DebuggerStepThrough]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal void Assert(long index, long length)
         {
@@ -658,8 +672,9 @@ namespace Spreads.Buffers
         /// Unaligned read starting from index.
         /// A shortcut to <see cref="Unsafe.ReadUnaligned{T}(void*)"/>.
         /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         [Pure]
+        [DebuggerStepThrough]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public T Read<T>(long index)
         {
             if (AdditionalCorrectnessChecks.Enabled)
@@ -670,25 +685,10 @@ namespace Spreads.Buffers
             return ReadUnaligned<T>(_pointer + index);
         }
 
-        /// <summary>
-        /// Unaligned read starting from index.
-        /// A shortcut to <see cref="Unsafe.ReadUnaligned{T}(void*)"/>.
-        /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        [Pure]
-        [Obsolete("Use SizeOf<T> and Read<T>")]
-        public int Read<T>(long index, out T value)
-        {
-            var size = SizeOf<T>();
-            if (AdditionalCorrectnessChecks.Enabled)
-            { Assert(index, size); }
-            value = ReadUnaligned<T>(_pointer + index);
-            return size;
-        }
-
 #pragma warning restore 1574
 #pragma warning restore 1584
 
+        [DebuggerStepThrough]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Write<T>(long index, T value)
         {
@@ -697,6 +697,7 @@ namespace Spreads.Buffers
             WriteUnaligned(_pointer + index, value);
         }
 
+        [DebuggerStepThrough]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Clear(long index, int length)
         {
@@ -706,6 +707,7 @@ namespace Spreads.Buffers
             InitBlockUnaligned(destination, 0, (uint)length);
         }
 
+        [DebuggerStepThrough]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Fill(long index, int length, byte value)
         {
@@ -716,8 +718,9 @@ namespace Spreads.Buffers
         }
 
 #if SPREADS
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+
         [Pure]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         // ReSharper disable once InconsistentNaming
         public DataTypes.UUID ReadUUID(long index)
         {
@@ -734,6 +737,7 @@ namespace Spreads.Buffers
             { Assert(index, 16); }
             WriteUnaligned(_pointer + index, value);
         }
+
 #endif
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

@@ -26,7 +26,7 @@ namespace Spreads.Serialization.Experimental
         public TypeEnumOrFixedSize(TypeEnumEx typeEnum)
         {
             var value = (byte)typeEnum;
-            if (value >= MaxTypeEnum) // LE to exclude virtual FixedBinary
+            if (value > MaxTypeEnum)
             {
                 SerializationThrowHelper.ThrowBadTypeEnum(value);
             }
@@ -45,10 +45,10 @@ namespace Spreads.Serialization.Experimental
             _value = (byte)(UnknownFixedSizeFlag | value);
         }
 
-        public int Size
+        public short Size
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => GetSize(_value);
+            get => TypeEnumHelper.GetSize(_value);
         }
 
         public TypeEnumEx TypeEnum
@@ -63,41 +63,6 @@ namespace Spreads.Serialization.Experimental
                 return (TypeEnumEx)_value;
             }
         }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static int GetSize(byte typeEnumValue)
-        {
-            // Branchless is 3-5x slower and we pay the cost always.
-            // Our goal is not to pay anything for known scalars
-            // and the first 32 of them fit 1 cache line.
-            // For other types we are OK with L1 miss or branch mis-prediction,
-            // but only full lookup table does not impact known scalars.
-            // L1 miss is less or ~same as wrong branch.
-
-            #region Branchless
-
-            // Interesting technique if we could often have L2 misses, but here it is slower than lookup.
-
-            //var localSized = stackalloc int[4];
-            //var val7Bit = (typeEnumValue & 0b_0111_1111) * (typeEnumValue >> 7);
-            //// 00 - known scalar type
-            //localSized[0] = _sizes[typeEnumValue & 0b_0011_1111]; // in L1
-            //// 01 - var size or container
-            //localSized[1] = -1;
-            //// 10 - fixed size < 65
-            //localSized[2] = (short)val7Bit;
-            //// 11 fixed size [65;128]
-            //localSized[3] = (short)val7Bit;
-            //var localIdx = (typeEnumValue & 0b_1100_0000) >> 6;
-            //return localSized[localIdx];
-
-            #endregion Branchless
-
-            return _sizes[typeEnumValue];
-        }
-
-        // Do not use static ctor, ensure beforefieldinit.
-        private static readonly short* _sizes = TypeEnumHelper.Sizes;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool Equals(TypeEnumOrFixedSize other)
@@ -127,7 +92,6 @@ namespace Spreads.Serialization.Experimental
         {
             return !x.Equals(y);
         }
-
 
         public override string ToString()
         {

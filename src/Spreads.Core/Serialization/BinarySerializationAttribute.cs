@@ -29,7 +29,7 @@ namespace Spreads.Serialization
 
         public BinarySerializationAttribute(int blittableSize = 0, bool preferBlittable = false)
         {
-            if (blittableSize <= 0 || blittableSize > 255)
+            if (!preferBlittable && (blittableSize <= 0 || blittableSize > 256))
             {
                 Environment.FailFast("SerializationAttribute: blittableSize <= 0 || blittableSize > 255");
             }

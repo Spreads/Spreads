@@ -6,6 +6,7 @@ using Spreads.Buffers;
 using Spreads.Serialization.Utf8Json;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
+using Spreads.Serialization.Experimental;
 
 namespace Spreads.Serialization
 {
@@ -21,7 +22,7 @@ namespace Spreads.Serialization
         // This is not a "binary" converter, but a fallback with the same interface
         public static JsonBinarySerializer<T> Instance = new JsonBinarySerializer<T>();
 
-        public byte ConverterVersion
+        public byte SerializerVersion
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => 0;
@@ -30,11 +31,11 @@ namespace Spreads.Serialization
         public static int SizeOf(T value, out RetainedMemory<byte> temporaryBuffer, out bool withPadding)
         {
             // offset 16 to allow writing header + length + ts without copy
-            Debug.Assert(DataTypeHeader.Size + 4 + 8 == 16);
-            Debug.Assert(BinarySerializer.BC_PADDING == 16);
-            temporaryBuffer = JsonSerializer.SerializeToRetainedMemory(value, BinarySerializer.BC_PADDING);
+            Debug.Assert(DataTypeHeaderEx.Size + 4 + 8 == 16);
+            Debug.Assert(BinarySerializer.HEADER_PADDING == 16);
+            temporaryBuffer = JsonSerializer.SerializeToRetainedMemory(value, BinarySerializer.HEADER_PADDING);
             withPadding = true;
-            return temporaryBuffer.Length - BinarySerializer.BC_PADDING;
+            return temporaryBuffer.Length - BinarySerializer.HEADER_PADDING;
         }
 
         int IBinarySerializer<T>.SizeOf(T value, out RetainedMemory<byte> temporaryBuffer, out bool withPadding)
@@ -49,14 +50,14 @@ namespace Spreads.Serialization
             try
             {
                 // in general buffer could be empty/default if size is known, but not with Json
-                ThrowHelper.AssertFailFast(size == retainedMemory.Length - BinarySerializer.BC_PADDING, "size == buffer.Count");
+                ThrowHelper.AssertFailFast(size == retainedMemory.Length - BinarySerializer.HEADER_PADDING, "size == buffer.Count");
 
                 if (size > destination.Length)
                 {
                     return (int)BinarySerializerErrorCode.NotEnoughCapacity;
                 }
 
-                retainedMemory.Span.Slice(BinarySerializer.BC_PADDING).CopyTo(destination.Span);
+                retainedMemory.Span.Slice(BinarySerializer.HEADER_PADDING).CopyTo(destination.Span);
 
                 return size;
             }

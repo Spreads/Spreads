@@ -78,7 +78,7 @@ namespace Spreads.Core.Tests.Serialization
 
             internal readonly struct Serializer : IBinarySerializer<SampleStruct>
             {
-                public byte ConverterVersion
+                public byte SerializerVersion
                 {
                     [MethodImpl(MethodImplOptions.AggressiveInlining)]
                     get => 1;

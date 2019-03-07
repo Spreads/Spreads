@@ -42,7 +42,7 @@ namespace Spreads.Serialization
         /// <summary>
         /// Version of the converter. 15 (4 bits) max.
         /// </summary>
-        byte ConverterVersion { get; }
+        byte SerializerVersion { get; }
 
         // TODO docs are outdated even for signature
         /// <summary>
