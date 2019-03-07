@@ -260,6 +260,7 @@ namespace Spreads.Buffers
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public override unsafe Span<T> GetSpan()
         {
             if (_isPooled)

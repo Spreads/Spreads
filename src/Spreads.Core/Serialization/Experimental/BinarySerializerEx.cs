@@ -253,7 +253,7 @@ namespace Spreads.Serialization.Experimental
             SerializationFormat format = default,
             Timestamp timestamp = default)
         {
-            IBinarySerializerEx<T> tbs = null;
+            IBinarySerializerEx<T> tbs = TypeHelper<T>.BinarySerializerEx;
 
             // if fixed & binary just write
             if (format.IsBinary())
@@ -271,19 +271,20 @@ namespace Spreads.Serialization.Experimental
                     DataTypeHeaderEx header = TypeEnumHelper<T>.DefaultBinaryHeader;
                     header.VersionAndFlags.IsTimestamped = hasTs;
                     var existingHeader = headerDestination;
-                    if (existingHeader != default)
+                    if (existingHeader == default)
+                    {
+                        headerDestination = header;
+                    }
+                    else
                     {
                         if (existingHeader != header)
                         {
                             return (int)BinarySerializerErrorCode.HeaderMismatch;
                         }
                     }
-                    else
-                    {
-                        headerDestination = header;
-                    }
 
 #if BRANCHLESS
+                    // 30 (branchless) vs 37 (100% predicted)
                     // TODO: if this does not hurt non-branching bench a lot keep it.
                     // It's hard to make a reliable benchmark with branch misprediction,
                     // there is some in tests
@@ -293,21 +294,31 @@ namespace Spreads.Serialization.Experimental
                     Debug.Assert(hasTs ? (byte*)target == destination.Data : (byte*)target == VoidWrite);
                     *target = timestamp;
 #else
-                    int pos;
+                    int pos = 0;
                     if (hasTs)
                     {
                         pos = 8;
                         destination.Write(0, timestamp);
                     }
+#endif
+                    if (tbs == null)
+                    {
+                        Debug.Assert(TypeHelper<T>.IsFixedSize);
+                        destination.Write(pos, value);
+                    }
                     else
                     {
-                        pos = 0;
+                        tbs.Write(value, destination.Slice(pos));
                     }
-#endif
-                    destination.Write(pos, value);
+
+                    return pos + TypeEnumHelper<T>.FixedSize;
                 }
                 // Use custom TypeHelper<T>.BinaryConverter only when asked for isBinary
-                tbs = TypeHelper<T>.BinarySerializerEx ?? JsonBinarySerializerEx<T>.Instance;
+                tbs = tbs ?? JsonBinarySerializerEx<T>.Instance;
+            }
+            else
+            {
+                tbs = JsonBinarySerializerEx<T>.Instance;
             }
 
             return WriteVarSizeOrJson(value, ref headerDestination, destination, temporaryBuffer, format, timestamp, tbs);
@@ -376,9 +387,7 @@ namespace Spreads.Serialization.Experimental
                 // TODO should use info from header + asserts,
                 if (tbs.FixedSize > 0)
                 {
-                    var written = tbs.Write(value, destination.Slice(offset));
-                    Debug.Assert(written == tbs.FixedSize);
-                    return offset + written;
+                    ThrowHelper.FailFast("Fixed case");
                 }
 
                 destination.Write(offset, temporaryBuffer.Length);
@@ -515,6 +524,7 @@ namespace Spreads.Serialization.Experimental
             if (header.VersionAndFlags.IsBinary && headerFs > 0) // IsFixedSize not possible with compression
             {
                 // TODO sort out asserts, some conditions need fail fast
+                // all these checks are non negligible
                 Debug.Assert(TypeEnumHelper<T>.FixedSize == headerFs);
                 if ((!TypeEnumHelper<T>.IsFixedSize || TypeEnumHelper<T>.FixedSize > source.Length)
                     ||
@@ -525,8 +535,6 @@ namespace Spreads.Serialization.Experimental
                     timestamp = default;
                     return -1;
                 }
-
-                // TODO try branchless
 
                 var versionAndFlags = header.VersionAndFlags;
                 var tsSize = 0;
@@ -709,72 +717,5 @@ namespace Spreads.Serialization.Experimental
             }
 #pragma warning restore 618
         }
-
-        #region Experiments
-
-        //// branchless reads
-
-        //[MethodImpl(MethodImplOptions.AggressiveInlining)]
-        //internal static int TsSize(Timestamp ts)
-        //{
-        //    var isNonDefault = (long)ts != default;
-        //    var size = (*(byte*)&isNonDefault << 3); // 1 << 3 = 8 or zero
-        //    return size;
-        //}
-
-        //[MethodImpl(MethodImplOptions.AggressiveInlining)]
-        //internal static Timestamp ReadTimestamp(byte* ptr, out int payloadOffset)
-        //{
-        //    var isVarSize = *(ptr + 2) == 0;
-        //    var offset = DataTypeHeader.Size + (*(byte*)&isVarSize << 2); // 4 for varsize or 0 for fixed size
-        //    long tsLen = VersionAndFlags.TimestampFlagMask & *ptr;
-
-        //    var tsMask = ~((tsLen >> 3) - 1); // all 1s or 0s
-
-        //    // the only requirment if ptr + offset + 8 not causing segfault.
-        //    var timestamp = (Timestamp)(tsMask & ReadUnaligned<long>(ptr + offset));
-
-        //    payloadOffset = offset + (int)tsLen;
-        //    return timestamp;
-        //}
-
-        //[ThreadStatic]
-        //private static decimal placeHolder;
-
-        //[Obsolete]
-        //[MethodImpl(MethodImplOptions.AggressiveInlining)]
-        //internal static Timestamp ReadTimestamp2(byte* ptr, out int payloadOffset)
-        //{
-        //    var x = AsPointer(ref placeHolder);
-        //    // store pointers in the first 16 bytes of the shared thread-static buffer
-        //    //var bptr = default(decimal);
-        //    //var sharedPtr = (void*)&bptr;
-        //    //if (sharedPtr == (void*) IntPtr.Zero)
-        //    //{
-        //    //    sharedPtr = BufferPool.StaticBufferMemory.Pointer;
-        //    //}
-        //    var ptrXX = (byte**)x; // (byte**)sharedPtr;
-        //    long ts = default;
-        //    // ()ptrXX = &ts
-
-        //    // var ptrX = stackalloc Timestamp*[2];
-        //    // we need ANY pointer that does not segfault on read
-        //    *ptrXX = (byte*)(x) + 8; // (byte*)&ts;
-
-        //    var isVarSize = *(ptr + 2) == 0;
-        //    var offset = 4 << *(int*)(byte*)&isVarSize; // + (*(byte*)&isVarSize << 2); // 4 for varsize or 0 for fixed size
-        //    long tsLen = VersionAndFlags.TimestampFlagMask & *ptr;
-
-        //    *(ptrXX + 8) = (byte*)(ptr + offset);
-
-        //    var hasTs = tsLen;
-        //    var ptrToDeref = *(ptrXX + hasTs);
-        //    ts = Volatile.Read(ref *(long*)(ptrToDeref));
-
-        //    payloadOffset = offset + (int)tsLen;
-        //    return (Timestamp)ts;
-        //}
-
-        #endregion Experiments
     }
 }

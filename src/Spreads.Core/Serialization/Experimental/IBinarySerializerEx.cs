@@ -24,22 +24,6 @@ namespace Spreads.Serialization.Experimental
         /// </summary>
         byte KnownTypeId { get; }
 
-        ///// <summary>
-        ///// Keep false.
-        ///// </summary>
-        ///// <remarks>
-        ///// True if implementation of <see cref="SizeOf"/> returns a temporaryBuffer
-        ///// that is padded with at least 16 bytes that could be used to write a header and optional timestamp.
-        ///// This allows to avoid a copy when writing a value payload after a header and a timestamp,
-        ///// which could be written in place.
-        ///// Keep it as false if you are not exactly sure what is going on - very bad things (segfaults, data corruption)
-        ///// could happen if this is implemented incorrectly.
-        ///// See <see cref="JsonBinarySerializerEx{T}"/> source code as an example.
-        ///// <see cref="RetainedMemory{T}.Slice(int)"/> with 16 is enough to create padding.
-        ///// </remarks>
-        //[Obsolete]
-        //bool IsTempBufferPadded { get; }
-
         short FixedSize { get; }
 
         /// <summary>
@@ -98,14 +82,12 @@ namespace Spreads.Serialization.Experimental
 
         public short FixedSize => -1;
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int SizeOf(T value, out RetainedMemory<byte> temporaryBuffer)
         {
-            // offset 16 to allow writing header + length + ts without copy
-            Debug.Assert(DataTypeHeaderEx.Size + 4 + 8 == 16);
-            Debug.Assert(BinarySerializerEx.HEADER_PADDING == 16);
-            temporaryBuffer = JsonSerializer.SerializeToRetainedMemory(value, BinarySerializerEx.HEADER_PADDING);
-            temporaryBuffer = temporaryBuffer.Slice(BinarySerializerEx.HEADER_PADDING);
-            return temporaryBuffer.Length - BinarySerializerEx.HEADER_PADDING;
+            temporaryBuffer = JsonSerializer.SerializeToRetainedMemory(value);
+            Debug.Assert(temporaryBuffer._manager.IsPoolable, "SerializeToRetainedMemory must return poolable buffer.");
+            return temporaryBuffer.Length;
         }
 
         int IBinarySerializerEx<T>.SizeOf(T value, out RetainedMemory<byte> temporaryBuffer)
@@ -113,6 +95,7 @@ namespace Spreads.Serialization.Experimental
             return SizeOf(value, out temporaryBuffer);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int Write(T value, in DirectBuffer destination)
         {
             var size = SizeOf(value, out var retainedMemory);
@@ -141,27 +124,12 @@ namespace Spreads.Serialization.Experimental
             return Write(value, in destination);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int Read(in DirectBuffer source, out T value)
         {
-            //if (MemoryMarshal.TryGetArray(source, out var segment))
-            //{
-            //    var reader = new JsonReader(segment.Array, segment.Offset);
-            //    value = JsonSerializer.Deserialize<T>(ref reader);
-            //    return reader.GetCurrentOffsetUnsafe();
-            //}
-
-            // var buffer = BufferPool<byte>.Rent(checked((int)(uint)source.Length));
-            //try
-            //{
-            // source.Span.CopyTo(((Span<byte>)buffer));
             var reader = new JsonReader(source);
             value = JsonSerializer.Deserialize<T>(ref reader);
             return reader.GetCurrentOffsetUnsafe();
-            //}
-            //finally
-            //{
-            //    BufferPool<byte>.Return(buffer);
-            //}
         }
 
         int IBinarySerializerEx<T>.Read(DirectBuffer source, out T value)

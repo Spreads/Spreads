@@ -88,9 +88,11 @@ namespace Spreads.Serialization.Experimental
             return FixedSizeComposite();
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining
 #if NETCOREAPP3_0
-        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+         | MethodImplOptions.AggressiveOptimization
 #endif
+        )]
         private int FixedSizeComposite()
         {
             var te = TEOFS.TypeEnum;
@@ -280,6 +282,7 @@ namespace Spreads.Serialization.Experimental
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool Equals(DataTypeHeaderEx other)
         {
             return Unsafe.As<DataTypeHeaderEx, int>(ref Unsafe.AsRef(in this)) == Unsafe.As<DataTypeHeaderEx, int>(ref other);
