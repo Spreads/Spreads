@@ -288,7 +288,7 @@ namespace Spreads.Serialization.Experimental
         public byte KnownTypeId => 0;
 
         // ReSharper disable once StaticMemberInGenericType
-        private static readonly short FixedSizeInternal = CalculateFixedSize();
+        internal static readonly short FixedSizeInternal = CalculateFixedSize();
 
         private static short CalculateFixedSize()
         {
@@ -461,25 +461,29 @@ namespace Spreads.Serialization.Experimental
 
             public byte KnownTypeId => 0;
 
-            public short FixedSize => TuplePackSerializer<byte, T1, T2>.Instance.FixedSize;
+            public short FixedSize
+            {
+                [MethodImpl(MethodImplOptions.AggressiveInlining)]
+                get => TuplePackSerializer<byte, T1, T2>.FixedSizeInternal;
+            }
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public int SizeOf(TaggedKeyValue<T1, T2> value, out RetainedMemory<byte> temporaryBuffer)
             {
-                return TuplePackSerializer<byte, T1, T2>.Instance.SizeOf(new TuplePack<byte, T1, T2>((value.Tag, value.Key, value.Value)), out temporaryBuffer);
+                return TuplePackSerializer<byte, T1, T2>.Instance.SizeOf(Unsafe.As<TaggedKeyValue<T1, T2>, TuplePack<byte, T1, T2>>(ref value), out temporaryBuffer);
             }
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public int Write(TaggedKeyValue<T1, T2> value, DirectBuffer destination)
             {
-                return TuplePackSerializer<byte, T1, T2>.Instance.Write(new TuplePack<byte, T1, T2>((value.Tag, value.Key, value.Value)), destination);
+                return TuplePackSerializer<byte, T1, T2>.Instance.Write(Unsafe.As<TaggedKeyValue<T1, T2>, TuplePack<byte, T1, T2>>(ref value), destination);
             }
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public int Read(DirectBuffer source, out TaggedKeyValue<T1, T2> value)
             {
                 var readBytes = TuplePackSerializer<byte, T1, T2>.Instance.Read(source, out var tp);
-                value = new TaggedKeyValue<T1, T2>(tp.Item2, tp.Item3, tp.Item1);
+                value = Unsafe.As< TuplePack<byte, T1, T2>, TaggedKeyValue<T1, T2>>(ref tp);
                 return readBytes;
             }
         }

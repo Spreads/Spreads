@@ -370,20 +370,18 @@ namespace Spreads.Serialization.Experimental
                 if (hasTs)
                 {
                     offset = Timestamp.Size;
-                    destination.Write(0, timestamp);
-                    destination.Write(Timestamp.Size, temporaryBuffer.Length);
-                }
-                else
-                {
-                    destination.Write(0, temporaryBuffer.Length);
+                    destination.Write(0, (long)timestamp);
                 }
 
+                // TODO should use info from header + asserts,
                 if (tbs.FixedSize > 0)
                 {
                     var written = tbs.Write(value, destination.Slice(offset));
                     Debug.Assert(written == tbs.FixedSize);
                     return offset + written;
                 }
+
+                destination.Write(offset, temporaryBuffer.Length);
 
                 offset += 4; // var len payload size
 
