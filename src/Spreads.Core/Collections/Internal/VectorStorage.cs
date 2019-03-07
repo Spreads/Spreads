@@ -459,9 +459,12 @@ namespace Spreads.Collections.Internal
         }
     }
 
+    // TODO fallback to ArrayWrapperSerializer with params
+    // TODO do not throw not supported, just do not register a binary serializer
+    // and add Json formatter.
     internal struct VectorStorageSerializer<T> : IBinarySerializer<VectorStorage<T>>
     {
-        public byte ConverterVersion => 0;
+        public byte SerializerVersion => 0;
 
         public int SizeOf(VectorStorage<T> value, out RetainedMemory<byte> temporaryBuffer, out bool withPadding)
         {

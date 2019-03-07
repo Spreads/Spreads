@@ -4,13 +4,14 @@
 
 using Spreads.Buffers;
 using Spreads.DataTypes;
+using Spreads.Native;
+using Spreads.Serialization.Experimental;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using Spreads.Native;
 using static System.Runtime.CompilerServices.Unsafe;
 
 #pragma warning disable HAA0101 // Array allocation for params parameter
@@ -81,6 +82,7 @@ namespace Spreads.Serialization
             return TypeHelper<T>.FixedSize;
         }
 
+        [Obsolete("This must go to TEH")]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static int GetSize(Type ty)
         {
@@ -103,6 +105,10 @@ namespace Spreads.Serialization
         // static TypeHelper() { }
 
         internal static IBinarySerializer<T> BinarySerializer;
+        internal static IBinarySerializerEx<T> BinarySerializerEx;
+
+        // ReSharper disable once StaticMemberInGenericType
+        internal static bool IsInternalBinarySerializerEx;
 
         public static bool HasBinarySerializer
         {
@@ -118,18 +124,22 @@ namespace Spreads.Serialization
         /// an array of KVP[DateTime,double], which has contiguous layout in memory.
         /// </summary>
         // ReSharper disable once StaticMemberInGenericType
+        [Obsolete("Definition of this implementation is blurry. Use PinnedSize for concrete type T as fall back to determine fixed blittable structs and TypeEnumHelper for recursive more liable size estimation.")]
         public static readonly int FixedSize = InitChecked();
-
 
         // NOTE: PinnedSize simply tries to pin via GCHandle.
         // FixedSize could be positive for non-pinnable structs with auto layout (e.g. DateTime)
         // but it is opt-in and requires an attribute to treat a custom blittable type as fixed.
 
+        // ReSharper disable once StaticMemberInGenericType
+        public static readonly short PinnedSize = GetPinnedSize();
+
         /// <summary>
         /// True if an array T[] could be pinned in memory.
         /// </summary>
         // ReSharper disable once StaticMemberInGenericType
-        public static readonly bool IsPinnable = PinnedSize() > 0 || FixedSize > 0;
+        public static readonly bool IsPinnable = PinnedSize > 0
+                                                 || FixedSize > 0; // TODO WTF it could be fixed but not pinnable
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int EnsureFixedSize()
@@ -171,9 +181,8 @@ namespace Spreads.Serialization
         /// </summary>
         public static readonly bool IsIDelta = typeof(IDelta<T>).GetTypeInfo().IsAssignableFrom(typeof(T));
 
-        
-
         // ReSharper disable once StaticMemberInGenericType
+        [Obsolete]
         public static readonly bool IsFixedSize = FixedSize > 0;
 
         private static TypeEnum InitTypeEnum()
@@ -221,6 +230,7 @@ namespace Spreads.Serialization
 #endif
         }
 
+        [Obsolete]
         internal static readonly DataTypeHeader DefaultBinaryHeader = new DataTypeHeader
         {
 #if SPREADS
@@ -236,6 +246,7 @@ namespace Spreads.Serialization
 #endif
         };
 
+        [Obsolete]
         internal static readonly DataTypeHeader DefaultBinaryHeaderWithTs = new DataTypeHeader
         {
             VersionAndFlags =
@@ -269,7 +280,10 @@ namespace Spreads.Serialization
             }
         }
 
-        private static int PinnedSize()
+        /// <summary>
+        /// Distance between two elements of a pinned array.
+        /// </summary>
+        private static short GetPinnedSize()
         {
             try
             {
@@ -283,7 +297,7 @@ namespace Spreads.Serialization
                 // Here we just cross-check, happens only in static constructor
                 var unsafeSize = SizeOf<T>();
                 if (unsafeSize != size) { ThrowHelper.FailFast("Pinned and unsafe sizes differ!"); }
-                return size;
+                return (short)size;
             }
             catch
             {
@@ -307,9 +321,9 @@ namespace Spreads.Serialization
                 return 16;
             }
 
-            var pinnedSize = PinnedSize();
+            var pinnedSize = GetPinnedSize();
 
-            var sa = BinarySerializationAttribute.GetSerializationAttribute(typeof(T));
+            var bsAttr = BinarySerializationAttribute.GetSerializationAttribute(typeof(T));
 
             if (pinnedSize > 0)
             {
@@ -321,17 +335,17 @@ namespace Spreads.Serialization
                 // for a non-primitive type to be blittable, it must have an attribute
 
                 var hasSizeAttribute = false;
-                if (sa != null && sa.BlittableSize > 0)
+                if (bsAttr != null && bsAttr.BlittableSize > 0)
                 {
-                    if (pinnedSize != sa.BlittableSize)
+                    if (pinnedSize != bsAttr.BlittableSize)
                     {
-                        Environment.FailFast(
-                            $"Size of type {typeof(T).FullName} defined in SerializationAttribute {sa.BlittableSize} differs from calculated size {pinnedSize}.");
+                        ThrowHelper.ThrowInvalidOperationException(
+                            $"Size of type {typeof(T).FullName} defined in SerializationAttribute {bsAttr.BlittableSize} differs from calculated size {pinnedSize}.");
                     }
 
-                    if (sa.ConverterType != null)
+                    if (bsAttr.ConverterType != null)
                     {
-                        Environment.FailFast(
+                        ThrowHelper.ThrowInvalidOperationException(
                             $"Cannot define BlittableSize and ConverterType at the same time in Serialization attribute of type {typeof(T).FullName}.");
                     }
                     hasSizeAttribute = true;
@@ -343,7 +357,7 @@ namespace Spreads.Serialization
                     {
                         if (pinnedSize != sla.Size || sla.Value == LayoutKind.Auto)
                         {
-                            Environment.FailFast(
+                            ThrowHelper.ThrowInvalidOperationException(
                                 $"Size of type {typeof(T).Name} defined in StructLayoutAttribute {sla.Size} differs from calculated size {pinnedSize} or layout is set to LayoutKind.Auto.");
                         }
                         hasSizeAttribute = true;
@@ -356,11 +370,11 @@ namespace Spreads.Serialization
                         // NB: this makes no sense, because blittable is version 0, if we have any change
                         // to struct layout later, we won't be able to work with version 0 anymore
                         // and will lose ability to work with old values.
-                        Environment.FailFast($"Blittable types must not implement IBinaryConverter<T> interface.");
+                        ThrowHelper.ThrowInvalidOperationException($"Blittable types must not implement IBinaryConverter<T> interface.");
                     }
                     return pinnedSize;
                 }
-                if (sa != null && sa.PreferBlittable)
+                if (bsAttr != null && bsAttr.PreferBlittable)
                 {
                     // NB: here it is OK to have an interface, we just opt-in for blittable
                     // when we know it won't change, e.g. generic struct with fixed fields (KV<K,V>, DictEntry<K,V>, Message<T>, etc.)
@@ -371,22 +385,22 @@ namespace Spreads.Serialization
 
             // by this line the type is not blittable
 
-            IBinarySerializer<T> serializer = null;
+            IBinarySerializerEx<T> serializer = null;
 
-            if (sa != null && sa.ConverterType != null)
+            if (bsAttr != null && bsAttr.ConverterType != null)
             {
-                if (!typeof(IBinarySerializer<T>).IsAssignableFrom(sa.ConverterType))
+                if (!typeof(IBinarySerializer<T>).IsAssignableFrom(bsAttr.ConverterType))
                 {
-                    Environment.FailFast($"ConverterType `{sa.ConverterType.FullName}` in Serialization attribute does not implement IBinaryConverter<T> for the type `{typeof(T).FullName}`");
+                    ThrowHelper.ThrowInvalidOperationException($"ConverterType `{bsAttr.ConverterType.FullName}` in Serialization attribute does not implement IBinaryConverter<T> for the type `{typeof(T).FullName}`");
                 }
 
                 try
                 {
-                    serializer = (IBinarySerializer<T>)Activator.CreateInstance(sa.ConverterType);
+                    serializer = (IBinarySerializerEx<T>)Activator.CreateInstance(bsAttr.ConverterType);
                 }
                 catch
                 {
-                    Environment.FailFast($"ConverterType `{sa.ConverterType.FullName}` must have a parameterless constructor.");
+                    ThrowHelper.ThrowInvalidOperationException($"ConverterType `{bsAttr.ConverterType.FullName}` must have a parameterless constructor.");
                 }
             }
 
@@ -394,7 +408,7 @@ namespace Spreads.Serialization
             // could implement IBinaryConverter<T> but still be blittable for certain types,
             // e.g. DateTime vs long in PersistentMap<K,V>.Entry
             //if (tmp is IBinaryConverter<T>) {
-            if (typeof(IBinarySerializer<T>).IsAssignableFrom(typeof(T)))
+            if (typeof(IBinarySerializerEx<T>).IsAssignableFrom(typeof(T)))
             {
                 if (serializer != null)
                 {
@@ -402,14 +416,14 @@ namespace Spreads.Serialization
                 }
                 try
                 {
-                    serializer = (IBinarySerializer<T>)Activator.CreateInstance<T>();
+                    serializer = (IBinarySerializerEx<T>)Activator.CreateInstance<T>();
                 }
                 catch
                 {
                     //Trace.TraceWarning($"Type {typeof(T).FullName} is marked as IBinaryConverter and so it must have a parameterless constructor");
                     Environment.FailFast($"Type T ({typeof(T).FullName}) is marked as IBinaryConverter<T> and therefore must have a parameterless constructor.");
                 }
-                if (serializer.ConverterVersion <= 0)
+                if (serializer.SerializerVersion <= 0)
                 {
                     Environment.FailFast("User IBinaryConverter<T> implementation for a type T should have a positive version.");
                 }
@@ -421,36 +435,126 @@ namespace Spreads.Serialization
             // /    BinaryConverter = (IBinaryConverter<T>)(new StringBinaryConverter());
             // /}
 #if SPREADS
-            // TODO
+            // TODO synchronize with TypeEnumHelper's GetTypeEnum and CreateTypeInfo
+
+            if (typeof(T).GetTypeInfo().IsGenericType &&
+                typeof(T).GetGenericTypeDefinition() == typeof(FixedArray<>))
+            {
+                var elementType = typeof(T).GetGenericArguments()[0];
+                var elementSize = TypeHelper.GetSize(elementType);
+                if (elementSize > 0)
+                { // only for blittable types
+                    serializer = (IBinarySerializerEx<T>)FixedArraySerializerFactory.Create(elementType);
+                }
+            }
+
+            #region Tuple2
+
+            if (typeof(T).GetTypeInfo().IsGenericType &&
+                typeof(T).GetGenericTypeDefinition() == typeof(KeyValuePair<,>))
+            {
+                var gArgs = typeof(T).GetGenericArguments();
+                var serializerTmp = (IBinarySerializerEx<T>)KvpSerializerFactory.Create(gArgs[0], gArgs[1]);
+                if (serializerTmp.FixedSize > 0)
+                {
+                    serializer = serializerTmp;
+                }
+            }
+
+            if (typeof(T).GetTypeInfo().IsGenericType &&
+                typeof(T).GetGenericTypeDefinition() == typeof(ValueTuple<,>))
+            {
+                var gArgs = typeof(T).GetGenericArguments();
+
+                var serializerTmp = (IBinarySerializerEx<T>)ValueTuple2SerializerFactory.Create(gArgs[0], gArgs[1]);
+                if (serializerTmp.FixedSize > 0)
+                {
+                    serializer = serializerTmp;
+                }
+            }
+
+            if (typeof(T).GetTypeInfo().IsGenericType &&
+                typeof(T).GetGenericTypeDefinition() == typeof(Tuple<,>))
+            {
+                var gArgs = typeof(T).GetGenericArguments();
+                var serializerTmp = (IBinarySerializerEx<T>)Tuple2SerializerFactory.Create(gArgs[0], gArgs[1]);
+                if (serializerTmp.FixedSize > 0)
+                {
+                    serializer = serializerTmp;
+                }
+            }
+
+            #endregion Tuple2
+
+            #region Tuple3
+
+            if (typeof(T).GetTypeInfo().IsGenericType &&
+                typeof(T).GetGenericTypeDefinition() == typeof(TaggedKeyValue<,>))
+            {
+                var gArgs = typeof(T).GetGenericArguments();
+                var serializerTmp = (IBinarySerializerEx<T>)TaggedKeyValueByteSerializerFactory.Create(gArgs[0], gArgs[1]);
+                if (serializerTmp.FixedSize > 0)
+                {
+                    serializer = serializerTmp;
+                }
+            }
+
+            if (typeof(T).GetTypeInfo().IsGenericType &&
+                typeof(T).GetGenericTypeDefinition() == typeof(ValueTuple<,,>))
+            {
+                var gArgs = typeof(T).GetGenericArguments();
+
+                var serializerTmp = (IBinarySerializerEx<T>)ValueTuple3SerializerFactory.Create(gArgs[0], gArgs[1], gArgs[2]);
+                if (serializerTmp.FixedSize > 0)
+                {
+                    serializer = serializerTmp;
+                }
+            }
+
+            if (typeof(T).GetTypeInfo().IsGenericType &&
+                typeof(T).GetGenericTypeDefinition() == typeof(Tuple<,,>))
+            {
+                var gArgs = typeof(T).GetGenericArguments();
+                var serializerTmp = (IBinarySerializerEx<T>)Tuple3SerializerFactory.Create(gArgs[0], gArgs[1], gArgs[2]);
+                if (serializerTmp.FixedSize > 0)
+                {
+                    serializer = serializerTmp;
+                }
+            }
+
+            #endregion Tuple3
+
             if (typeof(T).IsArray)
             {
                 var elementType = typeof(T).GetElementType();
                 var elementSize = TypeHelper.GetSize(elementType);
                 if (elementSize > 0)
                 { // only for blittable types
-                    serializer = (IBinarySerializer<T>)ArrayConverterFactory.Create(elementType);
+                    serializer = (IBinarySerializerEx<T>)ArraySerializerFactory.Create(elementType);
                 }
             }
 
-            var ti = typeof(T);
-            if (ti.IsGenericType && ti.GetGenericTypeDefinition() == typeof(Collections.Internal.VectorStorage<>))
+            if (typeof(T).IsGenericType
+                && typeof(T).GetGenericTypeDefinition() == typeof(Collections.Internal.VectorStorage<>))
             {
-                var elementType = ti.GenericTypeArguments[0];
+                // TODO TEH by type
+                var elementType = typeof(T).GenericTypeArguments[0];
                 var elementSize = TypeHelper.GetSize(elementType);
                 if (elementSize > 0)
                 { // only for blittable types
-                    serializer = (IBinarySerializer<T>)Collections.Internal.VectorStorageSerializerFactory.Create(elementType);
+                    serializer = (IBinarySerializerEx<T>)Collections.Internal.VectorStorageSerializerFactory.Create(elementType);
                 }
             }
 
             // Do not add Json converter as fallback, it is not "binary", it implements the interface for
             // simpler implementation in BinarySerializer and fallback happens there
 #endif
-            BinarySerializer = serializer;
+            BinarySerializerEx = serializer;
 
             return -1;
         }
 
+        [Obsolete("TODO rewrite to use separate header dest, make both internal")]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int WriteWithHeader(in T value, DirectBuffer destination, Timestamp timestamp = default)
         {
@@ -493,6 +597,7 @@ namespace Spreads.Serialization
             return len;
         }
 
+        [Obsolete]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int ReadWithHeader(byte* ptr, out T value, out Timestamp timestamp)
         {
@@ -531,7 +636,7 @@ namespace Spreads.Serialization
         public static byte ConverterVersion
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => BinarySerializer?.ConverterVersion ?? 0;
+            get => BinarySerializer?.SerializerVersion ?? 0;
         }
 
         public static void RegisterConverter(IBinarySerializer<T> serializer,
@@ -541,7 +646,7 @@ namespace Spreads.Serialization
             if (FixedSize > 0) { throw new InvalidOperationException("Cannot register a custom converter for pinnable types"); }
 
             // NB TypeHelper is internal, we could provide some hooks later e.g. for char or bool
-            if (serializer.ConverterVersion == 0 || serializer.ConverterVersion > 15)
+            if (serializer.SerializerVersion == 0 || serializer.SerializerVersion > 15)
             {
                 ThrowHelper.ThrowArgumentException("User-implemented converter version must be in the range 1-15.");
             }

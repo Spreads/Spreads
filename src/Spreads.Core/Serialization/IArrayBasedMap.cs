@@ -30,7 +30,7 @@ namespace Spreads.Serialization
 
         public int FixedSize => -1;
 
-        public byte ConverterVersion
+        public byte SerializerVersion
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => 1;

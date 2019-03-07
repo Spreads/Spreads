@@ -17,6 +17,7 @@ namespace Spreads.DataTypes
     /// <summary>
     /// Known types and containers enumeration.
     /// </summary>
+    [Obsolete("Use TypeEnumEx")]
     public enum TypeEnum : byte
     {
         // NB Any changes to TypeEnum must be reflected in the know type sizes array at the bottom

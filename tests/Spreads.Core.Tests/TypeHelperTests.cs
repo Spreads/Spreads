@@ -53,7 +53,7 @@ namespace Spreads.Core.Tests
             public long Long { get; set; }
             public bool IsFixedSize => false;
             public int FixedSize => 0;
-            public byte ConverterVersion => 1;
+            public byte SerializerVersion => 1;
             public int SizeOf(MyPocoWithConvertor value, out RetainedMemory<byte> temporaryBuffer, out bool withPadding)
             {
                 throw new NotImplementedException();

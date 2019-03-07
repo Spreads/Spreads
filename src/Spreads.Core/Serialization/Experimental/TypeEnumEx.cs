@@ -13,8 +13,13 @@ namespace Spreads.Serialization.Experimental
     /// <remarks>
     /// The goal of this enumeration is to have a unique small ids for frequently used
     /// types, provision ids for likely future types and set ids to main containers.
-    /// Types that cannot be described with this simple enumeration must have user-defined
-    /// <see cref="IBinarySerializer{T}"/> or use a schema (TODO)
+    ///
+    /// <para />
+    ///
+    /// Serialized data or non-generic containers such as <see cref="Variant"/>
+    /// have <see cref="DataTypeHeaderEx"/>
+    /// that contains 3 <see cref="TypeEnumEx"/> slots that describe the data.
+    ///
     /// <para />
     ///
     /// Integer types are always serialized as little-endian.
@@ -40,7 +45,6 @@ namespace Spreads.Serialization.Experimental
         // It will make sense to add some tuple-like structures if tuple processing is slower and the types are perf critical.
         // However often in that case they are stored as arrays and header processing is amortized.
         // We need a case where we could store 1 byte instead of 4. VersionAndFlag define context that is common.
-        // Our WIP schema could be tightly packed, but just ints is faster and schema is static.
 
         /// <summary>
         /// See <see cref="sbyte"/>.
@@ -181,8 +185,6 @@ namespace Spreads.Serialization.Experimental
 
         #region Variable size known types
 
-        // Non-container values are schema hints, payload is just a byte string.
-
         /// <summary>
         /// Opaque binary string prefixed by <see cref="int"/> length in bytes.
         /// Alias for <see cref="Array"/> of <see cref="UInt8"/>.
@@ -210,59 +212,168 @@ namespace Spreads.Serialization.Experimental
         #region Tuple-like structures that do not need TEOFS3
 
         /// <summary>
-        /// A fixed-length collection with up to 127 elements of the same type.
-        /// Element type is stored in <see cref="DataTypeHeaderEx.TEOFS1"/> and count is stored in  <see cref="DataTypeHeaderEx.TEOFS2"/>.
-        /// This covers all same fixed-size type tuples from 1 to 127.
+        /// N ordered elements of the same type with N up to 256 elements.
         /// </summary>
-        FixedArrayT = 70, // Note: FixedArray without T is Schema.
-
-        // TupleNT are aliases to FixedArrayT for sizes 1-5.
-
-        /// <summary>
-        /// A tuple with two elements of same type. Element type are stored
-        /// in <see cref="DataTypeHeaderEx.TEOFS1"/>.
-        /// </summary>
-        Tuple2T = 71,
-
-        /// <summary>
-        /// A tuple with three elements of same type. Element type are stored
-        /// in <see cref="DataTypeHeaderEx.TEOFS1"/>.
-        /// </summary>
-        Tuple3T = 72,
-
-        /// <summary>
-        /// A tuple with four elements of same type. Element type are stored
-        /// in <see cref="DataTypeHeaderEx.TEOFS1"/>.
-        /// </summary>
-        Tuple4T = 73,
+        /// <remarks>
+        /// This covers all same-type fixed-size tuples from 1 to 256.
+        /// The number of elements is stored in <see cref="DataTypeHeaderEx.TupleNCount"/> (<see cref="DataTypeHeaderEx.TEOFS1"/>).
+        /// Element type is stored in <see cref="DataTypeHeaderEx.TupleTNTeofs"/> (<see cref="DataTypeHeaderEx.TEOFS2"/>).
+        ///
+        /// ```
+        /// 0                   1                   2                   3
+        /// 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+        /// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+        /// | Version+Flags |    TupleTN    |  TupleTNCount |       T       |
+        /// +---------------------------------------------------------------+
+        /// ```
+        /// If type T is not a scalar (see <see cref="DataTypeHeaderEx.IsScalar"/>)
+        /// then T slot is set to <see cref="CompositeType"/>.
+        ///
+        /// </remarks>
+        /// <seealso cref="TupleN"/>
+        /// <seealso cref="ArrayOfTupleTN"/>
+        // ReSharper disable once InconsistentNaming
+        TupleTN = 70, // Note: FixedArray without T is Schema.
 
         /// <summary>
-        /// A tuple with five elements of same type. Element type are stored
-        /// in <see cref="DataTypeHeaderEx.TEOFS1"/>.
+        /// A tuple with two elements of same type.
         /// </summary>
-        Tuple5T = 74,
+        /// <remarks>
+        /// Element type is stored in <see cref="DataTypeHeaderEx.TEOFS1"/>.
+        /// ```
+        /// 0                   1                   2                   3
+        /// 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+        /// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+        /// | Version+Flags |    TupleT2    |       T       |      T1?      |
+        /// +---------------------------------------------------------------+
+        /// ```
+        /// If type T is a scalar type (see <see cref="DataTypeHeaderEx.IsScalar"/>) then
+        /// T1 slot is empty. T1 could be a subtype of T if two slots is enough to
+        /// describe the type T. If more than two slots are required to
+        /// describe the type T then T slot is set to <see cref="CompositeType"/>.
+        /// </remarks>
+        TupleT2 = 71,
 
         /// <summary>
-        /// A tuple with five elements of same type. Element type are stored
-        /// in <see cref="DataTypeHeaderEx.TEOFS1"/>.
+        /// A tuple with three elements of same type.
         /// </summary>
-        Tuple6T = 75,
+        /// <remarks>
+        /// Element type is stored in <see cref="DataTypeHeaderEx.TEOFS1"/>.
+        /// ```
+        /// 0                   1                   2                   3
+        /// 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+        /// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+        /// | Version+Flags |    TupleT3    |       T       |      T1?      |
+        /// +---------------------------------------------------------------+
+        /// ```
+        /// If type T is a scalar type (see <see cref="DataTypeHeaderEx.IsScalar"/>) then
+        /// T1 slot is empty. T1 could be a subtype of T if two slots is enough to
+        /// describe the type T. If more than two slots are required to
+        /// describe the type T then T slot is set to <see cref="CompositeType"/>.
+        /// </remarks>
+        TupleT3 = 72,
 
         /// <summary>
-        /// A tuple with two elements of different types. Element types are stored
-        /// in <see cref="DataTypeHeaderEx.TEOFS1"/> and <see cref="DataTypeHeaderEx.TEOFS2"/>
-        /// slots.
+        /// A tuple with four elements of same type.
         /// </summary>
+        /// <remarks>
+        /// Element type is stored in <see cref="DataTypeHeaderEx.TEOFS1"/>.
+        /// ```
+        /// 0                   1                   2                   3
+        /// 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+        /// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+        /// | Version+Flags |    TupleT4    |       T       |      T1?      |
+        /// +---------------------------------------------------------------+
+        /// ```
+        /// If type T is a scalar type (see <see cref="DataTypeHeaderEx.IsScalar"/>) then
+        /// T1 slot is empty. T1 could be a subtype of T if two slots is enough to
+        /// describe the type T. If more than two slots are required to
+        /// describe the type T then T slot is set to <see cref="CompositeType"/>.
+        /// </remarks>
+        TupleT4 = 73,
+
+        /// <summary>
+        /// A tuple with five elements of same type.
+        /// </summary>
+        /// <remarks>
+        /// Element type is stored in <see cref="DataTypeHeaderEx.TEOFS1"/>.
+        /// ```
+        /// 0                   1                   2                   3
+        /// 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+        /// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+        /// | Version+Flags |    TupleT5    |       T       |      T1?      |
+        /// +---------------------------------------------------------------+
+        /// ```
+        /// If type T is a scalar type (see <see cref="DataTypeHeaderEx.IsScalar"/>) then
+        /// T1 slot is empty. T1 could be a subtype of T if two slots is enough to
+        /// describe the type T. If more than two slots are required to
+        /// describe the type T then T slot is set to <see cref="CompositeType"/>.
+        /// </remarks>
+        TupleT5 = 74,
+
+        /// <summary>
+        /// A tuple with six elements of same type.
+        /// </summary>
+        /// <remarks>
+        /// Element type is stored in <see cref="DataTypeHeaderEx.TEOFS1"/>.
+        /// ```
+        /// 0                   1                   2                   3
+        /// 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+        /// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+        /// | Version+Flags |    TupleT6    |       T       |      T1?      |
+        /// +---------------------------------------------------------------+
+        /// ```
+        /// If type T is a scalar type (see <see cref="DataTypeHeaderEx.IsScalar"/>) then
+        /// T1 slot is empty. T1 could be a subtype of T if two slots is enough to
+        /// describe the type T. If more than two slots are required to
+        /// describe the type T then T slot is set to <see cref="CompositeType"/>.
+        /// </remarks>
+        TupleT6 = 75,
+
+        /// <summary>
+        /// A tuple with two elements of different types.
+        /// </summary>
+        /// <remarks>
+        /// Element types are stored in <see cref="DataTypeHeaderEx.TEOFS1"/>
+        /// and <see cref="DataTypeHeaderEx.TEOFS2"/>.
+        /// ```
+        /// 0                   1                   2                   3
+        /// 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+        /// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+        /// | Version+Flags |     Tuple2    |       T1      |       T2      |
+        /// +---------------------------------------------------------------+
+        /// ```
+        /// If types T1 or T2 is not a scalar type (see <see cref="DataTypeHeaderEx.IsScalar"/>)
+        /// its slot is set to <see cref="CompositeType"/>.
+        /// </remarks>
         Tuple2 = 76,
 
         /// <summary>
-        /// A tuple with two elements of different types prefixed with <see cref="byte"/> tag. Element types are stored
-        /// in <see cref="DataTypeHeaderEx.TEOFS1"/> and <see cref="DataTypeHeaderEx.TEOFS2"/>
-        /// slots.
+        /// A tuple with two elements of different types prefixed with <see cref="byte"/> tag.
         /// </summary>
-        Tuple2Tag = 77, // If we need a tag with a different type use Tuple3
+        /// <remarks>
+        /// Element types are stored in <see cref="DataTypeHeaderEx.TEOFS1"/>
+        /// and <see cref="DataTypeHeaderEx.TEOFS2"/>.
+        /// ```
+        /// 0                   1                   2                   3
+        /// 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+        /// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+        /// | Version+Flags |     Tuple2    |       T1      |       T2      |
+        /// +---------------------------------------------------------------+
+        ///
+        /// followed by
+        ///
+        /// [Optional Timestamp] | [Optional Schemas] | [Byte Tag] | [T1 Payload] | [T2 Payload]
+        /// ```
+        /// If types T1 or T2 are not a scalar type (see <see cref="DataTypeHeaderEx.IsScalar"/>)
+        /// their slot is set to <see cref="CompositeType"/>.
+        /// </remarks>
+        Tuple2Byte = 77, // If we need a tag with a different type use Tuple3
 
-        Tuple2Version = 78,
+        /// <summary>
+        /// Same as <see cref="Tuple2Byte"/> but with <see cref="long"/> prefix.
+        /// </summary>
+        Tuple2Long = 78,
 
         // TODO return here when start working with frames.
 
@@ -278,34 +389,70 @@ namespace Spreads.Serialization.Experimental
         #region Containers with 1-2 subtypes
 
         /// <summary>
-        /// A variable-length collection of elements of the same type. Element type is stored in <see cref="DataTypeHeaderEx.TEOFS1"/>.
-        /// <see cref="DataTypeHeaderEx.TEOFS2"/> slot is used for a single subtype
-        /// of array element, e.g. for jugged array.
-        /// Always followed by payload length in bytes as <see cref="int"/>. If length is negative
-        /// then element type must be fixed-size and the payload is shuffled.
+        /// A variable-length sequence of elements of the same type.
         /// </summary>
+        /// <remarks>
+        /// Element type stored in <see cref="DataTypeHeaderEx.TEOFS1"/>.
+        /// ```
+        /// 0                   1                   2                   3
+        /// 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+        /// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+        /// | Version+Flags |     Array     |       T       |      T1?      |
+        /// +---------------------------------------------------------------+
+        /// ```
+        /// If type T is a scalar type (see <see cref="DataTypeHeaderEx.IsScalar"/>) then
+        /// T1 slot is empty. T1 could be a subtype of T if two slots is enough to
+        /// describe the type T. If more than two slots are required to
+        /// describe the type T then T slot is set to <see cref="CompositeType"/>.
+        ///
+        /// </remarks>
         Array = 80,
 
-        // TODO No sign-flip BS, use 2-bit flags and limit array length to 1GB. Highest bit is shuffled, next one is deltas.
-        // For some types delta is highly efficient because some fields do not change and we have zeros.
-
         /// <summary>
-        /// Depth is stored in <see cref="DataTypeHeaderEx.TEOFS1"/> and type in <see cref="DataTypeHeaderEx.TEOFS2"/>.
+        ///
         /// </summary>
+        /// <remarks>
+        /// Element type stored in <see cref="DataTypeHeaderEx.TEOFS1"/>.
+        /// Dimension is stored in <see cref="DataTypeHeaderEx.TEOFS2"/>.
+        ///
+        /// ```
+        /// 0                   1                   2                   3
+        /// 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+        /// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+        /// | Version+Flags |  JaggedArray  |       T       |   Dimension   |
+        /// +---------------------------------------------------------------+
+        /// ```
+        /// If element type is not a scalar type then T slot is set to <see cref="CompositeType"/>.
+        ///
+        /// </remarks>
         JaggedArray = 81,
 
         /// <summary>
-        /// Inner array element type is stored in <see cref="DataTypeHeaderEx.TEOFS1"/> and it's size in <see cref="DataTypeHeaderEx.TEOFS2"/>.
-        /// This covers array of all same fixed-size type tuples from 1 to 127.
+        /// A variable-length sequence of <see cref="TupleTN"/> elements of the same type.
         /// </summary>
-        ArrayOfFixedArraysT = 82,
+        /// <remarks>
+        /// This type is common (e.g. it's a by-row part of a matrix) and we need to fuse <see cref="Array"/> and <see cref="TupleTN"/>
+        /// first slot.
+        /// The number of inner array elements is stored in <see cref="DataTypeHeaderEx.TupleNCount"/> (<see cref="DataTypeHeaderEx.TEOFS1"/>).
+        /// Element type is stored in <see cref="DataTypeHeaderEx.TupleTNTeofs"/> (<see cref="DataTypeHeaderEx.TEOFS2"/>).
+        ///
+        /// ```
+        /// 0                   1                   2                   3
+        /// 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+        /// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+        /// | Version+Flags | ArrayOfTupleTN|  TupleTNCount |       T       |
+        /// +---------------------------------------------------------------+
+        /// ```
+        /// </remarks>
+        /// <seealso cref="TupleTN"/>
+        // ReSharper disable once InconsistentNaming
+        ArrayOfTupleTN = 82,
 
         // TODO number of dimensions is runtime parameter or not? Should it be in payload header?
         /// <summary>
-        /// Multidimensional array with up to 127 dimensions. Value type is stored in <see cref="DataTypeHeaderEx.TEOFS1"/> and number of dimensions
-        /// in <see cref="DataTypeHeaderEx.TEOFS2"/>.
-        /// E.g. <see cref="Matrix{T}"/> is NDArray with 2 dimensions.
+        ///
         /// </summary>
+        [Obsolete("No specs, just a placeholder.")]
         NDArray = 83, // same as array must have a subtype defined
 
         /// <summary>
@@ -314,17 +461,55 @@ namespace Spreads.Serialization.Experimental
         Table = 84,
 
         /// <summary>
-        /// <see cref="Array"/> of <see cref="Tuple2"/> with unique keys. Key type is stored in <see cref="DataTypeHeaderEx.TEOFS1"/>
-        /// and value type is stored in <see cref="DataTypeHeaderEx.TEOFS2"/>.
+        /// <see cref="Array"/> of <see cref="Tuple2"/> with unique keys.
         /// </summary>
+        /// <remarks>
+        ///
+        /// Key type is stored in <see cref="DataTypeHeaderEx.TEOFS1"/>
+        /// and value type is stored in <see cref="DataTypeHeaderEx.TEOFS2"/>.
+        ///
+        /// ```
+        /// 0                   1                   2                   3
+        /// 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+        /// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+        /// | Version+Flags |      Map      |      TKey     |     TValue    |
+        /// +---------------------------------------------------------------+
+        /// ```
+        ///
+        /// </remarks>
         Map = 85, // Need this to fit type info in 3 TEOFS as in DataTypeHeader and avoid TEOFS3 in VariantHeader.
 
         /// <summary>
-        /// Two-array map (dictionary).
-        /// Key type is stored in <see cref="DataTypeHeaderEx.TEOFS1"/> and value type in <see cref="DataTypeHeaderEx.TEOFS2"/>.
+        /// A series or two-array map (dictionary). A <see cref="Tuple2"/> of two <see cref="Array"/>s.
         /// </summary>
+        /// <remarks>
+        /// Note that when both types are blittable then <see cref="Map"/> to/from <see cref="Series"/>
+        /// conversion could be done via shuffle/unshuffle very quickly.
+        ///
+        /// ```
+        /// 0                   1                   2                   3
+        /// 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+        /// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+        /// | Version+Flags |     Series    |      TKey     |     TValue    |
+        /// +---------------------------------------------------------------+
+        /// ```
+        ///
+        /// </remarks>
         Series = 86,
 
+        /// <summary>
+        ///
+        /// </summary>
+        /// <remarks>
+        ///
+        /// ```
+        /// 0                   1                   2                   3
+        /// 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+        /// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+        /// | Version+Flags |     Frame     |    TRowKey    |   TColumnKey  |
+        /// +---------------------------------------------------------------+
+        /// ```
+        /// </remarks>
         Frame = 87,
 
         #endregion Containers with 1-2 subtypes
@@ -332,50 +517,58 @@ namespace Spreads.Serialization.Experimental
         #region Types that require 3 subtypes
 
         /// <summary>
-        /// A tuple with three elements of different types. Element types are stored
-        /// in <see cref="DataTypeHeaderEx.TEOFS1"/> and <see cref="DataTypeHeaderEx.TEOFS2"/>
-        /// slots. Always followed by <see cref="VariantHeader.TEOFS3"/> for the third element type.
+        /// A tuple with N elements of different types.
         /// </summary>
-        Tuple3 = 90,
-
-        /// <summary>
-        /// A tuple with three elements of different types prefixed with <see cref="byte"/> tag. Element types are stored
-        /// in <see cref="DataTypeHeaderEx.TEOFS1"/> and <see cref="DataTypeHeaderEx.TEOFS2"/>
-        /// slots. Always followed by <see cref="VariantHeader.TEOFS3"/> for the third element type.
-        /// </summary>
-        Tuple3Tag = 91, // If we need a tag with a different type use Schema
-
-        /// <summary>
-        /// See <see cref="Frame{TRow,TCol,T}"/>.
-        /// Always followed by <see cref="VariantHeader.TEOFS3"/> for the value type.
-        /// </summary>
-        FrameT = 99,
+        /// <remarks>
+        /// TupleN could have fixed size, e.g. (Timestamp,int,long,double).
+        /// If all elements of such tuple are fixed-size scalars and their
+        /// total size is no more than 256 bytes then <see cref="DataTypeHeaderEx.TupleNFixedSize"/>
+        /// field (the slot <see cref="DataTypeHeaderEx.TEOFS2"/>) has the total size.
+        ///
+        /// ```
+        /// 0                   1                   2                   3
+        /// 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+        /// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+        /// | Version+Flags |     TupleN    |  TupleNCount  |   FixedSize   |
+        /// +---------------------------------------------------------------+
+        /// ```
+        ///
+        /// </remarks>
+        /// <seealso cref="TupleTN"/>
+        TupleN = 90,
 
         #endregion Types that require 3 subtypes
 
+        // 100-119 reserved for internal use (so far).
+
         /// <summary>
-        /// See <see cref="Variant"/>. Has own <see cref="DataTypeHeader"/> before payload.
+        /// See <see cref="Variant"/>. Has own <see cref="TypeEnumEx"/> values before payload. // TODO spec that
         /// </summary>
         Variant = 120,
 
         /// <summary>
-        /// Stores schema id in <see cref="VariantHeader"/> two subtype slots as <see cref="ushort"/>.
+        /// A type needs a generic context or stores a schema info somewhere in application context.
         /// </summary>
-        Schema = 124,
+        CompositeType = 125,
 
         /// <summary>
-        /// A custom user type that has a binary serializer.
-        /// </summary>
-        UserKnownType = 125,
-
-        /// <summary>
-        /// A custom user type without binary serializer. Serialized data is JSON.
+        /// A custom user type that could have a binary serializer or serialized as JSON.
         /// </summary>
         UserType = 126,
 
         /// <summary>
         /// A virtual type enum used as return value of <see cref="TypeEnumOrFixedSize.TypeEnum"/> for blittable types (fixed-length type with fixed layout).
         /// </summary>
+        /// <remarks>
+        ///
+        /// ```
+        /// 0                   1                   2                   3
+        /// 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+        /// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+        /// | Version+Flags |   FixedSize   |         Size as short         |
+        /// +---------------------------------------------------------------+
+        /// ```
+        /// </remarks>
         FixedSize = TypeEnumOrFixedSize.MaxTypeEnum, // 127
     }
 }

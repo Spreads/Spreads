@@ -9,7 +9,6 @@ using System.Buffers;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using System.Threading.Tasks;
 
 namespace Spreads.Core.Tests.Buffers
 {
@@ -85,7 +84,7 @@ namespace Spreads.Core.Tests.Buffers
         public void OffsetsAreOk()
         {
             var array = new byte[100];
-            var rm = new RetainedMemory<byte>(ArrayMemory<byte>.Create(array, 50, 50, true, pin:true), 25, 25, true);
+            var rm = new RetainedMemory<byte>(ArrayMemory<byte>.Create(array, 50, 50, true, pin: true), 25, 25, true);
 
             // 85 - 95
             var rmc = rm.Clone().Slice(10, 10);
@@ -101,47 +100,6 @@ namespace Spreads.Core.Tests.Buffers
 
             rm.Dispose();
             rmc.Dispose();
-        }
-
-        // TODO fix this or better remove ToRetainedMemory
-        [Test, Ignore("Broken impl that throws now")]
-        public async Task CouldReadStreamToRetainedMemory()
-        {
-            var rms = RecyclableMemoryStream.Create();
-            for (int i = 0; i < 100; i++)
-            {
-                rms.WriteByte((byte)i);
-            }
-
-            rms.Position = 0;
-
-            var rm = await rms.ToRetainedMemory(1);
-
-            Assert.AreEqual(100, rm.Length);
-
-            rms.Position = 0;
-
-            rm.Dispose();
-            rm = await rms.ToRetainedMemory(100);
-
-            Assert.AreEqual(100, rm.Length);
-
-            rms.Position = 0;
-            var nss = new NonSeekableStream(rms);
-
-            rm.Dispose();
-            rm = await nss.ToRetainedMemory(1);
-
-            Assert.AreEqual(100, rm.Length);
-
-            nss.Position = 0;
-
-            rm.Dispose();
-            rm = await nss.ToRetainedMemory(100);
-
-            Assert.AreEqual(100, rm.Length);
-
-            rm.Dispose();
         }
 
         [Test]

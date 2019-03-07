@@ -2,56 +2,19 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-using Spreads.Serialization;
 using Spreads.Serialization.Utf8Json;
 using System;
 using System.Collections.Generic;
-using System.IO;
-using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Runtime.Serialization;
-using Spreads.Buffers;
-
-// ReSharper disable PrivateFieldCanBeConvertedToLocalVariable
 
 namespace Spreads.DataTypes
 {
+    // It is Tuple3 from serialization point of view and has custom binary converter.
 
-    [BinarySerialization(preferBlittable: true)] // when both types are blittable the struct is written in one operation
-    [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    // NB cannot use JsonFormatter attribute, this is hardcoded in DynamicGenericResolverGetFormatterHelper
-    public readonly struct TaggedKeyValue<TKey, TValue> : IEquatable<TaggedKeyValue<TKey, TValue>>, 
-        IBinarySerializer<TaggedKeyValue<TKey, TValue>>
+    [StructLayout(LayoutKind.Auto)]
+    public readonly struct TaggedKeyValue<TKey, TValue> : IEquatable<TaggedKeyValue<TKey, TValue>>
     {
-        private static readonly int KeySize = TypeHelper<TKey>.FixedSize;
-        private static readonly int ValueSize = TypeHelper<TValue>.FixedSize;
-        private static readonly bool IsFixedSizeStatic = TypeHelper<TKey>.FixedSize > 0 && TypeHelper<TValue>.FixedSize > 0;
-        private static readonly int FixedSizeStatic = 4 + TypeHelper<TKey>.FixedSize + TypeHelper<TValue>.FixedSize;
-
-        //private static DataTypeHeader _defaultHeader = new DataTypeHeader
-        //{
-        //    VersionAndFlags =
-        //    {
-        //        ConverterVersion = 1,
-        //        IsBinary = true,
-        //        IsDelta = false,
-        //        IsCompressed = false
-        //    },
-        //    TypeEnum = VariantHelper<TaggedKeyValue<TKey, TValue>>.TypeEnum,
-        //    TypeSize = IsFixedSizeStatic ? (byte)FixedSizeStatic : (byte)0
-        //};
-
-        // for blittable case all this is written in one operation,
-        // for var size case will manually write with two headers
-        [IgnoreDataMember]
-        private readonly byte _keyTypeEnum;
-
-        [IgnoreDataMember]
-        private readonly byte _valueTypeEnum;
-
-        [IgnoreDataMember]
-        private readonly byte _reserved;
-
         [DataMember(Name = "t", Order = 0)]
         public readonly byte Tag;
 
@@ -63,9 +26,6 @@ namespace Spreads.DataTypes
 
         public TaggedKeyValue(TKey key, TValue value)
         {
-            _keyTypeEnum = (byte)VariantHelper<TKey>.TypeEnum;
-            _valueTypeEnum = (byte)VariantHelper<TValue>.TypeEnum;
-            _reserved = 0;
             Tag = 0;
             Key = key;
             Value = value;
@@ -73,87 +33,9 @@ namespace Spreads.DataTypes
 
         public TaggedKeyValue(TKey key, TValue value, byte tag)
         {
-            _keyTypeEnum = (byte)VariantHelper<TKey>.TypeEnum;
-            _valueTypeEnum = (byte)VariantHelper<TValue>.TypeEnum;
-            _reserved = 0;
             Tag = tag;
             Key = key;
             Value = value;
-        }
-
-        // TODO for version 0 write using BS with double headers
-        // TODO special treatment of TKey=DateTime, autolayout
-
-        public int SizeOf(TaggedKeyValue<TKey, TValue> value, out MemoryStream temporaryStream, 
-            SerializationFormat format = SerializationFormat.Binary, 
-            Timestamp timestamp = default)
-        {
-            if (IsFixedSizeStatic)
-            {
-                temporaryStream = default;
-                return FixedSizeStatic + ((long)timestamp == default ? 0 : Timestamp.Size);
-            }
-
-            throw new NotImplementedException();
-        }
-
-        public int Write(TaggedKeyValue<TKey, TValue> value, IntPtr pinnedDestination, MemoryStream temporaryStream = null,
-            SerializationFormat format = SerializationFormat.Binary, 
-            Timestamp timestamp = default)
-        {
-            //var fixedSize = TypeHelper<TaggedKeyValue<TKey, TValue>>.FixedSize;
-            //if (fixedSize > 0)
-            //{
-            //    return BinarySerializer.WriteUnsafe(value, pinnedDestination, temporaryStream, format, timestamp);
-            //}
-            //// TODO write key + value
-            throw new NotImplementedException();
-        }
-
-        public int Read(IntPtr ptr, out TaggedKeyValue<TKey, TValue> value, out Timestamp timestamp)
-        {
-            //var fixedSize = TypeHelper<TaggedKeyValue<TKey, TValue>>.FixedSize;
-            //if (fixedSize > 0)
-            //{
-            //    return BinarySerializer.Read(ptr, out value, out timestamp);
-            //}
-            throw new NotImplementedException();
-        }
-
-        [IgnoreDataMember]
-        public bool IsFixedSize
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => IsFixedSizeStatic;
-        }
-
-        [IgnoreDataMember]
-        public int FixedSize
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => IsFixedSizeStatic ? FixedSizeStatic : -1;
-        }
-
-        [IgnoreDataMember]
-        public byte ConverterVersion
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => 1;
-        }
-
-        public int SizeOf(TaggedKeyValue<TKey, TValue> value, out RetainedMemory<byte> temporaryBuffer, out bool withPadding)
-        {
-            throw new NotImplementedException();
-        }
-
-        public int Write(TaggedKeyValue<TKey, TValue> value, ref DirectBuffer destination)
-        {
-            throw new NotImplementedException();
-        }
-
-        public int Read(ref DirectBuffer source, out TaggedKeyValue<TKey, TValue> value)
-        {
-            throw new NotImplementedException();
         }
 
         public static implicit operator KeyValuePair<TKey, TValue>(TaggedKeyValue<TKey, TValue> kv)
@@ -173,8 +55,8 @@ namespace Spreads.DataTypes
 
         public override bool Equals(object obj)
         {
-            if (ReferenceEquals(null, obj)) return false;
-            return obj is TaggedKeyValue<TKey, TValue> && Equals((TaggedKeyValue<TKey, TValue>)obj);
+            if (obj is null) return false;
+            return obj is TaggedKeyValue<TKey, TValue> value && Equals(value);
         }
 
         public override int GetHashCode()
@@ -189,8 +71,7 @@ namespace Spreads.DataTypes
         }
     }
 
-
-    // NB cannot use JsonFormatter attribute, this is hardcoded in DynamicGenericResolverGetFormatterHelper
+    // NB cannot use generic JsonFormatter attribute, this is hardcoded in DynamicGenericResolverGetFormatterHelper
     public class TaggedKeyValueFormatter<TKey, TValue> : IJsonFormatter<TaggedKeyValue<TKey, TValue>>
     {
         public void Serialize(ref JsonWriter writer, TaggedKeyValue<TKey, TValue> value, IJsonFormatterResolver formatterResolver)
@@ -201,11 +82,11 @@ namespace Spreads.DataTypes
 
             writer.WriteValueSeparator();
 
-            formatterResolver.GetFormatter<TKey>().Serialize(ref writer, value.Key, formatterResolver);
+            formatterResolver.GetFormatterWithVerify<TKey>().Serialize(ref writer, value.Key, formatterResolver);
 
             writer.WriteValueSeparator();
 
-            formatterResolver.GetFormatter<TValue>().Serialize(ref writer, value.Value, formatterResolver);
+            formatterResolver.GetFormatterWithVerify<TValue>().Serialize(ref writer, value.Value, formatterResolver);
 
             writer.WriteEndArray();
         }

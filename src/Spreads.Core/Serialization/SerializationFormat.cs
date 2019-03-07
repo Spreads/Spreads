@@ -26,7 +26,7 @@ namespace Spreads.Serialization
     /// Actual buffer layout is type dependent.
     ///
     /// Serialized buffer has a header with a flag indicating the format and
-    /// wether or not the buffer is compressed. Some data types are stored as deltas
+    /// whether or not the buffer is compressed. Some data types are stored as deltas
     /// with diffing performed before byteshuffling and the header must have such flag as well.
     ///
     /// SerializationFormat should not be confused with Transport/Protocol format:

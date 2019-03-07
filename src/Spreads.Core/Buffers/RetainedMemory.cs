@@ -7,10 +7,8 @@
 
 using System;
 using System.Diagnostics;
-using System.IO;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using System.Threading.Tasks;
 
 namespace Spreads.Buffers
 {
@@ -147,12 +145,21 @@ namespace Spreads.Buffers
             get => _length;
         }
 
+        /// <summary>
+        /// Slice without incrementing the reference counter.
+        /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public RetainedMemory<T> Slice(int start)
         {
             return Slice(start, _length - start);
         }
 
+        /// <summary>
+        /// Slice without incrementing the reference counter.
+        /// </summary>
+        /// <param name="start"></param>
+        /// <param name="length"></param>
+        /// <returns></returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public RetainedMemory<T> Slice(int start, int length)
         {
@@ -168,6 +175,9 @@ namespace Spreads.Buffers
             return default;
         }
 
+        /// <summary>
+        /// Create a copy and increment the reference counter.
+        /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public RetainedMemory<T> Clone()
         {
@@ -178,12 +188,18 @@ namespace Spreads.Buffers
 #endif
         }
 
+        /// <summary>
+        /// Create a sliced copy and increment the reference counter.
+        /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public RetainedMemory<T> Clone(int start)
         {
             return Clone(start, _length - start);
         }
 
+        /// <summary>
+        /// Create a sliced copy and increment the reference counter.
+        /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public RetainedMemory<T> Clone(int start, int length)
         {
@@ -286,95 +302,6 @@ namespace Spreads.Buffers
         public static DirectBuffer ToDirectBuffer(this RetainedMemory<byte> rm)
         {
             return new DirectBuffer(rm);
-        }
-
-        [Obsolete("Do not use streams if possible")]
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static ValueTask<RetainedMemory<byte>> ToRetainedMemory(this Stream stream, int initialSize = 16 * 1024, int limit = 0)
-        {
-            // We are capuring rm in async and cannot reason what is going on.
-            // Need to folow the RM RULE and pass ownership to async completely
-            throw new Exception("Dropping RM ref and async impl is messy");
-            RetainedMemory<byte> rm;
-            var knownSize = -1;
-            if (stream.CanSeek)
-            {
-                knownSize = checked((int)stream.Length);
-                rm = BufferPool.Retain(knownSize);
-            }
-            else
-            {
-                rm = BufferPool.Retain(initialSize);
-            }
-#if NETCOREAPP2_1
-            var t = stream.ReadAsync(rm.Memory);
-            if (t.IsCompletedSuccessfully && knownSize >= 0 && t.Result == knownSize)
-            {
-                // Do not need to trim rm, it is exactly of knownSize
-                return new ValueTask<RetainedMemory<byte>>(rm);
-            }
-            return ToRetainedMemoryAsync(t);
-#else
-            return ToRetainedMemoryAsync(default);
-#endif
-
-            async ValueTask<RetainedMemory<byte>> ToRetainedMemoryAsync(ValueTask<int> started)
-            {
-                var memory = rm.Memory;
-                var totalRead = 0;
-                int read;
-                if (started != default)
-                {
-                    read = await started;
-                    if (knownSize >= 0 && read == knownSize)
-                    {
-                        // Do not need to trim rm, it is exactly of knownSize
-                        return rm;
-                    }
-
-                    totalRead += read;
-                    memory = memory.Slice(read);
-                    if (totalRead == rm.Length)
-                    {
-                        var rm2 = BufferPool.Retain(rm.Length * 2);
-                        rm.Memory.CopyTo(rm2.Memory);
-                        memory = rm2.Memory.Slice(totalRead);
-                        rm.Dispose();
-                        rm = rm2;
-                    }
-                }
-#if NETCOREAPP2_1
-                while ((read = await stream.ReadAsync(memory)) > 0)
-                {
-#else
-                var buffer = BufferPool<byte>.Rent(initialSize);
-                while ((read = await stream.ReadAsync(buffer, 0, buffer.Length)) > 0)
-                {
-                    ((Memory<byte>)buffer).Slice(0, read).CopyTo(memory);
-#endif
-                    totalRead += read;
-
-                    if (limit > 0 & totalRead > limit)
-                    {
-                        ThrowHelper.ThrowInvalidOperationException($"Reached Stream.ToRetainedMemory limit {limit}.");
-                    }
-
-                    memory = memory.Slice(read);
-                    if (totalRead == rm.Length)
-                    {
-                        var rm2 = BufferPool.Retain(rm.Length * 2);
-                        rm.Memory.CopyTo(rm2.Memory);
-                        memory = rm2.Memory.Slice(totalRead);
-                        rm.Dispose();
-                        rm = rm2;
-                    }
-                }
-#if !NETCOREAPP2_1
-                BufferPool<byte>.Return(buffer);
-#endif
-
-                return rm.Slice(0, totalRead);
-            }
         }
     }
 }

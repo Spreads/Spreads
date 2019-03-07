@@ -1,10 +1,11 @@
-﻿using Spreads.DataTypes;
+﻿using System;
+using Spreads.DataTypes;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
 namespace Spreads.Serialization
 {
-    
+
     /// <summary>
     /// DataType header
     /// </summary>
@@ -20,6 +21,7 @@ namespace Spreads.Serialization
     /// Also this is already in a lot of persisted data, no chance to change this. Version slot applies
     /// only to data layout *after* this header.
     /// </remarks>
+    [Obsolete("Use DataTypeHeaderEx")]
     [StructLayout(LayoutKind.Explicit, Pack = 1, Size = Size)]
     public struct DataTypeHeader
     {

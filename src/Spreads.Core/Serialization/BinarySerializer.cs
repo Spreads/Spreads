@@ -15,9 +15,9 @@ namespace Spreads.Serialization
 {
     public static unsafe partial class BinarySerializer
     {
-        // Binary converter padding
+        // Binary serializer padding
         // ReSharper disable once InconsistentNaming
-        internal const int BC_PADDING = 16;
+        internal const int HEADER_PADDING = 16;
 
         /// <summary>
         /// Positive number for fixed-size types, negative for all other types. Zero is invalid.
@@ -113,7 +113,7 @@ namespace Spreads.Serialization
             if (AdditionalCorrectnessChecks.Enabled)
             {
                 if (!rawTemporaryBuffer.IsEmpty &&
-                    rawSize != rawTemporaryBuffer.Length - (withPadding ? BC_PADDING : 0))
+                    rawSize != rawTemporaryBuffer.Length - (withPadding ? HEADER_PADDING : 0))
                 {
                     ThrowHelper.FailFast("Wrong raw size");
                 }
@@ -133,7 +133,7 @@ namespace Spreads.Serialization
             IBinarySerializer<T> bc = null;
 
             // reuse the raw buffer or create one in case it is empty or without padding.
-            var rawOffset = BC_PADDING;
+            var rawOffset = HEADER_PADDING;
             RetainedMemory<byte> tempMemory;
             DirectBuffer tmpDestination;
 
@@ -153,7 +153,7 @@ namespace Spreads.Serialization
             {
                 if (withPadding)
                 {
-                    Debug.Assert(rawOffset == BC_PADDING);
+                    Debug.Assert(rawOffset == HEADER_PADDING);
                     tempMemory = rawTemporaryBuffer;
                     tmpDestination = new DirectBuffer(tempMemory.Length, (byte*)tempMemory.Pointer);
                 }
@@ -173,7 +173,7 @@ namespace Spreads.Serialization
             }
 
             var header = TypeHelper<T>.DefaultBinaryHeader;
-            header.VersionAndFlags.ConverterVersion = bc.ConverterVersion;
+            header.VersionAndFlags.ConverterVersion = bc.SerializerVersion;
 
             // NB first step is to serialize, compressor could chose to copy (if small data or compressed is larger)
             // not! header.VersionAndFlags.CompressionMethod = compressionMethod;
@@ -319,7 +319,7 @@ namespace Spreads.Serialization
                 }
 
                 var header = TypeHelper<T>.DefaultBinaryHeader;
-                header.VersionAndFlags.ConverterVersion = bc.ConverterVersion;
+                header.VersionAndFlags.ConverterVersion = bc.SerializerVersion;
 
                 // NB first step is to serialize, compressor could chose to copy (if small data or compressed is larger)
                 // not! header.VersionAndFlags.CompressionMethod = compressionMethod;

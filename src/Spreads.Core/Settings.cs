@@ -1,9 +1,10 @@
-﻿using System;
+﻿using Spreads.Extensions;
 using Spreads.Serialization;
+using Spreads.Serialization.Experimental;
 using Spreads.Utils;
+using System;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
-using Spreads.Extensions;
 
 namespace Spreads
 {
@@ -47,7 +48,7 @@ namespace Spreads
         // Another option - Retain() like we do for small buffers, but with interlocked add for claim
         // and CAS for release. If pos = xadd(len) to get our end position, do work and then CAS(pos-len, pos)
         // if we are unable to decrement position via CAS then just forget about it and rotate the buffer
-        // when noone is using it.
+        // when no one is using it.
 
         // NB at least 85k for LOH
         internal static readonly int ThreadStaticPinnedBufferSize = BitUtil.FindNextPositivePowerOfTwo(LARGE_BUFFER_LIMIT);
@@ -72,7 +73,7 @@ namespace Spreads
         internal static bool _doAdditionalCorrectnessChecks = true;
 
         /// <summary>
-        /// Enable/disable additional correctess checks that could affect performance or exit the process with FailFast.
+        /// Enable/disable additional correctness checks that could affect performance or exit the process with FailFast.
         /// This could only be set at application startup before accessing other Spreads types.
         /// By default this value is set to true and Spreads usually fails fast on any condition
         /// that could compromise calculation correctness or data integrity. If an application
@@ -219,6 +220,23 @@ namespace Spreads
 
         public static bool LogMemoryPoolEvents { get; set; } = false;
 
+        private static Opt<bool> _safeBinarySerializerWrite = Opt<bool>.Missing;
+
+        /// <summary>
+        /// If <see cref="IBinarySerializerEx{T}.SizeOf"/> does not return a temp buffer
+        /// then force using a temp buffer for destination of <see cref="IBinarySerializerEx{T}.Write"/>
+        /// method. This is slower but useful to ensure correct implementation of
+        /// a custom <see cref="IBinarySerializerEx{T}"/>.
+        ///
+        /// <para>By default is set to <see cref="DoAdditionalCorrectnessChecks"/></para>
+        ///
+        /// </summary>
+        public static bool DefensiveBinarySerializerWrite
+        {
+            get => _safeBinarySerializerWrite.PresentOrDefault(AdditionalCorrectnessChecks.Enabled);
+            set => _safeBinarySerializerWrite = Opt.Present(value);
+        }
+
         internal const int SlabLength = 128 * 1024;
 
         /// <summary>
@@ -229,10 +247,7 @@ namespace Spreads
 
         public static int SharedSpinLockNotificationPort = 0;
 
-
-
         internal static Action ZeroValueNotificationCallback = null;
         internal static Func<IQueryHandler> QueryHandlerFactory = null;
-
     }
 }

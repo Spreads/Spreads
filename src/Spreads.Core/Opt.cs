@@ -34,7 +34,7 @@ namespace Spreads
     /// <summary>
     /// A minimal implementation of the Option type. <typeparamref name="T"/> must implement <see cref="IEquatable{T}"/> for custom equality.
     /// </summary>
-    [StructLayout(LayoutKind.Auto)]
+    [StructLayout(LayoutKind.Sequential)]
     [DebuggerDisplay("{" + nameof(ToString) + "()}")]
     public readonly struct Opt<T> // : IEquatable<Opt<T>>
     {
@@ -43,8 +43,8 @@ namespace Spreads
         /// </summary>
         public static Opt<T> Missing => default;
 
-        private readonly int _presence; // NB with auto layout it will take at least 4 bytes anyway
         private readonly T _present;
+        private readonly byte _presence;
 
         /// <summary>
         /// Create new optional value with a given present value.
@@ -57,12 +57,12 @@ namespace Spreads
             _present = value;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal Opt(T value, int presence)
-        {
-            _presence = presence | 1;
-            _present = value;
-        }
+        //[MethodImpl(MethodImplOptions.AggressiveInlining)]
+        //internal unsafe Opt(T value, bool presence)
+        //{
+        //    _presence = *(byte*)&presence;
+        //    _present = value;
+        //}
 
         /// <summary>
         /// True if a value is present.
@@ -90,20 +90,20 @@ namespace Spreads
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
-                #if DEBUG
+#if DEBUG
                 if (IsMissing)
                 {
                     throw new InvalidOperationException("Cannot access Opt<>.Present when value is missing");
                 }
-                #endif
+#endif
                 return _present;
             }
         }
 
-        internal int _Presence
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public T PresentOrDefault(T defaultValue = default)
         {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => _presence;
+            return IsMissing ? defaultValue : _present;
         }
 
         /// <summary>
@@ -141,7 +141,6 @@ namespace Spreads
 
             return c <= 0 ? first : second;
         }
-
 
         // NB Do not add implicit convertion to this direction, it's too easy to convert `default` to Present.
         // Instead, Opt.Present(...) is short enough and infers types automatically. Had bugs with this already
