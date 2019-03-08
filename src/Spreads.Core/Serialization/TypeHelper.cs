@@ -95,9 +95,7 @@ namespace Spreads.Serialization
         }
     }
 
-    // NB Optimization fail: static RO are not JIT consts for generics. Although for tiered compilation this could work at some point.
-
-    public static unsafe class TypeHelper<T>
+    public static class TypeHelper<T>
     {
         // Do not use static ctor in any critical paths: https://github.com/Spreads/Spreads/issues/66
         // static TypeHelper() { }
@@ -107,36 +105,35 @@ namespace Spreads.Serialization
         // ReSharper disable once StaticMemberInGenericType
         internal static bool IsInternalBinarySerializer; // TODO set to true for tuples and arrays
 
-        public static bool HasBinarySerializer
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => BinarySerializer != null;
-        }
-
+        
         /// <summary>
-        /// Returns a positive size of a pinnable type T, -1 if the type T is not pinnable or has
-        /// a registered <see cref="IBinarySerializer{T}"/> converter.
-        /// We assume the type T is pinnable if `GCHandle.Alloc(T[2], GCHandleType.Pinned) = true`.
-        /// This is more relaxed than Marshal.SizeOf, but still doesn't cover cases such as
-        /// an array of KVP[DateTime,double], which has contiguous layout in memory.
+        /// Returns a positive number for primitive type, well known fixed size types
+        /// and pinnable structs with <see cref="BinarySerializationAttribute"/> and
+        /// <see cref="BinarySerializationAttribute.BlittableSize"/> set to actual size.
+        /// For other types returns -1.
         /// </summary>
         // ReSharper disable once StaticMemberInGenericType
-        [Obsolete("Definition of this implementation is blurry. Use PinnedSize for concrete type T as fall back to determine fixed blittable structs and TypeEnumHelper for recursive more liable size estimation.")]
-        public static readonly int FixedSize = InitChecked();
+        public static readonly int FixedSize = InitFixedSizeSafe();
 
-        // NOTE: PinnedSize simply tries to pin via GCHandle.
-        // FixedSize could be positive for non-pinnable structs with auto layout (e.g. DateTime)
-        // but it is opt-in and requires an attribute to treat a custom blittable type as fixed.
+
+        // TODO this method must comply with xml doc
+        // TODO ContainsReferences, it does what the name says. Auto layout and composites could have no references
+        //      but have FixedSize <= 0 with out definitions. For skipping buffer cleaning we need !ContainsReferences
+
+        // ReSharper disable once StaticMemberInGenericType
+        public static readonly bool IsFixedSize = FixedSize > 0;
+
+        // ReSharper disable once StaticMemberInGenericType
+        public static readonly bool HasBinarySerializer = FixedSize <= 0 && BinarySerializer != null;
 
         // ReSharper disable once StaticMemberInGenericType
         public static readonly short PinnedSize = GetPinnedSize();
 
         /// <summary>
-        /// True if an array T[] could be pinned in memory.
+        /// True if T[] could be pinned in memory via GCHandle.
         /// </summary>
         // ReSharper disable once StaticMemberInGenericType
-        public static readonly bool IsPinnable = PinnedSize > 0
-                                                 || FixedSize > 0; // TODO WTF it could be fixed but not pinnable
+        public static readonly bool IsPinnable = PinnedSize > 0;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int EnsureFixedSize()
@@ -153,53 +150,19 @@ namespace Spreads.Serialization
         [MethodImpl(MethodImplOptions.NoInlining)]
         private static void ThrowTypeIsNotFixedSize()
         {
-            throw new ApplicationException($"Type {typeof(T).Name} is not fixed size. Either add Size parameter to StructLayout attribute or use Spreads.Serialization attribute to explicitly opt-in to treat non-primitive user-defined structs as fixed-size.");
-        }
-
-        [MethodImpl(MethodImplOptions.NoInlining)]
-        private static void FailTypeIsNotFixedSize()
-        {
-            ThrowHelper.FailFast($"Type {typeof(T).Name} is not fixed size. Either add Size parameter to StructLayout attribute or use Spreads.Serialization attribute to explicitly opt-in to treat non-primitive user-defined structs as fixed-size.");
-        }
-
-        [MethodImpl(MethodImplOptions.NoInlining)]
-        private static void FailHeaderNotSimpleBinary()
-        {
-            ThrowHelper.FailFast("Header is not simple binary.");
+            ThrowHelper.ThrowArgumentException($"Type {typeof(T).Name} is not fixed size. Add Spreads.BinarySerialization attribute to explicitly opt-in to treat non-primitive user-defined structs as fixed-size.");
         }
 
         /// <summary>
         /// CLR definition, we cache it here since ty.IsValueType is a virtual call
         /// </summary>
-        public static readonly bool IsValueType = typeof(T).GetTypeInfo().IsValueType;
+        [Obsolete] // TODO review if we will need this
+        internal static readonly bool IsValueType = typeof(T).GetTypeInfo().IsValueType;
 
         /// <summary>
         /// Implements <see cref="IDelta{T}"/>
         /// </summary>
-        public static readonly bool IsIDelta = typeof(IDelta<T>).GetTypeInfo().IsAssignableFrom(typeof(T));
-
-        // ReSharper disable once StaticMemberInGenericType
-        [Obsolete]
-        public static readonly bool IsFixedSize = FixedSize > 0;
-
-        private static int InitChecked()
-        {
-            try
-            {
-                var size = Init();
-                if (size > 255)
-                {
-                    size = -1;
-                }
-
-                // NB do not support huge blittable type
-                return size;
-            }
-            catch
-            {
-                return -1;
-            }
-        }
+        internal static readonly bool IsIDelta = typeof(IDelta<T>).GetTypeInfo().IsAssignableFrom(typeof(T));
 
         /// <summary>
         /// Distance between two elements of a pinned array.
@@ -226,102 +189,59 @@ namespace Spreads.Serialization
             }
         }
 
-        /// <summary>
-        /// Method is only called from the static constructor of TypeHelper.
-        /// </summary>
-        /// <returns></returns>
-        private static int Init()
+        private static int InitFixedSizeSafe()
         {
+            try
+            {
+                var size = InitFixedSize();
+                if (size > 255)
+                {
+                    size = -1;
+                }
+
+                // NB do not support huge blittable type
+                return size;
+            }
+            catch
+            {
+                return -1;
+            }
+        }
+
+        private static int InitFixedSize()
+        {
+            // Auto layout for this is PITA
             if (typeof(T) == typeof(DateTime))
             {
                 return 8;
             }
-            // NB decimal is pinnable but not primitive, the check below fails on it
+
+            // Decimal is pinnable but not primitive, GetPinnedSize fails on it
             if (typeof(T) == typeof(decimal))
             {
                 return 16;
             }
 
-            var pinnedSize = GetPinnedSize();
-
             var bsAttr = BinarySerializationAttribute.GetSerializationAttribute(typeof(T));
-
-            if (pinnedSize > 0)
-            {
-                if (typeof(T).GetTypeInfo().IsPrimitive)
-                {
-                    return pinnedSize;
-                }
-
-                // for a non-primitive type to be blittable, it must have an attribute
-
-                var hasSizeAttribute = false;
-                if (bsAttr != null && bsAttr.BlittableSize > 0)
-                {
-                    if (pinnedSize != bsAttr.BlittableSize)
-                    {
-                        ThrowHelper.ThrowInvalidOperationException(
-                            $"Size of type {typeof(T).FullName} defined in SerializationAttribute {bsAttr.BlittableSize} differs from calculated size {pinnedSize}.");
-                    }
-
-                    if (bsAttr.ConverterType != null)
-                    {
-                        ThrowHelper.ThrowInvalidOperationException(
-                            $"Cannot define BlittableSize and ConverterType at the same time in Serialization attribute of type {typeof(T).FullName}.");
-                    }
-                    hasSizeAttribute = true;
-                }
-                else
-                {
-                    var sla = BinarySerializationAttribute.GetStructLayoutAttribute(typeof(T));
-                    if (sla != null && sla.Size > 0)
-                    {
-                        if (pinnedSize != sla.Size || sla.Value == LayoutKind.Auto)
-                        {
-                            ThrowHelper.ThrowInvalidOperationException(
-                                $"Size of type {typeof(T).Name} defined in StructLayoutAttribute {sla.Size} differs from calculated size {pinnedSize} or layout is set to LayoutKind.Auto.");
-                        }
-                        hasSizeAttribute = true;
-                    }
-                }
-                if (hasSizeAttribute)
-                {
-                    if (typeof(IBinarySerializer<T>).IsAssignableFrom(typeof(T)))
-                    {
-                        // NB: this makes no sense, because blittable is version 0, if we have any change
-                        // to struct layout later, we won't be able to work with version 0 anymore
-                        // and will lose ability to work with old values.
-                        ThrowHelper.ThrowInvalidOperationException($"Blittable types must not implement IBinaryConverter<T> interface.");
-                    }
-                    return pinnedSize;
-                }
-                if (bsAttr != null && bsAttr.PreferBlittable)
-                {
-                    // NB: here it is OK to have an interface, we just opt-in for blittable
-                    // when we know it won't change, e.g. generic struct with fixed fields (KV<K,V>, DictEntry<K,V>, Message<T>, etc.)
-                    // usually those types are internal
-                    return pinnedSize;
-                }
-            }
 
             // by this line the type is not blittable
 
             IBinarySerializer<T> serializer = null;
 
-            if (bsAttr != null && bsAttr.ConverterType != null)
+            if (bsAttr != null && bsAttr.SerializerType != null)
             {
-                if (!typeof(IBinarySerializer<T>).IsAssignableFrom(bsAttr.ConverterType))
+                if (!typeof(IBinarySerializer<T>).IsAssignableFrom(bsAttr.SerializerType))
                 {
-                    ThrowHelper.ThrowInvalidOperationException($"ConverterType `{bsAttr.ConverterType.FullName}` in Serialization attribute does not implement IBinaryConverter<T> for the type `{typeof(T).FullName}`");
+                    ThrowHelper.ThrowInvalidOperationException($"SerializerType `{bsAttr.SerializerType.FullName}` in BinarySerialization attribute does not implement IBinaryConverter<T> for the type `{typeof(T).FullName}`");
                 }
 
                 try
                 {
-                    serializer = (IBinarySerializer<T>)Activator.CreateInstance(bsAttr.ConverterType);
+                    serializer = (IBinarySerializer<T>)Activator.CreateInstance(bsAttr.SerializerType);
                 }
                 catch
                 {
-                    ThrowHelper.ThrowInvalidOperationException($"ConverterType `{bsAttr.ConverterType.FullName}` must have a parameterless constructor.");
+                    ThrowHelper.ThrowInvalidOperationException($"SerializerType `{bsAttr.SerializerType.FullName}` must have a parameterless constructor.");
                 }
             }
 
@@ -333,7 +253,7 @@ namespace Spreads.Serialization
             {
                 if (serializer != null)
                 {
-                    Environment.FailFast($"Converter `{serializer.GetType().FullName}` is already set via Serialization attribute. The type `{typeof(T).FullName}` should not implement IBinaryConverter<T> interface or the attribute should not include ConverterType property.");
+                    ThrowHelper.ThrowInvalidOperationException($"IBinarySerializer `{serializer.GetType().FullName}` was already set via BinarySerialization attribute. The type `{typeof(T).FullName}` should not implement IBinaryConverter<T> interface or the attribute should not include SerializerType property.");
                 }
                 try
                 {
@@ -341,20 +261,15 @@ namespace Spreads.Serialization
                 }
                 catch
                 {
-                    //Trace.TraceWarning($"Type {typeof(T).FullName} is marked as IBinaryConverter and so it must have a parameterless constructor");
-                    Environment.FailFast($"Type T ({typeof(T).FullName}) is marked as IBinaryConverter<T> and therefore must have a parameterless constructor.");
+                    ThrowHelper.ThrowInvalidOperationException($"Type T ({typeof(T).FullName}) implements IBinaryConverter<T> and must have a parameterless constructor.");
                 }
+                // ReSharper disable once PossibleNullReferenceException
                 if (serializer.SerializerVersion <= 0)
                 {
-                    Environment.FailFast("User IBinaryConverter<T> implementation for a type T should have a positive version.");
+                    ThrowHelper.ThrowInvalidOperationException("User-defined IBinaryConverter<T> implementation for a type T should have a positive version.");
                 }
             }
 
-            // NB: string as UTF8 Json is OK
-            // /else if (typeof(T) == typeof(string))
-            // /{
-            // /    BinaryConverter = (IBinaryConverter<T>)(new StringBinaryConverter());
-            // /}
 #if SPREADS
             // TODO synchronize with TypeEnumHelper's GetTypeEnum and CreateTypeInfo
 
@@ -470,33 +385,100 @@ namespace Spreads.Serialization
             // Do not add Json converter as fallback, it is not "binary", it implements the interface for
             // simpler implementation in BinarySerializer and fallback happens there
 #endif
-            BinarySerializer = serializer;
+            if (serializer != null)
+            {
+                BinarySerializer = serializer;
+                return -1;
+            }
+
+            var pinnedSize = GetPinnedSize();
+            if (pinnedSize > 0)
+            {
+                if (typeof(T).GetTypeInfo().IsPrimitive)
+                {
+                    return pinnedSize;
+                }
+
+                // for a non-primitive type to be blittable, it must have an attribute
+
+                var hasSizeAttribute = false;
+                if (bsAttr != null && bsAttr.BlittableSize > 0)
+                {
+                    if (pinnedSize != bsAttr.BlittableSize)
+                    {
+                        ThrowHelper.ThrowInvalidOperationException(
+                            $"Size of type {typeof(T).FullName} defined in BinarySerialization attribute {bsAttr.BlittableSize} differs from calculated size {pinnedSize}.");
+                    }
+
+                    if (bsAttr.SerializerType != null)
+                    {
+                        ThrowHelper.ThrowInvalidOperationException(
+                            $"Cannot define BlittableSize and ConverterType at the same time in BinarySerialization attribute of type {typeof(T).FullName}.");
+                    }
+                    hasSizeAttribute = true;
+                }
+                else
+                {
+                    var sla = BinarySerializationAttribute.GetStructLayoutAttribute(typeof(T));
+                    if (sla != null && sla.Size > 0 && sla.Value != LayoutKind.Auto && Settings.UseStructLayoutSizeAsBlittableSize)
+                    {
+                        if (pinnedSize != sla.Size)
+                        {
+                            ThrowHelper.ThrowInvalidOperationException(
+                                $"Size of type {typeof(T).Name} defined in StructLayoutAttribute {sla.Size} differs from calculated size {pinnedSize} or layout is set to LayoutKind.Auto.");
+                        }
+                        hasSizeAttribute = true;
+                    }
+                }
+
+                if (hasSizeAttribute) // TODO after IBS resolution
+                {
+                    if (typeof(IBinarySerializer<T>).IsAssignableFrom(typeof(T)))
+                    {
+                        // NB: this makes no sense, because blittable is version 0, if we have any change
+                        // to struct layout later, we won't be able to work with version 0 anymore
+                        // and will lose ability to work with old values.
+                        ThrowHelper.ThrowInvalidOperationException($"Blittable types must not implement IBinaryConverter<T> interface.");
+                    }
+                    return pinnedSize;
+                }
+
+                if (bsAttr != null && bsAttr.PreferBlittable)
+                {
+                    // NB: here it is OK to have an interface, we just opt-in for blittable
+                    // when we know it won't change, e.g. generic struct with fixed fields (KV<K,V>, DictEntry<K,V>, Message<T>, etc.)
+                    // usually those types are internal
+                    return pinnedSize;
+                }
+            }
 
             return -1;
         }
 
-        public static byte ConverterVersion
+        // TODO Serializer versioning is not implemented
+
+        internal static byte SerializerVersion
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => BinarySerializer?.SerializerVersion ?? 0;
         }
 
-        public static void RegisterConverter(IBinarySerializer<T> serializer,
+        internal static void RegisterSerializer(IBinarySerializer<T> serializer,
             bool overrideExisting = false)
         {
             if (serializer == null) { throw new ArgumentNullException(nameof(serializer)); }
             if (FixedSize > 0) { throw new InvalidOperationException("Cannot register a custom converter for pinnable types"); }
 
             // NB TypeHelper is internal, we could provide some hooks later e.g. for char or bool
-            if (serializer.SerializerVersion == 0 || serializer.SerializerVersion > 15)
+            if (serializer.SerializerVersion == 0 || serializer.SerializerVersion > 3)
             {
-                ThrowHelper.ThrowArgumentException("User-implemented converter version must be in the range 1-15.");
+                ThrowHelper.ThrowArgumentException("User-implemented serializer version must be in the range 1-3.");
             }
 
             if (HasBinarySerializer && !overrideExisting)
             {
                 ThrowHelper.ThrowInvalidOperationException(
-                    $"Type {typeof(T)} already implements IBinaryConverter<{typeof(T)}> interface. Use versioning to add a new converter (not supported yet)");
+                    $"Type {typeof(T)} already implements IBinarySerializer<{typeof(T).Name}> interface. Use versioning to add a new converter (not supported yet)");
             }
 
             if (IsFixedSize) // TODO this may be possible, but don't care for now

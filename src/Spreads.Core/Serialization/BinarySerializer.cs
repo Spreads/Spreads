@@ -2,24 +2,20 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+using Spreads.Buffers;
+using Spreads.DataTypes;
 using System;
 using System.Diagnostics;
 using System.IO;
 using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
-using Spreads.Buffers;
-using Spreads.DataTypes;
 
 namespace Spreads.Serialization
 {
+    // BinarySerializer is low-level, we do not need timestamp! We could do this manually.
+    // We needed it before header separation, but now cold delete it.
+
     public static unsafe partial class BinarySerializer
     {
-        // ReSharper disable once InconsistentNaming
-        /// <summary>
-        /// Binary serializer padding
-        /// </summary>
-        internal const int HEADER_PADDING = 16;
-
         /// <summary>
         /// Returns a positive value for fixed serialized size of the type <typeparamref name="T"/>
         /// or a meaningless negative value for variable size type. Zero value is invalid.
@@ -63,11 +59,16 @@ namespace Spreads.Serialization
                 if (tbs != null)
                 {
                     rawLength = tbs.SizeOf(in value, out temporaryBuffer);
+                    if (!temporaryBuffer.IsEmpty && rawLength != temporaryBuffer.Length)
+                    {
+                        FailWrongSerializerImplementation<T>();
+                    }
                     goto HAS_RAW_SIZE;
                 }
             }
 
             rawLength = JsonBinarySerializer<T>.SizeOf(in value, out temporaryBuffer);
+            Debug.Assert(rawLength == temporaryBuffer.Length);
 
         HAS_RAW_SIZE:
 
@@ -168,13 +169,12 @@ namespace Spreads.Serialization
         public static int Write<T>(T value,
             Span<byte> destination,
             RetainedMemory<byte> temporaryBuffer = default,
-            SerializationFormat format = default,
-            Timestamp timestamp = default)
+            SerializationFormat format = default)
         {
             fixed (byte* ptr = &destination.GetPinnableReference())
             {
                 var db = new DirectBuffer(destination.Length, ptr);
-                return Write(value, db, temporaryBuffer, format, timestamp);
+                return Write(value, db, temporaryBuffer, format);
             }
         }
 
@@ -183,38 +183,37 @@ namespace Spreads.Serialization
             ref DataTypeHeader headerDestination,
             Span<byte> destination,
             RetainedMemory<byte> temporaryBuffer = default,
-            SerializationFormat format = default,
-            Timestamp timestamp = default)
+            SerializationFormat format = default)
         {
             fixed (byte* ptr = &destination.GetPinnableReference())
             {
                 var db = new DirectBuffer(destination.Length, ptr);
-                return Write(value, ref headerDestination, db, temporaryBuffer, format, timestamp);
+                return Write(value, ref headerDestination, db, temporaryBuffer, format);
             }
         }
 
         #endregion Span overloads
 
-        /// <summary>
-        ///
-        /// </summary>
-        /// <typeparam name="T"></typeparam>
-        /// <param name="value"></param>
-        /// <param name="destination">First 4 bytes must be clear or match <see cref="DataTypeHeader"/>.</param>
-        /// <param name="temporaryBuffer"></param>
-        /// <param name="format"></param>
-        /// <param name="timestamp"></param>
-        /// <returns>Number of written bytes, including <see cref="DataTypeHeader"/>.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int Write<T>(in T value,
             DirectBuffer destination,
             RetainedMemory<byte> temporaryBuffer = default,
             SerializationFormat format = default,
-            Timestamp timestamp = default)
+            bool noHeader = false)
         {
-            ref var headerDestination = ref *(DataTypeHeader*)destination.Data;
-            destination = destination.Slice(DataTypeHeader.Size);
-            var written = Write(value, ref headerDestination, destination, temporaryBuffer, format, timestamp);
+            int written;
+            if (noHeader)
+            {
+                written = Write(value, ref Unsafe.AsRef<DataTypeHeader>(null), destination, temporaryBuffer, format,
+                    checkHeader: false);
+            }
+            else
+            {
+                ref var headerDestination = ref *(DataTypeHeader*)destination.Data;
+                destination = destination.Slice(DataTypeHeader.Size);
+
+                written = Write(value, ref headerDestination, destination, temporaryBuffer, format, checkHeader: false);
+            }
 
             if (written > 0)
             {
@@ -224,42 +223,36 @@ namespace Spreads.Serialization
             return written; // error code
         }
 
-        private static readonly byte* VoidWrite = (byte*)Marshal.AllocHGlobal(8);
-
-        [StructLayout(LayoutKind.Explicit)]
-        // ReSharper disable once UnusedMember.Local
-        private struct PointersStruct
-        {
-            [FieldOffset(0)]
-            // ReSharper disable once PrivateFieldCanBeConvertedToLocalVariable
-            private readonly byte* Void;
-
-            [FieldOffset(8)]
-            // ReSharper disable once PrivateFieldCanBeConvertedToLocalVariable
-            private readonly byte* Target;
-
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public PointersStruct(byte* target)
-            {
-                Void = VoidWrite;
-                Target = target;
-            }
-        }
-
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int Write<T>(in T value,
             ref DataTypeHeader headerDestination,
             DirectBuffer destination,
             RetainedMemory<byte> temporaryBuffer = default,
-            SerializationFormat format = default,
-            Timestamp timestamp = default)
+            SerializationFormat format = default)
         {
-            IBinarySerializer<T> tbs = TypeHelper<T>.BinarySerializer;
+            return Write(value, ref headerDestination, destination, temporaryBuffer, format, checkHeader: true);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static int Write<T>(in T value,
+            ref DataTypeHeader headerDestination,
+            DirectBuffer destination,
+            RetainedMemory<byte> temporaryBuffer,
+            SerializationFormat format,
+            bool checkHeader)
+        {
+            var writeHeader = !Unsafe.AreSame(ref headerDestination, ref Unsafe.AsRef<DataTypeHeader>(null));
+
+            var tbs = TypeHelper<T>.BinarySerializer;
 
             // if fixed & binary just write
             if (format.IsBinary())
             {
-                // fixed size binary is never compressed
+                // Fixed size binary is never compressed regardless of requested format
+                // We do not throw when type cannot be serialized with requested format,
+                // it's best efforts only. Output is always "binary" and header shows
+                // what we have actually written.
+
                 if (TypeEnumHelper<T>.IsFixedSize)
                 {
                     if (AdditionalCorrectnessChecks.Enabled && !temporaryBuffer.IsEmpty)
@@ -267,73 +260,43 @@ namespace Spreads.Serialization
                         temporaryBuffer.Dispose();
                         ThrowTempBufferMustBeEmptyForFixedSize();
                     }
-                    var hasTs = (long)timestamp != default;
 
-                    DataTypeHeader header = TypeEnumHelper<T>.DefaultBinaryHeader;
-                    header.VersionAndFlags.IsTimestamped = hasTs;
-                    var existingHeader = headerDestination;
-                    if (existingHeader == default)
+                    if (writeHeader)
                     {
+                        var header = TypeEnumHelper<T>.DefaultBinaryHeader;
+
+                        if (checkHeader)
+                        {
+                            var existingHeader = headerDestination;
+                            if (existingHeader != default && existingHeader != header)
+                            {
+                                return (int)BinarySerializerErrorCode.HeaderMismatch;
+                            }
+                        }
+
                         headerDestination = header;
                     }
-                    else
-                    {
-                        if (existingHeader != header)
-                        {
-                            return (int)BinarySerializerErrorCode.HeaderMismatch;
-                        }
-                    }
 
-#if BRANCHLESS
-                    // 30 (branchless) vs 37 (100% predicted)
-                    // TODO: if this does not hurt non-branching bench a lot keep it.
-                    // It's hard to make a reliable benchmark with branch misprediction,
-                    // there is some in tests
-                    var pos = *(int*)&hasTs << 3;
-                    var targets = new PointersStruct(destination.Data);
-                    var target = (Timestamp*)*(byte**)((byte*)Unsafe.AsPointer(ref targets) + pos);
-                    Debug.Assert(hasTs ? (byte*)target == destination.Data : (byte*)target == VoidWrite);
-                    *target = timestamp;
-#else
-                    int pos = 0;
-                    if (hasTs)
-                    {
-                        pos = 8;
-                        destination.Write(0, timestamp);
-                    }
-#endif
                     if (tbs == null)
                     {
-                        Debug.Assert(TypeHelper<T>.IsFixedSize);
-                        destination.Write(pos, value);
+                        // Debug.Assert(TypeHelper<T>.IsFixedSize);
+                        destination.Write(0, value);
                     }
                     else
                     {
-                        tbs.Write(in value, destination.Slice(pos));
+                        tbs.Write(in value, destination);
                     }
 
-                    return pos + TypeEnumHelper<T>.FixedSize;
+                    return TypeEnumHelper<T>.FixedSize;
                 }
-                // Use custom TypeHelper<T>.BinaryConverter only when asked for isBinary
-                tbs = tbs ?? JsonBinarySerializer<T>.Instance;
-            }
-            else
-            {
-                tbs = JsonBinarySerializer<T>.Instance;
             }
 
-            return WriteVarSizeOrJson(in value, ref headerDestination, destination, temporaryBuffer, format, timestamp, tbs);
-        }
-
-        [MethodImpl(MethodImplOptions.NoInlining)]
-        private static void ThrowTempBufferMustBeEmptyForFixedSize()
-        {
-            ThrowHelper.ThrowInvalidOperationException("temporaryBuffer is not empty for fixed size binary serialization.");
+            return WriteVarSizeOrJson(in value, ref headerDestination, destination, temporaryBuffer, format, checkHeader);
         }
 
         [MethodImpl(MethodImplOptions.NoInlining
 #if NETCOREAPP3_0
-                    | MethodImplOptions.AggressiveOptimization
+            | MethodImplOptions.AggressiveOptimization
 #endif
         )]
         private static int WriteVarSizeOrJson<T>(in T value,
@@ -341,74 +304,59 @@ namespace Spreads.Serialization
             DirectBuffer destination,
             RetainedMemory<byte> temporaryBuffer,
             SerializationFormat format,
-            Timestamp timestamp,
-            IBinarySerializer<T> tbs)
+
+            bool checkHeader)
         {
+            var tbs = TypeHelper<T>.BinarySerializer ?? JsonBinarySerializer<T>.Instance;
+
             try
             {
-                var hasTs = (long)timestamp != default;
+                var writeHeader = !Unsafe.AreSame(ref headerDestination, ref Unsafe.AsRef<DataTypeHeader>(null));
 
-                var header = TypeEnumHelper<T>.DataTypeHeader;
-                var vf = header.VersionAndFlags;
-
-                vf.ConverterVersion = tbs.SerializerVersion;
-                vf.IsBinary = tbs != JsonBinarySerializer<T>.Instance;
-                vf.CompressionMethod = format.CompressionMethod();
-                vf.IsTimestamped = hasTs;
-
-                header.VersionAndFlags = vf;
-
-                // Special case when header info is rewritten.
-                // This relies on existing header check when we reuse
-                // header, or each new header will have it's own count.
-                if (header.TEOFS.TypeEnum == TypeEnum.TupleTN && tbs is IFixedArraySerializer fas)
+                if (writeHeader)
                 {
-                    Debug.Assert(tbs.FixedSize > 0);
-                    header.TupleNCount = checked((byte)fas.FixedArrayCount(value));
-                }
+                    var header = TypeEnumHelper<T>.DataTypeHeader;
+                    var vf = header.VersionAndFlags;
 
-                // Header is written to headerDestination
-                var offset = 0;
+                    vf.ConverterVersion = tbs.SerializerVersion;
+                    vf.IsBinary = tbs != JsonBinarySerializer<T>.Instance;
+                    vf.CompressionMethod = format.CompressionMethod();
 
-                var existingHeader = headerDestination;
-                if (existingHeader != default)
-                {
-                    if (existingHeader != header)
+                    header.VersionAndFlags = vf;
+
+                    // Special case when header info is rewritten.
+                    // This relies on existing header check when we reuse
+                    // header, or each new header will have it's own count.
+                    if (header.TEOFS.TypeEnum == TypeEnum.TupleTN && tbs is IFixedArraySerializer fas)
                     {
-                        return (int)BinarySerializerErrorCode.HeaderMismatch;
+                        Debug.Assert(tbs.FixedSize > 0);
+                        header.TupleNCount = checked((byte)fas.FixedArrayCount(value));
                     }
-                }
-                else
-                {
+
+                    if (checkHeader)
+                    {
+                        var existingHeader = headerDestination;
+                        if (existingHeader != default && existingHeader != header)
+                        {
+                            return (int)BinarySerializerErrorCode.HeaderMismatch;
+                        }
+                    }
+
                     headerDestination = header;
                 }
 
-                if (hasTs)
+                if (AdditionalCorrectnessChecks.Enabled && tbs.FixedSize > 0)
                 {
-                    offset = Timestamp.Size;
-                    destination.Write(0, (long)timestamp);
+                    ThrowHelper.FailFast("Fixed case must write this type");
                 }
-
-                // TODO should use info from header + asserts,
-                if (tbs.FixedSize > 0)
-                {
-                    ThrowHelper.FailFast("Fixed case");
-                }
-
-                destination.Write(offset, temporaryBuffer.Length);
-
-                offset += 4; // var len payload size
 
                 int rawLength;
                 if (temporaryBuffer.IsEmpty)
                 {
-                    temporaryBuffer.Dispose();
-                    rawLength = SizeOf(value, out temporaryBuffer, format);
+                    Debug.Assert(temporaryBuffer._manager == null, "should not be possible with internal code");
+                    temporaryBuffer.Dispose(); // noop for default, just in case
 
-                    if (!temporaryBuffer.IsEmpty && rawLength != temporaryBuffer.Length)
-                    {
-                        ThrowHelper.FailFast($"Wrong SizeOf<{typeof(T).Name}> implementation");
-                    }
+                    rawLength = SizeOf(value, out temporaryBuffer, format);
 
                     // Still empty, binary converter knows the size without serilizing
                     if (temporaryBuffer.IsEmpty)
@@ -420,6 +368,12 @@ namespace Spreads.Serialization
 
                         if (Settings.DefensiveBinarySerializerWrite && !TypeHelper<T>.IsInternalBinarySerializer)
                         {
+#if DEBUG
+                            if (typeof(T).Namespace.Contains("Spreads"))
+                            {
+                                throw new NotImplementedException($"Serializer for {typeof(T).Name} must be marked as IsInternalBinarySerializer.");
+                            }
+#endif
                             PopulateTempBuffer(rawLength, value, ref temporaryBuffer, format);
                         }
                     }
@@ -428,6 +382,11 @@ namespace Spreads.Serialization
                 {
                     rawLength = temporaryBuffer.Length;
                 }
+
+                // ReSharper disable once RedundantTypeArgumentsOfMethod
+                destination.Write<int>(0, temporaryBuffer.Length);
+
+                const int offset = 4; // payload size
 
                 if (offset + rawLength > destination.Length)
                 {
@@ -444,7 +403,10 @@ namespace Spreads.Serialization
                 else
                 {
                     var written = tbs.Write(value, destination.Slice(offset, rawLength));
-                    ThrowHelper.AssertFailFast(rawLength == written, $"Wrong IBinarySerializer<{typeof(T).Name}> implementation");
+                    if (rawLength == written)
+                    {
+                        FailWrongSerializerImplementation<T>();
+                    }
                 }
 
                 return offset + rawLength;
@@ -462,51 +424,31 @@ namespace Spreads.Serialization
         #region Span overloads
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int Read<T>(ReadOnlySpan<byte> source, out T value)
-        {
-            return Read(source, out value, out _);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int Read<T>(ReadOnlySpan<byte> source, out T value, out Timestamp timestamp)
+        public static int Read<T>(ReadOnlySpan<byte> source, out T value, bool skipTypeInfoValidation = false)
         {
             fixed (byte* ptr = &source.GetPinnableReference())
             {
-                var db = new DirectBuffer(source.Length, ptr);
-                return Read(db, out value, out timestamp);
+                var sourceDb = new DirectBuffer(source.Length, ptr);
+                return Read(sourceDb, out value, skipTypeInfoValidation);
             }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int Read<T>(DataTypeHeader header, ReadOnlySpan<byte> source, out T value)
-        {
-            return Read(header, source, out value, out _);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int Read<T>(DataTypeHeader header, ReadOnlySpan<byte> source, out T value, out Timestamp timestamp)
+        public static int Read<T>(DataTypeHeader header, ReadOnlySpan<byte> source, out T value, bool skipTypeInfoValidation = false)
         {
             fixed (byte* ptr = &source.GetPinnableReference())
             {
-                var db = new DirectBuffer(source.Length, ptr);
-                return Read(header, db, out value, out timestamp);
+                var sourceDb = new DirectBuffer(source.Length, ptr);
+                return Read(header, sourceDb, out value, skipTypeInfoValidation);
             }
         }
 
         #endregion Span overloads
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int Read<T>(DirectBuffer source, out T value)
+        public static int Read<T>(DirectBuffer source, out T value, bool skipTypeInfoValidation = false)
         {
-            return Read(source, out value, out _);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int Read<T>(DirectBuffer source, out T value, out Timestamp timestamp)
-        {
-            var consumed = Read(source.Read<DataTypeHeader>(0), source.Slice(DataTypeHeader.Size),
-                out value,
-                out timestamp);
+            var consumed = Read(source.Read<DataTypeHeader>(0), source.Slice(DataTypeHeader.Size), out value, skipTypeInfoValidation);
 
             if (consumed > 0)
             {
@@ -517,69 +459,79 @@ namespace Spreads.Serialization
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int Read<T>(DataTypeHeader header, DirectBuffer source, out T value)
+        public static int Read<T>(DataTypeHeader header, DirectBuffer source, out T value, bool skipTypeInfoValidation = false)
         {
-            return Read(header, source.Slice(DataTypeHeader.Size), out value, out _);
-        }
+            // Note that we do not check that T matches type info from the header.
+            // It could be done by caller when needed.
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int Read<T>(DataTypeHeader header, DirectBuffer source, out T value, out Timestamp timestamp)
-        {
-            var headerFs = header.FixedSize;
-            if (header.VersionAndFlags.IsBinary && headerFs > 0) // IsFixedSize not possible with compression
+            // We could get correct fixed size from header.FixedSize,
+            // but using TypeEnumHelper<T>.FixedSize is 2.5x times faster.
+            // T could be wrong, but we do check if fs > source.Length
+            // so no reads beyond source are possible. If T is wrong
+            // then returned value is garbage, but no data corruption
+            // is possible. We ignore cases that to not corrupt data
+            // or compromise safety, so header.FixedSize is only in Debug.Assert.
+
+            // TODO Generic method to validate header against T and optional param to Read `bool validateHeader = false`.
+            // When true we should also validate type enums.
+            // TODO consider IsFixedSize in VersionAndFlags
+
+            var fs = TypeEnumHelper<T>.FixedSize; // header.FixedSize;
+
+            // We need to check IsBinary because header.FixedSize only tells the size as if format is binary
+            if (header.VersionAndFlags.IsBinary && fs > 0)
             {
-                // TODO sort out asserts, some conditions need fail fast
-                // all these checks are non negligible
-                Debug.Assert(TypeEnumHelper<T>.FixedSize == headerFs);
-                if ((!TypeEnumHelper<T>.IsFixedSize || TypeEnumHelper<T>.FixedSize > source.Length)
+                // var typeHeader = TypeEnumHelper<T>.DataTypeHeader;
+                //typeHeader.VersionAndFlags = default;
+                //header.VersionAndFlags = default;
+
+                Debug.Assert(header.FixedSize == fs, "header.FixedSize == fs");
+                // FixedSize not possible with compression, do not check
+
+                if ((fs > source.Length || (!skipTypeInfoValidation && TypeEnumHelper<T>.DataTypeHeader.WithoutVersionAndFlags != header.WithoutVersionAndFlags))
+#if DEBUG
                     ||
                     (TypeHelper<T>.FixedSize > 0 && (!header.IsScalar || TypeHelper<T>.FixedSize != TypeEnumHelper<T>.FixedSize))
+#endif
                     )
                 {
                     value = default;
-                    timestamp = default;
                     return -1;
                 }
 
-                var versionAndFlags = header.VersionAndFlags;
-                var tsSize = 0;
-                if (versionAndFlags.IsTimestamped)
+                Debug.Assert(TypeHelper<T>.HasBinarySerializer ^ (TypeHelper<T>.BinarySerializer == null));
+
+                var tbs = TypeHelper<T>.BinarySerializer;
+                if (tbs == null)
                 {
-                    tsSize = Timestamp.Size;
-                    timestamp = source.Read<Timestamp>(0);
-                    source = source.Slice(tsSize);
+                    value = source.Read<T>(0);
                 }
                 else
                 {
-                    timestamp = default;
+                    Debug.Assert(TypeHelper<T>.BinarySerializer != null, "TypeHelper<T>.BinarySerializer != null");
+                    var consumed = tbs.Read(source, out value);
+                    Debug.Assert(consumed == fs);
                 }
 
-                if (TypeHelper<T>.IsFixedSize)
-                {
-                    value = source.Read<T>(tsSize);
-                }
-                else
-                {
-                    var bc = TypeHelper<T>.BinarySerializer;
-                    if (bc != null)
-                    {
-                        bc.Read(source, out value);
-                    }
-                    else
-                    {
-                        value = source.Read<T>(tsSize);
-                    }
-                }
-
-                return tsSize + headerFs;
+                return fs;
             }
 
-            return ReadVarSize(header, source, out value, out timestamp);
+            return ReadVarSize(header, source, out value, skipTypeInfoValidation);
         }
 
-        [MethodImpl(MethodImplOptions.NoInlining)]
-        private static int ReadVarSize<T>(DataTypeHeader header, DirectBuffer source, out T value, out Timestamp timestamp)
+        [MethodImpl(MethodImplOptions.NoInlining
+#if NETCOREAPP3_0
+                    | MethodImplOptions.AggressiveOptimization
+#endif
+        )]
+        private static int ReadVarSize<T>(DataTypeHeader header, DirectBuffer source, out T value, bool skipTypeInfoValidation)
         {
+            if (!skipTypeInfoValidation &&
+                TypeEnumHelper<T>.DataTypeHeader.WithoutVersionAndFlags != header.WithoutVersionAndFlags)
+            {
+                goto INVALID_RETURN;
+            }
+
             IBinarySerializer<T> bc = null;
 
             if (header.VersionAndFlags.IsBinary)
@@ -587,14 +539,8 @@ namespace Spreads.Serialization
                 bc = TypeHelper<T>.BinarySerializer;
             }
 
-            var tsSize = header.VersionAndFlags.IsTimestamped ? Timestamp.Size : 0;
-            var offset = tsSize + 4;
-
-            timestamp = tsSize > 0 ? source.Read<Timestamp>(0) : default;
-
-            var payloadSize = source.Read<int>(tsSize);
-
-            // source: ts? + plLen + pl
+            var payloadSize = source.Read<int>(0);
+            const int offset = 4;
 
             var calculatedSourceSize = offset + payloadSize;
 
@@ -670,20 +616,19 @@ namespace Spreads.Serialization
 
         INVALID_RETURN:
             value = default;
-            timestamp = default;
             return -1;
         }
 
         #endregion Read
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int Read<T>(Stream stream, out T value, out Timestamp timestamp)
+        public static int Read<T>(Stream stream, out T value)
         {
 #pragma warning disable 618
             if (stream is RecyclableMemoryStream rms && rms.IsSingleChunk)
 
             {
-                return Read(rms.SingleChunk.Span, out value, out timestamp);
+                return Read(rms.SingleChunk.Span, out value);
             }
 
             try
@@ -700,7 +645,7 @@ namespace Spreads.Serialization
                     }
 
                     stream.CopyTo(rms);
-                    return Read(rms.SingleChunk.Span, out value, out timestamp);
+                    return Read(rms.SingleChunk.Span, out value);
                 }
                 finally
                 {
@@ -713,7 +658,7 @@ namespace Spreads.Serialization
                 try
                 {
                     stream.CopyTo(rms);
-                    return Read(rms, out value, out timestamp);
+                    return Read(rms, out value);
                 }
                 finally
                 {
@@ -721,6 +666,18 @@ namespace Spreads.Serialization
                 }
             }
 #pragma warning restore 618
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static void ThrowTempBufferMustBeEmptyForFixedSize()
+        {
+            ThrowHelper.ThrowInvalidOperationException("temporaryBuffer is not empty for fixed size binary serialization.");
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static void FailWrongSerializerImplementation<T>()
+        {
+            ThrowHelper.FailFast($"Wrong SizeOf<{typeof(T).Name}> implementation");
         }
     }
 }

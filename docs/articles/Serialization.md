@@ -28,7 +28,7 @@ data structures in a [special way](#Fixed-size-types) that makes them compatible
 ## Binary layout of serialized data
 
 Both binary and JSON formats have a 4-bytes header that describes the content of
-payload and optional 8-bytes timestamp. Then serialized payload length is added
+payload. Then serialized payload length is added
 for variable size data.
 
 Payload is a UTF8 JSON or custom binary, depending on format specified in the header.
@@ -38,10 +38,6 @@ Payload is a UTF8 JSON or custom binary, depending on format specified in the he
 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 |                        DataTypeHeader                         |
-+---------------------------------------------------------------+
-|                Optional Timestamp (part 1)                    |
-+---------------------------------------------------------------+
-|                Optional Timestamp (part 2)                    |
 +---------------------------------------------------------------+
 |            Optional Variable size payload length              |
 +---------------------------------------------------------------+
@@ -68,7 +64,7 @@ Payload is a UTF8 JSON or custom binary, depending on format specified in the he
 ```'ini
 0 1 2 3 4 5 6 7 8
 +-+-+-+-+-+-+-+-+
-|0|Ver|R|T|CMP|B|
+|0|Ver|R|R|CMP|B|
 +---------------+
 B - Binary format (read as "Not JSON"). If not set then the payload is JSON, if set then payload is blittable or custom binary.
 CMP - compression method:
@@ -76,7 +72,6 @@ CMP - compression method:
     01 - GZip
     10 - Lz4
     11 - Zstd
-T - Timestamped. A value has Timestamp (8 bytes) right after the header.
 R - reserved.
 Ver - `IBinarySerializer<T>.SerializerVersion`.
 0 - will need completely new layout when this is not zero.
@@ -213,13 +208,6 @@ TODO example of IBinarySerializer interface
 
 ## FAQ
 
-**Q: Why Timestamp is special and not a part of data?**
-
-In DataSpreads we timestamp all data stream items (events) and use timestamps for quick navigation (such an index in DB), therefore
-fixed explicit position is required. If you do not provide a
-timestamp DataSpreads will use current time of writing.
-Outside DataSpreads context you could just ignore it.
-
 **Q: Why you are not using *Protocol buffers* for binary serialization?**
 
 Spreads.Utf8Json is already faster than `protobuf-net` on some benchmarks
@@ -248,9 +236,8 @@ all writes check that a header for a new value matches the existing header.
 
 **Q: How to ensure item alignment of a serialized sequence of fixed size type?**
 
-If you use a separate data header destination (e.g. the first 4 bytes of a large destination buffer) and start writing from aligned position then data is aligned (vs destination start) to 8 bytes if you use timestamps or to data item size without timestamps. If you need timestamps and need more than 8 bytes alignment then
-pad you structure so that is has size `Pow2 - 8` to place timestamps
-at the beginning of Pow2 spans.
+If you use a separate data header destination (e.g. the first 4 bytes of a large destination buffer) and start writing from aligned position then data is aligned to data item size. Add padding to the next power of 2 to your struct yourself if you
+need larger alignment.
 
 **Q: Should I care about aligned memory access?**
 

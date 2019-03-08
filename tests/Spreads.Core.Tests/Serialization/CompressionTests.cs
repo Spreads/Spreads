@@ -68,9 +68,9 @@ namespace Spreads.Core.Tests.Serialization
                 values[i] = value;
                 var size = BinarySerializer.SizeOf(in value, out var tmpBuffer, SerializationFormat.Json);
 
-                var written = BinarySerializer.Write(in value, dest, tmpBuffer, SerializationFormat.Json, ts);
+                var written = BinarySerializer.Write(in value, dest, tmpBuffer, SerializationFormat.Json);
 
-                if (4 + 8 + size != written)
+                if (4 +  size != written)
                 {
                     Assert.Fail($"size {size} != written {written}");
                 }
@@ -158,9 +158,9 @@ namespace Spreads.Core.Tests.Serialization
                         var value = values[i];
                         var size = BinarySerializer.SizeOf(in value, out var tmpBuffer, SerializationFormat.Json);
 
-                        var written = BinarySerializer.Write(in value, dest, tmpBuffer, SerializationFormat.Json, ts);
+                        var written = BinarySerializer.Write(in value, dest, tmpBuffer, SerializationFormat.Json);
 
-                        if (4 + 8 + size != written)
+                        if (4 + size != written)
                         {
                             Assert.Fail($"size {size} != written {written}");
                         }

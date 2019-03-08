@@ -2,16 +2,16 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+using Spreads.Buffers;
+using Spreads.Collections.Internal;
+using Spreads.DataTypes;
+using Spreads.Utils;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using Spreads.Buffers;
-using Spreads.Collections.Internal;
-using Spreads.DataTypes;
-using Spreads.Utils;
 
 namespace Spreads.Serialization
 {
@@ -256,23 +256,9 @@ namespace Spreads.Serialization
         {
             VersionAndFlags =
             {
-                ConverterVersion = 0,
+                ConverterVersion = TypeHelper<T>.BinarySerializer?.SerializerVersion ?? 0,
                 IsBinary = true,
                 CompressionMethod = CompressionMethod.None
-            },
-            TEOFS = DataTypeHeader.TEOFS,
-            TEOFS1 = DataTypeHeader.TEOFS1,
-            TEOFS2 = DataTypeHeader.TEOFS2
-        };
-
-        internal static readonly DataTypeHeader DefaultBinaryHeaderWithTs = new DataTypeHeader
-        {
-            VersionAndFlags =
-            {
-                ConverterVersion = 0,
-                IsBinary = true,
-                CompressionMethod = CompressionMethod.None,
-                IsTimestamped = true
             },
             TEOFS = DataTypeHeader.TEOFS,
             TEOFS1 = DataTypeHeader.TEOFS1,
@@ -368,6 +354,12 @@ namespace Spreads.Serialization
                 };
             }
 
+            return new TypeInfo<T>
+            {
+                Header = new DataTypeHeader { TEOFS = new TypeEnumOrFixedSize(te) },
+                FixedSize = -1
+            };
+
             throw new NotImplementedException();
         }
 
@@ -436,7 +428,6 @@ namespace Spreads.Serialization
                     TEOFS = GetTeofs(), // Parent
                     TupleNCount = default,
                     TupleTNTeofs = new TypeEnumOrFixedSize(TypeEnum.CompositeType)
-                    
                 };
             }
             return new DataTypeHeader

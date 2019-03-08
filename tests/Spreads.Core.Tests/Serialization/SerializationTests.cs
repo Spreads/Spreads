@@ -28,8 +28,6 @@ namespace Spreads.Core.Tests.Serialization
         public static SerializationFormat[] Formats =
             Enum.GetValues(typeof(SerializationFormat)).Cast<SerializationFormat>().ToArray();
 
-        public static Timestamp[] Tss = new[] { default(Timestamp), TimeService.Default.CurrentTime };
-
         [BinarySerialization(blittableSize: 12)]
         [StructLayout(LayoutKind.Sequential, Pack = 4)]
         public struct BlittableStruct
@@ -115,13 +113,12 @@ namespace Spreads.Core.Tests.Serialization
             asks[1] = new QuoteDecimal(new SmallDecimal(123.99M, 2), new SmallDecimal(0.00128948M, 8));
 
             var ob = new OrderBagDecimal(bids, asks);
-            var ts = TimeService.Default.CurrentTime;
 
             var size = BinarySerializer.SizeOf(ob, out var segment, SerializationFormat.Json);
 
             var rm = BufferPool.Retain(size);
 
-            var written = BinarySerializer.Write(ob, rm.Span, segment, SerializationFormat.Json, ts);
+            var written = BinarySerializer.Write(ob, rm.Span, segment, SerializationFormat.Json);
 
             Assert.AreEqual(size, written);
 
@@ -201,54 +198,46 @@ namespace Spreads.Core.Tests.Serialization
             var h = mem.Pin();
             var db = new DirectBuffer(bytes.Length, (byte*)h.Pointer);
 
-            foreach (var ts in Tss)
+            foreach (var format in Formats)
             {
-                foreach (var format in Formats)
+                var val = value;
+                var len = BinarySerializer.Write(val, db, format: format);
+                // for (int x = 0; x < 100; x++)
                 {
-                    var val = value;
-                    var len = BinarySerializer.Write(val, db, format: format);
-                    // for (int x = 0; x < 100; x++)
-                    {
-                        var len2 = BinarySerializer.Read(db, out T val2);
-                        
-                        if (4 + (ts == default ? 0 : 8) + len != len2)
-                        {
-                            Assert.Fail($"len {len} != len2 {len2}");
-                        }
-                        if (!val.Equals(val2))
-                        {
-                            Assert.Fail();
-                        }
-                    }
-                }
+                    var len2 = BinarySerializer.Read(db, out T val2);
 
-                foreach (var format in Formats)
-                {
-                    var val = value;
-
-                    var len0 = BinarySerializer.SizeOf(in val, out var segment, format);
-
-                    var len1 = BinarySerializer.Write(in val, db, segment, format, ts);
-                    if (len0 != len1)
-                    {
-                        Assert.Fail($"len0 {len0} != len1 {len1}");
-                    }
-                    //Assert.IsTrue(len1 > 8);
-                    var len2 = BinarySerializer.Read(db, out T val2, out var ts2);
-                    if (len1 != len2)
-                    {
-                        Assert.Fail($"len1 {len1} != len2 {len2}");
-                    }
+                    Assert.Fail($"4 + len {4 + len} != len2 {len2}");
 
                     if (!val.Equals(val2))
                     {
                         Assert.Fail();
                     }
+                }
+            }
 
-                    if (ts != ts2)
-                    {
-                        Assert.Fail();
-                    }
+            foreach (var format in Formats)
+            {
+                var val = value;
+
+                var len0 = BinarySerializer.SizeOf(in val, out var segment, format);
+
+                var len1 = BinarySerializer.Write(in val, db, segment, format);
+
+                if (4 + len0 != len1)
+                {
+                    Assert.Fail($"4 + len0 {4 + len0} != len1 {len1}");
+                }
+
+                //Assert.IsTrue(len1 > 8);
+                var len2 = BinarySerializer.Read(db, out T val2);
+                if (len1 != len2)
+                {
+                    Assert.Fail($"len1 {len1} != len2 {len2}");
+                }
+
+                if (!val.Equals(val2))
+                {
+                    Assert.Fail();
                 }
             }
 
@@ -327,37 +316,30 @@ namespace Spreads.Core.Tests.Serialization
 
                 var uncompressed = 0.0;
                 Console.WriteLine("---------------");
-                foreach (var ts in Tss)
+
+                foreach (var serializationFormat in formats)
                 {
-                    Console.WriteLine($"With ts: {ts != default}");
-                    foreach (var serializationFormat in formats)
+                    var so = BinarySerializer.SizeOf(dta, out var segment, serializationFormat);
+                    var bytes = BufferPool<byte>.Rent(4 + so);
+                    var written = BinarySerializer.Write(dta, bytes, segment, serializationFormat);
+
+                    if (serializationFormat == SerializationFormat.Json)
                     {
-                        var so = BinarySerializer.SizeOf(dta, out var segment, serializationFormat);
-                        var bytes = BufferPool<byte>.Rent(so);
-                        var written = BinarySerializer.Write(dta, bytes, segment, serializationFormat, ts);
-
-                        if (serializationFormat == SerializationFormat.Json)
-                        {
-                            uncompressed = written;
-                        }
-
-                        Console.WriteLine(
-                            $"len: {len}, format: {serializationFormat}, written bytes: {written}, ratio: {Math.Round(uncompressed / written, 2)}");
-
-                        if (so != written)
-                        {
-                            Assert.Fail($"so {so} != written {written}");
-                        }
-
-                        DateTime[] dta2 = null;
-                        var read = BinarySerializer.Read(bytes, out dta2, out var ts2);
-                        Assert.AreEqual(written, read);
-                        Assert.IsTrue(dta.SequenceEqual(dta2));
-                        if (ts != ts2)
-                        {
-                            Assert.Fail();
-                        }
+                        uncompressed = written;
                     }
+
+                    Console.WriteLine(
+                        $"len: {len}, format: {serializationFormat}, written bytes: {written}, ratio: {Math.Round(uncompressed / written, 2)}");
+
+                    if (4 + so != written)
+                    {
+                        Assert.Fail($"4 + so {4 + so} != written {written}");
+                    }
+
+                    DateTime[] dta2 = null;
+                    var read = BinarySerializer.Read(bytes, out dta2);
+                    Assert.AreEqual(written, read);
+                    Assert.IsTrue(dta.SequenceEqual(dta2));
                 }
             }
         }
@@ -520,7 +502,7 @@ namespace Spreads.Core.Tests.Serialization
         {
             var bytes = new byte[1000];
             var str = "This is string";
-            var len = BinarySerializer.Write(str, bytes, timestamp: TimeService.Default.CurrentTime);
+            var len = BinarySerializer.Write(str, bytes);
             string str2 = null;
             var len2 = BinarySerializer.Read(bytes, out str2);
             Assert.AreEqual(len, len2);
@@ -748,33 +730,19 @@ namespace Spreads.Core.Tests.Serialization
 
             var serializationFormats = Enum.GetValues(typeof(SerializationFormat)).Cast<SerializationFormat>();
 
-            var tss = new[] { default, ts };
-
-            foreach (var timestamp in tss)
+            foreach (var serializationFormat in serializationFormats)
             {
-                foreach (var serializationFormat in serializationFormats)
-                {
-                    var len = BinarySerializer.SizeOf(val, out var stream, serializationFormat);
-                    var len2 = BinarySerializer.Write(val, db, stream, serializationFormat,
-                        timestamp);
+                var len = BinarySerializer.SizeOf(val, out var stream, serializationFormat);
+                var len2 = BinarySerializer.Write(val, db, stream, serializationFormat);
 
-                    if (timestamp == default)
-                    {
-                        Assert.AreEqual(4 + len, len2);
-                    }
-                    else
-                    {
-                        Assert.AreEqual(4 + 8 + len, len2);
-                    }
+                Assert.AreEqual(4 + len, len2);
 
-                    var len3 = BinarySerializer.Read(db, out Dummy val2, out var ts2);
+                var len3 = BinarySerializer.Read(db, out Dummy val2);
 
-                    Assert.AreEqual(len, len3);
-                    Assert.AreEqual(val.Timestamp, val2.Timestamp);
-                    Assert.AreEqual(val.ValL, val2.ValL);
-                    Assert.AreEqual(val.ValS, val2.ValS);
-                    Assert.AreEqual(timestamp, ts2);
-                }
+                Assert.AreEqual(len, len3);
+                Assert.AreEqual(val.Timestamp, val2.Timestamp);
+                Assert.AreEqual(val.ValL, val2.ValL);
+                Assert.AreEqual(val.ValS, val2.ValS);
             }
 
             var str = JsonSerializer.ToJsonString(val);
@@ -806,32 +774,18 @@ namespace Spreads.Core.Tests.Serialization
 
             var serializationFormats = Enum.GetValues(typeof(SerializationFormat)).Cast<SerializationFormat>().ToArray();
 
-            var tss = new[] { default, ts };
-
-            foreach (var timestamp in tss)
+            foreach (var serializationFormat in serializationFormats)
             {
-                foreach (var serializationFormat in serializationFormats)
-                {
-                    var len = BinarySerializer.SizeOf(val, out var stream, serializationFormat);
-                    var len2 = BinarySerializer.Write(val, db, stream, serializationFormat,
-                        timestamp);
+                var len = BinarySerializer.SizeOf(val, out var stream, serializationFormat);
+                var len2 = BinarySerializer.Write(val, db, stream, serializationFormat);
 
-                    if (timestamp == default)
-                    {
-                        Assert.AreEqual(4 + len, len2);
-                    }
-                    else
-                    {
-                        Assert.AreEqual(4 + 8 + len, len2);
-                    }
+                Assert.AreEqual(4 + len, len2);
 
-                    var len3 = BinarySerializer.Read(db, out DummyBlittable val2, out var ts2);
+                var len3 = BinarySerializer.Read(db, out DummyBlittable val2);
 
-                    Assert.AreEqual(len, len3);
-                    Assert.AreEqual(val.Timestamp, val2.Timestamp);
-                    Assert.AreEqual(val.ValL, val2.ValL);
-                    Assert.AreEqual(timestamp, ts2);
-                }
+                Assert.AreEqual(len, len3);
+                Assert.AreEqual(val.Timestamp, val2.Timestamp);
+                Assert.AreEqual(val.ValL, val2.ValL);
             }
 
             var str = JsonSerializer.ToJsonString(val);
@@ -854,31 +808,19 @@ namespace Spreads.Core.Tests.Serialization
 
             var serializationFormats = new[] { SerializationFormat.Json }; // Enum.GetValues(typeof(SerializationFormat)).Cast<SerializationFormat>(); // TODO
 
-            var tss = new[] { default, ts };
-
-            foreach (var timestamp in tss)
+            foreach (var serializationFormat in serializationFormats)
             {
-                foreach (var serializationFormat in serializationFormats)
-                {
-                    var len = BinarySerializer.SizeOf(val, out var stream, serializationFormat);
-                    var len2 = BinarySerializer.Write(val, db, stream, serializationFormat, timestamp);
+                var len = BinarySerializer.SizeOf(val, out var stream, serializationFormat);
+                var len2 = BinarySerializer.Write(val, db, stream, serializationFormat);
 
-                    if (timestamp == default)
-                    {
-                        Assert.AreEqual(4 + len, len2);
-                    }
-                    else
-                    {
-                        Assert.AreEqual(4 + 8 + len, len2);
-                    }
+                Assert.AreEqual(4 + len, len2);
 
-                    var len3 = BinarySerializer.Read(db, out string val2, out var ts2);
+                var len3 = BinarySerializer.Read(db, out string val2);
 
-                    Assert.AreEqual(len, len3);
-                    Assert.AreEqual(val, val2);
-                    Assert.AreEqual(timestamp, ts2);
-                }
+                Assert.AreEqual(len, len3);
+                Assert.AreEqual(val, val2);
             }
+
             rm.Dispose();
         }
 
@@ -893,31 +835,19 @@ namespace Spreads.Core.Tests.Serialization
 
             var serializationFormats = new[] { SerializationFormat.Json }; // Enum.GetValues(typeof(SerializationFormat)).Cast<SerializationFormat>();
 
-            var tss = new[] { default, ts };
-
-            foreach (var timestamp in tss)
+            foreach (var serializationFormat in serializationFormats)
             {
-                foreach (var serializationFormat in serializationFormats)
-                {
-                    var len = BinarySerializer.SizeOf(in val, out var stream, serializationFormat);
-                    var len2 = BinarySerializer.Write(in val, db, stream, serializationFormat, timestamp);
+                var len = BinarySerializer.SizeOf(in val, out var stream, serializationFormat);
+                var len2 = BinarySerializer.Write(in val, db, stream, serializationFormat);
 
-                    if (timestamp == default)
-                    {
-                        Assert.AreEqual(4 + len, len2);
-                    }
-                    else
-                    {
-                        Assert.AreEqual(4 + 8 + len, len2);
-                    }
+                Assert.AreEqual(4 + len, len2);
 
-                    var len3 = BinarySerializer.Read(db, out string val2, out var ts2);
+                var len3 = BinarySerializer.Read(db, out string val2);
 
-                    Assert.AreEqual(len, len3);
-                    Assert.AreEqual(val, val2);
-                    Assert.AreEqual(timestamp, ts2);
-                }
+                Assert.AreEqual(len, len3);
+                Assert.AreEqual(val, val2);
             }
+
             rm.Dispose();
         }
 
@@ -932,32 +862,19 @@ namespace Spreads.Core.Tests.Serialization
 
             var serializationFormats = Enum.GetValues(typeof(SerializationFormat)).Cast<SerializationFormat>().ToArray();
 
-            var tss = new[] { default, ts };
-
-            foreach (var timestamp in tss)
+            foreach (var serializationFormat in serializationFormats)
             {
-                foreach (var serializationFormat in serializationFormats)
-                {
-                    var len = BinarySerializer.SizeOf(val, out var stream, serializationFormat);
-                    var len2 = BinarySerializer.Write(val, db, stream, serializationFormat,
-                        timestamp);
+                var len = BinarySerializer.SizeOf(val, out var stream, serializationFormat);
+                var len2 = BinarySerializer.Write(val, db, stream, serializationFormat);
 
-                    if (timestamp == default)
-                    {
-                        Assert.AreEqual(4 + len, len2);
-                    }
-                    else
-                    {
-                        Assert.AreEqual(4 + 8 + len, len2);
-                    }
+                Assert.AreEqual(4 + len, len2);
 
-                    var len3 = BinarySerializer.Read(db, out int[] val2, out var ts2);
+                var len3 = BinarySerializer.Read(db, out int[] val2);
 
-                    Assert.AreEqual(len, len3);
-                    Assert.IsTrue(val.SequenceEqual(val2));
-                    Assert.AreEqual(timestamp, ts2);
-                }
+                Assert.AreEqual(len, len3);
+                Assert.IsTrue(val.SequenceEqual(val2));
             }
+
             rm.Dispose();
         }
 
@@ -972,37 +889,24 @@ namespace Spreads.Core.Tests.Serialization
 
             var serializationFormats = Enum.GetValues(typeof(SerializationFormat)).Cast<SerializationFormat>().ToArray();
 
-            var tss = new[] { default, ts };
-
-            foreach (var timestamp in tss)
+            foreach (var serializationFormat in serializationFormats)
             {
-                foreach (var serializationFormat in serializationFormats)
-                {
-                    var len = BinarySerializer.SizeOf(val, out var stream, serializationFormat);
-                    var len2 = BinarySerializer.Write(val, db, stream, serializationFormat,
-                        timestamp);
+                var len = BinarySerializer.SizeOf(val, out var stream, serializationFormat);
+                var len2 = BinarySerializer.Write(val, db, stream, serializationFormat);
 
-                    if (timestamp == default)
-                    {
-                        Assert.AreEqual(4 + len, len2);
-                    }
-                    else
-                    {
-                        Assert.AreEqual(4 + 8 + len, len2);
-                    }
+                Assert.AreEqual(4 + len, len2);
 
-                    var len3 = BinarySerializer.Read(db, out Dummy[] val2, out var ts2);
+                var len3 = BinarySerializer.Read(db, out Dummy[] val2);
 
-                    Assert.AreEqual(len, len3);
-                    Assert.IsTrue(val.SequenceEqual(val2));
-                    Assert.AreEqual(timestamp, ts2);
-                }
+                Assert.AreEqual(len, len3);
+                Assert.IsTrue(val.SequenceEqual(val2));
             }
+
             rm.Dispose();
         }
 
         [Test]
-        public void CouldSerializeTaggedKeyValueWithTimeStamp()
+        public void CouldSerializeTaggedKeyValue()
         {
             var rm = BufferPool.Retain(1000);
             var db = new DirectBuffer(rm);
@@ -1012,60 +916,42 @@ namespace Spreads.Core.Tests.Serialization
 
             var serializationFormats = new[] { SerializationFormat.Binary }; // Enum.GetValues(typeof(SerializationFormat)).Cast<SerializationFormat>()};
 
-            var tss = new[] { ts, default };
-
-            foreach (var timestamp in tss)
+            foreach (var serializationFormat in serializationFormats)
             {
-                foreach (var serializationFormat in serializationFormats)
-                {
-                    db.Write(0, 0);
+                db.Write(0, 0);
 
-                    var len = BinarySerializer.SizeOf(val, out var tempBuf, serializationFormat);
-                    Assert.AreEqual(13, len);
+                var len = BinarySerializer.SizeOf(val, out var tempBuf, serializationFormat);
+                Assert.AreEqual(13, len);
 
-                    var len2 = BinarySerializer.Write(val, db, tempBuf, serializationFormat, timestamp);
-                    Assert.AreEqual(4 + (timestamp == default ? 0 : 8) + 13, len2);
+                var len2 = BinarySerializer.Write(val, db, tempBuf, serializationFormat);
+                Assert.AreEqual(4 + 13, len2);
 
-                    Assert.AreEqual(len + 4 + (timestamp == default ? 0 : 8), len2);
+                Assert.AreEqual(len + 4, len2);
 
-                    if (timestamp == default)
-                    {
-                        Assert.AreEqual(1, (int)db.Read<DataTypeHeader>(0).VersionAndFlags.SerializationFormat);
-                        Assert.AreEqual(1, db.Read<byte>(DataTypeHeader.Size));
-                        Assert.AreEqual(10, db.Read<int>(DataTypeHeader.Size + 1));
-                        Assert.AreEqual(20, db.Read<long>(DataTypeHeader.Size + 1 + 4));
-                    }
-                    else
-                    {
-                        Assert.AreEqual(1, (int)db.Read<DataTypeHeader>(0).VersionAndFlags.SerializationFormat);
-                        Assert.AreEqual((long)timestamp, db.Read<long>(DataTypeHeader.Size));
-                        Assert.AreEqual(1, db.Read<byte>(DataTypeHeader.Size + 8));
-                        Assert.AreEqual(10, db.Read<int>(DataTypeHeader.Size + 8 + 1));
-                        Assert.AreEqual(20, db.Read<long>(DataTypeHeader.Size + 8 + 1 + 4));
-                    }
+                Assert.AreEqual(1, (int)db.Read<DataTypeHeader>(0).VersionAndFlags.SerializationFormat);
+                Assert.AreEqual(1, db.Read<byte>(DataTypeHeader.Size));
+                Assert.AreEqual(10, db.Read<int>(DataTypeHeader.Size + 1));
+                Assert.AreEqual(20, db.Read<long>(DataTypeHeader.Size + 1 + 4));
 
-                    var len3 = BinarySerializer.Read(db, out TaggedKeyValue<int, long> val2, out var ts2);
+                var len3 = BinarySerializer.Read(db, out TaggedKeyValue<int, long> val2);
 
-                    Assert.AreEqual(len2, len3);
+                Assert.AreEqual(len2, len3);
 
-                    Assert.AreEqual(val, val2);
-
-                    Assert.AreEqual(timestamp, ts2);
-                }
+                Assert.AreEqual(val, val2);
             }
+
             rm.Dispose();
         }
 
         [Test, Explicit("bench")]
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
-        public void CouldSerializeTaggedKeyValueWithTimeStampBench()
+        public void CouldSerializeTaggedKeyValueBench()
         {
-            var count = 10_000_000;
+            var count = 30_000_000;
             var rm = BufferPool.Retain(1000);
             var db = new DirectBuffer(rm);
 
             var val = new TaggedKeyValue<int, long>(10, 20, 1);
-            var timestamp = TimeService.Default.CurrentTime;
 
             // TODO JSON
             var serializationFormat = SerializationFormat.Binary;
@@ -1074,14 +960,13 @@ namespace Spreads.Core.Tests.Serialization
             {
                 using (Benchmark.Run("TKV roundtrip", count))
                 {
-                    
                     for (int i = 0; i < count; i++)
                     {
                         var len = BinarySerializer.SizeOf(in val, out var tempBuf, serializationFormat);
+                        // db.Write(0, 0);
+                        var len2 = BinarySerializer.Write(in val, db, tempBuf, serializationFormat);
 
-                        db.Write(0, 0);
-                        var len2 = BinarySerializer.Write(in val, db.Slice(0, len + 16), tempBuf, serializationFormat, timestamp);
-                        var len3 = BinarySerializer.Read(db, out TaggedKeyValue<int, long> val2, out var ts2);
+                        var len3 = BinarySerializer.Read(db, out TaggedKeyValue<int, long> val2, skipTypeInfoValidation: false);
                         //if (len2 != len3 || val.Key != val2.Key || val.Value != val2.Value || val.Tag != val2.Tag)
                         //{
                         //    Assert.Fail();

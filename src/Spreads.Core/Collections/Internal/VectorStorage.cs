@@ -384,10 +384,9 @@ namespace Spreads.Collections.Internal
     internal delegate int WriteDelegate(VectorStorage value,
         ref DirectBuffer pinnedDestination,
         RetainedMemory<byte> temporaryBuffer = default,
-        SerializationFormat format = default,
-        Timestamp timestamp = default);
+        SerializationFormat format = default);
 
-    internal delegate int ReadDelegate(ref DirectBuffer source, out VectorStorage value, out Timestamp timestamp);
+    internal delegate int ReadDelegate(ref DirectBuffer source, out VectorStorage value);
 
     // TODO is we register it similarly to ArrayBinaryConverter only for blittable Ts
     // then we could just use BinarySerializer over the wrapper and it will automatically
@@ -405,9 +404,9 @@ namespace Spreads.Collections.Internal
 
         // ReSharper restore StaticMemberInGenericType
 
-        private static int Read(ref DirectBuffer source, out VectorStorage value, out Timestamp timestamp)
+        private static int Read(ref DirectBuffer source, out VectorStorage value)
         {
-            var len = BinarySerializer.Read(source, out VectorStorage<T> valueT, out timestamp);
+            var len = BinarySerializer.Read(source, out VectorStorage<T> valueT);
             value = valueT.Storage;
             return len;
         }
@@ -415,11 +414,9 @@ namespace Spreads.Collections.Internal
         private static int Write(VectorStorage value,
             ref DirectBuffer pinnedDestination,
             RetainedMemory<byte> temporaryBuffer = default,
-            SerializationFormat format = default,
-            Timestamp timestamp = default)
+            SerializationFormat format = default)
         {
-            return BinarySerializer.Write(new VectorStorage<T>(value), pinnedDestination,
-                temporaryBuffer, format, timestamp);
+            return BinarySerializer.Write(new VectorStorage<T>(value), pinnedDestination, temporaryBuffer, format);
         }
 
         private static int SizeOf(VectorStorage value, out RetainedMemory<byte> temporaryBuffer,
