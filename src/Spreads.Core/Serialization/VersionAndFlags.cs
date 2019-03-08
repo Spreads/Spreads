@@ -2,6 +2,7 @@
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using Spreads.Native;
+using Spreads.Serialization.Experimental;
 
 namespace Spreads.Serialization
 {
@@ -21,14 +22,14 @@ namespace Spreads.Serialization
     /// |0|Ver|R|T|CMP|B|
     /// +---------------+
     /// B - Binary format (read as "Not JSON"). If not set then the payload is JSON, if set then payload is blittable or custom binary.
-    /// CMP - compression method (Zstd/Lz4/Deflate/None):
+    /// CMP - compression method:
     ///     00 - not compressed
     ///     01 - GZip
     ///     10 - Lz4
     ///     11 - Zstd
     /// T - Timestamped. A value has Timestamp (8 bytes) as the first element of payload. It is included in payload length for var-sized types.
     /// R - reserved.
-    /// Ver - Converter version.
+    /// Ver - <see cref="IBinarySerializerEx{T}.SerializerVersion"/> version.
     /// 0 - will need completely new layout when this is not zero.
     /// </remarks>
     [StructLayout(LayoutKind.Sequential, Pack = 1, Size = 1)]
