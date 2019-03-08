@@ -66,11 +66,11 @@ namespace Spreads.Core.Tests.Serialization
 
                 var value = TestValue.Create(rng, false); // TODO with true, currently doubles are not equal in some cases, se  upstream issue 83
                 values[i] = value;
-                var size = BinarySerializer.SizeOf(in value, out var tmpBuffer, SerializationFormat.Json, ts);
+                var size = BinarySerializer.SizeOf(in value, out var tmpBuffer, SerializationFormat.Json);
 
-                var written = BinarySerializer.Write(in value, ref dest, tmpBuffer, SerializationFormat.Json, ts);
+                var written = BinarySerializer.Write(in value, dest, tmpBuffer, SerializationFormat.Json, ts);
 
-                if (size != written)
+                if (4 + 8 + size != written)
                 {
                     Assert.Fail($"size {size} != written {written}");
                 }
@@ -104,7 +104,7 @@ namespace Spreads.Core.Tests.Serialization
 
                 for (int i = 0; i < count; i++)
                 {
-                    var read = BinarySerializer.Read(ref db2, out TestValue value1);
+                    var read = BinarySerializer.Read(db2, out TestValue value1);
                     db2 = db2.Slice(read);
                     var expected = values[i];
                     if (!value1.Equals(expected))
@@ -156,11 +156,11 @@ namespace Spreads.Core.Tests.Serialization
                         var ts = TimeService.Default.CurrentTime;
 
                         var value = values[i];
-                        var size = BinarySerializer.SizeOf(in value, out var tmpBuffer, SerializationFormat.Json, ts);
+                        var size = BinarySerializer.SizeOf(in value, out var tmpBuffer, SerializationFormat.Json);
 
-                        var written = BinarySerializer.Write(in value, ref dest, tmpBuffer, SerializationFormat.Json, ts);
+                        var written = BinarySerializer.Write(in value, dest, tmpBuffer, SerializationFormat.Json, ts);
 
-                        if (size != written)
+                        if (4 + 8 + size != written)
                         {
                             Assert.Fail($"size {size} != written {written}");
                         }
@@ -180,7 +180,7 @@ namespace Spreads.Core.Tests.Serialization
 
                     for (int i = 0; i < count; i++)
                     {
-                        var read = BinarySerializer.Read(ref readSource, out TestValue value1);
+                        var read = BinarySerializer.Read(readSource, out TestValue value1);
                         readSource = readSource.Slice(read);
                         var expected = values[i];
                         if (!value1.Equals(expected))

@@ -74,7 +74,7 @@ namespace Spreads.Core.Tests.Collections.Internal
                 var destination = BufferPool.Retain(len);
                 var destinationDb = new DirectBuffer(destination);
 
-                var len1 = BinarySerializer.Write(in vsT, ref destinationDb, in rm, format);
+                var len1 = BinarySerializer.Write(in vsT, destinationDb, rm, format);
                 Assert.AreEqual(destination.Length, destinationDb.Length);
 
                 Assert.AreEqual(len, len1);
@@ -82,11 +82,11 @@ namespace Spreads.Core.Tests.Collections.Internal
                 var flags = destinationDb.Read<VersionAndFlags>(0);
                 Assert.AreEqual(format, flags.SerializationFormat);
                 var header = destinationDb.Read<DataTypeHeader>(0);
-                Assert.AreEqual(TypeEnum.VectorStorage, header.TypeEnum);
-                Assert.AreEqual(TypeEnum.SmallDecimal, header.ElementTypeEnum);
-                Assert.AreEqual(Unsafe.SizeOf<SmallDecimal>(), header.TypeSize);
+                Assert.AreEqual(TypeEnum.Array, header.TEOFS.TypeEnum);
+                Assert.AreEqual(TypeEnum.SmallDecimal, header.TEOFS1.TypeEnum);
+                Assert.AreEqual(Unsafe.SizeOf<SmallDecimal>(), header.TEOFS1.Size);
 
-                var len2 = BinarySerializer.Read(ref destinationDb, out VectorStorage<SmallDecimal> value);
+                var len2 = BinarySerializer.Read(destinationDb, out VectorStorage<SmallDecimal> value);
                 Assert.AreEqual(destination.Length, destinationDb.Length);
 
                 Assert.AreEqual(len, len2);

@@ -6,7 +6,6 @@ using System;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.InteropServices;
-using Spreads.DataTypes;
 
 namespace Spreads.Serialization
 {
@@ -45,7 +44,7 @@ namespace Spreads.Serialization
         internal BinarySerializationAttribute(TypeEnum typeEnum, int blittableSize = 0, bool preferBlittable = false, Type converterType = null)
         {
 #if SPREADS
-            if (typeEnum != TypeEnum.None && (int) typeEnum <= Variant.KnownSmallTypesLimit && converterType != null)
+            if (typeEnum != TypeEnum.None && (int)typeEnum < (int)TypeEnum.Binary && converterType != null)
             {
                 Environment.FailFast("Cannot use Converter for fixed-sized types");
             }
@@ -71,7 +70,6 @@ namespace Spreads.Serialization
         /// StructLayout.Size has the same behavior.
         /// </remarks>
         internal int BlittableSize { get; set; }
-
 
         internal Type ConverterType { get; set; }
 

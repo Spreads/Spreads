@@ -3,9 +3,9 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 using Spreads.Buffers;
-using Spreads.Serialization.Experimental;
 using System;
 using System.Reflection;
+using Spreads.Serialization;
 
 namespace Spreads.DataTypes
 {
@@ -35,7 +35,7 @@ namespace Spreads.DataTypes
 
     internal static class FixedArraySerializerFactory
     {
-        public static IBinarySerializerEx<FixedArray<TElement>> GenericCreate<TElement>()
+        public static IBinarySerializer<FixedArray<TElement>> GenericCreate<TElement>()
         {
             return new FixedArraySerializer<TElement>();
         }
@@ -47,7 +47,7 @@ namespace Spreads.DataTypes
             return generic?.Invoke(null, null);
         }
 
-        internal class FixedArraySerializer<T> : IFixedArraySerializer, IBinarySerializerEx<FixedArray<T>>
+        internal class FixedArraySerializer<T> : IFixedArraySerializer, IBinarySerializer<FixedArray<T>>
         {
             public byte SerializerVersion => throw new System.NotImplementedException();
 

@@ -41,14 +41,17 @@ namespace Spreads.Serialization
             get => 0;
         }
 
-        public int SizeOf(TElement[] value, out RetainedMemory<byte> temporaryBuffer, out bool withPadding)
+        public byte KnownTypeId => 0;
+
+        public short FixedSize => 0;
+
+        public int SizeOf(in TElement[] value, out RetainedMemory<byte> temporaryBuffer)
         {
             temporaryBuffer = default;
-            withPadding = default;
             return 4 + value.Length * SizeOf<TElement>();
         }
 
-        public unsafe int Write(TElement[] value, ref DirectBuffer destination)
+        public unsafe int Write(in TElement[] value, DirectBuffer destination)
         {
             destination.Write(0, value.Length);
             if (value.Length > 0)
@@ -62,7 +65,7 @@ namespace Spreads.Serialization
             return 4;
         }
 
-        public unsafe int Read(ref DirectBuffer source, out TElement[] value)
+        public unsafe int Read(DirectBuffer source, out TElement[] value)
         {
             var arraySize = source.Read<int>(0);
             var position = 4;

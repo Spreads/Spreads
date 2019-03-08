@@ -139,7 +139,7 @@ namespace Spreads.Core.Tests.Blosc
             var compressedDB = new DirectBuffer(bufferLen, compressedPtr);
             var decompressedDB = new DirectBuffer(bufferLen, decompressedPtr);
 
-            var originalLen = BinarySerializer.Write(values, ref originalDB, default, SerializationFormat.Json);
+            var originalLen = BinarySerializer.Write(values, originalDB, default, SerializationFormat.Json);
             Console.WriteLine("Original len: " + originalLen);
 
             for (int level = 1; level < 10; level++)
@@ -221,7 +221,7 @@ namespace Spreads.Core.Tests.Blosc
             var compressedDB = new DirectBuffer(bufferLen, compressedPtr);
             var decompressedDB = new DirectBuffer(bufferLen, decompressedPtr);
 
-            var originalLen = BinarySerializer.Write(values, ref originalDB, default, SerializationFormat.Json);
+            var originalLen = BinarySerializer.Write(values, originalDB, default, SerializationFormat.Json);
             Console.WriteLine("Original len: " + originalLen);
 
             for (int level = 1; level < 10; level++)
@@ -303,7 +303,7 @@ namespace Spreads.Core.Tests.Blosc
             var compressedDB = new DirectBuffer(bufferLen, compressedPtr);
             var decompressedDB = new DirectBuffer(bufferLen, decompressedPtr);
 
-            var originalLen = BinarySerializer.Write(values, ref originalDB, default, SerializationFormat.Json);
+            var originalLen = BinarySerializer.Write(values, originalDB, default, SerializationFormat.Json);
             Console.WriteLine("Original len: " + originalLen);
 
             for (int level = 1; level < 10; level++)
@@ -386,7 +386,7 @@ namespace Spreads.Core.Tests.Blosc
             var compressedDB = new DirectBuffer(bufferLen, compressedPtr);
             var decompressedDB = new DirectBuffer(bufferLen, decompressedPtr);
 
-            var originalLen = BinarySerializer.Write(values, ref originalDB, default, SerializationFormat.Json);
+            var originalLen = BinarySerializer.Write(values, originalDB, default, SerializationFormat.Json);
             Console.WriteLine("Original len: " + originalLen);
 
             var rounds = 10;
@@ -452,7 +452,7 @@ namespace Spreads.Core.Tests.Blosc
             var compressedDB = new DirectBuffer(bufferLen, compressedPtr);
             var decompressedDB = new DirectBuffer(bufferLen, decompressedPtr);
 
-            var originalLen = BinarySerializer.Write(values, ref compressedDB, default, SerializationFormat.Json);
+            var originalLen = BinarySerializer.Write(values, compressedDB, default, SerializationFormat.Json);
             Console.WriteLine("Original len: " + originalLen);
 
             for (int level = 1; level < 10; level++)

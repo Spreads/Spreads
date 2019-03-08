@@ -2,10 +2,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-using Spreads.Buffers;
 using Spreads.DataTypes;
 using Spreads.Native;
-using Spreads.Serialization.Experimental;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -104,7 +102,7 @@ namespace Spreads.Serialization
         // Do not use static ctor in any critical paths: https://github.com/Spreads/Spreads/issues/66
         // static TypeHelper() { }
 
-        internal static IBinarySerializerEx<T> BinarySerializerEx;
+        internal static IBinarySerializer<T> BinarySerializer;
 
         // ReSharper disable once StaticMemberInGenericType
         internal static bool IsInternalBinarySerializer; // TODO set to true for tuples and arrays
@@ -112,7 +110,7 @@ namespace Spreads.Serialization
         public static bool HasBinarySerializer
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => BinarySerializerEx != null;
+            get => BinarySerializer != null;
         }
 
         /// <summary>
@@ -183,82 +181,6 @@ namespace Spreads.Serialization
         // ReSharper disable once StaticMemberInGenericType
         [Obsolete]
         public static readonly bool IsFixedSize = FixedSize > 0;
-
-        private static TypeEnum InitTypeEnum()
-        {
-#if SPREADS
-            // re-read, happens once per type
-            var sa = BinarySerializationAttribute.GetSerializationAttribute(typeof(T));
-
-            if (VariantHelper<T>.TypeEnum == 0)
-            {
-                if (sa != null && sa.TypeEnum != TypeEnum.None)
-                {
-                    if ((int)sa.TypeEnum > Variant.KnownSmallTypesLimit && (FixedSize > 0 && FixedSize <= 25))
-                    {
-                        // Internal
-                        Environment.FailFast("(int) sa.TypeEnum > Variant.KnownSmallTypesLimit && (FixedSize > 0 && FixedSize <= 25)");
-                    }
-                    return sa.TypeEnum;
-                }
-                if (FixedSize > 0 && FixedSize <= 255)
-                {
-                    return TypeEnum.FixedBinary;
-                }
-            }
-
-            if (sa != null && sa.TypeEnum != TypeEnum.None)
-            {
-                // Internal
-                Environment.FailFast("Do not provide TypeEnum for pre-defined types in Spreads.Core assembly.");
-            }
-            return VariantHelper<T>.TypeEnum;
-#else
-            return default;
-#endif
-        }
-
-        private static byte InitTypeSize()
-        {
-#if SPREADS
-            return (FixedSize > 0 && FixedSize <= 255)
-                ? (byte)FixedSize
-                : VariantHelper<T>.GetElementTypeSizeForHeader();
-#else
-            return default;
-#endif
-        }
-
-        [Obsolete]
-        internal static readonly DataTypeHeader DefaultBinaryHeader = new DataTypeHeader
-        {
-#if SPREADS
-            VersionAndFlags =
-            {
-                ConverterVersion = 0,
-                IsBinary = true,
-                CompressionMethod = CompressionMethod.None
-            },
-            TypeEnum = InitTypeEnum(),
-            TypeSize = InitTypeSize(),
-            ElementTypeEnum = VariantHelper<T>.ElementTypeEnum // TODO if TypeEnum == None | FixedBinary, check KnownTypeId
-#endif
-        };
-
-        [Obsolete]
-        internal static readonly DataTypeHeader DefaultBinaryHeaderWithTs = new DataTypeHeader
-        {
-            VersionAndFlags =
-            {
-                ConverterVersion = 0,
-                IsBinary = true,
-                CompressionMethod = CompressionMethod.None,
-                IsTimestamped = true
-            },
-            TypeEnum = DefaultBinaryHeader.TypeEnum,
-            TypeSize = DefaultBinaryHeader.TypeSize,
-            ElementTypeEnum = DefaultBinaryHeader.ElementTypeEnum
-        };
 
         private static int InitChecked()
         {
@@ -384,7 +306,7 @@ namespace Spreads.Serialization
 
             // by this line the type is not blittable
 
-            IBinarySerializerEx<T> serializer = null;
+            IBinarySerializer<T> serializer = null;
 
             if (bsAttr != null && bsAttr.ConverterType != null)
             {
@@ -395,7 +317,7 @@ namespace Spreads.Serialization
 
                 try
                 {
-                    serializer = (IBinarySerializerEx<T>)Activator.CreateInstance(bsAttr.ConverterType);
+                    serializer = (IBinarySerializer<T>)Activator.CreateInstance(bsAttr.ConverterType);
                 }
                 catch
                 {
@@ -407,7 +329,7 @@ namespace Spreads.Serialization
             // could implement IBinaryConverter<T> but still be blittable for certain types,
             // e.g. DateTime vs long in PersistentMap<K,V>.Entry
             //if (tmp is IBinaryConverter<T>) {
-            if (typeof(IBinarySerializerEx<T>).IsAssignableFrom(typeof(T)))
+            if (typeof(IBinarySerializer<T>).IsAssignableFrom(typeof(T)))
             {
                 if (serializer != null)
                 {
@@ -415,7 +337,7 @@ namespace Spreads.Serialization
                 }
                 try
                 {
-                    serializer = (IBinarySerializerEx<T>)Activator.CreateInstance<T>();
+                    serializer = (IBinarySerializer<T>)Activator.CreateInstance<T>();
                 }
                 catch
                 {
@@ -443,7 +365,7 @@ namespace Spreads.Serialization
                 var elementSize = TypeHelper.GetSize(elementType);
                 if (elementSize > 0)
                 { // only for blittable types
-                    serializer = (IBinarySerializerEx<T>)FixedArraySerializerFactory.Create(elementType);
+                    serializer = (IBinarySerializer<T>)FixedArraySerializerFactory.Create(elementType);
                 }
             }
 
@@ -453,7 +375,7 @@ namespace Spreads.Serialization
                 typeof(T).GetGenericTypeDefinition() == typeof(KeyValuePair<,>))
             {
                 var gArgs = typeof(T).GetGenericArguments();
-                var serializerTmp = (IBinarySerializerEx<T>)KvpSerializerFactory.Create(gArgs[0], gArgs[1]);
+                var serializerTmp = (IBinarySerializer<T>)KvpSerializerFactory.Create(gArgs[0], gArgs[1]);
                 if (serializerTmp.FixedSize > 0)
                 {
                     serializer = serializerTmp;
@@ -465,7 +387,7 @@ namespace Spreads.Serialization
             {
                 var gArgs = typeof(T).GetGenericArguments();
 
-                var serializerTmp = (IBinarySerializerEx<T>)ValueTuple2SerializerFactory.Create(gArgs[0], gArgs[1]);
+                var serializerTmp = (IBinarySerializer<T>)ValueTuple2SerializerFactory.Create(gArgs[0], gArgs[1]);
                 if (serializerTmp.FixedSize > 0)
                 {
                     serializer = serializerTmp;
@@ -476,7 +398,7 @@ namespace Spreads.Serialization
                 typeof(T).GetGenericTypeDefinition() == typeof(Tuple<,>))
             {
                 var gArgs = typeof(T).GetGenericArguments();
-                var serializerTmp = (IBinarySerializerEx<T>)Tuple2SerializerFactory.Create(gArgs[0], gArgs[1]);
+                var serializerTmp = (IBinarySerializer<T>)Tuple2SerializerFactory.Create(gArgs[0], gArgs[1]);
                 if (serializerTmp.FixedSize > 0)
                 {
                     serializer = serializerTmp;
@@ -491,7 +413,7 @@ namespace Spreads.Serialization
                 typeof(T).GetGenericTypeDefinition() == typeof(TaggedKeyValue<,>))
             {
                 var gArgs = typeof(T).GetGenericArguments();
-                var serializerTmp = (IBinarySerializerEx<T>)TaggedKeyValueByteSerializerFactory.Create(gArgs[0], gArgs[1]);
+                var serializerTmp = (IBinarySerializer<T>)TaggedKeyValueByteSerializerFactory.Create(gArgs[0], gArgs[1]);
                 if (serializerTmp.FixedSize > 0)
                 {
                     serializer = serializerTmp;
@@ -503,7 +425,7 @@ namespace Spreads.Serialization
             {
                 var gArgs = typeof(T).GetGenericArguments();
 
-                var serializerTmp = (IBinarySerializerEx<T>)ValueTuple3SerializerFactory.Create(gArgs[0], gArgs[1], gArgs[2]);
+                var serializerTmp = (IBinarySerializer<T>)ValueTuple3SerializerFactory.Create(gArgs[0], gArgs[1], gArgs[2]);
                 if (serializerTmp.FixedSize > 0)
                 {
                     serializer = serializerTmp;
@@ -514,7 +436,7 @@ namespace Spreads.Serialization
                 typeof(T).GetGenericTypeDefinition() == typeof(Tuple<,,>))
             {
                 var gArgs = typeof(T).GetGenericArguments();
-                var serializerTmp = (IBinarySerializerEx<T>)Tuple3SerializerFactory.Create(gArgs[0], gArgs[1], gArgs[2]);
+                var serializerTmp = (IBinarySerializer<T>)Tuple3SerializerFactory.Create(gArgs[0], gArgs[1], gArgs[2]);
                 if (serializerTmp.FixedSize > 0)
                 {
                     serializer = serializerTmp;
@@ -529,7 +451,7 @@ namespace Spreads.Serialization
                 var elementSize = TypeHelper.GetSize(elementType);
                 if (elementSize > 0)
                 { // only for blittable types
-                    serializer = (IBinarySerializerEx<T>)ArraySerializerFactory.Create(elementType);
+                    serializer = (IBinarySerializer<T>)ArraySerializerFactory.Create(elementType);
                 }
             }
 
@@ -541,104 +463,25 @@ namespace Spreads.Serialization
                 var elementSize = TypeHelper.GetSize(elementType);
                 if (elementSize > 0)
                 { // only for blittable types
-                    serializer = (IBinarySerializerEx<T>)Collections.Internal.VectorStorageSerializerFactory.Create(elementType);
+                    serializer = (IBinarySerializer<T>)Collections.Internal.VectorStorageSerializerFactory.Create(elementType);
                 }
             }
 
             // Do not add Json converter as fallback, it is not "binary", it implements the interface for
             // simpler implementation in BinarySerializer and fallback happens there
 #endif
-            BinarySerializerEx = serializer;
+            BinarySerializer = serializer;
 
             return -1;
-        }
-
-        [Obsolete("TODO rewrite to use separate header dest, make both internal")]
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int WriteWithHeader(in T value, DirectBuffer destination, Timestamp timestamp = default)
-        {
-            if (AdditionalCorrectnessChecks.Enabled)
-            {
-                if (FixedSize <= 0)
-                {
-                    FailTypeIsNotFixedSize();
-                    return -1;
-                }
-            }
-
-            var hasTs = (long)timestamp != default;
-            // var tsSize = *(int*)(&hasTs) << 3; // could have branchless, but need thread-save dirty destination. pointers on stack are slow for some reason
-
-            int pos;
-            if (hasTs)
-            {
-                pos = 12;
-                if (AdditionalCorrectnessChecks.Enabled)
-                {
-                    destination.Assert(0, pos + FixedSize);
-                }
-                WriteUnaligned(destination.Data, DefaultBinaryHeaderWithTs);
-                WriteUnaligned(destination.Data + DataTypeHeader.Size, timestamp);
-            }
-            else
-            {
-                pos = 4;
-                if (AdditionalCorrectnessChecks.Enabled)
-                {
-                    destination.Assert(0, pos + FixedSize);
-                }
-                WriteUnaligned(destination.Data, DefaultBinaryHeader);
-            }
-
-            WriteUnaligned(destination.Data + pos, value);
-
-            var len = pos + FixedSize;
-            return len;
-        }
-
-        [Obsolete]
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int ReadWithHeader(byte* ptr, out T value, out Timestamp timestamp)
-        {
-            var header = ReadUnaligned<DataTypeHeader>(ptr);
-
-            var versionAndFlags = header.VersionAndFlags;
-
-            if (AdditionalCorrectnessChecks.Enabled)
-            {
-                if (FixedSize <= 0)
-                {
-                    FailTypeIsNotFixedSize();
-                }
-
-                if (versionAndFlags.CompressionMethod != CompressionMethod.None
-                    || !versionAndFlags.IsBinary || versionAndFlags.ConverterVersion != 0)
-                {
-                    FailHeaderNotSimpleBinary();
-                }
-            }
-
-            var tsSize = 0;
-            if (versionAndFlags.IsTimestamped)
-            {
-                tsSize = Timestamp.Size;
-                timestamp = ReadUnaligned<Timestamp>(ptr + DataTypeHeader.Size);
-            }
-            else
-            {
-                timestamp = default;
-            }
-            value = ReadUnaligned<T>(ptr + DataTypeHeader.Size + tsSize);
-            return DataTypeHeader.Size + tsSize + FixedSize;
         }
 
         public static byte ConverterVersion
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => BinarySerializerEx?.SerializerVersion ?? 0;
+            get => BinarySerializer?.SerializerVersion ?? 0;
         }
 
-        public static void RegisterConverter(IBinarySerializerEx<T> serializer,
+        public static void RegisterConverter(IBinarySerializer<T> serializer,
             bool overrideExisting = false)
         {
             if (serializer == null) { throw new ArgumentNullException(nameof(serializer)); }
@@ -660,7 +503,7 @@ namespace Spreads.Serialization
             {
                 Environment.FailFast($"Blittable types must not have IBinaryConverter<T>.");
             }
-            BinarySerializerEx = serializer;
+            BinarySerializer = serializer;
         }
     }
 }

@@ -25,8 +25,8 @@ namespace Spreads.Core.Tests.Serialization
                     for (int i = 0; i < bytes.Length / 8; i++)
                     {
                         var slice = mem.Slice(i * 8);
-                        var written = BinarySerializer.Write(i, slice, default, SerializationFormat.Binary);
-                        var read = BinarySerializer.Read(slice, out int j);
+                        var written = BinarySerializer.Write(i, slice.Span, default, SerializationFormat.Binary);
+                        var read = BinarySerializer.Read(slice.Span, out int j);
                         if (written != read)
                         {
                             Assert.Fail($"written {written } != read {read}");

@@ -52,19 +52,22 @@ namespace Spreads.Core.Tests
             public string String { get; set; }
             public long Long { get; set; }
             public bool IsFixedSize => false;
-            public int FixedSize => 0;
+
+            public byte KnownTypeId => 0;
+
+            public short FixedSize => -1;
             public byte SerializerVersion => 1;
-            public int SizeOf(MyPocoWithConvertor value, out RetainedMemory<byte> temporaryBuffer, out bool withPadding)
+            public int SizeOf(in MyPocoWithConvertor value, out RetainedMemory<byte> temporaryBuffer)
             {
                 throw new NotImplementedException();
             }
 
-            public int Write(MyPocoWithConvertor value, ref DirectBuffer destination)
+            public int Write(in MyPocoWithConvertor value, DirectBuffer destination)
             {
                 throw new NotImplementedException();
             }
 
-            public int Read(ref DirectBuffer source, out MyPocoWithConvertor value)
+            public int Read(DirectBuffer source, out MyPocoWithConvertor value)
             {
                 throw new NotImplementedException();
             }

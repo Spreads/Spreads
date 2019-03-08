@@ -13,11 +13,12 @@ using Spreads.DataTypes;
 
 namespace Spreads.Core.Tests.Serialization
 {
-    // TODO add this to docs, this is a smaple how to work with custom binary/Json serialization
+    // TODO add this to docs, this is a sample how to work with custom binary/Json serialization
 
     [Category("CI")]
     [TestFixture]
-    public class BinaryConverterTests
+    // ReSharper disable once InconsistentNaming
+    public class IBinarySerializerTests
     {
         [BinarySerialization(converterType: typeof(Serializer),  KnownTypeId = 123)]
         [JsonFormatter(typeof(Formatter))]
@@ -84,23 +85,26 @@ namespace Spreads.Core.Tests.Serialization
                     get => 1;
                 }
 
+                public byte KnownTypeId => 0;
+
+                public short FixedSize => 4;
+
                 [MethodImpl(MethodImplOptions.AggressiveInlining)]
-                public int SizeOf(SampleStruct value, out RetainedMemory<byte> temporaryBuffer, out bool withPadding)
+                public int SizeOf(in SampleStruct value, out RetainedMemory<byte> temporaryBuffer)
                 {
                     temporaryBuffer = default;
-                    withPadding = default;
                     return 4;
                 }
 
                 [MethodImpl(MethodImplOptions.AggressiveInlining)]
-                public int Write(SampleStruct value, ref DirectBuffer destination)
+                public int Write(in SampleStruct value, DirectBuffer destination)
                 {
                     destination.WriteInt32(0, value.Value);
                     return 4;
                 }
 
                 [MethodImpl(MethodImplOptions.AggressiveInlining)]
-                public int Read(ref DirectBuffer source, out SampleStruct value)
+                public int Read(DirectBuffer source, out SampleStruct value)
                 {
                     var val = source.ReadInt32(0);
                     value = new SampleStruct(val);
@@ -163,7 +167,7 @@ namespace Spreads.Core.Tests.Serialization
                         var value = values[i];
                         var size = BinarySerializer.SizeOf(in value, out var tmpBuffer, SerializationFormat.Binary);
 
-                        var written = BinarySerializer.Write(in value, ref dest, tmpBuffer, SerializationFormat.Binary);
+                        var written = BinarySerializer.Write(in value, dest, tmpBuffer, SerializationFormat.Binary);
 
                         if (size != written)
                         {
@@ -185,7 +189,7 @@ namespace Spreads.Core.Tests.Serialization
 
                     for (int i = 0; i < count; i++)
                     {
-                        var read = BinarySerializer.Read(ref readSource, out SampleStruct value1);
+                        var read = BinarySerializer.Read(readSource, out SampleStruct value1);
                         readSource = readSource.Slice(read);
                         var expected = values[i];
                         if (!value1.Equals(expected))
@@ -235,7 +239,7 @@ namespace Spreads.Core.Tests.Serialization
                         var value = values[i];
                         var size = BinarySerializer.SizeOf(in value, out var tmpBuffer, SerializationFormat.Json);
 
-                        var written = BinarySerializer.Write(in value, ref dest, tmpBuffer, SerializationFormat.Json);
+                        var written = BinarySerializer.Write(in value, dest, tmpBuffer, SerializationFormat.Json);
 
                         if (size != written)
                         {
@@ -257,7 +261,7 @@ namespace Spreads.Core.Tests.Serialization
 
                     for (int i = 0; i < count; i++)
                     {
-                        var read = BinarySerializer.Read(ref readSource, out SampleStruct value1);
+                        var read = BinarySerializer.Read(readSource, out SampleStruct value1);
                         readSource = readSource.Slice(read);
                         var expected = values[i];
                         if (!value1.Equals(expected))

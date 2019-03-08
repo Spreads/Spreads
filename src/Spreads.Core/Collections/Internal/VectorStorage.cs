@@ -13,7 +13,6 @@ using System.Diagnostics;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using Spreads.Serialization.Experimental;
 
 namespace Spreads.Collections.Internal
 {
@@ -408,7 +407,7 @@ namespace Spreads.Collections.Internal
 
         private static int Read(ref DirectBuffer source, out VectorStorage value, out Timestamp timestamp)
         {
-            var len = BinarySerializerEx.Read(source, out VectorStorage<T> valueT, out timestamp);
+            var len = BinarySerializer.Read(source, out VectorStorage<T> valueT, out timestamp);
             value = valueT.Storage;
             return len;
         }
@@ -419,14 +418,14 @@ namespace Spreads.Collections.Internal
             SerializationFormat format = default,
             Timestamp timestamp = default)
         {
-            return BinarySerializerEx.Write(new VectorStorage<T>(value), pinnedDestination,
+            return BinarySerializer.Write(new VectorStorage<T>(value), pinnedDestination,
                 temporaryBuffer, format, timestamp);
         }
 
         private static int SizeOf(VectorStorage value, out RetainedMemory<byte> temporaryBuffer,
             SerializationFormat format = default)
         {
-            return BinarySerializerEx.SizeOf(new VectorStorage<T>(value), out temporaryBuffer,
+            return BinarySerializer.SizeOf(new VectorStorage<T>(value), out temporaryBuffer,
                 format);
         }
 
@@ -465,7 +464,11 @@ namespace Spreads.Collections.Internal
     {
         public byte SerializerVersion => 0;
 
-        public int SizeOf(VectorStorage<T> value, out RetainedMemory<byte> temporaryBuffer, out bool withPadding)
+        public byte KnownTypeId => 0;
+
+        public short FixedSize => -1;
+
+        public int SizeOf(in VectorStorage<T> value, out RetainedMemory<byte> temporaryBuffer)
         {
             if (value.Storage.Stride != 1 || !TypeHelper<T>.IsFixedSize)
             {
@@ -473,11 +476,10 @@ namespace Spreads.Collections.Internal
             }
 
             temporaryBuffer = default;
-            withPadding = default;
             return 4 + value.Storage.Length * Unsafe.SizeOf<T>();
         }
 
-        public unsafe int Write(VectorStorage<T> value, ref DirectBuffer destination)
+        public unsafe int Write(in VectorStorage<T> value, DirectBuffer destination)
         {
             if (value.Storage.Stride != 1 || !TypeHelper<T>.IsFixedSize)
             {
@@ -530,7 +532,7 @@ namespace Spreads.Collections.Internal
             return 4;
         }
 
-        public unsafe int Read(ref DirectBuffer source, out VectorStorage<T> value)
+        public unsafe int Read(DirectBuffer source, out VectorStorage<T> value)
         {
             var arraySize = source.Read<int>(0);
             if (arraySize > 0)

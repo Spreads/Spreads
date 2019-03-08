@@ -2,10 +2,10 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-using Spreads.Collections.Internal.Experimental;
 using System;
+using Spreads.Collections.Internal.Experimental;
 
-namespace Spreads.Serialization.Experimental
+namespace Spreads.Serialization
 {
     /// <summary>
     /// Known types and containers enumeration.
@@ -17,15 +17,15 @@ namespace Spreads.Serialization.Experimental
     /// <para />
     ///
     /// Serialized data or non-generic containers such as <see cref="Variant"/>
-    /// have <see cref="DataTypeHeaderEx"/>
-    /// that contains 3 <see cref="TypeEnumEx"/> slots that describe the data.
+    /// have <see cref="DataTypeHeader"/>
+    /// that contains 3 <see cref="TypeEnum"/> slots that describe the data.
     ///
     /// <para />
     ///
     /// Integer types are always serialized as little-endian.
     /// Big-endian is completely not and won't be supported in foreseeable future.
     /// </remarks>
-    public enum TypeEnumEx : byte
+    public enum TypeEnum : byte
     {
         // Note: TypeEnum must be enough to create a correct non-generic System.Object from a raw byte pointer.
 
@@ -216,8 +216,8 @@ namespace Spreads.Serialization.Experimental
         /// </summary>
         /// <remarks>
         /// This covers all same-type fixed-size tuples from 1 to 256.
-        /// The number of elements is stored in <see cref="DataTypeHeaderEx.TupleNCount"/> (<see cref="DataTypeHeaderEx.TEOFS1"/>).
-        /// Element type is stored in <see cref="DataTypeHeaderEx.TupleTNTeofs"/> (<see cref="DataTypeHeaderEx.TEOFS2"/>).
+        /// The number of elements is stored in <see cref="DataTypeHeader.TupleNCount"/> (<see cref="DataTypeHeader.TEOFS1"/>).
+        /// Element type is stored in <see cref="DataTypeHeader.TupleTNTeofs"/> (<see cref="DataTypeHeader.TEOFS2"/>).
         ///
         /// ```
         /// 0                   1                   2                   3
@@ -226,7 +226,7 @@ namespace Spreads.Serialization.Experimental
         /// | Version+Flags |    TupleTN    |  TupleTNCount |       T       |
         /// +---------------------------------------------------------------+
         /// ```
-        /// If type T is not a scalar (see <see cref="DataTypeHeaderEx.IsScalar"/>)
+        /// If type T is not a scalar (see <see cref="DataTypeHeader.IsScalar"/>)
         /// then T slot is set to <see cref="CompositeType"/>.
         ///
         /// </remarks>
@@ -239,7 +239,7 @@ namespace Spreads.Serialization.Experimental
         /// A tuple with two elements of same type.
         /// </summary>
         /// <remarks>
-        /// Element type is stored in <see cref="DataTypeHeaderEx.TEOFS1"/>.
+        /// Element type is stored in <see cref="DataTypeHeader.TEOFS1"/>.
         /// ```
         /// 0                   1                   2                   3
         /// 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
@@ -247,7 +247,7 @@ namespace Spreads.Serialization.Experimental
         /// | Version+Flags |    TupleT2    |       T       |      T1?      |
         /// +---------------------------------------------------------------+
         /// ```
-        /// If type T is a scalar type (see <see cref="DataTypeHeaderEx.IsScalar"/>) then
+        /// If type T is a scalar type (see <see cref="DataTypeHeader.IsScalar"/>) then
         /// T1 slot is empty. T1 could be a subtype of T if two slots is enough to
         /// describe the type T. If more than two slots are required to
         /// describe the type T then T slot is set to <see cref="CompositeType"/>.
@@ -258,7 +258,7 @@ namespace Spreads.Serialization.Experimental
         /// A tuple with three elements of same type.
         /// </summary>
         /// <remarks>
-        /// Element type is stored in <see cref="DataTypeHeaderEx.TEOFS1"/>.
+        /// Element type is stored in <see cref="DataTypeHeader.TEOFS1"/>.
         /// ```
         /// 0                   1                   2                   3
         /// 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
@@ -266,7 +266,7 @@ namespace Spreads.Serialization.Experimental
         /// | Version+Flags |    TupleT3    |       T       |      T1?      |
         /// +---------------------------------------------------------------+
         /// ```
-        /// If type T is a scalar type (see <see cref="DataTypeHeaderEx.IsScalar"/>) then
+        /// If type T is a scalar type (see <see cref="DataTypeHeader.IsScalar"/>) then
         /// T1 slot is empty. T1 could be a subtype of T if two slots is enough to
         /// describe the type T. If more than two slots are required to
         /// describe the type T then T slot is set to <see cref="CompositeType"/>.
@@ -277,7 +277,7 @@ namespace Spreads.Serialization.Experimental
         /// A tuple with four elements of same type.
         /// </summary>
         /// <remarks>
-        /// Element type is stored in <see cref="DataTypeHeaderEx.TEOFS1"/>.
+        /// Element type is stored in <see cref="DataTypeHeader.TEOFS1"/>.
         /// ```
         /// 0                   1                   2                   3
         /// 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
@@ -285,7 +285,7 @@ namespace Spreads.Serialization.Experimental
         /// | Version+Flags |    TupleT4    |       T       |      T1?      |
         /// +---------------------------------------------------------------+
         /// ```
-        /// If type T is a scalar type (see <see cref="DataTypeHeaderEx.IsScalar"/>) then
+        /// If type T is a scalar type (see <see cref="DataTypeHeader.IsScalar"/>) then
         /// T1 slot is empty. T1 could be a subtype of T if two slots is enough to
         /// describe the type T. If more than two slots are required to
         /// describe the type T then T slot is set to <see cref="CompositeType"/>.
@@ -296,7 +296,7 @@ namespace Spreads.Serialization.Experimental
         /// A tuple with five elements of same type.
         /// </summary>
         /// <remarks>
-        /// Element type is stored in <see cref="DataTypeHeaderEx.TEOFS1"/>.
+        /// Element type is stored in <see cref="DataTypeHeader.TEOFS1"/>.
         /// ```
         /// 0                   1                   2                   3
         /// 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
@@ -304,7 +304,7 @@ namespace Spreads.Serialization.Experimental
         /// | Version+Flags |    TupleT5    |       T       |      T1?      |
         /// +---------------------------------------------------------------+
         /// ```
-        /// If type T is a scalar type (see <see cref="DataTypeHeaderEx.IsScalar"/>) then
+        /// If type T is a scalar type (see <see cref="DataTypeHeader.IsScalar"/>) then
         /// T1 slot is empty. T1 could be a subtype of T if two slots is enough to
         /// describe the type T. If more than two slots are required to
         /// describe the type T then T slot is set to <see cref="CompositeType"/>.
@@ -315,7 +315,7 @@ namespace Spreads.Serialization.Experimental
         /// A tuple with six elements of same type.
         /// </summary>
         /// <remarks>
-        /// Element type is stored in <see cref="DataTypeHeaderEx.TEOFS1"/>.
+        /// Element type is stored in <see cref="DataTypeHeader.TEOFS1"/>.
         /// ```
         /// 0                   1                   2                   3
         /// 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
@@ -323,7 +323,7 @@ namespace Spreads.Serialization.Experimental
         /// | Version+Flags |    TupleT6    |       T       |      T1?      |
         /// +---------------------------------------------------------------+
         /// ```
-        /// If type T is a scalar type (see <see cref="DataTypeHeaderEx.IsScalar"/>) then
+        /// If type T is a scalar type (see <see cref="DataTypeHeader.IsScalar"/>) then
         /// T1 slot is empty. T1 could be a subtype of T if two slots is enough to
         /// describe the type T. If more than two slots are required to
         /// describe the type T then T slot is set to <see cref="CompositeType"/>.
@@ -334,8 +334,8 @@ namespace Spreads.Serialization.Experimental
         /// A tuple with two elements of different types.
         /// </summary>
         /// <remarks>
-        /// Element types are stored in <see cref="DataTypeHeaderEx.TEOFS1"/>
-        /// and <see cref="DataTypeHeaderEx.TEOFS2"/>.
+        /// Element types are stored in <see cref="DataTypeHeader.TEOFS1"/>
+        /// and <see cref="DataTypeHeader.TEOFS2"/>.
         /// ```
         /// 0                   1                   2                   3
         /// 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
@@ -343,7 +343,7 @@ namespace Spreads.Serialization.Experimental
         /// | Version+Flags |     Tuple2    |       T1      |       T2      |
         /// +---------------------------------------------------------------+
         /// ```
-        /// If types T1 or T2 is not a scalar type (see <see cref="DataTypeHeaderEx.IsScalar"/>)
+        /// If types T1 or T2 is not a scalar type (see <see cref="DataTypeHeader.IsScalar"/>)
         /// its slot is set to <see cref="CompositeType"/>.
         /// </remarks>
         Tuple2 = 76,
@@ -352,8 +352,8 @@ namespace Spreads.Serialization.Experimental
         /// A tuple with two elements of different types prefixed with <see cref="byte"/> tag.
         /// </summary>
         /// <remarks>
-        /// Element types are stored in <see cref="DataTypeHeaderEx.TEOFS1"/>
-        /// and <see cref="DataTypeHeaderEx.TEOFS2"/>.
+        /// Element types are stored in <see cref="DataTypeHeader.TEOFS1"/>
+        /// and <see cref="DataTypeHeader.TEOFS2"/>.
         /// ```
         /// 0                   1                   2                   3
         /// 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
@@ -365,7 +365,7 @@ namespace Spreads.Serialization.Experimental
         ///
         /// [Optional Timestamp] | [Optional Schemas] | [Byte Tag] | [T1 Payload] | [T2 Payload]
         /// ```
-        /// If types T1 or T2 are not a scalar type (see <see cref="DataTypeHeaderEx.IsScalar"/>)
+        /// If types T1 or T2 are not a scalar type (see <see cref="DataTypeHeader.IsScalar"/>)
         /// their slot is set to <see cref="CompositeType"/>.
         /// </remarks>
         Tuple2Byte = 77, // If we need a tag with a different type use Tuple3
@@ -392,7 +392,7 @@ namespace Spreads.Serialization.Experimental
         /// A variable-length sequence of elements of the same type.
         /// </summary>
         /// <remarks>
-        /// Element type stored in <see cref="DataTypeHeaderEx.TEOFS1"/>.
+        /// Element type stored in <see cref="DataTypeHeader.TEOFS1"/>.
         /// ```
         /// 0                   1                   2                   3
         /// 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
@@ -400,7 +400,7 @@ namespace Spreads.Serialization.Experimental
         /// | Version+Flags |     Array     |       T       |      T1?      |
         /// +---------------------------------------------------------------+
         /// ```
-        /// If type T is a scalar type (see <see cref="DataTypeHeaderEx.IsScalar"/>) then
+        /// If type T is a scalar type (see <see cref="DataTypeHeader.IsScalar"/>) then
         /// T1 slot is empty. T1 could be a subtype of T if two slots is enough to
         /// describe the type T. If more than two slots are required to
         /// describe the type T then T slot is set to <see cref="CompositeType"/>.
@@ -412,8 +412,8 @@ namespace Spreads.Serialization.Experimental
         ///
         /// </summary>
         /// <remarks>
-        /// Element type stored in <see cref="DataTypeHeaderEx.TEOFS1"/>.
-        /// Dimension is stored in <see cref="DataTypeHeaderEx.TEOFS2"/>.
+        /// Element type stored in <see cref="DataTypeHeader.TEOFS1"/>.
+        /// Dimension is stored in <see cref="DataTypeHeader.TEOFS2"/>.
         ///
         /// ```
         /// 0                   1                   2                   3
@@ -433,8 +433,8 @@ namespace Spreads.Serialization.Experimental
         /// <remarks>
         /// This type is common (e.g. it's a by-row part of a matrix) and we need to fuse <see cref="Array"/> and <see cref="TupleTN"/>
         /// first slot.
-        /// The number of inner array elements is stored in <see cref="DataTypeHeaderEx.TupleNCount"/> (<see cref="DataTypeHeaderEx.TEOFS1"/>).
-        /// Element type is stored in <see cref="DataTypeHeaderEx.TupleTNTeofs"/> (<see cref="DataTypeHeaderEx.TEOFS2"/>).
+        /// The number of inner array elements is stored in <see cref="DataTypeHeader.TupleNCount"/> (<see cref="DataTypeHeader.TEOFS1"/>).
+        /// Element type is stored in <see cref="DataTypeHeader.TupleTNTeofs"/> (<see cref="DataTypeHeader.TEOFS2"/>).
         ///
         /// ```
         /// 0                   1                   2                   3
@@ -465,8 +465,8 @@ namespace Spreads.Serialization.Experimental
         /// </summary>
         /// <remarks>
         ///
-        /// Key type is stored in <see cref="DataTypeHeaderEx.TEOFS1"/>
-        /// and value type is stored in <see cref="DataTypeHeaderEx.TEOFS2"/>.
+        /// Key type is stored in <see cref="DataTypeHeader.TEOFS1"/>
+        /// and value type is stored in <see cref="DataTypeHeader.TEOFS2"/>.
         ///
         /// ```
         /// 0                   1                   2                   3
@@ -522,8 +522,8 @@ namespace Spreads.Serialization.Experimental
         /// <remarks>
         /// TupleN could have fixed size, e.g. (Timestamp,int,long,double).
         /// If all elements of such tuple are fixed-size scalars and their
-        /// total size is no more than 256 bytes then <see cref="DataTypeHeaderEx.TupleNFixedSize"/>
-        /// field (the slot <see cref="DataTypeHeaderEx.TEOFS2"/>) has the total size.
+        /// total size is no more than 256 bytes then <see cref="DataTypeHeader.TupleNFixedSize"/>
+        /// field (the slot <see cref="DataTypeHeader.TEOFS2"/>) has the total size.
         ///
         /// ```
         /// 0                   1                   2                   3
@@ -542,7 +542,7 @@ namespace Spreads.Serialization.Experimental
         // 100-119 reserved for internal use (so far).
 
         /// <summary>
-        /// See <see cref="Variant"/>. Has own <see cref="TypeEnumEx"/> values before payload. // TODO spec that
+        /// See <see cref="Variant"/>. Has own <see cref="TypeEnum"/> values before payload. // TODO spec that
         /// </summary>
         Variant = 120,
 
