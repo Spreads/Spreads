@@ -943,11 +943,19 @@ namespace Spreads.Core.Tests.Serialization
             rm.Dispose();
         }
 
-        [Test, Explicit("bench")]
+        [Test
+#if !DEBUG
+         , Explicit("bench")
+#endif
+        ]
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
         public void CouldSerializeTaggedKeyValueBench()
         {
+#if !DEBUG
             var count = 30_000_000;
+#else
+            var count = 10_000;
+#endif
             var rm = BufferPool.Retain(1000);
             var db = new DirectBuffer(rm);
 
@@ -967,10 +975,16 @@ namespace Spreads.Core.Tests.Serialization
                         var len2 = BinarySerializer.Write(in val, db, tempBuf, serializationFormat);
 
                         var len3 = BinarySerializer.Read(db, out TaggedKeyValue<int, long> val2, skipTypeInfoValidation: false);
-                        //if (len2 != len3 || val.Key != val2.Key || val.Value != val2.Value || val.Tag != val2.Tag)
-                        //{
-                        //    Assert.Fail();
-                        //}
+                        if (len3 <= 0)
+                        {
+                            Assert.Fail("len3 <= 0");
+                        }
+#if DEBUG
+                        if (len2 != len3 || val.Key != val2.Key || val.Value != val2.Value || val.Tag != val2.Tag)
+                        {
+                            Assert.Fail();
+                        }
+#endif
                     }
                 }
             }
