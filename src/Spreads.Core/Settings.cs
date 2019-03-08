@@ -4,6 +4,7 @@ using Spreads.Utils;
 using System;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 
 namespace Spreads
 {
@@ -235,6 +236,11 @@ namespace Spreads
             get => _safeBinarySerializerWrite.PresentOrDefault(AdditionalCorrectnessChecks.Enabled);
             set => _safeBinarySerializerWrite = Opt.Present(value);
         }
+
+        /// <summary>
+        /// Set to true to use <see cref="StructLayoutAttribute.Size"/> as <see cref="BinarySerializationAttribute.BlittableSize"/>.
+        /// </summary>
+        public static bool UseStructLayoutSizeAsBlittableSize = false;
 
         internal const int SlabLength = 128 * 1024;
 

@@ -37,7 +37,7 @@ namespace Spreads.Core.Run
             Settings.SharedSpinLockNotificationPort = 53412;
 
             var test = new SerializationTests();
-            test.CouldSerializeTaggedKeyValueWithTimeStampBench();
+            test.CouldSerializeTaggedKeyValueBench();
 
             // Console.WriteLine("Finished, press enter to exit...");
             // Console.ReadLine();

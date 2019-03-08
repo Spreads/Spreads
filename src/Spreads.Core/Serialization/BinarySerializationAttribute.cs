@@ -36,22 +36,22 @@ namespace Spreads.Serialization
             PreferBlittable = preferBlittable;
         }
 
-        public BinarySerializationAttribute(Type converterType)
+        public BinarySerializationAttribute(Type serializerType)
         {
-            ConverterType = converterType;
+            SerializerType = serializerType;
         }
 
-        internal BinarySerializationAttribute(TypeEnum typeEnum, int blittableSize = 0, bool preferBlittable = false, Type converterType = null)
+        internal BinarySerializationAttribute(TypeEnum typeEnum, int blittableSize = 0, bool preferBlittable = false, Type serializerType = null)
         {
 #if SPREADS
-            if (typeEnum != TypeEnum.None && (int)typeEnum < (int)TypeEnum.Binary && converterType != null)
+            if (typeEnum != TypeEnum.None && (int)typeEnum < (int)TypeEnum.Binary && serializerType != null)
             {
                 Environment.FailFast("Cannot use Converter for fixed-sized types");
             }
 #endif
             BlittableSize = blittableSize;
             PreferBlittable = preferBlittable;
-            ConverterType = converterType;
+            SerializerType = serializerType;
             TypeEnum = typeEnum;
         }
 
@@ -71,7 +71,7 @@ namespace Spreads.Serialization
         /// </remarks>
         internal int BlittableSize { get; set; }
 
-        internal Type ConverterType { get; set; }
+        internal Type SerializerType { get; set; }
 
         public byte KnownTypeId { get; set; }
 

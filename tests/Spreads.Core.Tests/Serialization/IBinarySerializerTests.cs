@@ -20,7 +20,7 @@ namespace Spreads.Core.Tests.Serialization
     // ReSharper disable once InconsistentNaming
     public class IBinarySerializerTests
     {
-        [BinarySerialization(converterType: typeof(Serializer),  KnownTypeId = 123)]
+        [BinarySerialization(serializerType: typeof(Serializer),  KnownTypeId = 123)]
         [JsonFormatter(typeof(Formatter))]
         public struct SampleStruct : IEquatable<SampleStruct>
         {

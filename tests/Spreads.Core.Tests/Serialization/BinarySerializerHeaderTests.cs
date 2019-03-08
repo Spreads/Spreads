@@ -14,7 +14,7 @@ namespace Spreads.Core.Tests.Serialization
     [TestFixture]
     public class BinarySerializerHeaderTests
     {
-        [BinarySerialization((TypeEnum)123, converterType: typeof(Serializer))]
+        [BinarySerialization((TypeEnum)123, serializerType: typeof(Serializer))]
         [JsonFormatter(typeof(Formatter))]
         public struct SampleStruct
         {

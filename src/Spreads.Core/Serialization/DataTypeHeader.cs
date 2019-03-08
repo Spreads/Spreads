@@ -261,6 +261,12 @@ namespace Spreads.Serialization
             get => GetFixedSize();
         }
 
+        internal int WithoutVersionAndFlags
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => Unsafe.As<DataTypeHeader, int>(ref Unsafe.AsRef( in this)) & (((1 << 24) - 1) << 8);
+        }
+
         [Obsolete("Calculates FixedSize, use FixedSize directly")]
         public bool IsFixedSize
         {
