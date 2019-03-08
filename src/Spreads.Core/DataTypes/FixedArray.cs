@@ -55,12 +55,12 @@ namespace Spreads.DataTypes
 
             public short FixedSize => throw new System.NotImplementedException();
 
-            public int SizeOf(FixedArray<T> value, out RetainedMemory<byte> temporaryBuffer)
+            public int SizeOf(in FixedArray<T> value, out RetainedMemory<byte> temporaryBuffer)
             {
                 throw new System.NotImplementedException();
             }
 
-            public int Write(FixedArray<T> value, DirectBuffer destination)
+            public int Write(in FixedArray<T> value, DirectBuffer destination)
             {
                 throw new System.NotImplementedException();
             }

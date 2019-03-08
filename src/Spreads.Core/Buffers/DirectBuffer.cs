@@ -979,16 +979,5 @@ namespace Spreads.Buffers
         {
             return encoding.GetString(buffer._pointer, buffer.Length);
         }
-
-        /// <summary>
-        /// For usage: using (array.AsDirectBuffer(out var db)) { ... }
-        /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static MemoryHandle AsDirectBuffer(this byte[] array, out DirectBuffer buffer)
-        {
-            var mh = ((Memory<byte>)array).Pin();
-            buffer = new DirectBuffer(array.Length, (byte*)mh.Pointer);
-            return mh;
-        }
     }
 }

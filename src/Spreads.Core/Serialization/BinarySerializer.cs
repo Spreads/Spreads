@@ -49,12 +49,12 @@ namespace Spreads.Serialization
                 {
                     return TypeHelper<T>.FixedSize;
                 }
-
-                var bc = TypeHelper<T>.BinarySerializer;
-                if (bc != null)
-                {
-                    return bc.SizeOf(value, out temporaryBuffer, out withPadding);
-                }
+                throw new NotSupportedException();
+                // var bc = TypeHelper<T>.BinarySerializer;
+                //if (bc != null)
+                //{
+                //    return bc.SizeOf(value, out temporaryBuffer, out withPadding);
+                //}
             }
 
             return JsonBinarySerializer<T>.SizeOf(value, out temporaryBuffer, out withPadding);
@@ -139,7 +139,8 @@ namespace Spreads.Serialization
 
             if (rawTemporaryBuffer.IsEmpty) // requested compression, empty is possible only when TypeHelper<T>.BinaryConverter != null
             {
-                bc = TypeHelper<T>.BinarySerializer;
+                throw new NotSupportedException();
+                // bc = TypeHelper<T>.BinarySerializer;
                 ThrowHelper.AssertFailFast(bc != null, "TypeHelper<T>.BinaryConverter != null, in other cases raw temp buffer should be present");
                 rawOffset = DataTypeHeader.Size + 4 + tsSize;
                 tempMemory = BufferPool.RetainTemp(rawOffset + rawSize);
@@ -257,7 +258,8 @@ namespace Spreads.Serialization
                     return TypeHelper<T>.WriteWithHeader(in value, pinnedDestination, timestamp);
                 }
                 // Use custom TypeHelper<T>.BinaryConverter only when asked for isBinary
-                bc = TypeHelper<T>.BinarySerializer ?? JsonBinarySerializer<T>.Instance;
+                throw new NotSupportedException();
+                // bc = TypeHelper<T>.BinarySerializer ?? JsonBinarySerializer<T>.Instance;
             }
 
             return WriteVarSize(value, ref pinnedDestination, in temporaryBuffer, format, timestamp, bc);
@@ -429,7 +431,8 @@ namespace Spreads.Serialization
 
             if (header.VersionAndFlags.IsBinary)
             {
-                bc = TypeHelper<T>.BinarySerializer;
+                throw new NotSupportedException();
+                // bc = TypeHelper<T>.BinarySerializer;
             }
 
             var tsSize = header.VersionAndFlags.IsTimestamped ? Timestamp.Size : 0;
@@ -475,7 +478,7 @@ namespace Spreads.Serialization
             tempMemory.Dispose();
             return calculatedSourceSize;
 
-            INVALID_RETURN:
+        INVALID_RETURN:
             value = default;
             timestamp = default;
             return -1;

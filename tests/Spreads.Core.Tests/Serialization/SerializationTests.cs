@@ -544,39 +544,39 @@ namespace Spreads.Core.Tests.Serialization
             Assert.AreEqual(3, newInts2[1]);
         }
 
-        [Test, Ignore("not implemented")]
-        public unsafe void CouldSerializeSortedMap()
-        {
-            SortedMap<DateTime, decimal>.Init();
-            var rng = new Random();
+        //[Test, Ignore("not implemented")]
+        //public unsafe void CouldSerializeSortedMap()
+        //{
+        //    SortedMap<DateTime, decimal>.Init();
+        //    var rng = new Random();
 
-            var dest = (Memory<byte>)new byte[1000000];
-            var buffer = dest;
-            var handle = buffer.Pin();
-            var ptr = (IntPtr)handle.Pointer;
+        //    var dest = (Memory<byte>)new byte[1000000];
+        //    var buffer = dest;
+        //    var handle = buffer.Pin();
+        //    var ptr = (IntPtr)handle.Pointer;
 
-            var sm = new SortedMap<DateTime, decimal>();
-            for (var i = 0; i < 10000; i++)
-            {
-                if (i != 2)
-                {
-                    sm.Add(DateTime.Today.AddHours(i), (decimal)Math.Round(i + rng.NextDouble(), 2));
-                }
-            }
-            var len = BinarySerializer.Write(sm, buffer, format: SerializationFormat.BinaryZstd);
-            Console.WriteLine($"Useful: {sm.Count * 24.0}");
-            Console.WriteLine($"Total: {len}");
-            // NB interesting that with converting double to decimal savings go from 65% to 85%,
-            // even calculated from (8+8) base size not decimal's 16 size
-            Console.WriteLine($"Savings: {1.0 - ((len * 1.0) / (sm.Count * 24.0))}");
-            SortedMap<DateTime, decimal> sm2 = null;
-            var len2 = BinarySerializer.Read(buffer, out sm2);
+        //    var sm = new SortedMap<DateTime, decimal>();
+        //    for (var i = 0; i < 10000; i++)
+        //    {
+        //        if (i != 2)
+        //        {
+        //            sm.Add(DateTime.Today.AddHours(i), (decimal)Math.Round(i + rng.NextDouble(), 2));
+        //        }
+        //    }
+        //    var len = BinarySerializer.Write(sm, buffer, format: SerializationFormat.BinaryZstd);
+        //    Console.WriteLine($"Useful: {sm.Count * 24.0}");
+        //    Console.WriteLine($"Total: {len}");
+        //    // NB interesting that with converting double to decimal savings go from 65% to 85%,
+        //    // even calculated from (8+8) base size not decimal's 16 size
+        //    Console.WriteLine($"Savings: {1.0 - ((len * 1.0) / (sm.Count * 24.0))}");
+        //    SortedMap<DateTime, decimal> sm2 = null;
+        //    var len2 = BinarySerializer.Read(buffer, out sm2);
 
-            Assert.AreEqual(len, len2);
+        //    Assert.AreEqual(len, len2);
 
-            Assert.IsTrue(sm2.Keys.SequenceEqual(sm.Keys));
-            Assert.IsTrue(sm2.Values.SequenceEqual(sm.Values));
-        }
+        //    Assert.IsTrue(sm2.Keys.SequenceEqual(sm.Keys));
+        //    Assert.IsTrue(sm2.Values.SequenceEqual(sm.Values));
+        //}
 
         [Test, Ignore("SM not implemented")]
         public unsafe void CouldSerializeRegularSortedMapWithZstd()
@@ -1019,7 +1019,7 @@ namespace Spreads.Core.Tests.Serialization
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
         public void CouldSerializeTaggedKeyValueWithTimeStampBench()
         {
-            var count = 2_000_000;
+            var count = 10_000_000;
             var rm = BufferPool.Retain(1000);
             var db = new DirectBuffer(rm);
 
@@ -1027,7 +1027,7 @@ namespace Spreads.Core.Tests.Serialization
             var timestamp = TimeService.Default.CurrentTime;
 
             // TODO JSON
-            var serializationFormat = SerializationFormat.Json;
+            var serializationFormat = SerializationFormat.Binary;
 
             for (int _ = 0; _ < 50; _++)
             {
@@ -1036,10 +1036,10 @@ namespace Spreads.Core.Tests.Serialization
                     
                     for (int i = 0; i < count; i++)
                     {
-                        var len = BinarySerializerEx.SizeOf(val, out var tempBuf, serializationFormat);
+                        var len = BinarySerializerEx.SizeOf(in val, out var tempBuf, serializationFormat);
 
                         db.Write(0, 0);
-                        var len2 = BinarySerializerEx.Write(val, db.Slice(0, len + 16), tempBuf, serializationFormat, timestamp);
+                        var len2 = BinarySerializerEx.Write(in val, db.Slice(0, len + 16), tempBuf, serializationFormat, timestamp);
                         var len3 = BinarySerializerEx.Read(db, out TaggedKeyValue<int, long> val2, out var ts2);
                         //if (len2 != len3 || val.Key != val2.Key || val.Value != val2.Value || val.Tag != val2.Tag)
                         //{

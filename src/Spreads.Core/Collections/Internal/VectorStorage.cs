@@ -13,6 +13,7 @@ using System.Diagnostics;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using Spreads.Serialization.Experimental;
 
 namespace Spreads.Collections.Internal
 {
@@ -379,8 +380,7 @@ namespace Spreads.Collections.Internal
 
     internal delegate int SizeOfDelegate(VectorStorage value,
         out RetainedMemory<byte> temporaryBuffer,
-        SerializationFormat format = default,
-        Timestamp timestamp = default);
+        SerializationFormat format = default);
 
     internal delegate int WriteDelegate(VectorStorage value,
         ref DirectBuffer pinnedDestination,
@@ -408,7 +408,7 @@ namespace Spreads.Collections.Internal
 
         private static int Read(ref DirectBuffer source, out VectorStorage value, out Timestamp timestamp)
         {
-            var len = BinarySerializer.Read(ref source, out VectorStorage<T> valueT, out timestamp);
+            var len = BinarySerializerEx.Read(source, out VectorStorage<T> valueT, out timestamp);
             value = valueT.Storage;
             return len;
         }
@@ -419,16 +419,15 @@ namespace Spreads.Collections.Internal
             SerializationFormat format = default,
             Timestamp timestamp = default)
         {
-            return BinarySerializer.Write(new VectorStorage<T>(value), ref pinnedDestination,
+            return BinarySerializerEx.Write(new VectorStorage<T>(value), pinnedDestination,
                 temporaryBuffer, format, timestamp);
         }
 
         private static int SizeOf(VectorStorage value, out RetainedMemory<byte> temporaryBuffer,
-            SerializationFormat format = default,
-            Timestamp timestamp = default)
+            SerializationFormat format = default)
         {
-            return BinarySerializer.SizeOf(new VectorStorage<T>(value), out temporaryBuffer,
-                format, timestamp);
+            return BinarySerializerEx.SizeOf(new VectorStorage<T>(value), out temporaryBuffer,
+                format);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

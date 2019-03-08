@@ -80,7 +80,7 @@ namespace Spreads.Serialization.Experimental
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public int SizeOf(TuplePack<T1, T2> value, out RetainedMemory<byte> temporaryBuffer)
+        public int SizeOf(in TuplePack<T1, T2> value, out RetainedMemory<byte> temporaryBuffer)
         {
             if (FixedSize <= 0)
             {
@@ -92,7 +92,7 @@ namespace Spreads.Serialization.Experimental
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public int Write(TuplePack<T1, T2> value, DirectBuffer destination)
+        public int Write(in TuplePack<T1, T2> value, DirectBuffer destination)
         {
             Debug.Assert(TypeHelper<TuplePack<T1, T2>>.PinnedSize > 0);
             Debug.Assert(FixedSize == Unsafe.SizeOf<TuplePack<T1, T2>>());
@@ -138,13 +138,13 @@ namespace Spreads.Serialization.Experimental
             public short FixedSize => TuplePackSerializer<T1, T2>.Instance.FixedSize;
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public int SizeOf((T1, T2) value, out RetainedMemory<byte> temporaryBuffer)
+            public int SizeOf(in (T1, T2) value, out RetainedMemory<byte> temporaryBuffer)
             {
                 return TuplePackSerializer<T1, T2>.Instance.SizeOf(new TuplePack<T1, T2>(value), out temporaryBuffer);
             }
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public int Write((T1, T2) value, DirectBuffer destination)
+            public int Write(in (T1, T2) value, DirectBuffer destination)
             {
                 return TuplePackSerializer<T1, T2>.Instance.Write(new TuplePack<T1, T2>(value), destination);
             }
@@ -182,13 +182,13 @@ namespace Spreads.Serialization.Experimental
             public short FixedSize => TuplePackSerializer<T1, T2>.Instance.FixedSize;
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public int SizeOf(Tuple<T1, T2> value, out RetainedMemory<byte> temporaryBuffer)
+            public int SizeOf(in Tuple<T1, T2> value, out RetainedMemory<byte> temporaryBuffer)
             {
                 return TuplePackSerializer<T1, T2>.Instance.SizeOf(new TuplePack<T1, T2>(value), out temporaryBuffer);
             }
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public int Write(Tuple<T1, T2> value, DirectBuffer destination)
+            public int Write(in Tuple<T1, T2> value, DirectBuffer destination)
             {
                 return TuplePackSerializer<T1, T2>.Instance.Write(new TuplePack<T1, T2>(value), destination);
             }
@@ -226,13 +226,13 @@ namespace Spreads.Serialization.Experimental
             public short FixedSize => TuplePackSerializer<T1, T2>.Instance.FixedSize;
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public int SizeOf(KeyValuePair<T1, T2> value, out RetainedMemory<byte> temporaryBuffer)
+            public int SizeOf(in KeyValuePair<T1, T2> value, out RetainedMemory<byte> temporaryBuffer)
             {
                 return TuplePackSerializer<T1, T2>.Instance.SizeOf(new TuplePack<T1, T2>(value), out temporaryBuffer);
             }
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public int Write(KeyValuePair<T1, T2> value, DirectBuffer destination)
+            public int Write(in KeyValuePair<T1, T2> value, DirectBuffer destination)
             {
                 return TuplePackSerializer<T1, T2>.Instance.Write(new TuplePack<T1, T2>(value), destination);
             }
@@ -318,7 +318,7 @@ namespace Spreads.Serialization.Experimental
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public int SizeOf(TuplePack<T1, T2, T3> value, out RetainedMemory<byte> temporaryBuffer)
+        public int SizeOf(in TuplePack<T1, T2, T3> value, out RetainedMemory<byte> temporaryBuffer)
         {
             if (FixedSize <= 0)
             {
@@ -330,7 +330,7 @@ namespace Spreads.Serialization.Experimental
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public int Write(TuplePack<T1, T2, T3> value, DirectBuffer destination)
+        public int Write(in TuplePack<T1, T2, T3> value, DirectBuffer destination)
         {
             Debug.Assert(TypeHelper<TuplePack<T1, T2, T3>>.PinnedSize > 0);
             Debug.Assert(FixedSize == Unsafe.SizeOf<TuplePack<T1, T2, T3>>());
@@ -376,13 +376,13 @@ namespace Spreads.Serialization.Experimental
             public short FixedSize => TuplePackSerializer<T1, T2, T3>.Instance.FixedSize;
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public int SizeOf((T1, T2, T3) value, out RetainedMemory<byte> temporaryBuffer)
+            public int SizeOf(in (T1, T2, T3) value, out RetainedMemory<byte> temporaryBuffer)
             {
                 return TuplePackSerializer<T1, T2, T3>.Instance.SizeOf(new TuplePack<T1, T2, T3>(value), out temporaryBuffer);
             }
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public int Write((T1, T2, T3) value, DirectBuffer destination)
+            public int Write(in (T1, T2, T3) value, DirectBuffer destination)
             {
                 return TuplePackSerializer<T1, T2, T3>.Instance.Write(new TuplePack<T1, T2, T3>(value), destination);
             }
@@ -401,7 +401,7 @@ namespace Spreads.Serialization.Experimental
     {
         public static IBinarySerializerEx<Tuple<T1, T2, T3>> GenericCreate<T1, T2, T3>()
         {
-            return new Tuple2Serializer<T1, T2, T3>();
+            return new Tuple3Serializer<T1, T2, T3>();
         }
 
         public static object Create(Type type1, Type type2, Type type3)
@@ -411,7 +411,7 @@ namespace Spreads.Serialization.Experimental
             return generic?.Invoke(null, null);
         }
 
-        internal sealed class Tuple2Serializer<T1, T2, T3> : IBinarySerializerEx<Tuple<T1, T2, T3>>
+        internal sealed class Tuple3Serializer<T1, T2, T3> : IBinarySerializerEx<Tuple<T1, T2, T3>>
         {
             public byte SerializerVersion => 0;
 
@@ -420,13 +420,13 @@ namespace Spreads.Serialization.Experimental
             public short FixedSize => TuplePackSerializer<T1, T2, T3>.Instance.FixedSize;
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public int SizeOf(Tuple<T1, T2, T3> value, out RetainedMemory<byte> temporaryBuffer)
+            public int SizeOf(in Tuple<T1, T2, T3> value, out RetainedMemory<byte> temporaryBuffer)
             {
                 return TuplePackSerializer<T1, T2, T3>.Instance.SizeOf(new TuplePack<T1, T2, T3>(value), out temporaryBuffer);
             }
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public int Write(Tuple<T1, T2, T3> value, DirectBuffer destination)
+            public int Write(in Tuple<T1, T2, T3> value, DirectBuffer destination)
             {
                 return TuplePackSerializer<T1, T2, T3>.Instance.Write(new TuplePack<T1, T2, T3>(value), destination);
             }
@@ -468,15 +468,15 @@ namespace Spreads.Serialization.Experimental
             }
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public int SizeOf(TaggedKeyValue<T1, T2> value, out RetainedMemory<byte> temporaryBuffer)
+            public int SizeOf(in TaggedKeyValue<T1, T2> value, out RetainedMemory<byte> temporaryBuffer)
             {
-                return TuplePackSerializer<byte, T1, T2>.Instance.SizeOf(Unsafe.As<TaggedKeyValue<T1, T2>, TuplePack<byte, T1, T2>>(ref value), out temporaryBuffer);
+                return TuplePackSerializer<byte, T1, T2>.Instance.SizeOf(Unsafe.As<TaggedKeyValue<T1, T2>, TuplePack<byte, T1, T2>>(ref Unsafe.AsRef(in value)), out temporaryBuffer);
             }
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public int Write(TaggedKeyValue<T1, T2> value, DirectBuffer destination)
+            public int Write(in TaggedKeyValue<T1, T2> value, DirectBuffer destination)
             {
-                return TuplePackSerializer<byte, T1, T2>.Instance.Write(Unsafe.As<TaggedKeyValue<T1, T2>, TuplePack<byte, T1, T2>>(ref value), destination);
+                return TuplePackSerializer<byte, T1, T2>.Instance.Write(Unsafe.As<TaggedKeyValue<T1, T2>, TuplePack<byte, T1, T2>>(ref Unsafe.AsRef(in value)), destination);
             }
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]

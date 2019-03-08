@@ -46,7 +46,7 @@ namespace Spreads.Serialization.Experimental
         /// <param name="temporaryBuffer">A buffer with serialized payload. (optional, for cases when the serialized size is not known without performing serialization)</param>
         /// <param name="format">Serialization format to use.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int SizeOf<T>(T value, out RetainedMemory<byte> temporaryBuffer, SerializationFormat format = default)
+        public static int SizeOf<T>(in T value, out RetainedMemory<byte> temporaryBuffer, SerializationFormat format = default)
         {
             int rawLength;
             // TODO fixed size for tuples should be a sum of components, padding is possible
@@ -62,12 +62,12 @@ namespace Spreads.Serialization.Experimental
                 var tbs = TypeHelper<T>.BinarySerializerEx;
                 if (tbs != null)
                 {
-                    rawLength = tbs.SizeOf(value, out temporaryBuffer);
+                    rawLength = tbs.SizeOf(in value, out temporaryBuffer);
                     goto HAS_RAW_SIZE;
                 }
             }
 
-            rawLength = JsonBinarySerializerEx<T>.SizeOf(value, out temporaryBuffer);
+            rawLength = JsonBinarySerializerEx<T>.SizeOf(in value, out temporaryBuffer);
 
         HAS_RAW_SIZE:
 
@@ -206,7 +206,7 @@ namespace Spreads.Serialization.Experimental
         /// <param name="timestamp"></param>
         /// <returns>Number of written bytes, including <see cref="DataTypeHeaderEx"/>.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int Write<T>(T value,
+        public static int Write<T>(in T value,
             DirectBuffer destination,
             RetainedMemory<byte> temporaryBuffer = default,
             SerializationFormat format = default,
@@ -247,7 +247,7 @@ namespace Spreads.Serialization.Experimental
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int Write<T>(T value,
+        public static int Write<T>(in T value,
             ref DataTypeHeaderEx headerDestination,
             DirectBuffer destination,
             RetainedMemory<byte> temporaryBuffer = default,
@@ -309,7 +309,7 @@ namespace Spreads.Serialization.Experimental
                     }
                     else
                     {
-                        tbs.Write(value, destination.Slice(pos));
+                        tbs.Write(in value, destination.Slice(pos));
                     }
 
                     return pos + TypeEnumHelper<T>.FixedSize;
@@ -322,7 +322,7 @@ namespace Spreads.Serialization.Experimental
                 tbs = JsonBinarySerializerEx<T>.Instance;
             }
 
-            return WriteVarSizeOrJson(value, ref headerDestination, destination, temporaryBuffer, format, timestamp, tbs);
+            return WriteVarSizeOrJson(in value, ref headerDestination, destination, temporaryBuffer, format, timestamp, tbs);
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
@@ -336,7 +336,7 @@ namespace Spreads.Serialization.Experimental
                     | MethodImplOptions.AggressiveOptimization
 #endif
         )]
-        private static int WriteVarSizeOrJson<T>(T value,
+        private static int WriteVarSizeOrJson<T>(in T value,
             ref DataTypeHeaderEx headerDestination,
             DirectBuffer destination,
             RetainedMemory<byte> temporaryBuffer,
@@ -418,7 +418,7 @@ namespace Spreads.Serialization.Experimental
                             ThrowHelper.FailFast("Compressed format must return non-empty temporaryBuffer");
                         }
 
-                        if (Settings.DefensiveBinarySerializerWrite && !TypeHelper<T>.IsInternalBinarySerializerEx)
+                        if (Settings.DefensiveBinarySerializerWrite && !TypeHelper<T>.IsInternalBinarySerializer)
                         {
                             PopulateTempBuffer(rawLength, value, ref temporaryBuffer, format);
                         }
