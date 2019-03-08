@@ -23,13 +23,13 @@ namespace Spreads.Buffers
         // [p*<-len---------------->] we must only check capacity at construction and then work from pointer
         // [p*<-len-[<--lenPow2-->]>] buffer could be larger, pooling always by max pow2 we could store
 
-        internal void* _pointer;
+        protected void* _pointer;
 
         protected int _length;
 
         [Obsolete("Must be used only from CounterRef or for custom storage when _isNativeWithHeader == true")]
         internal int _counterOrReserved;
-        
+
         // Internals with private-like _name are not intended for usage outside RMPool and tests.
 
         internal byte _poolIdx;
@@ -53,7 +53,7 @@ namespace Spreads.Buffers
         /// </summary>
         internal bool _isNativeWithHeader;
 
-        // One byte slot is padded anyway, so _isNativeWithHeader takes no space. 
+        // One byte slot is padded anyway, so _isNativeWithHeader takes no space.
         // Storing offset as int will increase object size by 4 bytes.
         // (actually in this class 4 bytes are padded as well to 24, but ArrayMemory
         //  uses that and adding a new field will increase AM size by 8 bytes)
@@ -252,12 +252,10 @@ namespace Spreads.Buffers
 
             if (_pointer == null)
             {
-                return new MemoryHandle(null, handle: default, this);
+                ThrowHelper.ThrowInvalidOperationException("RetainableMemory that could be not pinned must have it's own implementation (override) of Pin method.");
             }
 
-            // NOTE: even for the array-based memory the handle is created when array is taken from pool
-            // and is stored in MemoryManager until the array is released back to the pool.
-            return new MemoryHandle(_pointer == null ? null : Unsafe.Add<T>(_pointer, elementIndex), handle: default, this);
+            return new MemoryHandle(Unsafe.Add<T>(_pointer, elementIndex), handle: default, this);
         }
 
         public override void Unpin()
@@ -313,7 +311,6 @@ namespace Spreads.Buffers
         {
             Dispose(false);
         }
-
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal void ClearAfterDispose()

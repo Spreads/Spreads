@@ -1,11 +1,10 @@
-﻿using System;
-using Spreads.DataTypes;
+﻿using Spreads.DataTypes;
+using System;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
 namespace Spreads.Serialization
 {
-
     /// <summary>
     /// DataType header
     /// </summary>
@@ -15,8 +14,8 @@ namespace Spreads.Serialization
     /// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
     /// | Version+Flags |    TypeEnum   |    TypeSize   |  SubTypeEnum  |
     /// +---------------------------------------------------------------+
-    /// 
-    /// 
+    ///
+    ///
     /// In some places we access the elements directly by byte, without dereferencing the entire struct
     /// Also this is already in a lot of persisted data, no chance to change this. Version slot applies
     /// only to data layout *after* this header.

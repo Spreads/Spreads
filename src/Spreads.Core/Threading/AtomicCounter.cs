@@ -297,7 +297,7 @@ namespace Spreads.Threading
             get => Pointer != null;
         }
 
-        [MethodImpl(MethodImplOptions.NoInlining
+        [MethodImpl(MethodImplOptions.AggressiveInlining
 #if NETCOREAPP3_0
                     | MethodImplOptions.AggressiveOptimization
 #endif

@@ -35,19 +35,32 @@ namespace Spreads.Buffers
         /// Create a new RetainedMemory from Memory and pins it.
         /// </summary>
         /// <param name="memory"></param>
+        /// <param name="pin"></param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public RetainedMemory(Memory<T> memory)
+        public RetainedMemory(Memory<T> memory, bool pin = true) // TODO pin param added later and before it behaved like with true, but better to change to false and review usage
         {
             if (MemoryMarshal.TryGetMemoryManager<T, RetainableMemory<T>>(memory, out var manager))
             {
-                manager.Increment();
+                if (!manager.IsPinned && pin)
+                {
+                    // TODO review. This uses implementation detail of RetainableMemory:
+                    // if pointer is null then it is an non-pinned array for which we did not create
+                    // a GCHandle (very expensive). Call to Pin() checks if pointer is null and 
+                    // creates a GCHandle + pointer. Try to avoid pinning non-pooled ArrayMemory
+                    // because it is very expensive.
+                    manager.Pin();
+                }
+                else
+                {
+                    manager.Increment();
+                }
                 _manager = manager;
                 _offset = 0;
                 _length = memory.Length;
             }
             else if (MemoryMarshal.TryGetArray<T>(memory, out var segment))
             {
-                _manager = ArrayMemory<T>.Create(segment.Array, segment.Offset, segment.Count, true, pin: true);
+                _manager = ArrayMemory<T>.Create(segment.Array, segment.Offset, segment.Count, externallyOwned: true, pin);
                 _manager.Increment();
                 _offset = 0;
                 _length = _manager.Length;
@@ -99,11 +112,10 @@ namespace Spreads.Buffers
 #endif
         }
 
-        [Obsolete("Always pinned")]
-        public bool IsPinned
+        public unsafe bool IsPinned
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => true;
+            get => _manager.Pointer != null;
         }
 
         public bool IsValid
@@ -121,7 +133,7 @@ namespace Spreads.Buffers
         public unsafe void* Pointer
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => Unsafe.Add<T>(_manager._pointer, _offset);
+            get => Unsafe.Add<T>(_manager.Pointer, _offset);
         }
 
         public Memory<T> Memory

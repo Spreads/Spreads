@@ -131,11 +131,11 @@ namespace Spreads.Core.Tests.Buffers
 
         [Test
 #if !DEBUG
-         , Explicit("long running")
+         , Explicit("bench")
 #endif
         ]
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
-        public void RentReturnBenchmarkRetainablePool()
+        public void RentReturnDefaultRetainablePoolBench()
         {
 #if !DEBUG
             var count = 10_000_000;
@@ -162,7 +162,7 @@ namespace Spreads.Core.Tests.Buffers
 
             for (int _ = 0; _ < 20; _++)
             {
-                using (Benchmark.Run("FullCycle", count))
+                using (Benchmark.Run("RentReturn", count))
                 {
                     for (int i = 0; i < count; i++)
                     {
@@ -172,12 +172,42 @@ namespace Spreads.Core.Tests.Buffers
                         //{
                         //    Assert.Fail();
                         //}
-                        pool.ReturnInternal(memory, false);
+                        pool.Return(memory, false);
                     }
                 }
             }
             Benchmark.Dump();
             pool.Dispose();
+        }
+
+
+        [Test
+#if !DEBUG
+         , Explicit("bench")
+#endif
+        ]
+        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+        public void RentReturnArrayPoolBench()
+        {
+#if !DEBUG
+            var count = 10_000_000;
+#else
+            var count = 1_000;
+#endif
+
+            for (int _ = 0; _ < 20; _++)
+            {
+                using (Benchmark.Run("RentReturn", count))
+                {
+                    for (int i = 0; i < count; i++)
+                    {
+                        var array = BufferPool<byte>.Rent(32 * 1024);
+                        BufferPool<byte>.Return(array,false);
+                    }
+                }
+            }
+            Benchmark.Dump();
+            
         }
 
         [Test
