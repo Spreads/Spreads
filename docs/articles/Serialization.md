@@ -186,7 +186,6 @@ by definition is an *ordered* sequence of elements
 and in JSON only arrays have order of elements, while
 fields of objects could be serialized in random order.
 
-
 ### JSON formatters for custom fixed size struct
 
 If you use [custom fixed size structures](#Custom-fixed-size-structures) we highly recommend that you also define a custom JSON formatter that serializes that struct as if it was a tuple. Because the structure is already set in stone it's members
@@ -197,12 +196,29 @@ array is much faster.
 > [!NOTE]
 > In the future custom fixed non-union structures will be automatically serialized to/from JSON as arrays of its members.
 
+## Compression
+
+### Shuffle/unshuffle
+
+TODO
+
+### Settings
+
+TODO Min compression len, levels with defaults
+
 ## Examples
 
 TODO example of fixed size custom struct with json formatter
 TODO example of IBinarySerializer interface
 
 ## FAQ
+
+**Q: Why Timestamp is special and not a part of data?**
+
+In DataSpreads we timestamp all data stream items (events) and use timestamps for quick navigation (such an index in DB), therefore
+fixed explicit position is required. If you do not provide a
+timestamp DataSpreads will use current time of writing.
+Outside DataSpreads context you could just ignore it.
 
 **Q: Why you are not using *Protocol buffers* for binary serialization?**
 
@@ -232,7 +248,7 @@ all writes check that a header for a new value matches the existing header.
 
 **Q: How to ensure item alignment of a serialized sequence of fixed size type?**
 
-If you use a separate data header destination (e.g. the first 4 bytes of a large destination buffer) and start writing from aligned position then data is aligned (vs destination start) to 8 bytes if you use timestamps or to data item size without timestamps. If you need timestamps and need alignment more than 8 bytes then
+If you use a separate data header destination (e.g. the first 4 bytes of a large destination buffer) and start writing from aligned position then data is aligned (vs destination start) to 8 bytes if you use timestamps or to data item size without timestamps. If you need timestamps and need more than 8 bytes alignment then
 pad you structure so that is has size `Pow2 - 8` to place timestamps
 at the beginning of Pow2 spans.
 

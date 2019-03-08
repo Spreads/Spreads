@@ -101,19 +101,18 @@ namespace Spreads.Serialization
 
     public static unsafe class TypeHelper<T>
     {
-        // Just in case, do not use static ctor in any critical paths: https://github.com/Spreads/Spreads/issues/66
+        // Do not use static ctor in any critical paths: https://github.com/Spreads/Spreads/issues/66
         // static TypeHelper() { }
 
-        internal static IBinarySerializer<T> BinarySerializer;
         internal static IBinarySerializerEx<T> BinarySerializerEx;
 
         // ReSharper disable once StaticMemberInGenericType
-        internal static bool IsInternalBinarySerializerEx;
+        internal static bool IsInternalBinarySerializer; // TODO set to true for tuples and arrays
 
         public static bool HasBinarySerializer
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => BinarySerializer != null;
+            get => BinarySerializerEx != null;
         }
 
         /// <summary>
@@ -636,10 +635,10 @@ namespace Spreads.Serialization
         public static byte ConverterVersion
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => BinarySerializer?.SerializerVersion ?? 0;
+            get => BinarySerializerEx?.SerializerVersion ?? 0;
         }
 
-        public static void RegisterConverter(IBinarySerializer<T> serializer,
+        public static void RegisterConverter(IBinarySerializerEx<T> serializer,
             bool overrideExisting = false)
         {
             if (serializer == null) { throw new ArgumentNullException(nameof(serializer)); }
@@ -661,7 +660,7 @@ namespace Spreads.Serialization
             {
                 Environment.FailFast($"Blittable types must not have IBinaryConverter<T>.");
             }
-            BinarySerializer = serializer;
+            BinarySerializerEx = serializer;
         }
     }
 }

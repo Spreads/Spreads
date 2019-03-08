@@ -232,17 +232,17 @@ namespace Spreads.Core.Tests
             //Assert.AreEqual(-1, TypeHelper.GetSize(typeof(LinkedList<int>)));
         }
 
-        [Test]
-        public void CouldGetSizeOfPrimitivesDateTimeAndDecimal()
-        {
-            Assert.AreEqual(4, TypeHelper<int>.FixedSize);
-            Assert.AreEqual(8, TypeHelper<DateTime>.FixedSize);
-            Assert.AreEqual(16, TypeHelper<decimal>.FixedSize);
-            Assert.AreEqual(2, TypeHelper<char>.FixedSize);
-            Assert.AreEqual(-1, TypeHelper<MyPocoWithConvertor>.FixedSize);
-            TypeHelper<MyPocoWithConvertor>.RegisterConverter(new MyPocoWithConvertor(), true);
-            Assert.AreEqual(-1, TypeHelper<MyPocoWithConvertor>.FixedSize);
-        }
+        //[Test]// TODO
+        //public void CouldGetSizeOfPrimitivesDateTimeAndDecimal()
+        //{
+        //    Assert.AreEqual(4, TypeHelper<int>.FixedSize);
+        //    Assert.AreEqual(8, TypeHelper<DateTime>.FixedSize);
+        //    Assert.AreEqual(16, TypeHelper<decimal>.FixedSize);
+        //    Assert.AreEqual(2, TypeHelper<char>.FixedSize);
+        //    Assert.AreEqual(-1, TypeHelper<MyPocoWithConvertor>.FixedSize);
+        //    TypeHelper<MyPocoWithConvertor>.RegisterConverter(new MyPocoWithConvertor(), true);
+        //    Assert.AreEqual(-1, TypeHelper<MyPocoWithConvertor>.FixedSize);
+        //}
 
         [Test]
         public void BlittableAttributesAreHonored()

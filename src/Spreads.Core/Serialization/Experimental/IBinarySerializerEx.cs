@@ -4,7 +4,6 @@
 
 using Spreads.Buffers;
 using Spreads.Serialization.Utf8Json;
-using System.Diagnostics;
 using System.Runtime.CompilerServices;
 
 namespace Spreads.Serialization.Experimental
@@ -38,7 +37,7 @@ namespace Spreads.Serialization.Experimental
         /// </summary>
         /// <param name="value">A value to serialize.</param>
         /// <param name="temporaryBuffer">A buffer with serialized payload. (optional, for cases when the serialized size is not known without performing serialization)</param>
-        int SizeOf(T value, out RetainedMemory<byte> temporaryBuffer);
+        int SizeOf(in T value, out RetainedMemory<byte> temporaryBuffer);
 
         /// <summary>
         /// Serializes a value to the <paramref name="destination"/> buffer.
@@ -47,7 +46,7 @@ namespace Spreads.Serialization.Experimental
         /// </summary>
         /// <param name="value">A value to serialize.</param>
         /// <param name="destination">A buffer to write to. Has the length returned from <see cref="SizeOf"/></param>
-        int Write(T value, DirectBuffer destination);
+        int Write(in T value, DirectBuffer destination);
 
         /// <summary>
         /// Reads a value of type <typeparamref name="T"/> from <paramref name="source"/>,
@@ -83,19 +82,19 @@ namespace Spreads.Serialization.Experimental
         public short FixedSize => -1;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int SizeOf(T value, out RetainedMemory<byte> temporaryBuffer)
+        public static int SizeOf(in T value, out RetainedMemory<byte> temporaryBuffer)
         {
             temporaryBuffer = JsonSerializer.SerializeToRetainedMemory(value);
             return temporaryBuffer.Length;
         }
 
-        int IBinarySerializerEx<T>.SizeOf(T value, out RetainedMemory<byte> temporaryBuffer)
+        int IBinarySerializerEx<T>.SizeOf(in T value, out RetainedMemory<byte> temporaryBuffer)
         {
-            return SizeOf(value, out temporaryBuffer);
+            return SizeOf(in value, out temporaryBuffer);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int Write(T value, in DirectBuffer destination)
+        public static int Write(in T value, in DirectBuffer destination)
         {
             var size = SizeOf(value, out var retainedMemory);
             try
@@ -118,9 +117,9 @@ namespace Spreads.Serialization.Experimental
             }
         }
 
-        int IBinarySerializerEx<T>.Write(T value, DirectBuffer destination)
+        int IBinarySerializerEx<T>.Write(in T value, DirectBuffer destination)
         {
-            return Write(value, in destination);
+            return Write(in value, in destination);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
