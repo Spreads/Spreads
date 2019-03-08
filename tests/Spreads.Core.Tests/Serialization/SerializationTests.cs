@@ -1019,28 +1019,27 @@ namespace Spreads.Core.Tests.Serialization
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
         public void CouldSerializeTaggedKeyValueWithTimeStampBench()
         {
-            var count = 10_000_000;
+            var count = 2_000_000;
             var rm = BufferPool.Retain(1000);
             var db = new DirectBuffer(rm);
 
             var val = new TaggedKeyValue<int, long>(10, 20, 1);
             var timestamp = TimeService.Default.CurrentTime;
-            
+
             // TODO JSON
-            var serializationFormat = SerializationFormat.Binary;
+            var serializationFormat = SerializationFormat.Json;
 
             for (int _ = 0; _ < 50; _++)
             {
                 using (Benchmark.Run("TKV roundtrip", count))
                 {
+                    
                     for (int i = 0; i < count; i++)
                     {
-                        db.Write(0, 0);
-
                         var len = BinarySerializerEx.SizeOf(val, out var tempBuf, serializationFormat);
 
+                        db.Write(0, 0);
                         var len2 = BinarySerializerEx.Write(val, db.Slice(0, len + 16), tempBuf, serializationFormat, timestamp);
-
                         var len3 = BinarySerializerEx.Read(db, out TaggedKeyValue<int, long> val2, out var ts2);
                         //if (len2 != len3 || val.Key != val2.Key || val.Value != val2.Value || val.Tag != val2.Tag)
                         //{

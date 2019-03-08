@@ -86,7 +86,6 @@ namespace Spreads.Serialization.Experimental
         public static int SizeOf(T value, out RetainedMemory<byte> temporaryBuffer)
         {
             temporaryBuffer = JsonSerializer.SerializeToRetainedMemory(value);
-            Debug.Assert(temporaryBuffer._manager.IsPoolable, "SerializeToRetainedMemory must return poolable buffer.");
             return temporaryBuffer.Length;
         }
 

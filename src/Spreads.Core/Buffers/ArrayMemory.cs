@@ -8,6 +8,7 @@ using Spreads.Serialization;
 using Spreads.Threading;
 using Spreads.Utils;
 using System;
+using System.Buffers;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -221,13 +222,11 @@ namespace Spreads.Buffers
             }
             else
             {
-                arrayMemory._handle = GCHandle.Alloc(arrayMemory._array, GCHandleType.Normal);
                 arrayMemory._pointer = null;
             }
 
             arrayMemory._arrayOffset = offset;
             arrayMemory._length = length;
-            // arrayMemory._externallyOwned = externallyOwned;
             arrayMemory._poolIdx =
                 pool is null
                 ? externallyOwned ? (byte)0 : (byte)1
@@ -260,6 +259,23 @@ namespace Spreads.Buffers
             }
         }
 
+        public override unsafe MemoryHandle Pin(int elementIndex = 0)
+        {
+            // Pin if not pinned, the memory will remain pinned until disposed.
+            if (_pointer == null)
+            {
+                if (!TypeHelper<T>.IsPinnable)
+                {
+                    ThrowNotPinnable();
+                }
+
+                _handle = GCHandle.Alloc(_array, GCHandleType.Pinned);
+                _pointer = Unsafe.AsPointer(ref _array[_arrayOffset]);
+            }
+
+            return base.Pin(elementIndex);
+        }
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public override unsafe Span<T> GetSpan()
         {
@@ -279,7 +295,7 @@ namespace Spreads.Buffers
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        protected override void Dispose(bool disposing)
+        protected override unsafe void Dispose(bool disposing)
         {
             if (disposing)
             {
@@ -290,7 +306,7 @@ namespace Spreads.Buffers
                     // pool calls Dispose(false) is a bucket is full
                     return;
                 }
-                
+
                 // not poolable, doing finalization work now
                 GC.SuppressFinalize(this);
             }
@@ -301,7 +317,8 @@ namespace Spreads.Buffers
 
             Debug.Assert(!_isPooled);
 
-            var array = Interlocked.Exchange(ref _array, null);
+            var array = _array;
+            _array = null;
             if (array != null)
             {
                 ClearAfterDispose();
@@ -309,14 +326,20 @@ namespace Spreads.Buffers
                 {
                     BufferPool<T>.Return(array, !TypeHelper<T>.IsFixedSize);
                 }
-                Debug.Assert(_handle.IsAllocated);
-                _handle.Free();
+
+                Debug.Assert(_pointer == null || _handle.IsAllocated);
+                if (_handle.IsAllocated)
+                {
+                    _handle.Free();
+                }
+
                 _handle = default;
                 _arrayOffset = -1; // make it unusable if not re-initialized
                 _poolIdx = default; // after ExternallyOwned check!
             }
-            else
+            else if (disposing)
             {
+                // when no pinned we do not create a memory handle and during finalization
                 ThrowDisposed<ArrayMemory<T>>();
             }
 

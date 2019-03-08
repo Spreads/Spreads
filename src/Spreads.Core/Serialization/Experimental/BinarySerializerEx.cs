@@ -153,6 +153,7 @@ namespace Spreads.Serialization.Experimental
             Debug.Assert(TypeHelper<T>.BinarySerializerEx != null && format.IsBinary());
             var tbs = TypeHelper<T>.BinarySerializerEx;
             temporaryBuffer = BufferPool.RetainTemp(rawLength).Slice(0, rawLength);
+            Debug.Assert(temporaryBuffer.IsPinned, "BufferPool.RetainTemp must return already pinned buffers.");
             var written = tbs.Write(value, temporaryBuffer.ToDirectBuffer());
             ThrowHelper.AssertFailFast(rawLength == written, $"Wrong IBinarySerializer<{typeof(T).Name}> implementation");
         }
@@ -264,7 +265,7 @@ namespace Spreads.Serialization.Experimental
                     if (AdditionalCorrectnessChecks.Enabled && !temporaryBuffer.IsEmpty)
                     {
                         temporaryBuffer.Dispose();
-                        ThrowTempBufferMustBeEmpty();
+                        ThrowTempBufferMustBeEmptyForFixedSize();
                     }
                     var hasTs = (long)timestamp != default;
 
@@ -325,7 +326,7 @@ namespace Spreads.Serialization.Experimental
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
-        private static void ThrowTempBufferMustBeEmpty()
+        private static void ThrowTempBufferMustBeEmptyForFixedSize()
         {
             ThrowHelper.ThrowInvalidOperationException("temporaryBuffer is not empty for fixed size binary serialization.");
         }
@@ -348,15 +349,19 @@ namespace Spreads.Serialization.Experimental
                 var hasTs = (long)timestamp != default;
 
                 var header = TypeEnumHelper<T>.DataTypeHeader;
-                header.VersionAndFlags.ConverterVersion = tbs.SerializerVersion;
-                header.VersionAndFlags.IsBinary = tbs != JsonBinarySerializerEx<T>.Instance;
-                header.VersionAndFlags.CompressionMethod = format.CompressionMethod();
-                header.VersionAndFlags.IsTimestamped = hasTs;
+                var vf = header.VersionAndFlags;
+
+                vf.ConverterVersion = tbs.SerializerVersion;
+                vf.IsBinary = tbs != JsonBinarySerializerEx<T>.Instance;
+                vf.CompressionMethod = format.CompressionMethod();
+                vf.IsTimestamped = hasTs;
+
+                header.VersionAndFlags = vf;
 
                 // Special case when header info is rewritten.
                 // This relies on existing header check when we reuse
                 // header, or each new header will have it's own count.
-                if (tbs is IFixedArraySerializer fas)
+                if (header.TEOFS.TypeEnum == TypeEnumEx.TupleTN && tbs is IFixedArraySerializer fas)
                 {
                     Debug.Assert(tbs.FixedSize > 0);
                     header.TupleNCount = checked((byte)fas.FixedArrayCount(value));
@@ -433,7 +438,7 @@ namespace Spreads.Serialization.Experimental
                 // Write temp buffer
                 if (!temporaryBuffer.IsEmpty)
                 {
-                    temporaryBuffer.Span.CopyTo(destination.Span.Slice(offset, rawLength));
+                    temporaryBuffer.Span.CopyTo(destination.Slice(offset, rawLength).Span);
                     // in finally: rm.Dispose();
                 }
                 else

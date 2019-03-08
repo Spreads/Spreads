@@ -4,6 +4,7 @@
 
 using System;
 using System.Buffers;
+using System.Diagnostics;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 
@@ -148,16 +149,10 @@ namespace Spreads.Buffers
                 {
                     return OffHeapMemoryPool.RentMemory(length).Retain();
                 }
-
-                ThrowOffHeapPoolIsNull();
             }
-            return Shared.RetainMemory(length, false);
-        }
-
-        [MethodImpl(MethodImplOptions.NoInlining)]
-        private static void ThrowOffHeapPoolIsNull()
-        {
-            ThrowHelper.ThrowInvalidOperationException("BufferPool.OffHeap is null while requesting RetainNoLoh");
+            var rm = Shared.RetainMemory(length, false);
+            Debug.Assert(rm.IsPinned);
+            return rm;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
