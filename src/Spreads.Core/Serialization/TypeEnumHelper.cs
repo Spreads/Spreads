@@ -2,19 +2,18 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-using Spreads.Buffers;
-using Spreads.Collections.Internal;
-using Spreads.DataTypes;
-using Spreads.Utils;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using static System.Runtime.CompilerServices.Unsafe;
+using Spreads.Buffers;
+using Spreads.Collections.Internal;
+using Spreads.DataTypes;
+using Spreads.Utils;
 
-namespace Spreads.Serialization.Experimental
+namespace Spreads.Serialization
 {
     internal static unsafe class TypeEnumHelper
     {
@@ -22,7 +21,7 @@ namespace Spreads.Serialization.Experimental
 
         private static short* InitSizes()
         {
-            var allocSize = SizeOf<short>() * 256 + 64;
+            var allocSize = Unsafe.SizeOf<short>() * 256 + 64;
             // Never free until process dies.
             var ptr = Marshal.AllocHGlobal(allocSize);
             (new Span<byte>((void*)ptr, allocSize)).Clear();
@@ -34,44 +33,44 @@ namespace Spreads.Serialization.Experimental
             #region Known fixed-size scalar types
 
             // ReSharper disable once PossibleNullReferenceException
-            sizes[(byte)TypeEnumEx.None] = 0;
+            sizes[(byte)TypeEnum.None] = 0;
 
-            sizes[(byte)TypeEnumEx.Int8] = (short)SizeOf<sbyte>();
-            sizes[(byte)TypeEnumEx.Int16] = (short)SizeOf<short>();
-            sizes[(byte)TypeEnumEx.Int32] = (short)SizeOf<int>();
-            sizes[(byte)TypeEnumEx.Int64] = (short)SizeOf<long>();
-            sizes[(byte)TypeEnumEx.Int128] = 16;
+            sizes[(byte)TypeEnum.Int8] = (short)Unsafe.SizeOf<sbyte>();
+            sizes[(byte)TypeEnum.Int16] = (short)Unsafe.SizeOf<short>();
+            sizes[(byte)TypeEnum.Int32] = (short)Unsafe.SizeOf<int>();
+            sizes[(byte)TypeEnum.Int64] = (short)Unsafe.SizeOf<long>();
+            sizes[(byte)TypeEnum.Int128] = 16;
 
-            sizes[(byte)TypeEnumEx.UInt8] = (short)SizeOf<byte>();
-            sizes[(byte)TypeEnumEx.UInt16] = (short)SizeOf<ushort>();
-            sizes[(byte)TypeEnumEx.UInt32] = (short)SizeOf<uint>();
-            sizes[(byte)TypeEnumEx.UInt64] = (short)SizeOf<ulong>();
-            sizes[(byte)TypeEnumEx.UInt128] = 16;
+            sizes[(byte)TypeEnum.UInt8] = (short)Unsafe.SizeOf<byte>();
+            sizes[(byte)TypeEnum.UInt16] = (short)Unsafe.SizeOf<ushort>();
+            sizes[(byte)TypeEnum.UInt32] = (short)Unsafe.SizeOf<uint>();
+            sizes[(byte)TypeEnum.UInt64] = (short)Unsafe.SizeOf<ulong>();
+            sizes[(byte)TypeEnum.UInt128] = 16;
 
-            sizes[(byte)TypeEnumEx.Float16] = 2;
-            sizes[(byte)TypeEnumEx.Float32] = (short)SizeOf<float>();
-            sizes[(byte)TypeEnumEx.Float64] = (short)SizeOf<double>();
-            sizes[(byte)TypeEnumEx.Float128] = 16;
+            sizes[(byte)TypeEnum.Float16] = 2;
+            sizes[(byte)TypeEnum.Float32] = (short)Unsafe.SizeOf<float>();
+            sizes[(byte)TypeEnum.Float64] = (short)Unsafe.SizeOf<double>();
+            sizes[(byte)TypeEnum.Float128] = 16;
 
-            sizes[(byte)TypeEnumEx.Decimal32] = 4;
-            sizes[(byte)TypeEnumEx.Decimal64] = 8;
-            sizes[(byte)TypeEnumEx.Decimal128] = 16;
+            sizes[(byte)TypeEnum.Decimal32] = 4;
+            sizes[(byte)TypeEnum.Decimal64] = 8;
+            sizes[(byte)TypeEnum.Decimal128] = 16;
 
-            sizes[(byte)TypeEnumEx.Decimal] = 16;
-            sizes[(byte)TypeEnumEx.SmallDecimal] = SmallDecimal.Size;
+            sizes[(byte)TypeEnum.Decimal] = 16;
+            sizes[(byte)TypeEnum.SmallDecimal] = SmallDecimal.Size;
 
-            sizes[(byte)TypeEnumEx.Bool] = 1;
-            sizes[(byte)TypeEnumEx.Utf16Char] = 2;
-            sizes[(byte)TypeEnumEx.UUID] = 16;
+            sizes[(byte)TypeEnum.Bool] = 1;
+            sizes[(byte)TypeEnum.Utf16Char] = 2;
+            sizes[(byte)TypeEnum.UUID] = 16;
 
-            sizes[(byte)TypeEnumEx.DateTime] = 8;
-            sizes[(byte)TypeEnumEx.Timestamp] = Timestamp.Size;
+            sizes[(byte)TypeEnum.DateTime] = 8;
+            sizes[(byte)TypeEnum.Timestamp] = Timestamp.Size;
 
-            sizes[(byte)TypeEnumEx.Symbol] = Symbol.Size;
-            sizes[(byte)TypeEnumEx.Symbol32] = Symbol32.Size;
-            sizes[(byte)TypeEnumEx.Symbol64] = Symbol64.Size;
-            sizes[(byte)TypeEnumEx.Symbol128] = Symbol128.Size;
-            sizes[(byte)TypeEnumEx.Symbol256] = Symbol256.Size;
+            sizes[(byte)TypeEnum.Symbol] = Symbol.Size;
+            sizes[(byte)TypeEnum.Symbol32] = Symbol32.Size;
+            sizes[(byte)TypeEnum.Symbol64] = Symbol64.Size;
+            sizes[(byte)TypeEnum.Symbol128] = Symbol128.Size;
+            sizes[(byte)TypeEnum.Symbol256] = Symbol256.Size;
 
             #endregion Known fixed-size scalar types
 
@@ -97,9 +96,9 @@ namespace Spreads.Serialization.Experimental
         }
 
         /// <summary>
-        /// Returns a positive size of top-level <see cref="TypeEnumEx"/>
+        /// Returns a positive size of top-level <see cref="TypeEnum"/>
         /// for scalars or -1 for composite types, which could still be
-        /// fixed size. Use <see cref="DataTypeHeaderEx.Size"/> property
+        /// fixed size. Use <see cref="DataTypeHeader.Size"/> property
         /// to get the size of a composite type.
         /// </summary>
         /// <param name="typeEnumValue"></param>
@@ -215,7 +214,7 @@ namespace Spreads.Serialization.Experimental
 
     internal struct TypeInfo<T>
     {
-        public DataTypeHeaderEx Header;
+        public DataTypeHeader Header;
 
         /// <summary>
         /// Calculated recursively, not just pinned size/
@@ -248,12 +247,12 @@ namespace Spreads.Serialization.Experimental
         // ReSharper disable StaticMemberInGenericType
         public static readonly TypeInfo<T> TypeInfo = CreateTypeInfo();
 
-        public static readonly DataTypeHeaderEx DataTypeHeader = TypeInfo.Header;
+        public static readonly DataTypeHeader DataTypeHeader = TypeInfo.Header;
 
         public static readonly short FixedSize = TypeInfo.FixedSize;
         public static readonly bool IsFixedSize = FixedSize > 0;
 
-        internal static readonly DataTypeHeaderEx DefaultBinaryHeader = new DataTypeHeaderEx
+        internal static readonly DataTypeHeader DefaultBinaryHeader = new DataTypeHeader
         {
             VersionAndFlags =
             {
@@ -266,7 +265,7 @@ namespace Spreads.Serialization.Experimental
             TEOFS2 = DataTypeHeader.TEOFS2
         };
 
-        internal static readonly DataTypeHeaderEx DefaultBinaryHeaderWithTs = new DataTypeHeaderEx
+        internal static readonly DataTypeHeader DefaultBinaryHeaderWithTs = new DataTypeHeader
         {
             VersionAndFlags =
             {
@@ -285,12 +284,12 @@ namespace Spreads.Serialization.Experimental
             var teofs = GetTeofs();
             var te = teofs.TypeEnum;
             if ((byte)te <= TypeEnumOrFixedSize.MaxScalarEnum
-                || te == TypeEnumEx.FixedSize)
+                || te == TypeEnum.FixedSize)
             {
                 return new TypeInfo<T>
                 {
                     // Scalars have only one field set
-                    Header = new DataTypeHeaderEx
+                    Header = new DataTypeHeader
                     {
                         TEOFS = teofs
                     },
@@ -298,9 +297,9 @@ namespace Spreads.Serialization.Experimental
                 };
             }
 
-            if (te == TypeEnumEx.Array)
+            if (te == TypeEnum.Array)
             {
-                var func = ReflectionHelper.MakeFunc<TypeEnumHelper<T>, DataTypeHeaderEx>(
+                var func = ReflectionHelper.MakeFunc<TypeEnumHelper<T>, DataTypeHeader>(
                     nameof(CreateArrayInfo),
                     typeof(T).GetElementType()
                 );
@@ -312,11 +311,11 @@ namespace Spreads.Serialization.Experimental
                 };
             }
 
-            if (te == TypeEnumEx.TupleTN)
+            if (te == TypeEnum.TupleTN)
             {
                 // Here we need to leave count slot at zero and as a special case write it from BS
 
-                var func = ReflectionHelper.MakeFunc<TypeEnumHelper<T>, DataTypeHeaderEx>(
+                var func = ReflectionHelper.MakeFunc<TypeEnumHelper<T>, DataTypeHeader>(
                     nameof(CreateFixedArrayTHeader),
                     typeof(T).GetGenericArguments()[0]
                 );
@@ -328,19 +327,19 @@ namespace Spreads.Serialization.Experimental
                 };
             }
 
-            if (te == TypeEnumEx.TupleT2
-                || te == TypeEnumEx.TupleT3
-                || te == TypeEnumEx.TupleT4
-                || te == TypeEnumEx.TupleT5
-                || te == TypeEnumEx.TupleT6
+            if (te == TypeEnum.TupleT2
+                || te == TypeEnum.TupleT3
+                || te == TypeEnum.TupleT4
+                || te == TypeEnum.TupleT5
+                || te == TypeEnum.TupleT6
             )
             {
-                var func = ReflectionHelper.MakeFunc<TypeEnumHelper<T>, DataTypeHeaderEx>(
+                var func = ReflectionHelper.MakeFunc<TypeEnumHelper<T>, DataTypeHeader>(
                     nameof(CreateFixedTupleTHeader),
                     typeof(T).GetGenericArguments()[0]
                 );
                 var header = func();
-                var tbs = TypeHelper<T>.BinarySerializerEx;
+                var tbs = TypeHelper<T>.BinarySerializer;
                 var fs = tbs?.FixedSize ?? -1;
                 return new TypeInfo<T>
                 {
@@ -349,18 +348,18 @@ namespace Spreads.Serialization.Experimental
                 };
             }
 
-            if (te == TypeEnumEx.Tuple2
-                || te == TypeEnumEx.Tuple2Byte
-                || te == TypeEnumEx.Tuple2Long
+            if (te == TypeEnum.Tuple2
+                || te == TypeEnum.Tuple2Byte
+                || te == TypeEnum.Tuple2Long
             )
             {
                 var gArgs = typeof(T).GetGenericArguments();
-                var func = ReflectionHelper.MakeFunc<TypeEnumHelper<T>, DataTypeHeaderEx>(
+                var func = ReflectionHelper.MakeFunc<TypeEnumHelper<T>, DataTypeHeader>(
                     nameof(CreateTuple2Header),
                     gArgs[0], gArgs[1]
                 );
                 var header = func();
-                var tbs = TypeHelper<T>.BinarySerializerEx;
+                var tbs = TypeHelper<T>.BinarySerializer;
                 var fs = tbs?.FixedSize ?? -1;
                 return new TypeInfo<T>
                 {
@@ -375,31 +374,31 @@ namespace Spreads.Serialization.Experimental
         /// <summary>
         /// Recursively get elemnt type info, fuse jagged arrays.
         /// </summary>
-        private static DataTypeHeaderEx CreateArrayInfo<TElement>()
+        private static DataTypeHeader CreateArrayInfo<TElement>()
         {
             var elHeader = TypeEnumHelper<TElement>.DataTypeHeader;
 
-            if (elHeader.TEOFS.TypeEnum == TypeEnumEx.JaggedArray)
+            if (elHeader.TEOFS.TypeEnum == TypeEnum.JaggedArray)
             {
                 // Fuse jagged arrays.
-                return new DataTypeHeaderEx
+                return new DataTypeHeader
                 {
-                    TEOFS = new TypeEnumOrFixedSize(TypeEnumEx.JaggedArray),
+                    TEOFS = new TypeEnumOrFixedSize(TypeEnum.JaggedArray),
                     TEOFS1 = elHeader.TEOFS1,
                     TEOFS2 = new TypeEnumOrFixedSize((byte)(elHeader.TEOFS2.Size + 1)), // JA depth
                 };
             }
 
-            if (elHeader.TEOFS.TypeEnum == TypeEnumEx.Array)
+            if (elHeader.TEOFS.TypeEnum == TypeEnum.Array)
             {
                 if (elHeader.TEOFS2 != default)
                 {
-                    elHeader.TEOFS1 = new TypeEnumOrFixedSize(TypeEnumEx.CompositeType);
+                    elHeader.TEOFS1 = new TypeEnumOrFixedSize(TypeEnum.CompositeType);
                     elHeader.TEOFS2 = default;
                 }
-                return new DataTypeHeaderEx
+                return new DataTypeHeader
                 {
-                    TEOFS = new TypeEnumOrFixedSize(TypeEnumEx.JaggedArray),
+                    TEOFS = new TypeEnumOrFixedSize(TypeEnum.JaggedArray),
                     TEOFS1 = elHeader.TEOFS1,
                     TEOFS2 = new TypeEnumOrFixedSize(1)
                 };
@@ -411,13 +410,13 @@ namespace Spreads.Serialization.Experimental
                 // but child element must have schema defined.
                 // TODO need to create schema and cache it.
                 // TODO schema should be top-level only
-                return new DataTypeHeaderEx
+                return new DataTypeHeader
                 {
                     TEOFS = TypeEnumHelper<TElement[]>.GetTeofs(),
-                    TEOFS1 = new TypeEnumOrFixedSize(TypeEnumEx.CompositeType),
+                    TEOFS1 = new TypeEnumOrFixedSize(TypeEnum.CompositeType),
                 };
             }
-            return new DataTypeHeaderEx
+            return new DataTypeHeader
             {
                 TEOFS = TypeEnumHelper<TElement[]>.GetTeofs(),
                 TEOFS1 = elHeader.TEOFS,
@@ -425,22 +424,22 @@ namespace Spreads.Serialization.Experimental
             };
         }
 
-        private static DataTypeHeaderEx CreateFixedArrayTHeader<T1>()
+        private static DataTypeHeader CreateFixedArrayTHeader<T1>()
         {
-            Debug.Assert(GetTeofs().TypeEnum == TypeEnumEx.TupleTN);
+            Debug.Assert(GetTeofs().TypeEnum == TypeEnum.TupleTN);
             var t1Header = TypeEnumHelper<T1>.DataTypeHeader;
 
             if (!t1Header.IsScalar)
             {
-                return new DataTypeHeaderEx
+                return new DataTypeHeader
                 {
                     TEOFS = GetTeofs(), // Parent
                     TupleNCount = default,
-                    TupleTNTeofs = new TypeEnumOrFixedSize(TypeEnumEx.CompositeType)
+                    TupleTNTeofs = new TypeEnumOrFixedSize(TypeEnum.CompositeType)
                     
                 };
             }
-            return new DataTypeHeaderEx
+            return new DataTypeHeader
             {
                 TEOFS = GetTeofs(),
                 TEOFS1 = default, // Must be overwritten by BS
@@ -448,21 +447,21 @@ namespace Spreads.Serialization.Experimental
             };
         }
 
-        private static DataTypeHeaderEx CreateFixedTupleTHeader<T1>()
+        private static DataTypeHeader CreateFixedTupleTHeader<T1>()
         {
-            Debug.Assert(GetTeofs().TypeEnum == TypeEnumEx.TupleT2);
+            Debug.Assert(GetTeofs().TypeEnum == TypeEnum.TupleT2);
             var t1Header = TypeEnumHelper<T1>.DataTypeHeader;
 
             // Note: TEOFS2 not IsScalar, fixed tuples could contain types that require 2 slots, e.g. Tuple2<Tuple2,Tuple2> or Tuple2<int[],int[]> TODO test those
             if (t1Header.TEOFS2 != default)
             {
-                return new DataTypeHeaderEx()
+                return new DataTypeHeader()
                 {
                     TEOFS = GetTeofs(), // Parent
-                    TEOFS1 = new TypeEnumOrFixedSize(TypeEnumEx.CompositeType)
+                    TEOFS1 = new TypeEnumOrFixedSize(TypeEnum.CompositeType)
                 };
             }
-            return new DataTypeHeaderEx
+            return new DataTypeHeader
             {
                 TEOFS = GetTeofs(),
                 TEOFS1 = t1Header.TEOFS,
@@ -470,22 +469,22 @@ namespace Spreads.Serialization.Experimental
             };
         }
 
-        private static DataTypeHeaderEx CreateTuple2Header<T1, T2>()
+        private static DataTypeHeader CreateTuple2Header<T1, T2>()
         {
             var t1Header = TypeEnumHelper<T1>.DataTypeHeader;
             if (!t1Header.IsScalar)
             {
-                t1Header.TEOFS = new TypeEnumOrFixedSize(TypeEnumEx.CompositeType);
+                t1Header.TEOFS = new TypeEnumOrFixedSize(TypeEnum.CompositeType);
             }
 
             var t2Header = TypeEnumHelper<T2>.DataTypeHeader;
             if (!t2Header.IsScalar)
             {
-                t2Header.TEOFS = new TypeEnumOrFixedSize(TypeEnumEx.CompositeType);
+                t2Header.TEOFS = new TypeEnumOrFixedSize(TypeEnum.CompositeType);
                 t2Header.TEOFS1 = default;
             }
 
-            return new DataTypeHeaderEx
+            return new DataTypeHeader
             {
                 TEOFS = GetTeofs(),
                 TEOFS1 = t1Header.TEOFS,
@@ -501,7 +500,7 @@ namespace Spreads.Serialization.Experimental
         private static TypeEnumOrFixedSize GetTeofs()
         {
             var topTe = GetTypeEnum();
-            if (topTe == TypeEnumEx.FixedSize)
+            if (topTe == TypeEnum.FixedSize)
             {
                 var fs = checked((ushort)TypeHelper<T>.FixedSize);
                 if (fs <= 128)
@@ -519,51 +518,51 @@ namespace Spreads.Serialization.Experimental
         /// </summary>
         /// <returns></returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static TypeEnumEx GetTypeEnum()
+        private static TypeEnum GetTypeEnum()
         {
-            if (typeof(T) == typeof(bool)) return TypeEnumEx.Bool;
-            if (typeof(T) == typeof(byte)) return TypeEnumEx.UInt8;
-            if (typeof(T) == typeof(char)) return TypeEnumEx.Utf16Char;
-            if (typeof(T) == typeof(sbyte)) return TypeEnumEx.Int8;
-            if (typeof(T) == typeof(short)) return TypeEnumEx.Int16;
-            if (typeof(T) == typeof(ushort)) return TypeEnumEx.UInt16;
-            if (typeof(T) == typeof(int)) return TypeEnumEx.Int32;
-            if (typeof(T) == typeof(uint)) return TypeEnumEx.UInt32;
-            if (typeof(T) == typeof(long)) return TypeEnumEx.Int64;
-            if (typeof(T) == typeof(ulong)) return TypeEnumEx.UInt64;
-            if (typeof(T) == typeof(IntPtr)) return TypeEnumEx.Int64;
-            if (typeof(T) == typeof(UIntPtr)) return TypeEnumEx.UInt64;
-            if (typeof(T) == typeof(float)) return TypeEnumEx.Float32;
-            if (typeof(T) == typeof(double)) return TypeEnumEx.Float64;
-            if (typeof(T) == typeof(decimal)) return TypeEnumEx.Decimal;
-            if (typeof(T) == typeof(SmallDecimal)) return TypeEnumEx.SmallDecimal;
+            if (typeof(T) == typeof(bool)) return TypeEnum.Bool;
+            if (typeof(T) == typeof(byte)) return TypeEnum.UInt8;
+            if (typeof(T) == typeof(char)) return TypeEnum.Utf16Char;
+            if (typeof(T) == typeof(sbyte)) return TypeEnum.Int8;
+            if (typeof(T) == typeof(short)) return TypeEnum.Int16;
+            if (typeof(T) == typeof(ushort)) return TypeEnum.UInt16;
+            if (typeof(T) == typeof(int)) return TypeEnum.Int32;
+            if (typeof(T) == typeof(uint)) return TypeEnum.UInt32;
+            if (typeof(T) == typeof(long)) return TypeEnum.Int64;
+            if (typeof(T) == typeof(ulong)) return TypeEnum.UInt64;
+            if (typeof(T) == typeof(IntPtr)) return TypeEnum.Int64;
+            if (typeof(T) == typeof(UIntPtr)) return TypeEnum.UInt64;
+            if (typeof(T) == typeof(float)) return TypeEnum.Float32;
+            if (typeof(T) == typeof(double)) return TypeEnum.Float64;
+            if (typeof(T) == typeof(decimal)) return TypeEnum.Decimal;
+            if (typeof(T) == typeof(SmallDecimal)) return TypeEnum.SmallDecimal;
 
-            if (typeof(T) == typeof(UUID)) return TypeEnumEx.UUID;
+            if (typeof(T) == typeof(UUID)) return TypeEnum.UUID;
 
-            if (typeof(T) == typeof(DateTime)) return TypeEnumEx.DateTime;
-            if (typeof(T) == typeof(Timestamp)) return TypeEnumEx.Timestamp;
+            if (typeof(T) == typeof(DateTime)) return TypeEnum.DateTime;
+            if (typeof(T) == typeof(Timestamp)) return TypeEnum.Timestamp;
 
-            if (typeof(T) == typeof(Symbol)) return TypeEnumEx.Symbol;
-            if (typeof(T) == typeof(Symbol32)) return TypeEnumEx.Symbol32;
-            if (typeof(T) == typeof(Symbol64)) return TypeEnumEx.Symbol64;
-            if (typeof(T) == typeof(Symbol128)) return TypeEnumEx.Symbol128;
-            if (typeof(T) == typeof(Symbol256)) return TypeEnumEx.Symbol256;
+            if (typeof(T) == typeof(Symbol)) return TypeEnum.Symbol;
+            if (typeof(T) == typeof(Symbol32)) return TypeEnum.Symbol32;
+            if (typeof(T) == typeof(Symbol64)) return TypeEnum.Symbol64;
+            if (typeof(T) == typeof(Symbol128)) return TypeEnum.Symbol128;
+            if (typeof(T) == typeof(Symbol256)) return TypeEnum.Symbol256;
 
-            if (typeof(T) == typeof(byte[])) return TypeEnumEx.Binary;
-            if (typeof(T) == typeof(Memory<byte>)) return TypeEnumEx.Binary;
-            if (typeof(T) == typeof(DirectBuffer)) return TypeEnumEx.Binary;
-            if (typeof(T) == typeof(RetainedMemory<byte>)) return TypeEnumEx.Binary;
+            if (typeof(T) == typeof(byte[])) return TypeEnum.Binary;
+            if (typeof(T) == typeof(Memory<byte>)) return TypeEnum.Binary;
+            if (typeof(T) == typeof(DirectBuffer)) return TypeEnum.Binary;
+            if (typeof(T) == typeof(RetainedMemory<byte>)) return TypeEnum.Binary;
 
-            if (typeof(T) == typeof(string)) return TypeEnumEx.Utf16String;
+            if (typeof(T) == typeof(string)) return TypeEnum.Utf16String;
 
-            if (typeof(T) == typeof(Json)) return TypeEnumEx.Json;
+            if (typeof(T) == typeof(Json)) return TypeEnum.Json;
 
             #region Tuple-like
 
             if (typeof(T).GetTypeInfo().IsGenericType &&
                 typeof(T).GetGenericTypeDefinition() == typeof(FixedArray<>))
             {
-                return TypeEnumEx.TupleTN;
+                return TypeEnum.TupleTN;
             }
 
             if (typeof(T).GetTypeInfo().IsGenericType &&
@@ -571,9 +570,9 @@ namespace Spreads.Serialization.Experimental
             {
                 if (ReflectionHelper.SameGenericArgs<T>())
                 {
-                    return TypeEnumEx.TupleT2;
+                    return TypeEnum.TupleT2;
                 }
-                return TypeEnumEx.Tuple2;
+                return TypeEnum.Tuple2;
             }
 
             if (typeof(T).GetTypeInfo().IsGenericType &&
@@ -585,9 +584,9 @@ namespace Spreads.Serialization.Experimental
             {
                 if (ReflectionHelper.SameGenericArgs<T>())
                 {
-                    return TypeEnumEx.TupleT2;
+                    return TypeEnum.TupleT2;
                 }
-                return TypeEnumEx.Tuple2;
+                return TypeEnum.Tuple2;
             }
 
             if (typeof(T).GetTypeInfo().IsGenericType &&
@@ -595,9 +594,9 @@ namespace Spreads.Serialization.Experimental
             {
                 if (ReflectionHelper.SameGenericArgs<T>())
                 {
-                    return TypeEnumEx.TupleT3;
+                    return TypeEnum.TupleT3;
                 }
-                return TypeEnumEx.TupleTN;
+                return TypeEnum.TupleTN;
             }
 
             if (typeof(T).GetTypeInfo().IsGenericType &&
@@ -605,9 +604,9 @@ namespace Spreads.Serialization.Experimental
             {
                 if (ReflectionHelper.SameGenericArgs<T>())
                 {
-                    return TypeEnumEx.TupleT4;
+                    return TypeEnum.TupleT4;
                 }
-                return TypeEnumEx.TupleTN;
+                return TypeEnum.TupleTN;
             }
 
             if (typeof(T).GetTypeInfo().IsGenericType &&
@@ -615,9 +614,9 @@ namespace Spreads.Serialization.Experimental
             {
                 if (ReflectionHelper.SameGenericArgs<T>())
                 {
-                    return TypeEnumEx.TupleT5;
+                    return TypeEnum.TupleT5;
                 }
-                return TypeEnumEx.TupleTN;
+                return TypeEnum.TupleTN;
             }
 
             if (typeof(T).GetTypeInfo().IsGenericType &&
@@ -625,9 +624,9 @@ namespace Spreads.Serialization.Experimental
             {
                 if (ReflectionHelper.SameGenericArgs<T>())
                 {
-                    return TypeEnumEx.TupleT6;
+                    return TypeEnum.TupleT6;
                 }
-                return TypeEnumEx.TupleTN;
+                return TypeEnum.TupleTN;
             }
 
             //
@@ -639,48 +638,49 @@ namespace Spreads.Serialization.Experimental
             {
                 if (ReflectionHelper.SameGenericArgs<T>())
                 {
-                    return TypeEnumEx.TupleTN;
+                    return TypeEnum.TupleTN;
                 }
-                return TypeEnumEx.TupleTN;
+                return TypeEnum.TupleTN;
             }
 
             // TODO Tuple2Version, KeyIndexValue
-            if (typeof(T).GetTypeInfo().IsGenericType && typeof(T).GetGenericTypeDefinition() == typeof(TaggedKeyValue<,>)) return TypeEnumEx.Tuple2Byte;
+            if (typeof(T).GetTypeInfo().IsGenericType && typeof(T).GetGenericTypeDefinition() == typeof(TaggedKeyValue<,>)) return TypeEnum.Tuple2Byte;
 
             #endregion Tuple-like
 
             // TODO(?) Memory manager, RetainableMemory, however they have Memory field and we are serializing *Memory*, not a container, in that case.
-            if (typeof(T).IsArray) return TypeEnumEx.Array;
+            if (typeof(T).IsArray) return TypeEnum.Array;
             if (typeof(T).GetTypeInfo().IsGenericType &&
-                typeof(T).GetGenericTypeDefinition() == typeof(Memory<>)) { return TypeEnumEx.Array; }
+                typeof(T).GetGenericTypeDefinition() == typeof(Memory<>)) { return TypeEnum.Array; }
             if (typeof(T).GetTypeInfo().IsGenericType &&
-                typeof(T).GetGenericTypeDefinition() == typeof(RetainedMemory<>)) { return TypeEnumEx.Array; }
+                typeof(T).GetGenericTypeDefinition() == typeof(RetainedMemory<>)) { return TypeEnum.Array; }
             if (typeof(T).GetTypeInfo().IsGenericType &&
-                typeof(T).GetGenericTypeDefinition() == typeof(VectorStorage<>)) { return TypeEnumEx.Array; }
+                typeof(T).GetGenericTypeDefinition() == typeof(VectorStorage<>)) { return TypeEnum.Array; }
             if (typeof(T).GetTypeInfo().IsGenericType &&
-                typeof(T).GetGenericTypeDefinition() == typeof(ArrayWrapper<>)) { return TypeEnumEx.Array; }
+                typeof(T).GetGenericTypeDefinition() == typeof(ArrayWrapper<>)) { return TypeEnum.Array; }
 
-            if (typeof(T).GetTypeInfo().IsGenericType && typeof(T).GetGenericTypeDefinition() == typeof(Spreads.Collections.Internal.Experimental.Matrix<>)) return TypeEnumEx.NDArray;
-            if (typeof(T).GetTypeInfo().IsGenericType && typeof(T).GetGenericTypeDefinition() == typeof(Spreads.Collections.Internal.Experimental.NDArray<>)) return TypeEnumEx.NDArray;
+            if (typeof(T).GetTypeInfo().IsGenericType && typeof(T).GetGenericTypeDefinition() == typeof(Spreads.Collections.Internal.Experimental.Matrix<>)) return TypeEnum.NDArray;
+            if (typeof(T).GetTypeInfo().IsGenericType && typeof(T).GetGenericTypeDefinition() == typeof(Spreads.Collections.Internal.Experimental.NDArray<>)) return TypeEnum.NDArray;
 
             // if (typeof(T).GetTypeInfo().IsGenericType && typeof(T).GetGenericTypeDefinition() == typeof(ValueWithTimestamp<>)) return TypeEnumEx.ValueWithTimestamp;
 
-            if (typeof(T) == typeof(Table)) return TypeEnumEx.Table;
+            // TODO next 2 commented temporarily
+            //if (typeof(T) == typeof(Table)) return TypeEnumEx.Table;
 
-            if (typeof(T) == typeof(Variant)) return TypeEnumEx.Variant;
+            //if (typeof(T) == typeof(Variant)) return TypeEnumEx.Variant;
 
             // Order of the three following checks is important.
             // Fixed types should rarely have a custom serializer
             // but if they then the serializer is more important.
 
-            if (TypeHelper<T>.HasBinarySerializer) return TypeEnumEx.UserType;
+            if (TypeHelper<T>.HasBinarySerializer) return TypeEnum.UserType;
 
             if (TypeHelper<T>.FixedSize > 0)
             {
-                return TypeEnumEx.FixedSize;
+                return TypeEnum.FixedSize;
             }
 
-            return TypeEnumEx.UserType;
+            return TypeEnum.UserType;
         }
     }
 }

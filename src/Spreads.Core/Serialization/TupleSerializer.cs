@@ -1,13 +1,17 @@
-﻿using Spreads.Buffers;
-using Spreads.DataTypes;
+﻿// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using Spreads.Buffers;
+using Spreads.DataTypes;
 
-namespace Spreads.Serialization.Experimental
+namespace Spreads.Serialization
 {
     #region Tuple2
 
@@ -41,7 +45,7 @@ namespace Spreads.Serialization.Experimental
         }
     }
 
-    internal sealed class TuplePackSerializer<T1, T2> : TuplePackSerializer, IBinarySerializerEx<TuplePack<T1, T2>>
+    internal sealed class TuplePackSerializer<T1, T2> : TuplePackSerializer, IBinarySerializer<TuplePack<T1, T2>>
     {
         public static readonly TuplePackSerializer<T1, T2> Instance = new TuplePackSerializer<T1, T2>();
 
@@ -117,7 +121,7 @@ namespace Spreads.Serialization.Experimental
 
     internal static class ValueTuple2SerializerFactory
     {
-        public static IBinarySerializerEx<(T1, T2)> GenericCreate<T1, T2>()
+        public static IBinarySerializer<(T1, T2)> GenericCreate<T1, T2>()
         {
             return new ValueTuple2Serializer<T1, T2>();
         }
@@ -129,7 +133,7 @@ namespace Spreads.Serialization.Experimental
             return generic?.Invoke(null, null);
         }
 
-        internal sealed class ValueTuple2Serializer<T1, T2> : IBinarySerializerEx<(T1, T2)>
+        internal sealed class ValueTuple2Serializer<T1, T2> : IBinarySerializer<(T1, T2)>
         {
             public byte SerializerVersion => 0;
 
@@ -161,7 +165,7 @@ namespace Spreads.Serialization.Experimental
 
     internal static class Tuple2SerializerFactory
     {
-        public static IBinarySerializerEx<Tuple<T1, T2>> GenericCreate<T1, T2>()
+        public static IBinarySerializer<Tuple<T1, T2>> GenericCreate<T1, T2>()
         {
             return new Tuple2Serializer<T1, T2>();
         }
@@ -173,7 +177,7 @@ namespace Spreads.Serialization.Experimental
             return generic?.Invoke(null, null);
         }
 
-        internal sealed class Tuple2Serializer<T1, T2> : IBinarySerializerEx<Tuple<T1, T2>>
+        internal sealed class Tuple2Serializer<T1, T2> : IBinarySerializer<Tuple<T1, T2>>
         {
             public byte SerializerVersion => 0;
 
@@ -205,7 +209,7 @@ namespace Spreads.Serialization.Experimental
 
     internal static class KvpSerializerFactory
     {
-        public static IBinarySerializerEx<KeyValuePair<T1, T2>> GenericCreate<T1, T2>()
+        public static IBinarySerializer<KeyValuePair<T1, T2>> GenericCreate<T1, T2>()
         {
             return new KvpSerializer<T1, T2>();
         }
@@ -217,7 +221,7 @@ namespace Spreads.Serialization.Experimental
             return generic?.Invoke(null, null);
         }
 
-        internal sealed class KvpSerializer<T1, T2> : IBinarySerializerEx<KeyValuePair<T1, T2>>
+        internal sealed class KvpSerializer<T1, T2> : IBinarySerializer<KeyValuePair<T1, T2>>
         {
             public byte SerializerVersion => 0;
 
@@ -276,7 +280,7 @@ namespace Spreads.Serialization.Experimental
         }
     }
 
-    internal sealed class TuplePackSerializer<T1, T2, T3> : TuplePackSerializer, IBinarySerializerEx<TuplePack<T1, T2, T3>>
+    internal sealed class TuplePackSerializer<T1, T2, T3> : TuplePackSerializer, IBinarySerializer<TuplePack<T1, T2, T3>>
     {
         public static readonly TuplePackSerializer<T1, T2, T3> Instance = new TuplePackSerializer<T1, T2, T3>();
 
@@ -355,7 +359,7 @@ namespace Spreads.Serialization.Experimental
 
     internal static class ValueTuple3SerializerFactory
     {
-        public static IBinarySerializerEx<(T1, T2, T3)> GenericCreate<T1, T2, T3>()
+        public static IBinarySerializer<(T1, T2, T3)> GenericCreate<T1, T2, T3>()
         {
             return new ValueTuple3Serializer<T1, T2, T3>();
         }
@@ -367,7 +371,7 @@ namespace Spreads.Serialization.Experimental
             return generic?.Invoke(null, null);
         }
 
-        internal sealed class ValueTuple3Serializer<T1, T2, T3> : IBinarySerializerEx<(T1, T2, T3)>
+        internal sealed class ValueTuple3Serializer<T1, T2, T3> : IBinarySerializer<(T1, T2, T3)>
         {
             public byte SerializerVersion => 0;
 
@@ -399,7 +403,7 @@ namespace Spreads.Serialization.Experimental
 
     internal static class Tuple3SerializerFactory
     {
-        public static IBinarySerializerEx<Tuple<T1, T2, T3>> GenericCreate<T1, T2, T3>()
+        public static IBinarySerializer<Tuple<T1, T2, T3>> GenericCreate<T1, T2, T3>()
         {
             return new Tuple3Serializer<T1, T2, T3>();
         }
@@ -411,7 +415,7 @@ namespace Spreads.Serialization.Experimental
             return generic?.Invoke(null, null);
         }
 
-        internal sealed class Tuple3Serializer<T1, T2, T3> : IBinarySerializerEx<Tuple<T1, T2, T3>>
+        internal sealed class Tuple3Serializer<T1, T2, T3> : IBinarySerializer<Tuple<T1, T2, T3>>
         {
             public byte SerializerVersion => 0;
 
@@ -443,7 +447,7 @@ namespace Spreads.Serialization.Experimental
 
     internal static class TaggedKeyValueByteSerializerFactory
     {
-        public static IBinarySerializerEx<TaggedKeyValue<T1, T2>> GenericCreate<T1, T2>()
+        public static IBinarySerializer<TaggedKeyValue<T1, T2>> GenericCreate<T1, T2>()
         {
             return new TaggedKeyValueSerializer<T1, T2>();
         }
@@ -455,7 +459,7 @@ namespace Spreads.Serialization.Experimental
             return generic?.Invoke(null, null);
         }
 
-        internal sealed class TaggedKeyValueSerializer<T1, T2> : IBinarySerializerEx<TaggedKeyValue<T1, T2>>
+        internal sealed class TaggedKeyValueSerializer<T1, T2> : IBinarySerializer<TaggedKeyValue<T1, T2>>
         {
             public byte SerializerVersion => 0;
 

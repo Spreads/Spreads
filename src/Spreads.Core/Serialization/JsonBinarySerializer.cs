@@ -2,11 +2,9 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+using System.Runtime.CompilerServices;
 using Spreads.Buffers;
 using Spreads.Serialization.Utf8Json;
-using System.Diagnostics;
-using System.Runtime.CompilerServices;
-using Spreads.Serialization.Experimental;
 
 namespace Spreads.Serialization
 {
@@ -28,36 +26,37 @@ namespace Spreads.Serialization
             get => 0;
         }
 
-        public static int SizeOf(T value, out RetainedMemory<byte> temporaryBuffer, out bool withPadding)
+        public byte KnownTypeId => 0;
+
+        public short FixedSize => -1;
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int SizeOf(in T value, out RetainedMemory<byte> temporaryBuffer)
         {
-            // offset 16 to allow writing header + length + ts without copy
-            Debug.Assert(DataTypeHeaderEx.Size + 4 + 8 == 16);
-            Debug.Assert(BinarySerializer.HEADER_PADDING == 16);
-            temporaryBuffer = JsonSerializer.SerializeToRetainedMemory(value, BinarySerializer.HEADER_PADDING);
-            withPadding = true;
-            return temporaryBuffer.Length - BinarySerializer.HEADER_PADDING;
+            temporaryBuffer = JsonSerializer.SerializeToRetainedMemory(value);
+            return temporaryBuffer.Length;
         }
 
-        int IBinarySerializer<T>.SizeOf(T value, out RetainedMemory<byte> temporaryBuffer, out bool withPadding)
+        int IBinarySerializer<T>.SizeOf(in T value, out RetainedMemory<byte> temporaryBuffer)
         {
-            return SizeOf(value, out temporaryBuffer, out withPadding);
+            return SizeOf(in value, out temporaryBuffer);
         }
 
-        public static int Write(T value, ref DirectBuffer destination)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int Write(in T value, in DirectBuffer destination)
         {
-            var size = SizeOf(value, out var retainedMemory, out var withPadding);
-            Debug.Assert(withPadding);
+            var size = SizeOf(value, out var retainedMemory);
             try
             {
                 // in general buffer could be empty/default if size is known, but not with Json
-                ThrowHelper.AssertFailFast(size == retainedMemory.Length - BinarySerializer.HEADER_PADDING, "size == buffer.Count");
+                ThrowHelper.AssertFailFast(size == retainedMemory.Length, "size == buffer.Count");
 
                 if (size > destination.Length)
                 {
                     return (int)BinarySerializerErrorCode.NotEnoughCapacity;
                 }
 
-                retainedMemory.Span.Slice(BinarySerializer.HEADER_PADDING).CopyTo(destination.Span);
+                retainedMemory.Span.CopyTo(destination.Span);
 
                 return size;
             }
@@ -67,37 +66,22 @@ namespace Spreads.Serialization
             }
         }
 
-        int IBinarySerializer<T>.Write(T value, ref DirectBuffer destination)
+        int IBinarySerializer<T>.Write(in T value, DirectBuffer destination)
         {
-            return Write(value, ref destination);
+            return Write(in value, in destination);
         }
 
-        public static int Read(ref DirectBuffer source, out T value)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int Read(in DirectBuffer source, out T value)
         {
-            //if (MemoryMarshal.TryGetArray(source, out var segment))
-            //{
-            //    var reader = new JsonReader(segment.Array, segment.Offset);
-            //    value = JsonSerializer.Deserialize<T>(ref reader);
-            //    return reader.GetCurrentOffsetUnsafe();
-            //}
-
-            // var buffer = BufferPool<byte>.Rent(checked((int)(uint)source.Length));
-            //try
-            //{
-            // source.Span.CopyTo(((Span<byte>)buffer));
             var reader = new JsonReader(source);
             value = JsonSerializer.Deserialize<T>(ref reader);
             return reader.GetCurrentOffsetUnsafe();
-            //}
-            //finally
-            //{
-            //    BufferPool<byte>.Return(buffer);
-            //}
         }
 
-        int IBinarySerializer<T>.Read(ref DirectBuffer source, out T value)
+        int IBinarySerializer<T>.Read(DirectBuffer source, out T value)
         {
-            return Read(ref source, out value);
+            return Read(in source, out value);
         }
     }
 }

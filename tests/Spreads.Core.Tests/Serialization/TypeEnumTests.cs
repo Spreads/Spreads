@@ -5,12 +5,12 @@
 using NUnit.Framework;
 using Spreads.DataTypes;
 using Spreads.Serialization;
-using Spreads.Serialization.Experimental;
 using Spreads.Utils;
 using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using BinarySerializer = Spreads.Serialization.BinarySerializer;
 
 namespace Spreads.Core.Tests.Serialization
 {
@@ -35,7 +35,7 @@ namespace Spreads.Core.Tests.Serialization
         {
             var header = TypeEnumHelper<Symbol256xLong>.DataTypeHeader;
 
-            Assert.AreEqual(TypeEnumEx.FixedSize, header.TEOFS.TypeEnum);
+            Assert.AreEqual(TypeEnum.FixedSize, header.TEOFS.TypeEnum);
             Assert.AreEqual(256 + 8, header.FixedSizeSize);
 
             var size = TypeEnumHelper<Symbol256xLong>.FixedSize;
@@ -59,7 +59,7 @@ namespace Spreads.Core.Tests.Serialization
         {
             var header = TypeEnumHelper<Symbol256>.DataTypeHeader;
 
-            Assert.AreEqual(TypeEnumEx.Symbol256, header.TEOFS.TypeEnum);
+            Assert.AreEqual(TypeEnum.Symbol256, header.TEOFS.TypeEnum);
             Assert.AreEqual(256, header.FixedSizeSize);
 
             var size = TypeEnumHelper<Symbol256>.FixedSize;
@@ -113,8 +113,8 @@ namespace Spreads.Core.Tests.Serialization
         public void ArrayVariantHeader()
         {
             var vhArr = TypeEnumHelper<int[]>.CreateTypeInfo().Header;
-            Assert.AreEqual(TypeEnumEx.Array, vhArr.TEOFS.TypeEnum);
-            Assert.AreEqual(TypeEnumEx.Int32, vhArr.TEOFS1.TypeEnum);
+            Assert.AreEqual(TypeEnum.Array, vhArr.TEOFS.TypeEnum);
+            Assert.AreEqual(TypeEnum.Int32, vhArr.TEOFS1.TypeEnum);
 
             var vhJArr = TypeEnumHelper<int[][][][][][][][][]>.CreateTypeInfo().Header;
             Console.WriteLine(vhJArr.TEOFS);
@@ -122,52 +122,52 @@ namespace Spreads.Core.Tests.Serialization
             Console.WriteLine(vhJArr.TEOFS2);
             Console.WriteLine("----");
 
-            Assert.AreEqual(TypeEnumEx.JaggedArray, vhJArr.TEOFS.TypeEnum);
+            Assert.AreEqual(TypeEnum.JaggedArray, vhJArr.TEOFS.TypeEnum);
             Assert.AreEqual(8, vhJArr.TEOFS2.Size);
-            Assert.AreEqual(TypeEnumEx.Int32, vhJArr.TEOFS1.TypeEnum);
+            Assert.AreEqual(TypeEnum.Int32, vhJArr.TEOFS1.TypeEnum);
 
             var vhJArrKvp = TypeEnumHelper<KeyValuePair<int, int>[][][][][][][][][]>.CreateTypeInfo().Header;
             Console.WriteLine(vhJArrKvp.TEOFS);
             Console.WriteLine(vhJArrKvp.TEOFS1);
             Console.WriteLine(vhJArrKvp.TEOFS2);
-            Assert.AreEqual(TypeEnumEx.JaggedArray, vhJArrKvp.TEOFS.TypeEnum);
-            Assert.AreEqual(TypeEnumEx.CompositeType, vhJArrKvp.TEOFS1.TypeEnum);
+            Assert.AreEqual(TypeEnum.JaggedArray, vhJArrKvp.TEOFS.TypeEnum);
+            Assert.AreEqual(TypeEnum.CompositeType, vhJArrKvp.TEOFS1.TypeEnum);
             Assert.AreEqual(8, vhJArrKvp.TEOFS2.Size);
         }
 
         [Test]
         public void KnownScalarsVariantHeader()
         {
-            TestType<sbyte>(TypeEnumEx.Int8);
-            TestType<short>(TypeEnumEx.Int16);
-            TestType<int>(TypeEnumEx.Int32);
-            TestType<long>(TypeEnumEx.Int64);
+            TestType<sbyte>(TypeEnum.Int8);
+            TestType<short>(TypeEnum.Int16);
+            TestType<int>(TypeEnum.Int32);
+            TestType<long>(TypeEnum.Int64);
 
-            TestType<byte>(TypeEnumEx.UInt8);
-            TestType<ushort>(TypeEnumEx.UInt16);
-            TestType<uint>(TypeEnumEx.UInt32);
-            TestType<ulong>(TypeEnumEx.UInt64);
+            TestType<byte>(TypeEnum.UInt8);
+            TestType<ushort>(TypeEnum.UInt16);
+            TestType<uint>(TypeEnum.UInt32);
+            TestType<ulong>(TypeEnum.UInt64);
 
-            TestType<float>(TypeEnumEx.Float32);
-            TestType<double>(TypeEnumEx.Float64);
+            TestType<float>(TypeEnum.Float32);
+            TestType<double>(TypeEnum.Float64);
 
-            TestType<decimal>(TypeEnumEx.Decimal);
-            TestType<SmallDecimal>(TypeEnumEx.SmallDecimal);
+            TestType<decimal>(TypeEnum.Decimal);
+            TestType<SmallDecimal>(TypeEnum.SmallDecimal);
 
-            TestType<bool>(TypeEnumEx.Bool);
-            TestType<char>(TypeEnumEx.Utf16Char);
-            TestType<UUID>(TypeEnumEx.UUID);
+            TestType<bool>(TypeEnum.Bool);
+            TestType<char>(TypeEnum.Utf16Char);
+            TestType<UUID>(TypeEnum.UUID);
 
-            TestType<DateTime>(TypeEnumEx.DateTime);
-            TestType<Timestamp>(TypeEnumEx.Timestamp);
+            TestType<DateTime>(TypeEnum.DateTime);
+            TestType<Timestamp>(TypeEnum.Timestamp);
 
-            TestType<Symbol>(TypeEnumEx.Symbol);
-            TestType<Symbol32>(TypeEnumEx.Symbol32);
-            TestType<Symbol64>(TypeEnumEx.Symbol64);
-            TestType<Symbol128>(TypeEnumEx.Symbol128);
-            TestType<Symbol256>(TypeEnumEx.Symbol256);
+            TestType<Symbol>(TypeEnum.Symbol);
+            TestType<Symbol32>(TypeEnum.Symbol32);
+            TestType<Symbol64>(TypeEnum.Symbol64);
+            TestType<Symbol128>(TypeEnum.Symbol128);
+            TestType<Symbol256>(TypeEnum.Symbol256);
 
-            void TestType<T>(TypeEnumEx expectedTe)
+            void TestType<T>(TypeEnum expectedTe)
             {
                 var h = TypeEnumHelper<T>.DataTypeHeader;
                 Assert.AreEqual(expectedTe, h.TEOFS.TypeEnum);
@@ -176,7 +176,7 @@ namespace Spreads.Core.Tests.Serialization
 
                 var teofs = new TypeEnumOrFixedSize(expectedTe);
 
-                Assert.AreEqual(BinarySerializerEx.SizeOf<T>(default(T), out _, SerializationFormat.Binary), teofs.Size);
+                Assert.AreEqual(BinarySerializer.SizeOf<T>(default(T), out _, SerializationFormat.Binary), teofs.Size);
 
                 Assert.AreEqual(Unsafe.SizeOf<T>(), h.TEOFS.Size);
                 Assert.AreEqual(Unsafe.SizeOf<T>(), TypeEnumHelper<T>.FixedSize);
@@ -195,8 +195,8 @@ namespace Spreads.Core.Tests.Serialization
             Console.WriteLine(vh.TEOFS1);
             Console.WriteLine(vh.TEOFS2);
             Console.WriteLine("----");
-            Assert.AreEqual(TypeEnumEx.TupleT2, vh.TEOFS.TypeEnum);
-            Assert.AreEqual(TypeEnumEx.Int32, vh.TEOFS1.TypeEnum);
+            Assert.AreEqual(TypeEnum.TupleT2, vh.TEOFS.TypeEnum);
+            Assert.AreEqual(TypeEnum.Int32, vh.TEOFS1.TypeEnum);
             Assert.AreEqual(8, TypeEnumHelper<(int, int)>.FixedSize);
 
             vh = TypeEnumHelper<Tuple<int, int>>.DataTypeHeader;
@@ -204,8 +204,8 @@ namespace Spreads.Core.Tests.Serialization
             Console.WriteLine(vh.TEOFS1);
             Console.WriteLine(vh.TEOFS2);
             Console.WriteLine("----");
-            Assert.AreEqual(TypeEnumEx.TupleT2, vh.TEOFS.TypeEnum);
-            Assert.AreEqual(TypeEnumEx.Int32, vh.TEOFS1.TypeEnum);
+            Assert.AreEqual(TypeEnum.TupleT2, vh.TEOFS.TypeEnum);
+            Assert.AreEqual(TypeEnum.Int32, vh.TEOFS1.TypeEnum);
             Assert.AreEqual(8, TypeEnumHelper<(int, int)>.FixedSize);
 
             vh = TypeEnumHelper<KeyValuePair<int, int>>.CreateTypeInfo().Header;
@@ -213,8 +213,8 @@ namespace Spreads.Core.Tests.Serialization
             Console.WriteLine(vh.TEOFS1);
             Console.WriteLine(vh.TEOFS2);
             Console.WriteLine("----");
-            Assert.AreEqual(TypeEnumEx.TupleT2, vh.TEOFS.TypeEnum);
-            Assert.AreEqual(TypeEnumEx.Int32, vh.TEOFS1.TypeEnum);
+            Assert.AreEqual(TypeEnum.TupleT2, vh.TEOFS.TypeEnum);
+            Assert.AreEqual(TypeEnum.Int32, vh.TEOFS1.TypeEnum);
             Assert.AreEqual(8, TypeEnumHelper<KeyValuePair<int, int>>.FixedSize);
 
             // same but huge types, Tuple2T with Schema
@@ -222,8 +222,8 @@ namespace Spreads.Core.Tests.Serialization
             Console.WriteLine(vh.TEOFS);
             Console.WriteLine(vh.TEOFS1);
             Console.WriteLine(vh.TEOFS2);
-            Assert.AreEqual(TypeEnumEx.TupleT2, vh.TEOFS.TypeEnum);
-            Assert.AreEqual(TypeEnumEx.CompositeType, vh.TEOFS1.TypeEnum);
+            Assert.AreEqual(TypeEnum.TupleT2, vh.TEOFS.TypeEnum);
+            Assert.AreEqual(TypeEnum.CompositeType, vh.TEOFS1.TypeEnum);
         }
 
         [Test]
@@ -233,35 +233,35 @@ namespace Spreads.Core.Tests.Serialization
             Console.WriteLine(vh.TEOFS);
             Console.WriteLine(vh.TEOFS1);
             Console.WriteLine(vh.TEOFS2);
-            Assert.AreEqual(TypeEnumEx.Tuple2, vh.TEOFS.TypeEnum);
-            Assert.AreEqual(TypeEnumEx.Int32, vh.TEOFS1.TypeEnum);
-            Assert.AreEqual(TypeEnumEx.Int64, vh.TEOFS2.TypeEnum);
+            Assert.AreEqual(TypeEnum.Tuple2, vh.TEOFS.TypeEnum);
+            Assert.AreEqual(TypeEnum.Int32, vh.TEOFS1.TypeEnum);
+            Assert.AreEqual(TypeEnum.Int64, vh.TEOFS2.TypeEnum);
             Assert.AreEqual(12, TypeEnumHelper<(int, long)>.FixedSize);
 
             vh = TypeEnumHelper<TaggedKeyValue<Timestamp, double>>.DataTypeHeader;
             Console.WriteLine(vh.TEOFS);
             Console.WriteLine(vh.TEOFS1);
             Console.WriteLine(vh.TEOFS2);
-            Assert.AreEqual(TypeEnumEx.Tuple2Byte, vh.TEOFS.TypeEnum);
-            Assert.AreEqual(TypeEnumEx.Timestamp, vh.TEOFS1.TypeEnum);
-            Assert.AreEqual(TypeEnumEx.Float64, vh.TEOFS2.TypeEnum);
+            Assert.AreEqual(TypeEnum.Tuple2Byte, vh.TEOFS.TypeEnum);
+            Assert.AreEqual(TypeEnum.Timestamp, vh.TEOFS1.TypeEnum);
+            Assert.AreEqual(TypeEnum.Float64, vh.TEOFS2.TypeEnum);
             Assert.AreEqual(17, TypeEnumHelper<TaggedKeyValue<Timestamp, double>>.FixedSize);
 
             vh = TypeEnumHelper<KeyValuePair<int, long>>.DataTypeHeader;
             Console.WriteLine(vh.TEOFS);
             Console.WriteLine(vh.TEOFS1);
             Console.WriteLine(vh.TEOFS2);
-            Assert.AreEqual(TypeEnumEx.Tuple2, vh.TEOFS.TypeEnum);
-            Assert.AreEqual(TypeEnumEx.Int32, vh.TEOFS1.TypeEnum);
-            Assert.AreEqual(TypeEnumEx.Int64, vh.TEOFS2.TypeEnum);
+            Assert.AreEqual(TypeEnum.Tuple2, vh.TEOFS.TypeEnum);
+            Assert.AreEqual(TypeEnum.Int32, vh.TEOFS1.TypeEnum);
+            Assert.AreEqual(TypeEnum.Int64, vh.TEOFS2.TypeEnum);
 
             vh = TypeEnumHelper<KeyValuePair<int, KeyValuePair<int, int>[][][][][][][][][]>>.DataTypeHeader;
             Console.WriteLine(vh.TEOFS);
             Console.WriteLine(vh.TEOFS1);
             Console.WriteLine(vh.TEOFS2);
-            Assert.AreEqual(TypeEnumEx.Tuple2, vh.TEOFS.TypeEnum);
-            Assert.AreEqual(TypeEnumEx.Int32, vh.TEOFS1.TypeEnum);
-            Assert.AreEqual(TypeEnumEx.CompositeType, vh.TEOFS2.TypeEnum);
+            Assert.AreEqual(TypeEnum.Tuple2, vh.TEOFS.TypeEnum);
+            Assert.AreEqual(TypeEnum.Int32, vh.TEOFS1.TypeEnum);
+            Assert.AreEqual(TypeEnum.CompositeType, vh.TEOFS2.TypeEnum);
         }
 
         [Test]

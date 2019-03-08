@@ -6,7 +6,7 @@ using System;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
-namespace Spreads.Serialization.Experimental
+namespace Spreads.Serialization
 {
     /// <summary>
     /// Known type enum or size of unknown fixed-length type.
@@ -23,7 +23,7 @@ namespace Spreads.Serialization.Experimental
         private readonly byte _value;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public TypeEnumOrFixedSize(TypeEnumEx typeEnum)
+        public TypeEnumOrFixedSize(TypeEnum typeEnum)
         {
             var value = (byte)typeEnum;
             if (value > MaxTypeEnum)
@@ -51,16 +51,16 @@ namespace Spreads.Serialization.Experimental
             get => TypeEnumHelper.GetSize(_value);
         }
 
-        public TypeEnumEx TypeEnum
+        public TypeEnum TypeEnum
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
                 if (_value > 127)
                 {
-                    return TypeEnumEx.FixedSize;
+                    return TypeEnum.FixedSize;
                 }
-                return (TypeEnumEx)_value;
+                return (TypeEnum)_value;
             }
         }
 

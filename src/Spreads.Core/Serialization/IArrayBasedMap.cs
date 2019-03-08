@@ -20,7 +20,8 @@ namespace Spreads.Serialization
         TValue[] Values { get; }
     }
 
-    internal abstract class ArrayBasedMapSerializer<TKey, TValue, T> : IBinarySerializer<T> where T : IArrayBasedMap<TKey, TValue>
+    internal abstract class ArrayBasedMapSerializer<TKey, TValue, T> 
+        : IBinarySerializer<T> where T : IArrayBasedMap<TKey, TValue>
     {
 #pragma warning disable 0618
 
@@ -28,7 +29,9 @@ namespace Spreads.Serialization
         //private static readonly int ValueSize = TypeHelper<TValue>.Size;
         public bool IsFixedSize => false;
 
-        public int FixedSize => -1;
+        public byte KnownTypeId => 0;
+
+        public short FixedSize => -1;
 
         public byte SerializerVersion
         {
@@ -36,17 +39,17 @@ namespace Spreads.Serialization
             get => 1;
         }
 
-        public int SizeOf(T value, out RetainedMemory<byte> temporaryBuffer, out bool withPadding)
+        public int SizeOf(in T value, out RetainedMemory<byte> temporaryBuffer)
         {
             throw new NotImplementedException();
         }
 
-        public int Write(T value, ref DirectBuffer destination)
+        public int Write(in T value, DirectBuffer destination)
         {
             throw new NotImplementedException();
         }
 
-        public int Read(ref DirectBuffer source, out T value)
+        public int Read(DirectBuffer source, out T value)
         {
             throw new NotImplementedException();
         }

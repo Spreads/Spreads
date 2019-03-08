@@ -4,10 +4,8 @@
 
 using NUnit.Framework;
 using Spreads.Buffers;
-using Spreads.DataTypes;
 using Spreads.Serialization;
 using Spreads.Serialization.Utf8Json;
-using System;
 using System.Runtime.CompilerServices;
 
 namespace Spreads.Core.Tests.Serialization
@@ -35,23 +33,26 @@ namespace Spreads.Core.Tests.Serialization
                     get => 1;
                 }
 
+                public byte KnownTypeId => 0;
+
+                public short FixedSize => 4;
+
                 [MethodImpl(MethodImplOptions.AggressiveInlining)]
-                public int SizeOf(SampleStruct value, out RetainedMemory<byte> temporaryBuffer, out bool withPadding)
+                public int SizeOf(in SampleStruct value, out RetainedMemory<byte> temporaryBuffer)
                 {
                     temporaryBuffer = default;
-                    withPadding = false;
                     return 4;
                 }
 
                 [MethodImpl(MethodImplOptions.AggressiveInlining)]
-                public int Write(SampleStruct value, ref DirectBuffer destination)
+                public int Write(in SampleStruct value, DirectBuffer destination)
                 {
                     destination.WriteInt32(0, value.Value);
                     return 4;
                 }
 
                 [MethodImpl(MethodImplOptions.AggressiveInlining)]
-                public int Read(ref DirectBuffer source, out SampleStruct value)
+                public int Read(DirectBuffer source, out SampleStruct value)
                 {
                     var val = source.ReadInt32(0);
                     value = new SampleStruct(val);
@@ -93,7 +94,7 @@ namespace Spreads.Core.Tests.Serialization
             var value = new SampleStruct(42);
 
             var size = BinarySerializer.SizeOf(in value, out var tmpBuffer, SerializationFormat.Json);
-            var written = BinarySerializer.Write(in value, ref db, tmpBuffer, SerializationFormat.Json);
+            var written = BinarySerializer.Write(in value, db, tmpBuffer, SerializationFormat.Json);
 
             Assert.AreEqual(size, written);
 
@@ -116,7 +117,7 @@ namespace Spreads.Core.Tests.Serialization
             var value = new SampleStruct(42);
 
             var size = BinarySerializer.SizeOf(in value, out var tmpBuffer, SerializationFormat.Binary);
-            var written = BinarySerializer.Write(in value, ref db, tmpBuffer, SerializationFormat.Binary);
+            var written = BinarySerializer.Write(in value, db, tmpBuffer, SerializationFormat.Binary);
 
             Assert.AreEqual(size, written);
 

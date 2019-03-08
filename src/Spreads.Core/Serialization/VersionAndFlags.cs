@@ -2,7 +2,6 @@
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using Spreads.Native;
-using Spreads.Serialization.Experimental;
 
 namespace Spreads.Serialization
 {
@@ -29,7 +28,7 @@ namespace Spreads.Serialization
     ///     11 - Zstd
     /// T - Timestamped. A value has Timestamp (8 bytes) as the first element of payload. It is included in payload length for var-sized types.
     /// R - reserved.
-    /// Ver - <see cref="IBinarySerializerEx{T}.SerializerVersion"/> version.
+    /// Ver - <see cref="IBinarySerializer{T}.SerializerVersion"/> version.
     /// 0 - will need completely new layout when this is not zero.
     /// </remarks>
     [StructLayout(LayoutKind.Sequential, Pack = 1, Size = 1)]

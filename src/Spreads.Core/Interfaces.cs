@@ -445,21 +445,21 @@ namespace Spreads
     {
     }
 
-    /// <summary>
-    /// An untyped <see cref="ISeries{TKey, TValue}"/> interface with both keys and values as <see cref="Variant"/> types.
-    /// </summary>
-    public interface IVariantSeries : ISeries<Variant, Variant>
-    {
-        /// <summary>
-        /// <see cref="TypeEnum"/> for the keys type.
-        /// </summary>
-        TypeEnum KeyType { get; }
+    ///// <summary>
+    ///// An untyped <see cref="ISeries{TKey, TValue}"/> interface with both keys and values as <see cref="Variant"/> types.
+    ///// </summary>
+    //public interface IVariantSeries : ISeries<Variant, Variant>
+    //{
+    //    /// <summary>
+    //    /// <see cref="TypeEnum"/> for the keys type.
+    //    /// </summary>
+    //    TypeEnumEx KeyType { get; }
 
-        /// <summary>
-        /// <see cref="TypeEnum"/> for the values type.
-        /// </summary>
-        TypeEnum ValueType { get; }
-    }
+    //    /// <summary>
+    //    /// <see cref="TypeEnum"/> for the values type.
+    //    /// </summary>
+    //    TypeEnumEx ValueType { get; }
+    //}
 
     ///// <summary>
     ///// An untyped <see cref="ISeries{TKey, TValue}"/> interface with both keys and values as <see cref="Variant"/> types.

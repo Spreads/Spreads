@@ -1,6 +1,5 @@
 ﻿using Spreads.Extensions;
 using Spreads.Serialization;
-using Spreads.Serialization.Experimental;
 using Spreads.Utils;
 using System;
 using System.Diagnostics;
@@ -223,10 +222,10 @@ namespace Spreads
         private static Opt<bool> _safeBinarySerializerWrite = Opt<bool>.Missing;
 
         /// <summary>
-        /// If <see cref="IBinarySerializerEx{T}.SizeOf"/> does not return a temp buffer
-        /// then force using a temp buffer for destination of <see cref="IBinarySerializerEx{T}.Write"/>
+        /// If <see cref="IBinarySerializer{T}.SizeOf"/> does not return a temp buffer
+        /// then force using a temp buffer for destination of <see cref="IBinarySerializer{T}.Write"/>
         /// method. This is slower but useful to ensure correct implementation of
-        /// a custom <see cref="IBinarySerializerEx{T}"/>.
+        /// a custom <see cref="IBinarySerializer{T}"/>.
         ///
         /// <para>By default is set to <see cref="DoAdditionalCorrectnessChecks"/></para>
         ///
