@@ -36,7 +36,7 @@ namespace Spreads.Core.Tests.Serialization
             var header = TypeEnumHelper<Symbol256xLong>.DataTypeHeader;
 
             Assert.AreEqual(TypeEnum.FixedSize, header.TEOFS.TypeEnum);
-            Assert.AreEqual(256 + 8, header.FixedSizeSize);
+            Assert.AreEqual(256 + 8, header.UserFixedSize);
 
             var size = TypeEnumHelper<Symbol256xLong>.FixedSize;
             Assert.AreEqual(256 + 8, size);
@@ -48,7 +48,7 @@ namespace Spreads.Core.Tests.Serialization
             var header = TypeEnumHelper<Symbol128Wrapper>.DataTypeHeader;
 
             Assert.AreEqual(128, header.TEOFS.Size);
-            Assert.AreEqual(0, header.FixedSizeSize);
+            Assert.AreEqual(0, header.UserFixedSize);
 
             var size = TypeEnumHelper<Symbol128Wrapper>.FixedSize;
             Assert.AreEqual(128, size);
@@ -60,7 +60,7 @@ namespace Spreads.Core.Tests.Serialization
             var header = TypeEnumHelper<Symbol256>.DataTypeHeader;
 
             Assert.AreEqual(TypeEnum.Symbol256, header.TEOFS.TypeEnum);
-            Assert.AreEqual(256, header.FixedSizeSize);
+            Assert.AreEqual(256, header.UserFixedSize);
 
             var size = TypeEnumHelper<Symbol256>.FixedSize;
             Assert.AreEqual(256, size);

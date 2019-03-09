@@ -70,11 +70,11 @@ namespace Spreads.Serialization
         public byte TupleNFixedSize;
 
         /// <summary>
-        /// Size of <see cref="TypeEnum.FixedSize"/> type is stored as <see cref="short"/>
+        /// Fixed size of <see cref="TypeEnum.UserType"/> or <see cref="TypeEnum.FixedSize"/> type is stored as <see cref="short"/>
         /// in the two slots <see cref="TEOFS1"/> and <see cref="TEOFS2"/>.
         /// </summary>
         [FieldOffset(Teofs1Offset)]
-        public short FixedSizeSize;
+        public short UserFixedSize;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private int GetFixedSize()
@@ -236,15 +236,25 @@ namespace Spreads.Serialization
                 case TypeEnum.Variant:
                 case TypeEnum.CompositeType:
                 case TypeEnum.UserType:
-                    return -1;
-
-                case TypeEnum.FixedSize:
-                    if (FixedSizeSize > 0)
                     {
-                        return FixedSizeSize;
+                        if (UserFixedSize > 0)
+                        {
+                            return UserFixedSize;
+                        }
+
+                        return -1;
                     }
-                    ThrowHelper.ThrowInvalidOperationException("TypeEnumEx.FixedSize must have FixedSizeSize in DataTypeHeader.");
-                    return -1;
+                case TypeEnum.FixedSize:
+                    {
+                        if (UserFixedSize > 0)
+                        {
+                            return UserFixedSize;
+                        }
+
+                        ThrowHelper.ThrowInvalidOperationException(
+                            "TypeEnumEx.FixedSize must have FixedSizeSize in DataTypeHeader.");
+                        return -1;
+                    }
 
                 default:
                     ThrowHelper.ThrowArgumentOutOfRangeException();
@@ -264,7 +274,7 @@ namespace Spreads.Serialization
         internal int WithoutVersionAndFlags
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => Unsafe.As<DataTypeHeader, int>(ref Unsafe.AsRef( in this)) & (((1 << 24) - 1) << 8); // little endian only
+            get => Unsafe.As<DataTypeHeader, int>(ref Unsafe.AsRef(in this)) & (((1 << 24) - 1) << 8); // little endian only
         }
 
         [Obsolete("Calculates FixedSize, use FixedSize directly")]

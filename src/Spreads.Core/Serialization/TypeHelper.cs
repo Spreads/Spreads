@@ -197,6 +197,10 @@ namespace Spreads.Serialization
             {
                 Environment.FailFast("Spreads library supports only little-endian architectures.");
             }
+
+            // TODO Do not wrap in try/catch attribute validation
+            // We failed fast initially but now throw. Attribute errors should be testable
+            // and crash application
             try
             {
                 var size = InitFixedSize();
@@ -233,6 +237,7 @@ namespace Spreads.Serialization
             // by this line the type is not blittable
 
             IBinarySerializer<T> serializer = null;
+            var isInternalSerializer = false;
 
             if (bsAttr != null && bsAttr.SerializerType != null)
             {
@@ -287,6 +292,7 @@ namespace Spreads.Serialization
                 if (elementSize > 0)
                 { // only for blittable types
                     serializer = (IBinarySerializer<T>)FixedArraySerializerFactory.Create(elementType);
+                    isInternalSerializer = true;
                 }
             }
 
@@ -300,6 +306,7 @@ namespace Spreads.Serialization
                 if (serializerTmp.FixedSize > 0)
                 {
                     serializer = serializerTmp;
+                    isInternalSerializer = true;
                 }
             }
 
@@ -312,6 +319,7 @@ namespace Spreads.Serialization
                 if (serializerTmp.FixedSize > 0)
                 {
                     serializer = serializerTmp;
+                    isInternalSerializer = true;
                 }
             }
 
@@ -323,6 +331,7 @@ namespace Spreads.Serialization
                 if (serializerTmp.FixedSize > 0)
                 {
                     serializer = serializerTmp;
+                    isInternalSerializer = true;
                 }
             }
 
@@ -338,6 +347,7 @@ namespace Spreads.Serialization
                 if (serializerTmp.FixedSize > 0)
                 {
                     serializer = serializerTmp;
+                    isInternalSerializer = true;
                 }
             }
 
@@ -350,6 +360,7 @@ namespace Spreads.Serialization
                 if (serializerTmp.FixedSize > 0)
                 {
                     serializer = serializerTmp;
+                    isInternalSerializer = true;
                 }
             }
 
@@ -361,6 +372,7 @@ namespace Spreads.Serialization
                 if (serializerTmp.FixedSize > 0)
                 {
                     serializer = serializerTmp;
+                    isInternalSerializer = true;
                 }
             }
 
@@ -373,6 +385,7 @@ namespace Spreads.Serialization
                 if (elementSize > 0)
                 { // only for blittable types
                     serializer = (IBinarySerializer<T>)ArraySerializerFactory.Create(elementType);
+                    isInternalSerializer = true;
                 }
             }
 
@@ -385,6 +398,7 @@ namespace Spreads.Serialization
                 if (elementSize > 0)
                 { // only for blittable types
                     serializer = (IBinarySerializer<T>)Collections.Internal.VectorStorageSerializerFactory.Create(elementType);
+                    isInternalSerializer = true;
                 }
             }
 
@@ -394,6 +408,7 @@ namespace Spreads.Serialization
             if (serializer != null)
             {
                 BinarySerializer = serializer;
+                IsInternalBinarySerializer = isInternalSerializer;
                 return -1;
             }
 

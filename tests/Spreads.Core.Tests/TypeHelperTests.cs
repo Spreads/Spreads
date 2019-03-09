@@ -35,6 +35,12 @@ namespace Spreads.Core.Tests
             public int Value1;
         }
 
+        [StructLayout(LayoutKind.Sequential, Size = 4)]
+        public struct BlittableStruct3
+        {
+            public int Value1;
+        }
+
         public class MyPoco
         {
             public string String { get; set; }
@@ -42,6 +48,7 @@ namespace Spreads.Core.Tests
         }
 
         [BinarySerialization(5)]
+        [StructLayout(LayoutKind.Sequential)]
         public struct BlittableStructWrong
         {
             public int Value1;
@@ -252,10 +259,15 @@ namespace Spreads.Core.Tests
         {
             Assert.AreEqual(-1, TypeHelper<NonBlittableStruct>.FixedSize);
             Assert.AreEqual(4, TypeHelper<BlittableStruct1>.FixedSize);
-            Assert.AreEqual(4, TypeHelper<BlittableStruct2>.FixedSize);
+            Assert.AreEqual(-1, TypeHelper<BlittableStruct2>.FixedSize);
+            Settings.UseStructLayoutSizeAsBlittableSize = true;
+            Assert.AreEqual(4, TypeHelper<BlittableStruct3>.FixedSize);
+            Settings.UseStructLayoutSizeAsBlittableSize = false;
+            Assert.AreEqual(4, TypeHelper<BlittableStruct3>.FixedSize);
 
+            // TODO that must throw
             // this will cause Environment.FailFast
-            //Assert.AreEqual(4, TypeHelper<BlittableStructWrong>.Size);
+            // Assert.AreEqual(4, TypeHelper<BlittableStructWrong>.FixedSize);
         }
     }
 }

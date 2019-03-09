@@ -354,6 +354,25 @@ namespace Spreads.Serialization
                 };
             }
 
+            if (te == TypeEnum.UserType)
+            {
+                short fs = 0;
+                if (TypeHelper<T>.BinarySerializer != null)
+                {
+                    fs = Math.Max((short)0, TypeHelper<T>.BinarySerializer.FixedSize);
+                }
+
+                return new TypeInfo<T>
+                {
+                    Header = new DataTypeHeader
+                    {
+                        TEOFS = new TypeEnumOrFixedSize(te),
+                        UserFixedSize = fs
+                    },
+                    FixedSize = fs
+                };
+            }
+
             return new TypeInfo<T>
             {
                 Header = new DataTypeHeader { TEOFS = new TypeEnumOrFixedSize(te) },
@@ -664,7 +683,10 @@ namespace Spreads.Serialization
             // Fixed types should rarely have a custom serializer
             // but if they then the serializer is more important.
 
-            if (TypeHelper<T>.HasBinarySerializer) return TypeEnum.UserType;
+            if (TypeHelper<T>.HasBinarySerializer && !TypeHelper<T>.IsInternalBinarySerializer)
+            {
+                return TypeEnum.UserType;
+            }
 
             if (TypeHelper<T>.FixedSize > 0)
             {

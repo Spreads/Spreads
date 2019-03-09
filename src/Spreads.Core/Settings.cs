@@ -196,23 +196,24 @@ namespace Spreads
         // as user code so there is nothing better that that for native interop.
         internal static readonly bool PreferCalli = false;
 
-        internal static int _compressionLimit = 860;
+        internal static int _compressionStartFrom = 860;
 
         /// <summary>
         /// Minimum serialized payload size to apply compression.
+        /// The value is inclusive.
         /// </summary>
-        public static int CompressionLimit
+        public static int CompressionStartFrom
         {
             // TODO (review) for small values with all numeric (esp. non-double) fields this method call could have visible impact, maybe do the same thing as with AdditionalCorrectness
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => _compressionLimit;
+            get => _compressionStartFrom;
             set
             {
                 if (value < 500)
                 {
                     value = 500;
                 }
-                _compressionLimit = value;
+                _compressionStartFrom = value;
             }
         }
 

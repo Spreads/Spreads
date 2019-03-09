@@ -70,7 +70,7 @@ namespace Spreads.Core.Tests.Serialization
 
                 var written = BinarySerializer.Write(in value, dest, in tmpBuffer, SerializationFormat.Json);
 
-                if (4 +  size != written)
+                if (size != written)
                 {
                     Assert.Fail($"size {size} != written {written}");
                 }
@@ -119,7 +119,11 @@ namespace Spreads.Core.Tests.Serialization
             rm2.Dispose();
         }
 
-        [Test, Explicit("long-running")]
+        [Test
+#if !DEBUG
+         , Explicit("long-running")
+#endif
+        ]
         public void CouldPackWithHeaderBenchmark()
         {
             Settings.DoAdditionalCorrectnessChecks = false;
@@ -128,8 +132,11 @@ namespace Spreads.Core.Tests.Serialization
 
             var rm = BufferPool.Retain(100_000_000);
             var db = new DirectBuffer(rm.Span);
-
+#if !DEBUG
             var count = 200_000;
+#else
+            var count = 200;
+#endif
             var rounds = 10;
 
             var rng = new Random(0);
@@ -160,7 +167,7 @@ namespace Spreads.Core.Tests.Serialization
 
                         var written = BinarySerializer.Write(in value, dest, tmpBuffer, SerializationFormat.Json);
 
-                        if (4 + size != written)
+                        if (size != written)
                         {
                             Assert.Fail($"size {size} != written {written}");
                         }
