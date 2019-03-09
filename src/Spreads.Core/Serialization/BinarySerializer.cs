@@ -35,41 +35,50 @@ namespace Spreads.Serialization
         #region SizeOf
 
         /// <summary>
-        ///
-        /// Returns the size of serialized value payload plus <see cref="DataTypeHeader.Size"/> plus <see cref="PayloadLengthSize"/> if payload is not fixed size.
-        /// You could use the returned value to allocate a buffer for subsequent write operation - it must have capacity greater or equal to the return value of <see cref="SizeOf{T}"/>.
-        /// If you use a separate header destination or `noHeader = true` in Write methods then subtract <see cref="DataTypeHeader.Size"/> from the returned value.
-        ///
+        /// 
+        /// Returns the size of serialized value payload plus <see cref="DataTypeHeader.Size"/>
+        /// (if <paramref name="noHeader"/> is not set to true)
+        /// plus <see cref="PayloadLengthSize"/> if payload is not fixed size.
+        /// You could use the returned value to allocate a buffer for subsequent
+        /// write operation - it must have capacity greater or equal to the return
+        /// value of <see cref="SizeOf{T}"/>. If you use a separate header destination
+        /// or `noHeader = true` in Write methods then set <paramref name="noHeader"/>
+        /// to true in this method.
+        /// 
         /// <para />
-        ///
+        /// 
         /// When serialized payload length is only known after serialization, which is the case for variable size types and many containers,
         /// this method serializes the value into <paramref name="payload"/>.
         /// The buffer <paramref name="payload.temporaryBuffer"/> is owned by the caller, ownership is transferred to a Write method that disposes the buffer.
-        ///
+        /// 
         /// <para />
-        ///
+        /// 
         /// Returned <paramref name="payload.actualFormat"/> could differ from <paramref name="preferredFormat"/>
         /// when preferred format is binary but there is no custom binary serializer
         /// or if preferred format is compressed but payload length is less than <see cref="Settings.CompressionStartFrom"/>.
-        ///
+        /// 
         /// </summary>
         /// <param name="value">A value to serialize.</param>
         /// <param name="payload">A buffer with serialized payload and actual format. (optional, for cases when the serialized size is not known without performing serialization)</param>
         /// <param name="preferredFormat">Preferred serialization format.</param>
+        /// <param name="noHeader"></param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int SizeOf<T>(in T value, out (RetainedMemory<byte> temporaryBuffer, SerializationFormat actualFormat) payload,
-            SerializationFormat preferredFormat = default)
+            SerializationFormat preferredFormat = default,
+            bool noHeader = false)
         {
             int plLen;
             RetainedMemory<byte> temporaryBuffer;
             SerializationFormat actualFormat;
+
+            var headerSize = ((*(sbyte*) &noHeader) - 1) & DataTypeHeader.Size;
 
             if (preferredFormat.IsBinary())
             {
                 if (TypeEnumHelper<T>.IsFixedSize)
                 {
                     payload = default;
-                    return DataTypeHeader.Size + TypeEnumHelper<T>.FixedSize;
+                    return headerSize + TypeEnumHelper<T>.FixedSize;
                 }
 
                 // Type binary serializer
@@ -79,7 +88,7 @@ namespace Spreads.Serialization
                     if ((plLen = tbs.FixedSize) > 0) // todo try local var fsSize
                     {
                         payload = default;
-                        return DataTypeHeader.Size + plLen;
+                        return headerSize + plLen;
                     }
                     plLen = tbs.SizeOf(in value, out temporaryBuffer);
                     actualFormat = preferredFormat;
@@ -114,12 +123,12 @@ namespace Spreads.Serialization
                 actualFormat = (SerializationFormat)((byte)actualFormat & ~VersionAndFlags.CompressionMethodMask);
                 payload = (temporaryBuffer, actualFormat);
                 // ReSharper disable once ArrangeRedundantParentheses
-                return (DataTypeHeader.Size + PayloadLengthSize) + plLen;
+                return (headerSize + PayloadLengthSize) + plLen;
             }
 
             payload = (temporaryBuffer, actualFormat);
             // ReSharper disable once ArrangeRedundantParentheses
-            return (DataTypeHeader.Size + PayloadLengthSize) + SizeOfCompressed(plLen, in value, ref payload);
+            return (headerSize + PayloadLengthSize) + SizeOfCompressed(plLen, in value, ref payload);
         }
 
         [MethodImpl(MethodImplOptions.NoInlining

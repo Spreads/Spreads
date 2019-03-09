@@ -88,6 +88,10 @@ namespace Spreads.Serialization
         {
             if (FixedSize <= 0)
             {
+                var s1 = BinarySerializer.SizeOf<T1>(value.Item1, out var pl1, SerializationFormat.Binary) - DataTypeHeader.Size;
+                var s2 = BinarySerializer.SizeOf<T2>(value.Item2, out var pl2, SerializationFormat.Binary) - DataTypeHeader.Size;
+
+
                 FailNotFixedSize();
             }
 
@@ -304,13 +308,21 @@ namespace Spreads.Serialization
                 return checked((short)(TypeEnumHelper<T1>.FixedSize * 3));
             }
 
-            var s1 = TypeEnumHelper<T1>.FixedSize;
-            var s2 = TypeEnumHelper<T2>.FixedSize;
-            var s3 = TypeEnumHelper<T3>.FixedSize;
-            if (s1 > 0 && s2 > 0 && s3 > 0)
+
+            if (TypeEnumHelper<T1>.IsFixedSize
+                && TypeEnumHelper<T2>.IsFixedSize
+                && TypeEnumHelper<T3>.IsFixedSize)
             {
-                return checked((short)(s1 + s2 + s3));
+                return checked((short)(TypeEnumHelper<T1>.FixedSize + TypeEnumHelper<T2>.FixedSize + TypeEnumHelper<T3>.FixedSize));
             }
+
+            //var s1 = TypeEnumHelper<T1>.FixedSize;
+            //var s2 = TypeEnumHelper<T2>.FixedSize;
+            //var s3 = TypeEnumHelper<T3>.FixedSize;
+            //if (s1 > 0 && s2 > 0 && s3 > 0)
+            //{
+            //    return checked((short)(s1 + s2 + s3));
+            //}
 
             return -1;
         }

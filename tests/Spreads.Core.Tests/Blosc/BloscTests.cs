@@ -603,7 +603,7 @@ namespace Spreads.Core.Tests.Blosc
 
             for (int i = 0; i < count; i++)
             {
-                rms.WriteAsPtr((long)i);
+                rms.Write(BitConverter.GetBytes((long)i));
             }
 
             var originalLen = rms.Length;

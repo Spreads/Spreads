@@ -3,19 +3,21 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 using NUnit.Framework;
+using Spreads.Buffers;
 using Spreads.DataTypes;
 using Spreads.Serialization;
+using Spreads.Threading;
 using Spreads.Utils;
 using System;
-using System.Collections.Generic;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using System.Linq.Expressions;
-using Spreads.Buffers;
-using Spreads.Threading;
+using System.Text;
 
 namespace Spreads.Core.Tests.Serialization
 {
+    [Category("Serialization")]
+    [Category("CI")]
     [TestFixture]
     public class TupleSerializationTests
     {
@@ -31,7 +33,117 @@ namespace Spreads.Core.Tests.Serialization
         //    return (Expression<Func<(int, long), long>>)ex;
         //}
 
+        [Test]
+        public unsafe void CouldSerializeTuple2TFixed()
+        {
+            var rm = BufferPool.Retain(1000);
+            var db = new DirectBuffer(rm);
 
+            (int, int) val = (10, 20);
+
+            var serializationFormats = Enum.GetValues(typeof(SerializationFormat)).Cast<SerializationFormat>();
+
+            foreach (var preferredFormat in serializationFormats)
+            {
+                db.Write(0, 0);
+
+                var sizeOf = BinarySerializer.SizeOf(val, out var tempBuf, preferredFormat);
+                if (preferredFormat.IsBinary())
+                {
+                    Assert.AreEqual(12, sizeOf);
+                }
+
+                var written = BinarySerializer.Write(val, db, tempBuf, preferredFormat);
+                if (preferredFormat == SerializationFormat.Json)
+                {
+                    Console.WriteLine(Encoding.UTF8.GetString(db.Data + 8, written - 8));
+                }
+                Assert.AreEqual(sizeOf, written);
+
+                var consumed = BinarySerializer.Read(db, out (int, int) val2);
+
+                Assert.AreEqual(written, consumed);
+
+                Assert.AreEqual(val, val2);
+            }
+
+            rm.Dispose();
+        }
+
+        [Test]
+        public unsafe void CouldSerializeTuple2TVariable()
+        {
+            var rm = BufferPool.Retain(1000);
+            var db = new DirectBuffer(rm);
+
+            (int, string) val = (10, "asd");
+
+            var serializationFormats = Enum.GetValues(typeof(SerializationFormat)).Cast<SerializationFormat>();
+
+            foreach (var preferredFormat in serializationFormats)
+            {
+                db.Write(0, 0);
+
+                var sizeOf = BinarySerializer.SizeOf(val, out var tempBuf, preferredFormat);
+                if (preferredFormat.IsBinary())
+                {
+                    Assert.AreEqual(10, tempBuf.temporaryBuffer.Span[9]);
+                    Assert.AreEqual(DataTypeHeader.Size + BinarySerializer.PayloadLengthSize + 4 + 4 + 3, sizeOf);
+                }
+
+                var written = BinarySerializer.Write(val, db, tempBuf, preferredFormat);
+                if (preferredFormat == SerializationFormat.Json)
+                {
+                    Console.WriteLine(Encoding.UTF8.GetString(db.Data + 8, written - 8));
+                }
+                Assert.AreEqual(sizeOf, written);
+
+                var consumed = BinarySerializer.Read(db, out (int, string) val2);
+
+                Assert.AreEqual(written, consumed);
+
+                Assert.AreEqual(val, val2);
+            }
+
+            rm.Dispose();
+        }
+
+        [Test]
+        public unsafe void CouldSerializeTuple2()
+        {
+            var rm = BufferPool.Retain(1000);
+            var db = new DirectBuffer(rm);
+
+            (int, long) val = (10, 20L);
+
+            var serializationFormats = Enum.GetValues(typeof(SerializationFormat)).Cast<SerializationFormat>();
+
+            foreach (var preferredFormat in serializationFormats)
+            {
+                db.Write(0, 0);
+
+                var sizeOf = BinarySerializer.SizeOf(val, out var tempBuf, preferredFormat);
+                if (preferredFormat.IsBinary())
+                {
+                    Assert.AreEqual(16, sizeOf);
+                }
+
+                var written = BinarySerializer.Write(val, db, tempBuf, preferredFormat);
+                if (preferredFormat == SerializationFormat.Json)
+                {
+                    Console.WriteLine(Encoding.UTF8.GetString(db.Data + 8, written - 8));
+                }
+                Assert.AreEqual(sizeOf, written);
+
+                var consumed = BinarySerializer.Read(db, out (int first, long second) val2);
+
+                Assert.AreEqual(written, consumed);
+
+                Assert.AreEqual(val, val2);
+            }
+
+            rm.Dispose();
+        }
 
         [Test]
         public void CouldSerializeTaggedKeyValue()
@@ -39,38 +151,96 @@ namespace Spreads.Core.Tests.Serialization
             var rm = BufferPool.Retain(1000);
             var db = new DirectBuffer(rm);
 
-            (int,long) val = (10, 20L);
-            
+            var val = new TaggedKeyValue<int, long>(10, 20, 1);
+            var ts = TimeService.Default.CurrentTime;
+
             var serializationFormats = new[] { SerializationFormat.Binary }; // Enum.GetValues(typeof(SerializationFormat)).Cast<SerializationFormat>()};
 
             foreach (var serializationFormat in serializationFormats)
             {
                 db.Write(0, 0);
 
-                var len = BinarySerializer.SizeOf(val, out var tempBuf, serializationFormat);
-                Assert.AreEqual(12, len);
+                var sizeOf = BinarySerializer.SizeOf(val, out var tempBuf, serializationFormat);
+                Assert.AreEqual(17, sizeOf);
 
-                var len2 = BinarySerializer.Write(val, db, tempBuf, serializationFormat);
-                Assert.AreEqual(4 + 12, len2);
+                var written = BinarySerializer.Write(val, db, tempBuf, serializationFormat);
+                Assert.AreEqual(sizeOf, written);
 
-                Assert.AreEqual(len + 4, len2);
+                Assert.AreEqual(sizeOf, written);
 
+                Assert.AreEqual(1, (int)db.Read<DataTypeHeader>(0).VersionAndFlags.SerializationFormat);
+                Assert.AreEqual(1, db.Read<byte>(DataTypeHeader.Size));
+                Assert.AreEqual(10, db.Read<int>(DataTypeHeader.Size + 1));
+                Assert.AreEqual(20, db.Read<long>(DataTypeHeader.Size + 1 + 4));
 
-                var len3 = BinarySerializer.Read(db, out (int first, long second) val2);
+                var consumed = BinarySerializer.Read(db, out TaggedKeyValue<int, long> val2);
 
-                
-
-                Assert.AreEqual(len2, len3);
+                Assert.AreEqual(written, consumed);
 
                 Assert.AreEqual(val, val2);
-
-                
             }
 
             rm.Dispose();
         }
 
-        [Test]
+        [Test
+#if !DEBUG
+         , Explicit("bench")
+#endif
+        ]
+        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+        public void CouldSerializeTaggedKeyValueBench()
+        {
+#if !DEBUG
+            var count = 30_000_000;
+#else
+            var count = 1_000;
+#endif
+            var rm = BufferPool.Retain(1000);
+            var db = new DirectBuffer(rm);
+
+            var val = new TaggedKeyValue<int, long>(10, 20, 1);
+
+            var preferredFormat = SerializationFormat.Binary;
+
+            for (int i = 0; i < count / 1000; i++)
+            {
+                var sizeOf = BinarySerializer.SizeOf(in val, out var payload, preferredFormat);
+                var written = BinarySerializer.Write(in val, db, in payload, preferredFormat);
+                if (sizeOf != written)
+                {
+                    Assert.Fail("DataTypeHeader.Size + sizeOf != written");
+                }
+                var consumed = BinarySerializer.Read(db, out TaggedKeyValue<int, long> val2,
+                skipTypeInfoValidation: false);
+                if (consumed <= 0)
+                {
+                    Assert.Fail("len3 <= 0");
+                }
+
+                if (written != consumed || val.Key != val2.Key || val.Value != val2.Value || val.Tag != val2.Tag)
+                {
+                    Assert.Fail();
+                }
+            }
+
+            for (int _ = 0; _ < 50; _++)
+            {
+                using (Benchmark.Run("TKV roundtrip", count))
+                {
+                    for (int i = 0; i < count; i++)
+                    {
+                        var sizeOf = BinarySerializer.SizeOf(in val, out var payload, preferredFormat);
+                        var written = BinarySerializer.Write(in val, db, in payload, preferredFormat);
+                        var consumed = BinarySerializer.Read(db, out TaggedKeyValue<int, long> val2, skipTypeInfoValidation: false);
+                    }
+                }
+            }
+            Benchmark.Dump();
+            rm.Dispose();
+        }
+
+        [Test, Explicit("output")]
         public void TupleSize()
         {
             Console.WriteLine(Unsafe.SizeOf<(byte, long)>());

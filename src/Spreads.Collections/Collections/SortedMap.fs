@@ -1080,14 +1080,6 @@ type SortedMap<'K,'V>
 
   //#region Interfaces
 
-  interface IArrayBasedMap<'K,'V> with
-    member this.Length with get() = this.size
-    member this.Version with get() = this._version
-    member this.IsRegular with get() = this.IsRegular
-    member this.IsCompleted with get() = this.IsCompleted
-    member this.Keys with get() = keys
-    member this.Values with get() = values
-
   interface IDisposable with
     member this.Dispose() = this.Dispose(true)
 

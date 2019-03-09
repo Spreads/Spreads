@@ -36,7 +36,7 @@ namespace Spreads.Core.Run
             ExecutionContext.SuppressFlow();
             Settings.SharedSpinLockNotificationPort = 53412;
 
-            var test = new SerializationTests();
+            var test = new TupleSerializationTests();
             test.CouldSerializeTaggedKeyValueBench();
 
             // Console.WriteLine("Finished, press enter to exit...");

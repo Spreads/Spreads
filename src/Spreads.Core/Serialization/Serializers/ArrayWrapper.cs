@@ -4,6 +4,9 @@
 
 namespace Spreads.Serialization
 {
+
+    // Need a common type that could wrap Array/Vec/VectorStorage with minimal overhead
+
     internal readonly struct ArrayWrapper<T>
     {
         public readonly T[] Array;
