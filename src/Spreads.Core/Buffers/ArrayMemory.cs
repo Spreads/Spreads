@@ -324,7 +324,7 @@ namespace Spreads.Buffers
                 ClearAfterDispose();
                 if (!ExternallyOwned)
                 {
-                    BufferPool<T>.Return(array, !TypeHelper<T>.IsFixedSize);
+                    BufferPool<T>.Return(array, !TypeHelper<T>.IsFixedSize); // TODO !ContainsReferences
                 }
 
                 Debug.Assert(_pointer == null || _handle.IsAllocated);

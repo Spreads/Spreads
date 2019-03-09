@@ -2,6 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+using System;
 using Spreads.Buffers;
 
 namespace Spreads.Serialization
@@ -19,6 +20,7 @@ namespace Spreads.Serialization
         /// <summary>
         /// A unique type id value from 1 to 127 that is stored in <see cref="DataTypeHeader.TEOFS1"/>.
         /// </summary>
+        [Obsolete("not used so far")]
         byte KnownTypeId { get; }
 
         short FixedSize { get; }

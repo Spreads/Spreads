@@ -11,6 +11,7 @@ using System.IO;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using Spreads.Serialization.Serializers;
 using static System.Runtime.CompilerServices.Unsafe;
 
 #pragma warning disable HAA0101 // Array allocation for params parameter
@@ -327,8 +328,8 @@ namespace Spreads.Serialization
                 typeof(T).GetGenericTypeDefinition() == typeof(Tuple<,>))
             {
                 var gArgs = typeof(T).GetGenericArguments();
-                var serializerTmp = (IBinarySerializer<T>)Tuple2SerializerFactory.Create(gArgs[0], gArgs[1]);
-                if (serializerTmp.FixedSize > 0)
+                var serializerTmp = (ITupleSerializer<T>)Tuple2SerializerFactory.Create(gArgs[0], gArgs[1]);
+                if (serializerTmp.IsBinary)
                 {
                     serializer = serializerTmp;
                     isInternalSerializer = true;

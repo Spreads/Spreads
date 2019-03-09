@@ -985,5 +985,23 @@ namespace Spreads.Buffers
         {
             return encoding.GetString(buffer._pointer, buffer.Length);
         }
+
+        public static void CopyTo(this ReadOnlySpan<byte> source, DirectBuffer destination)
+        {
+            fixed (byte* ptr = source)
+            {
+                var sourceDb = new DirectBuffer(source.Length, ptr);
+                sourceDb.CopyTo(destination);
+            }
+        }
+
+        public static void CopyTo(this Span<byte> source, DirectBuffer destination)
+        {
+            fixed (byte* ptr = source)
+            {
+                var sourceDb = new DirectBuffer(source.Length, ptr);
+                sourceDb.CopyTo(destination);
+            }
+        }
     }
 }

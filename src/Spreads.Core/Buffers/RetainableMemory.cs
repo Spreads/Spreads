@@ -283,13 +283,13 @@ namespace Spreads.Buffers
         /// Retain buffer memory without pinning it.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public virtual RetainedMemory<T> Retain(int start, int length)
+        public RetainedMemory<T> Retain(int start, int length, bool borrow = true)
         {
             if ((uint)start + (uint)length > (uint)_length)
             {
                 ThrowBadLength();
             }
-            return new RetainedMemory<T>(this, start, length, true);
+            return new RetainedMemory<T>(this, start, length, borrow: borrow);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

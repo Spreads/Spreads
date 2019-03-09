@@ -104,7 +104,7 @@ namespace Spreads.Serialization
         HAS_RAW_SIZE:
             if (!temporaryBuffer.IsEmpty && plLen != temporaryBuffer.Length)
             {
-                FailWrongSerializerImplementation<T>();
+                FailWrongSerializerImplementation<T>(BinarySerializerFailCode.PayloadLengthNotEqualToSizeOf);
             }
 
             if (plLen <= 0)
@@ -194,7 +194,7 @@ namespace Spreads.Serialization
             temporaryBuffer = BufferPool.RetainTemp(rawLength).Slice(0, rawLength);
             Debug.Assert(temporaryBuffer.IsPinned, "BufferPool.RetainTemp must return already pinned buffers.");
             var written = tbs.Write(value, temporaryBuffer.ToDirectBuffer());
-            if (rawLength != written) { FailWrongSerializerImplementation<T>(); }
+            if (rawLength != written) { FailWrongSerializerImplementation<T>(BinarySerializerFailCode.WrittenNotEqualToSizeOf); }
         }
 
         #endregion SizeOf
@@ -456,7 +456,7 @@ namespace Spreads.Serialization
                     var written = tbs.Write(value, destination.Slice(PayloadLengthSize, rawLength));
                     if (rawLength != written)
                     {
-                        FailWrongSerializerImplementation<T>();
+                        FailWrongSerializerImplementation<T>(BinarySerializerFailCode.WrittenNotEqualToSizeOf);
                     }
                 }
                 else
@@ -541,7 +541,7 @@ namespace Spreads.Serialization
                 //typeHeader.VersionAndFlags = default;
                 //header.VersionAndFlags = default;
 
-                Debug.Assert(header.FixedSize == fs, "header.FixedSize == fs");
+                // Debug.Assert(header.FixedSize == fs, "header.FixedSize == fs");
                 // FixedSize not possible with compression, do not check
 
                 if ((fs > source.Length || (!skipTypeInfoValidation && TypeEnumHelper<T>.DataTypeHeader.WithoutVersionAndFlags != header.WithoutVersionAndFlags))
@@ -748,9 +748,16 @@ namespace Spreads.Serialization
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
-        private static void FailWrongSerializerImplementation<T>()
+        internal static void FailWrongSerializerImplementation<T>(BinarySerializerFailCode error)
         {
-            ThrowHelper.FailFast($"Wrong SizeOf<{typeof(T).Name}> implementation");
+            ThrowHelper.FailFast($"Wrong IBinarySerializer<{typeof(T).Name}> implementation: {error}");
+        }
+
+        internal enum BinarySerializerFailCode
+        {
+            NonEmptyPayloadForFixedSize = 1,
+            WrittenNotEqualToSizeOf = 2,
+            PayloadLengthNotEqualToSizeOf = 3
         }
     }
 }

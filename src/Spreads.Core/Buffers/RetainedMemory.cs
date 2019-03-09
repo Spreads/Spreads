@@ -247,7 +247,15 @@ namespace Spreads.Buffers
 #if DETECT_LEAKS
             _finalizeChecker?.Dispose();
 #endif
-            _manager?.Decrement();
+            // TODO review/delete testing retain without borrow for temp buffer in serialization
+            if (_manager?.ReferenceCount == 0)
+            {
+                ((IDisposable)_manager).Dispose();
+            }
+            else
+            {
+                _manager?.Decrement();
+            }
         }
 
         /// <summary>

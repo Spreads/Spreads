@@ -71,6 +71,99 @@ namespace Spreads.Core.Tests.Serialization
         }
 
         [Test]
+        public unsafe void CouldSerializeTuple2Nested()
+        {
+            var rm = BufferPool.Retain(1000);
+            var db = new DirectBuffer(rm);
+
+            ((int, int), (int, int)) val = ((1, 2), (3, 4));
+
+            var serializationFormats = new[] { SerializationFormat.Binary }; // Enum.GetValues(typeof(SerializationFormat)).Cast<SerializationFormat>();
+
+            foreach (var preferredFormat in serializationFormats)
+            {
+                db.Write(0, 0);
+
+                var sizeOf = BinarySerializer.SizeOf(val, out var tempBuf, preferredFormat);
+                //if (preferredFormat.IsBinary())
+                //{
+                //    Assert.AreEqual(10, tempBuf.temporaryBuffer.Span[9]);
+                //    Assert.AreEqual(DataTypeHeader.Size + BinarySerializer.PayloadLengthSize + 4 + 4 + 3, sizeOf);
+                //}
+
+                var written = BinarySerializer.Write(val, db, tempBuf, preferredFormat);
+
+                Assert.AreEqual(sizeOf, written);
+
+                var consumed = BinarySerializer.Read(db, out ((int, int), (int, int)) val2);
+
+                Assert.AreEqual(written, consumed);
+
+                Assert.AreEqual(val, val2);
+            }
+
+            rm.Dispose();
+        }
+
+        [Test, Explicit("bench")]
+        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+        public unsafe void CouldSerializeTuple2NestedBench()
+        {
+            var count = 1000_000;
+            var rm = BufferPool.Retain(1000);
+            var db = new DirectBuffer(rm);
+
+            (int, (int, int)) val = (2, (3, 4));
+
+            var format = SerializationFormat.Binary;
+
+            for (int i = 0; i < count; i++)
+            {
+                var sizeOf = BinarySerializer.SizeOf(val, out var tempBuf, format);
+                var written = BinarySerializer.Write(val, db, tempBuf, format);
+
+                if (sizeOf != written)
+                {
+                    Assert.Fail();
+                }
+
+                var consumed = BinarySerializer.Read(db, out (int, (int, int)) val2);
+
+                if (written != consumed)
+                {
+                    Assert.Fail();
+                }
+            }
+
+            for (int _ = 0; _ < 500; _++)
+            {
+                using (Benchmark.Run("Nested Tuple2", count))
+                {
+                    for (int i = 0; i < count; i++)
+                    {
+                        var sizeOf = BinarySerializer.SizeOf(val, out var tempBuf, format);
+                        var written = BinarySerializer.Write(val, db, tempBuf, format);
+
+                        if (sizeOf != written)
+                        {
+                            Assert.Fail();
+                        }
+
+                        var consumed = BinarySerializer.Read(db, out (int, (int, int)) val2);
+
+                        if (written != consumed)
+                        {
+                            Assert.Fail();
+                        }
+                    }
+                }
+            }
+            Benchmark.Dump();
+
+            rm.Dispose();
+        }
+
+        [Test]
         public unsafe void CouldSerializeTuple2TVariable()
         {
             var rm = BufferPool.Retain(1000);

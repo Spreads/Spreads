@@ -122,10 +122,10 @@ namespace Spreads.Buffers
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public RetainedMemory<byte> RetainMemory(int length, bool requireExact = true)
+        public RetainedMemory<byte> RetainMemory(int length, bool requireExact = true, bool borrow = true)
         {
             var arrayMemory = PinnedArrayMemoryPool.RentMemory(length);
-            return requireExact ? arrayMemory.Retain(0, length) : arrayMemory.Retain();
+            return requireExact ? arrayMemory.Retain(0, length, borrow) : arrayMemory.Retain(0, arrayMemory.Length, borrow);
         }
 
         /// <summary>
@@ -150,7 +150,7 @@ namespace Spreads.Buffers
                     return OffHeapMemoryPool.RentMemory(length).Retain();
                 }
             }
-            var rm = Shared.RetainMemory(length, false);
+            var rm = Shared.RetainMemory(length, false, false);
             Debug.Assert(rm.IsPinned);
             return rm;
         }
