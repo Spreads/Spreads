@@ -198,11 +198,11 @@ namespace Spreads.Collections.Experimental
                 else
                 {
                     var opt = DataSource.Last;
-                    //if (AdditionalCorrectnessChecks.Enabled)
-                    //{
-                    //    block = opt.IsPresent ? opt.Present.Value : null;
-                    //}
-                    //else
+                    if (AdditionalCorrectnessChecks.Enabled)
+                    {
+                        block = opt.IsPresent ? opt.Present.Value : null;
+                    }
+                    else
                     {
                         // Opt.Missing is default and KVP is struct with default values.
                         block = opt.Present.Value;

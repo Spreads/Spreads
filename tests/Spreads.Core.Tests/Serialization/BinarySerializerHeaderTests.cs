@@ -100,7 +100,7 @@ namespace Spreads.Core.Tests.Serialization
 
             var typeEnumByte = db[1];
 
-            Assert.AreEqual(123, typeEnumByte);
+            Assert.AreEqual((byte)TypeEnum.UserType, typeEnumByte);
             rm.Dispose();
         }
 
@@ -123,7 +123,7 @@ namespace Spreads.Core.Tests.Serialization
 
             var typeEnumByte = db[1];
 
-            Assert.AreEqual(123, typeEnumByte);
+            Assert.AreEqual((byte)TypeEnum.UserType, typeEnumByte);
             rm.Dispose();
         }
     }

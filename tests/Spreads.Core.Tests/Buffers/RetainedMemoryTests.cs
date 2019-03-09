@@ -131,13 +131,13 @@ namespace Spreads.Core.Tests.Buffers
             var arr = new string[] { "a" };
             var r = ArrayMemory<string>.Create(arr, 0, arr.Length, externallyOwned: true, pin: false);
 
-            var h0 = r.Pin();
+            var rm0 = r.Retain();
 
             Assert.IsFalse(r.IsPinned);
 
-            var h1 = r.Pin();
+            var rm1 = r.Retain();
 
-            h1.Dispose();
+            rm1.Dispose();
 
             Assert.AreEqual(1, r.ReferenceCount);
 
@@ -152,7 +152,7 @@ namespace Spreads.Core.Tests.Buffers
             rm.Dispose();
             Assert.AreEqual(1, r.ReferenceCount);
 
-            h0.Dispose();
+            rm0.Dispose();
         }
     }
 
