@@ -264,41 +264,8 @@ namespace Spreads.Core.Tests.Serialization
             Assert.AreEqual(TypeEnum.CompositeType, vh.TEOFS2.TypeEnum);
         }
 
-        [Test]
-        public void TupleSize()
-        {
-            Console.WriteLine(Unsafe.SizeOf<(byte, long)>());
-            Console.WriteLine(TypeHelper<(byte, long)>.FixedSize);
-            Console.WriteLine(Unsafe.SizeOf<TupleTest<byte, long>>());
-            Console.WriteLine(TypeHelper<TupleTest<byte, long>>.FixedSize);
-
-            Console.WriteLine(Unsafe.SizeOf<(byte, long, string)>());
-
-            Console.WriteLine(TypeHelper<DateTime>.PinnedSize);
-        }
+        
     }
 
-    // ReSharper disable  InconsistentNaming
-    [BinarySerialization(preferBlittable: true)]
-    [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    internal struct TupleTest<A, B> //, C, D, E, F
-    {
-        public A a;
-        public B b;
-        //public C c;
-        //public D d;
-        //public E e;
-        //public F f;
-
-        //public Test(ValueTuple<A, B, C, D, E, F> tuple)
-        //{
-        //    (a, b, c, d, e, f) = tuple;
-
-        //}
-
-        public TupleTest((A a, B b) tuple) //, C c, D d, E e, F f
-        {
-            (a, b) = tuple; //, c, d, e, f
-        }
-    }
+    
 }

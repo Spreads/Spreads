@@ -6,6 +6,7 @@ using Spreads.DataTypes;
 using Spreads.Native;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Reflection;
 using System.Runtime.CompilerServices;
@@ -105,7 +106,6 @@ namespace Spreads.Serialization
         // ReSharper disable once StaticMemberInGenericType
         internal static bool IsInternalBinarySerializer; // TODO set to true for tuples and arrays
 
-        
         /// <summary>
         /// Returns a positive number for primitive type, well known fixed size types
         /// and pinnable structs with <see cref="BinarySerializationAttribute"/> and
@@ -114,7 +114,6 @@ namespace Spreads.Serialization
         /// </summary>
         // ReSharper disable once StaticMemberInGenericType
         public static readonly int FixedSize = InitFixedSizeSafe();
-
 
         // TODO this method must comply with xml doc
         // TODO ContainsReferences, it does what the name says. Auto layout and composites could have no references
@@ -167,6 +166,7 @@ namespace Spreads.Serialization
         /// <summary>
         /// Distance between two elements of a pinned array.
         /// </summary>
+        [DebuggerStepThrough]
         private static short GetPinnedSize()
         {
             try
@@ -191,6 +191,12 @@ namespace Spreads.Serialization
 
         private static int InitFixedSizeSafe()
         {
+            // Probably this method is always called first when endianness matters.
+            // Not that we expect that ever happen in reality...
+            if (!BitConverter.IsLittleEndian)
+            {
+                Environment.FailFast("Spreads library supports only little-endian architectures.");
+            }
             try
             {
                 var size = InitFixedSize();

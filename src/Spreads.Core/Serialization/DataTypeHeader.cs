@@ -264,7 +264,7 @@ namespace Spreads.Serialization
         internal int WithoutVersionAndFlags
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => Unsafe.As<DataTypeHeader, int>(ref Unsafe.AsRef( in this)) & (((1 << 24) - 1) << 8);
+            get => Unsafe.As<DataTypeHeader, int>(ref Unsafe.AsRef( in this)) & (((1 << 24) - 1) << 8); // little endian only
         }
 
         [Obsolete("Calculates FixedSize, use FixedSize directly")]

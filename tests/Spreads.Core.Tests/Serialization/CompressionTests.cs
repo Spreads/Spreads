@@ -68,7 +68,7 @@ namespace Spreads.Core.Tests.Serialization
                 values[i] = value;
                 var size = BinarySerializer.SizeOf(in value, out var tmpBuffer, SerializationFormat.Json);
 
-                var written = BinarySerializer.Write(in value, dest, tmpBuffer, SerializationFormat.Json);
+                var written = BinarySerializer.Write(in value, dest, in tmpBuffer, SerializationFormat.Json);
 
                 if (4 +  size != written)
                 {
@@ -88,14 +88,14 @@ namespace Spreads.Core.Tests.Serialization
 
             foreach (var method in new[] { CompressionMethod.GZip, CompressionMethod.Lz4, CompressionMethod.Zstd })
             {
-                var compressed = BinarySerializer.Compress(db.Slice(0, payloadSize), db1, method);
+                var compressed = BinarySerializer.Compress(db.Slice(0, payloadSize).Span, db1.Span, method);
                 if (!silent)
                 {
                     Console.WriteLine(
                         $"{method}: compressed size: {compressed}, ratio: {Math.Round(payloadSize / (compressed * 1.0), 2)}");
                 }
 
-                var decomrpessed = BinarySerializer.Decompress(db1.Slice(0, compressed), in db2, method);
+                var decomrpessed = BinarySerializer.Decompress(db1.Slice(0, compressed).Span, db2.Span, method);
 
                 if (decomrpessed != payloadSize)
                 {

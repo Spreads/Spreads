@@ -4,11 +4,6 @@
 
 using System;
 using System.Runtime.CompilerServices;
-using Spreads.Buffers;
-
-#if NETCOREAPP2_1
-using System.IO.Compression;
-#endif
 
 namespace Spreads.Serialization
 {
@@ -24,7 +19,7 @@ namespace Spreads.Serialization
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static int Compress(in DirectBuffer source, in DirectBuffer destination, CompressionMethod method)
+        internal static int Compress(ReadOnlySpan<byte> source, Span<byte> destination, CompressionMethod method)
         {
             if (method == CompressionMethod.GZip)
             {
@@ -63,7 +58,7 @@ namespace Spreads.Serialization
         /// Non-positive return value means an error, exact value if opaque as of now (impl. detail: it returns native error code for GZip/LZ4, but that could change).
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static int Decompress(in DirectBuffer source, in DirectBuffer destination, CompressionMethod method)
+        internal static int Decompress(ReadOnlySpan<byte> source, Span<byte> destination, CompressionMethod method)
         {
             if (method == CompressionMethod.GZip)
             {
@@ -96,79 +91,132 @@ namespace Spreads.Serialization
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static int WriteLz4(in DirectBuffer source, in DirectBuffer destination)
+        internal static int WriteLz4(in ReadOnlySpan<byte> source, in Span<byte> destination)
         {
-            return Native.Compression.compress_lz4(source._pointer, (IntPtr)source._length, destination._pointer,
-                (IntPtr)destination._length, Settings.LZ4CompressionLevel);
+            fixed (byte* s = source)
+            fixed (byte* d = destination)
+            {
+                return Native.Compression.compress_lz4(s, (IntPtr)source.Length, d,
+                    (IntPtr)destination.Length, Settings.LZ4CompressionLevel);
+            }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static int ReadLz4(in DirectBuffer source, in DirectBuffer destination)
+        internal static int ReadLz4(in ReadOnlySpan<byte> source, in Span<byte> destination)
         {
-            return Native.Compression.decompress_lz4(source._pointer, (IntPtr)source._length, destination._pointer, (IntPtr)destination._length);
+            fixed (byte* s = source)
+            fixed (byte* d = destination)
+            {
+                return Native.Compression.decompress_lz4(s, (IntPtr)source.Length, d,
+                    (IntPtr)destination.Length);
+            }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static int WriteZstd(in DirectBuffer source, in DirectBuffer destination)
+        internal static int WriteZstd(in ReadOnlySpan<byte> source, in Span<byte> destination)
         {
-            return Native.Compression.compress_zstd(source._pointer, (IntPtr)source._length, destination._pointer,
-                (IntPtr)destination._length, Settings.ZstdCompressionLevel);
+            fixed (byte* s = source)
+            fixed (byte* d = destination)
+            {
+                return Native.Compression.compress_zstd(s, (IntPtr)source.Length, d,
+                    (IntPtr)destination.Length, Settings.ZstdCompressionLevel);
+            }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static int ReadZstd(in DirectBuffer source, in DirectBuffer destination)
+        internal static int ReadZstd(in ReadOnlySpan<byte> source, in Span<byte> destination)
         {
-            return Native.Compression.decompress_zstd(source._pointer, (IntPtr)source._length, destination._pointer, (IntPtr)destination._length);
+            fixed (byte* s = source)
+            fixed (byte* d = destination)
+            {
+                return Native.Compression.decompress_zstd(s, (IntPtr)source.Length,
+                    d, (IntPtr)destination.Length);
+            }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static int WriteZlib(in DirectBuffer source, in DirectBuffer destination)
+        internal static int WriteZlib(in ReadOnlySpan<byte> source, in Span<byte> destination)
         {
-            return Native.Compression.compress_zlib(source._pointer, (IntPtr)source._length, destination._pointer,
-                (IntPtr)destination._length, Settings.ZlibCompressionLevel);
+            fixed (byte* s = source)
+            fixed (byte* d = destination)
+            {
+                return Native.Compression.compress_zlib(s, (IntPtr)source.Length, d,
+                    (IntPtr)destination.Length, Settings.ZlibCompressionLevel);
+            }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static int ReadZlib(in DirectBuffer source, in DirectBuffer destination)
+        internal static int ReadZlib(in ReadOnlySpan<byte> source, in Span<byte> destination)
         {
-            return Native.Compression.decompress_zlib(source._pointer, (IntPtr)source._length, destination._pointer, (IntPtr)destination._length);
+            fixed (byte* s = source)
+            fixed (byte* d = destination)
+            {
+                return Native.Compression.decompress_zlib(s, (IntPtr)source.Length,
+                    d, (IntPtr)destination.Length);
+            }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static int WriteDeflate(in DirectBuffer source, in DirectBuffer destination)
+        internal static int WriteDeflate(in ReadOnlySpan<byte> source, in Span<byte> destination)
         {
-            return Native.Compression.compress_deflate(source._pointer, (IntPtr)source._length, destination._pointer,
-                (IntPtr)destination._length, Settings.ZlibCompressionLevel);
+            fixed (byte* s = source)
+            fixed (byte* d = destination)
+            {
+                return Native.Compression.compress_deflate(s, (IntPtr)source.Length,
+                    d,
+                    (IntPtr)destination.Length, Settings.ZlibCompressionLevel);
+            }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static int ReadDeflate(in DirectBuffer source, in DirectBuffer destination)
+        internal static int ReadDeflate(in ReadOnlySpan<byte> source, in Span<byte> destination)
         {
-            return Native.Compression.decompress_deflate(source._pointer, (IntPtr)source._length, destination._pointer, (IntPtr)destination._length);
+            fixed (byte* s = source)
+            fixed (byte* d = destination)
+            {
+                return Native.Compression.decompress_deflate(s, (IntPtr)source.Length,
+                   d, (IntPtr)destination.Length);
+            }
         }
 
-        internal static int WriteGZip(in DirectBuffer source, in DirectBuffer destination)
+        internal static int WriteGZip(in ReadOnlySpan<byte> source, in Span<byte> destination)
         {
-            return Native.Compression.compress_gzip(source._pointer, (IntPtr)source._length, destination._pointer,
-                (IntPtr)destination._length, Settings.ZlibCompressionLevel);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static int ReadGZip(in DirectBuffer source, in DirectBuffer destination)
-        {
-            return Native.Compression.decompress_gzip(source._pointer, (IntPtr)source._length, destination._pointer, (IntPtr)destination._length);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static void Shuffle(in DirectBuffer source, in DirectBuffer destination, byte typeSize)
-        {
-            Native.Compression.shuffle((IntPtr)typeSize, (IntPtr)source._length, source._pointer, destination._pointer);
+            fixed (byte* s = source)
+            fixed (byte* d = destination)
+            {
+                return Native.Compression.compress_gzip(s, (IntPtr)source.Length, d,
+                    (IntPtr)destination.Length, Settings.ZlibCompressionLevel);
+            }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static void Unshuffle(in DirectBuffer source, in DirectBuffer destination, byte typeSize)
+        internal static int ReadGZip(in ReadOnlySpan<byte> source, in Span<byte> destination)
         {
-            Native.Compression.unshuffle((IntPtr)typeSize, (IntPtr)source._length, source._pointer, destination._pointer);
+            fixed (byte* s = source)
+            fixed (byte* d = destination)
+            {
+                return Native.Compression.decompress_gzip(s, (IntPtr)source.Length, d, (IntPtr)destination.Length);
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static void Shuffle(ReadOnlySpan<byte> source, Span<byte> destination, byte typeSize)
+        {
+            fixed (byte* s = source)
+            fixed (byte* d = destination)
+            {
+                Native.Compression.shuffle((IntPtr)typeSize, (IntPtr)source.Length, s, d);
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static void Unshuffle(ReadOnlySpan<byte> source, Span<byte> destination, byte typeSize)
+        {
+            fixed (byte* s = source)
+            fixed (byte* d = destination)
+            {
+                Native.Compression.unshuffle((IntPtr)typeSize, (IntPtr)source.Length, s, d);
+            }
         }
     }
 }

@@ -3,7 +3,6 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 using System;
-using System.Buffers;
 using System.Diagnostics;
 using System.Diagnostics.Contracts;
 using System.Numerics;
@@ -32,7 +31,7 @@ namespace Spreads.Buffers
         // TODO this should be (U)IntPtr. The comment above was probably with tiered on, need to review.
         // LMDB 1.0 will work OK-ish on x86
 
-        internal readonly long _length;
+        internal readonly IntPtr _length;
         internal readonly byte* _pointer;
 
         /// <summary>
@@ -52,7 +51,7 @@ namespace Spreads.Buffers
             {
                 ThrowHelper.ThrowArgumentException("Memory size must be > 0");
             }
-            _length = length;
+            _length = (IntPtr)length;
             _pointer = (byte*)data;
         }
 
@@ -63,7 +62,7 @@ namespace Spreads.Buffers
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public DirectBuffer(long length, byte* pointer)
         {
-            _length = length;
+            _length = (IntPtr)length;
             _pointer = pointer;
         }
 
@@ -71,14 +70,24 @@ namespace Spreads.Buffers
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public DirectBuffer(RetainedMemory<byte> retainedMemory)
         {
-            _length = retainedMemory.Length;
+            if (!retainedMemory.IsPinned)
+            {
+                ThrowRetainedMemoryNotPinned();
+            }
+            _length = (IntPtr)retainedMemory.Length;
             _pointer = (byte*)retainedMemory.Pointer;
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static void ThrowRetainedMemoryNotPinned()
+        {
+            ThrowHelper.ThrowInvalidOperationException("RetainedMemory must be pinned for using as DirectBuffer.");
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public DirectBuffer(Span<byte> span)
         {
-            _length = span.Length;
+            _length = (IntPtr)span.Length;
             _pointer = (byte*)AsPointer(ref span.GetPinnableReference());
         }
 
@@ -94,7 +103,7 @@ namespace Spreads.Buffers
         {
             [DebuggerStepThrough]
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => _length == 0;
+            get => _length == IntPtr.Zero;
         }
 
         [DebuggerStepThrough]
@@ -111,21 +120,18 @@ namespace Spreads.Buffers
             get => new Span<byte>(_pointer, (int)_length);
         }
 
-        /// <summary>
-        /// Capacity of the underlying buffer
-        /// </summary>
         public int Length
         {
             [DebuggerStepThrough]
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => checked((int)_length);
+            get => checked((int)(long)_length);
         }
 
         public long LongLength
         {
             [DebuggerStepThrough]
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => _length;
+            get => (long)_length;
         }
 
         public byte* Data
@@ -151,7 +157,7 @@ namespace Spreads.Buffers
             if (AdditionalCorrectnessChecks.Enabled)
             { Assert(0, start); }
 
-            return new DirectBuffer(_length - start, _pointer + start);
+            return new DirectBuffer((long)_length - start, _pointer + start);
         }
 
         [Pure]
@@ -171,17 +177,16 @@ namespace Spreads.Buffers
         {
             if (AdditionalCorrectnessChecks.Enabled)
             {
-                // NB Not FailFast because we do not modify data on failed checks
                 if (!IsValid)
                 {
-                    ThrowHelper.ThrowInvalidOperationException("DirectBuffer is invalid");
+                    ThrowHelper.ThrowInvalidOperationException("DirectBuffer is invalid.");
                 }
 
                 unchecked
                 {
                     if ((ulong)index + (ulong)length > (ulong)_length)
                     {
-                        ThrowHelper.ThrowArgumentException("Not enough space in DirectBuffer");
+                        ThrowHelper.ThrowArgumentException("Not enough space in DirectBuffer or bad index/length.");
                     }
                 }
             }
@@ -778,7 +783,7 @@ namespace Spreads.Buffers
         {
             if (AdditionalCorrectnessChecks.Enabled)
             {
-                destination.Assert(0, _length);
+                destination.Assert(0, (long)_length);
             }
             CopyTo(0, destination.Data, (int)_length);
         }
@@ -816,14 +821,15 @@ namespace Spreads.Buffers
 
         public override int GetHashCode()
         {
-            if (_length >= 4)
+            var longLen = (long)_length;
+            if (longLen >= 4)
             {
                 return ReadUnaligned<int>(_pointer);
             }
             // as if zero padded
             var fourBytes = stackalloc byte[4];
             *fourBytes = 0;
-            for (int i = 0; i < _length; i++)
+            for (long i = 0; i < longLen; i++)
             {
                 *(fourBytes + i) = *(_pointer + i);
             }
@@ -839,7 +845,7 @@ namespace Spreads.Buffers
                 return false;
             }
 
-            return SequenceEqual(ref *_pointer, ref *other._pointer, checked((uint)_length));
+            return SequenceEqual(ref *_pointer, ref *other._pointer, checked((uint)(long)_length));
         }
 
         // Methods from https://source.dot.net/#System.Private.CoreLib/shared/System/SpanHelpers.Byte.cs,ae8b63bad07668b3

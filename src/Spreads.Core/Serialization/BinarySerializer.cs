@@ -32,25 +32,30 @@ namespace Spreads.Serialization
         /// <summary>
         /// Returns the size of serialized value payload.
         /// When serialized payload length is only known after serialization, which is often the case for non-fixed size type,
-        /// this method must serialize the value into <paramref name="temporaryBuffer"/>.
-        /// The <paramref name="temporaryBuffer"/> <see cref="RetainedMemory{T}"/> could be taken from
+        /// this method must serialize the value into <paramref name="payload"/>.
+        /// A <paramref name="payload.temporaryBuffer"/> <see cref="RetainedMemory{T}"/> could be taken from
         /// <see cref="BufferPool.Retain"/>. The buffer is owned by the caller, no other references to it should remain after the call.
-        /// When non-empty <paramref name="temporaryBuffer"/> is returned the buffer is written completely by
+        /// When non-empty <paramref name="payload.temporaryBuffer"/> is returned the buffer is written completely by
         /// <see cref="BinarySerializer"/> write method, which then disposes the buffer.
+        /// Returned <paramref name="payload.actualFormat"/> could differ from preferred format when preferred is binary but there is no custom binary serializer or is
+        /// preferred format is compressed but payload length is less than <see cref="Settings.CompressionLimit"/>.
         /// </summary>
         /// <param name="value">A value to serialize.</param>
-        /// <param name="temporaryBuffer">A buffer with serialized payload. (optional, for cases when the serialized size is not known without performing serialization)</param>
-        /// <param name="format">Serialization format to use.</param>
+        /// <param name="payload">A buffer with serialized payload and actual format. (optional, for cases when the serialized size is not known without performing serialization)</param>
+        /// <param name="preferredFormat">Serialization format to use.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int SizeOf<T>(in T value, out RetainedMemory<byte> temporaryBuffer, SerializationFormat format = default)
+        public static int SizeOf<T>(in T value, out (RetainedMemory<byte> temporaryBuffer, SerializationFormat actualFormat) payload,
+            SerializationFormat preferredFormat = default)
         {
             int rawLength;
-            // TODO fixed size for tuples should be a sum of components, padding is possible
-            if (format.IsBinary())
+            RetainedMemory<byte> temporaryBuffer;
+            SerializationFormat actualFormat;
+
+            if (preferredFormat.IsBinary())
             {
                 if (TypeEnumHelper<T>.IsFixedSize)
                 {
-                    temporaryBuffer = default;
+                    payload = default;
                     return TypeEnumHelper<T>.FixedSize;
                 }
 
@@ -59,27 +64,39 @@ namespace Spreads.Serialization
                 if (tbs != null)
                 {
                     rawLength = tbs.SizeOf(in value, out temporaryBuffer);
-                    if (!temporaryBuffer.IsEmpty && rawLength != temporaryBuffer.Length)
-                    {
-                        FailWrongSerializerImplementation<T>();
-                    }
+                    actualFormat = preferredFormat;
                     goto HAS_RAW_SIZE;
                 }
             }
 
             rawLength = JsonBinarySerializer<T>.SizeOf(in value, out temporaryBuffer);
-            Debug.Assert(rawLength == temporaryBuffer.Length);
+
+            // clear binary bit
+            actualFormat = (SerializationFormat)((byte)preferredFormat & ~VersionAndFlags.BinaryFlagMask);
 
         HAS_RAW_SIZE:
+            if (!temporaryBuffer.IsEmpty && rawLength != temporaryBuffer.Length)
+            {
+                FailWrongSerializerImplementation<T>();
+            }
 
-            if (rawLength <= 0
-                || format.CompressionMethod() == CompressionMethod.None
+            if (rawLength <= 0)
+            {
+                payload = default;
+                return rawLength;
+            }
+            if (preferredFormat.CompressionMethod() == CompressionMethod.None
+                 || rawLength <= Settings.CompressionLimit
             )
             {
+                // clear compression bits, do not add another if
+                actualFormat = (SerializationFormat)((byte)actualFormat & ~VersionAndFlags.CompressionMethodMask);
+                payload = (temporaryBuffer, actualFormat);
                 return rawLength;
             }
 
-            return SizeOfCompressed(rawLength, in value, ref temporaryBuffer, format);
+            payload = (temporaryBuffer, actualFormat);
+            return SizeOfCompressed(rawLength, in value, ref payload);
         }
 
         [MethodImpl(MethodImplOptions.NoInlining
@@ -87,59 +104,48 @@ namespace Spreads.Serialization
                     | MethodImplOptions.AggressiveOptimization
 #endif
         )]
-        private static int SizeOfCompressed<T>(int rawLength, in T value, ref RetainedMemory<byte> temporaryBuffer, SerializationFormat format)
+        private static int SizeOfCompressed<T>(int rawLength, in T value, ref (RetainedMemory<byte> temporaryBuffer, SerializationFormat format) payload)
         {
-            if (temporaryBuffer.IsEmpty)
+            Debug.Assert(((byte)payload.format & VersionAndFlags.CompressionMethodMask) != 0);
+
+            if (payload.temporaryBuffer.IsEmpty)
             {
-                PopulateTempBuffer(rawLength, value, ref temporaryBuffer, format);
+                PopulateTempBuffer(rawLength, value, ref payload.temporaryBuffer, payload.format);
             }
 
-            // Now we have raw bytes in the buffer and need to compress them
-            Debug.Assert(rawLength == temporaryBuffer.Length);
-
-            var source = temporaryBuffer.ToDirectBuffer();
-
-            // Compressed buffer will be prefixed with raw size.
+            // Compressed buffer will be prefixed with raw len.
             // ```
             // 0                   1                   2                   3
             // 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
             // +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-            // |    RawSize    |         Payload          ....
+            // |     RawLen    |         Payload          ....
             // +---------------------------------------------------------------+
             // ```
             // If compression fails (returns non-positive number) or returns a
-            // number larger than the raw size then we copy raw payload
-            // and set RawSize = -rawSize.
+            // number larger than the raw size then we return uncompressed payload.
             var compressedMemory = BufferPool.RetainTemp(4 + rawLength);
             var comrpessedDb = compressedMemory.ToDirectBuffer();
 
-            var compressedSize = Compress(in source, comrpessedDb.Slice(4), format.CompressionMethod());
+            var compressedSize = Compress(payload.temporaryBuffer.Span, comrpessedDb.Slice(4).Span, payload.format.CompressionMethod());
 
             Debug.Assert(compressedSize != 0);
 
-            if (compressedSize > 0 && compressedSize < rawLength)
+            if (compressedSize <= 0 || compressedSize >= rawLength)
             {
-                comrpessedDb.WriteInt32(0, rawLength);
-            }
-            else
-            {
-                compressedSize = rawLength;
-                comrpessedDb.WriteInt32(0, -rawLength);
-                source.CopyTo(comrpessedDb.Slice(4));
+                compressedMemory.Dispose();
+                // clear compression bits
+                payload.format = (SerializationFormat)((byte)payload.format & ~VersionAndFlags.CompressionMethodMask);
+                return rawLength;
             }
 
-            temporaryBuffer.Dispose();
-            temporaryBuffer = default;
+            comrpessedDb.WriteInt32(0, rawLength);
 
-            if (compressedSize > 0)
-            {
-                compressedMemory = compressedMemory.Slice(0, compressedSize);
-                temporaryBuffer = compressedMemory;
-                return compressedSize;
-            }
+            Debug.Assert(compressedSize > 0);
 
-            compressedMemory.Dispose();
-            return -1;
+            payload.temporaryBuffer.Dispose();
+            payload.temporaryBuffer = compressedMemory.Slice(0, compressedSize);
+
+            return compressedSize;
         }
 
         private static void PopulateTempBuffer<T>(int rawLength, T value, ref RetainedMemory<byte> temporaryBuffer, SerializationFormat format)
@@ -150,13 +156,12 @@ namespace Spreads.Serialization
             // Fixed size already returned and we do not compress it,
             // JSON always returns non-empty temp buffer.
             // The only option is that TBS returned size with empty buffer.
-            // We must now populate it for compression.
             Debug.Assert(TypeHelper<T>.BinarySerializer != null && format.IsBinary());
             var tbs = TypeHelper<T>.BinarySerializer;
             temporaryBuffer = BufferPool.RetainTemp(rawLength).Slice(0, rawLength);
             Debug.Assert(temporaryBuffer.IsPinned, "BufferPool.RetainTemp must return already pinned buffers.");
             var written = tbs.Write(value, temporaryBuffer.ToDirectBuffer());
-            ThrowHelper.AssertFailFast(rawLength == written, $"Wrong IBinarySerializer<{typeof(T).Name}> implementation");
+            if (rawLength != written) { FailWrongSerializerImplementation<T>(); }
         }
 
         #endregion SizeOf
@@ -166,29 +171,29 @@ namespace Spreads.Serialization
         #region Span overloads
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int Write<T>(T value,
+        public static int Write<T>(in T value,
             Span<byte> destination,
-            RetainedMemory<byte> temporaryBuffer = default,
+            in (RetainedMemory<byte> temporaryBuffer, SerializationFormat format) payload,
             SerializationFormat format = default)
         {
             fixed (byte* ptr = &destination.GetPinnableReference())
             {
                 var db = new DirectBuffer(destination.Length, ptr);
-                return Write(value, db, temporaryBuffer, format);
+                return Write(value, db, in payload, format);
             }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int Write<T>(T value,
+        public static int Write<T>(in T value,
             ref DataTypeHeader headerDestination,
             Span<byte> destination,
-            RetainedMemory<byte> temporaryBuffer = default,
+            in (RetainedMemory<byte> temporaryBuffer, SerializationFormat format) payload,
             SerializationFormat format = default)
         {
             fixed (byte* ptr = &destination.GetPinnableReference())
             {
                 var db = new DirectBuffer(destination.Length, ptr);
-                return Write(value, ref headerDestination, db, temporaryBuffer, format);
+                return Write(value, ref headerDestination, db, in payload, format);
             }
         }
 
@@ -197,14 +202,14 @@ namespace Spreads.Serialization
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int Write<T>(in T value,
             DirectBuffer destination,
-            RetainedMemory<byte> temporaryBuffer = default,
+            in (RetainedMemory<byte> temporaryBuffer, SerializationFormat format) payload,
             SerializationFormat format = default,
             bool noHeader = false)
         {
             int written;
             if (noHeader)
             {
-                written = Write(value, ref Unsafe.AsRef<DataTypeHeader>(null), destination, temporaryBuffer, format,
+                written = Write(value, ref Unsafe.AsRef<DataTypeHeader>(null), destination, payload, format,
                     checkHeader: false);
             }
             else
@@ -212,7 +217,7 @@ namespace Spreads.Serialization
                 ref var headerDestination = ref *(DataTypeHeader*)destination.Data;
                 destination = destination.Slice(DataTypeHeader.Size);
 
-                written = Write(value, ref headerDestination, destination, temporaryBuffer, format, checkHeader: false);
+                written = Write(value, ref headerDestination, destination, payload, format, checkHeader: false);
             }
 
             if (written > 0)
@@ -227,17 +232,17 @@ namespace Spreads.Serialization
         public static int Write<T>(in T value,
             ref DataTypeHeader headerDestination,
             DirectBuffer destination,
-            RetainedMemory<byte> temporaryBuffer = default,
+            in (RetainedMemory<byte> temporaryBuffer, SerializationFormat format) payload,
             SerializationFormat format = default)
         {
-            return Write(value, ref headerDestination, destination, temporaryBuffer, format, checkHeader: true);
+            return Write(value, ref headerDestination, destination, in payload, format, checkHeader: true);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static int Write<T>(in T value,
             ref DataTypeHeader headerDestination,
             DirectBuffer destination,
-            RetainedMemory<byte> temporaryBuffer,
+            in (RetainedMemory<byte> temporaryBuffer, SerializationFormat format) payload,
             SerializationFormat format,
             bool checkHeader)
         {
@@ -255,9 +260,9 @@ namespace Spreads.Serialization
 
                 if (TypeEnumHelper<T>.IsFixedSize)
                 {
-                    if (AdditionalCorrectnessChecks.Enabled && !temporaryBuffer.IsEmpty)
+                    if (AdditionalCorrectnessChecks.Enabled && !payload.temporaryBuffer.IsEmpty)
                     {
-                        temporaryBuffer.Dispose();
+                        payload.temporaryBuffer.Dispose();
                         ThrowTempBufferMustBeEmptyForFixedSize();
                     }
 
@@ -291,7 +296,7 @@ namespace Spreads.Serialization
                 }
             }
 
-            return WriteVarSizeOrJson(in value, ref headerDestination, destination, temporaryBuffer, format, checkHeader);
+            return WriteVarSizeOrJson(in value, ref headerDestination, destination, payload, format, checkHeader);
         }
 
         [MethodImpl(MethodImplOptions.NoInlining
@@ -302,19 +307,73 @@ namespace Spreads.Serialization
         private static int WriteVarSizeOrJson<T>(in T value,
             ref DataTypeHeader headerDestination,
             DirectBuffer destination,
-            RetainedMemory<byte> temporaryBuffer,
+            (RetainedMemory<byte> temporaryBuffer, SerializationFormat format) payload,
             SerializationFormat format,
 
             bool checkHeader)
         {
-            var tbs = TypeHelper<T>.BinarySerializer ?? JsonBinarySerializer<T>.Instance;
+            IBinarySerializer<T> tbs;
+            if (format.IsBinary())
+            {
+                tbs = TypeHelper<T>.BinarySerializer ?? JsonBinarySerializer<T>.Instance;
+            }
+            else
+            {
+                tbs = JsonBinarySerializer<T>.Instance;
+            }
 
             try
             {
-                var writeHeader = !Unsafe.AreSame(ref headerDestination, ref Unsafe.AsRef<DataTypeHeader>(null));
+                
+                if (AdditionalCorrectnessChecks.Enabled && tbs.FixedSize > 0)
+                {
+                    ThrowHelper.FailFast("Fixed case must write this type");
+                }
 
+                int rawLength;
+                if (payload.temporaryBuffer.IsEmpty)
+                {
+                    Debug.Assert(payload.temporaryBuffer._manager == null, "should not be possible with internal code");
+                    payload.temporaryBuffer.Dispose(); // noop for default, just in case
+
+                    rawLength = SizeOf(value, out payload, format);
+
+                    // Still empty, binary converter knows the size without serializing
+                    if (payload.temporaryBuffer.IsEmpty)
+                    {
+                        if (format.CompressionMethod() != CompressionMethod.None)
+                        {
+                            ThrowHelper.FailFast("SizeOf with compressed format must return non-empty payload.");
+                        }
+
+                        if (Settings.DefensiveBinarySerializerWrite && !TypeHelper<T>.IsInternalBinarySerializer)
+                        {
+#if DEBUG
+                            // ReSharper disable once PossibleNullReferenceException
+                            if (typeof(T).Namespace.Contains("Spreads"))
+                            {
+                                throw new NotImplementedException($"Serializer for {typeof(T).Name} must be marked as IsInternalBinarySerializer in TypeHelper<T>.");
+                            }
+#endif
+                            // format was given to SizeOf but returned payload is empty, which means format is ok
+                            PopulateTempBuffer(rawLength, value, ref payload.temporaryBuffer, format);
+                        }
+                    }
+                }
+                else
+                {
+                    rawLength = payload.temporaryBuffer.Length;
+                }
+
+                // TODO set correct format to header
+                var writeHeader = !Unsafe.AreSame(ref headerDestination, ref Unsafe.AsRef<DataTypeHeader>(null));
                 if (writeHeader)
                 {
+                    if (!payload.temporaryBuffer.IsEmpty)
+                    {
+                        format = payload.format;
+                    }
+
                     var header = TypeEnumHelper<T>.DataTypeHeader;
                     var vf = header.VersionAndFlags;
 
@@ -345,46 +404,8 @@ namespace Spreads.Serialization
                     headerDestination = header;
                 }
 
-                if (AdditionalCorrectnessChecks.Enabled && tbs.FixedSize > 0)
-                {
-                    ThrowHelper.FailFast("Fixed case must write this type");
-                }
-
-                int rawLength;
-                if (temporaryBuffer.IsEmpty)
-                {
-                    Debug.Assert(temporaryBuffer._manager == null, "should not be possible with internal code");
-                    temporaryBuffer.Dispose(); // noop for default, just in case
-
-                    rawLength = SizeOf(value, out temporaryBuffer, format);
-
-                    // Still empty, binary converter knows the size without serilizing
-                    if (temporaryBuffer.IsEmpty)
-                    {
-                        if (format.CompressionMethod() != CompressionMethod.None)
-                        {
-                            ThrowHelper.FailFast("Compressed format must return non-empty temporaryBuffer");
-                        }
-
-                        if (Settings.DefensiveBinarySerializerWrite && !TypeHelper<T>.IsInternalBinarySerializer)
-                        {
-#if DEBUG
-                            if (typeof(T).Namespace.Contains("Spreads"))
-                            {
-                                throw new NotImplementedException($"Serializer for {typeof(T).Name} must be marked as IsInternalBinarySerializer.");
-                            }
-#endif
-                            PopulateTempBuffer(rawLength, value, ref temporaryBuffer, format);
-                        }
-                    }
-                }
-                else
-                {
-                    rawLength = temporaryBuffer.Length;
-                }
-
                 // ReSharper disable once RedundantTypeArgumentsOfMethod
-                destination.Write<int>(0, temporaryBuffer.Length);
+                destination.Write<int>(0, payload.temporaryBuffer.Length);
 
                 const int offset = 4; // payload size
 
@@ -395,25 +416,22 @@ namespace Spreads.Serialization
                 }
 
                 // Write temp buffer
-                if (!temporaryBuffer.IsEmpty)
+                if (!payload.temporaryBuffer.IsEmpty)
                 {
-                    temporaryBuffer.Span.CopyTo(destination.Slice(offset, rawLength).Span);
+                    payload.temporaryBuffer.Span.CopyTo(destination.Slice(offset, rawLength).Span);
                     // in finally: rm.Dispose();
                 }
                 else
                 {
                     var written = tbs.Write(value, destination.Slice(offset, rawLength));
-                    if (rawLength == written)
-                    {
-                        FailWrongSerializerImplementation<T>();
-                    }
+                    if (rawLength != written) { FailWrongSerializerImplementation<T>(); }
                 }
 
                 return offset + rawLength;
             }
             finally
             {
-                temporaryBuffer.Dispose();
+                payload.temporaryBuffer.Dispose();
             }
         }
 
@@ -509,6 +527,7 @@ namespace Spreads.Serialization
                 else
                 {
                     Debug.Assert(TypeHelper<T>.BinarySerializer != null, "TypeHelper<T>.BinarySerializer != null");
+                    // ReSharper disable once RedundantAssignment
                     var consumed = tbs.Read(source, out value);
                     Debug.Assert(consumed == fs);
                 }
@@ -539,12 +558,13 @@ namespace Spreads.Serialization
                 bc = TypeHelper<T>.BinarySerializer;
             }
 
-            var payloadSize = source.Read<int>(0);
-            const int offset = 4;
+            var payloadLen = source.Read<int>(0);
 
-            var calculatedSourceSize = offset + payloadSize;
+            const int plLenOffset = 4;
 
-            if (payloadSize < 0 || calculatedSourceSize > source.Length)
+            var calculatedSourceSize = plLenOffset + payloadLen;
+
+            if (payloadLen < 0 || calculatedSourceSize > source.Length)
             {
                 goto INVALID_RETURN;
             }
@@ -554,34 +574,47 @@ namespace Spreads.Serialization
             {
                 if (header.VersionAndFlags.CompressionMethod != CompressionMethod.None)
                 {
-                    if (source.Length < 4)
+                    const int rawLenOffset = 4;
+
+                    if (source.Length < plLenOffset + rawLenOffset)
                     {
                         // raw size must be present in compressed payload
                         goto INVALID_RETURN;
                     }
 
-                    var rawLength = source.Read<int>(offset);
-                    var rawLengthAbs = Math.Abs(rawLength);
+                    // This is bullshit! If we do not compress then header must reflect that,
+                    // avoid copy and negative length
 
-                    // compressed pl: rawLen + compressedPl
+                    var rawLen = source.Read<int>(plLenOffset);
+                    var rawLenAbs = Math.Abs(rawLen);
 
-                    // we will decompress raw payload here and copy ts? and rawLength => plLen
-                    tempMemory = BufferPool.RetainTemp(offset + rawLengthAbs);
+                    // TODO This could be DOS target, e.g. | PlLen: 8 | RawLen: int.Max | 0 |
+                    // In DS we have hard limit on max message size, but to apply it here we need
+                    // another setting.
+                    // One solution is to limit off-heap buffers above e.g. 100Mb to CPU count,
+                    // above 200 Mb to CPU count /2, etc. Then use blocking collection.
+                    // Huge unused buffers will be swapped so it's OK to have them around.
+                    tempMemory = BufferPool.RetainTemp(plLenOffset + rawLenAbs);
+                    Debug.Assert(tempMemory.IsPinned, "tempMemory.IsPinned");
 
-                    // this has offset bytes free
-                    var tmpSource = tempMemory.ToDirectBuffer().Slice(offset + rawLengthAbs);
-                    var sourceUncompressed = tmpSource.Slice(offset);
+                    // Temp buffer will contain uncompressed data with payload header
+                    // as if there was no compression. We then replace source with it.
+                    var tmpSource = tempMemory.ToDirectBuffer().Slice(0, plLenOffset + rawLenAbs);
+                    var uncompressedPl = tmpSource.Slice(plLenOffset);
 
-                    var compressedRawSizeOffset = 4;
+                    // Compressed source is:
+                    // plLen [ rawLen [compressedPl]]
 
-                    if (rawLength < 0)
+                    var compressedPl = source.Slice(plLenOffset + rawLenOffset, payloadLen - rawLenOffset);
+
+                    if (rawLen < 0)
                     {
                         // payload was not compressed
-                        source.Slice(offset + compressedRawSizeOffset, rawLengthAbs).CopyTo(sourceUncompressed);
+                        compressedPl.CopyTo(uncompressedPl);
                     }
                     else
                     {
-                        var decompressedLen = Decompress(source.Slice(offset), in sourceUncompressed,
+                        var decompressedLen = Decompress(compressedPl.Span, uncompressedPl.Span,
                             header.VersionAndFlags.CompressionMethod);
                         if (decompressedLen <= 0)
                         {
@@ -599,8 +632,8 @@ namespace Spreads.Serialization
                     bc = JsonBinarySerializer<T>.Instance;
                 }
 
-                var slice = source.Slice(offset, calculatedSourceSize - offset);
-                var readSize1 = offset + bc.Read(slice, out value);
+                var slice = source.Slice(plLenOffset, calculatedSourceSize - plLenOffset);
+                var readSize1 = plLenOffset + bc.Read(slice, out value);
 
                 if (readSize1 != calculatedSourceSize)
                 {
