@@ -105,7 +105,6 @@
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.Data.DataView" Version="0.10.0" />
-    <PackageReference Include="Newtonsoft.Json" Version="12.0.1" />
     <PackageReference Include="Spreads.Native" Version="1.0.0-build1901241718R" />
     <PackageReference Include="System.Buffers" Version="4.5.0" />
     <PackageReference Include="System.Collections.Immutable" Version="1.6.0-preview.18571.3" />
