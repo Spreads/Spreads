@@ -4,7 +4,6 @@
 
 using Spreads.Buffers;
 using Spreads.Collections.Concurrent;
-using Spreads.DataTypes;
 using Spreads.Native;
 using Spreads.Serialization;
 using System;
@@ -378,12 +377,12 @@ namespace Spreads.Collections.Internal
     }
 
     internal delegate int SizeOfDelegate(VectorStorage value,
-        out RetainedMemory<byte> temporaryBuffer,
+        out (RetainedMemory<byte> temporaryBuffer, SerializationFormat format) payload,
         SerializationFormat format = default);
 
     internal delegate int WriteDelegate(VectorStorage value,
         ref DirectBuffer pinnedDestination,
-        RetainedMemory<byte> temporaryBuffer = default,
+        (RetainedMemory<byte> temporaryBuffer, SerializationFormat format) payload = default,
         SerializationFormat format = default);
 
     internal delegate int ReadDelegate(ref DirectBuffer source, out VectorStorage value);
@@ -413,17 +412,16 @@ namespace Spreads.Collections.Internal
 
         private static int Write(VectorStorage value,
             ref DirectBuffer pinnedDestination,
-            RetainedMemory<byte> temporaryBuffer = default,
+            (RetainedMemory<byte> temporaryBuffer, SerializationFormat format) payload = default,
             SerializationFormat format = default)
         {
-            return BinarySerializer.Write(new VectorStorage<T>(value), pinnedDestination, temporaryBuffer, format);
+            return BinarySerializer.Write(new VectorStorage<T>(value), pinnedDestination, payload, format);
         }
 
-        private static int SizeOf(VectorStorage value, out RetainedMemory<byte> temporaryBuffer,
+        private static int SizeOf(VectorStorage value, out (RetainedMemory<byte> temporaryBuffer, SerializationFormat format) payload,
             SerializationFormat format = default)
         {
-            return BinarySerializer.SizeOf(new VectorStorage<T>(value), out temporaryBuffer,
-                format);
+            return BinarySerializer.SizeOf(new VectorStorage<T>(value), out  payload, format);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -505,10 +503,10 @@ namespace Spreads.Collections.Internal
 
                     fixed (byte* sPtr = &Unsafe.As<T, byte>(ref arr[0]))
                     {
-                        var srcDb = new DirectBuffer(byteLen, sPtr);
-                        var destDb = destination.Slice(4);
-                        // srcDb.CopyTo(destDb);
-                        BinarySerializer.Shuffle(in srcDb, in destDb, (byte)Unsafe.SizeOf<T>());
+                        var source = new Span<byte>(sPtr, byteLen);
+                        var destSpan = destination.Slice(4).Span;
+
+                        BinarySerializer.Shuffle(source, destSpan, (byte)Unsafe.SizeOf<T>());
                     }
 
                     BufferPool<T>.Return(arr);
@@ -517,10 +515,10 @@ namespace Spreads.Collections.Internal
                 {
                     fixed (byte* sPtr = &Unsafe.As<T, byte>(ref value.Storage.Vec.DangerousGetRef<T>(0)))
                     {
-                        var srcDb = new DirectBuffer(byteLen, sPtr);
-                        var destDb = destination.Slice(4);
-                        // srcDb.CopyTo(destDb);
-                        BinarySerializer.Shuffle(in srcDb, in destDb, (byte)Unsafe.SizeOf<T>());
+                        var source = new Span<byte>(sPtr, byteLen);
+                        var destSpan = destination.Slice(4).Span;
+
+                        BinarySerializer.Shuffle(source, destSpan, (byte)Unsafe.SizeOf<T>());
                     }
                 }
 
@@ -556,11 +554,11 @@ namespace Spreads.Collections.Internal
                 // ReSharper disable once PossibleNullReferenceException
                 fixed (byte* dPtr = &Unsafe.As<T, byte>(ref rm.Vec.DangerousGetRef(0)))
                 {
-                    var srcDb = source.Slice(4);
-                    var destDb = new DirectBuffer(byteLen, dPtr);
+                    var srcDb = source.Slice(4).Span;
+                    var destDb = new Span<byte>(dPtr, byteLen);
 
                     // srcDb.CopyTo(destDb);
-                    BinarySerializer.Unshuffle(in srcDb, in destDb, (byte)Unsafe.SizeOf<T>());
+                    BinarySerializer.Unshuffle(srcDb, destDb, (byte)Unsafe.SizeOf<T>());
                 }
 
                 if (TypeHelper<T>.IsIDelta)

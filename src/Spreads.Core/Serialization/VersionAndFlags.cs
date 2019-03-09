@@ -41,7 +41,6 @@ namespace Spreads.Serialization
         internal const byte BinaryFlagMask = 0b_0000_0001;
 
         internal const byte CompressionMethodMask = 0b_0000_0110;
-        internal const byte TimestampFlagMask = 0b_0000_1000;
 
         internal const byte VersionMask = 0b_0110_0000;
 

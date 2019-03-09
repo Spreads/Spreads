@@ -311,7 +311,7 @@ namespace Spreads.Buffers
         /// A shortcut to <see cref="DirectBuffer"/> ctor that accepts <see cref="RetainedMemory{T}"/>
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static DirectBuffer ToDirectBuffer(this RetainedMemory<byte> rm)
+        internal static DirectBuffer ToDirectBuffer(this RetainedMemory<byte> rm)
         {
             return new DirectBuffer(rm);
         }
