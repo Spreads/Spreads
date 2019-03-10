@@ -351,8 +351,7 @@ namespace Spreads.Serialization
                     typeof(T).GetGenericArguments()[0]
                 );
                 var header = func();
-                var tbs = TypeHelper<T>.TypeSerializer;
-                var fs = tbs?.FixedSize ?? -1;
+                var fs = TypeHelper<T>.TypeSerializer?.FixedSize ?? -1;
                 return new TypeEnumInfo
                 {
                     Header = header,
@@ -373,16 +372,6 @@ namespace Spreads.Serialization
                 var header = func();
                
                 var fs = TypeHelper<T>.TypeSerializer?.FixedSize ?? -1;
-                if (TypeHelper<T>.TypeSerializer != null)
-                {
-                    using (var bw = BufferWriter.Create())
-                    {
-                        TypeHelper<T>.TypeSerializer.SizeOf(default, bw);
-                        BinarySerializer.SizeOf<T>(default, out var payload, SerializationFormat.Binary);
-                        payload.bufferWriter?.Dispose();
-                    }
-                    
-                }
                 return new TypeEnumInfo
                 {
                     Header = header,

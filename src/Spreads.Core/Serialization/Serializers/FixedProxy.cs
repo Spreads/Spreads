@@ -61,7 +61,6 @@ namespace Spreads.Serialization.Serializers
         {
             if (!TypeHelper<T>.HasTypeSerializer)
             {
-                Debug.Assert(TypeHelper<T>.PinnedSize == FixedSize);
                 value = source.Read<T>(0);
                 return FixedSize;
             }

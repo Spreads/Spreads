@@ -6,14 +6,12 @@ using NUnit.Framework;
 using Spreads.Buffers;
 using Spreads.DataTypes;
 using Spreads.Serialization;
-using Spreads.Threading;
 using Spreads.Utils;
 using System;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
-using System.Threading;
 
 namespace Spreads.Core.Tests.Serialization
 {
@@ -72,7 +70,7 @@ namespace Spreads.Core.Tests.Serialization
         }
 
         [Test]
-        public unsafe void CouldSerializeTuple2Nested()
+        public void CouldSerializeTuple2Nested()
         {
             var rm = BufferPool.Retain(1000);
             var db = new DirectBuffer(rm);
@@ -108,7 +106,7 @@ namespace Spreads.Core.Tests.Serialization
 
         [Test, Explicit("bench")]
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
-        public unsafe void CouldSerializeTuple2NestedBench()
+        public void CouldSerializeTuple2NestedBench()
         {
             var count = 10_000_000;
             var rm = BufferPool.Retain(1000);
@@ -146,8 +144,7 @@ namespace Spreads.Core.Tests.Serialization
                 }
             }
 
-            Thread.Sleep(100);
-            var classThatWarmsUpStuff = new ThisWillUseSerializationOfType<((long, long), (long, long))>();
+            var classThatWarmsUpStuff = new ThisWillUseSerializationOfType<((int,int),(int,int))>();
             // WarmUp<((long, long), (long, long))>();
             for (int _ = 0; _ < 5000; _++)
             {
@@ -164,7 +161,7 @@ namespace Spreads.Core.Tests.Serialization
             {
                 // Example of how to warmup serializer once for a container that
                 // will use serialization of type T.
-                // This does work when calling warmup from static field initializer.
+                // This does not work when calling warmup from static field initializer.
                 BinarySerializer.WarmUp<T>();
             }
 
@@ -176,36 +173,12 @@ namespace Spreads.Core.Tests.Serialization
                 {
                     for (int i = 0; i < count; i++)
                     {
+                        // ReSharper disable UnusedVariable
                         var sizeOf = BinarySerializer.SizeOf(val, out var tempBuf, format);
                         var written = BinarySerializer.Write(val, db, tempBuf, format);
                         var consumed = BinarySerializer.Read(db, out T val2);
+                        // ReSharper restore UnusedVariable
                     }
-                }
-            }
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveOptimization | MethodImplOptions.NoInlining)]
-        private static void CouldSerializeTuple2NestedBench_Loop<T>(int count, T val,
-            SerializationFormat format, DirectBuffer db)
-        {
-            using (Benchmark.Run("Nested Tuple2", count))
-            {
-                for (int i = 0; i < count; i++)
-                {
-                    var sizeOf = BinarySerializer.SizeOf(val, out var tempBuf, format);
-                    var written = BinarySerializer.Write(val, db, tempBuf, format);
-
-                    //if (sizeOf != written)
-                    //{
-                    //    Assert.Fail();
-                    //}
-
-                    var consumed = BinarySerializer.Read(db, out T val2);
-
-                    //if (written != consumed)
-                    //{
-                    //    Assert.Fail();
-                    //}
                 }
             }
         }
@@ -225,11 +198,11 @@ namespace Spreads.Core.Tests.Serialization
                 db.Write(0, 0);
 
                 var sizeOf = BinarySerializer.SizeOf(val, out var tempBuf, preferredFormat);
-                if (preferredFormat.IsBinary())
-                {
-                    Assert.AreEqual(10, tempBuf.bufferWriter.WrittenSpan[9]);
-                    Assert.AreEqual(DataTypeHeader.Size + BinarySerializer.PayloadLengthSize + 4 + 4 + 3, sizeOf);
-                }
+                //if (preferredFormat.IsBinary())
+                //{
+                //    Assert.AreEqual(10, tempBuf.bufferWriter.WrittenSpan[9]);
+                //    Assert.AreEqual(DataTypeHeader.Size + BinarySerializer.PayloadLengthSize + 4 + 4 + 3, sizeOf);
+                //}
 
                 var written = BinarySerializer.Write(val, db, tempBuf, preferredFormat);
                 if (preferredFormat == SerializationFormat.Json)
@@ -292,7 +265,6 @@ namespace Spreads.Core.Tests.Serialization
             var db = new DirectBuffer(rm);
 
             var val = new TaggedKeyValue<int, long>(10, 20, 1);
-            var ts = TimeService.Default.CurrentTime;
 
             var serializationFormats = new[] { SerializationFormat.Binary }; // Enum.GetValues(typeof(SerializationFormat)).Cast<SerializationFormat>()};
 
@@ -332,7 +304,7 @@ namespace Spreads.Core.Tests.Serialization
         public void CouldSerializeTaggedKeyValueBench()
         {
 #if !DEBUG
-            var count = 30_000_000;
+            var count = 100_000_000;
 #else
             var count = 1_000;
 #endif
@@ -343,41 +315,31 @@ namespace Spreads.Core.Tests.Serialization
 
             var preferredFormat = SerializationFormat.Binary;
 
-            for (int i = 0; i < count / 1000; i++)
-            {
-                var sizeOf = BinarySerializer.SizeOf(in val, out var payload, preferredFormat);
-                var written = BinarySerializer.Write(in val, db, in payload, preferredFormat);
-                if (sizeOf != written)
-                {
-                    Assert.Fail("DataTypeHeader.Size + sizeOf != written");
-                }
-                var consumed = BinarySerializer.Read(db, out TaggedKeyValue<int, long> val2,
-                skipTypeInfoValidation: false);
-                if (consumed <= 0)
-                {
-                    Assert.Fail("len3 <= 0");
-                }
-
-                if (written != consumed || val.Key != val2.Key || val.Value != val2.Value || val.Tag != val2.Tag)
-                {
-                    Assert.Fail();
-                }
-            }
+            // 5X performance difference due to warmup!
+            BinarySerializer.WarmUp<TaggedKeyValue<int, long>>();
 
             for (int _ = 0; _ < 50; _++)
             {
-                using (Benchmark.Run("TKV roundtrip", count))
-                {
-                    for (int i = 0; i < count; i++)
-                    {
-                        var sizeOf = BinarySerializer.SizeOf(in val, out var payload, preferredFormat);
-                        var written = BinarySerializer.Write(in val, db, in payload, preferredFormat);
-                        var consumed = BinarySerializer.Read(db, out TaggedKeyValue<int, long> val2, skipTypeInfoValidation: false);
-                    }
-                }
+                CouldSerializeTaggedKeyValueBench_Loop(count, val, preferredFormat, db);
             }
             Benchmark.Dump();
             rm.Dispose();
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveOptimization | MethodImplOptions.NoInlining)]
+        private static void CouldSerializeTaggedKeyValueBench_Loop(int count, TaggedKeyValue<int, long> val, SerializationFormat preferredFormat, DirectBuffer db)
+        {
+            using (Benchmark.Run("TKV roundtrip", count))
+            {
+                for (int i = 0; i < count; i++)
+                {
+                    // ReSharper disable UnusedVariable
+                    var sizeOf = BinarySerializer.SizeOf(in val, out var payload, preferredFormat);
+                    var written = BinarySerializer.Write(in val, db, in payload, preferredFormat);
+                    var consumed = BinarySerializer.Read(db, out TaggedKeyValue<int, long> val2, skipTypeInfoValidation: false);
+                    // ReSharper restore UnusedVariable
+                }
+            }
         }
 
         [Test, Explicit("output")]

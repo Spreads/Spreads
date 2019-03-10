@@ -13,6 +13,50 @@ using System.Runtime.InteropServices;
 
 namespace Spreads.Serialization.Serializers
 {
+    internal class TuplePackSerializer
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int WriteItem<T>(BufferWriter bufferWriter, in T value)
+        {
+            var offset = bufferWriter.Offset;
+            var s1 = FixedProxy<T>.SizeOf(in value, bufferWriter);
+            if (bufferWriter.Offset == offset)
+            {
+                bufferWriter.EnsureCapacity(s1);
+                var written = FixedProxy<T>.Write(in value, bufferWriter.FreeBuffer);
+                if (written != s1)
+                {
+                    BinarySerializer.FailWrongSerializerImplementation<T>(BinarySerializer.BinarySerializerFailCode
+                        .WrittenNotEqualToSizeOf);
+                }
+
+                bufferWriter.Advance(written);
+            }
+
+            return s1;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int ReadItem<T>(DirectBuffer source, out T item)
+        {
+            var consumed = FixedProxy<T>.Read(source, out item);
+            if (consumed <= 0)
+            {
+                FailShouldNotBeCalled();
+            }
+
+            return consumed;
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        internal static void FailShouldNotBeCalled()
+        {
+            ThrowHelper.FailFast(
+                "Binary serialization is only supported for fixed-size tuples." +
+                " A custom serializer must not be registered for other tuples.");
+        }
+    }
+
     #region Tuple2
 
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
@@ -38,38 +82,6 @@ namespace Spreads.Serialization.Serializers
         public TuplePack(Tuple<T1, T2> tuple)
         {
             (Item1, Item2) = tuple;
-        }
-    }
-
-    internal class TuplePackSerializer
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int WriteItem<T>(BufferWriter bufferWriter, in T value)
-        {
-            var offset = bufferWriter.Offset;
-            var s1 = FixedProxy<T>.SizeOf(in value, bufferWriter);
-            if (bufferWriter.Offset == offset)
-            {
-                bufferWriter.EnsureCapacity(s1);
-                var written = FixedProxy<T>.Write(in value, bufferWriter.FreeBuffer);
-                if (written != s1)
-                {
-                    BinarySerializer.FailWrongSerializerImplementation<T>(BinarySerializer.BinarySerializerFailCode
-                        .WrittenNotEqualToSizeOf);
-                }
-
-                bufferWriter.Advance(written);
-            }
-
-            return s1;
-        }
-
-        [MethodImpl(MethodImplOptions.NoInlining)]
-        internal static void FailShouldNotBeCalled()
-        {
-            ThrowHelper.FailFast(
-                "Binary serialization is only supported for fixed-size tuples." +
-                " A custom serializer must not be registered for other tuples.");
         }
     }
 
@@ -130,7 +142,6 @@ namespace Spreads.Serialization.Serializers
             if (HasAnySerializer)
             {
                 var bufferWriter = BufferWriter.Create();
-
                 var sizeOf = SizeOf(value, bufferWriter);
                 bufferWriter.WrittenBuffer.CopyTo(destination);
                 bufferWriter.Dispose();
@@ -153,46 +164,16 @@ namespace Spreads.Serialization.Serializers
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static int ReadItem<T>(DirectBuffer directBuffer, out T item)
-        {
-            var pos = 0;
-            int s1;
-            if (!TypeEnumHelper<T>.IsFixedSize)
-            {
-                s1 = directBuffer.Read<int>(0);
-                pos += 4;
-            }
-            else
-            {
-                s1 = TypeEnumHelper<T>.FixedSize;
-            }
-
-            var consumed = FixedProxy<T>.Read(directBuffer.Slice(pos, s1), out item);
-            if (consumed != s1)
-            {
-                return -1;
-            }
-
-            return pos + consumed;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int Read(DirectBuffer source, out TuplePack<T1, T2> value)
         {
             if (HasAnySerializer)
             {
-                var acc = 0;
+                var r1 = TuplePackSerializer.ReadItem<T1>(source, out var item1);
+                source = source.Slice(r1);
+                var r2 = TuplePackSerializer.ReadItem<T2>(source, out var item2);
 
-                var consumed = ReadItem<T1>(source, out var item1);
-                if (consumed <= 0) { goto INVALID; }
-                acc += consumed;
-
-                source = source.Slice(consumed);
-                consumed = ReadItem<T2>(source, out var item2);
-                if (consumed <= 0) { goto INVALID; }
-                acc += consumed;
                 value = new TuplePack<T1, T2>((item1, item2));
-                return acc;
+                return r1 + r2;
             }
 
             if (FixedSize > 0)
@@ -205,7 +186,6 @@ namespace Spreads.Serialization.Serializers
                 return FixedSize;
             }
 
-        INVALID:
             value = default;
             TuplePackSerializer.FailShouldNotBeCalled();
             return -1;

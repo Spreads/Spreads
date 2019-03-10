@@ -164,8 +164,9 @@ namespace Spreads.Serialization
         {
             Debug.Assert(((byte)payload.format & VersionAndFlags.CompressionMethodMask) != 0);
 
-            if (payload.bufferWriter.IsEmpty)
+            if (payload.bufferWriter == null)
             {
+                payload.bufferWriter = BufferWriter.Create();
                 FillBufferWriter(plLen, value, ref payload.bufferWriter, payload.format);
             }
 
@@ -194,8 +195,10 @@ namespace Spreads.Serialization
                 return plLen;
             }
 
+            Debug.Assert(tempWriter.Offset == 0);
             tempWriter.Write<int>(plLen);
-            tempWriter.Advance(PayloadLengthSize + compressedSize);
+            Debug.Assert(tempWriter.Offset == 4);
+            tempWriter.Advance(compressedSize);
             Debug.Assert(compressedSize > 0);
 
             payload.bufferWriter.Dispose();
