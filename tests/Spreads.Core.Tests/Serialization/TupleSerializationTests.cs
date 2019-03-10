@@ -13,7 +13,6 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
-using Spreads.Collections.Experimental;
 
 namespace Spreads.Core.Tests.Serialization
 {
@@ -70,7 +69,6 @@ namespace Spreads.Core.Tests.Serialization
 
             rm.Dispose();
         }
-
 
         [Test]
         public unsafe void CouldSerializeTuple2WithDateTime()
@@ -142,18 +140,22 @@ namespace Spreads.Core.Tests.Serialization
             rm.Dispose();
         }
 
-        [Test, Explicit("bench")]
+        [Test
+#if !DEBUG
+         , Explicit("bench")
+#endif
+        ]
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
         public void CouldSerializeTuple2NestedBench()
         {
-            var count = 10_000_000;
+            var count = TestUtils.GetBenchCount(1_000_000);
             var rm = BufferPool.Retain(1000);
             var db = new DirectBuffer(rm);
 
             var format = SerializationFormat.Binary;
 
             var classThatWarmsUpStuff = new TupleBenchmarkRunnerWithWarmUp<((int, int), (int, int))>();
-            for (int _ = 0; _ < 5000; _++)
+            for (int _ = 0; _ < TestUtils.GetBenchCount(5000, 1); _++)
             {
                 classThatWarmsUpStuff.Bench_Loop(count, default, format, db);
             }
@@ -190,18 +192,22 @@ namespace Spreads.Core.Tests.Serialization
             rm.Dispose();
         }
 
-        [Test, Explicit("bench")]
+        [Test
+#if !DEBUG
+         , Explicit("bench")
+#endif
+        ]
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
         public void CouldSerializeTuple3Bench()
         {
-            var count = 10_000_000;
+            var count = TestUtils.GetBenchCount(1_000_000);
             var rm = BufferPool.Retain(1000);
             var db = new DirectBuffer(rm);
 
             var format = SerializationFormat.Json;
 
             var classThatWarmsUpStuff = new TupleBenchmarkRunnerWithWarmUp<(Timestamp, SmallDecimal, double)>();
-            for (int _ = 0; _ < 5000; _++)
+            for (int _ = 0; _ < TestUtils.GetBenchCount(5000, 1); _++)
             {
                 classThatWarmsUpStuff.Bench_Loop(count, default, format, db);
             }
@@ -249,8 +255,7 @@ namespace Spreads.Core.Tests.Serialization
             var db = new DirectBuffer(rm);
 
             // name do not participate in serialization
-            ((long i8, int i4, short i2) ints, (double f64, float f32) floats, decimal dec, DateTime dt) val = ((1,2,3), (4,5), 6, DateTime.UtcNow);
-
+            ((long i8, int i4, short i2) ints, (double f64, float f32) floats, decimal dec, DateTime dt) val = ((1, 2, 3), (4, 5), 6, DateTime.UtcNow);
 
             var serializationFormats = Enum.GetValues(typeof(SerializationFormat)).Cast<SerializationFormat>();
 
@@ -276,18 +281,22 @@ namespace Spreads.Core.Tests.Serialization
             rm.Dispose();
         }
 
-        [Test, Explicit("bench")]
+        [Test
+#if !DEBUG
+         , Explicit("bench")
+#endif
+        ]
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
         public void CouldSerializeTuple4Bench()
         {
-            var count = 10_000_000;
+            var count = TestUtils.GetBenchCount(1_000_000);
             var rm = BufferPool.Retain(1000);
             var db = new DirectBuffer(rm);
 
             var format = SerializationFormat.Binary;
 
             var classThatWarmsUpStuff = new TupleBenchmarkRunnerWithWarmUp<(Timestamp, SmallDecimal, double, long)>();
-            for (int _ = 0; _ < 5000; _++)
+            for (int _ = 0; _ < TestUtils.GetBenchCount(5000, 1); _++)
             {
                 classThatWarmsUpStuff.Bench_Loop(count, default, format, db);
             }
@@ -295,8 +304,6 @@ namespace Spreads.Core.Tests.Serialization
 
             rm.Dispose();
         }
-
-
 
         [Test]
         public void CouldSerializeTuple5()
@@ -330,19 +337,22 @@ namespace Spreads.Core.Tests.Serialization
             rm.Dispose();
         }
 
-
-        [Test, Explicit("bench")]
+        [Test
+#if !DEBUG
+         , Explicit("bench")
+#endif
+        ]
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
         public void CouldSerializeTuple5Bench()
         {
-            var count = 10_000_000;
+            var count = TestUtils.GetBenchCount(1_000_000);
             var rm = BufferPool.Retain(1000);
             var db = new DirectBuffer(rm);
 
             var format = SerializationFormat.Binary;
 
-            var classThatWarmsUpStuff = new TupleBenchmarkRunnerWithWarmUp<(long, long, long, long, long)>();
-            for (int _ = 0; _ < 5000; _++)
+            var classThatWarmsUpStuff = new TupleBenchmarkRunnerWithWarmUp<(decimal, long, (int, short), (short, byte), long)>();
+            for (int _ = 0; _ < TestUtils.GetBenchCount(5000, 1); _++)
             {
                 classThatWarmsUpStuff.Bench_Loop(count, default, format, db);
             }
@@ -350,7 +360,6 @@ namespace Spreads.Core.Tests.Serialization
 
             rm.Dispose();
         }
-
 
         private class TupleBenchmarkRunnerWithWarmUp<T>
         {
@@ -363,7 +372,7 @@ namespace Spreads.Core.Tests.Serialization
             }
 
             [MethodImpl(MethodImplOptions.AggressiveOptimization | MethodImplOptions.NoInlining)]
-            public void Bench_Loop(int count, T val,
+            public void Bench_Loop(long count, T val,
                 SerializationFormat format, DirectBuffer db)
             {
                 using (Benchmark.Run(typeof(T).Name, count))
