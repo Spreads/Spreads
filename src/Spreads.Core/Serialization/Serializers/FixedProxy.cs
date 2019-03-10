@@ -31,7 +31,6 @@ namespace Spreads.Serialization.Serializers
         {
             if (!TypeHelper<T>.HasTypeSerializer)
             {
-                Debug.Assert(bufferWriter == null);
                 Debug.Assert(TypeHelper<T>.FixedSize == FixedSize);
                 bufferWriter?.Write(in value);
                 return FixedSize;

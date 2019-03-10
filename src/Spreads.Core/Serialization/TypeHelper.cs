@@ -268,6 +268,11 @@ namespace Spreads.Serialization
 #if SPREADS
             // TODO synchronize with TypeEnumHelper's GetTypeEnum and CreateTypeInfo
 
+            if (typeof(T) == typeof(DateTime))
+            {
+                serializer = (InternalSerializer<T>)(object)DateTimeSerializer.Instance;
+            }
+
             if (typeof(T).GetTypeInfo().IsGenericType &&
                 typeof(T).GetGenericTypeDefinition() == typeof(FixedArray<>))
             {
@@ -305,7 +310,6 @@ namespace Spreads.Serialization
                     {
                         await Task.Delay(1);
                         var sizeOf = BinarySerializer.SizeOf<T>(default, out var tempBuf, SerializationFormat.Binary);
-                        
                     });
                 }
             }
@@ -360,6 +364,33 @@ namespace Spreads.Serialization
             }
 
             #endregion Tuple3
+
+            #region Tuple4
+
+            if (typeof(T).GetTypeInfo().IsGenericType &&
+                typeof(T).GetGenericTypeDefinition() == typeof(ValueTuple<,,,>))
+            {
+                var gArgs = typeof(T).GetGenericArguments();
+
+                var serializerTmp = (InternalSerializer<T>)ValueTuple4SerializerFactory.Create(gArgs[0], gArgs[1], gArgs[2], gArgs[3]);
+                if (serializerTmp.FixedSize > 0)
+                {
+                    serializer = serializerTmp;
+                }
+            }
+
+            if (typeof(T).GetTypeInfo().IsGenericType &&
+                typeof(T).GetGenericTypeDefinition() == typeof(Tuple<,,,>))
+            {
+                var gArgs = typeof(T).GetGenericArguments();
+                var serializerTmp = (InternalSerializer<T>)Tuple4SerializerFactory.Create(gArgs[0], gArgs[1], gArgs[2], gArgs[2]);
+                if (serializerTmp.FixedSize > 0)
+                {
+                    serializer = serializerTmp;
+                }
+            }
+
+            #endregion Tuple4
 
             if (typeof(T).IsArray)
             {

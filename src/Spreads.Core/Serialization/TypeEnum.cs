@@ -522,7 +522,7 @@ namespace Spreads.Serialization
         /// <remarks>
         /// TupleN could have fixed size, e.g. (Timestamp,int,long,double).
         /// If all elements of such tuple are fixed-size scalars and their
-        /// total size is no more than 256 bytes then <see cref="DataTypeHeader.TupleNFixedSize"/>
+        /// total size is no more than 256 bytes than <see cref="DataTypeHeader.TupleNFixedSize"/>
         /// field (the slot <see cref="DataTypeHeader.TEOFS2"/>) has the total size.
         ///
         /// ```

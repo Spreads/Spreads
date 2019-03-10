@@ -6,12 +6,14 @@ using NUnit.Framework;
 using Spreads.Buffers;
 using Spreads.DataTypes;
 using Spreads.Serialization;
+using Spreads.Threading;
 using Spreads.Utils;
 using System;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
+using Spreads.Collections.Experimental;
 
 namespace Spreads.Core.Tests.Serialization
 {
@@ -69,6 +71,42 @@ namespace Spreads.Core.Tests.Serialization
             rm.Dispose();
         }
 
+
+        [Test]
+        public unsafe void CouldSerializeTuple2WithDateTime()
+        {
+            var rm = BufferPool.Retain(1000);
+            var db = new DirectBuffer(rm);
+
+            (DateTime, int) val = (DateTime.Now, 20);
+
+            var serializationFormats = Enum.GetValues(typeof(SerializationFormat)).Cast<SerializationFormat>();
+
+            foreach (var preferredFormat in serializationFormats)
+            {
+                var sizeOf = BinarySerializer.SizeOf(val, out var tempBuf, preferredFormat);
+                if (preferredFormat.IsBinary())
+                {
+                    Assert.AreEqual(16, sizeOf);
+                }
+
+                var written = BinarySerializer.Write(val, db, tempBuf, preferredFormat);
+                if (preferredFormat == SerializationFormat.Json)
+                {
+                    Console.WriteLine(Encoding.UTF8.GetString(db.Data + 8, written - 8));
+                }
+                Assert.AreEqual(sizeOf, written);
+
+                var consumed = BinarySerializer.Read(db, out (DateTime, int) val2);
+
+                Assert.AreEqual(written, consumed);
+
+                Assert.AreEqual(val, val2);
+            }
+
+            rm.Dispose();
+        }
+
         [Test]
         public void CouldSerializeTuple2Nested()
         {
@@ -77,7 +115,7 @@ namespace Spreads.Core.Tests.Serialization
 
             ((int, int), (int, int)) val = ((1, 2), (3, 4));
 
-            var serializationFormats = new[] { SerializationFormat.Binary }; // Enum.GetValues(typeof(SerializationFormat)).Cast<SerializationFormat>();
+            var serializationFormats = Enum.GetValues(typeof(SerializationFormat)).Cast<SerializationFormat>();
 
             foreach (var preferredFormat in serializationFormats)
             {
@@ -114,50 +152,153 @@ namespace Spreads.Core.Tests.Serialization
 
             var format = SerializationFormat.Binary;
 
-            Verify();
-
-            void Verify()
-            {
-                ((int, int), (int, int)) val = default; // ((1,2), ((3,4),(5,6)));
-
-                for (int i = 0; i < count / 1000; i++)
-                {
-                    var sizeOf = BinarySerializer.SizeOf(val, out var tempBuf, format);
-                    var written = BinarySerializer.Write(val, db, tempBuf, format);
-
-                    if (sizeOf != written)
-                    {
-                        Assert.Fail();
-                    }
-
-                    var consumed = BinarySerializer.Read(db, out ((int, int), (int, int)) val2);
-
-                    if (written != consumed)
-                    {
-                        Assert.Fail();
-                    }
-
-                    if (val != val2)
-                    {
-                        Assert.Fail("val != val2");
-                    }
-                }
-            }
-
-            var classThatWarmsUpStuff = new ThisWillUseSerializationOfType<((int,int),(int,int))>();
-            // WarmUp<((long, long), (long, long))>();
+            var classThatWarmsUpStuff = new TupleBenchmarkRunnerWithWarmUp<((int, int), (int, int))>();
             for (int _ = 0; _ < 5000; _++)
             {
-                classThatWarmsUpStuff.CouldSerializeTuple2NestedBench_Loop(count, default, format, db);
+                classThatWarmsUpStuff.Bench_Loop(count, default, format, db);
             }
             Benchmark.Dump();
 
             rm.Dispose();
         }
 
-        private class ThisWillUseSerializationOfType<T>
+        [Test]
+        public void CouldSerializeTuple3()
         {
-            static ThisWillUseSerializationOfType()
+            var rm = BufferPool.Retain(1000);
+            var db = new DirectBuffer(rm);
+
+            (Timestamp, int, double) val = (TimeService.Default.CurrentTime, 42, 3.1415);
+
+            var serializationFormats = Enum.GetValues(typeof(SerializationFormat)).Cast<SerializationFormat>();
+
+            foreach (var preferredFormat in serializationFormats)
+            {
+                var sizeOf = BinarySerializer.SizeOf(val, out var tempBuf, preferredFormat);
+
+                var written = BinarySerializer.Write(val, db, tempBuf, preferredFormat);
+
+                Assert.AreEqual(sizeOf, written);
+
+                var consumed = BinarySerializer.Read(db, out (Timestamp, int, double) val2);
+
+                Assert.AreEqual(written, consumed);
+
+                Assert.AreEqual(val, val2);
+            }
+
+            rm.Dispose();
+        }
+
+        [Test, Explicit("bench")]
+        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+        public void CouldSerializeTuple3Bench()
+        {
+            var count = 10_000_000;
+            var rm = BufferPool.Retain(1000);
+            var db = new DirectBuffer(rm);
+
+            var format = SerializationFormat.Json;
+
+            var classThatWarmsUpStuff = new TupleBenchmarkRunnerWithWarmUp<(Timestamp, SmallDecimal, double)>();
+            for (int _ = 0; _ < 5000; _++)
+            {
+                classThatWarmsUpStuff.Bench_Loop(count, default, format, db);
+            }
+            Benchmark.Dump();
+
+            rm.Dispose();
+        }
+
+        [Test]
+        public void CouldSerializeTuple4()
+        {
+            var rm = BufferPool.Retain(1000);
+            var db = new DirectBuffer(rm);
+
+            (Timestamp, SmallDecimal, double, DateTime) val = (TimeService.Default.CurrentTime, 42, 3.1415, DateTime.UtcNow);
+
+            var serializationFormats = Enum.GetValues(typeof(SerializationFormat)).Cast<SerializationFormat>();
+
+            foreach (var preferredFormat in serializationFormats)
+            {
+                var sizeOf = BinarySerializer.SizeOf(val, out var tempBuf, preferredFormat);
+                if (preferredFormat.IsBinary())
+                {
+                    Assert.AreEqual(4 + 32, sizeOf);
+                }
+
+                var written = BinarySerializer.Write(val, db, tempBuf, preferredFormat);
+
+                Assert.AreEqual(sizeOf, written);
+
+                var consumed = BinarySerializer.Read(db, out (Timestamp, SmallDecimal, double, DateTime) val2);
+
+                Assert.AreEqual(written, consumed);
+
+                Assert.AreEqual(val, val2);
+            }
+
+            rm.Dispose();
+        }
+
+        [Test]
+        public void CouldSerializeTuple4WithTuple3AndTuple2()
+        {
+            var rm = BufferPool.Retain(1000);
+            var db = new DirectBuffer(rm);
+
+            // name do not participate in serialization
+            ((long i8, int i4, short i2) ints, (double f64, float f32) floats, decimal dec, DateTime dt) val = ((1,2,3), (4,5), 6, DateTime.UtcNow);
+
+
+            var serializationFormats = Enum.GetValues(typeof(SerializationFormat)).Cast<SerializationFormat>();
+
+            foreach (var preferredFormat in serializationFormats)
+            {
+                var sizeOf = BinarySerializer.SizeOf(val, out var tempBuf, preferredFormat);
+                if (preferredFormat.IsBinary())
+                {
+                    Assert.AreEqual(4 + 50, sizeOf);
+                }
+
+                var written = BinarySerializer.Write(val, db, tempBuf, preferredFormat);
+
+                Assert.AreEqual(sizeOf, written);
+
+                var consumed = BinarySerializer.Read(db, out ((long, int, short), (double, float), decimal, DateTime) val2);
+
+                Assert.AreEqual(written, consumed);
+
+                Assert.AreEqual(val, val2);
+            }
+
+            rm.Dispose();
+        }
+
+        [Test, Explicit("bench")]
+        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+        public void CouldSerializeTuple4Bench()
+        {
+            var count = 10_000_000;
+            var rm = BufferPool.Retain(1000);
+            var db = new DirectBuffer(rm);
+
+            var format = SerializationFormat.Binary;
+
+            var classThatWarmsUpStuff = new TupleBenchmarkRunnerWithWarmUp<(Timestamp, SmallDecimal, double, long)>();
+            for (int _ = 0; _ < 5000; _++)
+            {
+                classThatWarmsUpStuff.Bench_Loop(count, default, format, db);
+            }
+            Benchmark.Dump();
+
+            rm.Dispose();
+        }
+
+        private class TupleBenchmarkRunnerWithWarmUp<T>
+        {
+            static TupleBenchmarkRunnerWithWarmUp()
             {
                 // Example of how to warmup serializer once for a container that
                 // will use serialization of type T.
@@ -166,10 +307,10 @@ namespace Spreads.Core.Tests.Serialization
             }
 
             [MethodImpl(MethodImplOptions.AggressiveOptimization | MethodImplOptions.NoInlining)]
-            public void CouldSerializeTuple2NestedBench_Loop(int count, T val,
+            public void Bench_Loop(int count, T val,
                 SerializationFormat format, DirectBuffer db)
             {
-                using (Benchmark.Run("Nested Tuple2", count))
+                using (Benchmark.Run(typeof(T).Name, count))
                 {
                     for (int i = 0; i < count; i++)
                     {

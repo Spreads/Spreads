@@ -5,6 +5,7 @@
 using Spreads.Buffers;
 using Spreads.Collections.Internal;
 using Spreads.DataTypes;
+using Spreads.Serialization.Serializers;
 using Spreads.Utils;
 using System;
 using System.Collections.Generic;
@@ -12,7 +13,6 @@ using System.Diagnostics;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using Spreads.Serialization.Serializers;
 
 namespace Spreads.Serialization
 {
@@ -370,8 +370,35 @@ namespace Spreads.Serialization
                     gArgs[0], gArgs[1]
                 );
                 var header = func();
-               
+
                 var fs = TypeHelper<T>.TypeSerializer?.FixedSize ?? -1;
+                return new TypeEnumInfo
+                {
+                    Header = header,
+                    FixedSize = fs
+                };
+            }
+
+            if (te == TypeEnum.TupleN)
+            {
+                // ```
+                // 0                   1                   2                   3
+                // 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+                // +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+                // | Version+Flags |     TupleN    |  TupleNCount  |   FixedSize   |
+                // +---------------------------------------------------------------+
+                // ```
+                var gArgs = typeof(T).GetGenericArguments();
+
+                var fs = TypeHelper<T>.TypeSerializer?.FixedSize ?? 0;
+
+                var header = new DataTypeHeader
+                {
+                    TEOFS = GetTeofs(),
+                    TupleNCount = checked((byte)gArgs.Length),
+                    TupleNFixedSize = (byte)(fs <= 256 ? fs : 0) // TODO >256 case
+                };
+
                 return new TypeEnumInfo
                 {
                     Header = header,
@@ -631,7 +658,7 @@ namespace Spreads.Serialization
                 {
                     return TypeEnum.TupleT3;
                 }
-                return TypeEnum.TupleTN;
+                return TypeEnum.TupleN;
             }
 
             if (typeof(T).GetTypeInfo().IsGenericType &&
@@ -641,7 +668,7 @@ namespace Spreads.Serialization
                 {
                     return TypeEnum.TupleT4;
                 }
-                return TypeEnum.TupleTN;
+                return TypeEnum.TupleN;
             }
 
             if (typeof(T).GetTypeInfo().IsGenericType &&
@@ -651,7 +678,7 @@ namespace Spreads.Serialization
                 {
                     return TypeEnum.TupleT5;
                 }
-                return TypeEnum.TupleTN;
+                return TypeEnum.TupleN;
             }
 
             if (typeof(T).GetTypeInfo().IsGenericType &&
@@ -661,7 +688,7 @@ namespace Spreads.Serialization
                 {
                     return TypeEnum.TupleT6;
                 }
-                return TypeEnum.TupleTN;
+                return TypeEnum.TupleN;
             }
 
             //
@@ -675,7 +702,7 @@ namespace Spreads.Serialization
                 {
                     return TypeEnum.TupleTN;
                 }
-                return TypeEnum.TupleTN;
+                return TypeEnum.TupleN;
             }
 
             // TODO Tuple2Version, KeyIndexValue

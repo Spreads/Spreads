@@ -37,7 +37,7 @@ namespace Spreads.Core.Run
             Settings.SharedSpinLockNotificationPort = 53412;
 
             var test = new TupleSerializationTests();
-            test.CouldSerializeTuple2NestedBench();
+            test.CouldSerializeTuple4Bench();
 
             // Console.WriteLine("Finished, press enter to exit...");
             // Console.ReadLine();
