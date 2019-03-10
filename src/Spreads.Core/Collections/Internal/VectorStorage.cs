@@ -9,7 +9,6 @@ using Spreads.Serialization;
 using System;
 using System.Buffers;
 using System.Diagnostics;
-using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
@@ -377,12 +376,12 @@ namespace Spreads.Collections.Internal
     }
 
     internal delegate int SizeOfDelegate(VectorStorage value,
-        out (RetainedMemory<byte> temporaryBuffer, SerializationFormat format) payload,
+        out (BufferWriter bufferWriter, SerializationFormat format) payload,
         SerializationFormat format = default);
 
     internal delegate int WriteDelegate(VectorStorage value,
         ref DirectBuffer pinnedDestination,
-        (RetainedMemory<byte> temporaryBuffer, SerializationFormat format) payload = default,
+        in (BufferWriter bufferWriter, SerializationFormat format) payload,
         SerializationFormat format = default);
 
     internal delegate int ReadDelegate(ref DirectBuffer source, out VectorStorage value);
@@ -412,16 +411,16 @@ namespace Spreads.Collections.Internal
 
         private static int Write(VectorStorage value,
             ref DirectBuffer pinnedDestination,
-            (RetainedMemory<byte> temporaryBuffer, SerializationFormat format) payload = default,
+            in (BufferWriter bufferWriter, SerializationFormat format) payload,
             SerializationFormat format = default)
         {
-            return BinarySerializer.Write(new VectorStorage<T>(value), pinnedDestination, payload, format);
+            return BinarySerializer.Write(new VectorStorage<T>(value), pinnedDestination, in payload, format);
         }
 
-        private static int SizeOf(VectorStorage value, out (RetainedMemory<byte> temporaryBuffer, SerializationFormat format) payload,
+        private static int SizeOf(VectorStorage value, out (BufferWriter bufferWriter, SerializationFormat format) payload,
             SerializationFormat format = default)
         {
-            return BinarySerializer.SizeOf(new VectorStorage<T>(value), out  payload, format);
+            return BinarySerializer.SizeOf(new VectorStorage<T>(value), out payload, format);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -436,6 +435,4 @@ namespace Spreads.Collections.Internal
 
         public readonly VectorStorage Storage;
     }
-
-    
 }

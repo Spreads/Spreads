@@ -2,14 +2,13 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-using Spreads.Buffers;
-using Spreads.Utils;
 using System;
 using System.Reflection;
 using System.Runtime.CompilerServices;
-using static System.Runtime.CompilerServices.Unsafe;
+using Spreads.Buffers;
+using Spreads.Utils;
 
-namespace Spreads.Serialization
+namespace Spreads.Serialization.Serializers
 {
     internal static class ArraySerializerFactory
     {
@@ -29,31 +28,18 @@ namespace Spreads.Serialization
     /// <summary>
     /// Simple copy of blittable array data. No shuffle.
     /// </summary>
-    internal class ArraySerializer<TElement> : BinarySerializer<TElement[]>
+    internal class ArraySerializer<TElement> : InternalSerializer<TElement[]>
     {
         internal static ArraySerializer<TElement> Instance =
             new ArraySerializer<TElement>();
-
-        // This is special, TypeHelper is aware of it (for others version must be > 0)
-        public override byte SerializerVersion
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => 0;
-        }
 
         public override byte KnownTypeId => 0;
 
         public override short FixedSize => 0;
 
-        public override int SizeOf(in TElement[] value, out RetainedMemory<byte> temporaryBuffer)
+        public override int SizeOf(in TElement[] value, BufferWriter payload)
         {
-            temporaryBuffer = default;
-            return 4 + value.Length * SizeOf<TElement>();
-        }
-
-        public override int SizeOf(in TElement[] value, BufferWriter bufferWriter)
-        {
-            throw new NotImplementedException();
+            return 4 + value.Length * Unsafe.SizeOf<TElement>();
         }
 
         public override unsafe int Write(in TElement[] value, DirectBuffer destination)
@@ -61,10 +47,10 @@ namespace Spreads.Serialization
             destination.Write(0, value.Length);
             if (value.Length > 0)
             {
-                ref var srcRef = ref As<TElement, byte>(ref value[0]);
-                ref var dstRef = ref AsRef<byte>(destination.Data + 4);
-                var len = SizeOf<TElement>() * value.Length;
-                CopyBlockUnaligned(ref dstRef, ref srcRef, checked((uint)len));
+                ref var srcRef = ref Unsafe.As<TElement, byte>(ref value[0]);
+                ref var dstRef = ref Unsafe.AsRef<byte>(destination.Data + 4);
+                var len = Unsafe.SizeOf<TElement>() * value.Length;
+                Unsafe.CopyBlockUnaligned(ref dstRef, ref srcRef, checked((uint)len));
                 return 4 + len;
             }
             return 4;
@@ -74,7 +60,7 @@ namespace Spreads.Serialization
         {
             var arraySize = source.Read<int>(0);
             var position = 4;
-            var payloadSize = arraySize * SizeOf<TElement>();
+            var payloadSize = arraySize * Unsafe.SizeOf<TElement>();
             if (4 + payloadSize > source.Length || arraySize < 0)
             {
                 value = default;
@@ -98,10 +84,10 @@ namespace Spreads.Serialization
                     array = new TElement[arraySize];
                 }
 
-                ref var dstRef = ref As<TElement, byte>(ref array[0]);
-                ref var srcRef = ref AsRef<byte>(source.Data + position);
+                ref var dstRef = ref Unsafe.As<TElement, byte>(ref array[0]);
+                ref var srcRef = ref Unsafe.AsRef<byte>(source.Data + position);
 
-                CopyBlockUnaligned(ref dstRef, ref srcRef, checked((uint)payloadSize));
+                Unsafe.CopyBlockUnaligned(ref dstRef, ref srcRef, checked((uint)payloadSize));
 
                 value = array;
             }

@@ -49,18 +49,11 @@ namespace Spreads.DataTypes
 
         internal class FixedArraySerializer<T> :  BinarySerializer<FixedArray<T>>, IFixedArraySerializer
         {
-            public override byte SerializerVersion => throw new System.NotImplementedException();
-
             public override byte KnownTypeId => throw new System.NotImplementedException();
 
             public override short FixedSize => throw new System.NotImplementedException();
 
-            public override int SizeOf(in FixedArray<T> value, out RetainedMemory<byte> temporaryBuffer)
-            {
-                throw new System.NotImplementedException();
-            }
-
-            public override int SizeOf(in FixedArray<T> value, BufferWriter bufferWriter)
+            public override int SizeOf(in FixedArray<T> value, BufferWriter payload)
             {
                 throw new NotImplementedException();
             }

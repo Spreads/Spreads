@@ -28,26 +28,17 @@ namespace Spreads.Collections.Internal
     // and add Json formatter.
     internal class VectorStorageSerializer<T> : BinarySerializer<VectorStorage<T>>
     {
-        public override byte SerializerVersion => 0;
-
         public override byte KnownTypeId => 0;
 
-        public override short FixedSize => -1;
+        public override short FixedSize => 0;
 
-        public override int SizeOf(in VectorStorage<T> value, out RetainedMemory<byte> temporaryBuffer)
+        public override int SizeOf(in VectorStorage<T> value, BufferWriter payload)
         {
             if (value.Storage.Stride != 1 || !TypeHelper<T>.IsFixedSize)
             {
                 ThrowHelper.ThrowNotSupportedException();
             }
-
-            temporaryBuffer = default;
             return 4 + value.Storage.Length * Unsafe.SizeOf<T>();
-        }
-
-        public override int SizeOf(in VectorStorage<T> value, BufferWriter bufferWriter)
-        {
-            throw new NotImplementedException();
         }
 
         public override unsafe int Write(in VectorStorage<T> value, DirectBuffer destination)

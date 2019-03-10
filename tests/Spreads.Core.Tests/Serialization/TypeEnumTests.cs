@@ -112,11 +112,11 @@ namespace Spreads.Core.Tests.Serialization
         [Test]
         public void ArrayVariantHeader()
         {
-            var vhArr = TypeEnumHelper<int[]>.CreateTypeInfo().Header;
+            var vhArr = TypeEnumHelper<int[]>.CreateValidateTypeInfo().Header;
             Assert.AreEqual(TypeEnum.Array, vhArr.TEOFS.TypeEnum);
             Assert.AreEqual(TypeEnum.Int32, vhArr.TEOFS1.TypeEnum);
 
-            var vhJArr = TypeEnumHelper<int[][][][][][][][][]>.CreateTypeInfo().Header;
+            var vhJArr = TypeEnumHelper<int[][][][][][][][][]>.CreateValidateTypeInfo().Header;
             Console.WriteLine(vhJArr.TEOFS);
             Console.WriteLine(vhJArr.TEOFS1);
             Console.WriteLine(vhJArr.TEOFS2);
@@ -126,7 +126,7 @@ namespace Spreads.Core.Tests.Serialization
             Assert.AreEqual(8, vhJArr.TEOFS2.Size);
             Assert.AreEqual(TypeEnum.Int32, vhJArr.TEOFS1.TypeEnum);
 
-            var vhJArrKvp = TypeEnumHelper<KeyValuePair<int, int>[][][][][][][][][]>.CreateTypeInfo().Header;
+            var vhJArrKvp = TypeEnumHelper<KeyValuePair<int, int>[][][][][][][][][]>.CreateValidateTypeInfo().Header;
             Console.WriteLine(vhJArrKvp.TEOFS);
             Console.WriteLine(vhJArrKvp.TEOFS1);
             Console.WriteLine(vhJArrKvp.TEOFS2);
@@ -208,7 +208,7 @@ namespace Spreads.Core.Tests.Serialization
             Assert.AreEqual(TypeEnum.Int32, vh.TEOFS1.TypeEnum);
             Assert.AreEqual(8, TypeEnumHelper<(int, int)>.FixedSize);
 
-            vh = TypeEnumHelper<KeyValuePair<int, int>>.CreateTypeInfo().Header;
+            vh = TypeEnumHelper<KeyValuePair<int, int>>.CreateValidateTypeInfo().Header;
             Console.WriteLine(vh.TEOFS);
             Console.WriteLine(vh.TEOFS1);
             Console.WriteLine(vh.TEOFS2);
@@ -218,7 +218,7 @@ namespace Spreads.Core.Tests.Serialization
             Assert.AreEqual(8, TypeEnumHelper<KeyValuePair<int, int>>.FixedSize);
 
             // same but huge types, Tuple2T with Schema
-            vh = TypeEnumHelper<KeyValuePair<KeyValuePair<int, int>[][][][][][][][][], KeyValuePair<int, int>[][][][][][][][][]>>.CreateTypeInfo().Header;
+            vh = TypeEnumHelper<KeyValuePair<KeyValuePair<int, int>[][][][][][][][][], KeyValuePair<int, int>[][][][][][][][][]>>.CreateValidateTypeInfo().Header;
             Console.WriteLine(vh.TEOFS);
             Console.WriteLine(vh.TEOFS1);
             Console.WriteLine(vh.TEOFS2);

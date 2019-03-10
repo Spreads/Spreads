@@ -22,22 +22,9 @@ namespace Spreads.Serialization.Serializers
         // This is not a "binary" converter, but a fallback with the same interface
         public static JsonBinarySerializer<T> Instance = new JsonBinarySerializer<T>();
 
-        public override byte SerializerVersion
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => 0;
-        }
-
         public override byte KnownTypeId => 0;
 
         public override short FixedSize => -1;
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int SizeOfStatic(in T value, out RetainedMemory<byte> temporaryBuffer)
-        {
-            temporaryBuffer = JsonSerializer.SerializeToRetainedMemory(value);
-            return temporaryBuffer.Length;
-        }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int SizeOfStatic(in T value, BufferWriter bufferWriter)
@@ -48,45 +35,40 @@ namespace Spreads.Serialization.Serializers
             var segment = JsonSerializer.SerializeToRentedBuffer(value);
             var size = segment.Count;
 
-            bufferWriter.Write<int>(size);
-            bufferWriter.Write(segment.AsSpan());
+            bufferWriter.WriteSpan(segment.AsSpan());
 
             BufferPool<byte>.Return(segment.Array, false);
 
             return size;
         }
 
-        public override int SizeOf(in T value, BufferWriter bufferWriter)
+        public override int SizeOf(in T value, BufferWriter payload)
         {
-            return SizeOfStatic(in value, bufferWriter);
-        }
-
-        public override int SizeOf(in T value, out RetainedMemory<byte> temporaryBuffer)
-        {
-            return SizeOfStatic(in value, out temporaryBuffer);
+            return SizeOfStatic(in value, payload);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int WriteStatic(in T value, in DirectBuffer destination)
         {
-            var size = SizeOfStatic(value, out var retainedMemory);
+            var bufferWriter = BufferWriter.Create();
+            var size = SizeOfStatic(value, bufferWriter);
             try
             {
                 // in general buffer could be empty/default if size is known, but not with Json
-                ThrowHelper.AssertFailFast(size == retainedMemory.Length, "size == buffer.Count");
+                ThrowHelper.AssertFailFast(size == bufferWriter.Offset, "size == buffer.Count");
 
                 if (size > destination.Length)
                 {
                     return (int)BinarySerializerErrorCode.NotEnoughCapacity;
                 }
 
-                retainedMemory.Span.CopyTo(destination.Span);
+                bufferWriter.WrittenSpan.CopyTo(destination.Span);
 
                 return size;
             }
             finally
             {
-                retainedMemory.Dispose();
+                bufferWriter.Dispose();
             }
         }
 

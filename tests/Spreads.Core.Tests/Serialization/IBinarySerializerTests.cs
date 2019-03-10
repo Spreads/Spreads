@@ -79,26 +79,14 @@ namespace Spreads.Core.Tests.Serialization
 
             internal class Serializer : BinarySerializer<SampleStruct>
             {
-                public override byte SerializerVersion
-                {
-                    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-                    get => 1;
-                }
-
                 public override byte KnownTypeId => 0;
 
                 public override short FixedSize => 4;
 
                 [MethodImpl(MethodImplOptions.AggressiveInlining)]
-                public override int SizeOf(in SampleStruct value, out RetainedMemory<byte> temporaryBuffer)
-                {
-                    temporaryBuffer = default;
-                    return 4;
-                }
-
                 public override int SizeOf(in SampleStruct value, BufferWriter bufferWriter)
                 {
-                    throw new NotImplementedException();
+                    return FixedSize;
                 }
 
                 [MethodImpl(MethodImplOptions.AggressiveInlining)]

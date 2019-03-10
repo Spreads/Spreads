@@ -18,7 +18,7 @@ namespace Spreads.Serialization
     /// Format:
     /// 0 1 2 3 4 5 6 7 8
     /// +-+-+-+-+-+-+-+-+
-    /// |0|Ver|R|R|CMP|B|
+    /// |0|R|R|R|R|CMP|B|
     /// +---------------+
     /// B - Binary format (read as "Not JSON"). If not set then the payload is JSON, if set then payload is blittable or custom binary.
     /// CMP - compression method:
@@ -26,8 +26,7 @@ namespace Spreads.Serialization
     ///     01 - GZip
     ///     10 - Lz4
     ///     11 - Zstd
-    /// R - reserved.
-    /// Ver - <see cref="BinarySerializer{T}.SerializerVersion"/> version.
+    /// R - reserved bits.
     /// 0 - will need completely new layout when this is not zero.
     /// </remarks>
     [StructLayout(LayoutKind.Sequential, Pack = 1, Size = 1)]
@@ -45,14 +44,6 @@ namespace Spreads.Serialization
         internal const byte VersionMask = 0b_0110_0000;
 
         private byte _value;
-
-        public byte ConverterVersion
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => (byte)(_value >> VersionBitsOffset);
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            set => _value = (byte)((_value & ~VersionMask) | ((value << VersionBitsOffset) & VersionMask));
-        }
 
         public CompressionMethod CompressionMethod
         {

@@ -13,7 +13,7 @@ namespace Spreads.Serialization
     /// Abbreviated as TEOFS in code and comments.
     /// </summary>
     [StructLayout(LayoutKind.Sequential, Size = 1, Pack = 1)]
-    public readonly unsafe struct TypeEnumOrFixedSize : IEquatable<TypeEnumOrFixedSize>
+    public readonly struct TypeEnumOrFixedSize : IEquatable<TypeEnumOrFixedSize>
     {
         public const int MaxScalarEnum = 63;
         public const int MaxTypeEnum = 127;
@@ -45,6 +45,9 @@ namespace Spreads.Serialization
             _value = (byte)(UnknownFixedSizeFlag | value);
         }
 
+        /// <summary>
+        /// Own size of a type.
+        /// </summary>
         public short Size
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]

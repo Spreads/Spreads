@@ -63,9 +63,6 @@ namespace Spreads.Core.Tests.Serialization
 
             Assert.AreEqual(SerializationFormat.JsonGZip, vf.SerializationFormat);
             Assert.AreEqual(CompressionMethod.GZip, vf.CompressionMethod);
-
-            vf.ConverterVersion = 3;
-            Assert.AreEqual(3, vf.ConverterVersion);
         }
 
         [Test]

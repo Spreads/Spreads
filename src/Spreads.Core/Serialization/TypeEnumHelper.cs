@@ -12,6 +12,7 @@ using System.Diagnostics;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using Spreads.Serialization.Serializers;
 
 namespace Spreads.Serialization
 {
@@ -107,6 +108,8 @@ namespace Spreads.Serialization
         internal static short GetSize(byte typeEnumValue)
         {
             #region Branchless
+
+            // TODO delete this
 
             // Branchless is 3-5x slower and we pay the cost always.
             // Our goal is not to pay anything for known scalars
@@ -212,13 +215,14 @@ namespace Spreads.Serialization
         //}
     }
 
-    internal struct TypeInfo<T>
+    internal struct TypeEnumInfo
     {
         public DataTypeHeader Header;
 
         /// <summary>
         /// Calculated recursively, not just pinned size/
         /// </summary>
+        // ReSharper disable once MemberHidesStaticFromOuterClass
         public short FixedSize;
 
         /// <summary>
@@ -229,34 +233,35 @@ namespace Spreads.Serialization
     }
 
     // ReSharper disable once ConvertToStaticClass
-    internal sealed unsafe class TypeEnumHelper<T>
+    internal sealed class TypeEnumHelper<T>
     {
+        // Need non-static to use as type argument.
         private TypeEnumHelper()
         {
         }
 
         // TypeHelper`T does a first-pass, parses BinarySerializationAttribute,
-        // checks if the type implements IBinarySerializerEx or registers known ones,
+        // checks if the type inherits from BinarySerializer<T>,
         // calculates pinned size, etc.
-        // But TypeHelper`T is dumb and straightforward,
-        // it is only concerned about the type T as is.
-        // Here we handle special cases, e.g. redirecting special type
-        // shapes to custom serializers, calculate composite fixed size
-        // and construct composite type schema.
+        // But TypeHelper<T> is narrow focused and
+        // is only concerned about the .NET runtime type T as is.
+        // TypeEnumHelper<T> handles special cases, e.g. redirects known type
+        // shapes to custom serializers, calculates composite fixed size
+        // and (TODO) constructs composite type schema.
 
         // ReSharper disable StaticMemberInGenericType
-        public static readonly TypeInfo<T> TypeInfo = CreateTypeInfo();
+        public static readonly TypeEnumInfo TypeInfo = CreateValidateTypeInfo();
 
         public static readonly DataTypeHeader DataTypeHeader = TypeInfo.Header;
 
         public static readonly short FixedSize = TypeInfo.FixedSize;
+
         public static readonly bool IsFixedSize = FixedSize > 0;
 
         internal static readonly DataTypeHeader DefaultBinaryHeader = new DataTypeHeader
         {
             VersionAndFlags =
             {
-                ConverterVersion = TypeHelper<T>.TypeSerializer?.SerializerVersion ?? 0,
                 IsBinary = true,
                 CompressionMethod = CompressionMethod.None
             },
@@ -265,14 +270,35 @@ namespace Spreads.Serialization
             TEOFS2 = DataTypeHeader.TEOFS2
         };
 
-        internal static TypeInfo<T> CreateTypeInfo()
+        internal static TypeEnumInfo CreateValidateTypeInfo()
+        {
+            var ti = CreateTypeInfo();
+
+            // TODO check all contracts that we want to ensure
+
+            if (ti.FixedSize > 0)
+            {
+                if ((!TypeHelper<T>.IsFixedSize && !TypeHelper<T>.HasTypeSerializer)
+                    ||
+                    (!TypeHelper<T>.IsFixedSize && TypeHelper<T>.HasTypeSerializer && TypeHelper<T>.TypeSerializer.FixedSize <= 0)
+                    )
+                {
+                    throw new InvalidOperationException("Fixed size type could be either a primitive or well-known scalar type, " +
+                                                        "a blittable user structure or a type with BinarySerializer the FixedSize property of which is positive");
+                }
+            }
+
+            return ti;
+        }
+
+        private static TypeEnumInfo CreateTypeInfo()
         {
             var teofs = GetTeofs();
             var te = teofs.TypeEnum;
             if ((byte)te <= TypeEnumOrFixedSize.MaxScalarEnum
                 || te == TypeEnum.FixedSize)
             {
-                return new TypeInfo<T>
+                return new TypeEnumInfo
                 {
                     // Scalars have only one field set
                     Header = new DataTypeHeader
@@ -290,7 +316,7 @@ namespace Spreads.Serialization
                     typeof(T).GetElementType()
                 );
                 var header = func();
-                return new TypeInfo<T>()
+                return new TypeEnumInfo()
                 {
                     Header = header,
                     FixedSize = -1
@@ -306,7 +332,7 @@ namespace Spreads.Serialization
                     typeof(T).GetGenericArguments()[0]
                 );
                 var header = func();
-                return new TypeInfo<T>
+                return new TypeEnumInfo
                 {
                     Header = header,
                     FixedSize = 0 // This is a nasty special case and is rewritten by BS
@@ -327,7 +353,7 @@ namespace Spreads.Serialization
                 var header = func();
                 var tbs = TypeHelper<T>.TypeSerializer;
                 var fs = tbs?.FixedSize ?? -1;
-                return new TypeInfo<T>
+                return new TypeEnumInfo
                 {
                     Header = header,
                     FixedSize = fs
@@ -345,9 +371,19 @@ namespace Spreads.Serialization
                     gArgs[0], gArgs[1]
                 );
                 var header = func();
-                var tbs = TypeHelper<T>.TypeSerializer;
-                var fs = tbs?.FixedSize ?? -1;
-                return new TypeInfo<T>
+               
+                var fs = TypeHelper<T>.TypeSerializer?.FixedSize ?? -1;
+                if (TypeHelper<T>.TypeSerializer != null)
+                {
+                    using (var bw = BufferWriter.Create())
+                    {
+                        TypeHelper<T>.TypeSerializer.SizeOf(default, bw);
+                        BinarySerializer.SizeOf<T>(default, out var payload, SerializationFormat.Binary);
+                        payload.bufferWriter?.Dispose();
+                    }
+                    
+                }
+                return new TypeEnumInfo
                 {
                     Header = header,
                     FixedSize = fs
@@ -362,7 +398,7 @@ namespace Spreads.Serialization
                     fs = Math.Max((short)0, TypeHelper<T>.TypeSerializer.FixedSize);
                 }
 
-                return new TypeInfo<T>
+                return new TypeEnumInfo
                 {
                     Header = new DataTypeHeader
                     {
@@ -373,7 +409,7 @@ namespace Spreads.Serialization
                 };
             }
 
-            return new TypeInfo<T>
+            return new TypeEnumInfo
             {
                 Header = new DataTypeHeader { TEOFS = new TypeEnumOrFixedSize(te) },
                 FixedSize = -1
@@ -683,7 +719,7 @@ namespace Spreads.Serialization
             // Fixed types should rarely have a custom serializer
             // but if they then the serializer is more important.
 
-            if (TypeHelper<T>.HasBinarySerializer && !TypeHelper<T>.IsInternalBinarySerializer)
+            if (TypeHelper<T>.HasTypeSerializer && !TypeHelper<T>.IsTypeSerializerInternal)
             {
                 return TypeEnum.UserType;
             }

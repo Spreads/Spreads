@@ -2,22 +2,22 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+using Spreads.Collections.Concurrent;
+using Spreads.Serialization;
+using Spreads.Utils;
 using System;
 using System.Buffers;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
-using Spreads.Collections.Concurrent;
-using Spreads.Serialization;
-using Spreads.Utils;
 
 namespace Spreads.Buffers
 {
     /// <summary>
-    /// Unsafe buffer reader.
+    /// Unsafe fast buffer writer.
     /// </summary>
     public unsafe class BufferWriter : IBufferWriter<byte>, IDisposable
     {
-        private static readonly ObjectPool<BufferWriter> ObjectPool = new ObjectPool<BufferWriter>(() => new BufferWriter(), Environment.ProcessorCount * 16);
+        private static readonly ObjectPool<BufferWriter> ObjectPool = new ObjectPool<BufferWriter>(() => new BufferWriter(), Environment.ProcessorCount * 4);
 
         private BufferWriter()
         { }
@@ -30,19 +30,36 @@ namespace Spreads.Buffers
             return buffer;
         }
 
-        internal const int MinLen = 2048;
+        internal const int MinLen = 16 * 1024;
         internal const int MaxLen = 1024 * 1024 * 1024;
 
         private RetainedMemory<byte> _buffer;
         private int _offset;
 
         public int Offset => _offset;
+
         public bool IsEmpty => _offset == 0;
+
+        public bool IsDisposed => _offset == -1;
 
         public ReadOnlySpan<byte> WrittenSpan
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => new Span<byte>(_buffer.Pointer, _offset);
+            get
+            {
+                CheckDisposed();
+                return new Span<byte>(_buffer.Pointer, _offset);
+            }
+        }
+
+        public ReadOnlyMemory<byte> WrittenMemory
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get
+            {
+                CheckDisposed();
+                return _buffer.Memory.Slice(0, _offset);
+            }
         }
 
         internal DirectBuffer WrittenBuffer
@@ -51,35 +68,63 @@ namespace Spreads.Buffers
             get => new DirectBuffer(_offset, (byte*)_buffer.Pointer);
         }
 
-        internal DirectBuffer AvailableBuffer
+        public ReadOnlySpan<byte> FreeSpan
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => new DirectBuffer(AvailableLength, FirstFreePointer);
+            get
+            {
+                CheckDisposed();
+                return new Span<byte>(FirstFreePointer, FreeCapacity);
+            }
         }
 
-        public int AvailableLength
+        public ReadOnlyMemory<byte> FreeMemory
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => _buffer.Length - _offset;
+            get
+            {
+                CheckDisposed();
+                return _buffer.Memory.Slice(_offset, FreeCapacity);
+            }
         }
 
-        public ref byte FirstFreeByte
+        internal DirectBuffer FreeBuffer
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => new DirectBuffer(FreeCapacity, FirstFreePointer);
+        }
+
+        public int FreeCapacity
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get
+            {
+                CheckDisposed();
+                return _buffer.Length - checked((int)(uint)_offset);
+            }
+        }
+
+        internal ref byte FirstFreeByte
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => ref *((byte*)_buffer.Pointer + _offset);
         }
 
-        public byte* FirstFreePointer
+        internal byte* FirstFreePointer
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => ((byte*)_buffer.Pointer + _offset);
         }
 
+        /// <summary>
+        /// Ensures capacity and writes an unmanaged structure <paramref name="value"/> at current offset.
+        /// Type <typeparamref name="T"/> is not checked in release mode. This is equivalent of calling
+        /// <see cref="Unsafe.WriteUnaligned{T}(ref byte,T)"/>.
+        /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public int Write<T>(T value)
+        public int Write<T>(in T value)
         {
             Debug.Assert(TypeHelper<T>.IsFixedSize, "BufferWrite.Write<T> works only when TypeHelper<T>.IsFixedSize.");
-
             var appendLength = Unsafe.SizeOf<T>();
             EnsureCapacity(appendLength);
             Unsafe.WriteUnaligned(ref *((byte*)_buffer.Pointer + _offset), value);
@@ -87,30 +132,56 @@ namespace Spreads.Buffers
             return appendLength;
         }
 
+        /// <summary>
+        /// Write at custom offset. Could overwrite data in already written segment.
+        /// Usually this is the intent when using this method but be very careful.
+        /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public int Write(DirectBuffer value)
+        internal int DangerousWriteAtOffset<T>(T value, int offset)
         {
-            var appendLength = value.Length;
+            Debug.Assert(TypeHelper<T>.IsFixedSize, "BufferWrite.Write<T> works only when TypeHelper<T>.IsFixedSize.");
+            var appendLength = Math.Max(0, offset + Unsafe.SizeOf<T>() - _offset);
             EnsureCapacity(appendLength);
-
-            value.Span.CopyTo(_buffer.Span.Slice(_offset));
+            Unsafe.WriteUnaligned(ref *((byte*)_buffer.Pointer + offset), value);
             _offset += appendLength;
             return appendLength;
         }
 
+        /// <summary>
+        /// Ensures capacity for and writes the entire content of <paramref name="buffer"/>.
+        /// Returns the number of bytes written, which must equal to <paramref name="buffer"/> length.
+        /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public int Write(ReadOnlySpan<byte> value)
+        public int Write(DirectBuffer buffer)
         {
-            var appendLength = value.Length;
+            var appendLength = buffer.Length;
             EnsureCapacity(appendLength);
 
-            value.CopyTo(_buffer.Span.Slice(_offset));
+            buffer.Span.CopyTo(_buffer.Span.Slice(_offset));
             _offset += appendLength;
             return appendLength;
         }
 
+        /// <summary>
+        /// Ensures capacity for and writes the entire content of <paramref name="span"/>.
+        /// Returns the number of bytes written, which must equal to <paramref name="span"/> length.
+        /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public int Write(ref byte source, uint length)
+        public int WriteSpan(ReadOnlySpan<byte> span)
+        {
+            var appendLength = span.Length;
+            EnsureCapacity(appendLength);
+
+            span.CopyTo(_buffer.Span.Slice(_offset));
+            _offset += appendLength;
+            return appendLength;
+        }
+
+        /// <summary>
+        /// Ensures capacity and writes <paramref name="length"/> number of bytes starting from <paramref name="source"/> byte reference.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal int Write(ref byte source, uint length)
         {
             var appendLength = (int)length;
             EnsureCapacity(appendLength);
@@ -120,12 +191,15 @@ namespace Spreads.Buffers
             return appendLength;
         }
 
+        /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Advance(int count)
         {
+            CheckDisposed();
             _offset += count;
         }
 
+        /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Memory<byte> GetMemory(int sizeHint = 0)
         {
@@ -133,6 +207,7 @@ namespace Spreads.Buffers
             return _buffer.Memory.Slice(_offset);
         }
 
+        /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Span<byte> GetSpan(int sizeHint = 0)
         {
@@ -143,6 +218,7 @@ namespace Spreads.Buffers
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void EnsureCapacity(int appendLength)
         {
+            // we will get a huge number when _offset == -1 and resize path checks for disposed
             var newLength = unchecked((uint)_offset + (uint)appendLength);
             var current = (uint)_buffer.Length;
             if (newLength > current)
@@ -158,10 +234,8 @@ namespace Spreads.Buffers
         )]
         private void EnsureCapacityResize(int appendLength)
         {
-            if (_offset == -1)
-            {
-                BuffersThrowHelper.ThrowDisposed<BufferWriter>();
-            }
+            CheckDisposed();
+
             var newLength = BitUtil.FindNextPositivePowerOfTwo(_offset + appendLength);
             if (newLength < MinLen)
             {
@@ -191,16 +265,33 @@ namespace Spreads.Buffers
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal RetainedMemory<byte> DetachBuffer()
+        {
+            CheckDisposed();
+            _offset = -1;
+            var buffer = _buffer;
+            _buffer = default;
+            ObjectPool.Free(this);
+            return buffer;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal void Dispose(bool disposing)
         {
             _offset = -1;
             if (disposing)
             {
+                if (_buffer.Length > MinLen)
+                {
+                    _buffer.Dispose();
+                    _buffer = default;
+                }
                 ObjectPool.Free(this);
             }
             else
             {
                 _buffer.Dispose();
+                _buffer = default;
             }
         }
 
@@ -214,6 +305,15 @@ namespace Spreads.Buffers
         ~BufferWriter()
         {
             Dispose(false);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void CheckDisposed()
+        {
+            if (AdditionalCorrectnessChecks.Enabled && _offset < 0)
+            {
+                BuffersThrowHelper.ThrowDisposed<BufferWriter>();
+            }
         }
     }
 }

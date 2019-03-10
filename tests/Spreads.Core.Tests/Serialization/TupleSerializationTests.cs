@@ -13,6 +13,7 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Threading;
 
 namespace Spreads.Core.Tests.Serialization
 {
@@ -84,14 +85,14 @@ namespace Spreads.Core.Tests.Serialization
             {
                 db.Write(0, 0);
 
-                var sizeOf = BinarySerializer.SizeOf2(val, out var tempBuf, preferredFormat);
+                var sizeOf = BinarySerializer.SizeOf(val, out var tempBuf, preferredFormat);
                 //if (preferredFormat.IsBinary())
                 //{
                 //    Assert.AreEqual(10, tempBuf.temporaryBuffer.Span[9]);
                 //    Assert.AreEqual(DataTypeHeader.Size + BinarySerializer.PayloadLengthSize + 4 + 4 + 3, sizeOf);
                 //}
 
-                var written = BinarySerializer.Write2(val, db, tempBuf, preferredFormat);
+                var written = BinarySerializer.Write(val, db, tempBuf, preferredFormat);
 
                 Assert.AreEqual(sizeOf, written);
 
@@ -109,7 +110,7 @@ namespace Spreads.Core.Tests.Serialization
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
         public unsafe void CouldSerializeTuple2NestedBench()
         {
-            var count = 1_000_000;
+            var count = 10_000_000;
             var rm = BufferPool.Retain(1000);
             var db = new DirectBuffer(rm);
 
@@ -119,7 +120,7 @@ namespace Spreads.Core.Tests.Serialization
 
             void Verify()
             {
-                ((int, int), ((int, int), (int, int))) val = default; // ((1,2), ((3,4),(5,6)));
+                ((int, int), (int, int)) val = default; // ((1,2), ((3,4),(5,6)));
 
                 for (int i = 0; i < count / 1000; i++)
                 {
@@ -131,7 +132,7 @@ namespace Spreads.Core.Tests.Serialization
                         Assert.Fail();
                     }
 
-                    var consumed = BinarySerializer.Read(db, out ((int, int), ((int, int), (int, int))) val2);
+                    var consumed = BinarySerializer.Read(db, out ((int, int), (int, int)) val2);
 
                     if (written != consumed)
                     {
@@ -145,13 +146,42 @@ namespace Spreads.Core.Tests.Serialization
                 }
             }
 
+            Thread.Sleep(100);
+            var classThatWarmsUpStuff = new ThisWillUseSerializationOfType<((long, long), (long, long))>();
+            // WarmUp<((long, long), (long, long))>();
             for (int _ = 0; _ < 5000; _++)
             {
-                CouldSerializeTuple2NestedBench_Loop<((((int, int), (int, int)), ((int, int), (int, int))), (((int, int), (int, int)), ((int, int), (int, int))))>(count, default, format, db);
+                classThatWarmsUpStuff.CouldSerializeTuple2NestedBench_Loop(count, default, format, db);
             }
             Benchmark.Dump();
 
             rm.Dispose();
+        }
+
+        private class ThisWillUseSerializationOfType<T>
+        {
+            static ThisWillUseSerializationOfType()
+            {
+                // Example of how to warmup serializer once for a container that
+                // will use serialization of type T.
+                // This does work when calling warmup from static field initializer.
+                BinarySerializer.WarmUp<T>();
+            }
+
+            [MethodImpl(MethodImplOptions.AggressiveOptimization | MethodImplOptions.NoInlining)]
+            public void CouldSerializeTuple2NestedBench_Loop(int count, T val,
+                SerializationFormat format, DirectBuffer db)
+            {
+                using (Benchmark.Run("Nested Tuple2", count))
+                {
+                    for (int i = 0; i < count; i++)
+                    {
+                        var sizeOf = BinarySerializer.SizeOf(val, out var tempBuf, format);
+                        var written = BinarySerializer.Write(val, db, tempBuf, format);
+                        var consumed = BinarySerializer.Read(db, out T val2);
+                    }
+                }
+            }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveOptimization | MethodImplOptions.NoInlining)]
@@ -162,8 +192,8 @@ namespace Spreads.Core.Tests.Serialization
             {
                 for (int i = 0; i < count; i++)
                 {
-                    var sizeOf = BinarySerializer.SizeOf2(val, out var tempBuf, format);
-                    var written = BinarySerializer.Write2(val, db, tempBuf, format);
+                    var sizeOf = BinarySerializer.SizeOf(val, out var tempBuf, format);
+                    var written = BinarySerializer.Write(val, db, tempBuf, format);
 
                     //if (sizeOf != written)
                     //{
@@ -197,7 +227,7 @@ namespace Spreads.Core.Tests.Serialization
                 var sizeOf = BinarySerializer.SizeOf(val, out var tempBuf, preferredFormat);
                 if (preferredFormat.IsBinary())
                 {
-                    Assert.AreEqual(10, tempBuf.temporaryBuffer.Span[9]);
+                    Assert.AreEqual(10, tempBuf.bufferWriter.WrittenSpan[9]);
                     Assert.AreEqual(DataTypeHeader.Size + BinarySerializer.PayloadLengthSize + 4 + 4 + 3, sizeOf);
                 }
 

@@ -63,12 +63,7 @@ namespace Spreads.Core.Tests
             public override byte KnownTypeId => 0;
 
             public override short FixedSize => -1;
-            public override byte SerializerVersion => 1;
-            public override int SizeOf(in MyPocoWithConvertor value, out RetainedMemory<byte> temporaryBuffer)
-            {
-                throw new NotImplementedException();
-            }
-
+            
             public override int SizeOf(in MyPocoWithConvertor value, BufferWriter bufferWriter)
             {
                 throw new NotImplementedException();
