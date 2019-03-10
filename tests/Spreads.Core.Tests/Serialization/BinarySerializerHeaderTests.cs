@@ -25,34 +25,39 @@ namespace Spreads.Core.Tests.Serialization
                 Value = value;
             }
 
-            internal readonly struct Serializer : IBinarySerializer<SampleStruct>
+            internal class Serializer : BinarySerializer<SampleStruct>
             {
-                public byte SerializerVersion
+                public override byte SerializerVersion
                 {
                     [MethodImpl(MethodImplOptions.AggressiveInlining)]
                     get => 1;
                 }
 
-                public byte KnownTypeId => 0;
+                public override byte KnownTypeId => 0;
 
-                public short FixedSize => 4;
+                public override short FixedSize => 4;
 
                 [MethodImpl(MethodImplOptions.AggressiveInlining)]
-                public int SizeOf(in SampleStruct value, out RetainedMemory<byte> temporaryBuffer)
+                public override int SizeOf(in SampleStruct value, out RetainedMemory<byte> temporaryBuffer)
                 {
                     temporaryBuffer = default;
                     return 4;
                 }
 
+                public override int SizeOf(in SampleStruct value, BufferWriter bufferWriter)
+                {
+                    throw new System.NotImplementedException();
+                }
+
                 [MethodImpl(MethodImplOptions.AggressiveInlining)]
-                public int Write(in SampleStruct value, DirectBuffer destination)
+                public override int Write(in SampleStruct value, DirectBuffer destination)
                 {
                     destination.WriteInt32(0, value.Value);
                     return 4;
                 }
 
                 [MethodImpl(MethodImplOptions.AggressiveInlining)]
-                public int Read(DirectBuffer source, out SampleStruct value)
+                public override int Read(DirectBuffer source, out SampleStruct value)
                 {
                     var val = source.ReadInt32(0);
                     value = new SampleStruct(val);

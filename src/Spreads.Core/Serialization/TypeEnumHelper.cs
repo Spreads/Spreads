@@ -256,7 +256,7 @@ namespace Spreads.Serialization
         {
             VersionAndFlags =
             {
-                ConverterVersion = TypeHelper<T>.BinarySerializer?.SerializerVersion ?? 0,
+                ConverterVersion = TypeHelper<T>.TypeSerializer?.SerializerVersion ?? 0,
                 IsBinary = true,
                 CompressionMethod = CompressionMethod.None
             },
@@ -325,7 +325,7 @@ namespace Spreads.Serialization
                     typeof(T).GetGenericArguments()[0]
                 );
                 var header = func();
-                var tbs = TypeHelper<T>.BinarySerializer;
+                var tbs = TypeHelper<T>.TypeSerializer;
                 var fs = tbs?.FixedSize ?? -1;
                 return new TypeInfo<T>
                 {
@@ -345,7 +345,7 @@ namespace Spreads.Serialization
                     gArgs[0], gArgs[1]
                 );
                 var header = func();
-                var tbs = TypeHelper<T>.BinarySerializer;
+                var tbs = TypeHelper<T>.TypeSerializer;
                 var fs = tbs?.FixedSize ?? -1;
                 return new TypeInfo<T>
                 {
@@ -357,9 +357,9 @@ namespace Spreads.Serialization
             if (te == TypeEnum.UserType)
             {
                 short fs = 0;
-                if (TypeHelper<T>.BinarySerializer != null)
+                if (TypeHelper<T>.TypeSerializer != null)
                 {
-                    fs = Math.Max((short)0, TypeHelper<T>.BinarySerializer.FixedSize);
+                    fs = Math.Max((short)0, TypeHelper<T>.TypeSerializer.FixedSize);
                 }
 
                 return new TypeInfo<T>

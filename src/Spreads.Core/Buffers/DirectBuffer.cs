@@ -704,6 +704,16 @@ namespace Spreads.Buffers
 
         [DebuggerStepThrough]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal int WriteS<T>(long index, T value)
+        {
+            if (AdditionalCorrectnessChecks.Enabled)
+            { Assert(index, SizeOf<T>()); }
+            WriteUnaligned(_pointer + index, value);
+            return SizeOf<T>();
+        }
+
+        [DebuggerStepThrough]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Clear(long index, int length)
         {
             if (AdditionalCorrectnessChecks.Enabled)
@@ -986,7 +996,7 @@ namespace Spreads.Buffers
             return encoding.GetString(buffer._pointer, buffer.Length);
         }
 
-        public static void CopyTo(this ReadOnlySpan<byte> source, DirectBuffer destination)
+        internal static void CopyTo(this ReadOnlySpan<byte> source, DirectBuffer destination)
         {
             fixed (byte* ptr = source)
             {
@@ -995,7 +1005,8 @@ namespace Spreads.Buffers
             }
         }
 
-        public static void CopyTo(this Span<byte> source, DirectBuffer destination)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static void CopyTo(this Span<byte> source, DirectBuffer destination)
         {
             fixed (byte* ptr = source)
             {

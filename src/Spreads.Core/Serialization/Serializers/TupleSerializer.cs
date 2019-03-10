@@ -45,40 +45,32 @@ namespace Spreads.Serialization.Serializers
         }
     }
 
-    internal interface ITupleSerializer<T> : IBinarySerializer<T>
+    internal abstract class TupleSerializer<T> : BinarySerializer<T>
     {
         /// <summary>
         /// All elements are fixed size or have custom binary serializer.
         /// </summary>
-        bool IsBinary { get; }
+        public abstract bool IsBinary { get; }
     }
 
-    internal struct FixedOrCustomWrapper<T> : IBinarySerializer<T>
+    internal static class FixedOrCustomProxy<T>
     {
         public static readonly bool IsFixedOrCustomBinary =
-            TypeHelper<T>.BinarySerializer != null || TypeEnumHelper<T>.IsFixedSize;
+            TypeHelper<T>.TypeSerializer != null && TypeHelper<T>.IsInternalBinarySerializer
+            || TypeEnumHelper<T>.IsFixedSize;
 
-        private static readonly IBinarySerializer<T> Custom = TypeHelper<T>.BinarySerializer;
+        private static readonly BinarySerializer<T> Custom = TypeHelper<T>.TypeSerializer; // TODO try this is devirt on TH fails
 
-        internal static short FixedSizeInternal = Custom?.FixedSize ?? TypeEnumHelper<T>.FixedSize;
+        internal static short FixedSizeInternal = TypeHelper<T>.TypeSerializer?.FixedSize ?? TypeEnumHelper<T>.FixedSize;
 
-        //[MethodImpl(MethodImplOptions.AggressiveInlining)]
-        //public FixedOrCustomBinarySerializer(IBinarySerializer<T> custom)
-        //{
-        //    if (!IsFixedOrCustomBinary)
-        //    {
-        //        ThrowHelper.ThrowArgumentException();
-        //    }
-        //    _custom = custom;
-        //}
+        public static byte SerializerVersion => 0;
 
-        public byte SerializerVersion => 0;
+        public static byte KnownTypeId => 0;
 
-        public byte KnownTypeId => 0;
+        public static short FixedSize => FixedSizeInternal;
 
-        public short FixedSize => FixedSizeInternal;
-
-        public int SizeOf(in T value, out RetainedMemory<byte> temporaryBuffer)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int SizeOf(in T value, out RetainedMemory<byte> temporaryBuffer)
         {
             if (Custom == null)
             {
@@ -88,7 +80,19 @@ namespace Spreads.Serialization.Serializers
             return Custom.SizeOf(in value, out temporaryBuffer);
         }
 
-        public int Write(in T value, DirectBuffer destination)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int SizeOf(in T value, BufferWriter bufferWriter)
+        {
+            if (Custom == null)
+            {
+                // Debug.Assert(bufferWriter == null);
+                return FixedSize;
+            }
+            return Custom.SizeOf(in value, bufferWriter);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int Write(in T value, DirectBuffer destination)
         {
             if (Custom == null)
             {
@@ -99,7 +103,8 @@ namespace Spreads.Serialization.Serializers
             return Custom.Write(in value, destination);
         }
 
-        public int Read(DirectBuffer source, out T value)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int Read(DirectBuffer source, out T value)
         {
             if (Custom == null)
             {
@@ -111,23 +116,23 @@ namespace Spreads.Serialization.Serializers
         }
     }
 
-    internal sealed class TuplePackSerializer<T1, T2> : TuplePackSerializer, IBinarySerializer<TuplePack<T1, T2>>
+    internal static class TuplePackSerializer<T1, T2> // : BinarySerializer<TuplePack<T1, T2>>
     {
-        public static readonly TuplePackSerializer<T1, T2> Instance = new TuplePackSerializer<T1, T2>();
+        //public static readonly TuplePackSerializer<T1, T2> Instance = new TuplePackSerializer<T1, T2>();
 
-        private TuplePackSerializer()
-        { }
+        //private TuplePackSerializer()
+        //{ }
 
-        public byte SerializerVersion => 0;
+        public static byte SerializerVersion => 0;
 
-        public byte KnownTypeId => 0;
+        public static byte KnownTypeId => 0;
 
         // ReSharper disable once StaticMemberInGenericType
         internal static readonly short FixedSizeInternal = CalculateFixedSize();
 
         // TODO check this as alternative to fixed size
-        internal static readonly bool IsBinary = FixedOrCustomWrapper<T1>.IsFixedOrCustomBinary
-                                                      && FixedOrCustomWrapper<T2>.IsFixedOrCustomBinary
+        internal static readonly bool IsBinary = FixedOrCustomProxy<T1>.IsFixedOrCustomBinary
+                                                      && FixedOrCustomProxy<T2>.IsFixedOrCustomBinary
                                                       ;
 
         internal static readonly bool HasAnySerializer = TypeHelper<T1>.HasBinarySerializer
@@ -152,96 +157,141 @@ namespace Spreads.Serialization.Serializers
             return -1;
         }
 
-        public short FixedSize
+        public static short FixedSize
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => FixedSizeInternal;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal int WriteItem<T>(in T item, DirectBuffer directBuffer, int sizeOf, RetainedMemory<byte> tempBuffer,
-            IBinarySerializer<T> bs)
-        {
-            // IBS does not add size prefix, only BS does
-            var pos = 0;
-            if (!TypeEnumHelper<T>.IsFixedSize)
-            {
-                directBuffer.Write<int>(pos, sizeOf);
-                directBuffer = directBuffer.Slice(4);
-                pos += 4;
-            }
+        //[MethodImpl(MethodImplOptions.AggressiveInlining)]
+        //internal static int WriteItem<T>(in T item, DirectBuffer directBuffer, int sizeOf, RetainedMemory<byte> tempBuffer,
+        //    BinarySerializer<T> bs)
+        //{
+        //    // IBS does not add size prefix, only BS does
+        //    var pos = 0;
+        //    if (!TypeEnumHelper<T>.IsFixedSize)
+        //    {
+        //        directBuffer.Write<int>(pos, sizeOf);
+        //        directBuffer = directBuffer.Slice(4);
+        //        pos += 4;
+        //    }
 
-            if (tempBuffer.IsEmpty)
-            {
-                var written = bs.Write(in item, directBuffer);
-                if (written != sizeOf)
-                {
-                    BinarySerializer.FailWrongSerializerImplementation<T>(BinarySerializer.BinarySerializerFailCode.WrittenNotEqualToSizeOf);
-                }
-            }
-            else
-            {
-                if (tempBuffer.Length != sizeOf)
-                {
-                    BinarySerializer.FailWrongSerializerImplementation<T>(BinarySerializer.BinarySerializerFailCode.PayloadLengthNotEqualToSizeOf);
-                }
-                tempBuffer.Span.CopyTo(directBuffer);
-            }
+        //    if (tempBuffer.IsEmpty)
+        //    {
+        //        var written = bs.Write(in item, directBuffer);
+        //        if (written != sizeOf)
+        //        {
+        //            BinarySerializer.FailWrongSerializerImplementation<T>(BinarySerializer.BinarySerializerFailCode.WrittenNotEqualToSizeOf);
+        //        }
+        //    }
+        //    else
+        //    {
+        //        if (tempBuffer.Length != sizeOf)
+        //        {
+        //            BinarySerializer.FailWrongSerializerImplementation<T>(BinarySerializer.BinarySerializerFailCode.PayloadLengthNotEqualToSizeOf);
+        //        }
+        //        tempBuffer.Span.CopyTo(directBuffer);
+        //    }
 
-            pos += sizeOf;
+        //    pos += sizeOf;
 
-            return pos;
-        }
+        //    return pos;
+        //}
 
         [MethodImpl(MethodImplOptions.AggressiveInlining
 #if NETCOREAPP3_0
             | MethodImplOptions.AggressiveOptimization
 #endif
         )]
-        public int SizeOf(in TuplePack<T1, T2> value, out RetainedMemory<byte> temporaryBuffer)
+        public static int SizeOf(in TuplePack<T1, T2> value, out RetainedMemory<byte> temporaryBuffer)
         {
             temporaryBuffer = default;
 
+            //if (HasAnySerializer)
+            //{
+            //    var bs1 = default(FixedOrCustomProxy<T1>);
+            //    var bs2 = default(FixedOrCustomProxy<T2>);
+
+            //    var s1 = bs1.SizeOf(in value.Item1, out var pl1);
+            //    var s2 = bs2.SizeOf(in value.Item2, out var pl2);
+            //    try
+            //    {
+            //        // reserve 4 byte for length
+            //        temporaryBuffer = BufferPool.RetainTemp(4 * 2 + s1 + s2);
+            //        Debug.Assert(temporaryBuffer.IsPinned);
+
+            //        var db = temporaryBuffer.ToDirectBuffer();
+            //        //var pos = 0;
+
+            //        var acc = 0;
+
+            //        acc += WriteItem<T1>(in value.Item1, db, s1, pl1, bs1);
+
+            //        db = db.Slice(acc);
+            //        acc += WriteItem<T2>(in value.Item2, db, s2, pl2, bs2);
+
+            //        temporaryBuffer = temporaryBuffer.Slice(0, acc);
+
+            //        return acc;
+            //    }
+            //    finally
+            //    {
+            //        pl1.Dispose();
+            //        pl2.Dispose();
+            //    }
+            //}
+
+            //if (FixedSize > 0)
+            //{
+            //    return FixedSize;
+            //}
+
+            TuplePackSerializer.FailShouldNotBeCalled();
+            return -1;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int SizeOf(in TuplePack<T1, T2> value, BufferWriter bufferWriter)
+        {
             if (HasAnySerializer)
             {
-                var bs1 = default(FixedOrCustomWrapper<T1>);
-                var bs2 = default(FixedOrCustomWrapper<T2>);
+                Debug.Assert(bufferWriter != null);
 
-                var s1 = bs1.SizeOf(in value.Item1, out var pl1);
-                var s2 = bs2.SizeOf(in value.Item2, out var pl2);
-                try
+                var offset = bufferWriter.Offset;
+                var s1 = FixedOrCustomProxy<T1>.SizeOf(in value.Item1, bufferWriter);
+                if (bufferWriter.Offset == offset)
                 {
-                    // reserve 4 byte for length
-                    temporaryBuffer = BufferPool.RetainTemp(4 * 2 + s1 + s2);
-                    Debug.Assert(temporaryBuffer.IsPinned);
-
-                    var db = temporaryBuffer.ToDirectBuffer();
-                    //var pos = 0;
-
-                    var acc = 0;
-
-                    acc += WriteItem<T1>(in value.Item1, db, s1, pl1, bs1);
-
-                    db = db.Slice(acc);
-                    acc += WriteItem<T2>(in value.Item2, db, s2, pl2, bs2);
-
-                    temporaryBuffer = temporaryBuffer.Slice(0, acc);
-
-                    return acc;
+                    bufferWriter.EnsureCapacity(s1);
+                    var written = FixedOrCustomProxy<T1>.Write(in value.Item1, bufferWriter.AvailableBuffer);
+                    if (written != s1)
+                    {
+                        BinarySerializer.FailWrongSerializerImplementation<T1>(BinarySerializer.BinarySerializerFailCode.WrittenNotEqualToSizeOf);
+                    }
+                    bufferWriter.Advance(written);
                 }
-                finally
+
+                offset = bufferWriter.Offset;
+                var s2 = FixedOrCustomProxy<T2>.SizeOf(in value.Item2, bufferWriter);
+                if (bufferWriter.Offset == offset)
                 {
-                    pl1.Dispose();
-                    pl2.Dispose();
+                    bufferWriter.EnsureCapacity(s2);
+                    var written = FixedOrCustomProxy<T2>.Write(in value.Item2, bufferWriter.AvailableBuffer);
+                    if (written != s2)
+                    {
+                        BinarySerializer.FailWrongSerializerImplementation<T2>(BinarySerializer.BinarySerializerFailCode.WrittenNotEqualToSizeOf);
+                    }
+                    bufferWriter.Advance(written);
                 }
+
+                return s1 + s2;
             }
 
-            if (FixedSize > 0)
+            if (FixedSizeInternal > 0)
             {
-                return FixedSize;
+                return FixedSizeInternal;
             }
 
-            FailShouldNotBeCalled();
+            TuplePackSerializer.FailShouldNotBeCalled();
             return -1;
         }
 
@@ -250,18 +300,19 @@ namespace Spreads.Serialization.Serializers
             | MethodImplOptions.AggressiveOptimization
 #endif
         )]
-        public int Write(in TuplePack<T1, T2> value, DirectBuffer destination)
+        public static int Write(in TuplePack<T1, T2> value, DirectBuffer destination)
         {
             if (HasAnySerializer)
             {
-                var sizeOf = SizeOf(value, out var tmpBuffer);
-                Debug.Assert(!tmpBuffer.IsEmpty);
-                tmpBuffer.Span.CopyTo(destination);
-                tmpBuffer.Dispose();
+                var bufferWriter = BufferWriter.Create();
+
+                var sizeOf = SizeOf(value, bufferWriter);
+                bufferWriter.WrittenBuffer.CopyTo(destination);
+                bufferWriter.Dispose();
                 return sizeOf;
             }
 
-            if (FixedSize > 0)
+            if (FixedSizeInternal > 0)
             {
                 Debug.Assert(TypeHelper<TuplePack<T1, T2>>.PinnedSize > 0);
                 Debug.Assert(FixedSize == Unsafe.SizeOf<TuplePack<T1, T2>>());
@@ -269,15 +320,15 @@ namespace Spreads.Serialization.Serializers
 
                 // this does bounds check unless it is turned off
                 destination.Write(0, value);
-                return FixedSize;
+                return FixedSizeInternal;
             }
 
-            FailShouldNotBeCalled();
+            TuplePackSerializer.FailShouldNotBeCalled();
             return -1;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal int ReadItem<T>(DirectBuffer directBuffer, IBinarySerializer<T> bs, out T item)
+        internal static int ReadItem<T>(DirectBuffer directBuffer, out T item)
         {
             var pos = 0;
             int s1;
@@ -291,7 +342,7 @@ namespace Spreads.Serialization.Serializers
                 s1 = TypeEnumHelper<T>.FixedSize;
             }
 
-            var consumed = bs.Read(directBuffer.Slice(pos, s1), out item);
+            var consumed = FixedOrCustomProxy<T>.Read(directBuffer.Slice(pos, s1), out item);
             if (consumed != s1)
             {
                 return -1;
@@ -305,47 +356,44 @@ namespace Spreads.Serialization.Serializers
             | MethodImplOptions.AggressiveOptimization
 #endif
         )]
-        public int Read(DirectBuffer source, out TuplePack<T1, T2> value)
+        public static int Read(DirectBuffer source, out TuplePack<T1, T2> value)
         {
             if (HasAnySerializer)
             {
-                var bs1 = default(FixedOrCustomWrapper<T1>);
-                var bs2 = default(FixedOrCustomWrapper<T2>);
-
                 var acc = 0;
 
-                var consumed = ReadItem(source, bs1, out var item1);
+                var consumed = ReadItem<T1>(source, out var item1);
                 if (consumed <= 0) { goto INVALID; }
                 acc += consumed;
 
                 source = source.Slice(consumed);
-                consumed = ReadItem(source, bs2, out var item2);
+                consumed = ReadItem<T2>(source, out var item2);
                 if (consumed <= 0) { goto INVALID; }
                 acc += consumed;
                 value = new TuplePack<T1, T2>((item1, item2));
                 return acc;
             }
 
-            if (FixedSize > 0)
+            if (FixedSizeInternal > 0)
             {
                 Debug.Assert(TypeHelper<TuplePack<T1, T2>>.PinnedSize > 0);
                 Debug.Assert(FixedSize == Unsafe.SizeOf<TuplePack<T1, T2>>());
                 Debug.Assert(FixedSize == TypeHelper<TuplePack<T1, T2>>.PinnedSize);
 
                 value = source.Read<TuplePack<T1, T2>>(0);
-                return FixedSize;
+                return FixedSizeInternal;
             }
 
         INVALID:
             value = default;
-            FailShouldNotBeCalled();
+            TuplePackSerializer.FailShouldNotBeCalled();
             return -1;
         }
     }
 
     internal static class ValueTuple2SerializerFactory
     {
-        public static IBinarySerializer<(T1, T2)> GenericCreate<T1, T2>()
+        public static BinarySerializer<(T1, T2)> GenericCreate<T1, T2>()
         {
             return new ValueTuple2Serializer<T1, T2>();
         }
@@ -356,40 +404,11 @@ namespace Spreads.Serialization.Serializers
             var generic = method?.MakeGenericMethod(type1, type2);
             return generic?.Invoke(null, null);
         }
-
-        internal sealed class ValueTuple2Serializer<T1, T2> : IBinarySerializer<(T1, T2)>
-        {
-            public byte SerializerVersion => 0;
-
-            public byte KnownTypeId => 0;
-
-            public short FixedSize => TuplePackSerializer<T1, T2>.Instance.FixedSize;
-
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public int SizeOf(in (T1, T2) value, out RetainedMemory<byte> temporaryBuffer)
-            {
-                return TuplePackSerializer<T1, T2>.Instance.SizeOf(new TuplePack<T1, T2>(value), out temporaryBuffer);
-            }
-
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public int Write(in (T1, T2) value, DirectBuffer destination)
-            {
-                return TuplePackSerializer<T1, T2>.Instance.Write(new TuplePack<T1, T2>(value), destination);
-            }
-
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public int Read(DirectBuffer source, out (T1, T2) value)
-            {
-                var readBytes = TuplePackSerializer<T1, T2>.Instance.Read(source, out var tp);
-                value = (tp.Item1, tp.Item2);
-                return readBytes;
-            }
-        }
     }
 
     internal static class Tuple2SerializerFactory
     {
-        public static IBinarySerializer<Tuple<T1, T2>> GenericCreate<T1, T2>()
+        public static BinarySerializer<Tuple<T1, T2>> GenericCreate<T1, T2>()
         {
             return new Tuple2Serializer<T1, T2>();
         }
@@ -400,42 +419,87 @@ namespace Spreads.Serialization.Serializers
             var generic = method?.MakeGenericMethod(type1, type2);
             return generic?.Invoke(null, null);
         }
+    }
 
-        internal sealed class Tuple2Serializer<T1, T2> : ITupleSerializer<Tuple<T1, T2>>
+    internal sealed class ValueTuple2Serializer<T1, T2> : BinarySerializer<(T1, T2)>
+    {
+        public override byte SerializerVersion => 0;
+
+        public override byte KnownTypeId => 0;
+
+        public override short FixedSize
         {
-            public byte SerializerVersion => 0;
-
-            public byte KnownTypeId => 0;
-
-            public short FixedSize => TuplePackSerializer<T1, T2>.FixedSizeInternal;
-
-            public bool IsBinary => TuplePackSerializer<T1, T2>.IsBinary;
-
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public int SizeOf(in Tuple<T1, T2> value, out RetainedMemory<byte> temporaryBuffer)
-            {
-                return TuplePackSerializer<T1, T2>.Instance.SizeOf(new TuplePack<T1, T2>(value), out temporaryBuffer);
-            }
+            get => TuplePackSerializer<T1, T2>.FixedSizeInternal;
+        }
 
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public int Write(in Tuple<T1, T2> value, DirectBuffer destination)
-            {
-                return TuplePackSerializer<T1, T2>.Instance.Write(new TuplePack<T1, T2>(value), destination);
-            }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public override int SizeOf(in (T1, T2) value, out RetainedMemory<byte> temporaryBuffer)
+        {
+            return TuplePackSerializer<T1, T2>.SizeOf(new TuplePack<T1, T2>(value), out temporaryBuffer);
+        }
 
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public int Read(DirectBuffer source, out Tuple<T1, T2> value)
-            {
-                var readBytes = TuplePackSerializer<T1, T2>.Instance.Read(source, out var tp);
-                value = Tuple.Create(tp.Item1, tp.Item2);
-                return readBytes;
-            }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public override int SizeOf(in (T1, T2) value, BufferWriter bufferWriter)
+        {
+            return TuplePackSerializer<T1, T2>.SizeOf(new TuplePack<T1, T2>(value), bufferWriter);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public override int Write(in (T1, T2) value, DirectBuffer destination)
+        {
+            return TuplePackSerializer<T1, T2>.Write(new TuplePack<T1, T2>(value), destination);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public override int Read(DirectBuffer source, out (T1, T2) value)
+        {
+            var readBytes = TuplePackSerializer<T1, T2>.Read(source, out var tp);
+            value = (tp.Item1, tp.Item2);
+            return readBytes;
+        }
+    }
+
+    internal sealed class Tuple2Serializer<T1, T2> : TupleSerializer<Tuple<T1, T2>>
+    {
+        public override byte SerializerVersion => 0;
+
+        public override byte KnownTypeId => 0;
+
+        public override short FixedSize => TuplePackSerializer<T1, T2>.FixedSizeInternal;
+
+        public override bool IsBinary => TuplePackSerializer<T1, T2>.IsBinary;
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public override int SizeOf(in Tuple<T1, T2> value, out RetainedMemory<byte> temporaryBuffer)
+        {
+            return TuplePackSerializer<T1, T2>.SizeOf(new TuplePack<T1, T2>(value), out temporaryBuffer);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public override int SizeOf(in Tuple<T1, T2> value, BufferWriter bufferWriter)
+        {
+            throw new NotImplementedException();
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public override int Write(in Tuple<T1, T2> value, DirectBuffer destination)
+        {
+            return TuplePackSerializer<T1, T2>.Write(new TuplePack<T1, T2>(value), destination);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public override int Read(DirectBuffer source, out Tuple<T1, T2> value)
+        {
+            var readBytes = TuplePackSerializer<T1, T2>.Read(source, out var tp);
+            value = Tuple.Create(tp.Item1, tp.Item2);
+            return readBytes;
         }
     }
 
     internal static class KvpSerializerFactory
     {
-        public static IBinarySerializer<KeyValuePair<T1, T2>> GenericCreate<T1, T2>()
+        public static BinarySerializer<KeyValuePair<T1, T2>> GenericCreate<T1, T2>()
         {
             return new KvpSerializer<T1, T2>();
         }
@@ -447,30 +511,35 @@ namespace Spreads.Serialization.Serializers
             return generic?.Invoke(null, null);
         }
 
-        internal sealed class KvpSerializer<T1, T2> : IBinarySerializer<KeyValuePair<T1, T2>>
+        internal sealed class KvpSerializer<T1, T2> : BinarySerializer<KeyValuePair<T1, T2>>
         {
-            public byte SerializerVersion => 0;
+            public override byte SerializerVersion => 0;
 
-            public byte KnownTypeId => 0;
+            public override byte KnownTypeId => 0;
 
-            public short FixedSize => TuplePackSerializer<T1, T2>.Instance.FixedSize;
+            public override short FixedSize => TuplePackSerializer<T1, T2>.FixedSize;
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public int SizeOf(in KeyValuePair<T1, T2> value, out RetainedMemory<byte> temporaryBuffer)
+            public override int SizeOf(in KeyValuePair<T1, T2> value, out RetainedMemory<byte> temporaryBuffer)
             {
-                return TuplePackSerializer<T1, T2>.Instance.SizeOf(new TuplePack<T1, T2>(value), out temporaryBuffer);
+                return TuplePackSerializer<T1, T2>.SizeOf(new TuplePack<T1, T2>(value), out temporaryBuffer);
+            }
+
+            public override int SizeOf(in KeyValuePair<T1, T2> value, BufferWriter bufferWriter)
+            {
+                throw new NotImplementedException();
             }
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public int Write(in KeyValuePair<T1, T2> value, DirectBuffer destination)
+            public override int Write(in KeyValuePair<T1, T2> value, DirectBuffer destination)
             {
-                return TuplePackSerializer<T1, T2>.Instance.Write(new TuplePack<T1, T2>(value), destination);
+                return TuplePackSerializer<T1, T2>.Write(new TuplePack<T1, T2>(value), destination);
             }
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public int Read(DirectBuffer source, out KeyValuePair<T1, T2> value)
+            public override int Read(DirectBuffer source, out KeyValuePair<T1, T2> value)
             {
-                var readBytes = TuplePackSerializer<T1, T2>.Instance.Read(source, out var tp);
+                var readBytes = TuplePackSerializer<T1, T2>.Read(source, out var tp);
                 value = new KeyValuePair<T1, T2>(tp.Item1, tp.Item2);
                 return readBytes;
             }
@@ -506,16 +575,16 @@ namespace Spreads.Serialization.Serializers
         }
     }
 
-    internal sealed class TuplePackSerializer<T1, T2, T3> : TuplePackSerializer, IBinarySerializer<TuplePack<T1, T2, T3>>
+    internal sealed class TuplePackSerializer<T1, T2, T3> : BinarySerializer<TuplePack<T1, T2, T3>>
     {
         public static readonly TuplePackSerializer<T1, T2, T3> Instance = new TuplePackSerializer<T1, T2, T3>();
 
         private TuplePackSerializer()
         { }
 
-        public byte SerializerVersion => 0;
+        public override byte SerializerVersion => 0;
 
-        public byte KnownTypeId => 0;
+        public override byte KnownTypeId => 0;
 
         // ReSharper disable once StaticMemberInGenericType
         internal static readonly short FixedSizeInternal = CalculateFixedSize();
@@ -548,26 +617,31 @@ namespace Spreads.Serialization.Serializers
             return -1;
         }
 
-        public short FixedSize
+        public override short FixedSize
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => FixedSizeInternal;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public int SizeOf(in TuplePack<T1, T2, T3> value, out RetainedMemory<byte> temporaryBuffer)
+        public override int SizeOf(in TuplePack<T1, T2, T3> value, out RetainedMemory<byte> temporaryBuffer)
         {
             if (FixedSize <= 0)
             {
-                FailShouldNotBeCalled();
+                TuplePackSerializer.FailShouldNotBeCalled();
             }
 
             temporaryBuffer = default;
             return FixedSize;
         }
 
+        public override int SizeOf(in TuplePack<T1, T2, T3> value, BufferWriter bufferWriter)
+        {
+            throw new NotImplementedException();
+        }
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public int Write(in TuplePack<T1, T2, T3> value, DirectBuffer destination)
+        public override int Write(in TuplePack<T1, T2, T3> value, DirectBuffer destination)
         {
             Debug.Assert(TypeHelper<TuplePack<T1, T2, T3>>.PinnedSize > 0);
             Debug.Assert(FixedSize == Unsafe.SizeOf<TuplePack<T1, T2, T3>>());
@@ -579,7 +653,7 @@ namespace Spreads.Serialization.Serializers
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public int Read(DirectBuffer source, out TuplePack<T1, T2, T3> value)
+        public override int Read(DirectBuffer source, out TuplePack<T1, T2, T3> value)
         {
             Debug.Assert(TypeHelper<TuplePack<T1, T2, T3>>.PinnedSize > 0);
             Debug.Assert(FixedSize == Unsafe.SizeOf<TuplePack<T1, T2, T3>>());
@@ -592,7 +666,7 @@ namespace Spreads.Serialization.Serializers
 
     internal static class ValueTuple3SerializerFactory
     {
-        public static IBinarySerializer<(T1, T2, T3)> GenericCreate<T1, T2, T3>()
+        public static BinarySerializer<(T1, T2, T3)> GenericCreate<T1, T2, T3>()
         {
             return new ValueTuple3Serializer<T1, T2, T3>();
         }
@@ -604,28 +678,33 @@ namespace Spreads.Serialization.Serializers
             return generic?.Invoke(null, null);
         }
 
-        internal sealed class ValueTuple3Serializer<T1, T2, T3> : IBinarySerializer<(T1, T2, T3)>
+        internal sealed class ValueTuple3Serializer<T1, T2, T3> : BinarySerializer<(T1, T2, T3)>
         {
-            public byte SerializerVersion => 0;
+            public override byte SerializerVersion => 0;
 
-            public byte KnownTypeId => 0;
+            public override byte KnownTypeId => 0;
 
-            public short FixedSize => TuplePackSerializer<T1, T2, T3>.Instance.FixedSize;
+            public override short FixedSize => TuplePackSerializer<T1, T2, T3>.Instance.FixedSize;
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public int SizeOf(in (T1, T2, T3) value, out RetainedMemory<byte> temporaryBuffer)
+            public override int SizeOf(in (T1, T2, T3) value, out RetainedMemory<byte> temporaryBuffer)
             {
                 return TuplePackSerializer<T1, T2, T3>.Instance.SizeOf(new TuplePack<T1, T2, T3>(value), out temporaryBuffer);
             }
 
+            public override int SizeOf(in (T1, T2, T3) value, BufferWriter bufferWriter)
+            {
+                throw new NotImplementedException();
+            }
+
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public int Write(in (T1, T2, T3) value, DirectBuffer destination)
+            public override int Write(in (T1, T2, T3) value, DirectBuffer destination)
             {
                 return TuplePackSerializer<T1, T2, T3>.Instance.Write(new TuplePack<T1, T2, T3>(value), destination);
             }
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public int Read(DirectBuffer source, out (T1, T2, T3) value)
+            public override int Read(DirectBuffer source, out (T1, T2, T3) value)
             {
                 var readBytes = TuplePackSerializer<T1, T2, T3>.Instance.Read(source, out var tp);
                 value = (tp.Item1, tp.Item2, tp.Item3);
@@ -636,7 +715,7 @@ namespace Spreads.Serialization.Serializers
 
     internal static class Tuple3SerializerFactory
     {
-        public static IBinarySerializer<Tuple<T1, T2, T3>> GenericCreate<T1, T2, T3>()
+        public static BinarySerializer<Tuple<T1, T2, T3>> GenericCreate<T1, T2, T3>()
         {
             return new Tuple3Serializer<T1, T2, T3>();
         }
@@ -648,28 +727,33 @@ namespace Spreads.Serialization.Serializers
             return generic?.Invoke(null, null);
         }
 
-        internal sealed class Tuple3Serializer<T1, T2, T3> : IBinarySerializer<Tuple<T1, T2, T3>>
+        internal sealed class Tuple3Serializer<T1, T2, T3> : BinarySerializer<Tuple<T1, T2, T3>>
         {
-            public byte SerializerVersion => 0;
+            public override byte SerializerVersion => 0;
 
-            public byte KnownTypeId => 0;
+            public override byte KnownTypeId => 0;
 
-            public short FixedSize => TuplePackSerializer<T1, T2, T3>.Instance.FixedSize;
+            public override short FixedSize => TuplePackSerializer<T1, T2, T3>.Instance.FixedSize;
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public int SizeOf(in Tuple<T1, T2, T3> value, out RetainedMemory<byte> temporaryBuffer)
+            public override int SizeOf(in Tuple<T1, T2, T3> value, out RetainedMemory<byte> temporaryBuffer)
             {
                 return TuplePackSerializer<T1, T2, T3>.Instance.SizeOf(new TuplePack<T1, T2, T3>(value), out temporaryBuffer);
             }
 
+            public override int SizeOf(in Tuple<T1, T2, T3> value, BufferWriter bufferWriter)
+            {
+                throw new NotImplementedException();
+            }
+
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public int Write(in Tuple<T1, T2, T3> value, DirectBuffer destination)
+            public override int Write(in Tuple<T1, T2, T3> value, DirectBuffer destination)
             {
                 return TuplePackSerializer<T1, T2, T3>.Instance.Write(new TuplePack<T1, T2, T3>(value), destination);
             }
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public int Read(DirectBuffer source, out Tuple<T1, T2, T3> value)
+            public override int Read(DirectBuffer source, out Tuple<T1, T2, T3> value)
             {
                 var readBytes = TuplePackSerializer<T1, T2, T3>.Instance.Read(source, out var tp);
                 value = Tuple.Create(tp.Item1, tp.Item2, tp.Item3);
@@ -680,7 +764,7 @@ namespace Spreads.Serialization.Serializers
 
     internal static class TaggedKeyValueByteSerializerFactory
     {
-        public static IBinarySerializer<TaggedKeyValue<T1, T2>> GenericCreate<T1, T2>()
+        public static BinarySerializer<TaggedKeyValue<T1, T2>> GenericCreate<T1, T2>()
         {
             return new TaggedKeyValueSerializer<T1, T2>();
         }
@@ -692,32 +776,37 @@ namespace Spreads.Serialization.Serializers
             return generic?.Invoke(null, null);
         }
 
-        internal sealed class TaggedKeyValueSerializer<T1, T2> : IBinarySerializer<TaggedKeyValue<T1, T2>>
+        internal sealed class TaggedKeyValueSerializer<T1, T2> : BinarySerializer<TaggedKeyValue<T1, T2>>
         {
-            public byte SerializerVersion => 0;
+            public override byte SerializerVersion => 0;
 
-            public byte KnownTypeId => 0;
+            public override byte KnownTypeId => 0;
 
-            public short FixedSize
+            public override short FixedSize
             {
                 [MethodImpl(MethodImplOptions.AggressiveInlining)]
                 get => TuplePackSerializer<byte, T1, T2>.FixedSizeInternal;
             }
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public int SizeOf(in TaggedKeyValue<T1, T2> value, out RetainedMemory<byte> temporaryBuffer)
+            public override int SizeOf(in TaggedKeyValue<T1, T2> value, out RetainedMemory<byte> temporaryBuffer)
             {
                 return TuplePackSerializer<byte, T1, T2>.Instance.SizeOf(Unsafe.As<TaggedKeyValue<T1, T2>, TuplePack<byte, T1, T2>>(ref Unsafe.AsRef(in value)), out temporaryBuffer);
             }
 
+            public override int SizeOf(in TaggedKeyValue<T1, T2> value, BufferWriter bufferWriter)
+            {
+                throw new NotImplementedException();
+            }
+
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public int Write(in TaggedKeyValue<T1, T2> value, DirectBuffer destination)
+            public override int Write(in TaggedKeyValue<T1, T2> value, DirectBuffer destination)
             {
                 return TuplePackSerializer<byte, T1, T2>.Instance.Write(Unsafe.As<TaggedKeyValue<T1, T2>, TuplePack<byte, T1, T2>>(ref Unsafe.AsRef(in value)), destination);
             }
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public int Read(DirectBuffer source, out TaggedKeyValue<T1, T2> value)
+            public override int Read(DirectBuffer source, out TaggedKeyValue<T1, T2> value)
             {
                 var readBytes = TuplePackSerializer<byte, T1, T2>.Instance.Read(source, out var tp);
                 value = Unsafe.As<TuplePack<byte, T1, T2>, TaggedKeyValue<T1, T2>>(ref tp);

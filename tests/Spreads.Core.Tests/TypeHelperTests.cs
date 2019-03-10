@@ -54,27 +54,32 @@ namespace Spreads.Core.Tests
             public int Value1;
         }
 
-        public class MyPocoWithConvertor : IBinarySerializer<MyPocoWithConvertor>
+        public class MyPocoWithConvertor : BinarySerializer<MyPocoWithConvertor>
         {
             public string String { get; set; }
             public long Long { get; set; }
             public bool IsFixedSize => false;
 
-            public byte KnownTypeId => 0;
+            public override byte KnownTypeId => 0;
 
-            public short FixedSize => -1;
-            public byte SerializerVersion => 1;
-            public int SizeOf(in MyPocoWithConvertor value, out RetainedMemory<byte> temporaryBuffer)
+            public override short FixedSize => -1;
+            public override byte SerializerVersion => 1;
+            public override int SizeOf(in MyPocoWithConvertor value, out RetainedMemory<byte> temporaryBuffer)
             {
                 throw new NotImplementedException();
             }
 
-            public int Write(in MyPocoWithConvertor value, DirectBuffer destination)
+            public override int SizeOf(in MyPocoWithConvertor value, BufferWriter bufferWriter)
             {
                 throw new NotImplementedException();
             }
 
-            public int Read(DirectBuffer source, out MyPocoWithConvertor value)
+            public override int Write(in MyPocoWithConvertor value, DirectBuffer destination)
+            {
+                throw new NotImplementedException();
+            }
+
+            public override int Read(DirectBuffer source, out MyPocoWithConvertor value)
             {
                 throw new NotImplementedException();
             }

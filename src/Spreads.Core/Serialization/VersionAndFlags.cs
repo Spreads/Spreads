@@ -27,7 +27,7 @@ namespace Spreads.Serialization
     ///     10 - Lz4
     ///     11 - Zstd
     /// R - reserved.
-    /// Ver - <see cref="IBinarySerializer{T}.SerializerVersion"/> version.
+    /// Ver - <see cref="BinarySerializer{T}.SerializerVersion"/> version.
     /// 0 - will need completely new layout when this is not zero.
     /// </remarks>
     [StructLayout(LayoutKind.Sequential, Pack = 1, Size = 1)]

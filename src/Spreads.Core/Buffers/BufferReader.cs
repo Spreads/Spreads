@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using static System.Runtime.CompilerServices.Unsafe;
 
 namespace Spreads.Buffers
 {
@@ -24,20 +25,20 @@ namespace Spreads.Buffers
         public ref byte Current
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => ref Unsafe.AsRef(in _span[_offset]); // ref Unsafe.AddByteOffset(ref _span.GetPinnableReference(), (IntPtr)_offset);
+            get => ref AsRef(in _span[_offset]); // ref Unsafe.AddByteOffset(ref _span.GetPinnableReference(), (IntPtr)_offset);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public int Read<T>(out T value) where T : unmanaged
         {
-            var size = Unsafe.SizeOf<T>();
+            var size = SizeOf<T>();
             var nextOffset = _offset + size;
             if (nextOffset > _span.Length)
             {
                 value = default;
                 return 0;
             }
-            value = Unsafe.ReadUnaligned<T>(ref Current);
+            value = ReadUnaligned<T>(ref Current);
 
             _offset = nextOffset;
             return size;
@@ -46,8 +47,8 @@ namespace Spreads.Buffers
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public int DangerousRead<T>(out T value) where T : unmanaged
         {
-            var size = Unsafe.SizeOf<T>();
-            value = Unsafe.ReadUnaligned<T>(ref Current);
+            var size = SizeOf<T>();
+            value = ReadUnaligned<T>(ref Current);
             _offset += size;
             return size;
         }
@@ -55,8 +56,8 @@ namespace Spreads.Buffers
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public T DangerousRead2<T>() where T : unmanaged
         {
-            var value = Unsafe.ReadUnaligned<T>(ref Unsafe.AddByteOffset(ref MemoryMarshal.GetReference(_span), (IntPtr)_offset));
-            _offset += Unsafe.SizeOf<T>();
+            var value = ReadUnaligned<T>(ref AddByteOffset(ref MemoryMarshal.GetReference(_span), (IntPtr)_offset));
+            _offset += SizeOf<T>();
             return value;
         }
 

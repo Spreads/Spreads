@@ -35,7 +35,7 @@ namespace Spreads.DataTypes
 
     internal static class FixedArraySerializerFactory
     {
-        public static IBinarySerializer<FixedArray<TElement>> GenericCreate<TElement>()
+        public static BinarySerializer<FixedArray<TElement>> GenericCreate<TElement>()
         {
             return new FixedArraySerializer<TElement>();
         }
@@ -47,25 +47,30 @@ namespace Spreads.DataTypes
             return generic?.Invoke(null, null);
         }
 
-        internal class FixedArraySerializer<T> : IFixedArraySerializer, IBinarySerializer<FixedArray<T>>
+        internal class FixedArraySerializer<T> :  BinarySerializer<FixedArray<T>>, IFixedArraySerializer
         {
-            public byte SerializerVersion => throw new System.NotImplementedException();
+            public override byte SerializerVersion => throw new System.NotImplementedException();
 
-            public byte KnownTypeId => throw new System.NotImplementedException();
+            public override byte KnownTypeId => throw new System.NotImplementedException();
 
-            public short FixedSize => throw new System.NotImplementedException();
+            public override short FixedSize => throw new System.NotImplementedException();
 
-            public int SizeOf(in FixedArray<T> value, out RetainedMemory<byte> temporaryBuffer)
+            public override int SizeOf(in FixedArray<T> value, out RetainedMemory<byte> temporaryBuffer)
             {
                 throw new System.NotImplementedException();
             }
 
-            public int Write(in FixedArray<T> value, DirectBuffer destination)
+            public override int SizeOf(in FixedArray<T> value, BufferWriter bufferWriter)
+            {
+                throw new NotImplementedException();
+            }
+
+            public override int Write(in FixedArray<T> value, DirectBuffer destination)
             {
                 throw new System.NotImplementedException();
             }
 
-            public int Read(DirectBuffer source, out FixedArray<T> value)
+            public override int Read(DirectBuffer source, out FixedArray<T> value)
             {
                 throw new System.NotImplementedException();
             }

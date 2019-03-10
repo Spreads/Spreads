@@ -4,6 +4,7 @@
 
 using Spreads.DataTypes;
 using Spreads.Native;
+using Spreads.Serialization.Serializers;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -11,7 +12,6 @@ using System.IO;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using Spreads.Serialization.Serializers;
 using static System.Runtime.CompilerServices.Unsafe;
 
 #pragma warning disable HAA0101 // Array allocation for params parameter
@@ -102,10 +102,7 @@ namespace Spreads.Serialization
         // Do not use static ctor in any critical paths: https://github.com/Spreads/Spreads/issues/66
         // static TypeHelper() { }
 
-        internal static IBinarySerializer<T> BinarySerializer;
-
-        // ReSharper disable once StaticMemberInGenericType
-        internal static bool IsInternalBinarySerializer; // TODO set to true for tuples and arrays
+        internal static readonly BinarySerializer<T> TypeSerializer = InitSerializer();
 
         /// <summary>
         /// Returns a positive number for primitive type, well known fixed size types
@@ -124,7 +121,10 @@ namespace Spreads.Serialization
         public static readonly bool IsFixedSize = FixedSize > 0;
 
         // ReSharper disable once StaticMemberInGenericType
-        public static readonly bool HasBinarySerializer = FixedSize <= 0 && BinarySerializer != null;
+        public static readonly bool HasBinarySerializer = TypeSerializer != null;
+
+        // ReSharper disable once StaticMemberInGenericType
+        internal static readonly bool IsInternalBinarySerializer = TypeSerializer != null && TypeSerializer.SerializerVersion == 0;
 
         // ReSharper disable once StaticMemberInGenericType
         public static readonly short PinnedSize = GetPinnedSize();
@@ -205,7 +205,7 @@ namespace Spreads.Serialization
             try
             {
                 var size = InitFixedSize();
-                if (size > 255)
+                if (size > 256) // TODO review, we have `short` for sizes
                 {
                     size = -1;
                 }
@@ -217,6 +217,186 @@ namespace Spreads.Serialization
             {
                 return -1;
             }
+        }
+
+        private static BinarySerializer<T> InitSerializer()
+        {
+            var bsAttr = BinarySerializationAttribute.GetSerializationAttribute(typeof(T));
+
+            BinarySerializer<T> serializer = null;
+
+            if (bsAttr != null && bsAttr.SerializerType != null)
+            {
+                if (!typeof(BinarySerializer<T>).IsAssignableFrom(bsAttr.SerializerType))
+                {
+                    ThrowHelper.ThrowInvalidOperationException($"SerializerType `{bsAttr.SerializerType.FullName}` in BinarySerialization attribute does not implement IBinaryConverter<T> for the type `{typeof(T).FullName}`");
+                }
+
+                try
+                {
+                    serializer = (BinarySerializer<T>)Activator.CreateInstance(bsAttr.SerializerType);
+                }
+                catch
+                {
+                    ThrowHelper.ThrowInvalidOperationException($"SerializerType `{bsAttr.SerializerType.FullName}` must have a parameterless constructor.");
+                }
+                if (serializer != null && serializer.SerializerVersion <= 0)
+                {
+                    ThrowHelper.ThrowInvalidOperationException("User-defined IBinarySerializer<T> implementation for a type T should have a positive version.");
+                }
+            }
+
+            // NB we try to check interface as a last step, because some generic types
+            // could implement IBinaryConverter<T> but still be blittable for certain types,
+            // e.g. DateTime vs long in PersistentMap<K,V>.Entry
+            //if (tmp is IBinaryConverter<T>) {
+            if (typeof(BinarySerializer<T>).IsAssignableFrom(typeof(T)))
+            {
+                if (serializer != null)
+                {
+                    ThrowHelper.ThrowInvalidOperationException($"IBinarySerializer `{serializer.GetType().FullName}` was already set via BinarySerialization attribute. The type `{typeof(T).FullName}` should not implement IBinaryConverter<T> interface or the attribute should not include SerializerType property.");
+                }
+                try
+                {
+                    serializer = (BinarySerializer<T>)(object)Activator.CreateInstance<T>();
+                }
+                catch
+                {
+                    ThrowHelper.ThrowInvalidOperationException($"Type T ({typeof(T).FullName}) implements IBinaryConverter<T> and must have a parameterless constructor.");
+                }
+
+                if (serializer != null && serializer.SerializerVersion <= 0)
+                {
+                    ThrowHelper.ThrowInvalidOperationException("User-defined IBinarySerializer<T> implementation for a type T should have a positive version.");
+                }
+            }
+
+#if SPREADS
+            // TODO synchronize with TypeEnumHelper's GetTypeEnum and CreateTypeInfo
+
+            if (typeof(T).GetTypeInfo().IsGenericType &&
+                typeof(T).GetGenericTypeDefinition() == typeof(FixedArray<>))
+            {
+                var elementType = typeof(T).GetGenericArguments()[0];
+                var elementSize = TypeHelper.GetSize(elementType);
+                if (elementSize > 0)
+                { // only for blittable types
+                    serializer = (BinarySerializer<T>)FixedArraySerializerFactory.Create(elementType);
+                    Debug.Assert(serializer.SerializerVersion == 0);
+                }
+            }
+
+            #region Tuple2
+
+            if (typeof(T).GetTypeInfo().IsGenericType &&
+                typeof(T).GetGenericTypeDefinition() == typeof(KeyValuePair<,>))
+            {
+                var gArgs = typeof(T).GetGenericArguments();
+                var serializerTmp = (BinarySerializer<T>)KvpSerializerFactory.Create(gArgs[0], gArgs[1]);
+                if (serializerTmp.FixedSize > 0)
+                {
+                    serializer = serializerTmp;
+                    Debug.Assert(serializer.SerializerVersion == 0);
+                }
+            }
+
+            if (typeof(T).GetTypeInfo().IsGenericType &&
+                typeof(T).GetGenericTypeDefinition() == typeof(ValueTuple<,>))
+            {
+                var gArgs = typeof(T).GetGenericArguments();
+
+                var serializerTmp = (BinarySerializer<T>)ValueTuple2SerializerFactory.Create(gArgs[0], gArgs[1]);
+                if (serializerTmp.FixedSize > 0)
+                {
+                    serializer = serializerTmp;
+                    Debug.Assert(serializer.SerializerVersion == 0);
+                }
+            }
+
+            if (typeof(T).GetTypeInfo().IsGenericType &&
+                typeof(T).GetGenericTypeDefinition() == typeof(Tuple<,>))
+            {
+                var gArgs = typeof(T).GetGenericArguments();
+                var serializerTmp = (TupleSerializer<T>)Tuple2SerializerFactory.Create(gArgs[0], gArgs[1]);
+                if (serializerTmp.IsBinary)
+                {
+                    serializer = serializerTmp;
+                    Debug.Assert(serializer.SerializerVersion == 0);
+                }
+            }
+
+            #endregion Tuple2
+
+            #region Tuple3
+
+            if (typeof(T).GetTypeInfo().IsGenericType &&
+                typeof(T).GetGenericTypeDefinition() == typeof(TaggedKeyValue<,>))
+            {
+                var gArgs = typeof(T).GetGenericArguments();
+                var serializerTmp = (BinarySerializer<T>)TaggedKeyValueByteSerializerFactory.Create(gArgs[0], gArgs[1]);
+                if (serializerTmp.FixedSize > 0)
+                {
+                    serializer = serializerTmp;
+                    Debug.Assert(serializer.SerializerVersion == 0);
+                }
+            }
+
+            if (typeof(T).GetTypeInfo().IsGenericType &&
+                typeof(T).GetGenericTypeDefinition() == typeof(ValueTuple<,,>))
+            {
+                var gArgs = typeof(T).GetGenericArguments();
+
+                var serializerTmp = (BinarySerializer<T>)ValueTuple3SerializerFactory.Create(gArgs[0], gArgs[1], gArgs[2]);
+                if (serializerTmp.FixedSize > 0)
+                {
+                    serializer = serializerTmp;
+                    Debug.Assert(serializer.SerializerVersion == 0);
+                }
+            }
+
+            if (typeof(T).GetTypeInfo().IsGenericType &&
+                typeof(T).GetGenericTypeDefinition() == typeof(Tuple<,,>))
+            {
+                var gArgs = typeof(T).GetGenericArguments();
+                var serializerTmp = (BinarySerializer<T>)Tuple3SerializerFactory.Create(gArgs[0], gArgs[1], gArgs[2]);
+                if (serializerTmp.FixedSize > 0)
+                {
+                    serializer = serializerTmp;
+                    Debug.Assert(serializer.SerializerVersion == 0);
+                }
+            }
+
+            #endregion Tuple3
+
+            if (typeof(T).IsArray)
+            {
+                var elementType = typeof(T).GetElementType();
+                var elementSize = TypeHelper.GetSize(elementType);
+                if (elementSize > 0)
+                { // only for blittable types
+                    serializer = (BinarySerializer<T>)ArraySerializerFactory.Create(elementType);
+                    Debug.Assert(serializer.SerializerVersion == 0);
+                }
+            }
+
+            if (typeof(T).IsGenericType
+                && typeof(T).GetGenericTypeDefinition() == typeof(Collections.Internal.VectorStorage<>))
+            {
+                // TODO TEH by type
+                var elementType = typeof(T).GenericTypeArguments[0];
+                var elementSize = TypeHelper.GetSize(elementType);
+                if (elementSize > 0)
+                { // only for blittable types
+                    serializer = (BinarySerializer<T>)Collections.Internal.VectorStorageSerializerFactory.Create(elementType);
+                    Debug.Assert(serializer.SerializerVersion == 0);
+                }
+            }
+
+            // Do not add Json converter as fallback, it is not "binary", it implements the interface for
+            // simpler implementation in BinarySerializer and fallback happens there
+#endif
+
+            return serializer;
         }
 
         private static int InitFixedSize()
@@ -237,179 +417,10 @@ namespace Spreads.Serialization
 
             // by this line the type is not blittable
 
-            IBinarySerializer<T> serializer = null;
-            var isInternalSerializer = false;
+            BinarySerializer<T> serializerX = TypeSerializer;
 
-            if (bsAttr != null && bsAttr.SerializerType != null)
+            if (serializerX != null)
             {
-                if (!typeof(IBinarySerializer<T>).IsAssignableFrom(bsAttr.SerializerType))
-                {
-                    ThrowHelper.ThrowInvalidOperationException($"SerializerType `{bsAttr.SerializerType.FullName}` in BinarySerialization attribute does not implement IBinaryConverter<T> for the type `{typeof(T).FullName}`");
-                }
-
-                try
-                {
-                    serializer = (IBinarySerializer<T>)Activator.CreateInstance(bsAttr.SerializerType);
-                }
-                catch
-                {
-                    ThrowHelper.ThrowInvalidOperationException($"SerializerType `{bsAttr.SerializerType.FullName}` must have a parameterless constructor.");
-                }
-            }
-
-            // NB we try to check interface as a last step, because some generic types
-            // could implement IBinaryConverter<T> but still be blittable for certain types,
-            // e.g. DateTime vs long in PersistentMap<K,V>.Entry
-            //if (tmp is IBinaryConverter<T>) {
-            if (typeof(IBinarySerializer<T>).IsAssignableFrom(typeof(T)))
-            {
-                if (serializer != null)
-                {
-                    ThrowHelper.ThrowInvalidOperationException($"IBinarySerializer `{serializer.GetType().FullName}` was already set via BinarySerialization attribute. The type `{typeof(T).FullName}` should not implement IBinaryConverter<T> interface or the attribute should not include SerializerType property.");
-                }
-                try
-                {
-                    serializer = (IBinarySerializer<T>)Activator.CreateInstance<T>();
-                }
-                catch
-                {
-                    ThrowHelper.ThrowInvalidOperationException($"Type T ({typeof(T).FullName}) implements IBinaryConverter<T> and must have a parameterless constructor.");
-                }
-                // ReSharper disable once PossibleNullReferenceException
-                if (serializer.SerializerVersion <= 0)
-                {
-                    ThrowHelper.ThrowInvalidOperationException("User-defined IBinaryConverter<T> implementation for a type T should have a positive version.");
-                }
-            }
-
-#if SPREADS
-            // TODO synchronize with TypeEnumHelper's GetTypeEnum and CreateTypeInfo
-
-            if (typeof(T).GetTypeInfo().IsGenericType &&
-                typeof(T).GetGenericTypeDefinition() == typeof(FixedArray<>))
-            {
-                var elementType = typeof(T).GetGenericArguments()[0];
-                var elementSize = TypeHelper.GetSize(elementType);
-                if (elementSize > 0)
-                { // only for blittable types
-                    serializer = (IBinarySerializer<T>)FixedArraySerializerFactory.Create(elementType);
-                    isInternalSerializer = true;
-                }
-            }
-
-            #region Tuple2
-
-            if (typeof(T).GetTypeInfo().IsGenericType &&
-                typeof(T).GetGenericTypeDefinition() == typeof(KeyValuePair<,>))
-            {
-                var gArgs = typeof(T).GetGenericArguments();
-                var serializerTmp = (IBinarySerializer<T>)KvpSerializerFactory.Create(gArgs[0], gArgs[1]);
-                if (serializerTmp.FixedSize > 0)
-                {
-                    serializer = serializerTmp;
-                    isInternalSerializer = true;
-                }
-            }
-
-            if (typeof(T).GetTypeInfo().IsGenericType &&
-                typeof(T).GetGenericTypeDefinition() == typeof(ValueTuple<,>))
-            {
-                var gArgs = typeof(T).GetGenericArguments();
-
-                var serializerTmp = (IBinarySerializer<T>)ValueTuple2SerializerFactory.Create(gArgs[0], gArgs[1]);
-                if (serializerTmp.FixedSize > 0)
-                {
-                    serializer = serializerTmp;
-                    isInternalSerializer = true;
-                }
-            }
-
-            if (typeof(T).GetTypeInfo().IsGenericType &&
-                typeof(T).GetGenericTypeDefinition() == typeof(Tuple<,>))
-            {
-                var gArgs = typeof(T).GetGenericArguments();
-                var serializerTmp = (ITupleSerializer<T>)Tuple2SerializerFactory.Create(gArgs[0], gArgs[1]);
-                if (serializerTmp.IsBinary)
-                {
-                    serializer = serializerTmp;
-                    isInternalSerializer = true;
-                }
-            }
-
-            #endregion Tuple2
-
-            #region Tuple3
-
-            if (typeof(T).GetTypeInfo().IsGenericType &&
-                typeof(T).GetGenericTypeDefinition() == typeof(TaggedKeyValue<,>))
-            {
-                var gArgs = typeof(T).GetGenericArguments();
-                var serializerTmp = (IBinarySerializer<T>)TaggedKeyValueByteSerializerFactory.Create(gArgs[0], gArgs[1]);
-                if (serializerTmp.FixedSize > 0)
-                {
-                    serializer = serializerTmp;
-                    isInternalSerializer = true;
-                }
-            }
-
-            if (typeof(T).GetTypeInfo().IsGenericType &&
-                typeof(T).GetGenericTypeDefinition() == typeof(ValueTuple<,,>))
-            {
-                var gArgs = typeof(T).GetGenericArguments();
-
-                var serializerTmp = (IBinarySerializer<T>)ValueTuple3SerializerFactory.Create(gArgs[0], gArgs[1], gArgs[2]);
-                if (serializerTmp.FixedSize > 0)
-                {
-                    serializer = serializerTmp;
-                    isInternalSerializer = true;
-                }
-            }
-
-            if (typeof(T).GetTypeInfo().IsGenericType &&
-                typeof(T).GetGenericTypeDefinition() == typeof(Tuple<,,>))
-            {
-                var gArgs = typeof(T).GetGenericArguments();
-                var serializerTmp = (IBinarySerializer<T>)Tuple3SerializerFactory.Create(gArgs[0], gArgs[1], gArgs[2]);
-                if (serializerTmp.FixedSize > 0)
-                {
-                    serializer = serializerTmp;
-                    isInternalSerializer = true;
-                }
-            }
-
-            #endregion Tuple3
-
-            if (typeof(T).IsArray)
-            {
-                var elementType = typeof(T).GetElementType();
-                var elementSize = TypeHelper.GetSize(elementType);
-                if (elementSize > 0)
-                { // only for blittable types
-                    serializer = (IBinarySerializer<T>)ArraySerializerFactory.Create(elementType);
-                    isInternalSerializer = true;
-                }
-            }
-
-            if (typeof(T).IsGenericType
-                && typeof(T).GetGenericTypeDefinition() == typeof(Collections.Internal.VectorStorage<>))
-            {
-                // TODO TEH by type
-                var elementType = typeof(T).GenericTypeArguments[0];
-                var elementSize = TypeHelper.GetSize(elementType);
-                if (elementSize > 0)
-                { // only for blittable types
-                    serializer = (IBinarySerializer<T>)Collections.Internal.VectorStorageSerializerFactory.Create(elementType);
-                    isInternalSerializer = true;
-                }
-            }
-
-            // Do not add Json converter as fallback, it is not "binary", it implements the interface for
-            // simpler implementation in BinarySerializer and fallback happens there
-#endif
-            if (serializer != null)
-            {
-                BinarySerializer = serializer;
-                IsInternalBinarySerializer = isInternalSerializer;
                 return -1;
             }
 
@@ -455,7 +466,7 @@ namespace Spreads.Serialization
 
                 if (hasSizeAttribute) // TODO after IBS resolution
                 {
-                    if (typeof(IBinarySerializer<T>).IsAssignableFrom(typeof(T)))
+                    if (typeof(BinarySerializer<T>).IsAssignableFrom(typeof(T)))
                     {
                         // NB: this makes no sense, because blittable is version 0, if we have any change
                         // to struct layout later, we won't be able to work with version 0 anymore
@@ -479,35 +490,35 @@ namespace Spreads.Serialization
 
         // TODO Serializer versioning is not implemented
 
-        internal static byte SerializerVersion
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => BinarySerializer?.SerializerVersion ?? 0;
-        }
+        //internal static byte SerializerVersion
+        //{
+        //    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        //    get => BinarySerializer?.SerializerVersion ?? 0;
+        //}
 
-        internal static void RegisterSerializer(IBinarySerializer<T> serializer,
-            bool overrideExisting = false)
-        {
-            if (serializer == null) { throw new ArgumentNullException(nameof(serializer)); }
-            if (FixedSize > 0) { throw new InvalidOperationException("Cannot register a custom converter for pinnable types"); }
+        //internal static void RegisterSerializer(IBinarySerializer<T> serializer,
+        //    bool overrideExisting = false)
+        //{
+        //    if (serializer == null) { throw new ArgumentNullException(nameof(serializer)); }
+        //    if (FixedSize > 0) { throw new InvalidOperationException("Cannot register a custom converter for pinnable types"); }
 
-            // NB TypeHelper is internal, we could provide some hooks later e.g. for char or bool
-            if (serializer.SerializerVersion == 0 || serializer.SerializerVersion > 3)
-            {
-                ThrowHelper.ThrowArgumentException("User-implemented serializer version must be in the range 1-3.");
-            }
+        //    // NB TypeHelper is internal, we could provide some hooks later e.g. for char or bool
+        //    if (serializer.SerializerVersion <= 0 || serializer.SerializerVersion > 3)
+        //    {
+        //        ThrowHelper.ThrowArgumentException("User-implemented serializer version must be in the range 1-3.");
+        //    }
 
-            if (HasBinarySerializer && !overrideExisting)
-            {
-                ThrowHelper.ThrowInvalidOperationException(
-                    $"Type {typeof(T)} already implements IBinarySerializer<{typeof(T).Name}> interface. Use versioning to add a new converter (not supported yet)");
-            }
+        //    if (HasBinarySerializer && !overrideExisting)
+        //    {
+        //        ThrowHelper.ThrowInvalidOperationException(
+        //            $"Type {typeof(T)} already implements IBinarySerializer<{typeof(T).Name}> interface. Use versioning to add a new converter (not supported yet)");
+        //    }
 
-            if (IsFixedSize) // TODO this may be possible, but don't care for now
-            {
-                Environment.FailFast($"Blittable types must not have IBinaryConverter<T>.");
-            }
-            BinarySerializer = serializer;
-        }
+        //    if (IsFixedSize) // TODO this may be possible, but don't care for now
+        //    {
+        //        Environment.FailFast($"Blittable types must not have IBinaryConverter<T>.");
+        //    }
+        //    BinarySerializer = serializer;
+        //}
     }
 }

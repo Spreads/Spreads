@@ -13,7 +13,7 @@ namespace Spreads.Serialization
 {
     internal static class ArraySerializerFactory
     {
-        public static IBinarySerializer<TElement[]> GenericCreate<TElement>()
+        public static BinarySerializer<TElement[]> GenericCreate<TElement>()
         {
             return new ArraySerializer<TElement>();
         }
@@ -29,29 +29,34 @@ namespace Spreads.Serialization
     /// <summary>
     /// Simple copy of blittable array data. No shuffle.
     /// </summary>
-    internal class ArraySerializer<TElement> : IBinarySerializer<TElement[]>
+    internal class ArraySerializer<TElement> : BinarySerializer<TElement[]>
     {
         internal static ArraySerializer<TElement> Instance =
             new ArraySerializer<TElement>();
 
         // This is special, TypeHelper is aware of it (for others version must be > 0)
-        public byte SerializerVersion
+        public override byte SerializerVersion
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => 0;
         }
 
-        public byte KnownTypeId => 0;
+        public override byte KnownTypeId => 0;
 
-        public short FixedSize => 0;
+        public override short FixedSize => 0;
 
-        public int SizeOf(in TElement[] value, out RetainedMemory<byte> temporaryBuffer)
+        public override int SizeOf(in TElement[] value, out RetainedMemory<byte> temporaryBuffer)
         {
             temporaryBuffer = default;
             return 4 + value.Length * SizeOf<TElement>();
         }
 
-        public unsafe int Write(in TElement[] value, DirectBuffer destination)
+        public override int SizeOf(in TElement[] value, BufferWriter bufferWriter)
+        {
+            throw new NotImplementedException();
+        }
+
+        public override unsafe int Write(in TElement[] value, DirectBuffer destination)
         {
             destination.Write(0, value.Length);
             if (value.Length > 0)
@@ -65,7 +70,7 @@ namespace Spreads.Serialization
             return 4;
         }
 
-        public unsafe int Read(DirectBuffer source, out TElement[] value)
+        public override unsafe int Read(DirectBuffer source, out TElement[] value)
         {
             var arraySize = source.Read<int>(0);
             var position = 4;

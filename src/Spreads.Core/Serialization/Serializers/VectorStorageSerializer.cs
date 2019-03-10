@@ -10,7 +10,7 @@ namespace Spreads.Collections.Internal
 {
     internal static class VectorStorageSerializerFactory
     {
-        public static IBinarySerializer<VectorStorage<TElement>> GenericCreate<TElement>()
+        public static BinarySerializer<VectorStorage<TElement>> GenericCreate<TElement>()
         {
             return new VectorStorageSerializer<TElement>();
         }
@@ -26,15 +26,15 @@ namespace Spreads.Collections.Internal
     // TODO fallback to ArrayWrapperSerializer with params
     // TODO do not throw not supported, just do not register a binary serializer
     // and add Json formatter.
-    internal class VectorStorageSerializer<T> : IBinarySerializer<VectorStorage<T>>
+    internal class VectorStorageSerializer<T> : BinarySerializer<VectorStorage<T>>
     {
-        public byte SerializerVersion => 0;
+        public override byte SerializerVersion => 0;
 
-        public byte KnownTypeId => 0;
+        public override byte KnownTypeId => 0;
 
-        public short FixedSize => -1;
+        public override short FixedSize => -1;
 
-        public int SizeOf(in VectorStorage<T> value, out RetainedMemory<byte> temporaryBuffer)
+        public override int SizeOf(in VectorStorage<T> value, out RetainedMemory<byte> temporaryBuffer)
         {
             if (value.Storage.Stride != 1 || !TypeHelper<T>.IsFixedSize)
             {
@@ -45,7 +45,12 @@ namespace Spreads.Collections.Internal
             return 4 + value.Storage.Length * Unsafe.SizeOf<T>();
         }
 
-        public unsafe int Write(in VectorStorage<T> value, DirectBuffer destination)
+        public override int SizeOf(in VectorStorage<T> value, BufferWriter bufferWriter)
+        {
+            throw new NotImplementedException();
+        }
+
+        public override unsafe int Write(in VectorStorage<T> value, DirectBuffer destination)
         {
             if (value.Storage.Stride != 1 || !TypeHelper<T>.IsFixedSize)
             {
@@ -98,7 +103,7 @@ namespace Spreads.Collections.Internal
             return 4;
         }
 
-        public unsafe int Read(DirectBuffer source, out VectorStorage<T> value)
+        public override unsafe int Read(DirectBuffer source, out VectorStorage<T> value)
         {
             var arraySize = source.Read<int>(0);
             if (arraySize > 0)

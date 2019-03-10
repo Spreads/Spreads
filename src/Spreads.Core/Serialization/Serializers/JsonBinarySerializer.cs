@@ -2,16 +2,18 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-using System.Runtime.CompilerServices;
 using Spreads.Buffers;
 using Spreads.Serialization.Utf8Json;
+using System;
+using System.Diagnostics;
+using System.Runtime.CompilerServices;
 
-namespace Spreads.Serialization
+namespace Spreads.Serialization.Serializers
 {
     /// <summary>
     /// Fallback serializer that serializes data as JSON but pretends to be a binary one.
     /// </summary>
-    public sealed class JsonBinarySerializer<T> : IBinarySerializer<T>
+    public sealed class JsonBinarySerializer<T> : BinarySerializer<T>
     {
         private JsonBinarySerializer()
         {
@@ -20,32 +22,54 @@ namespace Spreads.Serialization
         // This is not a "binary" converter, but a fallback with the same interface
         public static JsonBinarySerializer<T> Instance = new JsonBinarySerializer<T>();
 
-        public byte SerializerVersion
+        public override byte SerializerVersion
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => 0;
         }
 
-        public byte KnownTypeId => 0;
+        public override byte KnownTypeId => 0;
 
-        public short FixedSize => -1;
+        public override short FixedSize => -1;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int SizeOf(in T value, out RetainedMemory<byte> temporaryBuffer)
+        public static int SizeOfStatic(in T value, out RetainedMemory<byte> temporaryBuffer)
         {
             temporaryBuffer = JsonSerializer.SerializeToRetainedMemory(value);
             return temporaryBuffer.Length;
         }
 
-        int IBinarySerializer<T>.SizeOf(in T value, out RetainedMemory<byte> temporaryBuffer)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int SizeOfStatic(in T value, BufferWriter bufferWriter)
         {
-            return SizeOf(in value, out temporaryBuffer);
+            Debug.Assert(bufferWriter != null);
+
+            // TODO Json should use the same BufferWriter
+            var segment = JsonSerializer.SerializeToRentedBuffer(value);
+            var size = segment.Count;
+
+            bufferWriter.Write<int>(size);
+            bufferWriter.Write(segment.AsSpan());
+
+            BufferPool<byte>.Return(segment.Array, false);
+
+            return size;
+        }
+
+        public override int SizeOf(in T value, BufferWriter bufferWriter)
+        {
+            return SizeOfStatic(in value, bufferWriter);
+        }
+
+        public override int SizeOf(in T value, out RetainedMemory<byte> temporaryBuffer)
+        {
+            return SizeOfStatic(in value, out temporaryBuffer);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int Write(in T value, in DirectBuffer destination)
+        public static int WriteStatic(in T value, in DirectBuffer destination)
         {
-            var size = SizeOf(value, out var retainedMemory);
+            var size = SizeOfStatic(value, out var retainedMemory);
             try
             {
                 // in general buffer could be empty/default if size is known, but not with Json
@@ -66,9 +90,9 @@ namespace Spreads.Serialization
             }
         }
 
-        int IBinarySerializer<T>.Write(in T value, DirectBuffer destination)
+        public override int Write(in T value, DirectBuffer destination)
         {
-            return Write(in value, in destination);
+            return WriteStatic(in value, in destination);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -79,7 +103,7 @@ namespace Spreads.Serialization
             return reader.GetCurrentOffsetUnsafe();
         }
 
-        int IBinarySerializer<T>.Read(DirectBuffer source, out T value)
+        public override int Read(DirectBuffer source, out T value)
         {
             return Read(in source, out value);
         }

@@ -415,16 +415,16 @@ namespace Spreads.Buffers
                 if (_factory == null)
                 {
                     ArrayMemory<T> arrayMemory;
-                    //if (_pool._pin && _bufferLength * Unsafe.SizeOf<T>() <= Settings.LARGE_BUFFER_LIMIT)
-                    //{
-                    //    if (_sliceBucket == null)
-                    //    {
-                    //        _sliceBucket = new ArrayMemorySliceBucket<T>(_bufferLength, _buffers.Length);
-                    //    }
+                    if (_pool._pin && _bufferLength * Unsafe.SizeOf<T>() <= Settings.LARGE_BUFFER_LIMIT)
+                    {
+                        if (_sliceBucket == null)
+                        {
+                            _sliceBucket = new ArrayMemorySliceBucket<T>(_bufferLength, _buffers.Length);
+                        }
 
-                    //    arrayMemory = _sliceBucket.RentMemory();
-                    //}
-                    //else
+                        arrayMemory = _sliceBucket.RentMemory();
+                    }
+                    else
                     {
                         arrayMemory = ArrayMemory<T>.Create(_bufferLength, _pool._pin);
                     }
