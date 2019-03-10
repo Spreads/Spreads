@@ -296,6 +296,62 @@ namespace Spreads.Core.Tests.Serialization
             rm.Dispose();
         }
 
+
+
+        [Test]
+        public void CouldSerializeTuple5()
+        {
+            var rm = BufferPool.Retain(1000);
+            var db = new DirectBuffer(rm);
+
+            (decimal, SmallDecimal, double, DateTime, int) val = (10M, 42, 3.1415, DateTime.UtcNow, 123);
+
+            var serializationFormats = Enum.GetValues(typeof(SerializationFormat)).Cast<SerializationFormat>();
+
+            foreach (var preferredFormat in serializationFormats)
+            {
+                var sizeOf = BinarySerializer.SizeOf(val, out var tempBuf, preferredFormat);
+                if (preferredFormat.IsBinary())
+                {
+                    Assert.AreEqual(4 + 44, sizeOf);
+                }
+
+                var written = BinarySerializer.Write(val, db, tempBuf, preferredFormat);
+
+                Assert.AreEqual(sizeOf, written);
+
+                var consumed = BinarySerializer.Read(db, out (decimal, SmallDecimal, double, DateTime, int) val2);
+
+                Assert.AreEqual(written, consumed);
+
+                Assert.AreEqual(val, val2);
+            }
+
+            rm.Dispose();
+        }
+
+
+        [Test, Explicit("bench")]
+        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+        public void CouldSerializeTuple5Bench()
+        {
+            var count = 10_000_000;
+            var rm = BufferPool.Retain(1000);
+            var db = new DirectBuffer(rm);
+
+            var format = SerializationFormat.Binary;
+
+            var classThatWarmsUpStuff = new TupleBenchmarkRunnerWithWarmUp<(long, long, long, long, long)>();
+            for (int _ = 0; _ < 5000; _++)
+            {
+                classThatWarmsUpStuff.Bench_Loop(count, default, format, db);
+            }
+            Benchmark.Dump();
+
+            rm.Dispose();
+        }
+
+
         private class TupleBenchmarkRunnerWithWarmUp<T>
         {
             static TupleBenchmarkRunnerWithWarmUp()

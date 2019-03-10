@@ -828,4 +828,247 @@ namespace Spreads.Serialization.Serializers
     }
 
     #endregion Tuple4
+
+    #region Tuple5
+
+    [StructLayout(LayoutKind.Sequential, Pack = 1)]
+    [BinarySerialization(preferBlittable: true)]
+    internal struct TuplePack<T1, T2, T3, T4, T5>
+    {
+        public T1 Item1;
+        public T2 Item2;
+        public T3 Item3;
+        public T4 Item4;
+        public T5 Item5;
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public TuplePack((T1, T2, T3, T4, T5) tuple)
+        {
+            (Item1, Item2, Item3, Item4, Item5) = tuple;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public TuplePack(Tuple<T1, T2, T3, T4, T5> tuple)
+        {
+            (Item1, Item2, Item3, Item4, Item5) = tuple;
+        }
+    }
+
+    internal static class TuplePackSerializer<T1, T2, T3, T4, T5>
+    {
+        // ReSharper disable once StaticMemberInGenericType
+        internal static readonly short FixedSize = CalculateFixedSize();
+
+        internal static readonly bool HasAnySerializer = TypeHelper<T1>.HasTypeSerializer
+                                                          || TypeHelper<T2>.HasTypeSerializer
+                                                          || TypeHelper<T3>.HasTypeSerializer
+                                                          || TypeHelper<T4>.HasTypeSerializer
+                                                          || TypeHelper<T5>.HasTypeSerializer
+                                                          ;
+
+        private static short CalculateFixedSize()
+        {
+            var s1 = TypeEnumHelper<T1>.FixedSize;
+            var s2 = TypeEnumHelper<T2>.FixedSize;
+            var s3 = TypeEnumHelper<T3>.FixedSize;
+            var s4 = TypeEnumHelper<T4>.FixedSize;
+            var s5 = TypeEnumHelper<T5>.FixedSize;
+            if (s1 > 0
+                && s2 > 0
+                && s3 > 0
+                && s4 > 0
+                && s5 > 0
+                )
+            {
+                return checked((short)(s1
+                                       + s2
+                                       + s3
+                                       + s4
+                                       + s5
+                                       ));
+            }
+
+            return -1;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int SizeOf(in TuplePack<T1, T2, T3, T4, T5> value, BufferWriter bufferWriter)
+        {
+            if (HasAnySerializer)
+            {
+                Debug.Assert(bufferWriter != null);
+
+                var s1 = TuplePackSerializer.WriteItem<T1>(bufferWriter, in value.Item1);
+                var s2 = TuplePackSerializer.WriteItem<T2>(bufferWriter, in value.Item2);
+                var s3 = TuplePackSerializer.WriteItem<T3>(bufferWriter, in value.Item3);
+                var s4 = TuplePackSerializer.WriteItem<T4>(bufferWriter, in value.Item4);
+                var s5 = TuplePackSerializer.WriteItem<T5>(bufferWriter, in value.Item5);
+
+                return s1 + s2 + s3 + s4 + s5;
+            }
+
+            if (FixedSize > 0)
+            {
+                // this will save a Write call later
+                bufferWriter?.Write(in value);
+                return FixedSize;
+            }
+
+            TuplePackSerializer.FailShouldNotBeCalled();
+            return -1;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int Write(in TuplePack<T1, T2, T3, T4, T5> value, DirectBuffer destination)
+        {
+            if (HasAnySerializer)
+            {
+                var bufferWriter = BufferWriter.Create();
+                var sizeOf = SizeOf(value, bufferWriter);
+                bufferWriter.WrittenBuffer.CopyTo(destination);
+                bufferWriter.Dispose();
+                return sizeOf;
+            }
+
+            if (FixedSize > 0)
+            {
+                Debug.Assert(TypeHelper<TuplePack<T1, T2, T3, T4, T5>>.PinnedSize > 0);
+                Debug.Assert(FixedSize == Unsafe.SizeOf<TuplePack<T1, T2, T3, T4, T5>>());
+                Debug.Assert(FixedSize == TypeHelper<TuplePack<T1, T2, T3, T4, T5>>.PinnedSize);
+
+                // this does bounds check unless it is turned off
+                destination.Write(0, value);
+                return FixedSize;
+            }
+
+            TuplePackSerializer.FailShouldNotBeCalled();
+            return -1;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int Read(DirectBuffer source, out TuplePack<T1, T2, T3, T4, T5> value)
+        {
+            if (HasAnySerializer)
+            {
+                var acc = 0;
+                int consumed;
+
+                acc += consumed = TuplePackSerializer.ReadItem<T1>(source, out var item1);
+
+                source = source.Slice(consumed);
+                acc += consumed = TuplePackSerializer.ReadItem<T2>(source, out var item2);
+
+                source = source.Slice(consumed);
+                acc += consumed = TuplePackSerializer.ReadItem<T3>(source, out var item3);
+
+                source = source.Slice(consumed);
+                acc += consumed = TuplePackSerializer.ReadItem<T4>(source, out var item4);
+
+                source = source.Slice(consumed);
+                acc += TuplePackSerializer.ReadItem<T5>(source, out var item5);
+
+                value = new TuplePack<T1, T2, T3, T4, T5>((item1, item2, item3, item4, item5));
+                return acc;
+            }
+
+            if (FixedSize > 0)
+            {
+                Debug.Assert(FixedSize == Unsafe.SizeOf<TuplePack<T1, T2, T3, T4, T5>>(), "FixedSize == Unsafe.SizeOf<TuplePack<T1, T2, T3, T4, T5>>()");
+                Debug.Assert(FixedSize == TypeHelper<TuplePack<T1, T2, T3, T4, T5>>.FixedSize, "FixedSize == TypeHelper<TuplePack<T1, T2, T3, T4, T5>>.FixedSize");
+
+                value = source.Read<TuplePack<T1, T2, T3, T4, T5>>(0);
+                return FixedSize;
+            }
+
+            value = default;
+            TuplePackSerializer.FailShouldNotBeCalled();
+            return -1;
+        }
+    }
+
+    internal static class ValueTuple5SerializerFactory
+    {
+        public static BinarySerializer<(T1, T2, T3, T4, T5)> GenericCreate<T1, T2, T3, T4, T5>()
+        {
+            return new ValueTuple4Serializer<T1, T2, T3, T4, T5>();
+        }
+
+        public static object Create(Type type1, Type type2, Type type3, Type type4, Type type5)
+        {
+            var method = typeof(ValueTuple5SerializerFactory).GetTypeInfo().GetMethod(nameof(GenericCreate));
+            var generic = method?.MakeGenericMethod(type1, type2, type3, type4, type5);
+            return generic?.Invoke(null, null);
+        }
+
+        internal sealed class ValueTuple4Serializer<T1, T2, T3, T4, T5> : InternalSerializer<(T1, T2, T3, T4, T5)>
+        {
+            public override byte KnownTypeId => 0;
+
+            public override short FixedSize => TuplePackSerializer<T1, T2, T3, T4, T5>.FixedSize;
+
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public override int SizeOf(in (T1, T2, T3, T4, T5) value, BufferWriter payload)
+            {
+                return TuplePackSerializer<T1, T2, T3, T4, T5>.SizeOf(new TuplePack<T1, T2, T3, T4, T5>(value), payload);
+            }
+
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public override int Write(in (T1, T2, T3, T4, T5) value, DirectBuffer destination)
+            {
+                return TuplePackSerializer<T1, T2, T3, T4, T5>.Write(new TuplePack<T1, T2, T3, T4, T5>(value), destination);
+            }
+
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public override int Read(DirectBuffer source, out (T1, T2, T3, T4, T5) value)
+            {
+                var readBytes = TuplePackSerializer<T1, T2, T3, T4, T5>.Read(source, out var tp);
+                value = (tp.Item1, tp.Item2, tp.Item3, tp.Item4, tp.Item5);
+                return readBytes;
+            }
+        }
+    }
+
+    internal static class Tuple5SerializerFactory
+    {
+        public static BinarySerializer<Tuple<T1, T2, T3, T4, T5>> GenericCreate<T1, T2, T3, T4, T5>()
+        {
+            return new Tuple5Serializer<T1, T2, T3, T4, T5>();
+        }
+
+        public static object Create(Type type1, Type type2, Type type3, Type type4, Type type5)
+        {
+            var method = typeof(Tuple5SerializerFactory).GetTypeInfo().GetMethod(nameof(GenericCreate));
+            var generic = method?.MakeGenericMethod(type1, type2, type3, type4, type5);
+            return generic?.Invoke(null, null);
+        }
+
+        internal sealed class Tuple5Serializer<T1, T2, T3, T4, T5> : InternalSerializer<Tuple<T1, T2, T3, T4, T5>>
+        {
+            public override byte KnownTypeId => 0;
+
+            public override short FixedSize => TuplePackSerializer<T1, T2, T3, T4, T5>.FixedSize;
+
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public override int SizeOf(in Tuple<T1, T2, T3, T4, T5> value, BufferWriter payload)
+            {
+                return TuplePackSerializer<T1, T2, T3, T4, T5>.SizeOf(new TuplePack<T1, T2, T3, T4, T5>(value), payload);
+            }
+
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public override int Write(in Tuple<T1, T2, T3, T4, T5> value, DirectBuffer destination)
+            {
+                return TuplePackSerializer<T1, T2, T3, T4, T5>.Write(new TuplePack<T1, T2, T3, T4, T5>(value), destination);
+            }
+
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public override int Read(DirectBuffer source, out Tuple<T1, T2, T3, T4, T5> value)
+            {
+                var readBytes = TuplePackSerializer<T1, T2, T3, T4, T5>.Read(source, out var tp);
+                value = Tuple.Create(tp.Item1, tp.Item2, tp.Item3, tp.Item4, tp.Item5);
+                return readBytes;
+            }
+        }
+    }
+
+    #endregion Tuple5
 }

@@ -383,7 +383,34 @@ namespace Spreads.Serialization
                 typeof(T).GetGenericTypeDefinition() == typeof(Tuple<,,,>))
             {
                 var gArgs = typeof(T).GetGenericArguments();
-                var serializerTmp = (InternalSerializer<T>)Tuple4SerializerFactory.Create(gArgs[0], gArgs[1], gArgs[2], gArgs[2]);
+                var serializerTmp = (InternalSerializer<T>)Tuple4SerializerFactory.Create(gArgs[0], gArgs[1], gArgs[2], gArgs[3]);
+                if (serializerTmp.FixedSize > 0)
+                {
+                    serializer = serializerTmp;
+                }
+            }
+
+            #endregion Tuple4
+
+            #region Tuple5
+
+            if (typeof(T).GetTypeInfo().IsGenericType &&
+                typeof(T).GetGenericTypeDefinition() == typeof(ValueTuple<,,,,>))
+            {
+                var gArgs = typeof(T).GetGenericArguments();
+
+                var serializerTmp = (InternalSerializer<T>)ValueTuple5SerializerFactory.Create(gArgs[0], gArgs[1], gArgs[2], gArgs[3], gArgs[4]);
+                if (serializerTmp.FixedSize > 0)
+                {
+                    serializer = serializerTmp;
+                }
+            }
+
+            if (typeof(T).GetTypeInfo().IsGenericType &&
+                typeof(T).GetGenericTypeDefinition() == typeof(Tuple<,,,,>))
+            {
+                var gArgs = typeof(T).GetGenericArguments();
+                var serializerTmp = (InternalSerializer<T>)Tuple5SerializerFactory.Create(gArgs[0], gArgs[1], gArgs[2], gArgs[3], gArgs[4]);
                 if (serializerTmp.FixedSize > 0)
                 {
                     serializer = serializerTmp;
