@@ -366,13 +366,30 @@ namespace Spreads.Serialization
             )
             {
                 var gArgs = typeof(T).GetGenericArguments();
-                var func = ReflectionHelper.MakeFunc<TypeEnumHelper<T>, DataTypeHeader>(
-                    nameof(CreateTuple2Header),
-                    gArgs[0], gArgs[1]
-                );
+                Func<DataTypeHeader> func;
+                short fs;
+                if (typeof(T).GetGenericTypeDefinition() == typeof(Timestamped<>))
+                {
+                    func = ReflectionHelper.MakeFunc<TypeEnumHelper<T>, DataTypeHeader>(
+                        nameof(CreateTuple2Header),
+                        typeof(Timestamp), gArgs[0]
+                    );
+                    fs = (short)(TypeHelper<T>.FixedSize > 0 ? TypeHelper<T>.FixedSize : -1);
+                }
+                else
+                {
+
+                    func = ReflectionHelper.MakeFunc<TypeEnumHelper<T>, DataTypeHeader>(
+                        nameof(CreateTuple2Header),
+                        gArgs[0], gArgs[1]
+                    );
+                    fs = TypeHelper<T>.TypeSerializer?.FixedSize ?? -1;
+                }
+
                 var header = func();
 
-                var fs = TypeHelper<T>.TypeSerializer?.FixedSize ?? -1;
+                
+                
                 return new TypeEnumInfo
                 {
                     Header = header,
@@ -728,6 +745,8 @@ namespace Spreads.Serialization
 
             // TODO Tuple2Version, KeyIndexValue
             if (typeof(T).GetTypeInfo().IsGenericType && typeof(T).GetGenericTypeDefinition() == typeof(TaggedKeyValue<,>)) return TypeEnum.Tuple2Byte;
+
+            if (typeof(T).GetTypeInfo().IsGenericType && typeof(T).GetGenericTypeDefinition() == typeof(Timestamped<>)) return TypeEnum.Tuple2;
 
             #endregion Tuple-like
 

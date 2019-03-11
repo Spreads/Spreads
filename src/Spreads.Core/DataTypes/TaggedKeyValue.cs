@@ -32,7 +32,7 @@ namespace Spreads.DataTypes
             Value = value;
         }
 
-        public TaggedKeyValue(TKey key, TValue value, byte tag)
+        public TaggedKeyValue(byte tag, TKey key, TValue value)
         {
             Tag = tag;
             Key = key;
@@ -48,6 +48,19 @@ namespace Spreads.DataTypes
         {
             return new TaggedKeyValue<TKey, TValue>(kvp.Key, kvp.Value);
         }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static implicit operator (byte Tag, TKey Key, TValue Value) (TaggedKeyValue<TKey, TValue> tkv)
+        {
+            return (tkv.Tag, tkv.Key, tkv.Value);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static implicit operator TaggedKeyValue<TKey, TValue>((byte Tag, TKey Key, TValue Value) tuple)
+        {
+            return new TaggedKeyValue<TKey, TValue>(tuple.Tag, tuple.Key, tuple.Value);
+        }
+
 
         public bool Equals(TaggedKeyValue<TKey, TValue> other)
         {
@@ -114,7 +127,7 @@ namespace Spreads.DataTypes
 
             reader.ReadIsEndArrayWithVerify();
 
-            return new TaggedKeyValue<TKey, TValue>(key, value, tag);
+            return new TaggedKeyValue<TKey, TValue>(tag, key, value);
         }
     }
 }

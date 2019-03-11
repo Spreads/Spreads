@@ -800,7 +800,7 @@ namespace Spreads.Serialization
                 if ((fs > source.Length || (!skipTypeInfoValidation && TypeEnumHelper<T>.DataTypeHeader.WithoutVersionAndFlags != header.WithoutVersionAndFlags))
 #if DEBUG
                     ||
-                    (TypeHelper<T>.FixedSize > 0 && (!header.IsScalar || TypeHelper<T>.FixedSize != TypeEnumHelper<T>.FixedSize))
+                    (TypeHelper<T>.FixedSize > 0 && (TypeHelper<T>.FixedSize != TypeEnumHelper<T>.FixedSize))
 #endif
                     )
                 {

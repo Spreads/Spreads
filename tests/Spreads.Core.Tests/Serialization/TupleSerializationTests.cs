@@ -562,13 +562,78 @@ namespace Spreads.Core.Tests.Serialization
             rm.Dispose();
         }
 
+
+        [Test]
+        public unsafe void CouldSerializeTimestamped()
+        {
+            var rm = BufferPool.Retain(1000);
+            var db = new DirectBuffer(rm);
+
+            Timestamped<SmallDecimal> val = (TimeService.Default.CurrentTime, 123.456M);
+            (Timestamp first, SmallDecimal second) val2 = default;
+
+            var serializationFormats = Enum.GetValues(typeof(SerializationFormat)).Cast<SerializationFormat>();
+
+            foreach (var preferredFormat in serializationFormats)
+            {
+                db.Write(0, 0);
+
+                var sizeOf = BinarySerializer.SizeOf(val, out var tempBuf, preferredFormat);
+                if (preferredFormat.IsBinary())
+                {
+                    Assert.AreEqual(20, sizeOf);
+                }
+
+                var written = BinarySerializer.Write(val, db, tempBuf, preferredFormat);
+                if (preferredFormat == SerializationFormat.Json)
+                {
+                    Console.WriteLine(Encoding.UTF8.GetString(db.Data + 8, written - 8));
+                }
+                Assert.AreEqual(sizeOf, written);
+
+                
+                var consumed = BinarySerializer.Read(db, out val2);
+
+                Assert.AreEqual(written, consumed);
+
+                Assert.AreEqual(val, (Timestamped<SmallDecimal>)val2);
+            }
+
+            foreach (var preferredFormat in serializationFormats)
+            {
+                db.Write(0, 0);
+
+                var sizeOf = BinarySerializer.SizeOf(val2, out var tempBuf, preferredFormat);
+                if (preferredFormat.IsBinary())
+                {
+                    Assert.AreEqual(20, sizeOf);
+                }
+
+                var written = BinarySerializer.Write(val2, db, tempBuf, preferredFormat);
+                if (preferredFormat == SerializationFormat.Json)
+                {
+                    Console.WriteLine(Encoding.UTF8.GetString(db.Data + 8, written - 8));
+                }
+                Assert.AreEqual(sizeOf, written);
+
+
+                var consumed = BinarySerializer.Read(db, out val);
+
+                Assert.AreEqual(written, consumed);
+
+                Assert.AreEqual(val, (Timestamped<SmallDecimal>)val2);
+            }
+
+            rm.Dispose();
+        }
+
         [Test]
         public void CouldSerializeTaggedKeyValue()
         {
             var rm = BufferPool.Retain(1000);
             var db = new DirectBuffer(rm);
 
-            var val = new TaggedKeyValue<int, long>(10, 20, 1);
+            var val = new TaggedKeyValue<int, long>(1, 10, 20);
 
             var serializationFormats = new[] { SerializationFormat.Binary }; // Enum.GetValues(typeof(SerializationFormat)).Cast<SerializationFormat>()};
 

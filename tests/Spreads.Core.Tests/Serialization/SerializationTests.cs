@@ -249,7 +249,7 @@ namespace Spreads.Core.Tests.Serialization
         [Test]
         public void CouldSerializeBlittables()
         {
-            Settings.DoAdditionalCorrectnessChecks = false;
+            Settings.DoAdditionalCorrectnessChecks = true;
 
             CouldSerializeBlittable(DateTime.Today);
             CouldSerializeBlittable(default(DateTime));
@@ -259,6 +259,7 @@ namespace Spreads.Core.Tests.Serialization
 
             CouldSerializeBlittable(TimeService.Default.CurrentTime);
             CouldSerializeBlittable(default(Timestamp));
+            CouldSerializeBlittable(new Timestamped<int>(DateTime.UtcNow, 123));
             CouldSerializeBlittable((Timestamp)long.MaxValue);
 
             CouldSerializeBlittable(0.0);
