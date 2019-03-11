@@ -2,6 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+using Microsoft.CodeAnalysis.CSharp.Scripting;
 using NUnit.Framework;
 using Spreads.Buffers;
 using Spreads.DataTypes;
@@ -10,9 +11,11 @@ using Spreads.Threading;
 using Spreads.Utils;
 using System;
 using System.Linq;
+using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
+using QuoteX = System.ValueTuple<int,int>;
 
 namespace Spreads.Core.Tests.Serialization
 {
@@ -248,6 +251,18 @@ namespace Spreads.Core.Tests.Serialization
             rm.Dispose();
         }
 
+        public class Globals
+        {
+            public object X;
+        }
+
+        private void Test<T>(T val)
+        {
+            var t = typeof(T);
+            var tg = t.GetGenericTypeDefinition();
+
+        }
+
         [Test]
         public void CouldSerializeTuple4WithTuple3AndTuple2()
         {
@@ -256,6 +271,13 @@ namespace Spreads.Core.Tests.Serialization
 
             // name do not participate in serialization
             ((long i8, int i4, short i2) ints, (double f64, float f32) floats, decimal dec, DateTime dt) val = ((1, 2, 3), (4, 5), 6, DateTime.UtcNow);
+
+            var valTy = val.GetType();
+            var attr0 = valTy.Attributes;
+            var attr1 = valTy.GetCustomAttributes().ToArray();
+            Test(val);
+            var globals = new Globals { X = val};
+            Console.WriteLine(CSharpScript.EvaluateAsync<object>("X", globals: globals).Result);
 
             var serializationFormats = Enum.GetValues(typeof(SerializationFormat)).Cast<SerializationFormat>();
 
@@ -355,6 +377,88 @@ namespace Spreads.Core.Tests.Serialization
             for (int _ = 0; _ < TestUtils.GetBenchCount(5000, 1); _++)
             {
                 classThatWarmsUpStuff.Bench_Loop(count, default, format, db);
+            }
+            Benchmark.Dump();
+
+            rm.Dispose();
+        }
+
+
+        [Test]
+        public unsafe void CouldSerializeITuple2()
+        {
+            var rm = BufferPool.Retain(1000);
+            var db = new DirectBuffer(rm);
+
+            var val = new Spreads.Serialization.Serializers.Quote<int, int>(1, 2);
+
+
+            var serializationFormats = Enum.GetValues(typeof(SerializationFormat)).Cast<SerializationFormat>();
+
+            foreach (var preferredFormat in serializationFormats)
+            {
+                db.Write(0, 0);
+
+                var sizeOf = BinarySerializer.SizeOf(val, out var tempBuf, preferredFormat);
+                if (preferredFormat.IsBinary())
+                {
+                    Assert.AreEqual(12, sizeOf);
+                }
+
+                var written = BinarySerializer.Write(val, db, tempBuf, preferredFormat);
+                if (preferredFormat == SerializationFormat.Json)
+                {
+                    Console.WriteLine(Encoding.UTF8.GetString(db.Data + 8, written - 8));
+                }
+                Assert.AreEqual(sizeOf, written);
+
+                var consumed = BinarySerializer.Read(db, out Spreads.Serialization.Serializers.Quote<int, int> val2);
+
+                Assert.AreEqual(written, consumed);
+
+                Assert.AreEqual(val.ToTuple(), val2.ToTuple());
+            }
+
+            rm.Dispose();
+        }
+
+        [BinarySerialization(preferBlittable:true)]
+        [StructLayout(LayoutKind.Sequential, Pack = 1)]
+        internal struct BlittableQuote<TPrice, TVolume>
+        {
+            public TPrice Price { get; }
+            public TVolume Volume { get; }
+
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public BlittableQuote(TPrice price, TVolume volume)
+            {
+                Price = price;
+                Volume = volume;
+            }
+
+            
+        }
+
+        [Test
+#if !DEBUG
+         , Explicit("bench")
+#endif
+        ]
+        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+        public void CouldSerializeITuple2Bench()
+        {
+            var count = TestUtils.GetBenchCount(10_000_000);
+            var rm = BufferPool.Retain(1000);
+            var db = new DirectBuffer(rm);
+
+            var format = SerializationFormat.Binary;
+
+            var iTuple = new TupleBenchmarkRunnerWithWarmUp<Spreads.Serialization.Serializers.Quote<int, int>>();
+            var blittable = new TupleBenchmarkRunnerWithWarmUp<BlittableQuote<int, int>>();
+            for (int _ = 0; _ < TestUtils.GetBenchCount(10, 1); _++)
+            {
+                iTuple.Bench_Loop(count, default, format, db);
+                blittable.Bench_Loop(count, default, format, db);
             }
             Benchmark.Dump();
 
@@ -463,6 +567,9 @@ namespace Spreads.Core.Tests.Serialization
 
             rm.Dispose();
         }
+
+
+        
 
         [Test]
         public void CouldSerializeTaggedKeyValue()

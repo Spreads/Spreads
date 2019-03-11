@@ -249,32 +249,32 @@ namespace Spreads.Serialization.Serializers
             var generic = method?.MakeGenericMethod(type1, type2);
             return generic?.Invoke(null, null);
         }
-    }
 
-    internal sealed class Tuple2Serializer<T1, T2> : InternalSerializer<Tuple<T1, T2>>
-    {
-        public override byte KnownTypeId => 0;
-
-        public override short FixedSize => TuplePackSerializer<T1, T2>.FixedSize;
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public override int SizeOf(in Tuple<T1, T2> value, BufferWriter payload)
+        internal sealed class Tuple2Serializer<T1, T2> : InternalSerializer<Tuple<T1, T2>>
         {
-            return TuplePackSerializer<T1, T2>.SizeOf(new TuplePack<T1, T2>(value), payload);
-        }
+            public override byte KnownTypeId => 0;
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public override int Write(in Tuple<T1, T2> value, DirectBuffer destination)
-        {
-            return TuplePackSerializer<T1, T2>.Write(new TuplePack<T1, T2>(value), destination);
-        }
+            public override short FixedSize => TuplePackSerializer<T1, T2>.FixedSize;
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public override int Read(DirectBuffer source, out Tuple<T1, T2> value)
-        {
-            var readBytes = TuplePackSerializer<T1, T2>.Read(source, out var tp);
-            value = Tuple.Create(tp.Item1, tp.Item2);
-            return readBytes;
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public override int SizeOf(in Tuple<T1, T2> value, BufferWriter payload)
+            {
+                return TuplePackSerializer<T1, T2>.SizeOf(new TuplePack<T1, T2>(value), payload);
+            }
+
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public override int Write(in Tuple<T1, T2> value, DirectBuffer destination)
+            {
+                return TuplePackSerializer<T1, T2>.Write(new TuplePack<T1, T2>(value), destination);
+            }
+
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public override int Read(DirectBuffer source, out Tuple<T1, T2> value)
+            {
+                var readBytes = TuplePackSerializer<T1, T2>.Read(source, out var tp);
+                value = Tuple.Create(tp.Item1, tp.Item2);
+                return readBytes;
+            }
         }
     }
 
@@ -315,6 +315,53 @@ namespace Spreads.Serialization.Serializers
             {
                 var readBytes = TuplePackSerializer<T1, T2>.Read(source, out var tp);
                 value = new KeyValuePair<T1, T2>(tp.Item1, tp.Item2);
+                return readBytes;
+            }
+        }
+    }
+
+    internal static class InterfaceTuple2SerializerFactory
+    {
+        public static ITuple2Serializer<T1, T2, TImpl> GenericCreate<T1, T2, TImpl>() where TImpl : struct, ITuple<T1, T2, TImpl>
+        {
+            return new ITuple2Serializer<T1, T2, TImpl>();
+        }
+
+        public static object Create(Type type1, Type type2, Type typeImpl)
+        {
+            var method = typeof(InterfaceTuple2SerializerFactory).GetTypeInfo().GetMethod(nameof(GenericCreate));
+            var generic = method?.MakeGenericMethod(type1, type2, typeImpl);
+            return generic?.Invoke(null, null);
+        }
+
+        // ReSharper disable once InconsistentNaming
+        internal sealed class ITuple2Serializer<T1, T2, TImpl> : InternalSerializer<TImpl> where TImpl : struct, ITuple<T1, T2, TImpl>
+        {
+            public override byte KnownTypeId => 0;
+
+            public override short FixedSize
+            {
+                [MethodImpl(MethodImplOptions.AggressiveInlining)]
+                get => TuplePackSerializer<T1, T2>.FixedSize;
+            }
+
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public override int SizeOf(in TImpl value, BufferWriter payload)
+            {
+                return TuplePackSerializer<T1, T2>.SizeOf(new TuplePack<T1, T2>(value.ToTuple()), payload);
+            }
+
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public override int Write(in TImpl value, DirectBuffer destination)
+            {
+                return TuplePackSerializer<T1, T2>.Write(new TuplePack<T1, T2>(value.ToTuple()), destination);
+            }
+
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public override int Read(DirectBuffer source, out TImpl value)
+            {
+                var readBytes = TuplePackSerializer<T1, T2>.Read(source, out var tp);
+                value = default(TImpl).FromTuple((tp.Item1, tp.Item2));
                 return readBytes;
             }
         }

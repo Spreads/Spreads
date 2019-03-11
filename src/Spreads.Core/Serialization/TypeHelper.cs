@@ -9,6 +9,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -319,6 +320,29 @@ namespace Spreads.Serialization
             {
                 var gArgs = typeof(T).GetGenericArguments();
                 var serializerTmp = (InternalSerializer<T>)Tuple2SerializerFactory.Create(gArgs[0], gArgs[1]);
+                if (serializerTmp.FixedSize > 0)
+                {
+                    serializer = serializerTmp;
+                }
+            }
+
+
+            if (typeof(T).GetTypeInfo().IsGenericType &&
+                typeof(T).GetTypeInfo().IsValueType &&
+                typeof(T).GetTypeInfo().GetInterfaces()
+                    .Any(i => i.IsGenericType 
+                              && i.GetGenericTypeDefinition() == typeof(ITuple<,,>)
+                              && i.GetGenericArguments().Last() == typeof(T)
+                        )      
+                )
+            {
+                var iTy = typeof(T).GetTypeInfo().GetInterfaces()
+                    .First(i => i.IsGenericType
+                                && i.GetGenericTypeDefinition() == typeof(ITuple<,,>)
+                                && i.GetGenericArguments().Last() == typeof(T)
+                    );
+                var gArgs = iTy.GetGenericArguments();
+                var serializerTmp = (InternalSerializer<T>)InterfaceTuple2SerializerFactory.Create(gArgs[0], gArgs[1], typeof(T));
                 if (serializerTmp.FixedSize > 0)
                 {
                     serializer = serializerTmp;
