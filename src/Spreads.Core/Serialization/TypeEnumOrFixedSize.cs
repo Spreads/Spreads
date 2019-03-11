@@ -23,6 +23,12 @@ namespace Spreads.Serialization
         private readonly byte _value;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public TypeEnumOrFixedSize(byte value, bool _)
+        {
+            _value = value;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public TypeEnumOrFixedSize(TypeEnum typeEnum)
         {
             var value = (byte)typeEnum;
@@ -51,7 +57,11 @@ namespace Spreads.Serialization
         public short Size
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#if SPREADS
             get => TypeEnumHelper.GetSize(_value);
+#else
+            get => 0; // Not used in Utf8Json
+#endif
         }
 
         public TypeEnum TypeEnum

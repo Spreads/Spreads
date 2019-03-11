@@ -4,7 +4,13 @@
 
 using Spreads.DataTypes;
 using Spreads.Native;
+
+#if SPREADS
+
 using Spreads.Serialization.Serializers;
+
+#endif
+
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -113,7 +119,7 @@ namespace Spreads.Serialization
         /// For other types returns -1.
         /// </summary>
         // ReSharper disable once StaticMemberInGenericType
-        public static readonly int FixedSize = InitFixedSizeSafe();
+        public static readonly short FixedSize = InitFixedSizeSafe();
 
         // TODO this method must comply with xml doc
         // TODO ContainsReferences, it does what the name says. Auto layout and composites could have no references
@@ -127,6 +133,9 @@ namespace Spreads.Serialization
 
         // ReSharper disable once StaticMemberInGenericType
         internal static readonly bool IsTypeSerializerInternal = TypeSerializer is InternalSerializer<T>;
+
+        // ReSharper disable once StaticMemberInGenericType
+        internal static readonly DataTypeHeader CustomHeader = InitCustomHeader();
 
         // internal static readonly int SizeOfDefault = IsFixedSize ? TypeSerializer?.SizeOf(default, null) ?? 0 : 0;
 
@@ -194,7 +203,7 @@ namespace Spreads.Serialization
             }
         }
 
-        private static int InitFixedSizeSafe()
+        private static short InitFixedSizeSafe()
         {
             // Probably this method is always called first when endianness matters.
             // Not that we expect that ever happen in reality...
@@ -209,12 +218,6 @@ namespace Spreads.Serialization
             try
             {
                 var size = InitFixedSize();
-                if (size > 256) // TODO review, we have `short` for sizes
-                {
-                    size = -1;
-                }
-
-                // NB do not support huge blittable type
                 return size;
             }
             catch
@@ -326,14 +329,13 @@ namespace Spreads.Serialization
                 }
             }
 
-
             if (typeof(T).GetTypeInfo().IsGenericType &&
                 typeof(T).GetTypeInfo().IsValueType &&
                 typeof(T).GetTypeInfo().GetInterfaces()
-                    .Any(i => i.IsGenericType 
+                    .Any(i => i.IsGenericType
                               && i.GetGenericTypeDefinition() == typeof(ITuple<,,>)
                               && i.GetGenericArguments().Last() == typeof(T)
-                        )      
+                        )
                 )
             {
                 var iTy = typeof(T).GetTypeInfo().GetInterfaces()
@@ -441,7 +443,7 @@ namespace Spreads.Serialization
                 }
             }
 
-            #endregion Tuple4
+            #endregion Tuple5
 
             if (typeof(T).IsArray)
             {
@@ -472,7 +474,7 @@ namespace Spreads.Serialization
             return serializer;
         }
 
-        private static int InitFixedSize()
+        private static short InitFixedSize()
         {
             // Auto layout for this is PITA
             if (typeof(T) == typeof(DateTime))
@@ -559,6 +561,25 @@ namespace Spreads.Serialization
             }
 
             return -1;
+        }
+
+        private static DataTypeHeader InitCustomHeader()
+        {
+            // re-read, happens once per type
+            var sa = BinarySerializationAttribute.GetSerializationAttribute(typeof(T));
+
+            if (sa != null && sa.CustomHeader.TEOFS.TypeEnum != TypeEnum.None)
+            {
+                var value = (byte)sa.CustomHeader.TEOFS.TypeEnum;
+                if (value < 100 || value >= 120)
+                {
+                    // Internal
+                    Environment.FailFast("CustomHeader.TEOFS.TypeEnum must be in the range [100,119]");
+                }
+                return sa.CustomHeader;
+            }
+
+            return default;
         }
     }
 }

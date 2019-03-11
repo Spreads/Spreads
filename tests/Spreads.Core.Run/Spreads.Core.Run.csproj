@@ -5,7 +5,7 @@
     <TargetFramework>netcoreapp3.0</TargetFramework>
     <!--<RuntimeFrameworkVersion>3.0.0-preview-27324-5</RuntimeFrameworkVersion>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>-->
-    <TieredCompilation>true</TieredCompilation>
+    <TieredCompilation>True</TieredCompilation>
     <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
     <DockerTargetOS>Linux</DockerTargetOS>
     <DockerComposeProjectPath>..\..\docker-compose.dcproj</DockerComposeProjectPath>

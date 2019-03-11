@@ -303,7 +303,8 @@ namespace Spreads.Serialization
                     // Scalars have only one field set
                     Header = new DataTypeHeader
                     {
-                        TEOFS = teofs
+                        TEOFS = teofs,
+                        UserFixedSize = TypeHelper<T>.FixedSize > 256 ? TypeHelper<T>.FixedSize : (short)0
                     },
                     FixedSize = teofs.Size > 0 ? teofs.Size : TypeHelper<T>.PinnedSize
                 };
@@ -406,6 +407,24 @@ namespace Spreads.Serialization
                 };
             }
 
+            if ((byte)te >= 100 && (byte)te <= 119)
+            {
+                var custom = TypeHelper<T>.CustomHeader;
+                Debug.Assert(te == custom.TEOFS.TypeEnum);
+
+                short fs = 0;
+                if (TypeHelper<T>.TypeSerializer != null)
+                {
+                    fs = Math.Max((short)0, TypeHelper<T>.TypeSerializer.FixedSize);
+                }
+
+                return new TypeEnumInfo
+                {
+                    Header = custom,
+                    FixedSize = fs
+                };
+            }
+
             if (te == TypeEnum.UserType)
             {
                 short fs = 0;
@@ -424,6 +443,8 @@ namespace Spreads.Serialization
                     FixedSize = fs
                 };
             }
+
+            
 
             return new TypeEnumInfo
             {
@@ -734,6 +755,11 @@ namespace Spreads.Serialization
             // Order of the three following checks is important.
             // Fixed types should rarely have a custom serializer
             // but if they then the serializer is more important.
+
+            if (TypeHelper<T>.CustomHeader.TEOFS.TypeEnum != TypeEnum.None)
+            {
+                return TypeHelper<T>.CustomHeader.TEOFS.TypeEnum;
+            }
 
             if (TypeHelper<T>.HasTypeSerializer && !TypeHelper<T>.IsTypeSerializerInternal)
             {

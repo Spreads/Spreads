@@ -23,14 +23,21 @@ namespace Spreads.Serialization
             return type.GetTypeInfo().StructLayoutAttribute;
         }
 
-        //public BinarySerializationAttribute()
-        //{ }
-
-        public BinarySerializationAttribute(int blittableSize = 0, bool preferBlittable = false)
+        public BinarySerializationAttribute(short blittableSize = 0, bool preferBlittable = false)
         {
-            if (!preferBlittable && (blittableSize <= 0 || blittableSize > 256))
+            if (!preferBlittable)
             {
-                Environment.FailFast("SerializationAttribute: blittableSize <= 0 || blittableSize > 255");
+                if (blittableSize <= 0)
+                {
+                    throw new InvalidOperationException("blittableSize must be positive.");
+                }
+            }
+            else
+            {
+                if (blittableSize != default)
+                {
+                    throw new InvalidOperationException("blittableSize must be zero when preferBlittable = true");
+                }
             }
             BlittableSize = blittableSize;
             PreferBlittable = preferBlittable;
@@ -41,18 +48,28 @@ namespace Spreads.Serialization
             SerializerType = serializerType;
         }
 
-        internal BinarySerializationAttribute(TypeEnum typeEnum, int blittableSize = 0, bool preferBlittable = false, Type serializerType = null)
+        internal BinarySerializationAttribute(byte[] customHeaderOverrides, int blittableSize = 0, bool preferBlittable = false, Type serializerType = null)
         {
 #if SPREADS
-            if (typeEnum != TypeEnum.None && (int)typeEnum < (int)TypeEnum.Binary && serializerType != null)
+            if (customHeaderOverrides == null || customHeaderOverrides.Length == 0 || customHeaderOverrides.Length > 3)
             {
-                Environment.FailFast("Cannot use Converter for fixed-sized types");
+                throw new ArgumentException("Invalid customHeaderOverrides: customHeaderOverrides == null || customHeaderOverrides.Length == 0 || customHeaderOverrides.Length > 3.");
+            }
+            var customHeaderAsByte = (byte)customHeaderOverrides[0];
+            if (customHeaderAsByte < 100 || customHeaderAsByte >= 120)
+            {
+                throw new ArgumentException("customHeaderOverrides[0] must have typeEnum in reserved range 100-119.");
             }
 #endif
             BlittableSize = blittableSize;
             PreferBlittable = preferBlittable;
             SerializerType = serializerType;
-            TypeEnum = typeEnum;
+            CustomHeader = new DataTypeHeader
+            {
+                TEOFS = customHeaderOverrides.Length > 0 ? new TypeEnumOrFixedSize((TypeEnum)customHeaderAsByte) : default,
+                TEOFS1 = customHeaderOverrides.Length > 1 ? new TypeEnumOrFixedSize(customHeaderOverrides[1], false) : default,
+                TEOFS2 = customHeaderOverrides.Length > 2 ? new TypeEnumOrFixedSize(customHeaderOverrides[2], false) : default
+            };
         }
 
         /// <summary>
@@ -75,9 +92,6 @@ namespace Spreads.Serialization
 
         public byte KnownTypeId { get; set; }
 
-        /// <summary>
-        /// Need this override for Spreads types defined outside this assembly
-        /// </summary>
-        internal TypeEnum TypeEnum { get; set; }
+        internal DataTypeHeader CustomHeader { get; set; }
     }
 }

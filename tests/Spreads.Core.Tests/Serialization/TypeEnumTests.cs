@@ -14,10 +14,12 @@ using BinarySerializer = Spreads.Serialization.BinarySerializer;
 
 namespace Spreads.Core.Tests.Serialization
 {
+    [Category("CI")]
     [TestFixture]
     public class TypeEnumTests
     {
         [StructLayout(LayoutKind.Sequential, Pack = 8)]
+        [BinarySerialization(blittableSize: 256 + 8)]
         private struct Symbol256xLong
         {
             public Symbol256 Symbol256;
@@ -25,6 +27,7 @@ namespace Spreads.Core.Tests.Serialization
         }
 
         [StructLayout(LayoutKind.Sequential, Pack = 8)]
+        [BinarySerialization(blittableSize: 128)]
         private struct Symbol128Wrapper
         {
             public Symbol128 Symbol128;
@@ -55,12 +58,24 @@ namespace Spreads.Core.Tests.Serialization
         }
 
         [Test]
+        public void Symbol128Size()
+        {
+            var header = TypeEnumHelper<Symbol128>.DataTypeHeader;
+
+            Assert.AreEqual(TypeEnum.Symbol128, header.TEOFS.TypeEnum);
+            Assert.AreEqual(128, header.FixedSize);
+
+            var size = TypeEnumHelper<Symbol128>.FixedSize;
+            Assert.AreEqual(128, size);
+        }
+
+        [Test]
         public void Symbol256Size()
         {
             var header = TypeEnumHelper<Symbol256>.DataTypeHeader;
 
             Assert.AreEqual(TypeEnum.Symbol256, header.TEOFS.TypeEnum);
-            Assert.AreEqual(256, header.UserFixedSize);
+            Assert.AreEqual(256, header.FixedSize);
 
             var size = TypeEnumHelper<Symbol256>.FixedSize;
             Assert.AreEqual(256, size);
@@ -176,7 +191,7 @@ namespace Spreads.Core.Tests.Serialization
 
                 var teofs = new TypeEnumOrFixedSize(expectedTe);
 
-                Assert.AreEqual(BinarySerializer.SizeOf<T>(default(T), out _, SerializationFormat.Binary), teofs.Size);
+                Assert.AreEqual(BinarySerializer.SizeOf<T>(default(T), out _, SerializationFormat.Binary), DataTypeHeader.Size + teofs.Size);
 
                 Assert.AreEqual(Unsafe.SizeOf<T>(), h.TEOFS.Size);
                 Assert.AreEqual(Unsafe.SizeOf<T>(), TypeEnumHelper<T>.FixedSize);
@@ -263,9 +278,5 @@ namespace Spreads.Core.Tests.Serialization
             Assert.AreEqual(TypeEnum.Int32, vh.TEOFS1.TypeEnum);
             Assert.AreEqual(TypeEnum.CompositeType, vh.TEOFS2.TypeEnum);
         }
-
-        
     }
-
-    
 }

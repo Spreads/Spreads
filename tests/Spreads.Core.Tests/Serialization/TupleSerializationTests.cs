@@ -15,7 +15,6 @@ using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
-using QuoteX = System.ValueTuple<int,int>;
 
 namespace Spreads.Core.Tests.Serialization
 {
@@ -151,7 +150,7 @@ namespace Spreads.Core.Tests.Serialization
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
         public void CouldSerializeTuple2NestedBench()
         {
-            var count = TestUtils.GetBenchCount(1_000_000);
+            var count = TestUtils.GetBenchCount(10_000_000);
             var rm = BufferPool.Retain(1000);
             var db = new DirectBuffer(rm);
 
@@ -260,7 +259,6 @@ namespace Spreads.Core.Tests.Serialization
         {
             var t = typeof(T);
             var tg = t.GetGenericTypeDefinition();
-
         }
 
         [Test]
@@ -276,7 +274,7 @@ namespace Spreads.Core.Tests.Serialization
             var attr0 = valTy.Attributes;
             var attr1 = valTy.GetCustomAttributes().ToArray();
             Test(val);
-            var globals = new Globals { X = val};
+            var globals = new Globals { X = val };
             Console.WriteLine(CSharpScript.EvaluateAsync<object>("X", globals: globals).Result);
 
             var serializationFormats = Enum.GetValues(typeof(SerializationFormat)).Cast<SerializationFormat>();
@@ -383,7 +381,6 @@ namespace Spreads.Core.Tests.Serialization
             rm.Dispose();
         }
 
-
         [Test]
         public unsafe void CouldSerializeITuple2()
         {
@@ -391,7 +388,6 @@ namespace Spreads.Core.Tests.Serialization
             var db = new DirectBuffer(rm);
 
             var val = new Spreads.Serialization.Serializers.Quote<int, int>(1, 2);
-
 
             var serializationFormats = Enum.GetValues(typeof(SerializationFormat)).Cast<SerializationFormat>();
 
@@ -422,7 +418,7 @@ namespace Spreads.Core.Tests.Serialization
             rm.Dispose();
         }
 
-        [BinarySerialization(preferBlittable:true)]
+        [BinarySerialization(preferBlittable: true)]
         [StructLayout(LayoutKind.Sequential, Pack = 1)]
         internal struct BlittableQuote<TPrice, TVolume>
         {
@@ -435,8 +431,6 @@ namespace Spreads.Core.Tests.Serialization
                 Price = price;
                 Volume = volume;
             }
-
-            
         }
 
         [Test
@@ -568,9 +562,6 @@ namespace Spreads.Core.Tests.Serialization
             rm.Dispose();
         }
 
-
-        
-
         [Test]
         public void CouldSerializeTaggedKeyValue()
         {
@@ -616,11 +607,8 @@ namespace Spreads.Core.Tests.Serialization
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
         public void CouldSerializeTaggedKeyValueBench()
         {
-#if !DEBUG
-            var count = 100_000_000;
-#else
-            var count = 1_000;
-#endif
+            var count = TestUtils.GetBenchCount(100_000_000);
+
             var rm = BufferPool.Retain(1000);
             var db = new DirectBuffer(rm);
 
@@ -631,7 +619,7 @@ namespace Spreads.Core.Tests.Serialization
             // 5X performance difference due to warmup!
             BinarySerializer.WarmUp<TaggedKeyValue<int, long>>();
 
-            for (int _ = 0; _ < 50; _++)
+            for (int _ = 0; _ < TestUtils.GetBenchCount(50, 1); _++)
             {
                 CouldSerializeTaggedKeyValueBench_Loop(count, val, preferredFormat, db);
             }
@@ -640,7 +628,7 @@ namespace Spreads.Core.Tests.Serialization
         }
 
         [MethodImpl(MethodImplOptions.AggressiveOptimization | MethodImplOptions.NoInlining)]
-        private static void CouldSerializeTaggedKeyValueBench_Loop(int count, TaggedKeyValue<int, long> val, SerializationFormat preferredFormat, DirectBuffer db)
+        private static void CouldSerializeTaggedKeyValueBench_Loop(long count, TaggedKeyValue<int, long> val, SerializationFormat preferredFormat, DirectBuffer db)
         {
             using (Benchmark.Run("TKV roundtrip", count))
             {

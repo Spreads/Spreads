@@ -14,7 +14,7 @@ namespace Spreads.Core.Tests.Serialization
     [TestFixture]
     public class BinarySerializerHeaderTests
     {
-        [BinarySerialization((TypeEnum)123, serializerType: typeof(Serializer))]
+        [BinarySerialization(new byte[] { 100, 1, 2 }, serializerType: typeof(Serializer))]
         [JsonFormatter(typeof(Formatter))]
         public struct SampleStruct
         {
@@ -83,16 +83,19 @@ namespace Spreads.Core.Tests.Serialization
             var rm = BufferPool.Retain(10_000);
             var db = new DirectBuffer(rm.Span);
 
-            var value = new SampleStruct(42);
+            var val = new SampleStruct(42);
 
-            var size = BinarySerializer.SizeOf(in value, out var tmpBuffer, SerializationFormat.Json);
-            var written = BinarySerializer.Write(in value, db, tmpBuffer, SerializationFormat.Json);
+            var size = BinarySerializer.SizeOf(in val, out var tmpBuffer, SerializationFormat.Json);
+            var written = BinarySerializer.Write(in val, db, tmpBuffer, SerializationFormat.Json);
+            var read = BinarySerializer.Read(db, out SampleStruct val2);
 
             Assert.AreEqual(size, written);
+            Assert.AreEqual(size, read);
+            Assert.AreEqual(val.Value, val2.Value);
 
             var typeEnumByte = db[1];
 
-            Assert.AreEqual((byte)TypeEnum.UserType, typeEnumByte);
+            Assert.AreEqual(100, typeEnumByte);
             rm.Dispose();
         }
 
@@ -106,16 +109,18 @@ namespace Spreads.Core.Tests.Serialization
             var rm = BufferPool.Retain(10_000);
             var db = new DirectBuffer(rm.Span);
 
-            var value = new SampleStruct(42);
+            var val = new SampleStruct(42);
 
-            var size = BinarySerializer.SizeOf(in value, out var tmpBuffer, SerializationFormat.Binary);
-            var written = BinarySerializer.Write(in value, db, tmpBuffer, SerializationFormat.Binary);
+            var size = BinarySerializer.SizeOf(in val, out var tmpBuffer, SerializationFormat.Binary);
+            var written = BinarySerializer.Write(in val, db, tmpBuffer, SerializationFormat.Binary);
+            var read = BinarySerializer.Read(db, out SampleStruct val2);
 
             Assert.AreEqual(size, written);
-
+            Assert.AreEqual(size, read);
+            Assert.AreEqual(val.Value, val2.Value);
             var typeEnumByte = db[1];
 
-            Assert.AreEqual((byte)TypeEnum.UserType, typeEnumByte);
+            Assert.AreEqual(100, typeEnumByte);
             rm.Dispose();
         }
     }

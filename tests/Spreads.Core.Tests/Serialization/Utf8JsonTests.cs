@@ -73,6 +73,18 @@ namespace Spreads.Core.Tests.Serialization
                 values[i] = Serialization.TestValue.Create(rand, withDouble: false);
             }
 
+            for (int i = 0; i < 100; i++)
+            {
+                var writer = new JsonWriter(bytes);
+                JsonSerializer.Serialize(ref writer, values[i]);
+                var val = JsonSerializer.Deserialize<Serialization.TestValue>(db);
+
+                var writer2 = new Utf8Json.JsonWriter(bytes);
+                Utf8Json.JsonSerializer.Serialize(ref writer2, values[i]);
+                var val2 = Utf8Json.JsonSerializer.Deserialize<Serialization.TestValue>(bytes);
+            }
+            bytes.AsSpan().Clear();
+
             for (int r = 0; r < 20; r++)
             {
                 CompareUtf8JsonWithBinarySerializer_SW(count, bytes, values);
