@@ -106,7 +106,7 @@ namespace Spreads.Serialization
 
                     writer = BufferWriter.Create();
                     plLen = TypeHelper<T>.TypeSerializer.SizeOf(in value, writer);
-                    if (writer.Offset == 0)
+                    if (writer.WrittenLength == 0)
                     {
                         writer.Dispose();
                         writer = null;
@@ -124,7 +124,7 @@ namespace Spreads.Serialization
             actualFormat = (SerializationFormat)((byte)preferredFormat & ~VersionAndFlags.BinaryFlagMask);
 
         HAS_RAW_SIZE:
-            if (AdditionalCorrectnessChecks.Enabled && writer != null && plLen != writer.Offset) // offset includes PayloadLengthSize
+            if (AdditionalCorrectnessChecks.Enabled && writer != null && plLen != writer.WrittenLength) // offset includes PayloadLengthSize
             {
                 FailWrongSerializerImplementation<T>(BinarySerializerFailCode.PayloadLengthNotEqualToSizeOf);
             }
@@ -195,9 +195,9 @@ namespace Spreads.Serialization
                 return plLen;
             }
 
-            Debug.Assert(tempWriter.Offset == 0);
+            Debug.Assert(tempWriter.WrittenLength == 0);
             tempWriter.Write<int>(plLen);
-            Debug.Assert(tempWriter.Offset == 4);
+            Debug.Assert(tempWriter.WrittenLength == 4);
             tempWriter.Advance(compressedSize);
             Debug.Assert(compressedSize > 0);
 
@@ -209,7 +209,7 @@ namespace Spreads.Serialization
 
         private static void FillBufferWriter<T>(int rawLength, T value, ref BufferWriter bufferWriter, SerializationFormat format)
         {
-            Debug.Assert(bufferWriter.Offset == 0);
+            Debug.Assert(bufferWriter.WrittenLength == 0);
 
             // Fixed size already returned and we do not compress it,
             // JSON always returns non-empty temp buffer.
@@ -656,7 +656,7 @@ namespace Spreads.Serialization
                 }
                 else
                 {
-                    rawLength = payload.bufferWriter.Offset;
+                    rawLength = payload.bufferWriter.WrittenLength;
                 }
 
                 // TODO set correct format to header
@@ -812,17 +812,6 @@ namespace Spreads.Serialization
 
                 var consumed = FixedProxy<T>.Read(source, out value);
                 Debug.Assert(consumed == fs);
-                //if (!TypeHelper<T>.HasBinarySerializer)
-                //{
-                //    value = source.Read<T>(0);
-                //}
-                //else
-                //{
-                //    Debug.Assert(TypeHelper<T>.TypeSerializer != null, "TypeHelper<T>.BinarySerializer != null");
-                //    // ReSharper disable once RedundantAssignment
-                //    var consumed = TypeHelper<T>.TypeSerializer.Read(source, out value);
-                //    Debug.Assert(consumed == fs);
-                //}
 
                 return fs;
             }

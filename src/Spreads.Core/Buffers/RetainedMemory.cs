@@ -45,7 +45,7 @@ namespace Spreads.Buffers
                 {
                     // TODO review. This uses implementation detail of RetainableMemory:
                     // if pointer is null then it is an non-pinned array for which we did not create
-                    // a GCHandle (very expensive). Call to Pin() checks if pointer is null and 
+                    // a GCHandle (very expensive). Call to Pin() checks if pointer is null and
                     // creates a GCHandle + pointer. Try to avoid pinning non-pooled ArrayMemory
                     // because it is very expensive.
                     manager.Pin();
@@ -187,17 +187,27 @@ namespace Spreads.Buffers
             return default;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public RetainedMemory<T> Retain()
+        {
+            if (ReferenceCount != 0)
+            {
+                ThrowHelper.ThrowInvalidOperationException("Call RetainedMemory.Retain only when its ReferenceCount == 0. Otherwise use Clone methods.");
+            }
+#if DETECT_LEAKS
+            return new RetainedMemory<T>(_manager, _offset, _length, true, null);
+#else
+            return new RetainedMemory<T>(_manager, _offset, _length, true);
+#endif
+        }
+
         /// <summary>
         /// Create a copy and increment the reference counter.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public RetainedMemory<T> Clone()
         {
-#if DETECT_LEAKS
-            return new RetainedMemory<T>(_manager, _offset, _length, true, null);
-#else
-            return new RetainedMemory<T>(_manager, _offset, _length, true);
-#endif
+            return DangerousClone(0, _length);
         }
 
         /// <summary>
@@ -215,16 +225,31 @@ namespace Spreads.Buffers
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public RetainedMemory<T> Clone(int start, int length)
         {
+            if (ReferenceCount == 0)
+            {
+                ThrowHelper.ThrowInvalidOperationException("RetainedMemory must be owned to be able to Clone. Call Retain first on not owned RetainedMemory.");
+            }
             if (unchecked((uint)start + (uint)length <= _length))
             {
-#if DETECT_LEAKS
-                return new RetainedMemory<T>(_manager, _offset + start, length, true, null);
-#else
-                return new RetainedMemory<T>(_manager, _offset + start, length, true);
-#endif
+                DangerousClone(start, length);
             }
             BuffersThrowHelper.ThrowBadLength();
             return default;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal RetainedMemory<T> DangerousClone(int start, int length)
+        {
+            if (ReferenceCount == 0)
+            {
+                ThrowHelper.ThrowInvalidOperationException("RetainedMemory must be owned to be able to Clone. Call Retain first on not owned RetainedMemory.");
+            }
+
+#if DETECT_LEAKS
+            return new RetainedMemory<T>(_manager, _offset + start, length, true, null);
+#else
+            return new RetainedMemory<T>(_manager, _offset + start, length, true);
+#endif
         }
 
         public int ReferenceCount

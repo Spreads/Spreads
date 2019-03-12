@@ -105,7 +105,7 @@ namespace Spreads.Serialization
         }
     }
 
-    internal static class TypeHelper<T>
+    public static class TypeHelper<T>
     {
         // Do not use static ctor in any critical paths: https://github.com/Spreads/Spreads/issues/66
         // static TypeHelper() { }

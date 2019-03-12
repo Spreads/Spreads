@@ -23,10 +23,14 @@ namespace Spreads.Buffers
         { }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static BufferWriter Create()
+        public static BufferWriter Create(int capacityHint = 0)
         {
             var buffer = ObjectPool.Allocate();
             buffer._offset = 0;
+            if (capacityHint > buffer.FreeCapacity)
+            {
+                buffer.EnsureCapacity(capacityHint);
+            }
             return buffer;
         }
 
@@ -36,7 +40,7 @@ namespace Spreads.Buffers
         private RetainedMemory<byte> _buffer;
         private int _offset;
 
-        public int Offset => _offset;
+        public int WrittenLength => _offset;
 
         public bool IsEmpty => _offset == 0;
 
@@ -68,7 +72,7 @@ namespace Spreads.Buffers
             get => new DirectBuffer(_offset, (byte*)_buffer.Pointer);
         }
 
-        public ReadOnlySpan<byte> FreeSpan
+        public Span<byte> FreeSpan
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
@@ -78,7 +82,7 @@ namespace Spreads.Buffers
             }
         }
 
-        public ReadOnlyMemory<byte> FreeMemory
+        public Memory<byte> FreeMemory
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
@@ -252,11 +256,13 @@ namespace Spreads.Buffers
                 newLength = MaxLen;
             }
 
+            // Instead of providing options here we have ways
+            // to customize behavior of the temp pool.
             var newBuffer = BufferPool.RetainTemp(newLength);
             Debug.Assert(newBuffer.IsPinned);
-            if (!_buffer.IsEmpty)
+            if (!_buffer.IsEmpty && _offset > 0)
             {
-                _buffer.Span.CopyTo(newBuffer.Span);
+                _buffer.Span.Slice(0, _offset).CopyTo(newBuffer.Span);
             }
 
             var oldBuffer = _buffer;
@@ -264,8 +270,15 @@ namespace Spreads.Buffers
             oldBuffer.Dispose();
         }
 
+        /// <summary>
+        /// Returns <see cref="WrittenMemory"/> as <see cref="RetainedMemory{T}"/> and disposes this <see cref="BufferWriter"/>.
+        /// The returned memory must be disposed after processing.
+        /// The memory is not owned (<see cref="RetainedMemory{T}.ReferenceCount"/> is zero), therefore if multiple
+        /// consumers will process the memory it must be retained by the caller using  <see cref="RetainedMemory{T}.Retain()" />
+        /// and by each additional consumer by calling <see cref="RetainedMemory{T}.Clone()"/>.
+        /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal RetainedMemory<byte> DetachBuffer()
+        internal RetainedMemory<byte> DetachMemory()
         {
             CheckDisposed();
             _offset = -1;

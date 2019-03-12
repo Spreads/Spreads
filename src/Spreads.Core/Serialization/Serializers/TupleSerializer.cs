@@ -18,9 +18,9 @@ namespace Spreads.Serialization.Serializers
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int WriteItem<T>(BufferWriter bufferWriter, in T value)
         {
-            var offset = bufferWriter.Offset;
+            var offset = bufferWriter.WrittenLength;
             var s1 = FixedProxy<T>.SizeOf(in value, bufferWriter);
-            if (bufferWriter.Offset == offset)
+            if (bufferWriter.WrittenLength == offset)
             {
                 bufferWriter.EnsureCapacity(s1);
                 var written = FixedProxy<T>.Write(in value, bufferWriter.FreeBuffer);

@@ -55,7 +55,7 @@ namespace Spreads.Serialization.Serializers
             try
             {
                 // in general buffer could be empty/default if size is known, but not with Json
-                ThrowHelper.AssertFailFast(size == bufferWriter.Offset, "size == buffer.Count");
+                ThrowHelper.AssertFailFast(size == bufferWriter.WrittenLength, "size == buffer.Count");
 
                 if (size > destination.Length)
                 {

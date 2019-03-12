@@ -175,6 +175,7 @@ namespace Spreads.Serialization
             var method = typeof(TTy).GetTypeInfo().GetMethod(methodName, BindingFlags.Static | BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.IgnoreCase);
             var genericMethod = method?.MakeGenericMethod(genericType);
 
+            // ReSharper disable once AssignNullToNotNullAttribute
             var methodDelegate = Delegate.CreateDelegate(typeof(Func<TResult>), null, genericMethod);
 
             return methodDelegate as Func<TResult>;
@@ -185,6 +186,7 @@ namespace Spreads.Serialization
             var method = typeof(TTy).GetTypeInfo().GetMethod(methodName, BindingFlags.Static | BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.IgnoreCase);
             var genericMethod = method?.MakeGenericMethod(genericType1, genericType2);
 
+            // ReSharper disable once AssignNullToNotNullAttribute
             var methodDelegate = Delegate.CreateDelegate(typeof(Func<TResult>), null, genericMethod);
 
             return methodDelegate as Func<TResult>;
@@ -233,7 +235,7 @@ namespace Spreads.Serialization
     }
 
     // ReSharper disable once ConvertToStaticClass
-    internal sealed class TypeEnumHelper<T>
+    public sealed class TypeEnumHelper<T>
     {
         // Need non-static to use as type argument.
         private TypeEnumHelper()
@@ -250,13 +252,15 @@ namespace Spreads.Serialization
         // and (TODO) constructs composite type schema.
 
         // ReSharper disable StaticMemberInGenericType
-        public static readonly TypeEnumInfo TypeInfo = CreateValidateTypeInfo();
+        internal static readonly TypeEnumInfo TypeInfo = CreateValidateTypeInfo();
 
         public static readonly DataTypeHeader DataTypeHeader = TypeInfo.Header;
 
         public static readonly short FixedSize = TypeInfo.FixedSize;
 
         public static readonly bool IsFixedSize = FixedSize > 0;
+
+        public static TypeEnum TypeEnum => DataTypeHeader.TEOFS.TypeEnum;
 
         internal static readonly DataTypeHeader DefaultBinaryHeader = new DataTypeHeader
         {
@@ -378,7 +382,6 @@ namespace Spreads.Serialization
                 }
                 else
                 {
-
                     func = ReflectionHelper.MakeFunc<TypeEnumHelper<T>, DataTypeHeader>(
                         nameof(CreateTuple2Header),
                         gArgs[0], gArgs[1]
@@ -388,8 +391,6 @@ namespace Spreads.Serialization
 
                 var header = func();
 
-                
-                
                 return new TypeEnumInfo
                 {
                     Header = header,
@@ -460,8 +461,6 @@ namespace Spreads.Serialization
                     FixedSize = fs
                 };
             }
-
-            
 
             return new TypeEnumInfo
             {
