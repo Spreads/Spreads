@@ -25,8 +25,8 @@ namespace Spreads.Serialization
         /// </summary>
         public static int WarmUp<T>()
         {
-            var size = SizeOf<T>(default, out var tempBuf, SerializationFormat.Binary);
-            tempBuf.bufferWriter?.Dispose();
+            var size = SizeOf<T>(default, out var bufferWriter, SerializationFormat.Binary);
+            bufferWriter?.Dispose();
             return size;
         }
 
@@ -48,17 +48,19 @@ namespace Spreads.Serialization
 
         #region SizeOf
 
+        // Problem: we changed API so that payload buffer does not contain header and length prefix,
+        // this simplifies the nested case and is OK when we copy BW content to destination.
+        // But e.g. in SQLite we could only provide a pointer to bind a blob, therefore
+        // BW must already have header & length prefix to avoid additional copy.
+
         // TODO rewrite docs, new API
         /// <summary>
         ///
         /// Returns the size of serialized value payload plus <see cref="DataTypeHeader.Size"/>
-        /// (if <paramref name="noHeader"/> is not set to true)
         /// plus <see cref="PayloadLengthSize"/> if payload is not fixed size.
         /// You could use the returned value to allocate a buffer for subsequent
         /// write operation - it must have capacity greater or equal to the return
-        /// value of <see cref="SizeOf{T}"/>. If you use a separate header destination
-        /// or `noHeader = true` in Write methods then set <paramref name="noHeader"/>
-        /// to true in this method.
+        /// value of <see cref="SizeOf{T}"/>.
         ///
         /// <para />
         ///
@@ -76,18 +78,17 @@ namespace Spreads.Serialization
         /// <param name="value">A value to serialize.</param>
         /// <param name="payload">A buffer with serialized payload and actual format. (optional, for cases when the serialized size is not known without performing serialization)</param>
         /// <param name="preferredFormat">Preferred serialization format.</param>
-        /// <param name="noHeader"></param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int SizeOf<T>(in T value,
-            out (BufferWriter bufferWriter, SerializationFormat actualFormat) payload,
-            SerializationFormat preferredFormat = default,
-            bool noHeader = false)
+            out BufferWriter payload,
+            SerializationFormat preferredFormat = default
+            )
         {
             int plLen;
             BufferWriter writer;
             SerializationFormat actualFormat;
 
-            var headerSize = ((*(sbyte*)&noHeader) - 1) & DataTypeHeader.Size;
+            const int headerSize = DataTypeHeader.Size; //((*(sbyte*)&noHeader) - 1) & DataTypeHeader.Size;
 
             if (preferredFormat.IsBinary())
             {
@@ -99,11 +100,12 @@ namespace Spreads.Serialization
 
                 if (TypeHelper<T>.HasTypeSerializer)
                 {
-                    Debug.Assert(TypeHelper<T>.TypeSerializer.FixedSize > 0);
+                    Debug.Assert(TypeHelper<T>.TypeSerializer.FixedSize <= 0);
 
                     writer = BufferWriter.Create();
+                    writer.Advance(headerSize + PayloadLengthSize);
                     plLen = TypeHelper<T>.TypeSerializer.SizeOf(in value, writer);
-                    if (writer.WrittenLength == 0)
+                    if (writer.WrittenLength == headerSize + PayloadLengthSize)
                     {
                         writer.Dispose();
                         writer = null;
@@ -115,13 +117,14 @@ namespace Spreads.Serialization
             }
 
             writer = BufferWriter.Create();
+            writer.Advance(headerSize + PayloadLengthSize);
             plLen = JsonBinarySerializer<T>.Instance.SizeOf(in value, writer);
 
             // clear binary bit
             actualFormat = (SerializationFormat)((byte)preferredFormat & ~VersionAndFlags.BinaryFlagMask);
 
         HAS_RAW_SIZE:
-            if (AdditionalCorrectnessChecks.Enabled && writer != null && plLen != writer.WrittenLength) // offset includes PayloadLengthSize
+            if (AdditionalCorrectnessChecks.Enabled && writer != null && headerSize + PayloadLengthSize + plLen != writer.WrittenLength)
             {
                 FailWrongSerializerImplementation<T>(BinarySerializerFailCode.PayloadLengthNotEqualToSizeOf);
             }
@@ -138,18 +141,31 @@ namespace Spreads.Serialization
                  || plLen < Settings.CompressionStartFrom // LT, value is inclusive
             )
             {
-                // clear compression bits, do not add another if
-                actualFormat = (SerializationFormat)((byte)actualFormat & ~VersionAndFlags.CompressionMethodMask);
-                payload = (bufferWriter: writer, actualFormat);
+                if (writer != null)
+                {
+                    // clear compression bits, do not add another if
+                    actualFormat = (SerializationFormat)((byte)actualFormat & ~VersionAndFlags.CompressionMethodMask);
+                    // if (headerSize != 0)
+                    // {
+                    var header = TypeEnumHelper<T>.DataTypeHeader;
+                    header.VersionAndFlags.SerializationFormat = actualFormat;
+                    // ReSharper disable once PossibleNullReferenceException
+                    writer.DangerousWriteAtOffset(value: header, offset: 0);
+                    // }
+                    // ReSharper disable once PossibleNullReferenceException
+                    writer.DangerousWriteAtOffset(value: plLen, offset: headerSize);
+                }
+
+                payload = writer;
                 // ReSharper disable once ArrangeRedundantParentheses
                 return (headerSize + PayloadLengthSize) + plLen;
             }
 
             // compression replaces bufferWriter if successful
-            payload = (bufferWriter: writer, actualFormat);
+            payload = writer;
 
             // ReSharper disable once ArrangeRedundantParentheses
-            return (headerSize + PayloadLengthSize) + SizeOfCompressed(plLen, in value, ref payload);
+            return SizeOfCompressed(plLen, in value, ref payload, preferredFormat);
         }
 
         [MethodImpl(MethodImplOptions.NoInlining
@@ -157,14 +173,22 @@ namespace Spreads.Serialization
                     | MethodImplOptions.AggressiveOptimization
 #endif
         )]
-        private static int SizeOfCompressed<T>(int plLen, in T value, ref (BufferWriter bufferWriter, SerializationFormat format) payload)
+        private static int SizeOfCompressed<T>(int plLen, in T value, ref BufferWriter payload, SerializationFormat format)
         {
-            Debug.Assert(((byte)payload.format & VersionAndFlags.CompressionMethodMask) != 0);
+            Debug.Assert(((byte)format & VersionAndFlags.CompressionMethodMask) != 0);
 
-            if (payload.bufferWriter == null)
+            var header = TypeEnumHelper<T>.DataTypeHeader;
+
+            if (payload == null)
             {
-                payload.bufferWriter = BufferWriter.Create();
-                FillBufferWriter(plLen, value, ref payload.bufferWriter, payload.format);
+                Debug.Assert(format.IsBinary());
+
+                payload = BufferWriter.Create();
+                FillBufferWriter(plLen, value, ref payload, format);
+
+                header.VersionAndFlags.SerializationFormat = SerializationFormat.Binary;
+                payload.DangerousWriteAtOffset(value: header, offset: 0);
+                payload.DangerousWriteAtOffset(value: plLen, offset: DataTypeHeader.Size);
             }
 
             // Compressed buffer will be prefixed with raw len.
@@ -178,9 +202,13 @@ namespace Spreads.Serialization
             // If compression fails (returns non-positive number) or returns a
             // number larger than the raw size then we return uncompressed payload.
             var tempWriter = BufferWriter.Create();
-            tempWriter.EnsureCapacity(PayloadLengthSize + plLen);
+            tempWriter.EnsureCapacity((DataTypeHeader.Size + PayloadLengthSize)
+                                      + PayloadLengthSize + plLen);
+            tempWriter.Advance(DataTypeHeader.Size + PayloadLengthSize);
 
-            var compressedSize = Compress(payload.bufferWriter.WrittenSpan, tempWriter.FreeBuffer.Slice(PayloadLengthSize).Span, payload.format.CompressionMethod());
+            var compressedSize = Compress(payload.WrittenSpan.Slice(DataTypeHeader.Size + PayloadLengthSize),
+                tempWriter.FreeBuffer.Slice(PayloadLengthSize).Span,
+                format.CompressionMethod());
 
             Debug.Assert(compressedSize != 0);
 
@@ -188,20 +216,31 @@ namespace Spreads.Serialization
             {
                 tempWriter.Dispose();
                 // clear compression bits
-                payload.format = (SerializationFormat)((byte)payload.format & ~VersionAndFlags.CompressionMethodMask);
+                format = (SerializationFormat)((byte)format & ~VersionAndFlags.CompressionMethodMask);
+
+                header = TypeEnumHelper<T>.DataTypeHeader;
+                header.VersionAndFlags.SerializationFormat = format;
+                payload.DangerousWriteAtOffset(value: header, offset: 0);
+
                 return plLen;
             }
 
-            Debug.Assert(tempWriter.WrittenLength == 0);
+            Debug.Assert(tempWriter.WrittenLength == 8);
             tempWriter.Write<int>(plLen);
-            Debug.Assert(tempWriter.WrittenLength == 4);
+            Debug.Assert(tempWriter.WrittenLength == 12);
             tempWriter.Advance(compressedSize);
             Debug.Assert(compressedSize > 0);
 
-            payload.bufferWriter.Dispose();
-            payload.bufferWriter = tempWriter;
+            header = TypeEnumHelper<T>.DataTypeHeader;
+            header.VersionAndFlags.SerializationFormat = format;
 
-            return PayloadLengthSize + compressedSize;
+            tempWriter.DangerousWriteAtOffset(value: header, offset: 0);
+            tempWriter.DangerousWriteAtOffset(value: PayloadLengthSize + compressedSize, offset: DataTypeHeader.Size);
+
+            payload.Dispose();
+            payload = tempWriter;
+
+            return (DataTypeHeader.Size + PayloadLengthSize + PayloadLengthSize) + compressedSize;
         }
 
         private static void FillBufferWriter<T>(int rawLength, T value, ref BufferWriter bufferWriter, SerializationFormat format)
@@ -214,7 +253,9 @@ namespace Spreads.Serialization
             Debug.Assert(TypeHelper<T>.TypeSerializer != null && format.IsBinary());
             var tbs = TypeHelper<T>.TypeSerializer;
 
-            bufferWriter.EnsureCapacity(rawLength);
+            bufferWriter.EnsureCapacity(DataTypeHeader.Size + PayloadLengthSize + rawLength);
+            bufferWriter.Advance(DataTypeHeader.Size + PayloadLengthSize);
+
             var written = tbs.Write(in value, bufferWriter.FreeBuffer);
 
             if (rawLength != written) { FailWrongSerializerImplementation<T>(BinarySerializerFailCode.WrittenNotEqualToSizeOf); }
@@ -230,13 +271,13 @@ namespace Spreads.Serialization
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int Write<T>(in T value,
             Span<byte> destination,
-            in (BufferWriter bufferWriter, SerializationFormat format) payload,
+            BufferWriter payload,
             SerializationFormat format = default)
         {
             fixed (byte* ptr = &destination.GetPinnableReference())
             {
                 var db = new DirectBuffer(destination.Length, ptr);
-                return Write(value, db, in payload, format);
+                return Write(value, db, payload, format);
             }
         }
 
@@ -244,268 +285,29 @@ namespace Spreads.Serialization
         public static int Write<T>(in T value,
             ref DataTypeHeader headerDestination,
             Span<byte> destination,
-            in (BufferWriter bufferWriter, SerializationFormat format) payload,
+            BufferWriter payload,
             SerializationFormat format = default)
         {
             fixed (byte* ptr = &destination.GetPinnableReference())
             {
                 var db = new DirectBuffer(destination.Length, ptr);
-                return Write(value, ref headerDestination, db, in payload, format);
+                return Write(value, ref headerDestination, db, payload, format);
             }
         }
 
         #endregion Span overloads
 
-        //        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        //        public static int WriteOld<T>(in T value,
-        //            DirectBuffer destination,
-        //            in (RetainedMemory<byte> temporaryBuffer, SerializationFormat format) payload,
-        //            SerializationFormat format = default,
-        //            bool noHeader = false)
-        //        {
-        //            int written;
-        //            if (noHeader)
-        //            {
-        //                written = WriteOld(value, ref Unsafe.AsRef<DataTypeHeader>(null), destination, in payload, format,
-        //                    checkHeader: false);
-        //            }
-        //            else
-        //            {
-        //                ref var headerDestination = ref *(DataTypeHeader*)destination.Data;
-        //                destination = destination.Slice(DataTypeHeader.Size);
-
-        //                written = WriteOld(value, ref headerDestination, destination, in payload, format, checkHeader: false);
-        //            }
-
-        //            if (written > 0)
-        //            {
-        //                return DataTypeHeader.Size + written;
-        //            }
-
-        //            return written; // error code
-        //        }
-
-        //        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        //        public static int WriteOld<T>(in T value,
-        //            ref DataTypeHeader headerDestination,
-        //            DirectBuffer destination,
-        //            in (RetainedMemory<byte> temporaryBuffer, SerializationFormat format) payload,
-        //            SerializationFormat format = default)
-        //        {
-        //            return WriteOld(value, ref headerDestination, destination, in payload, format, checkHeader: true);
-        //        }
-
-        //        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        //        private static int WriteOld<T>(in T value,
-        //            ref DataTypeHeader headerDestination,
-        //            DirectBuffer destination,
-        //            in (RetainedMemory<byte> temporaryBuffer, SerializationFormat format) payload,
-        //            SerializationFormat format,
-        //            bool checkHeader)
-        //        {
-        //            var writeHeader = !Unsafe.AreSame(ref headerDestination, ref Unsafe.AsRef<DataTypeHeader>(null));
-
-        //            // if fixed & binary just write
-        //            if (format.IsBinary())
-        //            {
-        //                // Fixed size binary is never compressed regardless of requested format
-        //                // We do not throw when type cannot be serialized with requested format,
-        //                // it's best efforts only. Output is always "binary" and header shows
-        //                // what we have actually written.
-
-        //                if (TypeEnumHelper<T>.IsFixedSize)
-        //                {
-        //                    if (AdditionalCorrectnessChecks.Enabled && !payload.temporaryBuffer.IsEmpty)
-        //                    {
-        //                        payload.temporaryBuffer.Dispose();
-        //                        ThrowTempBufferMustBeEmptyForFixedSize();
-        //                    }
-
-        //                    if (writeHeader)
-        //                    {
-        //                        var header = TypeEnumHelper<T>.DefaultBinaryHeader;
-
-        //                        if (checkHeader)
-        //                        {
-        //                            var existingHeader = headerDestination;
-        //                            if (existingHeader != default && existingHeader != header)
-        //                            {
-        //                                return (int)BinarySerializerErrorCode.HeaderMismatch;
-        //                            }
-        //                        }
-
-        //                        headerDestination = header;
-        //                    }
-
-        //                    // TODO use FixedOrCustomBinary static wrapper
-        //                    if (TypeHelper<T>.TypeSerializer == null)
-        //                    {
-        //                        // Debug.Assert(TypeHelper<T>.IsFixedSize);
-        //                        destination.Write(0, value);
-        //                    }
-        //                    else
-        //                    {
-        //                        TypeHelper<T>.TypeSerializer.Write(in value, destination);
-        //                    }
-
-        //                    return TypeEnumHelper<T>.FixedSize;
-        //                }
-        //            }
-
-        //            return WriteVarSizeOrJsonOld(in value, ref headerDestination, destination, payload, format, checkHeader);
-        //        }
-
-        //        [MethodImpl(MethodImplOptions.NoInlining
-        //#if NETCOREAPP3_0
-        //            | MethodImplOptions.AggressiveOptimization
-        //#endif
-        //        )]
-        //        private static int WriteVarSizeOrJsonOld<T>(in T value,
-        //            ref DataTypeHeader headerDestination,
-        //            DirectBuffer destination,
-        //            (RetainedMemory<byte> temporaryBuffer, SerializationFormat format) payload,
-        //            SerializationFormat format,
-
-        //            bool checkHeader)
-        //        {
-        //            BinarySerializer<T> tbs;
-        //            if (format.IsBinary())
-        //            {
-        //                tbs = TypeHelper<T>.TypeSerializer ?? JsonBinarySerializer<T>.Instance;
-        //            }
-        //            else
-        //            {
-        //                tbs = JsonBinarySerializer<T>.Instance;
-        //            }
-
-        //            try
-        //            {
-        //                if (AdditionalCorrectnessChecks.Enabled && tbs.FixedSize > 0)
-        //                {
-        //                    ThrowHelper.FailFast("Fixed case must write this type");
-        //                }
-
-        //                int rawLength;
-        //                if (payload.temporaryBuffer.IsEmpty)
-        //                {
-        //                    Debug.Assert(payload.temporaryBuffer._manager == null, "should not be possible with internal code");
-        //                    payload.temporaryBuffer.Dispose(); // noop for default, just in case
-
-        //                    rawLength = SizeOfOld(value, out payload, format) - (DataTypeHeader.Size + PayloadLengthSize);
-
-        //                    // Still empty, binary converter knows the size without serializing
-        //                    if (payload.temporaryBuffer.IsEmpty)
-        //                    {
-        //                        if (format.CompressionMethod() != CompressionMethod.None)
-        //                        {
-        //                            if (rawLength >= Settings.CompressionStartFrom)
-        //                            {
-        //                                ThrowHelper.FailFast("SizeOf with compressed format must return non-empty payload.");
-        //                            }
-        //                            else
-        //                            {
-        //                                // clear compression bits
-        //                                format = (SerializationFormat)((byte)format & ~VersionAndFlags.CompressionMethodMask);
-        //                            }
-        //                        }
-
-        //                        if (Settings.DefensiveBinarySerializerWrite && !TypeHelper<T>.IsTypeSerializerInternal)
-        //                        {
-        //#if DEBUG
-        //                            // ReSharper disable once PossibleNullReferenceException
-        //                            if (typeof(T).Namespace.Contains("Spreads"))
-        //                            {
-        //                                throw new NotImplementedException($"Serializer for {typeof(T).Name} must be marked as IsInternalBinarySerializer in TypeHelper<T>.");
-        //                            }
-        //#endif
-        //                            // format was given to SizeOf but returned payload is empty, which means format is ok
-        //                            PopulateTempBuffer(rawLength, value, ref payload.temporaryBuffer, format);
-        //                        }
-        //                    }
-        //                }
-        //                else
-        //                {
-        //                    rawLength = payload.temporaryBuffer.Length;
-        //                }
-
-        //                // TODO set correct format to header
-        //                var writeHeader = !Unsafe.AreSame(ref headerDestination, ref Unsafe.AsRef<DataTypeHeader>(null));
-        //                if (writeHeader)
-        //                {
-        //                    if (!payload.temporaryBuffer.IsEmpty)
-        //                    {
-        //                        format = payload.format;
-        //                    }
-
-        //                    var header = TypeEnumHelper<T>.DataTypeHeader;
-        //                    var vf = header.VersionAndFlags;
-        //                    vf.SerializationFormat = format;
-        //                    header.VersionAndFlags = vf;
-
-        //                    // Special case when header info is rewritten.
-        //                    // This relies on existing header check when we reuse
-        //                    // header, or each new header will have it's own count.
-        //                    if (header.TEOFS.TypeEnum == TypeEnum.TupleTN && tbs is IFixedArraySerializer fas)
-        //                    {
-        //                        Debug.Assert(tbs.FixedSize > 0);
-        //                        header.TupleNCount = checked((byte)fas.FixedArrayCount(value));
-        //                    }
-
-        //                    if (checkHeader)
-        //                    {
-        //                        var existingHeader = headerDestination;
-        //                        if (existingHeader != default && existingHeader != header)
-        //                        {
-        //                            return (int)BinarySerializerErrorCode.HeaderMismatch;
-        //                        }
-        //                    }
-
-        //                    headerDestination = header;
-        //                }
-
-        //                // ReSharper disable once RedundantTypeArgumentsOfMethod
-        //                destination.Write<int>(0, rawLength);
-
-        //                if (PayloadLengthSize + rawLength > destination.Length)
-        //                {
-        //                    // in finally: temporaryBuffer.Dispose();
-        //                    return (int)BinarySerializerErrorCode.NotEnoughCapacity;
-        //                }
-
-        //                // Write temp buffer
-        //                if (payload.temporaryBuffer.IsEmpty)
-        //                {
-        //                    var written = tbs.Write(value, destination.Slice(PayloadLengthSize, rawLength));
-        //                    if (rawLength != written)
-        //                    {
-        //                        FailWrongSerializerImplementation<T>(BinarySerializerFailCode.WrittenNotEqualToSizeOf);
-        //                    }
-        //                }
-        //                else
-        //                {
-        //                    payload.temporaryBuffer.Span.CopyTo(destination.Slice(PayloadLengthSize, rawLength).Span);
-        //                    // in finally: rm.Dispose();
-        //                }
-
-        //                return PayloadLengthSize + rawLength;
-        //            }
-        //            finally
-        //            {
-        //                payload.temporaryBuffer.Dispose();
-        //            }
-        //        }
-
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int Write<T>(in T value,
             DirectBuffer destination,
-            in (BufferWriter bufferWriter, SerializationFormat format) payload,
+            BufferWriter payload,
             SerializationFormat format = default,
             bool noHeader = false)
         {
             int written;
             if (noHeader)
             {
-                written = Write(value, ref Unsafe.AsRef<DataTypeHeader>(null), destination, in payload, format,
+                written = Write(value, ref Unsafe.AsRef<DataTypeHeader>(null), destination, payload, format,
                     checkHeader: false);
             }
             else
@@ -513,7 +315,7 @@ namespace Spreads.Serialization
                 ref var headerDestination = ref *(DataTypeHeader*)destination.Data;
                 destination = destination.Slice(DataTypeHeader.Size);
 
-                written = Write(value, ref headerDestination, destination, in payload, format, checkHeader: false);
+                written = Write(value, ref headerDestination, destination, payload, format, checkHeader: false);
             }
 
             if (written > 0)
@@ -528,17 +330,17 @@ namespace Spreads.Serialization
         public static int Write<T>(in T value,
             ref DataTypeHeader headerDestination,
             DirectBuffer destination,
-            in (BufferWriter bufferWriter, SerializationFormat format) payload,
+            BufferWriter payload,
             SerializationFormat format = default)
         {
-            return Write(value, ref headerDestination, destination, in payload, format, checkHeader: true);
+            return Write(value, ref headerDestination, destination, payload, format, checkHeader: true);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static int Write<T>(in T value,
             ref DataTypeHeader headerDestination,
             DirectBuffer destination,
-            in (BufferWriter bufferWriter, SerializationFormat format) payload,
+            BufferWriter payload,
             SerializationFormat format,
             bool checkHeader)
         {
@@ -556,7 +358,7 @@ namespace Spreads.Serialization
 
                 if (TypeEnumHelper<T>.IsFixedSize)
                 {
-                    if (AdditionalCorrectnessChecks.Enabled && payload.bufferWriter != null)
+                    if (AdditionalCorrectnessChecks.Enabled && payload != null)
                     {
                         ThrowTempBufferMustBeEmptyForFixedSize();
                     }
@@ -593,7 +395,7 @@ namespace Spreads.Serialization
         private static int WriteVarSizeOrJson<T>(in T value,
             ref DataTypeHeader headerDestination,
             DirectBuffer destination,
-            (BufferWriter bufferWriter, SerializationFormat format) payload,
+            BufferWriter payload,
             SerializationFormat format,
             bool checkHeader)
         {
@@ -615,13 +417,13 @@ namespace Spreads.Serialization
                 }
 
                 int rawLength;
-                if (payload.bufferWriter == null)
+                if (payload == null)
                 {
                     // When bufferWriter == null call to SizeOf must be very fast O(1)
                     rawLength = SizeOf(value, out payload, format) - (DataTypeHeader.Size + PayloadLengthSize);
 
                     // Still empty, binary converter knows the size without serializing
-                    if (payload.bufferWriter == null)
+                    if (payload == null)
                     {
                         if (format.CompressionMethod() != CompressionMethod.None)
                         {
@@ -646,29 +448,29 @@ namespace Spreads.Serialization
                             }
 #endif
                             // format was given to SizeOf but returned payload is empty, which means format is ok
-                            payload.bufferWriter = BufferWriter.Create();
-                            FillBufferWriter(rawLength, value, ref payload.bufferWriter, format);
+                            payload = BufferWriter.Create();
+                            FillBufferWriter(rawLength, value, ref payload, format);
                         }
                     }
                 }
                 else
                 {
-                    rawLength = payload.bufferWriter.WrittenLength;
+                    rawLength = payload.WrittenLength - (DataTypeHeader.Size + PayloadLengthSize);
                 }
 
-                // TODO set correct format to header
                 var writeHeader = !Unsafe.AreSame(ref headerDestination, ref Unsafe.AsRef<DataTypeHeader>(null));
                 if (writeHeader)
                 {
-                    if (payload.bufferWriter != null)
+                    DataTypeHeader header;
+                    if (payload != null)
                     {
-                        format = payload.format;
+                        header = payload.WrittenBuffer.Read<DataTypeHeader>(0);
                     }
-
-                    var header = TypeEnumHelper<T>.DataTypeHeader;
-                    var vf = header.VersionAndFlags;
-                    vf.SerializationFormat = format;
-                    header.VersionAndFlags = vf;
+                    else
+                    {
+                        header = TypeEnumHelper<T>.DataTypeHeader;
+                        header.VersionAndFlags.SerializationFormat = format;
+                    }
 
                     // Special case when header info is rewritten.
                     // This relies on existing header check when we reuse
@@ -701,7 +503,7 @@ namespace Spreads.Serialization
                 }
 
                 // Write temp buffer
-                if (payload.bufferWriter == null)
+                if (payload == null)
                 {
                     var written = tbs.Write(value, destination.Slice(PayloadLengthSize, rawLength));
                     if (rawLength != written)
@@ -711,7 +513,8 @@ namespace Spreads.Serialization
                 }
                 else
                 {
-                    payload.bufferWriter.WrittenSpan.CopyTo(destination.Slice(PayloadLengthSize, rawLength).Span);
+                    payload.WrittenSpan.Slice(DataTypeHeader.Size + PayloadLengthSize)
+                        .CopyTo(destination.Slice(PayloadLengthSize, rawLength).Span);
                     // in finally: rm.Dispose();
                 }
 
@@ -719,7 +522,7 @@ namespace Spreads.Serialization
             }
             finally
             {
-                payload.bufferWriter?.Dispose();
+                payload?.Dispose();
             }
         }
 

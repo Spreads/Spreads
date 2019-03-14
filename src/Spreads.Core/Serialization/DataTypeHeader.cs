@@ -24,6 +24,7 @@ namespace Spreads.Serialization
     /// ```
     /// </remarks>
     [StructLayout(LayoutKind.Explicit, Pack = 1, Size = Size)]
+    [BinarySerialization(Size)]
     public struct DataTypeHeader : IEquatable<DataTypeHeader>
     {
         public const int Size = 4;

@@ -310,11 +310,6 @@ namespace Spreads.Serialization
                 if (serializerTmp.FixedSize > 0)
                 {
                     serializer = serializerTmp;
-                    Task.Run(async () =>
-                    {
-                        await Task.Delay(1);
-                        var sizeOf = BinarySerializer.SizeOf<T>(default, out var tempBuf, SerializationFormat.Binary);
-                    });
                 }
             }
 

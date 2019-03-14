@@ -68,7 +68,7 @@ namespace Spreads.Core.Tests.Serialization
                 values[i] = value;
                 var size = BinarySerializer.SizeOf(in value, out var tmpBuffer, SerializationFormat.Json);
 
-                var written = BinarySerializer.Write(in value, dest, in tmpBuffer, SerializationFormat.Json);
+                var written = BinarySerializer.Write(in value, dest, tmpBuffer, SerializationFormat.Json);
 
                 if (size != written)
                 {

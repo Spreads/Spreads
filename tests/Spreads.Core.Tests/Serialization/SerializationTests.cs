@@ -199,7 +199,7 @@ namespace Spreads.Core.Tests.Serialization
             {
                 var val = value;
                 var len0 = BinarySerializer.SizeOf(in val, out var pl, format);
-                var len = BinarySerializer.Write(val, db, in pl, format);
+                var len = BinarySerializer.Write(val, db, pl, format);
                 // for (int x = 0; x < 100; x++)
                 {
                     var len2 = BinarySerializer.Read(db, out T val2);
@@ -308,7 +308,7 @@ namespace Spreads.Core.Tests.Serialization
                 SerializationFormat.JsonLz4,
                 SerializationFormat.JsonZstd
             };
-            
+
             var lens = new[] { 1, 2, 10, 20, 50, 100, 200, 300, 400, 500, 600, 700, 1000, 10000 };
             var rng = new Random(42);
             foreach (var len in lens)
@@ -406,7 +406,7 @@ namespace Spreads.Core.Tests.Serialization
             dta[0] = DateTime.Today;
             dta[1] = DateTime.Today.AddDays(1);
             var len0 = BinarySerializer.SizeOf(in dta, out var pl, SerializationFormat.Binary);
-            var len = BinarySerializer.Write(dta, bytes, in pl, format: SerializationFormat.Binary);
+            var len = BinarySerializer.Write(dta, bytes, pl, format: SerializationFormat.Binary);
             Assert.AreEqual(8 + 4 + 8 * 2, len);
             DateTime[] dta2 = null;
             var len2 = BinarySerializer.Read(bytes, out dta2);
@@ -422,7 +422,7 @@ namespace Spreads.Core.Tests.Serialization
             value[0] = 123;
             value[1] = 456;
             var len0 = BinarySerializer.SizeOf(in value, out var pl, SerializationFormat.Binary);
-            var len = BinarySerializer.Write(in value, bytes, in pl, format: SerializationFormat.Binary);
+            var len = BinarySerializer.Write(in value, bytes, pl, format: SerializationFormat.Binary);
             Assert.AreEqual(len0, len);
             Assert.AreEqual(8 + 4 + 4 * 2, len);
             int[] ints2 = null;
@@ -440,7 +440,7 @@ namespace Spreads.Core.Tests.Serialization
             value[0] = 123;
             value[1] = 456;
             var len0 = BinarySerializer.SizeOf(in value, out var pl, SerializationFormat.Binary);
-            var len = BinarySerializer.Write(value, bytes, in pl, format: SerializationFormat.Binary);
+            var len = BinarySerializer.Write(value, bytes, pl, format: SerializationFormat.Binary);
             Assert.AreEqual(8 + 4 + 16 * 2, len);
             decimal[] decimals2 = null;
             var len2 = BinarySerializer.Read(bytes, out decimals2);
@@ -456,7 +456,7 @@ namespace Spreads.Core.Tests.Serialization
             value[0] = "123";
             value[1] = "456";
             var len0 = BinarySerializer.SizeOf(in value, out var pl);
-            var len = BinarySerializer.Write(value, bytes, in pl);
+            var len = BinarySerializer.Write(value, bytes, pl);
 
             string[] arr2 = null;
             var len2 = BinarySerializer.Read(bytes, out arr2);
@@ -480,7 +480,7 @@ namespace Spreads.Core.Tests.Serialization
                 Value2 = 4560
             };
             var len0 = BinarySerializer.SizeOf(in value, out var pl, SerializationFormat.Binary);
-            var len = BinarySerializer.Write(value, bytes, in pl, format: SerializationFormat.Binary);
+            var len = BinarySerializer.Write(value, bytes, pl, format: SerializationFormat.Binary);
             Assert.AreEqual(8 + 4 + 12 * 2, len);
             BlittableStruct[] arr2 = null;
             var len2 = BinarySerializer.Read(bytes, out arr2);
@@ -504,7 +504,7 @@ namespace Spreads.Core.Tests.Serialization
                 Value2 = "4560"
             };
             var len0 = BinarySerializer.SizeOf(in value, out var pl);
-            var len = BinarySerializer.Write(value, bytes, in pl);
+            var len = BinarySerializer.Write(value, bytes, pl);
             SimplePoco[] arr2 = null;
             var len2 = BinarySerializer.Read(bytes, out arr2);
             Assert.IsTrue(value.SequenceEqual(arr2), "Items are not equal");
@@ -676,7 +676,7 @@ namespace Spreads.Core.Tests.Serialization
 
             var formats = new[]
             {
-                SerializationFormat.Binary, SerializationFormat.BinaryZstd, SerializationFormat.BinaryLz4,
+                SerializationFormat.BinaryZstd, SerializationFormat.Binary,  SerializationFormat.BinaryLz4,
                 SerializationFormat.BinaryGZip,
                 SerializationFormat.Json, SerializationFormat.JsonGZip, SerializationFormat.JsonLz4,
                 SerializationFormat.JsonZstd
@@ -811,7 +811,7 @@ namespace Spreads.Core.Tests.Serialization
 
             // Assert.AreEqual(DataTypeHeader.Size + BinarySerializer.PayloadLengthSize + value.Length, len0);
 
-            var len = BinarySerializer.Write(value, bytes, in pl);
+            var len = BinarySerializer.Write(value, bytes, pl);
 
             var len2 = BinarySerializer.Read(bytes, out string str2);
             Assert.AreEqual(len, len0);

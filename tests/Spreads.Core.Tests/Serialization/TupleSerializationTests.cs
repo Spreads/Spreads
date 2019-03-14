@@ -701,7 +701,7 @@ namespace Spreads.Core.Tests.Serialization
                 {
                     // ReSharper disable UnusedVariable
                     var sizeOf = BinarySerializer.SizeOf(in val, out var payload, preferredFormat);
-                    var written = BinarySerializer.Write(in val, db, in payload, preferredFormat);
+                    var written = BinarySerializer.Write(in val, db, payload, preferredFormat);
                     var consumed = BinarySerializer.Read(db, out TaggedKeyValue<int, long> val2, skipTypeInfoValidation: false);
                     // ReSharper restore UnusedVariable
                 }

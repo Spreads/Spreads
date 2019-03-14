@@ -394,34 +394,34 @@ namespace Spreads.Collections.Internal
     {
         // ReSharper disable StaticMemberInGenericType
 
-        public static SizeOfDelegate SizeOfDelegate = SizeOf;
+        //public static SizeOfDelegate SizeOfDelegate = SizeOf;
 
-        public static WriteDelegate WriteDelegate = Write;
+        //public static WriteDelegate WriteDelegate = Write;
 
-        public static ReadDelegate ReadDelegate = Read;
+        //public static ReadDelegate ReadDelegate = Read;
 
-        // ReSharper restore StaticMemberInGenericType
+        //// ReSharper restore StaticMemberInGenericType
 
-        private static int Read(ref DirectBuffer source, out VectorStorage value)
-        {
-            var len = BinarySerializer.Read(source, out VectorStorage<T> valueT);
-            value = valueT.Storage;
-            return len;
-        }
+        //private static int Read(ref DirectBuffer source, out VectorStorage value)
+        //{
+        //    var len = BinarySerializer.Read(source, out VectorStorage<T> valueT);
+        //    value = valueT.Storage;
+        //    return len;
+        //}
 
-        private static int Write(VectorStorage value,
-            ref DirectBuffer pinnedDestination,
-            in (BufferWriter bufferWriter, SerializationFormat format) payload,
-            SerializationFormat format = default)
-        {
-            return BinarySerializer.Write(new VectorStorage<T>(value), pinnedDestination, in payload, format);
-        }
+        //private static int Write(VectorStorage value,
+        //    ref DirectBuffer pinnedDestination,
+        //    in (BufferWriter bufferWriter, SerializationFormat format) payload,
+        //    SerializationFormat format = default)
+        //{
+        //    return BinarySerializer.Write(new VectorStorage<T>(value), pinnedDestination, in payload, format);
+        //}
 
-        private static int SizeOf(VectorStorage value, out (BufferWriter bufferWriter, SerializationFormat format) payload,
-            SerializationFormat format = default)
-        {
-            return BinarySerializer.SizeOf(new VectorStorage<T>(value), out payload, format);
-        }
+        //private static int SizeOf(VectorStorage value, out (BufferWriter bufferWriter, SerializationFormat format) payload,
+        //    SerializationFormat format = default)
+        //{
+        //    return BinarySerializer.SizeOf(new VectorStorage<T>(value), out payload, format);
+        //}
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public VectorStorage(VectorStorage storage)
