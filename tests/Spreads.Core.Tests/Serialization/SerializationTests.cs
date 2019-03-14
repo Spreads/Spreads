@@ -250,7 +250,8 @@ namespace Spreads.Core.Tests.Serialization
         public void CouldSerializeBlittables()
         {
             Settings.DoAdditionalCorrectnessChecks = true;
-
+            
+            CouldSerializeBlittable(0L);
             CouldSerializeBlittable(DateTime.Today);
             CouldSerializeBlittable(default(DateTime));
             CouldSerializeBlittable(DateTime.MinValue);

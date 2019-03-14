@@ -99,10 +99,7 @@ namespace Spreads.Serialization
 
                 if (TypeHelper<T>.HasTypeSerializer)
                 {
-                    if (TypeHelper<T>.TypeSerializer.FixedSize > 0)
-                    {
-                        ThrowHelper.FailFast("TypeEnumHelper<T>.IsFixedSize is true when TypeHelper<T>.TypeSerializer.FixedSize > 0");
-                    }
+                    Debug.Assert(TypeHelper<T>.TypeSerializer.FixedSize > 0);
 
                     writer = BufferWriter.Create();
                     plLen = TypeHelper<T>.TypeSerializer.SizeOf(in value, writer);
@@ -118,7 +115,7 @@ namespace Spreads.Serialization
             }
 
             writer = BufferWriter.Create();
-            plLen = JsonBinarySerializer<T>.SizeOfStatic(in value, writer);
+            plLen = JsonBinarySerializer<T>.Instance.SizeOf(in value, writer);
 
             // clear binary bit
             actualFormat = (SerializationFormat)((byte)preferredFormat & ~VersionAndFlags.BinaryFlagMask);

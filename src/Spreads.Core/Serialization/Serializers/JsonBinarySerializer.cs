@@ -27,7 +27,7 @@ namespace Spreads.Serialization.Serializers
         public override short FixedSize => -1;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int SizeOfStatic(in T value, BufferWriter bufferWriter)
+        private static int SizeOfStatic(in T value, BufferWriter bufferWriter)
         {
             Debug.Assert(bufferWriter != null);
 
@@ -42,6 +42,11 @@ namespace Spreads.Serialization.Serializers
             return size;
         }
 
+        [MethodImpl(MethodImplOptions.NoInlining
+#if NETCOREAPP3_0
+                    | MethodImplOptions.AggressiveOptimization
+#endif
+        )]
         public override int SizeOf(in T value, BufferWriter payload)
         {
             return SizeOfStatic(in value, payload);
@@ -72,22 +77,32 @@ namespace Spreads.Serialization.Serializers
             }
         }
 
+        [MethodImpl(MethodImplOptions.NoInlining
+#if NETCOREAPP3_0
+                    | MethodImplOptions.AggressiveOptimization
+#endif
+        )]
         public override int Write(in T value, DirectBuffer destination)
         {
             return WriteStatic(in value, in destination);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int Read(in DirectBuffer source, out T value)
+        private static int ReadStatic(in DirectBuffer source, out T value)
         {
             var reader = new JsonReader(source);
             value = JsonSerializer.Deserialize<T>(ref reader);
             return reader.GetCurrentOffsetUnsafe();
         }
 
+        [MethodImpl(MethodImplOptions.NoInlining
+#if NETCOREAPP3_0
+                    | MethodImplOptions.AggressiveOptimization
+#endif
+        )]
         public override int Read(DirectBuffer source, out T value)
         {
-            return Read(in source, out value);
+            return ReadStatic(in source, out value);
         }
     }
 }
