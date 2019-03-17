@@ -50,7 +50,7 @@ namespace Spreads.Collections.Experimental
                     }
                     else if (c < 0)
                     {
-                        ks = KeySorting.NotSorted;
+                        ks = KeySorting.NotEnforced;
                         break;
                     }
                 }

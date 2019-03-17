@@ -34,6 +34,11 @@ namespace Spreads.Threading
             }
         }
 
+        /// <summary>
+        /// A shortcut to <see cref="CurrentTime"/> value of <see cref="TimeService.Default"/> default time service.
+        /// </summary>
+        public static Timestamp Now => Default.CurrentTime;
+
         private IntPtr _lastUpdatedPtr;
         private bool _allocated;
 

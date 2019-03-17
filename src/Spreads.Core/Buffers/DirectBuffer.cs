@@ -2,6 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+using Spreads.Algorithms.Hash;
 using System;
 using System.Diagnostics;
 using System.Diagnostics.Contracts;
@@ -831,20 +832,7 @@ namespace Spreads.Buffers
 
         public override int GetHashCode()
         {
-            var longLen = (long)_length;
-            if (longLen >= 4)
-            {
-                return ReadUnaligned<int>(_pointer);
-            }
-            // as if zero padded
-            var fourBytes = stackalloc byte[4];
-            *fourBytes = 0;
-            for (long i = 0; i < longLen; i++)
-            {
-                *(fourBytes + i) = *(_pointer + i);
-            }
-
-            return *(int*)fourBytes;
+            return unchecked((int)Crc32C.CalculateCrc32C(_pointer, checked((int)(long)_length)));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

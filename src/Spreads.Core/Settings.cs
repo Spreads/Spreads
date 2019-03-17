@@ -1,5 +1,4 @@
-﻿using Spreads.Extensions;
-using Spreads.Serialization;
+﻿using Spreads.Serialization;
 using Spreads.Utils;
 using System;
 using System.Diagnostics;
@@ -254,6 +253,6 @@ namespace Spreads
         public static int SharedSpinLockNotificationPort = 0;
 
         internal static Action ZeroValueNotificationCallback = null;
-        internal static Func<IQueryHandler> QueryHandlerFactory = null;
+        
     }
 }

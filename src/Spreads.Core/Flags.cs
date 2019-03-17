@@ -154,9 +154,9 @@ namespace Spreads
     public enum KeySorting : byte
     {
         /// <summary>
-        /// Data is not sorted by keys (or sorted by accident but the sort order is neither enforced nor tracked).
+        /// Key sorting is not enforced but it may still be tracked and keys could be strongly or weakly sorted by accident.
         /// </summary>
-        NotSorted = 0b_0000_0000,
+        NotEnforced = 0b_0000_0000,
 
         /// <summary>
         /// Keys are weakly monotonically sorted according to <see cref="KeyComparer{T}.Default"/> comparer.
