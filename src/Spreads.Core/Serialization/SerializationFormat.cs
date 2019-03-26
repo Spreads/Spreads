@@ -42,13 +42,13 @@ namespace Spreads.Serialization
         /// <summary>
         /// Custom binary format without compression.
         /// </summary>
-        Binary = (CompressionMethod.None << 1) | VersionAndFlags.BinaryFlagMask,
+        Binary = (CompressionMethod.None << 1) | VersionAndFlags.IsBinaryMask,
 
         /// <summary>
         /// Well-balanced compression with good x-plat support.
         /// </summary>
         [Obsolete("Hide from intellisense. Prefer Zstd/Lz4 for binary.")]
-        BinaryGZip = (CompressionMethod.GZip << 1) | VersionAndFlags.BinaryFlagMask,
+        BinaryGZip = (CompressionMethod.GZip << 1) | VersionAndFlags.IsBinaryMask,
 
         /// <summary>
         /// Fast compression, larger size.
@@ -57,7 +57,7 @@ namespace Spreads.Serialization
         /// Use blittable reprezentation, byteshuffle with Blosc where possibe,
         /// fallback to JSON for non-blittable types and compress with BinaryLz4.
         /// </remarks>
-        BinaryLz4 = (CompressionMethod.Lz4 << 1) | VersionAndFlags.BinaryFlagMask,
+        BinaryLz4 = (CompressionMethod.Lz4 << 1) | VersionAndFlags.IsBinaryMask,
 
         /// <summary>
         /// Good compression ratio, slower speed.
@@ -66,7 +66,7 @@ namespace Spreads.Serialization
         /// Use blittable reprezentation, byteshuffle with Blosc where possibe,
         /// fallback to JSON for non-blittable types and compress with BinaryZstd.
         /// </remarks>
-        BinaryZstd = (CompressionMethod.Zstd << 1) | VersionAndFlags.BinaryFlagMask,
+        BinaryZstd = (CompressionMethod.Zstd << 1) | VersionAndFlags.IsBinaryMask,
 
         // NB we use check < 100 in some places to detect binary
 

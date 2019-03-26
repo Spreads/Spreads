@@ -121,7 +121,7 @@ namespace Spreads.Serialization
             plLen = JsonBinarySerializer<T>.Instance.SizeOf(in value, writer);
 
             // clear binary bit
-            actualFormat = (SerializationFormat)((byte)preferredFormat & ~VersionAndFlags.BinaryFlagMask);
+            actualFormat = (SerializationFormat)((byte)preferredFormat & ~VersionAndFlags.IsBinaryMask);
 
         HAS_RAW_SIZE:
             if (AdditionalCorrectnessChecks.Enabled && writer != null && headerSize + PayloadLengthSize + plLen != writer.WrittenLength)

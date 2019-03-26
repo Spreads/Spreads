@@ -123,5 +123,34 @@ namespace Spreads.Core.Tests.Serialization
             Assert.AreEqual(100, typeEnumByte);
             rm.Dispose();
         }
+
+
+        [Test]
+        public void CouldWriteWithSeparateHeader()
+        {
+#pragma warning disable 618
+            Settings.DoAdditionalCorrectnessChecks = false;
+#pragma warning restore 618
+
+            var rm = BufferPool.Retain(10_000);
+            var db = new DirectBuffer(rm.Span);
+
+            DataTypeHeader header = default;
+
+            var val = new SampleStruct(42);
+
+            var size = BinarySerializer.SizeOf(in val, out var tmpBuffer, SerializationFormat.Binary);
+            var written = BinarySerializer.Write(in val, ref header, db, tmpBuffer, SerializationFormat.Binary);
+            var written2 = BinarySerializer.Write(in val, ref header, db, tmpBuffer, SerializationFormat.Binary);
+
+            var read = BinarySerializer.Read(header, db, out SampleStruct val2);
+
+            Assert.AreEqual(size - DataTypeHeader.Size, written);
+            Assert.AreEqual(size - DataTypeHeader.Size, read);
+            Assert.AreEqual(val.Value, val2.Value);
+            
+            rm.Dispose();
+        }
+
     }
 }
