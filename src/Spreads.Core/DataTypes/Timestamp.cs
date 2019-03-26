@@ -70,6 +70,15 @@ namespace Spreads.DataTypes
         public const int Size = 8;
 
         private static readonly long UnixEpochTicks = new DateTime(1970, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc).Ticks;
+
+        public static Timestamp Now => DateTime.UtcNow;
+
+        /// <summary>
+        /// Compared to Now.Seconds this uses `DateTime.Now.ToUniversalTime()` instead of `DateTime.UtcNow`.
+        /// The former call is slightly faster but less precise.
+        /// </summary>
+        public static double NowSeconds => ((Timestamp)DateTime.Now.ToUniversalTime()).Seconds;
+
         private readonly long _nanos;
 
         public Timestamp(long nanos)
@@ -95,6 +104,12 @@ namespace Spreads.DataTypes
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => _nanos / 1000_000;
+        }
+
+        public double Seconds
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => (double)_nanos / 1_000_000_000L;
         }
 
         /// <summary>
