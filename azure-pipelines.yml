@@ -3,24 +3,44 @@
 # Add steps that run tests, create a NuGet package, deploy, and more:
 # https://docs.microsoft.com/azure/devops/pipelines/languages/dotnet-core
 
-pool:
-  vmImage: 'vs2017-win2016'
+trigger:
+- master
 
 variables:
-  buildConfiguration: 'Release'
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
 
-steps:
+jobs:
+- job: Linux
+  pool:
+    vmImage: 'ubuntu-16.04'
 
-- task: DotNetCoreInstaller@0
-  inputs:
-    version: '3.0.100-preview4-010538'
+  steps:
+  - task: DotNetCoreInstaller@0
+    inputs:
+      version: '3.0.100-preview4-010538'
 
-- script: dotnet test tests/Spreads.Core.Tests/Spreads.Core.Tests.csproj -f netcoreapp3.0 -c Debug  --filter TestCategory=CI -v m
-  displayName: 'Test Debug'
+  - script: dotnet test tests/Spreads.Core.Tests/Spreads.Core.Tests.csproj -f netcoreapp3.0 -c Debug  --filter TestCategory=CI -v m
+    displayName: 'Test Debug netcoreapp3.0'
 
-- script: dotnet test tests/Spreads.Core.Tests/Spreads.Core.Tests.csproj -f netcoreapp3.0 -c Release  --filter TestCategory=CI -v m
-  displayName: 'Test Release'
+  - script: dotnet test tests/Spreads.Core.Tests/Spreads.Core.Tests.csproj -f netcoreapp3.0 -c Release  --filter TestCategory=CI -v m
+    displayName: 'Test Release netcoreapp3.0'
 
-- script: dotnet test tests/Spreads.Core.Tests/Spreads.Core.Tests.csproj -f net461 -c Release  --filter TestCategory=CI -v m
-  displayName: 'Test Release net461'
+- job: Windows
+  pool:
+    vmImage: 'vs2017-win2016'
+
+  steps:
+  - task: DotNetCoreInstaller@0
+    inputs:
+      version: '3.0.100-preview4-010538'
+
+  - script: dotnet test tests/Spreads.Core.Tests/Spreads.Core.Tests.csproj -f netcoreapp3.0 -c Debug  --filter TestCategory=CI -v m
+    displayName: 'Test Debug netcoreapp3.0'
+
+  - script: dotnet test tests/Spreads.Core.Tests/Spreads.Core.Tests.csproj -f netcoreapp3.0 -c Release  --filter TestCategory=CI -v m
+    displayName: 'Test Release netcoreapp3.0'
+
+  - script: dotnet test tests/Spreads.Core.Tests/Spreads.Core.Tests.csproj -f net461 -c Release  --filter TestCategory=CI -v m
+    displayName: 'Test Release net461'
+
 

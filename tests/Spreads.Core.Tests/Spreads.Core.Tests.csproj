@@ -28,6 +28,7 @@
         <PackageReference Include="Microsoft.IO.RecyclableMemoryStream" Version="1.2.2" />
         <PackageReference Include="NSec.Cryptography" Version="18.6.0" />
         <PackageReference Include="ObjectLayoutInspector" Version="0.1.1" />
+        <PackageReference Include="Spreads" Version="1.0.0-build1903281258R" />
         <PackageReference Include="System.Numerics.Vectors" Version="4.6.0-preview1-27018-01" />
         <PackageReference Include="Microsoft.NET.Test.Sdk" Version="16.0.0-preview-20190124-02" />
         <PackageReference Include="NUnit" Version="3.11.0" />
@@ -40,7 +41,6 @@
 
     <ItemGroup>
       <ProjectReference Include="..\..\src\Spreads.Core\Spreads.Core.csproj" />
-      <ProjectReference Include="..\..\src\Spreads\Spreads.csproj" />
     </ItemGroup>
 
 

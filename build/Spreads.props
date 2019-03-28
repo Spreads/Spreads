@@ -31,9 +31,8 @@
     <PackageTags>Spreads CEP data streaming fast realtime analysis streams timeseries async native compression series matrix dataframe</PackageTags>
 
     <IncludeSource>false</IncludeSource>
-    <!-- This lib is so optimized for inlining in Release symbols never help. -->
-    <IncludeSymbols Condition="'$(Configuration)' == 'Debug'">true</IncludeSymbols>
-
+    <DebugType>embedded</DebugType>
+    <DebugSymbols>true</DebugSymbols>
     
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <NoWarn>$(NoWarn),1591</NoWarn>
@@ -44,7 +43,6 @@
 
     <PlatformTarget>AnyCPU</PlatformTarget>
     <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
-    <DebugSymbols>true</DebugSymbols>
     <LangVersion>7.3</LangVersion>
     <Configurations>Debug;Release</Configurations>
 

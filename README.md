@@ -1,4 +1,6 @@
-[![Build Status](https://dev.azure.com/DataSpreads/Spreads/_apis/build/status/Spreads.Spreads)](https://dev.azure.com/DataSpreads/Spreads/_build/latest?definitionId=2)
+|   Linux   |  Windows  | 
+|:---------:|:---------:|
+| [![Build Status](https://dev.azure.com/DataSpreads/Spreads/_apis/build/status/Spreads.Spreads?branchName=master&jobName=Linux)](https://dev.azure.com/DataSpreads/Spreads/_build/latest?definitionId=2&branchName=master) | [![Build Status](https://dev.azure.com/DataSpreads/Spreads/_apis/build/status/Spreads.Spreads?branchName=master&jobName=Windows)](https://dev.azure.com/DataSpreads/Spreads/_build/latest?definitionId=2&branchName=master) | 
 
 # Spreads
 <img src="https://raw.githubusercontent.com/Spreads/Spreads.Docs/master/img/ZipN.png" alt="Spreads" width="200" align="right" />
@@ -6,7 +8,7 @@
 The name **Spreads** stands for **S**eries and **P**anels for **R**eal-time and **E**xploratory **A**nalysis of
 **D**ata **S**treams.
 
-+ **Data streams** are unbounded sequences of data items, either recorded or
++ **Data Streams** are unbounded sequences of data items, either recorded or
 arriving in real-time;
 + **Series** are navigable ordered data streams of key-value pairs;
 + **Panels** are series of series or data frames;
