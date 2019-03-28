@@ -1,27 +1,27 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
-    <Import Project="..\..\build\common.props" />
-    <PropertyGroup>
-        <TargetFrameworks>netstandard2.0;net461</TargetFrameworks>
-        <AssemblyName>Spreads</AssemblyName>
-        <RootNamespace>Spreads</RootNamespace>
-        <LangVersion>7.2</LangVersion>
-        <Description />
-    </PropertyGroup>
+  <Import Project="..\..\build\common.props" />
+  <PropertyGroup>
+    <Description>Spreads top level library.</Description>
+    <AssemblyName>Spreads</AssemblyName>
+    <RootNamespace>Spreads</RootNamespace>
+    <PackageId>Spreads</PackageId>
+    <OutputType>Library</OutputType>
+  </PropertyGroup>
 
-    <ItemGroup>
-        <PackageReference Include="NodaTime" Version="2.4.2" />
-        <PackageReference Include="MathNet.Numerics.Signed" Version="4.7.0" />
-    </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="NodaTime" Version="2.4.2" />
+    <PackageReference Include="MathNet.Numerics.Signed" Version="4.7.0" />
+  </ItemGroup>
 
-    <ItemGroup>
-        <Compile Remove="Generation\RandomWalk.cs" />
-        <Compile Remove="Generation\SeriesGenerator.cs" />
-    </ItemGroup>
+  <ItemGroup>
+    <Compile Remove="Generation\RandomWalk.cs" />
+    <Compile Remove="Generation\SeriesGenerator.cs" />
+  </ItemGroup>
 
-    <ItemGroup>
-        <ProjectReference Include="..\Spreads.Collections\Spreads.Collections.fsproj" />
-        <ProjectReference Include="..\Spreads.Core\Spreads.Core.csproj" />
-    </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Spreads.Collections\Spreads.Collections.fsproj" />
+    <ProjectReference Include="..\Spreads.Core\Spreads.Core.csproj" />
+  </ItemGroup>
 
 
 </Project>

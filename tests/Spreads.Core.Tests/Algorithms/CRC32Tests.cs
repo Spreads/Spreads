@@ -48,7 +48,7 @@ namespace Spreads.Core.Tests.Algorithms
                 var ptr = (byte*)handle.Pointer;
                 var rng = new Random(42);
                 rng.NextBytes(arr);
-                var count = 1_00_000_000;
+                var count = TestUtils.GetBenchCount(1_00_000_000, 10_000_000);
                 var cnt = count / len;
                 var sum = 0UL;
 

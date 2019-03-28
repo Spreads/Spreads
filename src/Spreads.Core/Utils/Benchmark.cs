@@ -99,19 +99,19 @@ namespace Spreads.Utils
                     : 0;
                 var values = kvp.Value.Skip(skip).ToList();
 
-                var elapsed = values.Select(l => l._statSnapshot._elapsed).Average();
-                var gc0 = values.Select(l => l._statSnapshot._gc0).Average();
-                var gc1 = values.Select(l => l._statSnapshot._gc1).Average();
-                var gc2 = values.Select(l => l._statSnapshot._gc2).Average();
-                var memory = values.Select(l => l._statSnapshot._memory).Average();
+                var elapsed = values.Select(l => l._statSnapshot.Elapsed).Average();
+                var gc0 = values.Select(l => l._statSnapshot.Gc0).Average();
+                var gc1 = values.Select(l => l._statSnapshot.Gc1).Average();
+                var gc2 = values.Select(l => l._statSnapshot.Gc2).Average();
+                var memory = values.Select(l => l._statSnapshot.Memory).Average();
 
                 var result = kvp.Value.First();
 
-                result._statSnapshot._elapsed = (long)elapsed;
-                result._statSnapshot._gc0 = gc0;
-                result._statSnapshot._gc1 = gc1;
-                result._statSnapshot._gc2 = gc2;
-                result._statSnapshot._memory = memory;
+                result._statSnapshot.Elapsed = (long)elapsed;
+                result._statSnapshot.Gc0 = gc0;
+                result._statSnapshot.Gc1 = gc1;
+                result._statSnapshot.Gc2 = gc2;
+                result._statSnapshot.Memory = memory;
 
                 return result;
             }
@@ -122,37 +122,37 @@ namespace Spreads.Utils
         /// </summary>
         public struct Stat : IDisposable
         {
-            internal readonly string _caseName;
-            internal Stopwatch _stopwatch;
-            internal long _innerLoopCount;
-            internal StatSnapshot _statSnapshot;
+            public string CaseName { get; }
+            public Stopwatch Stopwatch { get; }
+            public long InnerLoopCount { get; }
+            public StatSnapshot _statSnapshot;
             internal bool _silent;
             private readonly string _unit;
 
             internal Stat(string caseName, Stopwatch sw, long innerLoopCount, bool silent = false, string unit = null)
             {
-                _caseName = caseName;
-                _stopwatch = sw;
-                _innerLoopCount = innerLoopCount;
+                CaseName = caseName;
+                Stopwatch = sw;
+                InnerLoopCount = innerLoopCount;
                 _silent = silent;
                 _unit = unit;
 
-                _statSnapshot = new StatSnapshot(_stopwatch, true);
+                _statSnapshot = new StatSnapshot(Stopwatch, true);
             }
 
             /// <inheritdoc />
             public void Dispose()
             {
-                var statEntry = new StatSnapshot(_stopwatch, false);
-                Interlocked.Exchange(ref _sw, _stopwatch);
+                var statEntry = new StatSnapshot(Stopwatch, false);
+                Interlocked.Exchange(ref _sw, Stopwatch);
 
-                _statSnapshot._elapsed = statEntry._elapsed;
-                _statSnapshot._gc0 = statEntry._gc0 - _statSnapshot._gc0 - 2;
-                _statSnapshot._gc1 = statEntry._gc1 - _statSnapshot._gc1 - 2;
-                _statSnapshot._gc2 = statEntry._gc2 - _statSnapshot._gc2 - 2;
-                _statSnapshot._memory = statEntry._memory - _statSnapshot._memory;
+                _statSnapshot.Elapsed = statEntry.Elapsed;
+                _statSnapshot.Gc0 = statEntry.Gc0 - _statSnapshot.Gc0 - 2;
+                _statSnapshot.Gc1 = statEntry.Gc1 - _statSnapshot.Gc1 - 2;
+                _statSnapshot.Gc2 = statEntry.Gc2 - _statSnapshot.Gc2 - 2;
+                _statSnapshot.Memory = statEntry.Memory - _statSnapshot.Memory;
 
-                var list = Stats.GetOrAdd(_caseName, (s1) => new List<Stat>());
+                var list = Stats.GetOrAdd(CaseName, (s1) => new List<Stat>());
                 list.Add(this);
 
                 if (!_silent && !ForceSilence)
@@ -170,29 +170,34 @@ namespace Spreads.Utils
             /// Million operations per second.
             /// </summary>
             // ReSharper disable once InconsistentNaming
-            public double MOPS => Math.Round((_innerLoopCount * 0.001) / _statSnapshot._elapsed, 3);
+            public double MOPS => Math.Round((InnerLoopCount * 0.001) / _statSnapshot.Elapsed, 3);
+
+            internal StatSnapshot StatSnapshot
+            {
+                get { return _statSnapshot; }
+            }
 
             /// <inheritdoc />
             public override string ToString()
             {
-                var trimmedCaseName = _caseName.Length > 20 ? _caseName.Substring(0, 17) + "..." : _caseName;
-                return $"{trimmedCaseName,-20} |{MOPS,8:f2} | {_statSnapshot._elapsed,5} ms | {_statSnapshot._gc0,5:f1} | {_statSnapshot._gc1,5:f1} | {_statSnapshot._gc2,5:f1} | {_statSnapshot._memory / (1024 * 1024.0),5:f3} MB";
+                var trimmedCaseName = CaseName.Length > 20 ? CaseName.Substring(0, 17) + "..." : CaseName;
+                return $"{trimmedCaseName,-20} |{MOPS,8:f2} | {_statSnapshot.Elapsed,5} ms | {_statSnapshot.Gc0,5:f1} | {_statSnapshot.Gc1,5:f1} | {_statSnapshot.Gc2,5:f1} | {_statSnapshot.Memory / (1024 * 1024.0),5:f3} MB";
             }
 
             internal string ToString(int caseAlignmentLength)
             {
-                var paddedCaseName = _caseName.PadRight(caseAlignmentLength);
-                return $"{paddedCaseName,-20} |{MOPS,8:f2} | {_statSnapshot._elapsed,5} ms | {_statSnapshot._gc0,5:f1} | {_statSnapshot._gc1,5:f1} | {_statSnapshot._gc2,5:f1} | {_statSnapshot._memory / (1024 * 1024.0),5:f3} MB";
+                var paddedCaseName = CaseName.PadRight(caseAlignmentLength);
+                return $"{paddedCaseName,-20} |{MOPS,8:f2} | {_statSnapshot.Elapsed,5} ms | {_statSnapshot.Gc0,5:f1} | {_statSnapshot.Gc1,5:f1} | {_statSnapshot.Gc2,5:f1} | {_statSnapshot.Memory / (1024 * 1024.0),5:f3} MB";
             }
         }
 
-        internal struct StatSnapshot
+        public struct StatSnapshot
         {
-            internal long _elapsed;
-            internal double _gc0;
-            internal double _gc1;
-            internal double _gc2;
-            internal double _memory;
+            public long Elapsed;
+            public double Gc0;
+            public double Gc1;
+            public double Gc2;
+            public double Memory;
 
             public StatSnapshot(Stopwatch sw, bool start)
             {
@@ -202,12 +207,12 @@ namespace Spreads.Utils
                 {
                     // end of measurement, first stop timer then collect/count
                     sw.Stop();
-                    _elapsed = sw.ElapsedMilliseconds;
+                    Elapsed = sw.ElapsedMilliseconds;
 
                     // NB we exclude forced GC from counters,
                     // by measuring memory before forced GC we could
                     // calculate uncollected garbage
-                    _memory = GC.GetTotalMemory(false);
+                    Memory = GC.GetTotalMemory(false);
                 }
 
                 GC.Collect(2, GCCollectionMode.Forced, true);
@@ -216,13 +221,13 @@ namespace Spreads.Utils
                 GC.WaitForPendingFinalizers();
 
 
-                _gc0 = GC.CollectionCount(0);
-                _gc1 = GC.CollectionCount(1);
-                _gc2 = GC.CollectionCount(2);
+                Gc0 = GC.CollectionCount(0);
+                Gc1 = GC.CollectionCount(1);
+                Gc2 = GC.CollectionCount(2);
 
                 if (start)
                 {
-                    _memory = GC.GetTotalMemory(false);
+                    Memory = GC.GetTotalMemory(false);
                     // start timer after collecting GC stat
                     sw.Restart();
                 }

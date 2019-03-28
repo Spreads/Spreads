@@ -1,37 +1,7 @@
 <Project>
-    <PropertyGroup>
-        <VersionPrefix>1.0.0</VersionPrefix>
-        <VersionSuffix>preview2</VersionSuffix>
-        <VersionSuffix Condition="'$(VersionSuffix)' != '' And '$(BuildNumber)' != ''">$(VersionSuffix)-$(BuildNumber)</VersionSuffix>
-        <PackageTags>Spreads CEP data streaming real-time analysis streams time series reactive</PackageTags>
-        <Product>Spreads</Product>
-        <RepositoryType>git</RepositoryType>
-        <RepositoryUrl>https://github.com/Spreads/Spreads.git</RepositoryUrl>
-        <Authors>Victor Baybekov</Authors>
-        <Company />
-        <Product />
-        <Copyright>Victor Baybekov</Copyright>
-        <GenerateDocumentationFile>true</GenerateDocumentationFile>
-        <NoWarn>$(NoWarn),1591</NoWarn>
-        <SignAssembly>true</SignAssembly>
-        <PublicSign Condition=" '$(OS)' != 'Windows_NT' ">true</PublicSign>
-        <AssemblyOriginatorKeyFile>..\..\tools\SpreadsKey.snk</AssemblyOriginatorKeyFile>
-        <DelaySign>false</DelaySign>
-        <DebugType>embedded</DebugType>
-        <DebugSymbols>true</DebugSymbols>
-        <PackageIconUrl>https://raw.githubusercontent.com/DataSpreads/Docs/master/images/Spreads/Spreads_64.png</PackageIconUrl>
-    </PropertyGroup>
-
-    <PropertyGroup>
-        <DefineConstants>$(DefineConstants);NETSTANDARD;NETSTANDARD20</DefineConstants>
-    </PropertyGroup>
-
-    <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
-        <CheckForOverflowUnderflow>True</CheckForOverflowUnderflow>
-        <DefineConstants>$(DefineConstants);TRACE;DEBUG</DefineConstants>
-    </PropertyGroup>
-
-    <PropertyGroup>
-        <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
-    </PropertyGroup>
+  <!-- common.props is per repo config -->
+  <Import Project="Spreads.props" />
+  <PropertyGroup>
+    <TargetFrameworks>net461;netstandard2.0;netcoreapp3.0</TargetFrameworks>
+  </PropertyGroup>
 </Project>

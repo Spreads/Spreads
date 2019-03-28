@@ -1,0 +1,65 @@
+<Project>
+  <!-- Spreads project have similar structure. This file is common for all active repos in Spreads org on GitHub. -->
+  <PropertyGroup Label="BasePath">
+    <!-- This fixed missing property when using from dotnet cli -->
+    <SolutionDir Condition="'$(SolutionDir)'==''">$(MSBuildThisFileDirectory)..\</SolutionDir>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <Product>Spreads</Product>
+    <Authors>Victor Baybekov</Authors>
+    <Company>DataSpreads!io</Company>
+    <Copyright>Victor Baybekov 2017-2019</Copyright>
+    <NeutralLanguage>en-US</NeutralLanguage>
+
+    <VersionPrefix>1.0.0</VersionPrefix>
+    <VersionSuffix>rc1</VersionSuffix>
+    <VersionSuffix Condition="'$(VersionSuffix)' != '' And '$(BuildNumber)' != ''">$(VersionSuffix)-$(BuildNumber)</VersionSuffix>
+
+    <RepositoryType>git</RepositoryType>
+    <RepositoryUrl>https://github.com/Spreads/Spreads.git</RepositoryUrl>
+
+    <!-- The SPDX name for the source license. See https://spdx.org/licenses/. -->
+    <PackageLicenseExpression>MPL-2.0</PackageLicenseExpression>
+    <!-- MPL is at file level, but dependencies will pop up the accept window anyway. -->
+    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+    
+    <MaintainerEmail>DataSpreads@DataSpreads.io</MaintainerEmail>
+    <!-- TODO setup redirect from spreads.dev to this page -->
+    <PackageProjectUrl>http://docs.dataspreads.io/spreads/</PackageProjectUrl>
+    <PackageIconUrl>https://raw.githubusercontent.com/DataSpreads/Docs/master/images/Spreads/Spreads_64.png</PackageIconUrl>
+    <PackageTags>Spreads CEP data streaming fast realtime analysis streams timeseries async native compression series matrix dataframe</PackageTags>
+
+    <IncludeSource>false</IncludeSource>
+    <!-- This lib is so optimized for inlining in Release symbols never help. -->
+    <IncludeSymbols Condition="'$(Configuration)' == 'Debug'">true</IncludeSymbols>
+
+    
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn),1591</NoWarn>
+    <SignAssembly>true</SignAssembly>
+    <DelaySign>false</DelaySign>
+    <PublicSign Condition=" '$(OS)' != 'Windows_NT' ">true</PublicSign>
+    <AssemblyOriginatorKeyFile>..\..\build\SpreadsKey.snk</AssemblyOriginatorKeyFile>
+
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
+    <DebugSymbols>true</DebugSymbols>
+    <LangVersion>7.3</LangVersion>
+    <Configurations>Debug;Release</Configurations>
+
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <DefineConstants>$(DefineConstants);NETSTANDARD;NETSTANDARD20;SPREADS</DefineConstants>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(TargetFramework)' == 'netcoreapp2.1' or '$(TargetFramework)' == 'netcoreapp3.0'">
+    <DefineConstants>$(DefineConstants);NETCOREAPP</DefineConstants>
+  </PropertyGroup>
+
+  <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
+    <CheckForOverflowUnderflow>True</CheckForOverflowUnderflow>
+    <DefineConstants>$(DefineConstants);TRACE;DEBUG</DefineConstants>
+  </PropertyGroup>
+</Project>

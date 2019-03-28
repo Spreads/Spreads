@@ -1,32 +1,40 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
-    <Import Project="..\..\build\common.props" />
-    <PropertyGroup>
-        <TargetFrameworks>netstandard2.0;net461</TargetFrameworks>
-        <AssemblyName>Spreads.Collections</AssemblyName>
-        <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
-    </PropertyGroup>
-    <ItemGroup>
-        <Compile Include="AssemblyInfo.fs" />
-        <Compile Include="Attributes.fs" />
-        <Compile Include="Common\TaskBuilder.fs" />
-        <Compile Include="Common/Types.fs" />
-        <Compile Include="Common/FastEvents.fs" />
-        <Compile Include="Common/Utils.fs" />
-        <Compile Include="Common/SIMDArrayUtils.fs" />
-        <Compile Include="Common/SIMDArray.fs" />
-        <Compile Include="Interfaces.fs" />
-        <Compile Include="Collections/Collections.fs" />
-        <Compile Include="Collections/SortedMap.fs" />
-        <Compile Include="Collections/SortedChunkedMap.fs" />
-        <Compile Include="SeriesExtensions.fs" />
-        <Compile Include="Panel.fs" />
-        <Compile Include="Statistics.fs" />
-    </ItemGroup>
-    <ItemGroup>
-        <PackageReference Update="FSharp.Core" Version="4.5.2" />
-        <PackageReference Update="System.ValueTuple" Version="4.5.0" />
-    </ItemGroup>
-    <ItemGroup>
-        <ProjectReference Include="..\Spreads.Core\Spreads.Core.csproj" />
-    </ItemGroup>
+
+  <Import Project="..\..\build\common.props" />
+
+  <PropertyGroup>
+    <Description>Spreads immutable collections.</Description>
+    <!--TargetFrameworks>net461;netstandard2.0</TargetFrameworks>-->
+    
+    <AssemblyName>Spreads.Collections</AssemblyName>
+    <RootNamespace>Spreads</RootNamespace>
+    <PackageId>Spreads.Collections</PackageId>
+    <OutputType>Library</OutputType>
+    
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="AssemblyInfo.fs" />
+    <Compile Include="Attributes.fs" />
+    <Compile Include="Common\TaskBuilder.fs" />
+    <Compile Include="Common/Types.fs" />
+    <Compile Include="Common/FastEvents.fs" />
+    <Compile Include="Common/Utils.fs" />
+    <Compile Include="Common/SIMDArrayUtils.fs" />
+    <Compile Include="Common/SIMDArray.fs" />
+    <Compile Include="Interfaces.fs" />
+    <Compile Include="Collections/Collections.fs" />
+    <Compile Include="Collections/SortedMap.fs" />
+    <Compile Include="Collections/SortedChunkedMap.fs" />
+    <Compile Include="SeriesExtensions.fs" />
+    <Compile Include="Panel.fs" />
+    <Compile Include="Statistics.fs" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Update="FSharp.Core" Version="4.5.2" />
+    <PackageReference Update="System.ValueTuple" Version="4.5.0" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Spreads.Core\Spreads.Core.csproj" />
+  </ItemGroup>
 </Project>
