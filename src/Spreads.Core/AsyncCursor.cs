@@ -149,7 +149,9 @@ namespace Spreads
 
         private bool _preferBatchMode;
         private bool _isInBatch;
+
         private readonly IAsyncBatchEnumerator<KeyValuePair<TKey, TValue>> _outerBatchEnumerator;
+
         private IEnumerator<KeyValuePair<TKey, TValue>> _innerBatchEnumerator;
         private IEnumerable<KeyValuePair<TKey, TValue>> _nextBatch;
 

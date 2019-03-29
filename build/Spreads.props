@@ -12,9 +12,7 @@
     <Copyright>Victor Baybekov 2017-2019</Copyright>
     <NeutralLanguage>en-US</NeutralLanguage>
 
-    <VersionPrefix>1.0.0</VersionPrefix>
-    <VersionSuffix>rc1</VersionSuffix>
-    <VersionSuffix Condition="'$(VersionSuffix)' != '' And '$(BuildNumber)' != ''">$(VersionSuffix)-$(BuildNumber)</VersionSuffix>
+    <VersionPrefix>"This is invalid placeholder version. Proper version must be set in common.props or with cli command"</VersionPrefix>
 
     <RepositoryType>git</RepositoryType>
     <RepositoryUrl>https://github.com/Spreads/Spreads.git</RepositoryUrl>

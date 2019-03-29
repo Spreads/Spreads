@@ -4,4 +4,30 @@
   <PropertyGroup>
     <TargetFrameworks>net461;netstandard2.0;netcoreapp3.0</TargetFrameworks>
   </PropertyGroup>
+
+  <PropertyGroup>
+    <!-- Change YY and Q only for important releases. -->
+    <YYVersion>2019</YYVersion>
+    <QVersion>0</QVersion>
+
+    <!-- Overrides -->
+    <MMDDVersion>0328</MMDDVersion>
+    <PackageHHMMSSSuffix></PackageHHMMSSSuffix>
+
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <!-- Set to True for auto incrementing build releases. Is set by scripts. -->
+    <AutoSuffix>True</AutoSuffix>
+
+    <MMDDVersion Condition="'$(MMDDVersion)' == '' AND $(AutoSuffix)">$([System.DateTime]::Now.ToString(MMdd))</MMDDVersion>
+    <PackageHHMMSSSuffix Condition="'$(PackageHHMMSSSuffix)' != ''">-$(PackageHHMMSSSuffix)</PackageHHMMSSSuffix>
+    <PackageHHMMSSSuffix Condition="'$(PackageHHMMSSSuffix)' == '' AND $(AutoSuffix)">-build$([System.DateTime]::Now.ToString("HHmmss"))</PackageHHMMSSSuffix>
+    <Version>$(YYVersion).$(QVersion).$(MMDDVersion)$(PackageHHMMSSSuffix)</Version>
+
+    <!-- Do not change the assembly version. Keeping it fixed eliminates most problems, NuGet will choose the right version. -->
+    <GenerateAssemblyVersionAttribute>false</GenerateAssemblyVersionAttribute>
+
+  </PropertyGroup>
+
 </Project>

@@ -10,11 +10,6 @@ using System.Reflection;
 using System.Runtime.CompilerServices;
 
 [assembly: CLSCompliant(false)]
-[assembly: CompilationRelaxations(8)]
+[assembly: CompilationRelaxations(CompilationRelaxations.NoStringInterning)]
 [assembly: RuntimeCompatibility(WrapNonExceptionThrows = true)]
-
-namespace System {
-    internal static class AssemblyVersionInformation {
-        internal const string Version = "0.8.0";
-    }
-}
+[assembly: AssemblyVersion("2019.0.0.0")]

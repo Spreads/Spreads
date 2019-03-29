@@ -18,7 +18,7 @@ namespace Spreads
     /// <summary>
     /// DataStreams are unbounded sequences of data items, either recorded or arriving in real-time.
     /// DataStreams have sequential keys.
-    /// This interface should not be used and is only a definition of IDataStream, which is just <see cref="ISeries{ulong, Timestamped{T}}"/>.
+    /// This interface should not be used and is only a definition of IDataStream, which is just <see cref="ISeries{TKey, TValue}"/> with <see cref="ulong"/> and <see cref="Timestamped{T}"/>.
     /// </summary>
     [Obsolete("Use generic T where T : ISeries<ulong, Timestamped<T>>")]
     public interface IDataStream<T> : ISeries<ulong, Timestamped<T>>
