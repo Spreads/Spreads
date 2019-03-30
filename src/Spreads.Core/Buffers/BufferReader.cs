@@ -69,6 +69,36 @@ namespace Spreads.Buffers
             return true;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public int Read7BitEncodedInt(out ulong value)
+        {
+            var len = 0;
+            value = 0;
+            var shift = 0;
+            byte b;
+            do
+            {
+                if (!DangerousRead(out b))
+                {
+                    len = 0;
+                    value = 0;
+                    break;
+                }
+
+                if (shift == 9 * 7 && b > 0x01)
+                {
+                    ThrowHelper.ThrowInvalidOperationException("7BitEncodedInt encoded integer exceeded expected length");
+                }
+                  
+                value |= (((ulong)(b & 0x7F)) << shift);
+                shift += 7;
+            } while ((b & 0x80) != 0);
+
+            _offset += len;
+            return len;
+        }
+
+
         //public byte Read()
         //{
         //    value = Unsafe.ReadUnaligned<T>(ref Unsafe.AsRef(in _span[_offset]));

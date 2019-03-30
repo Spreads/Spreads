@@ -32,15 +32,15 @@
     <PackageReference Include="Microsoft.Data.DataView" Version="0.11.0" />
     <PackageReference Include="Spreads.Native" Version="2019.0.0" />
     <PackageReference Include="System.Buffers" Version="4.5.0" />
-    <PackageReference Include="System.Collections.Immutable" Version="1.6.0-preview.18571.3" />
+    <PackageReference Include="System.Collections.Immutable" Version="1.5.0" />
     <PackageReference Include="System.Memory" Version="4.5.2" />
-    <PackageReference Include="System.Numerics.Vectors" Version="4.6.0-preview.18571.3" />
+    <PackageReference Include="System.Numerics.Vectors" Version="4.5.0" />
     <PackageReference Include="System.Reflection.Emit" Version="4.3.0" />
     <PackageReference Include="System.Reflection.Emit.ILGeneration" Version="4.3.0" />
     <PackageReference Include="System.Reflection.Emit.Lightweight" Version="4.3.0" />
     <PackageReference Include="System.Reflection.Extensions" Version="4.3.0" />
     <PackageReference Include="System.Reflection.TypeExtensions" Version="4.5.1" />
-    <PackageReference Include="System.Runtime.CompilerServices.Unsafe" Version="4.6.0-preview.18571.3" />
+    <PackageReference Include="System.Runtime.CompilerServices.Unsafe" Version="4.5.2" />
     <PackageReference Include="System.Threading.Tasks.Extensions" Version="4.5.2" />
     <PackageReference Include="System.ValueTuple" Version="4.5.0" />
   </ItemGroup>

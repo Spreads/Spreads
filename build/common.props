@@ -11,7 +11,7 @@
     <QVersion>0</QVersion>
 
     <!-- Overrides -->
-    <MMDDVersion>0328</MMDDVersion>
+    <MMDDVersion></MMDDVersion>
     <PackageHHMMSSSuffix></PackageHHMMSSSuffix>
 
   </PropertyGroup>

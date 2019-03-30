@@ -195,6 +195,30 @@ namespace Spreads.Buffers
             return appendLength;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal int WriteByte(byte value)
+        {
+            const int appendLength = 1;
+            EnsureCapacity(appendLength);
+
+            Unsafe.Write((byte*)_buffer.Pointer + _offset, value);
+            _offset += appendLength;
+            return appendLength;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public int Write7BitEncodedInt(ulong value)
+        {
+            var len = 0;
+            while (value >= 0x80)
+            {
+                len += WriteByte((byte)(value | 0x80));
+                value >>= 7;
+            }
+            len += WriteByte((byte)value);
+            return len;
+        }
+
         /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Advance(int count)
