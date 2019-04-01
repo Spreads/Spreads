@@ -49,15 +49,19 @@ namespace Spreads.Serialization
     ///    Message is now verified for tampering in transit, corruption due to bad
     ///    algorithm or storage
     ///
-    /// T - Has timestamp
+    /// T - Has timestamp.
     ///
-    /// H - Has BLAKE2B hash
+    /// H - Has HashChain. Note that storing hash w/o signature is meaningless because it is easily computable.
+    /// However hash chain has value on its own as much stronger than CRC32 linear checksum.
+    /// In DataSpreads we need the linear property to be able to slice streams into blocks
+    /// of arbitrary size but still be able to use signatures. E.g. 100 individual messages
+    /// could be joined into one block and compressed but the signature of the last message
+    /// is valid for the compressed block. We could just drop all intermediate signatures
+    /// and hashes and have huge savings of space for small data messages.
     ///
-    /// S - Has Ed25519 signature
+    /// S - Has signature.
     ///
-    /// E - Is encrypted with AES256-GCM
-    ///
-    /// R - reserved bits
+    /// E - Is encrypted.
     ///
     /// ```
     /// </remarks>

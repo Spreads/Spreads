@@ -1,6 +1,6 @@
-|   Linux   |  Windows  | 
-|:---------:|:---------:|
-| [![Build Status](https://dev.azure.com/DataSpreads/Spreads/_apis/build/status/Spreads.Spreads?branchName=master&jobName=Linux)](https://dev.azure.com/DataSpreads/Spreads/_build/latest?definitionId=2&branchName=master) | [![Build Status](https://dev.azure.com/DataSpreads/Spreads/_apis/build/status/Spreads.Spreads?branchName=master&jobName=Windows)](https://dev.azure.com/DataSpreads/Spreads/_build/latest?definitionId=2&branchName=master) | 
+|   Linux   |  Windows  |    Mac    | 
+|:---------:|:---------:|:---------:|
+| [![Build Status](https://dev.azure.com/DataSpreads/Spreads/_apis/build/status/Spreads.Spreads?branchName=master&jobName=Linux)](https://dev.azure.com/DataSpreads/Spreads/_build/latest?definitionId=2&branchName=master) | [![Build Status](https://dev.azure.com/DataSpreads/Spreads/_apis/build/status/Spreads.Spreads?branchName=master&jobName=Windows)](https://dev.azure.com/DataSpreads/Spreads/_build/latest?definitionId=2&branchName=master) | [![Build Status](https://dev.azure.com/DataSpreads/Spreads/_apis/build/status/Spreads.Spreads?branchName=master&jobName=Mac)](https://dev.azure.com/DataSpreads/Spreads/_build/latest?definitionId=2&branchName=master) |
 
 # Spreads
 <img src="https://raw.githubusercontent.com/Spreads/Spreads.Docs/master/img/ZipN.png" alt="Spreads" width="200" align="right" />
