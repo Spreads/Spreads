@@ -23,6 +23,7 @@
     <Compile Remove="..\..\lib\Utf8Json\src\Utf8Json\_AssemblyInfo.cs" />
     <Compile Remove="..\..\lib\Utf8Json\src\Utf8Json\Internal\UnsafeMemory.cs" />
     <Compile Remove="..\..\lib\Utf8Json\src\Utf8Json\Internal\UnsafeMemory.Low.cs" />
+    <Compile Remove="..\..\lib\Utf8Json\src\Utf8Json\Spreads\*.cs" />
   </ItemGroup>
   <ItemGroup>
     <Compile Remove="Cursors\Experimental\*.cs" />

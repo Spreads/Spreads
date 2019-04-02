@@ -497,11 +497,6 @@ namespace Spreads.Threading
                     return default;
                 }
 
-                if ((existing & ~WpidTagsMask) == (lockValue & ~WpidTagsMask))
-                {
-                    FailReentry();
-                }
-
                 // needs to be above `counter = UnlockCheckThreshold;` so that counter % UnlockCheckThreshold == 0
                 counter++;
 
@@ -638,13 +633,7 @@ namespace Spreads.Threading
             }
         }
 
-        [MethodImpl(MethodImplOptions.NoInlining)]
-        private static void FailReentry()
-        {
-            // Reentrancy is wrong usage and not an exception. User code is wrong.
-            ThrowHelper.FailFast("Lock reentry is not supported");
-        }
-
+        
         //        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         //        public unsafe ValueTask<Wpid> TryAcquireLockAsync(Wpid wpid, int spinLimit = 0, IWpidHelper wpidHelper = null)
         //        {
