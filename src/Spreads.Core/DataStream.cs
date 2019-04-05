@@ -297,4 +297,191 @@ namespace Spreads
             throw new NotImplementedException();
         }
     }
+
+    public readonly struct DataStream<T> : ISpecializedSeries<ulong, Timestamped<T>, DataStreamCursor<T>>
+    {
+        private readonly DataStreamCursor<T> _cursor;
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static implicit operator Series<ulong, Timestamped<T>, DataStreamCursor<T>>(DataStream<T> ds)
+        {
+            return ds._cursor.Source;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static implicit operator Series<ulong, Timestamped<T>, Cursor<ulong, Timestamped<T>>>(DataStream<T> ds)
+        {
+            var c = new Cursor<ulong, Timestamped<T>>(ds._cursor);
+            return new Series<ulong, Timestamped<T>, Cursor<ulong, Timestamped<T>>>(c);
+        }
+
+        public IAsyncEnumerator<KeyValuePair<ulong, Timestamped<T>>> GetAsyncEnumerator()
+        {
+            throw new NotImplementedException();
+        }
+
+        public IEnumerator<KeyValuePair<ulong, Timestamped<T>>> GetEnumerator()
+        {
+            throw new NotImplementedException();
+        }
+
+        IEnumerator IEnumerable.GetEnumerator()
+        {
+            return GetEnumerator();
+        }
+
+        public void Dispose()
+        {
+            throw new NotImplementedException();
+        }
+
+        public bool IsCompleted => throw new NotImplementedException();
+
+        public bool IsIndexed => throw new NotImplementedException();
+
+        ICursor<ulong, Timestamped<T>> ISeries<ulong, Timestamped<T>>.GetCursor()
+        {
+            throw new NotImplementedException();
+        }
+
+        AsyncCursor<ulong, Timestamped<T>, DataStreamCursor<T>> ISpecializedSeries<ulong, Timestamped<T>, DataStreamCursor<T>>.GetAsyncCursor()
+        {
+            throw new NotImplementedException();
+        }
+
+        DataStreamCursor<T> ISpecializedSeries<ulong, Timestamped<T>, DataStreamCursor<T>>.GetCursor()
+        {
+            throw new NotImplementedException();
+        }
+
+        IAsyncCursor<ulong, Timestamped<T>> ISeries<ulong, Timestamped<T>>.GetAsyncCursor()
+        {
+            throw new NotImplementedException();
+        }
+
+        public KeyComparer<ulong> Comparer => throw new NotImplementedException();
+
+        public Opt<KeyValuePair<ulong, Timestamped<T>>> First => throw new NotImplementedException();
+
+        public Opt<KeyValuePair<ulong, Timestamped<T>>> Last => throw new NotImplementedException();
+
+        public Timestamped<T> LastValueOrDefault => throw new NotImplementedException();
+
+        public Timestamped<T> this[ulong key] => throw new NotImplementedException();
+
+        public bool TryGetValue(ulong key, out Timestamped<T> value)
+        {
+            throw new NotImplementedException();
+        }
+
+        public bool TryGetAt(long index, out KeyValuePair<ulong, Timestamped<T>> kvp)
+        {
+            throw new NotImplementedException();
+        }
+
+        public bool TryFindAt(ulong key, Lookup direction, out KeyValuePair<ulong, Timestamped<T>> kvp)
+        {
+            throw new NotImplementedException();
+        }
+
+        public IEnumerable<ulong> Keys => throw new NotImplementedException();
+
+        public IEnumerable<Timestamped<T>> Values => throw new NotImplementedException();
+    }
+    public readonly struct DataStreamCursor<T> : ISpecializedCursor<ulong, Timestamped<T>, DataStreamCursor<T>>
+    {
+        public CursorState State => throw new NotImplementedException();
+
+        public KeyComparer<ulong> Comparer => throw new NotImplementedException();
+
+        public bool MoveFirst()
+        {
+            throw new NotImplementedException();
+        }
+
+        public bool MoveLast()
+        {
+            throw new NotImplementedException();
+        }
+
+        bool ICursor<ulong, Timestamped<T>>.MoveNext()
+        {
+            throw new NotImplementedException();
+        }
+
+        public long MoveNext(long stride, bool allowPartial)
+        {
+            throw new NotImplementedException();
+        }
+
+        public bool MovePrevious()
+        {
+            throw new NotImplementedException();
+        }
+
+        public long MovePrevious(long stride, bool allowPartial)
+        {
+            throw new NotImplementedException();
+        }
+
+        public bool MoveAt(ulong key, Lookup direction)
+        {
+            throw new NotImplementedException();
+        }
+
+        public ulong CurrentKey => throw new NotImplementedException();
+
+        public Timestamped<T> CurrentValue => throw new NotImplementedException();
+
+        public Series<ulong, Timestamped<T>, DataStreamCursor<T>> Source => throw new NotImplementedException();
+
+        public IAsyncCompleter AsyncCompleter => throw new NotImplementedException();
+
+        ISeries<ulong, Timestamped<T>> ICursor<ulong, Timestamped<T>>.Source => throw new NotImplementedException();
+
+        public bool IsContinuous => throw new NotImplementedException();
+
+        public DataStreamCursor<T> Initialize()
+        {
+            throw new NotImplementedException();
+        }
+
+        DataStreamCursor<T> ISpecializedCursor<ulong, Timestamped<T>, DataStreamCursor<T>>.Clone()
+        {
+            throw new NotImplementedException();
+        }
+
+        public bool IsIndexed => throw new NotImplementedException();
+
+        public bool IsCompleted => throw new NotImplementedException();
+
+        ICursor<ulong, Timestamped<T>> ICursor<ulong, Timestamped<T>>.Clone()
+        {
+            throw new NotImplementedException();
+        }
+
+        public bool TryGetValue(ulong key, out Timestamped<T> value)
+        {
+            throw new NotImplementedException();
+        }
+
+        bool IEnumerator.MoveNext()
+        {
+            throw new NotImplementedException();
+        }
+
+        public void Reset()
+        {
+            throw new NotImplementedException();
+        }
+
+        public KeyValuePair<ulong, Timestamped<T>> Current => throw new NotImplementedException();
+
+        object IEnumerator.Current => Current;
+
+        public void Dispose()
+        {
+            throw new NotImplementedException();
+        }
+    }
 }

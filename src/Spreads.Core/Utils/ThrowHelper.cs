@@ -140,7 +140,7 @@ namespace Spreads
         [MethodImpl(MethodImplOptions.NoInlining)]
         private static void DoFailFast(string message)
         {
-            Environment.FailFast(message);
+            Environment.FailFast(message, new Exception(message));
         }
 
         /////////////////////////////////////////////////////////////////////////////

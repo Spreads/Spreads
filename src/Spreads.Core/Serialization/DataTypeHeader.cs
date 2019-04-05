@@ -2,6 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+using Spreads.Serialization.Utf8Json;
 using System;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
@@ -25,6 +26,7 @@ namespace Spreads.Serialization
     /// </remarks>
     [StructLayout(LayoutKind.Explicit, Pack = 1, Size = Size)]
     [BinarySerialization(Size)]
+    [JsonFormatter(typeof(Formatter))]
     public struct DataTypeHeader : IEquatable<DataTypeHeader>
     {
         public const int Size = 4;
@@ -76,6 +78,18 @@ namespace Spreads.Serialization
         /// </summary>
         [FieldOffset(Teofs1Offset)]
         public short UserFixedSize;
+
+        [FieldOffset(VersionAndFlagsOffset)]
+        private byte _byte0;
+
+        [FieldOffset(TeofsOffset)]
+        private byte _byte1;
+
+        [FieldOffset(Teofs1Offset)]
+        private byte _byte2;
+
+        [FieldOffset(Teofs2Offset)]
+        private byte _byte3;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private int GetFixedSize()
@@ -326,6 +340,51 @@ namespace Spreads.Serialization
         public override int GetHashCode()
         {
             throw new NotSupportedException();
+        }
+
+        public class Formatter : IJsonFormatter<DataTypeHeader>
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public void Serialize(ref JsonWriter writer, DataTypeHeader value, IJsonFormatterResolver formatterResolver)
+            {
+                writer.WriteBeginArray();
+
+                writer.WriteUInt16(value._byte0);
+                writer.WriteValueSeparator();
+
+                writer.WriteUInt16(value._byte1);
+                writer.WriteValueSeparator();
+
+                writer.WriteUInt16(value._byte2);
+                writer.WriteValueSeparator();
+
+                writer.WriteUInt16(value._byte3);
+
+                writer.WriteEndArray();
+            }
+
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public DataTypeHeader Deserialize(ref JsonReader reader, IJsonFormatterResolver formatterResolver)
+            {
+                reader.ReadIsBeginArrayWithVerify();
+
+                var dth = new DataTypeHeader();
+
+                dth._byte0 = checked((byte)reader.ReadUInt16());
+                reader.ReadIsValueSeparatorWithVerify();
+
+                dth._byte1 = checked((byte)reader.ReadUInt16());
+                reader.ReadIsValueSeparatorWithVerify();
+
+                dth._byte2 = checked((byte)reader.ReadUInt16());
+                reader.ReadIsValueSeparatorWithVerify();
+
+                dth._byte3 = checked((byte)reader.ReadUInt16());
+
+                reader.ReadIsEndArrayWithVerify();
+
+                return dth;
+            }
         }
     }
 }
