@@ -87,7 +87,7 @@ namespace Spreads.Collections.Experimental
 
             if (block.RowLength > 0)
             {
-                var lastKey = block.RowIndex._vec.DangerousGet<TKey>(block.RowLength - 1);
+                var lastKey = block.RowIndex.DangerousGet<TKey>(block.RowLength - 1);
 
                 var c = _comparer.Compare(key, lastKey);
                 if (c <= 0)

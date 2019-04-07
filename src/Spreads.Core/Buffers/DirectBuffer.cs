@@ -856,7 +856,7 @@ namespace Spreads.Buffers
         private static Vector<byte> LoadVector(ref byte start, IntPtr offset)
             => ReadUnaligned<Vector<byte>>(ref AddByteOffset(ref start, offset));
 
-#if NETCOREAPP3_0
+#if NETCOREAPP
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
 #endif
 
@@ -913,7 +913,7 @@ namespace Spreads.Buffers
             return false;
         }
 
-#if NETCOREAPP3_0
+#if NETCOREAPP
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
 #endif
 

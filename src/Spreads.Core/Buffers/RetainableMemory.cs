@@ -18,8 +18,16 @@ namespace Spreads.Buffers
     /// Base class for retainable memory. Buffers are pinned during initialization if that is possible.
     /// Initialization could be from a pool of arrays or from native memory.
     /// </summary>
-    public abstract unsafe class RetainableMemory<T> : MemoryManager<T>
+    public abstract unsafe class RetainableMemory<T> : MemoryManager<T>, IRefCounted
     {
+        protected RetainableMemory()
+        {
+            if (LeaksDetection.Enabled)
+            {
+                Tag = Environment.StackTrace;
+            }
+        }
+
         // [p*<-len---------------->] we must only check capacity at construction and then work from pointer
         // [p*<-len-[<--lenPow2-->]>] buffer could be larger, pooling always by max pow2 we could store
 
@@ -59,10 +67,6 @@ namespace Spreads.Buffers
         //  uses that and adding a new field will increase AM size by 8 bytes)
         internal const int NativeHeaderSize = 8;
 
-#if DEBUG
-        internal string _ctorStackTrace = Environment.StackTrace;
-#endif
-
         internal ref int CounterRef
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -101,7 +105,7 @@ namespace Spreads.Buffers
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal int Increment()
+        public int Increment()
         {
             return AtomicCounter.Increment(ref CounterRef);
         }
@@ -117,7 +121,7 @@ namespace Spreads.Buffers
         /// </summary>
         /// <returns></returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal int Decrement()
+        public int Decrement()
         {
             var newRefCount = AtomicCounter.Decrement(ref CounterRef);
             if (newRefCount == 0)
@@ -324,15 +328,7 @@ namespace Spreads.Buffers
 
         internal string Tag
         {
-            get
-            {
-                if (RetainableMemoryTracker.Tags.TryGetValue(this, out var tag))
-                {
-                    return tag;
-                }
-
-                return null;
-            }
+            get => RetainableMemoryTracker.Tags.TryGetValue(this, out var tag) ? tag : null;
 
             set
             {
@@ -362,9 +358,6 @@ namespace Spreads.Buffers
                 {
                     Trace.TraceWarning("Finalizing retained RM");
                 }
-#if DEBUG
-                throw new ApplicationException("Finalizing retained RM: " + _ctorStackTrace);
-#endif
             }
 
             // TODO review current logic, we throw when finalizing dropped retained object

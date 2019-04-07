@@ -15,6 +15,8 @@ using Spreads.Threading;
 
 namespace Spreads.Collections
 {
+    
+
     /// <summary>
     /// Base class for data containers implementations.
     /// </summary>
@@ -543,12 +545,12 @@ namespace Spreads.Collections
                 {
                     Debug.Assert(block.RowIndex._stride == 1);
 
-                    var blockIndex = VectorSearch.SortedSearch(ref block.RowIndex._vec.DangerousGetRef<TKey>(0),
+                    var blockIndex = VectorSearch.SortedSearch(ref block.RowIndex.DangerousGetRef<TKey>(0),
                         block.RowLength, key, _comparer);
 
                     if (blockIndex >= 0)
                     {
-                        value = block.Values._vec.DangerousGetRef<TValue>(blockIndex);
+                        value = block.Values.DangerousGetRef<TValue>(blockIndex);
                         found = true;
                     }
                 }
@@ -680,9 +682,9 @@ namespace Spreads.Collections
             //      - [...] |[...o]x|[<..]
 
             // So the algorithm is:
-            // Search source by LE or by LE if lookup is LT
+            // Search source by LE or by LT if lookup is LT
             // Do SortedSearch on the block
-            // If not found check if complement is after the end and
+            // If not found check if complement is after the end
 
             // Notes: always optimize for LE search, it should have least branches and could try speculatively
             // even if we could detect special cases in advance. Only when we cannot find check if there was a
@@ -724,7 +726,7 @@ namespace Spreads.Collections
                 // TODO if _stride > 1 is valid at some point, optimize this search via non-generic IVector with generic getter
                 // ReSharper disable once PossibleNullReferenceException
                 // var x = (block?.RowIndex).DangerousGetRef<TKey>(0);
-                blockIndex = VectorSearch.SortedLookup(ref block.RowIndex.Vec.DangerousGetRef<TKey>(0),
+                blockIndex = VectorSearch.SortedLookup(ref block.RowIndex.DangerousGetRef<TKey>(0),
                     block.RowLength, ref key, lookup, _comparer);
 
                 if (blockIndex >= 0)
@@ -748,7 +750,7 @@ namespace Spreads.Collections
                     if (nextBlock == null)
                     {
                         TryFindBlock_ValidateOrGetBlockFromSource(ref nextBlock,
-                            block.RowIndex.Vec.DangerousGetRef<TKey>(0), lookup, Lookup.GT);
+                            block.RowIndex.DangerousGetRef<TKey>(0), lookup, Lookup.GT);
                     }
 
                     if (nextBlock != null)
@@ -786,7 +788,7 @@ namespace Spreads.Collections
                 }
                 else
                 {
-                    var firstC = _comparer.Compare(key, block.RowIndex._vec.DangerousGetRef<TKey>(0));
+                    var firstC = _comparer.Compare(key, block.RowIndex.DangerousGetRef<TKey>(0));
 
                     if (firstC < 0 // not in this block even if looking LT
                         || direction == Lookup.LT // first value is >= key so LT won't find the value in this block
@@ -797,7 +799,7 @@ namespace Spreads.Collections
                     }
                     else
                     {
-                        var lastC = _comparer.Compare(key, block.RowIndex._vec.DangerousGetRef<TKey>(block.RowLength - 1));
+                        var lastC = _comparer.Compare(key, block.RowIndex.DangerousGetRef<TKey>(block.RowLength - 1));
 
                         if (lastC > 0
                             || direction == Lookup.GT
@@ -825,7 +827,7 @@ namespace Spreads.Collections
                 {
                     if (AdditionalCorrectnessChecks.Enabled)
                     {
-                        if (kvp.Value.RowLength <= 0 || _comparer.Compare(kvp.Key, kvp.Value.RowIndex.Vec.DangerousGetRef<TKey>(0)) != 0)
+                        if (kvp.Value.RowLength <= 0 || _comparer.Compare(kvp.Key, kvp.Value.RowIndex.DangerousGetRef<TKey>(0)) != 0)
                         {
                             ThrowBadBlockFromSource();
                         }

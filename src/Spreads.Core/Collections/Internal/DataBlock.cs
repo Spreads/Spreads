@@ -12,6 +12,7 @@ using System.Runtime.CompilerServices;
 
 namespace Spreads.Collections.Internal
 {
+    // TODO Delete, but review the original idea with WRs for data streams
     internal interface INextBlockGetter
     {
         DataBlock GetNextBlock(DataBlock current);
@@ -20,14 +21,14 @@ namespace Spreads.Collections.Internal
     /// <summary>
     /// Physycal storage for Series, Matrix and DataFrame blocks.
     /// </summary>
-    internal sealed class DataBlock : IDisposable
+    internal class DataBlock : IDisposable
     {
         // We need it as a sentinel with RowLength == 0 in cursor to not penalize fast path of single-block containers
         internal static readonly DataBlock Empty = new DataBlock();
 
         private static readonly ObjectPool<DataBlock> ObjectPool = new ObjectPool<DataBlock>(() => new DataBlock(), Environment.ProcessorCount * 16);
 
-        private DataBlock()
+        protected DataBlock()
         { }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

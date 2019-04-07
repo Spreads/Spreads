@@ -177,7 +177,7 @@ namespace Spreads.Collections.Experimental
                 int idx;
                 if (block != null && (idx = block.RowLength - 1) >= 0)
                 {
-                    return block.Values._vec.DangerousGetRef<TValue>(idx);
+                    return block.Values.DangerousGetRef<TValue>(idx);
                 }
                 return default;
             }
@@ -212,8 +212,8 @@ namespace Spreads.Collections.Experimental
                 int idx;
                 if (block != null && (idx = block.RowLength - 1) >= 0)
                 {
-                    var k = block.RowIndex._vec.DangerousGetRef<TKey>(idx);
-                    var v = block.Values._vec.DangerousGetRef<TValue>(idx);
+                    var k = block.RowIndex.DangerousGetRef<TKey>(idx);
+                    var v = block.Values.DangerousGetRef<TValue>(idx);
                     return new Opt<KeyValuePair<TKey, TValue>>(new KeyValuePair<TKey, TValue>(k, v));
                 }
                 return Opt<KeyValuePair<TKey, TValue>>.Missing;
@@ -296,10 +296,10 @@ namespace Spreads.Collections.Experimental
         SYNC:
             var version = Version;
             {
-                if (TryFindBlockAt(ref key, direction, out var chunk, out var chunkIndex))
+                if (TryFindBlockAt(ref key, direction, out var block, out var blockIndex))
                 {
                     // key is updated if not EQ according to direction
-                    var v = chunk.Values._vec.DangerousGetRef<TValue>(chunkIndex);
+                    var v = block.Values.DangerousGetRef<TValue>(blockIndex);
                     kvp = new KeyValuePair<TKey, TValue>(key, v);
                     result = true;
                 }

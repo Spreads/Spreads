@@ -538,7 +538,7 @@ namespace Spreads.Serialization
 
         #endregion Types that require 3 subtypes
 
-        // 100-119 reserved for internal use (so far).
+        // 100-119 reserved for internal use (protocol messages).
 
         /// <summary>
         /// See <see cref="Variant"/>. Has own <see cref="TypeEnum"/> values before payload. // TODO spec that

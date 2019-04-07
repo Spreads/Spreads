@@ -388,6 +388,7 @@ namespace Spreads
 
         public IEnumerable<Timestamped<T>> Values => throw new NotImplementedException();
     }
+
     public readonly struct DataStreamCursor<T> : ISpecializedCursor<ulong, Timestamped<T>, DataStreamCursor<T>>
     {
         public CursorState State => throw new NotImplementedException();

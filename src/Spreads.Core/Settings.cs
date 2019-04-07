@@ -22,6 +22,15 @@ namespace Spreads
 #endif
     }
 
+    internal class LeaksDetection
+    {
+#if DEBUG
+        public static readonly bool Enabled = true;
+#else
+        public static readonly bool Enabled = Settings._diDetectBufferLeaks;
+#endif
+    }
+
     /// <summary>
     /// Global settings.
     /// </summary>
@@ -70,6 +79,7 @@ namespace Spreads
         // TODO when/if used often benchmark its effect and if significant then set default to false
         // ReSharper disable once NotAccessedField.Local
         internal static bool _doAdditionalCorrectnessChecks = true;
+        internal static bool _diDetectBufferLeaks = false;
 
         /// <summary>
         /// Enable/disable additional correctness checks that could affect performance or exit the process with FailFast.
@@ -100,6 +110,26 @@ namespace Spreads
                 if (!AdditionalCorrectnessChecks.Enabled)
                 {
                     Trace.TraceInformation("Disabled AdditionalCorrectnessChecks");
+                }
+            }
+        }
+
+        /// <summary>
+        /// When enabled buffers not returned to a pool will throw.
+        /// Kills performance and produces a lot of garbage. Only
+        /// for diagnostics.
+        /// </summary>
+        internal static bool DoDetectBufferLeaks
+        {
+            get => LeaksDetection.Enabled;
+            set
+            {
+                _diDetectBufferLeaks = value;
+
+                // access it immediately: https://github.com/dotnet/coreclr/issues/2526
+                if (LeaksDetection.Enabled)
+                {
+                    Trace.TraceInformation("Enabled buffer leaks detection.");
                 }
             }
         }

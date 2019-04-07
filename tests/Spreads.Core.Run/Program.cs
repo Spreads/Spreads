@@ -8,6 +8,7 @@ using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 using Spreads.Core.Tests.Algorithms;
+using Spreads.Core.Tests.Collections;
 
 namespace Spreads.Core.Run
 {
@@ -37,8 +38,8 @@ namespace Spreads.Core.Run
             ExecutionContext.SuppressFlow();
             Settings.SharedSpinLockNotificationPort = 53412;
 
-            var test = new CRC32Tests();
-            test.CRCBenchmark();
+            var test = new SeriesAppendTests();
+            test.SearchOverLargeSeriesBench();
 
             // Console.WriteLine("Finished, press enter to exit...");
             // Console.ReadLine();

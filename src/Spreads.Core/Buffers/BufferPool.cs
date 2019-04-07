@@ -138,10 +138,11 @@ namespace Spreads.Buffers
         }
 
         /// <summary>
-        /// Note that requireExact is false, this method is for temp buffers that could be very large.
+        /// Retains memory for temporary usage. Actual length could be larger than requested.
+        /// When requested length is above 64kb then off-heap memory is used.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static RetainedMemory<byte> RetainTemp(int length)
+        public static RetainedMemory<byte> RetainTemp(int length)
         {
             if (length > Settings.LARGE_BUFFER_LIMIT)
             {

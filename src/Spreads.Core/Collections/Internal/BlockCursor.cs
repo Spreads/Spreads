@@ -108,7 +108,7 @@ namespace Spreads.Collections.Internal
                     {
                         Debug.Assert(_currentBlock.Values._stride == 1);
                         // TODO review. Via _vec is much faster but we assume that stride is 1
-                        v = _currentBlock.Values._vec.DangerousGetRef<TValue>(nextPosition);
+                        v = _currentBlock.Values.DangerousGetRef<TValue>(nextPosition);
                     }
                 }
             }
@@ -173,14 +173,14 @@ namespace Spreads.Collections.Internal
                 }
 
                 Debug.Assert(_currentBlock.RowIndex._stride == 1);
-                k = _currentBlock.RowIndex._vec.DangerousGetRef<TKey>((int)nextPosition); // Note: do not use _blockPosition, it's 20% slower than second cast to int
+                k = _currentBlock.RowIndex.DangerousGetRef<TKey>((int)nextPosition); // Note: do not use _blockPosition, it's 20% slower than second cast to int
 
                 if (typeof(TContainer) == typeof(Collections.Experimental.Series<TKey, TValue>))
                 {
                     Debug.Assert(_currentBlock.Values._stride == 1);
 
                     // TODO review. Via _vec is much faster but we assume that stride is 1
-                    v = _currentBlock.Values._vec.DangerousGetRef<TValue>((int)nextPosition);
+                    v = _currentBlock.Values.DangerousGetRef<TValue>((int)nextPosition);
                 }
                 //else // TODO value getter for other containers or they could do in CV getter but need to call EnsureOrder after reading value.
                 //{

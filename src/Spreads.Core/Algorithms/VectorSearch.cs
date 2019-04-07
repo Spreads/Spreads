@@ -1274,6 +1274,7 @@ namespace Spreads.Algorithms
 
                         // Find offset of first match
                         return (int)(byte*)offset + IndexOfSimple(ref Unsafe.Add(ref searchSpace, offset), value, System.Numerics.Vector<T>.Count);
+                        // TODO copy that final step from corefx
                         // return (int)(byte*)offset + LocateFirstFoundByte(vMatches);
                     }
 

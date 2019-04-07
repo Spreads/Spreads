@@ -74,12 +74,10 @@ namespace Spreads.Collections.Internal
         /// <summary>
         /// A source that owns Vec memory
         /// </summary>
-        internal IPinnable _memorySource;
-
-        internal MemoryHandle _memoryHandle;
+        internal IRefCounted _memorySource;
 
         // slicing via this
-        internal Vec _vec;
+        private Vec _vec;
 
         // vectorized ops only when == 1
         // _vec.len/_stride = this.Length
@@ -125,7 +123,7 @@ namespace Spreads.Collections.Internal
 
             if (!externallyOwned)
             {
-                vs._memoryHandle = vs._memorySource.Pin(0);
+                vs._memorySource.Increment();
             }
 
             vs._vec = _vec.Slice(memoryStart, memoryLength);
@@ -175,7 +173,7 @@ namespace Spreads.Collections.Internal
 
             if (!externallyOwned)
             {
-                vs._memoryHandle = vs._memorySource.Pin(0);
+                vs._memorySource.Increment();
             }
 
             vs._vec = memorySource.Vec.AsVec().Slice(memoryStart, memoryLength);
@@ -327,13 +325,12 @@ namespace Spreads.Collections.Internal
                 {
                     ThrowDisposed();
                 }
-                _memoryHandle.Dispose();
+                _memorySource.Decrement();
                 _memorySource = null;
             }
             // now we do not care about _source, it is either borrowed by other VectorStorage instances or returned to a pool/GC
 
             // clear all fields before pooling
-            _memoryHandle = default;
             _vec = default;
             // _isSorted = default;
             _length = default;

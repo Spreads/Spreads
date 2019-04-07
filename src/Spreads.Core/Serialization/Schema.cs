@@ -7,9 +7,33 @@ using System.Runtime.Serialization;
 namespace Spreads.Serialization
 {
     /// <summary>
-    /// DTO for generic schema that uses BinarySerializer.
+    /// DTO for a container schema.
     /// </summary>
-    internal struct GenericSchema
+    internal struct ContainerSchema
+    {
+        [DataMember(Name = "type")]
+        public byte ContainerType { get; set; }
+
+        [DataMember(Name = "flags")]
+        public byte ContainerFlags { get; set; }
+
+        [DataMember(Name = "values")]
+        public TypeSchema ValuesSchema { get; set; }
+
+        [DataMember(Name = "rowkeys")]
+        public TypeSchema RowKeysSchema { get; set; }
+
+        [DataMember(Name = "columnkeys")]
+        public TypeSchema ColumnKeysSchema { get; set; }
+
+        [DataMember(Name = "columns")]
+        public TypeSchema ColumnsSchema { get; set; }
+    }
+
+    /// <summary>
+    /// DTO for a type schema.
+    /// </summary>
+    internal struct TypeSchema
     {
         [DataMember(Name = "dth")]
         public DataTypeHeader DataTypeHeader { get; set; }
@@ -22,8 +46,11 @@ namespace Spreads.Serialization
             [DataMember(Name = "name")]
             public string Name { get; set; }
 
-            [DataMember(Name = "fullname")]
-            public string FullName { get; set; }
+            [DataMember(Name = "typename")]
+            public string TypeName { get; set; }
+
+            [DataMember(Name = "typefullname")]
+            public string TypeFullName { get; set; }
 
             [DataMember(Name = "teofs")]
             public TypeEnumOrFixedSize TEOFS { get; set; }
