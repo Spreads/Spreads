@@ -27,7 +27,7 @@ namespace Spreads
 #if DEBUG
         public static readonly bool Enabled = true;
 #else
-        public static readonly bool Enabled = Settings._diDetectBufferLeaks;
+        public static readonly bool Enabled = Settings._doDetectBufferLeaks;
 #endif
     }
 
@@ -79,7 +79,7 @@ namespace Spreads
         // TODO when/if used often benchmark its effect and if significant then set default to false
         // ReSharper disable once NotAccessedField.Local
         internal static bool _doAdditionalCorrectnessChecks = true;
-        internal static bool _diDetectBufferLeaks = false;
+        internal static bool _doDetectBufferLeaks = false;
 
         /// <summary>
         /// Enable/disable additional correctness checks that could affect performance or exit the process with FailFast.
@@ -124,7 +124,7 @@ namespace Spreads
             get => LeaksDetection.Enabled;
             set
             {
-                _diDetectBufferLeaks = value;
+                _doDetectBufferLeaks = value;
 
                 // access it immediately: https://github.com/dotnet/coreclr/issues/2526
                 if (LeaksDetection.Enabled)

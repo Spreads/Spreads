@@ -9,7 +9,7 @@ namespace Spreads.Serialization
     /// <summary>
     /// DTO for a container schema.
     /// </summary>
-    internal struct ContainerSchema
+    public class ContainerSchema
     {
         [DataMember(Name = "type")]
         public byte ContainerType { get; set; }
@@ -33,36 +33,27 @@ namespace Spreads.Serialization
     /// <summary>
     /// DTO for a type schema.
     /// </summary>
-    internal struct TypeSchema
+    public class TypeSchema
     {
         [DataMember(Name = "dth")]
         public DataTypeHeader DataTypeHeader { get; set; }
 
-        [DataMember(Name = "typedef")]
-        public TypeDef TypeDefinition { get; set; }
+        [DataMember(Name = "name")]
+        public string Name { get; set; }
 
-        public struct TypeDef
-        {
-            [DataMember(Name = "name")]
-            public string Name { get; set; }
+        [DataMember(Name = "typename")]
+        public string TypeName { get; set; }
 
-            [DataMember(Name = "typename")]
-            public string TypeName { get; set; }
+        [DataMember(Name = "typefullname")]
+        public string TypeFullName { get; set; }
 
-            [DataMember(Name = "typefullname")]
-            public string TypeFullName { get; set; }
+        [DataMember(Name = "fixedsize")]
+        public short? FixedSize { get; set; }
 
-            [DataMember(Name = "teofs")]
-            public TypeEnumOrFixedSize TEOFS { get; set; }
+        [DataMember(Name = "offset")]
+        public short? Offset { get; set; }
 
-            [DataMember(Name = "fixedsize")]
-            public short FixedSize { get; set; }
-
-            [DataMember(Name = "offset")]
-            public short Offset { get; set; }
-
-            [DataMember(Name = "members")]
-            public TypeDef[] Members { get; set; }
-        }
+        [DataMember(Name = "members")]
+        public TypeSchema[] Members { get; set; }
     }
 }

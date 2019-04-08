@@ -832,6 +832,7 @@ namespace Spreads.Threading
             return TryReleaseLock(ref *(long*)Pointer, wpid, true);
         }
 
+        // TODO this is so bad API
         [MethodImpl(MethodImplOptions.NoInlining)]
         private static unsafe Wpid TryReleaseLockContended(ref long locker, Wpid wpid, bool pinned = false)
         {
@@ -858,7 +859,7 @@ namespace Spreads.Threading
                 return default;
             }
 
-            return LockValueToWpid(lockValue);
+            return LockValueToWpid(existing);
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]

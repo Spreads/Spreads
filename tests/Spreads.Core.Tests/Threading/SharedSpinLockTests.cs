@@ -41,6 +41,30 @@ namespace Spreads.Core.Tests.Threading
             Assert.AreEqual(Wpid.Empty, sl.TryReleaseLock(wpid));
         }
 
+
+        [Test]
+        public unsafe void ReleasingOthersLockReturnsOthersWpid()
+        {
+            var ptr = (long*)Marshal.AllocHGlobal(8);
+            *ptr = 0;
+            var wpid = Wpid.Create();
+            var wpid2 = Wpid.Create();
+
+            var sl = new SharedSpinLock(ptr);
+
+            Assert.AreEqual(Wpid.Empty, sl.TryAcquireLock(wpid, spinLimit: 0)); // fast path
+
+            Assert.AreEqual(Wpid.Empty, sl.TryReleaseLock(wpid));
+
+            Assert.AreEqual(Wpid.Empty, sl.TryAcquireLock(wpid));
+
+            // wpid holding the lock
+
+            var holder = sl.TryReleaseLock(wpid2);
+
+            Assert.AreEqual(wpid, holder);
+        }
+
         [Test]
         public unsafe void CouldAcquireReleaseExlusiveLock()
         {
