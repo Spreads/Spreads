@@ -15,7 +15,7 @@ namespace Spreads.DataTypes
     //[StructLayout(LayoutKind.Explicit, Pack = 4)]
     //public unsafe partial struct Variant // : IEquatable<Variant>
     //{
-    //    [StructLayout(LayoutKind.Sequential, Pack = 16, Size = 16)]
+    //    [StructLayout(LayoutKind.Sequential, Pack = 8, Size = 16)]
     //    private struct Buffer16
     //    {
     //        private long l1;

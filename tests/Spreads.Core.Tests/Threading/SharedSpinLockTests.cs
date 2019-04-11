@@ -10,6 +10,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace Spreads.Core.Tests.Threading
 {
@@ -66,7 +67,7 @@ namespace Spreads.Core.Tests.Threading
         }
 
         [Test]
-        public unsafe void CouldAcquireReleaseExlusiveLock()
+        public unsafe void CouldAcquireReleaseExclusiveLock()
         {
             var ptr = (long*)Marshal.AllocHGlobal(8);
             *ptr = 0;
@@ -75,15 +76,15 @@ namespace Spreads.Core.Tests.Threading
 
             var sl = new SharedSpinLock(ptr);
 
-            Assert.AreEqual(Wpid.Empty, sl.TryAcquireExclusiveLock(wpid, spinLimit: 0)); // fast path
+            Assert.AreEqual(Wpid.Empty, sl.TryAcquireExclusiveLock(wpid, out _, spinLimit: 0)); // fast path
 
             Assert.AreEqual(Wpid.Empty, sl.TryReleaseLock(wpid));
 
-            Assert.AreEqual(Wpid.Empty, sl.TryAcquireExclusiveLock(wpid));
+            Assert.AreEqual(Wpid.Empty, sl.TryAcquireExclusiveLock(wpid, out _));
 
             var sw = new Stopwatch();
             sw.Start();
-            Assert.AreEqual(wpid, sl.TryAcquireExclusiveLock(wpid2, spinLimit: 1000));
+            Assert.AreEqual(wpid, sl.TryAcquireExclusiveLock(wpid2, out _, spinLimit: 1000));
             sw.Stop();
             Console.WriteLine($"Elapsed: {sw.ElapsedMilliseconds}");
 
@@ -91,7 +92,7 @@ namespace Spreads.Core.Tests.Threading
         }
 
         [Test]
-        public unsafe void CouldAcquireEnterExitReleaseExlusiveLock()
+        public unsafe void CouldAcquireEnterExitReleaseExclusiveLock()
         {
             var ptr = (long*)Marshal.AllocHGlobal(8);
             *ptr = 0;
@@ -100,11 +101,35 @@ namespace Spreads.Core.Tests.Threading
 
             var sl = new SharedSpinLock(ptr);
 
-            Assert.AreEqual(Wpid.Empty, sl.TryAcquireExclusiveLock(wpid, spinLimit: 0));
-            Assert.AreEqual(Wpid.Empty, sl.TryReEnterExclusiveLock(wpid, spinLimit: 0));
+            Assert.AreEqual(Wpid.Empty, sl.TryAcquireExclusiveLock(wpid, out var tt, spinLimit: 0));
+            Assert.AreEqual(Wpid.Empty, sl.TryReEnterExclusiveLock(wpid, tt, spinLimit: 0));
 
             Assert.Throws<InvalidOperationException>(() => { sl.TryReleaseLock(wpid); });
-            Assert.AreEqual(Wpid.Empty, sl.TryExitExclusiveLock(wpid));
+            Assert.AreEqual(Wpid.Empty, sl.TryExitExclusiveLock(wpid, tt));
+
+            Assert.AreEqual(Wpid.Empty, sl.TryReleaseLock(wpid));
+        }
+
+        [Test]
+        public unsafe void CouldAcquireEnterExitReleaseExclusiveLockDifferentThreads()
+        {
+            var ptr = (long*)Marshal.AllocHGlobal(8);
+            *ptr = 0;
+            var wpid = Wpid.Create();
+            var wpid2 = Wpid.Create();
+
+            var sl = new SharedSpinLock(ptr);
+
+            Assert.AreEqual(Wpid.Empty, sl.TryAcquireExclusiveLock(wpid, out var tt, spinLimit: 0));
+
+            Task.Run(() =>
+            {
+                Assert.AreEqual(Wpid.Empty, sl.TryReEnterExclusiveLock(wpid, tt, spinLimit: 0));
+                Assert.Throws<InvalidOperationException>(() => { sl.TryReleaseLock(wpid); });
+                Assert.AreEqual(Wpid.Empty, sl.TryExitExclusiveLock(wpid, tt));
+
+            }).Wait();
+          
 
             Assert.AreEqual(Wpid.Empty, sl.TryReleaseLock(wpid));
         }

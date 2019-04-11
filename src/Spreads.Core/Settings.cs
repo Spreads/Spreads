@@ -145,6 +145,9 @@ namespace Spreads
         internal static int _zlibCompressionLevel = 3;
 
         // ReSharper disable once InconsistentNaming
+        /// <summary>
+        /// Default is 5.
+        /// </summary>
         public static int LZ4CompressionLevel
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -160,6 +163,16 @@ namespace Spreads
             }
         }
 
+        /// <summary>
+        /// Default is 1. For many data types the default value
+        /// increases IO throughput, i.e. time spent on both compression
+        /// and writing smaller data is less than time spent on writing
+        /// uncompressed data. Higher compression level only marginally
+        /// improves compression ratio. Even Zstandard authors recommend
+        /// using minimal compression level for most use cases.
+        /// Please measure time and compression ratio with different
+        /// compression levels before increasing the default level.
+        /// </summary>
         public static int ZstdCompressionLevel
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -175,6 +188,9 @@ namespace Spreads
             }
         }
 
+        /// <summary>
+        /// Default is 3.
+        /// </summary>
         public static int ZlibCompressionLevel
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]

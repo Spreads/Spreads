@@ -12,7 +12,7 @@ namespace Spreads.Threading
 {
     /// <summary>
     /// Helper methods for <see cref="SharedSpinLock"/> and <see cref="Wpid"/>.
-    /// Thinks of this interface as a collection of delegates and not as an object.
+    /// Think of this interface as a collection of delegates and not as an object.
     /// </summary>
     public interface IWpidHelper
     {
@@ -20,14 +20,6 @@ namespace Spreads.Threading
         /// <see cref="Wpid"/> of this helper.
         /// </summary>
         Wpid MyWpid { get; }
-
-        ///// <summary>
-        ///// Do not fail if we try to take lock while it is already taken by <see cref="Wpid"/> of this helper.
-        ///// If this property returns false we call <see cref="Environment.FailFast(string)"/> because it is wrong
-        ///// lock usage and not a recoverable exception. The true case simplifies some implementation on a cold path.
-        ///// </summary>
-        //[Obsolete("If this is still in use we should refactor to nevel allow reentrancy")]
-        //bool IgnoreReentrant { get; }
 
         /// <summary>
         /// Both <see cref="Wpid.Pid"/> and <see cref="Wpid.InstanceId"/> must be alive.
@@ -180,7 +172,7 @@ namespace Spreads.Threading
         // 2.2.2. When wpid is positive reset counters and go to 1.
         // 3. After long enough attempts check if lock holder is alive and unlock if not.
         // 4. Die if spinning very very long. This should not happen with correct usage.
-        // 5. If LocalMulticast is supported (not nul) then wait on a lock-holder-specific
+        // 5. If LocalMulticast is supported (not null) then wait on a lock-holder-specific
         //    semaphore instead of just yielding.
         // This scheme should be on average fair to the first waiter.
         // New waiters should see negative wpid and go to 2.2.
@@ -206,6 +198,7 @@ namespace Spreads.Threading
 
         internal static int PriorityThreshold = 5;
         internal static int UnlockCheckThreshold = 500; // 500 is around 1 second
+        internal static int FullGcThreshold = 2000; // 500 is around 1 second
         internal static int DeadLockThreshold = 200_000; // 100_000 is 187 seconds on i7-8700
 
         internal const long WpidTagsMask = (long)0b_1111_1111 << 56;
@@ -312,16 +305,27 @@ namespace Spreads.Threading
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static long WpidToLockValue(Wpid wpid, byte threadToken)
+        {
+            // Effectively we assume Pid is always smaller that 2 ^ 24. It is on Linux and should be on Windows.
+            // Could have used InstanceId high bits instead, but we could find Pid by instance id and instance id is mor important in general
+            Debug.Assert((wpid & WpidTagsMask) == 0);
+            return ((long)threadToken << 56) | (~WpidTagsMask & wpid);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static Wpid LockValueToWpid(long lockValue)
         {
             return (Wpid)(lockValue & ~WpidTagsMask);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Wpid TryAcquireExclusiveLock(ref long locker, Wpid wpid, int spinLimit = 0, IWpidHelper wpidHelper = null)
+        public static Wpid TryAcquireExclusiveLock(ref long locker, Wpid wpid, out byte threadToken, int spinLimit = 0, IWpidHelper wpidHelper = null)
         {
             // Priority so that others back off instantly without spinning
             var lockValue = WpidToLockValue(wpid) | PriorityTagMask;
+
+            threadToken = (byte)((lockValue >> 56) & 63);
 
             // TTAS significantly slower for uncontended case, which is often the case, do not check: 0 == *(long*)Pointer &&
             if (0 == Interlocked.CompareExchange(ref locker, lockValue, 0))
@@ -356,16 +360,17 @@ namespace Spreads.Threading
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public unsafe Wpid TryAcquireExclusiveLock(Wpid wpid, int spinLimit = 0, IWpidHelper wpidHelper = null)
+        public unsafe Wpid TryAcquireExclusiveLock(Wpid wpid, out byte threadToken, int spinLimit = 0, IWpidHelper wpidHelper = null)
         {
-            return TryAcquireExclusiveLock(ref *(long*)Pointer, wpid, spinLimit, wpidHelper);
+            return TryAcquireExclusiveLock(ref *(long*)Pointer, wpid, out threadToken, spinLimit, wpidHelper);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Wpid TryReEnterExclusiveLock(ref long locker, Wpid wpid, int spinLimit = 0, IWpidHelper wpidHelper = null)
+        public static Wpid TryReEnterExclusiveLock(ref long locker, Wpid wpid, byte threadToken, int spinLimit = 0, IWpidHelper wpidHelper = null)
         {
             // Priority so that others back off instantly without spinning
-            var expectedLockValue = WpidToLockValue(wpid) | PriorityTagMask;
+            var expectedLockValue = WpidToLockValue(wpid, threadToken) | PriorityTagMask;
+
             var reenteredLockValue = expectedLockValue | ExclusiveTagMask;
             var sw = new SpinWait();
             while (true)
@@ -396,15 +401,15 @@ namespace Spreads.Threading
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public unsafe Wpid TryReEnterExclusiveLock(Wpid wpid, int spinLimit = 0, IWpidHelper wpidHelper = null)
+        public unsafe Wpid TryReEnterExclusiveLock(Wpid wpid, byte threadToken, int spinLimit = 0, IWpidHelper wpidHelper = null)
         {
-            return TryReEnterExclusiveLock(ref *(long*)Pointer, wpid, spinLimit, wpidHelper);
+            return TryReEnterExclusiveLock(ref *(long*)Pointer, wpid, threadToken, spinLimit, wpidHelper);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Wpid TryExitExclusiveLock(ref long locker, Wpid wpid)
+        public static Wpid TryExitExclusiveLock(ref long locker, Wpid wpid, byte threadToken)
         {
-            var expectedLockValue = WpidToLockValue(wpid) | PriorityTagMask | ExclusiveTagMask;
+            var expectedLockValue = WpidToLockValue(wpid, threadToken) | PriorityTagMask | ExclusiveTagMask;
             var lockValue = expectedLockValue & ~ExclusiveTagMask;
             if (expectedLockValue == Interlocked.CompareExchange(ref locker, lockValue, expectedLockValue))
             {
@@ -416,9 +421,9 @@ namespace Spreads.Threading
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public unsafe Wpid TryExitExclusiveLock(Wpid wpid)
+        public unsafe Wpid TryExitExclusiveLock(Wpid wpid, byte threadToken)
         {
-            return TryExitExclusiveLock(ref *(long*)Pointer, wpid);
+            return TryExitExclusiveLock(ref *(long*)Pointer, wpid, threadToken);
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
@@ -567,6 +572,23 @@ namespace Spreads.Threading
                             }
                         }
 
+                        if (counter > FullGcThreshold)
+                        {
+                            Trace.TraceWarning("SharedSpinLock: counter > FullGcThreshold");
+                            // In DataSpreads DataStreamWriter holds a lock
+                            // but could be dropped without disposal. The lock
+                            // will remain until it is finalized, but if before
+                            // finalization an app tried to acquire the same lock
+                            // it will be blocked but nothing will trigger GC.
+                            // A problem is such code is easy to write, e.g. opening
+                            // a writer in a loop and forgetting to dispose it.
+
+                            GC.Collect(2, GCCollectionMode.Forced, true);
+                            GC.WaitForPendingFinalizers();
+                            GC.Collect(2, GCCollectionMode.Forced, true);
+                            GC.WaitForPendingFinalizers();
+                        }
+
                         if (counter > DeadLockThreshold)
                         {
                             if (wpidHelper != null)
@@ -583,8 +605,6 @@ namespace Spreads.Threading
 
                 if (priority && sw.NextSpinWillYield && _multicast != null)
                 {
-                    
-
                     sem = sem ?? GetSemaphore(existing & ~(PriorityTagMask | ExclusiveTagMask));
 
                     // retry before wait
@@ -633,7 +653,6 @@ namespace Spreads.Threading
             }
         }
 
-        
         //        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         //        public unsafe ValueTask<Wpid> TryAcquireLockAsync(Wpid wpid, int spinLimit = 0, IWpidHelper wpidHelper = null)
         //        {

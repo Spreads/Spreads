@@ -77,6 +77,11 @@ namespace Spreads.DataTypes
                 return (Timestamp.GetHashCode() * 397) ^ EqualityComparer<T>.Default.GetHashCode(Value);
             }
         }
+
+        public override string ToString()
+        {
+            return $"{Timestamp} - {Value}";
+        }
     }
 
     // NB cannot use JsonFormatter attribute, this is hardcoded in DynamicGenericResolverGetFormatterHelper

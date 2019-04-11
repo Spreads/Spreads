@@ -15,8 +15,6 @@ using Spreads.Threading;
 
 namespace Spreads.Collections
 {
-    
-
     /// <summary>
     /// Base class for data containers implementations.
     /// </summary>
