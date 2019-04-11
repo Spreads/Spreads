@@ -346,18 +346,16 @@ namespace Spreads.Buffers
         /// </summary>
         ~RetainableMemory()
         {
+            if (Tag != null)
+            {
+                // in general we do not know that Dispose(false) will throw/fail, so just print it here
+                Trace.TraceWarning("Finalizing RetainableMemory: " + Tag);
+            }
+
             // always dies in Debug
             if (IsRetained)
             {
-                if (Tag != null)
-                {
-                    // in general we do not know that Dispose(false) will throw/fail, so just print it here
-                    Trace.TraceWarning("Finalizing retained RM: " + Tag);
-                }
-                else
-                {
-                    Trace.TraceWarning("Finalizing retained RM");
-                }
+                Trace.TraceWarning("Finalizing retained RM");
             }
 
             // TODO review current logic, we throw when finalizing dropped retained object

@@ -336,6 +336,7 @@ namespace Spreads.Buffers
         public void Dispose()
         {
             Dispose(true);
+            GC.SuppressFinalize(this);
         }
 
         // at any point the number of active writers should be ~CPU count

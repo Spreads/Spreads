@@ -314,7 +314,7 @@ namespace Spreads
 #if NETCOREAPP3_0
             ThreadPool.UnsafeQueueUserWorkItem(this, false);
 #else
-            ThreadPool.UnsafeQueueUserWorkItem(state => ((AsyncCursor<TKey, TValue, TCursor>) state).Execute(), this);
+            ThreadPool.UnsafeQueueUserWorkItem(state => ((AsyncCursor<TKey, TValue, TCursor>)state).Execute(), this);
 #endif
         }
 
@@ -342,8 +342,6 @@ namespace Spreads
                     if (_innerCursor.MoveNext())
                     {
                         if (_subscription is IAsyncSubscription asub) { asub.RequestNotification(-1); }
-
-                        
 
                         SetResult(true);
                         LogAsync();
@@ -499,7 +497,7 @@ namespace Spreads
                 // if we request notification before releasing the lock then
                 // we will have _hasSkippedUpdate flag set. Then we retry ourselves anyway
                 if (_subscription is IAsyncSubscription asub) { asub.RequestNotification(1); }
-                
+
                 Volatile.Write(ref _isLocked, 0L);
                 // Retry self, _continuations is now set, last chance to get result
                 // without external notification. If cannot move from here
@@ -703,7 +701,7 @@ namespace Spreads
             ThrowHelper.ThrowInvalidOperationException("Calling SignalCompletion on already completed task");
         }
 
-#endregion Async synchronization
+        #endregion Async synchronization
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool MoveNext()
@@ -867,7 +865,7 @@ namespace Spreads
         {
             _subscription?.Dispose();
             _innerBatchEnumerator?.Dispose();
-            Console.WriteLine("dispose");
+            Debug.WriteLine("AsyncCursor dispose");
             //if (_keepAliveHandle.IsAllocated)
             //{
             //    _keepAliveHandle.Free();

@@ -119,7 +119,7 @@ namespace Spreads
         /// Kills performance and produces a lot of garbage. Only
         /// for diagnostics.
         /// </summary>
-        internal static bool DoDetectBufferLeaks
+        public static bool DoDetectBufferLeaks
         {
             get => LeaksDetection.Enabled;
             set
