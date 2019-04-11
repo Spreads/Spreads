@@ -303,7 +303,7 @@ namespace Spreads.Buffers
                 if (pool != null)
                 {
                     pool.ReturnInternal(this, clearMemory: !TypeHelper<T>.IsPinnable);
-                    // pool calls Dispose(false) is a bucket is full
+                    // pool calls Dispose(false) if a bucket is full
                     return;
                 }
 

@@ -313,6 +313,7 @@ namespace Spreads.Buffers
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal void DisposeFinalize()
         {
+            GC.SuppressFinalize(this);
             Dispose(false);
         }
 
