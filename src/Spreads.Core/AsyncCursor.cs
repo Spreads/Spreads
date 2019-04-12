@@ -288,7 +288,7 @@ namespace Spreads
             }
         }
 
-        // This method is used to chain/combine Spreads's logic, actual execution on a completion/consumer thread happens in Execute method.
+        // This method is used to chain/combine Spreads' logic, actual execution on a completion/consumer thread happens in Execute method.
         /// <inheritdoc />
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void TryComplete(bool cancel)
@@ -300,10 +300,10 @@ namespace Spreads
 
             // NB: OnCompleted opens the lock (set to 0). If there is no awaiter then
             // we register a missed update and return. This methods does
-            // not move _innerCursor if noone is awating on MNA. Cursors are
+            // not move _innerCursor if no one is awaiting on MNA. Cursors are
             // single-reader (one thread at time) so if someone awaits on one
             // thread and moves a cursor on another then this is incorrect
-            // unsupporate usage.
+            // unsupported usage.
             if (Interlocked.CompareExchange(ref _isLocked, 1L, 0L) != 0L)
             {
                 Volatile.Write(ref _hasSkippedUpdate, true);
@@ -883,8 +883,8 @@ namespace Spreads
 
         public void Dispose()
         {
-            GC.SuppressFinalize(this);
             Dispose(true);
+            GC.SuppressFinalize(this);
         }
 
         ~AsyncCursor()
@@ -896,8 +896,7 @@ namespace Spreads
 
         public ValueTask DisposeAsync()
         {
-            _innerCursor.Dispose();
-            Reset();
+            Dispose();
             return new ValueTask();
         }
     }

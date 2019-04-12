@@ -3,15 +3,14 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 using Spreads.Algorithms;
-using Spreads.Buffers;
 using Spreads.Collections.Internal;
+using Spreads.Threading;
 using Spreads.Utils;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Threading;
-using Spreads.Threading;
 
 namespace Spreads.Collections
 {
@@ -28,7 +27,7 @@ namespace Spreads.Collections
         internal Flags _flags;
 
         // We need 20-32 bytes of fixed memory. Could use PinnedArrayMemory for 32-bytes slices
-        // 
+        //
 
         // TODO these sync fields need rework: move to in-mem only containers or use TLocker object so that persistent series could have their own locking logic without cost
         // But remember that all series must inherit from Series'2
@@ -179,15 +178,11 @@ namespace Spreads.Collections
 
             // TODO instead of weak reference (which is now replaced with strong one because of issues)
             // we could break string reference in another place?
-            public readonly StrongReference<IAsyncCompletable> Wr;
+            public readonly IAsyncCompletable Subscriber;
 
             // Public interface exposes only IDisposable, only if subscription is IAsyncSubscription cursor knows what to do
             // Otherwise this number will stay at 1 and NotifyUpdate will send all updates
             private long _requests;
-
-            [Obsolete("Temp solution to keep strong ref while the async issue is not sorted out")]
-            // ReSharper disable once NotAccessedField.Local
-            private IAsyncCompletable _sr;
 
             public long Requests
             {
@@ -195,16 +190,10 @@ namespace Spreads.Collections
                 get => Volatile.Read(ref _requests);
             }
 
-            public ContainerSubscription(BaseContainer container, StrongReference<IAsyncCompletable> wr)
+            public ContainerSubscription(BaseContainer container, IAsyncCompletable subscriber)
             {
                 _container = container;
-                Wr = wr;
-                if (wr.TryGetTarget(out var target))
-                {
-#pragma warning disable 618
-                    _sr = target;
-#pragma warning restore 618
-                }
+                Subscriber = subscriber;
             }
 
             // ReSharper disable once UnusedParameter.Local
@@ -227,18 +216,13 @@ namespace Spreads.Collections
                     }
                     else
                     {
-                        Console.WriteLine("Subscription was GCed");
-                        //var message = "Wrong cursors type";
-                        //Trace.TraceError(message);
-                        //ThrowHelper.FailFast(message);
+                        Debug.WriteLine("Subscription was GCed");
                     }
                 }
                 catch (Exception ex)
                 {
                     var message = "Error in unsubscribe: " + ex;
                     Trace.TraceError(message);
-                    ThrowHelper.FailFast(message);
-                    throw;
                 }
             }
 
@@ -255,15 +239,14 @@ namespace Spreads.Collections
 
             ~ContainerSubscription()
             {
-                Console.WriteLine("Container subscription is finalized");
+                Trace.TraceWarning("Container subscription is finalized");
                 Dispose(false);
             }
         }
 
         public IDisposable Subscribe(IAsyncCompletable subscriber)
         {
-            var wr = new StrongReference<IAsyncCompletable>(subscriber);
-            var subscription = new ContainerSubscription(this, wr);
+            var subscription = new ContainerSubscription(this, subscriber);
             try
             {
                 while (true)
@@ -295,7 +278,7 @@ namespace Spreads.Collections
                         return default;
                     }
                     var newHashSet = new HashSet<ContainerSubscription>();
-                    if (existing2.Wr.TryGetTarget(out _))
+                    if (existing2.Subscriber != null)
                     {
                         newHashSet.Add(existing2);
                     }
@@ -346,10 +329,10 @@ namespace Spreads.Collections
 
             if (cursors is ContainerSubscription sub)
             {
-                if ((sub.Requests > 0 || force) && sub.Wr.TryGetTarget(out var tg))
+                if ((sub.Requests > 0 || force) && sub.Subscriber != null)
                 {
                     // ReSharper disable once InconsistentlySynchronizedField
-                    DoNotifyUpdateSingleSync(tg);
+                    DoNotifyUpdateSingleSync(sub.Subscriber);
                     // SpreadsThreadPool.Default.UnsafeQueueCompletableItem(_doNotifyUpdateSingleSyncCallback, tg, true);
                 }
             }
@@ -360,9 +343,9 @@ namespace Spreads.Collections
                     foreach (var kvp in hashSet)
                     {
                         var sub1 = kvp;
-                        if ((sub1.Requests > 0 || force) && sub1.Wr.TryGetTarget(out var tg))
+                        if ((sub1.Requests > 0 || force) && sub1.Subscriber != null)
                         {
-                            DoNotifyUpdateSingleSync(tg);
+                            DoNotifyUpdateSingleSync(sub1.Subscriber);
                             // SpreadsThreadPool.Default.UnsafeQueueCompletableItem(_doNotifyUpdateSingleSyncCallback, tg, true);
                         }
                     }
@@ -430,7 +413,7 @@ namespace Spreads.Collections
         {
             // Containers are root objects that own data and usually are relatively long-lived.
             // Most containers use memory from some kind of a memory pool, including native
-            // memory, and properly releasing that memory is important to avoid GC and high 
+            // memory, and properly releasing that memory is important to avoid GC and high
             // peaks of memory usage.
 
             Trace.TraceWarning("Finalizing BaseContainer. This should not normally happen.");
@@ -438,11 +421,11 @@ namespace Spreads.Collections
             {
                 Dispose(false);
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
                 Trace.TraceError("Exception in BaseContainer finalizer: " + ex.ToString());
 #if DEBUG
-                // Kill it in debug. Should not finalize but in the end we just ask GC for disposing 
+                // Kill it in debug. Should not finalize but in the end we just ask GC for disposing
                 // it and we do often have native resources. But classes where this is important should
                 // have their own finalizers.
                 throw;
@@ -525,7 +508,7 @@ namespace Spreads.Collections
         {
             var sw = new SpinWait();
             value = default;
-        SYNC:
+            SYNC:
             var found = false;
             var version = Volatile.Read(ref _version);
             {
@@ -710,7 +693,7 @@ namespace Spreads.Collections
                 }
             }
 
-        RETRY:
+            RETRY:
 
             if (block != null)
             {

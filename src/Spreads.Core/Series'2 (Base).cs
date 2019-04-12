@@ -971,15 +971,15 @@ namespace Spreads
         private class ContainerSubscription : IAsyncSubscription
         {
             private readonly Series<TKey, TValue> _series;
-            public readonly StrongReference<IAsyncCompletable> Wr;
+            internal readonly IAsyncCompletable Subscriber;
 
             // Public interface exposes only IDisposable, only if subscription is IAsyncSubscription cursor knows what to do
             // Otherwise this number will stay at 1 and NotifyUpdate will send all updates
             private long _requests;
 
-            [Obsolete("Temp solution to keep strong ref while the async issue is not sorted out")]
-            // ReSharper disable once NotAccessedField.Local
-            private IAsyncCompletable _sr;
+            //[Obsolete("Temp solution to keep strong ref while the async issue is not sorted out")]
+            //// ReSharper disable once NotAccessedField.Local
+            //private IAsyncCompletable _sr;
 
             public long Requests
             {
@@ -987,16 +987,10 @@ namespace Spreads
                 get => Volatile.Read(ref _requests);
             }
 
-            public ContainerSubscription(Series<TKey, TValue> series, StrongReference<IAsyncCompletable> wr)
+            public ContainerSubscription(Series<TKey, TValue> series, IAsyncCompletable subscriber)
             {
                 _series = series;
-                Wr = wr;
-                if (wr.TryGetTarget(out var target))
-                {
-#pragma warning disable 618
-                    _sr = target;
-#pragma warning restore 618
-                }
+                Subscriber = subscriber;
             }
 
             // ReSharper disable once UnusedParameter.Local
@@ -1054,8 +1048,7 @@ namespace Spreads
 
         public IDisposable Subscribe(IAsyncCompletable subscriber)
         {
-            var wr = new StrongReference<IAsyncCompletable>(subscriber);
-            var subscription = new ContainerSubscription(this, wr);
+            var subscription = new ContainerSubscription(this, subscriber);
             try
             {
                 while (true)
@@ -1087,7 +1080,7 @@ namespace Spreads
                         return default;
                     }
                     var newHashSet = new HashSet<ContainerSubscription>();
-                    if (existing2.Wr.TryGetTarget(out _))
+                    if (existing2.Subscriber != null)
                     {
                         newHashSet.Add(existing2);
                     }
@@ -1138,10 +1131,10 @@ namespace Spreads
 
             if (cursors is ContainerSubscription sub)
             {
-                if ((sub.Requests > 0 || force) && sub.Wr.TryGetTarget(out var tg))
+                if ((sub.Requests > 0 || force) && sub.Subscriber != null)
                 {
                     // ReSharper disable once InconsistentlySynchronizedField
-                    DoNotifyUpdateSingleSync(tg);
+                    DoNotifyUpdateSingleSync(sub.Subscriber);
                     // SpreadsThreadPool.Default.UnsafeQueueCompletableItem(_doNotifyUpdateSingleSyncCallback, tg, true);
                 }
             }
@@ -1152,9 +1145,9 @@ namespace Spreads
                     foreach (var kvp in hashSet)
                     {
                         var sub1 = kvp;
-                        if ((sub1.Requests > 0 || force) && sub1.Wr.TryGetTarget(out var tg))
+                        if ((sub1.Requests > 0 || force) && sub1.Subscriber != null)
                         {
-                            DoNotifyUpdateSingleSync(tg);
+                            DoNotifyUpdateSingleSync(sub1.Subscriber);
                             // SpreadsThreadPool.Default.UnsafeQueueCompletableItem(_doNotifyUpdateSingleSyncCallback, tg, true);
                         }
                     }

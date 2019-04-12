@@ -11,7 +11,7 @@
     <QVersion>0</QVersion>
 
     <!-- Overrides -->
-    <MMDDVersion></MMDDVersion>
+    <MMDDVersion>412</MMDDVersion>
     <PackageHHMMSSSuffix Condition="$(AutoSuffix) != '' AND $(AutoSuffix)">$(VersionSuffix)</PackageHHMMSSSuffix>
 
   </PropertyGroup>
