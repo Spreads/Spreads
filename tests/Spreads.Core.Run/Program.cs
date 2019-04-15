@@ -38,8 +38,8 @@ namespace Spreads.Core.Run
             ExecutionContext.SuppressFlow();
             Settings.SharedSpinLockNotificationPort = 53412;
 
-            var test = new SeriesAppendTests();
-            test.SearchOverLargeSeriesBench();
+            var test = new BufferWriterTests();
+            test.SlicesDisposeSlabs();
 
             // Console.WriteLine("Finished, press enter to exit...");
             // Console.ReadLine();

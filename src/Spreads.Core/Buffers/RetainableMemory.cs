@@ -297,20 +297,6 @@ namespace Spreads.Buffers
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal void EnsureNotRetainedAndNotDisposed()
-        {
-            if (IsDisposed)
-            {
-                ThrowDisposed<RetainableMemory<T>>();
-            }
-
-            if (IsRetained)
-            {
-                ThrowDisposingRetained<RetainableMemory<T>>();
-            }
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal void DisposeFinalize()
         {
             GC.SuppressFinalize(this);

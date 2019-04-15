@@ -43,7 +43,9 @@ namespace Spreads.Buffers
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ArrayMemorySlice<T> RentMemory()
         {
-            return _pool.Rent();
+            var arrayMemorySlice = _pool.Rent();
+            arrayMemorySlice.CounterRef &= ~AtomicCounter.CountMask;
+            return arrayMemorySlice;
         }
 
         private ArrayMemorySlice<T> Factory()
@@ -107,7 +109,7 @@ namespace Spreads.Buffers
                 if (pool != null)
                 {
                     pool.ReturnInternal(this, clearMemory: !TypeHelper<T>.IsPinnable);
-                    // pool calls Dispose(false) is a bucket is full
+                    // pool calls Dispose(false) if a bucket is full
                     return;
                 }
 
@@ -281,7 +283,7 @@ namespace Spreads.Buffers
         {
             if (_isPooled)
             {
-                ThrowDisposed<RetainableMemory<T>>();
+                ThrowDisposed<ArrayMemory<T>>();
             }
 
             // if disposed Pointer & _len are null/0, no way to corrupt data, will just throw

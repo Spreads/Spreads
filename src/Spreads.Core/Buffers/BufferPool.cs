@@ -125,6 +125,10 @@ namespace Spreads.Buffers
         public RetainedMemory<byte> RetainMemory(int length, bool requireExact = true, bool borrow = true)
         {
             var arrayMemory = PinnedArrayMemoryPool.RentMemory(length);
+            if (arrayMemory.IsDisposed)
+            {
+                BuffersThrowHelper.ThrowDisposed<ArrayMemory<byte>>();
+            }
             return requireExact ? arrayMemory.Retain(0, length, borrow) : arrayMemory.Retain(0, arrayMemory.Length, borrow);
         }
 
@@ -141,14 +145,18 @@ namespace Spreads.Buffers
         /// Retains memory for temporary usage. Actual length could be larger than requested.
         /// When requested length is above 64kb then off-heap memory is used.
         /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static RetainedMemory<byte> RetainTemp(int length)
         {
             if (length > Settings.LARGE_BUFFER_LIMIT)
             {
                 if (OffHeapMemoryPool != null)
                 {
-                    return OffHeapMemoryPool.RentMemory(length).Retain();
+                    var mem = OffHeapMemoryPool.RentMemory(length);
+                    if (mem.IsDisposed)
+                    {
+                        BuffersThrowHelper.ThrowDisposed<OffHeapMemory<byte>>();
+                    }
+                    return mem.Retain();
                 }
             }
             var rm = Shared.RetainMemory(length, false, false);

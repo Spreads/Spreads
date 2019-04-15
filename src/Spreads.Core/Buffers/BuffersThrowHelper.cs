@@ -20,7 +20,7 @@ namespace Spreads.Buffers
         [MethodImpl(MethodImplOptions.NoInlining)]
         internal static void ThrowArgumentNull<T>()
         {
-            ThrowHelper.ThrowArgumentNullException(nameof(T));
+            ThrowHelper.ThrowArgumentNullException(typeof(T).FullName);
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
@@ -32,13 +32,13 @@ namespace Spreads.Buffers
         [MethodImpl(MethodImplOptions.NoInlining)]
         internal static void ThrowDisposed<T>()
         {
-            ThrowHelper.ThrowObjectDisposedException(nameof(T));
+            ThrowHelper.ThrowObjectDisposedException(typeof(T).FullName);
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
         internal static void ThrowDisposingRetained<T>()
         {
-            ThrowHelper.ThrowInvalidOperationException("Cannot dispose retained " + nameof(T));
+            ThrowHelper.ThrowInvalidOperationException("Cannot dispose retained " + typeof(T).FullName);
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
@@ -56,14 +56,14 @@ namespace Spreads.Buffers
         [MethodImpl(MethodImplOptions.NoInlining)]
         internal static void ThrowAlreadyPooled<T>()
         {
-            ThrowHelper.ThrowObjectDisposedException("Cannot return to a pool an already pooled " + nameof(T));
+            ThrowHelper.ThrowObjectDisposedException("Cannot return to a pool an already pooled " + typeof(T).FullName);
         }
 
 
         [MethodImpl(MethodImplOptions.NoInlining)]
         internal static void ThrowNotFromPool<T>()
         {
-            ThrowHelper.ThrowInvalidOperationException("Memory not from pool " + nameof(T));
+            ThrowHelper.ThrowInvalidOperationException("Memory not from pool " + typeof(T).FullName);
         }
     }
 }

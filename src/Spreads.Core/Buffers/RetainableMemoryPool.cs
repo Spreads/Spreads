@@ -217,6 +217,10 @@ namespace Spreads.Buffers
                 {
                     // Attempt to rent from the bucket.  If we get a buffer from it, return it.
                     buffer = _buckets[i].Rent();
+                    if (buffer != null && buffer.IsDisposed)
+                    {
+                        ThrowHelper.FailFast("_buckets[i].Rent() returned disposed buffer");
+                    }
                     if (buffer != null)
                     {
                         if (log.IsEnabled())
@@ -236,12 +240,20 @@ namespace Spreads.Buffers
                 // The pool was exhausted for this buffer size.  Allocate a new buffer with a size corresponding
                 // to the appropriate bucket.
                 buffer = _buckets[index].CreateNew();
+                if (buffer.IsDisposed)
+                {
+                    ThrowHelper.FailFast("_buckets[index].CreateNew(); returned disposed buffer");
+                }
             }
             else
             {
                 // The request was for a size too large for the pool.  Allocate an array of exactly the requested length.
                 // When it's returned to the pool, we'll simply throw it away.
                 buffer = CreateNew(minimumLength);
+                if (buffer.IsDisposed)
+                {
+                    ThrowHelper.FailFast("CreateNew(minimumLength) returned disposed buffer");
+                }
             }
 
             if (log.IsEnabled())
@@ -423,10 +435,19 @@ namespace Spreads.Buffers
                         }
 
                         arrayMemory = _sliceBucket.RentMemory();
+
+                        if (arrayMemory.IsDisposed)
+                        {
+                            ThrowHelper.FailFast("RMP.Bucket.CreateNew() _sliceBucket.RentMemory() returns a disposed buffer");
+                        }
                     }
                     else
                     {
                         arrayMemory = ArrayMemory<T>.Create(_bufferLength, _pool._pin);
+                        if (arrayMemory.IsDisposed)
+                        {
+                            ThrowHelper.FailFast("RMP.Bucket.CreateNew() ArrayMemory<T>.Create(_bufferLength, _pool._pin) returns a disposed buffer");
+                        }
                     }
 
                     arrayMemory._poolIdx = _pool.PoolIdx;
@@ -446,6 +467,12 @@ namespace Spreads.Buffers
                 {
                     buffer.GetSpan().Clear();
                 }
+
+                if (buffer.IsDisposed)
+                {
+                    ThrowHelper.FailFast("RMP.Bucket.CreateNew() returns a disposed buffer");
+                }
+
                 return buffer;
             }
 

@@ -25,7 +25,7 @@ namespace Spreads.Threading
         // of IL.Incr/Decr. We need correctness first. When justified
         // we could work with the pointer directly.
 
-        public const int CountMask = 0b_11111111_11111111_11111111;
+        public const int CountMask = 0b_00000000_11111111_11111111_11111111;
         public const int CountLimit = CountMask >> 1;
 
         /// <summary>
