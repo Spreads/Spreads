@@ -187,6 +187,15 @@ namespace Spreads.Threading
         /// Returns zero if decremented the last reference or current count if it is more than one.
         /// Throws if current count is zero.
         /// </summary>
+        /// <remarks>
+        /// Throwing when current count is zero is correct because this call should be made
+        /// when count reaches 1. A race with self is not possible with correct usage. E.g. if two users
+        /// are holding refs then RC is 3, the first calling Decrement will have remaining = 2
+        /// and should not call this method. This method protects from another thread incrementing
+        /// the RC while the one that saw remaining at 1 is trying to dispose or cleanup. If this
+        /// methods returns a positive number > 1 then a resource is being reused and dispose
+        /// should be skipped.
+        /// </remarks>
         [MethodImpl(MethodImplOptions.NoInlining
 #if NETCOREAPP3_0
                     | MethodImplOptions.AggressiveOptimization
