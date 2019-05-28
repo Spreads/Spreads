@@ -9,6 +9,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Spreads.Core.Tests.Algorithms;
 using Spreads.Core.Tests.Collections;
+using Spreads.Core.Tests.Performance;
 
 namespace Spreads.Core.Run
 {
@@ -38,8 +39,8 @@ namespace Spreads.Core.Run
             ExecutionContext.SuppressFlow();
             Settings.SharedSpinLockNotificationPort = 53412;
 
-            var test = new BufferWriterTests();
-            test.SlicesDisposeSlabs();
+            var test = new InterlockedVsFences();
+            test.InterlockedVsFencesTest();
 
             // Console.WriteLine("Finished, press enter to exit...");
             // Console.ReadLine();

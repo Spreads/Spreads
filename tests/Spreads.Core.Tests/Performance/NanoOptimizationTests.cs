@@ -2,10 +2,6 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-using NUnit.Framework;
-using Spreads.Buffers;
-using Spreads.Serialization;
-using Spreads.Utils;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -13,8 +9,12 @@ using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Threading;
+using NUnit.Framework;
+using Spreads.Buffers;
+using Spreads.Serialization;
+using Spreads.Utils;
 
-namespace Spreads.Core.Tests
+namespace Spreads.Core.Tests.Performance
 {
     [TestFixture]
     public unsafe class NanoOptimizationTests
