@@ -13,7 +13,7 @@ namespace Spreads
 {
     // NB Interfaces in a single file because current order is logical from the most primitive to complex interfaces
 
-    // This interfaces match pattern-based compilation of IEnumerables and async streams (introduced in C# 8.0)
+    // This interfaces match pattern-based compilation of IEnumerable and async streams (introduced in C# 8.0)
     // The compiler will bind to the pattern-based APIs if they exist, preferring those over using the interface
     // (the pattern may be satisfied with instance methods or extension methods). The requirements for the pattern for async streams are:
 
@@ -25,7 +25,7 @@ namespace Spreads
     // * The enumerator may optionally expose a DisposeAsync method that may be invoked with no arguments and that returns something
     //   that can be awaited and whose GetResult() returns void.
 
-    // TODO Spreads follows the pattern of implementing unspecialized interfaces exlicitly and implementing specialized generic methods with the same name.
+    // TODO Spreads follows the pattern of implementing unspecialized interfaces explicitly and implementing specialized generic methods with the same name.
 
     public interface IAsyncDisposable
     {
@@ -45,9 +45,6 @@ namespace Spreads
     /// False move from a valid state keeps a cursor/enumerator at the previous valid state.
     /// </remarks>
     public interface IAsyncEnumerator<out T> : IEnumerator<T>, IAsyncDisposable
-    //#if NETCOREAPP3_0
-    //        ,System.IAsyncDisposable
-    //#endif
     {
         /// <summary>
         /// Async move next.
@@ -59,7 +56,6 @@ namespace Spreads
         ValueTask<bool> MoveNextAsync();
     }
 
-    // A marker interface for optional batching feature
     [Obsolete]
     public interface IAsyncBatchEnumerator<T> // F# doesn't allow to implement this: IAsyncEnumerator<IEnumerable<T>>
     {
@@ -87,8 +83,6 @@ namespace Spreads
         IAsyncEnumerator<T> GetAsyncEnumerator();
     }
 
-    // TODO rename to INotifiable+Notify,
-
     /// <summary>
     /// An interface to an object that could have an outstanding job (e.g. is awaiting async completion).
     /// </summary>
@@ -99,10 +93,16 @@ namespace Spreads
         /// notify continuation of <see cref="IAsyncEnumerator{T}.MoveNextAsync"/> when
         /// a data producer has a new value.
         /// </summary>
+        /// <remarks>
+        /// This method could be called multiple times. Implementations do check if new data is available
+        /// in the source and call continuation only when data is available. This is a wake up call to
+        /// awaiters.
+        /// </remarks>
         /// <param name="cancel">Cancel completion. Causes OperationCancelledException in awaiters.</param>
         void TryComplete(bool cancel);
     }
 
+    // TODO remove this
     internal interface IAsyncSubscription : IDisposable
     {
         // Currently it is called with -1 after an async move completes
@@ -123,7 +123,7 @@ namespace Spreads
         IDisposable Subscribe(IAsyncCompletable subscriber);
     }
 
-    // TODO add it to all containers
+    // TODO rename to IDataContainer(?), add it to all containers
     public interface IData
     {
         Mutability Mutability { get; }

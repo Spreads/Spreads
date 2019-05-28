@@ -29,7 +29,7 @@ namespace Spreads.Buffers
         {
             if (!BitUtil.IsPowerOfTwo(bufferLength) || bufferLength >= Settings.SlabLength)
             {
-                ThrowHelper.ThrowArgumentException("bufferLength must be a power of two max 64kb");
+                ThrowHelper.ThrowArgumentException("bufferLength must be a power of two max 64MB");
             }
 
             _bufferLength = bufferLength;
