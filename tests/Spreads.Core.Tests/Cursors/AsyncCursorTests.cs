@@ -11,7 +11,6 @@ using System.Threading.Tasks;
 
 namespace Spreads.Core.Tests.Cursors
 {
-    // TODO SCM debug.assert fails
     [Category("CI")]
     [TestFixture]
     public class AsyncCursorTests
@@ -153,8 +152,7 @@ namespace Spreads.Core.Tests.Cursors
             t.Wait();
         }
 
-        // TODO!
-        [Test, Explicit("hangs")]
+        [Test]
         public void RangeCursorMovesAfterAwating()
         {
             var sm = new SortedMap<int, int>();
@@ -166,10 +164,6 @@ namespace Spreads.Core.Tests.Cursors
             //Assert.AreEqual(1, range.First.Value);
 
             var cursor = range.GetAsyncEnumerator();
-
-            var source = cursor.Source;
-
-            var cts = new CancellationTokenSource();
 
             var t = Task.Run(async () =>
             {
@@ -185,7 +179,13 @@ namespace Spreads.Core.Tests.Cursors
             Thread.Sleep(100);
             sm.Add(2, 2);
             sm.Add(3, 3);
+
+
+            // Not needed: sm.Complete(); we are working with range that ends at 2 and should have IsCompleted == true after moving to 2.
+
             t.Wait();
+
+            cursor.Dispose();
         }
 
         [Test]
@@ -276,6 +276,7 @@ namespace Spreads.Core.Tests.Cursors
             {
                 await map.TryAdd(i, i);
             }
+
             await map.Complete();
 
             t.Wait();
@@ -317,6 +318,7 @@ namespace Spreads.Core.Tests.Cursors
             {
                 await map.TryAdd(i, i);
             }
+
             await map.Complete();
 
             t.Wait();
@@ -456,8 +458,8 @@ namespace Spreads.Core.Tests.Cursors
         {
             var map = new SortedMap<int, int>();
 
-            var count = 1_000_000;
-            var rounds = 5;
+            var count = 1000_000_000;
+            var rounds = 1;
 
             var writeTask = Task.Run(async () =>
             {
@@ -472,7 +474,7 @@ namespace Spreads.Core.Tests.Cursors
                                 for (int i = j * count; i < (j + 1) * count; i++)
                                 {
                                     await map.TryAddLast(i, i);
-                                    Thread.SpinWait(10);
+                                    // Thread.SpinWait(1);
                                 }
                             }
                             catch (Exception e)
@@ -508,7 +510,7 @@ namespace Spreads.Core.Tests.Cursors
                                 Console.WriteLine(e);
                                 throw;
                             }
-                            
+
 
                             // Left from coreclr 19161 tests, TODO remove when everything works OK
                             // here is a strong reference to cursor with side effects of printing to console
@@ -521,18 +523,28 @@ namespace Spreads.Core.Tests.Cursors
             });
 
 
-            
-
             var monitor = true;
-            var t = Task.Run(async () =>
+            var monitorTask = Task.Run(async () =>
             {
                 try
                 {
+                    var previousR = cursor?.CurrentKey;
+                    var previousW = map.Count;
                     while (monitor)
                     {
                         await Task.Delay(1000);
-                        Console.WriteLine($"Key {cursor.CurrentKey}");
-                        cursor.TryComplete(false);
+                        var r = cursor.CurrentKey;
+                        var w = map.Count;
+                        Console.WriteLine($"R: {r:N0} - {((r - previousR)/1000000):N2} Mops \t | W: {w:N0}- {((w - previousW) / 1000000):N2}");
+
+                        if (r == previousR)
+                        {
+                            Console.WriteLine($"IsAwaiting {cursor.IsTaskAwating} IsCompl {cursor.IsCompleted} IsExec {cursor.IsTaskExecuting}");
+                        }
+
+                        previousR = r;
+                        previousW = w;
+                        // cursor.TryComplete(false);
                     }
                 }
                 catch (Exception e)
@@ -543,15 +555,16 @@ namespace Spreads.Core.Tests.Cursors
             });
 
             await writeTask;
+            Console.WriteLine("COMPLETE");
             await map.Complete();
-            map.NotifyUpdate(true);
+            map.NotifyUpdate();
             Console.WriteLine("Read after map complete:" + Interlocked.Read(ref cnt));
             await readTask;
             Console.WriteLine("Read after finish:" + Interlocked.Read(ref cnt));
             // Console.WriteLine("Last key: " + lastKey);
 
             Benchmark.Dump();
-
+            GC.KeepAlive(cursor);
             map.Dispose();
             monitor = false;
         }

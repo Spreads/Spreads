@@ -143,7 +143,7 @@ namespace Spreads
         /// </summary>
         private Action<object> _continuation;
 
-        private Action<object> _continuationEx;
+        private int _isExecuting;
 
         /// <summary>State to pass to <see cref="_continuation"/>.</summary>
         private object _continuationState;
@@ -221,6 +221,7 @@ namespace Spreads
             if (ReferenceEquals(Interlocked.CompareExchange(ref _continuation, null, AvailableSentinel),
                  AvailableSentinel))
             {
+                _isExecuting = 0; // TODO review if here this is needed
                 _continuationState = null;
                 _result = default;
                 _error = null;
@@ -229,15 +230,14 @@ namespace Spreads
                 return true;
             }
 
+            Console.WriteLine($"Cannot get ownership: CS: {_continuation == CompletedSentinel} null: {_continuation == null}");
+
             return false;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private ValueTask<bool> GetMoveNextAsyncValueTask()
         {
-            // Clear before moves, we will detect any new data during moves
-            Volatile.Write(ref _hasUpdate, false);
-
             if (_innerCursor.MoveNext())
             {
                 LogSync();
@@ -266,11 +266,16 @@ namespace Spreads
                 return new ValueTask<bool>(_innerCursor.MoveNext());
             }
 
+            // before this line we do not touch async machinery at all
+
             if (!TryOwnAndReset())
             {
+                // TODO remove FF, but in the main test it should not happen
+                ThrowHelper.FailFast("Cannot get ownership");
                 ThrowMultipleContinuations();
             }
 
+            Debug.WriteLine("Owned");
             return new ValueTask<bool>(this, _currentId);
         }
 
@@ -278,6 +283,7 @@ namespace Spreads
         /// <param name="token">The token that must match <see cref="_currentId"/>.</param>
         public ValueTaskSourceStatus GetStatus(short token)
         {
+            Debug.WriteLine("GetStatus");
             ValidateToken(token);
 
             return
@@ -288,6 +294,8 @@ namespace Spreads
         }
 
         /// <summary>Gets whether the current task operation has completed.</summary>
+        internal bool IsTaskExecuting => _isExecuting != 0;
+
         internal bool IsTaskCompleted => ReferenceEquals(_continuation, CompletedSentinel);
 
         internal bool IsTaskAwating
@@ -297,18 +305,25 @@ namespace Spreads
             {
                 var c = Volatile.Read(ref _continuation);
 
-                return c != null
-                       && !ReferenceEquals(c, CompletedSentinel)
-                       && !ReferenceEquals(c, AvailableSentinel);
+                if (c != null
+                    && !ReferenceEquals(c, CompletedSentinel)
+                    && !ReferenceEquals(c, AvailableSentinel))
+                {
+                    return true;
+                }
+
+                return false;
             }
         }
 
         public bool GetResult(short token)
         {
+            Debug.WriteLine("GetResult");
             ValidateToken(token);
 
             if (!IsTaskCompleted)
             {
+                ThrowHelper.FailFast("");
                 ThrowIncompleteOperationException();
             }
 
@@ -320,8 +335,8 @@ namespace Spreads
             }
 
             // only after fetching all needed data
+
             Volatile.Write(ref _continuation, AvailableSentinel);
-            Volatile.Write(ref _continuationEx, null);
 
             error?.Throw();
             return result;
@@ -352,6 +367,7 @@ namespace Spreads
         {
             if (cancel || _error != null)
             {
+                Console.WriteLine("cancel || _error != null");
                 // Do not call SetException here, it could call completion synchronously
                 // but we must never do so from writer threads, only from the thread pool.
                 _error ??= ExceptionDispatchInfo.Capture(new OperationCanceledException());
@@ -364,16 +380,37 @@ namespace Spreads
                 // then at the end of the OnComplete we check _hasUpdate and
                 // call this method to try complete without notification.
 
-                if (!(IsTaskAwating
-                    &&
-                    _continuationEx == null
-                    &&
-                    Interlocked.CompareExchange(ref _continuationEx, _continuation, null) == null
-                    ))
+                if (IsTaskAwating
+                    && Volatile.Read(ref _isExecuting) == 0
+                    && Interlocked.CompareExchange(ref _isExecuting, 1, 0) == 0)
                 {
+                    // We took exec lock, but we have read c
+                    if (!IsTaskAwating)
+                    {
+                        Console.WriteLine("RACE ON IsTaskAwating");
+                        Volatile.Write(ref _isExecuting, 0);
+                        return;
+                    }
+                    // proceed
+                }
+                else
+                {
+                    // Debug.WriteLine($"MISSED {IsTaskAwating} {_continuationEx == null} {_continuationEx == CompletedSentinel} {_continuationEx == AvailableSentinel}");
                     LogMissed();
                     return;
                 }
+
+                //if (!(IsTaskAwating
+                //    &&
+                //    Volatile.Read(ref _continuationEx) == null
+                //    &&
+                //    Interlocked.CompareExchange(ref _continuationEx, _continuation, null) == null
+                //    ))
+                //{
+                //    Debug.WriteLine($"MISSED {IsTaskAwating} {_continuationEx == null}");
+                //    LogMissed();
+                //    return;
+                //}
                 // no continuation is currently being executed, should call Execute on ThreadPool
             }
 
@@ -402,7 +439,7 @@ namespace Spreads
                 do
                 {
                     // if during checks someones notifies us about updates but we are trying to move,
-                    // then we could miss update (happenned in tests once in 355M-5.5B ops)
+                    // then we could miss update (happened in tests once in 355M-5.5B ops)
                     Volatile.Write(ref _hasUpdate, false);
 
                     if (_innerCursor.MoveNext())
@@ -419,9 +456,10 @@ namespace Spreads
                         LogAsync();
                         return;
                     }
-
-                    // if (Volatile.Read(ref _hasSkippedUpdate)) { LogSkipped(); }
                 } while (Volatile.Read(ref _hasUpdate));
+
+                Debug.WriteLine($"FALSE NOTIFICATION: {_innerCursor.CurrentKey}");
+                Volatile.Write(ref _isExecuting, 0);
             }
             catch (Exception e)
             {
@@ -502,6 +540,8 @@ namespace Spreads
 
             if (prevContinuation != null)
             {
+                Debug.WriteLine("prevContinuation != null");
+
                 // TODO review/test
                 // In Spreads we try to complete synchronously before touching async machinery
                 // but after that nothing could call SetResult. But a cursor could be cancelled
@@ -544,6 +584,8 @@ namespace Spreads
             }
             else
             {
+                Debug.WriteLine("Set continuation");
+
                 // We keep a strong reference from base container for not to lose GC root
                 // while awaiting, see https://github.com/dotnet/coreclr/issues/19161
                 // If strong reference ever becomes an issue then here we must root `this` somewhere
@@ -558,6 +600,7 @@ namespace Spreads
 
                 if (Volatile.Read(ref _hasUpdate))
                 {
+                    Debug.WriteLine("Try complete self");
                     // Retry self, _continuations is now set, last chance to get result
                     // without external notification.
                     TryComplete(false);
@@ -616,7 +659,12 @@ namespace Spreads
                 }
 
                 // Invoke the continuation synchronously.
+
                 SetCompletionAndInvokeContinuation();
+            }
+            else
+            {
+                Console.WriteLine("Void signal");
             }
         }
 
@@ -624,6 +672,7 @@ namespace Spreads
         {
             if (_executionContext == null)
             {
+                Debug.WriteLine("SYNC");
                 Action<object> c = _continuation;
                 _continuation = CompletedSentinel;
                 c(_continuationState);
@@ -663,7 +712,7 @@ namespace Spreads
                 // previous happy-path move was false, try to get next batch
                 // but we do not use read locking here, probably new values were added to the current batch
                 // cache the new batch and retry current
-                _isInBatch = _nextBatch != null || await _outerBatchEnumerator.MoveNextBatch(false);
+                _isInBatch = _nextBatch != null || await _outerBatchEnumerator.MoveNextBatchAsync(false);
                 if (_isInBatch)
                 {
                     if (_nextBatch == null)
@@ -914,8 +963,8 @@ namespace Spreads
 
         ~AsyncCursor()
         {
-            //Console.WriteLine("Async cursor finalized: " + _st);
-            Console.WriteLine("-----------------------------------");
+            //Debug.WriteLine("Async cursor finalized: " + _st);
+            Debug.WriteLine("-----------------------------------");
             Dispose(false);
         }
 

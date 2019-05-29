@@ -41,8 +41,8 @@ namespace Spreads.Core.Run
             ExecutionContext.SuppressFlow();
             Settings.SharedSpinLockNotificationPort = 53412;
 
-            var test = new ImmutableTests();
-            test.Performance();
+            var test = new AsyncCursorTests();
+            await test.CouldReadDataStreamWhileWritingFromManyThreads();
 
             // Console.WriteLine("Finished, press enter to exit...");
             // Console.ReadLine();

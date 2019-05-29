@@ -25,7 +25,7 @@ namespace Spreads
     // * The enumerator may optionally expose a DisposeAsync method that may be invoked with no arguments and that returns something
     //   that can be awaited and whose GetResult() returns void.
 
-    // TODO Spreads follows the pattern of implementing unspecialized interfaces explicitly and implementing specialized generic methods with the same name.
+    // TODO implement unspecialized interfaces explicitly and implement specialized generic methods with the same name.
 
     public interface IAsyncDisposable
     {
@@ -42,7 +42,7 @@ namespace Spreads
     /// Repeated calls to MoveNext() could eventually return true. Changes to the underlying sequence that
     /// do not affect enumeration do not invalidate the enumerator.
     ///
-    /// False move from a valid state keeps a cursor/enumerator at the previous valid state.
+    /// False moves from a valid state keep a cursor/enumerator at the previous valid state.
     /// </remarks>
     public interface IAsyncEnumerator<out T> : IEnumerator<T>, IAsyncDisposable
     {
@@ -56,8 +56,7 @@ namespace Spreads
         ValueTask<bool> MoveNextAsync();
     }
 
-    [Obsolete]
-    public interface IAsyncBatchEnumerator<T> // F# doesn't allow to implement this: IAsyncEnumerator<IEnumerable<T>>
+    internal interface IAsyncBatchEnumerator<T>
     {
         // Same contract as in cursors:
         // if MoveNextBatchAsync(noAsync = true) returns false then there are no batches available synchronously
@@ -66,7 +65,7 @@ namespace Spreads
         // For IO case MoveNextBatchAsync(noAsync = true) is a happy-path, but if it returns false then a consumer
         // must call and await MoveNextBatch(noAsync = false). Only after MNB(noAsync = false) returns false there
         // will be no batches ever and consumer must switch to per-item calls.
-        ValueTask<bool> MoveNextBatch(bool noAsync);
+        ValueTask<bool> MoveNextBatchAsync(bool noAsync);
 
         IEnumerable<T> CurrentBatch { get; }
     }

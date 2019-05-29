@@ -116,9 +116,11 @@ namespace Spreads.Collections
                 if (doVersionIncrement)
                 {
                     // TODO(!) review when/why this is possible
-                    ThrowHelper.FailFast("WTF, how doVersionIncrement == true when immutable!?");
+                    // ThrowHelper.FailFast("WTF, how doVersionIncrement == true when immutable!?");
                     _version++;
                     _nextVersion = _version;
+
+                    NotifyUpdate(); // TODO remove after flags fixed
                 }
             }
             else if (doVersionIncrement)

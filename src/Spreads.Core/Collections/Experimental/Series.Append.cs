@@ -21,6 +21,8 @@ namespace Spreads.Collections.Experimental
             DataBlock = initialBlock;
         }
 
+        // TODO review, we still have _locker and versions at BaseContainer
+
         // We could afford simple locking for mutation. We have API to create series from batches, uncontended lock is not so slow.
         // Will add manual locking via Interlocked later. It is 2.5 faster.
         private object _syncRoot;

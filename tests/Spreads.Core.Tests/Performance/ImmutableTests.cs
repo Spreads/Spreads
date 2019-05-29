@@ -136,7 +136,7 @@ namespace Spreads.Core.Tests.Performance
                 if (c == 0)
                 {
                     // do not return from loop.
-                    // Even thought https://github.com/dotnet/coreclr/issues/9692
+                    // Even though https://github.com/dotnet/coreclr/issues/9692
                     // closed/fixed in 2017 in this case it's very visible
                     break;
                 }
@@ -165,7 +165,7 @@ namespace Spreads.Core.Tests.Performance
         public void Performance()
         {
             var count = TestUtils.GetBenchCount(1_000_000);
-            var rounds = 100;
+            var rounds = 20;
             var im = ImmutableSortedMap<long, long>.Empty;
 
             for (int r = 0; r < rounds; r++)
