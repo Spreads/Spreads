@@ -82,7 +82,7 @@ namespace Spreads.Core.Tests.Collections.Internal
             var rng = new Random(42);
 
             var sm = new SortedMap<int, int>(count);
-            var scm = new SortedChunkedMap<int, int>();
+            var scm = new SortedMap<int, int>();
             var sl = new SortedList<int, int>(count);
             for (int i = 0; i < count; i++)
             {
@@ -168,7 +168,7 @@ namespace Spreads.Core.Tests.Collections.Internal
                     | MethodImplOptions.AggressiveOptimization
 #endif
         )]
-        private static void MoveNextBenchSCM(SortedChunkedMap<int, int> sm, int count, int mult)
+        private static void MoveNextBenchSCM(SortedMap<int, int> sm, int count, int mult)
         {
             // warm up
             for (int _ = 0; _ < 1; _++)

@@ -23,7 +23,7 @@ namespace Spreads.Core.Tests.Collections
             {
                 var sl = new SortedList<int, int>();
                 var sm = new SortedMap<int, int>();
-                var scm = new SortedChunkedMap<int, int>();
+                var scm = new SortedMap<int, int>();
 
                 var c = sm.GetCursor();
 
@@ -75,7 +75,7 @@ namespace Spreads.Core.Tests.Collections
 
             var sl = new SortedList<int, int>();
             var sm = new SortedMap<int, int>();
-            var scm = new SortedChunkedMap<int, int>();
+            var scm = new SortedMap<int, int>();
 
             for (int i = 0; i < count; i++)
             {
@@ -170,7 +170,7 @@ namespace Spreads.Core.Tests.Collections
                 const int mult = 1000;
                 var sl = new SortedList<DateTime, int>();
                 var sm = new SortedMap<DateTime, int>(count);
-                var scm = new SortedChunkedMap<DateTime, int>();
+                var scm = new SortedMap<DateTime, int>();
 
                 var start = DateTime.Today.ToUniversalTime();
                 for (int i = 0; i < count; i++)

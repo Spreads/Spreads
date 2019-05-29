@@ -26,7 +26,6 @@
     <Compile Include="Collections\ImmutableSeries.fs" />
     <Compile Include="Collections/Collections.fs" />
     <Compile Include="Collections/SortedMap.fs" />
-    <Compile Include="Collections/SortedChunkedMap.fs" />
     <Compile Include="SeriesExtensions.fs" />
     <Compile Include="Panel.fs" />
     <Compile Include="Statistics.fs" />
