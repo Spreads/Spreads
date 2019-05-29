@@ -474,7 +474,8 @@ namespace Spreads.Core.Tests.Cursors
                                 for (int i = j * count; i < (j + 1) * count; i++)
                                 {
                                     await map.TryAddLast(i, i);
-                                    // Thread.SpinWait(1);
+                                    // Thread.SpinWait(10);
+                                    Thread.Yield();
                                 }
                             }
                             catch (Exception e)
@@ -535,7 +536,7 @@ namespace Spreads.Core.Tests.Cursors
                         await Task.Delay(1000);
                         var r = cursor.CurrentKey;
                         var w = map.Count;
-                        Console.WriteLine($"R: {r:N0} - {((r - previousR)/1000000):N2} Mops \t | W: {w:N0}- {((w - previousW) / 1000000):N2}");
+                        Console.WriteLine($"R: {r:N0} - {((r - previousR)/1000000.0):N2} Mops \t | W: {w:N0}- {((w - previousW) / 1000000.0):N2} Mops");
 
                         if (r == previousR)
                         {

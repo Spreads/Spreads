@@ -221,7 +221,7 @@ namespace Spreads
             if (ReferenceEquals(Interlocked.CompareExchange(ref _continuation, null, AvailableSentinel),
                  AvailableSentinel))
             {
-                _isExecuting = 0; // TODO review if here this is needed
+                _isExecuting = 0;
                 _continuationState = null;
                 _result = default;
                 _error = null;
@@ -238,20 +238,30 @@ namespace Spreads
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private ValueTask<bool> GetMoveNextAsyncValueTask()
         {
-            if (_innerCursor.MoveNext())
+            var sw = new SpinWait();
+            while (true)
             {
-                LogSync();
-                return new ValueTask<bool>(true);
-            }
-
-            if (_innerCursor.IsCompleted)
-            {
-                LogSync();
                 if (_innerCursor.MoveNext())
                 {
+                    LogSync();
                     return new ValueTask<bool>(true);
                 }
-                return new ValueTask<bool>(false);
+
+                if (_innerCursor.IsCompleted)
+                {
+                    LogSync();
+                    if (_innerCursor.MoveNext())
+                    {
+                        return new ValueTask<bool>(true);
+                    }
+
+                    return new ValueTask<bool>(false);
+                }
+                sw.SpinOnce();
+                if (sw.NextSpinWillYield)
+                {
+                    break;
+                }
             }
 
             // Delay subscribing as much as possible
@@ -611,7 +621,7 @@ namespace Spreads
         private static void QueueUserWorkItem(Action<object> action, object state)
         {
 #if NETCOREAPP3_0
-            ThreadPool.QueueUserWorkItem(action, state, preferLocal: false);
+            ThreadPool.QueueUserWorkItem(action, state, preferLocal: true);
 #else
             Task.Factory.StartNew(action, state,
                 CancellationToken.None, TaskCreationOptions.DenyChildAttach, TaskScheduler.Default);
