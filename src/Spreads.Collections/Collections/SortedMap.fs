@@ -36,6 +36,8 @@ open Spreads.Collections.Concurrent
 open System
 open System.Net.Http.Headers
 
+type KVP<'K,'V> = KeyValuePair<'K,'V>
+
 // NB: Why regular keys? Because we do not care about daily or hourly data, but there are 1440 (480) minutes in a day (trading hours)
 // with the same diff between each consequitive minute. The number is much bigger with seconds and msecs so that
 // memory saving is meaningful, while vectorized calculations on values benefit from fast comparison of regular keys.
@@ -1519,10 +1521,10 @@ type public SortedMapCursor<'K,'V> =
       member this.MoveNextAsync(): ValueTask<bool> = this.MoveNextAsync()
       
     interface IAsyncBatchEnumerator<KVP<'K,'V>> with
-      member this.MoveNextBatch(noAsync: bool): ValueTask<bool> = this.MoveNextBatch()
+      member this.MoveNextBatchAsync(noAsync: bool): ValueTask<bool> = this.MoveNextBatch()
       member this.CurrentBatch
         with get(): IEnumerable<KVP<'K, 'V>> = 
-          if this.isBatch then 
+          if this.isBatch then
             this.source :> IEnumerable<KVP<'K, 'V>> 
           else Unchecked.defaultof<_>
       
