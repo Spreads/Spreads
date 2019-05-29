@@ -33,7 +33,7 @@ open Spreads
 open System.Runtime.CompilerServices
 
 [<AllowNullLiteral>]
-type internal MapTree<'K,'V> =
+type MapTree<'K,'V> =
   val Key: 'K
   val Value: 'V
   new(k:'K, v:'V) = {Key = k; Value = v}
@@ -41,7 +41,7 @@ type internal MapTree<'K,'V> =
 [<NoEquality; NoComparison>]
 [<Sealed>]
 [<AllowNullLiteral>]
-type internal MapTreeNode<'K,'V> =
+type MapTreeNode<'K,'V> =
   inherit MapTree<'K,'V>
   val Left: MapTree<'K, 'V>
   val Right: MapTree<'K, 'V>
@@ -140,6 +140,34 @@ module internal MapTree =
         let c = comparer.Compare(k,m.Key) 
         if c = 0 then m.Value
         else raise (System.Collections.Generic.KeyNotFoundException())
+
+  //let inline findX (comparer: KeyComparer<'K>) k (m:MapTree<'K,'b>) =
+  //  if obj.ReferenceEquals(m, null) then
+  //    raise (System.Collections.Generic.KeyNotFoundException())
+  //  else
+  //    let mutable m = m
+  //    let mutable found = false
+  //    let mutable result = Unchecked.defaultof<'b>
+  //    while not found do
+  //      match m with
+  //      | :? MapTreeNode<'K,'b> as mn ->
+  //        let c = comparer.Compare(k,mn.Key) 
+  //        if c < 0 then 
+  //          m <- mn.Left
+  //          // find comparer k mn.Left
+  //        elif c = 0 then 
+  //          result <- mn.Value
+  //          found <- true
+  //        else
+  //          m <- mn.Right
+  //          //find comparer k mn.Right
+  //      | _ -> 
+  //        let c = comparer.Compare(k,m.Key) 
+  //        if c = 0 then 
+  //          result <- m.Value
+  //          found <- true
+  //        else raise (System.Collections.Generic.KeyNotFoundException())
+  //    result
 
   //let rec tryFind (comparer: KeyComparer<'K>) k m = 
   //    match m with 
@@ -613,7 +641,7 @@ type ImmutableSortedMap<[<EqualityConditionalOn>]'K,[<EqualityConditionalOn;Comp
     
   // override this.Comparer = comparer
   //[<DebuggerBrowsable(DebuggerBrowsableState.Never)>]
-  member internal m.Tree = tree
+  member m.Tree = tree
 
   //override this.IsEmpty with get() = MapTree.isEmpty tree
   //override this.IsIndexed with get() = false
