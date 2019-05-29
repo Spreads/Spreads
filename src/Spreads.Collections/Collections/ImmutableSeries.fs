@@ -53,7 +53,7 @@ type MapTreeNode<'K,'V> =
 module internal MapTree = 
   let size x = 
     let rec sizeAux acc (m:MapTree<'a,'b>) =
-      if obj.ReferenceEquals(m, null) then
+      if isNull m then
         acc
       else
         match m with
@@ -64,21 +64,18 @@ module internal MapTree =
   let empty : MapTree<_,_> = null 
 
   let inline height (m:MapTree<'a,'b>) =
-    if obj.ReferenceEquals(m, null) then 0
+    if isNull m then 0
     else
       match m with
       | :? MapTreeNode<_,_> as mn -> mn.Height
       | _ -> 1
 
-  let isEmpty m = 
-      match m with 
-      | null -> true
-      | _ -> false
+  let inline isEmpty m = isNull m
 
   let inline mk l k v r = 
-      match l,r with 
-      | null,null -> MapTree(k,v)
-      | _ -> 
+      if isNull l && isNull r then
+          MapTree(k,v)
+      else 
           let hl = height l 
           let hr = height r 
           let m = max hl hr // if hl < hr then hr else hl 
@@ -109,7 +106,7 @@ module internal MapTree =
 
   [<MethodImpl(MethodImplOptions.AggressiveInlining)>]
   let rec add (comparer: KeyComparer<'K>) k v (m:MapTree<'K,'b>) = // was 'V instead of 'K, slightly measleading
-      if obj.ReferenceEquals(m, null) then
+      if isNull m then
         MapTree(k,v)
       else
         match m with
@@ -127,7 +124,7 @@ module internal MapTree =
 
   [<MethodImpl(MethodImplOptions.AggressiveInlining)>]
   let rec find (comparer: KeyComparer<'K>) k (m:MapTree<'K,'b>) =
-    if obj.ReferenceEquals(m, null) then
+    if isNull m then
       raise (System.Collections.Generic.KeyNotFoundException())
     else
       match m with
