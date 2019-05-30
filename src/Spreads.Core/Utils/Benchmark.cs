@@ -170,7 +170,7 @@ namespace Spreads.Utils
             /// Million operations per second.
             /// </summary>
             // ReSharper disable once InconsistentNaming
-            public double MOPS => Math.Round((InnerLoopCount * 0.001) / _statSnapshot.Elapsed, 3);
+            public double MOPS => Math.Round((InnerLoopCount * 0.001) / (_statSnapshot.Elapsed / 10000.0), 3);
 
             internal StatSnapshot StatSnapshot
             {
@@ -181,13 +181,13 @@ namespace Spreads.Utils
             public override string ToString()
             {
                 var trimmedCaseName = CaseName.Length > 20 ? CaseName.Substring(0, 17) + "..." : CaseName;
-                return $"{trimmedCaseName,-20} |{MOPS,8:f2} | {_statSnapshot.Elapsed,5} ms | {_statSnapshot.Gc0,5:f1} | {_statSnapshot.Gc1,5:f1} | {_statSnapshot.Gc2,5:f1} | {_statSnapshot.Memory / (1024 * 1024.0),5:f3} MB";
+                return $"{trimmedCaseName,-20} |{MOPS,8:f2} | {_statSnapshot.Elapsed / 10000.0:N0} ms | {_statSnapshot.Gc0,5:f1} | {_statSnapshot.Gc1,5:f1} | {_statSnapshot.Gc2,5:f1} | {_statSnapshot.Memory / (1024 * 1024.0),5:f3} MB";
             }
 
             internal string ToString(int caseAlignmentLength)
             {
                 var paddedCaseName = CaseName.PadRight(caseAlignmentLength);
-                return $"{paddedCaseName,-20} |{MOPS,8:f2} | {_statSnapshot.Elapsed,5} ms | {_statSnapshot.Gc0,5:f1} | {_statSnapshot.Gc1,5:f1} | {_statSnapshot.Gc2,5:f1} | {_statSnapshot.Memory / (1024 * 1024.0),5:f3} MB";
+                return $"{paddedCaseName,-20} |{MOPS,8:f2} | {_statSnapshot.Elapsed/10000.0:N0} ms | {_statSnapshot.Gc0,5:f1} | {_statSnapshot.Gc1,5:f1} | {_statSnapshot.Gc2,5:f1} | {_statSnapshot.Memory / (1024 * 1024.0),5:f3} MB";
             }
         }
 
@@ -207,7 +207,7 @@ namespace Spreads.Utils
                 {
                     // end of measurement, first stop timer then collect/count
                     sw.Stop();
-                    Elapsed = sw.ElapsedMilliseconds;
+                    Elapsed = sw.Elapsed.Ticks;
 
                     // NB we exclude forced GC from counters,
                     // by measuring memory before forced GC we could
