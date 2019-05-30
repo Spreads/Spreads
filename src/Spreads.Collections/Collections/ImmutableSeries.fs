@@ -31,6 +31,7 @@ open Microsoft.FSharp.Primitives.Basics
 
 open Spreads
 open System.Runtime.CompilerServices
+open System.Runtime.InteropServices
 
 [<AllowNullLiteral>]
 type MapTree<'K,'V> =
@@ -122,49 +123,46 @@ module internal MapTree =
           else            MapTreeNode (k,v,m,null,2) :> MapTree<_,_>
       
 
-  [<MethodImpl(MethodImplOptions.AggressiveInlining)>]
+  let inline findX (comparer: KeyComparer<'K>) k (m:MapTree<'K,'b>) =
+    let mutable m = m
+    let mutable c = 0
+    while (
+          if isEmpty m then raise (System.Collections.Generic.KeyNotFoundException())
+          (c <- comparer.Compare(k,m.Key));c <> 0
+    ) do
+      m <- 
+        if m :? MapTreeNode<'K,'b> then
+          if c < 0 then Unsafe.As<MapTreeNode<'K,'b>>(m).Left
+          else Unsafe.As<MapTreeNode<'K,'b>>(m).Right
+        else null
+    m.Value
+
   let rec find (comparer: KeyComparer<'K>) k (m:MapTree<'K,'b>) =
-    if isEmpty m then
+    if isEmpty m then raise (System.Collections.Generic.KeyNotFoundException())
+    else
+      let c = comparer.Compare(k,m.Key)
+      if c = 0 then m.Value
+      else
+        match m with
+        | :? MapTreeNode<'K,'b> as mn ->
+          find comparer k (if c < 0 then mn.Left else mn.Right)
+        | _ -> raise (System.Collections.Generic.KeyNotFoundException())
+        
+
+  let rec findO (comparer: KeyComparer<'K>) k (m:MapTree<'K,'b>) =
+    if obj.ReferenceEquals(m, null) then
       raise (System.Collections.Generic.KeyNotFoundException())
     else
       match m with
       | :? MapTreeNode<'K,'b> as mn ->
         let c = comparer.Compare(k,mn.Key) 
-        if c < 0 then find comparer k mn.Left
+        if c < 0 then findO comparer k mn.Left
         elif c = 0 then mn.Value
-        else find comparer k mn.Right
+        else findO comparer k mn.Right
       | _ -> 
         let c = comparer.Compare(k,m.Key) 
         if c = 0 then m.Value
         else raise (System.Collections.Generic.KeyNotFoundException())
-
-  //let inline findX (comparer: KeyComparer<'K>) k (m:MapTree<'K,'b>) =
-  //  if obj.ReferenceEquals(m, null) then
-  //    raise (System.Collections.Generic.KeyNotFoundException())
-  //  else
-  //    let mutable m = m
-  //    let mutable found = false
-  //    let mutable result = Unchecked.defaultof<'b>
-  //    while not found do
-  //      match m with
-  //      | :? MapTreeNode<'K,'b> as mn ->
-  //        let c = comparer.Compare(k,mn.Key) 
-  //        if c < 0 then 
-  //          m <- mn.Left
-  //          // find comparer k mn.Left
-  //        elif c = 0 then 
-  //          result <- mn.Value
-  //          found <- true
-  //        else
-  //          m <- mn.Right
-  //          //find comparer k mn.Right
-  //      | _ -> 
-  //        let c = comparer.Compare(k,m.Key) 
-  //        if c = 0 then 
-  //          result <- m.Value
-  //          found <- true
-  //        else raise (System.Collections.Generic.KeyNotFoundException())
-  //    result
 
   //let rec tryFind (comparer: KeyComparer<'K>) k m = 
   //    match m with 
@@ -731,6 +729,9 @@ type ImmutableSortedMap<[<EqualityConditionalOn>]'K,[<EqualityConditionalOn;Comp
     with get(key : 'K) = 
       MapTree.find comparer key tree
 
+  member this.FindOriginal (key : 'K) = 
+      MapTree.findO comparer key tree
+    
   member this.Add(k, v):ImmutableSortedMap<'K,'V> = 
     ImmutableSortedMap(comparer, MapTree.add comparer k v tree)
 

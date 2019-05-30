@@ -11,6 +11,7 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using ObjectLayoutInspector;
 
 namespace Spreads.Core.Tests.Performance
 {
@@ -18,16 +19,20 @@ namespace Spreads.Core.Tests.Performance
     public class ImmutableTests
     {
         [Test]
+        public void Layout()
+        {
+            TypeLayout.PrintLayout<MapTreeNode<long,byte>>();
+        }
+
+        [Test]
         public void FSharpMap()
         {
             var count = TestUtils.GetBenchCount(1_000_000);
-            var rounds = 200;
+            var rounds = 100;
             var im = new FSharpMap<long, long>(Enumerable.Empty<Tuple<long, long>>());
-
+            im = FSharpMap_Add(count);
             for (int r = 0; r < rounds; r++)
             {
-                im = FSharpMap_Add(count);
-
                 FSharpMap_Get(count, im);
             }
 
@@ -75,11 +80,9 @@ namespace Spreads.Core.Tests.Performance
             var count = TestUtils.GetBenchCount(1_000_000);
             var rounds = 100;
             var im = ImmutableSortedDictionary<long, long>.Empty;
-
+            im = ISD_Add(count);
             for (int r = 0; r < rounds; r++)
             {
-                im = ISD_Add(count);
-
                 ISD_Get(count, im);
             }
 
@@ -146,14 +149,9 @@ namespace Spreads.Core.Tests.Performance
                 m = m as MapTreeNode<TK, TV>;
                 if (m != null)
                 {
-                    if (c < 0)
-                    {
-                        m = Unsafe.As<MapTreeNode<TK, TV>>(m).Left;
-                    }
-                    else
-                    {
-                        m = Unsafe.As<MapTreeNode<TK, TV>>(m).Right;
-                    }
+                    m = c < 0
+                        ? Unsafe.As<MapTreeNode<TK, TV>>(m).Left
+                        : Unsafe.As<MapTreeNode<TK, TV>>(m).Right;
                 }
 
                 // m == null for MapOne case after `as` and we go to KeyNotFoundException
@@ -161,20 +159,89 @@ namespace Spreads.Core.Tests.Performance
             return m.Value;
         }
 
+        private static TV Find2<TK, TV>(KeyComparer<TK> comparer, TK k, MapTree<TK, TV> m)
+        {
+            while (m != null)
+            {
+                var c = comparer.Compare(k, m.Key);
+
+                if (c != 0)
+                {
+                    // This is pure isinst without casting.
+                    // Then using Unsafe for cast without a local var.
+                    m = m as MapTreeNode<TK, TV>;
+                    if (m != null)
+                    {
+                        m = c < 0
+                            ? Unsafe.As<MapTreeNode<TK, TV>>(m).Left
+                            : Unsafe.As<MapTreeNode<TK, TV>>(m).Right;
+                    }
+
+                    // m == null for MapOne case after `as` and we go to KeyNotFoundException
+                }
+                else
+                {
+                    // Common for MapOne and MapNode
+                    return m.Value;
+                }
+            }
+            throw new KeyNotFoundException();
+        }
+
+        private static TV FindFSharp<TK, TV>(KeyComparer<TK> comparer, TK k, MapTree<TK, TV> m)
+        {
+            while (m != null)
+            {
+                int c = comparer.Compare(k, m.Key);
+                if (c == 0)
+                {
+                    return m.Value;
+                }
+                KeyComparer<TK> keyComparer = comparer;
+                TK k2 = k;
+                m = ((!(m is MapTreeNode<TK, TV>)) ? null : ((c >= 0) ? Unsafe.As<MapTreeNode<TK, TV>>(m).Right : Unsafe.As<MapTreeNode<TK, TV>>(m).Left));
+                k = k2;
+                comparer = keyComparer;
+            }
+            throw new KeyNotFoundException();
+        }
+
+        private static TV FindFSharpExLoc<TK, TV>(KeyComparer<TK> comparer, TK k, MapTree<TK, TV> m)
+        {
+            while (m != null)
+            {
+                int c = comparer.Compare(k, m.Key);
+                if (c == 0)
+                {
+                    return m.Value;
+                }
+                KeyComparer<TK> keyComparer = comparer;
+                // TK k2 = k;
+                m = ((!(m is MapTreeNode<TK, TV>)) ? null : ((c >= 0) ? Unsafe.As<MapTreeNode<TK, TV>>(m).Right : Unsafe.As<MapTreeNode<TK, TV>>(m).Left));
+                // k = k2;
+                // comparer = keyComparer;
+            }
+            throw new KeyNotFoundException();
+        }
+
         [Test]
         public void Performance()
         {
             var count = TestUtils.GetBenchCount(1_000_000);
-            var rounds = 20;
+            var rounds = 200;
             var im = ImmutableSortedMap<long, long>.Empty;
+
+            im = Perf_Add(count);
 
             for (int r = 0; r < rounds; r++)
             {
-                im = Perf_Add(count);
-
+                // Perf_GetOriginal(count, im);
                 Perf_Get(count, im);
+                //Perf_GetLoopFSharp(count, im);
 
-                Perf_GetLoop(count, im);
+                //Perf_GetLoopFSharpExLoc(count, im);
+
+                // Perf_GetLoop(count, im);
             }
 
             Benchmark.Dump();
@@ -248,6 +315,35 @@ namespace Spreads.Core.Tests.Performance
         }
 
         [MethodImpl(MethodImplOptions.NoInlining | MethodImplOptions.AggressiveOptimization)]
+        private static void Perf_GetOriginal(long count, ImmutableSortedMap<long, long> im)
+        {
+            using (Benchmark.Run("Get Original", count))
+            {
+                var sum = 0L;
+                for (int i = 0; i < count; i++)
+                {
+                    var x = im.FindOriginal(i);
+                    sum += x;
+                }
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining | MethodImplOptions.AggressiveOptimization)]
+        private static void Perf_GetLoop_Return_After_Loop(long count, ImmutableSortedMap<long, long> im)
+        {
+            using (Benchmark.Run("Get C# loop RAL", count))
+            {
+                var sum = 0L;
+                var c = KeyComparer<long>.Default;
+                for (int i = 0; i < count; i++)
+                {
+                    var x = Find(c, i, im.Tree);
+                    sum += x;
+                }
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining | MethodImplOptions.AggressiveOptimization)]
         private static void Perf_GetLoop(long count, ImmutableSortedMap<long, long> im)
         {
             using (Benchmark.Run("Get C# loop", count))
@@ -256,7 +352,37 @@ namespace Spreads.Core.Tests.Performance
                 var c = KeyComparer<long>.Default;
                 for (int i = 0; i < count; i++)
                 {
-                    var x = Find(c, i, im.Tree);
+                    var x = Find2(c, i, im.Tree);
+                    sum += x;
+                }
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining | MethodImplOptions.AggressiveOptimization)]
+        private static void Perf_GetLoopFSharp(long count, ImmutableSortedMap<long, long> im)
+        {
+            using (Benchmark.Run("Get F# IL->C#", count))
+            {
+                var sum = 0L;
+                var c = KeyComparer<long>.Default;
+                for (int i = 0; i < count; i++)
+                {
+                    var x = FindFSharp(c, i, im.Tree);
+                    sum += x;
+                }
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining | MethodImplOptions.AggressiveOptimization)]
+        private static void Perf_GetLoopFSharpExLoc(long count, ImmutableSortedMap<long, long> im)
+        {
+            using (Benchmark.Run("Get F# IL->C# ex loc", count))
+            {
+                var sum = 0L;
+                var c = KeyComparer<long>.Default;
+                for (int i = 0; i < count; i++)
+                {
+                    var x = FindFSharpExLoc(c, i, im.Tree);
                     sum += x;
                 }
             }

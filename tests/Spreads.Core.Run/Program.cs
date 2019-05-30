@@ -35,14 +35,14 @@ namespace Spreads.Core.Run
             Trace.Listeners.Add(new ConsoleListener());
 
             Settings.DoAdditionalCorrectnessChecks = false;
-            
+
             // Process.GetCurrentProcess().ProcessorAffinity = (IntPtr) 0b_0011_0000;
             // EquiJoinBench();
             ExecutionContext.SuppressFlow();
             Settings.SharedSpinLockNotificationPort = 53412;
 
-            var test = new AsyncCursorTests();
-            await test.CouldReadDataStreamWhileWritingFromManyThreads();
+            var test = new ImmutableTests();
+            test.Performance();
 
             // Console.WriteLine("Finished, press enter to exit...");
             // Console.ReadLine();
