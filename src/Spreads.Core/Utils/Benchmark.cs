@@ -9,6 +9,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
+using Spreads.Algorithms.Online;
 
 namespace Spreads.Utils
 {
@@ -99,7 +100,7 @@ namespace Spreads.Utils
                     : 0;
                 var values = kvp.Value.Skip(skip).ToList();
 
-                var elapsed = values.Select(l => l._statSnapshot.Elapsed).Average();
+                var elapsed = MovingMedian.NaiveMedian(new ArraySegment<double>(values.Select(l => (double)l._statSnapshot.Elapsed).ToArray()));
                 var gc0 = values.Select(l => l._statSnapshot.Gc0).Average();
                 var gc1 = values.Select(l => l._statSnapshot.Gc1).Average();
                 var gc2 = values.Select(l => l._statSnapshot.Gc2).Average();
