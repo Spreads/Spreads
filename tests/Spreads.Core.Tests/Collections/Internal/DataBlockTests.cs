@@ -13,6 +13,12 @@ namespace Spreads.Core.Tests.Collections.Internal
     [TestFixture]
     public class DataBlockTests
     {
+        [Test, Explicit("output")]
+        public void SizeOf()
+        {
+            ObjectLayoutInspector.TypeLayout.PrintLayout<DataBlock>();
+        }
+
         [Test]
         public void CouldDoubleSeriesCapacity()
         {
@@ -23,9 +29,9 @@ namespace Spreads.Core.Tests.Collections.Internal
 
             block.IncreaseSeriesCapacity<int, int>();
 
-            Assert.AreEqual(block.RowIndex.Length, Settings.MIN_POOLED_BUFFER_LEN);
+            Assert.AreEqual(block.RowKeys.Length, Settings.MIN_POOLED_BUFFER_LEN);
 
-            var keys = block.RowIndex._memorySource as ArrayMemory<int>;
+            var keys = block.RowKeys._memorySource as ArrayMemory<int>;
             var vals = block.Values._memorySource as ArrayMemory<int>;
 
             var slice = block.Values.Slice(0, 1);
@@ -48,12 +54,12 @@ namespace Spreads.Core.Tests.Collections.Internal
 
             Assert.IsTrue(vals.IsPooled);
 
-            Assert.AreEqual(block.RowIndex.Length, Settings.MIN_POOLED_BUFFER_LEN * 2);
+            Assert.AreEqual(block.RowKeys.Length, Settings.MIN_POOLED_BUFFER_LEN * 2);
 
             for (int i = 0; i < 10; i++)
             {
                 block.IncreaseSeriesCapacity<int, int>();
-                Console.WriteLine(block.RowIndex.Length);
+                Console.WriteLine(block.RowKeys.Length);
             }
 
             block.Dispose();

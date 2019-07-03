@@ -89,7 +89,7 @@ namespace Spreads.Collections.Experimental
 
             if (block.RowLength > 0)
             {
-                var lastKey = block.RowIndex.DangerousGet<TKey>(block.RowLength - 1);
+                var lastKey = block.RowKeys.DangerousGet<TKey>(block.RowLength - 1);
 
                 var c = _comparer.Compare(key, lastKey);
                 if (c <= 0)
@@ -98,7 +98,7 @@ namespace Spreads.Collections.Experimental
                 }
             }
 
-            if (block.RowLength == block.RowIndex.Length)
+            if (block.RowLength == block.RowKeys.Length)
             {
                 block = GrowCapacity(key, block);
                 if (block == null)
@@ -107,7 +107,7 @@ namespace Spreads.Collections.Experimental
                 }
             }
 
-            block.InsertSeries(block.RowLength, key, value);
+            block.SeriesInsert(block.RowLength, key, value);
             return true;
         }
 
@@ -122,9 +122,9 @@ namespace Spreads.Collections.Experimental
             {
                 // TODO review: do we want buffers in LOH or not? <= vs <
                 // next increment will be 64kb, avoid buffer in LOH
-                if (block.RowIndex.Length < MaxBufferLength)
+                if (block.RowKeys.Length < MaxBufferLength)
                 {
-                    if (block.IncreaseSeriesCapacity<TKey, TValue>() < 0)
+                    if (block.SeriesIncreaseCapacity<TKey, TValue>() < 0)
                     {
                         return null;
                     }
@@ -135,13 +135,13 @@ namespace Spreads.Collections.Experimental
                     if (DataSource == null)
                     {
                         DataSource = new DataBlockSource<TKey>();
-                        DataSource.AddLast(block.RowIndex.DangerousGetRef<TKey>(0), block);
+                        DataSource.AddLast(block.RowKeys.DangerousGetRef<TKey>(0), block);
                         DataBlock = null;
                     }
 
-                    var minCapacity = block.RowIndex.Length;
+                    var minCapacity = block.RowKeys.Length;
                     var newBlock = DataBlock.Create();
-                    if (newBlock.IncreaseSeriesCapacity<TKey, TValue>(minCapacity) < 0)
+                    if (newBlock.SeriesIncreaseCapacity<TKey, TValue>(minCapacity) < 0)
                     {
                         return null;
                     }

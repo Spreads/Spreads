@@ -54,6 +54,7 @@ namespace Spreads.Collections.Internal
                 ms!.Increment();
             }
 
+            // TODO ms should be null when externally owned? See shared columns in DataBlock. Then equality should just compare length and reference equality of the first data item
             var vs = new VectorStorage(ms, vec);
 
             // TODO move stride logic elsewhere

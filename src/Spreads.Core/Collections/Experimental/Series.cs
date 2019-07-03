@@ -127,7 +127,7 @@ namespace Spreads.Collections.Experimental
 
                 if (block != null && block.RowLength > 0)
                 {
-                    var k = DataBlock.RowIndex.DangerousGetRef<TKey>(0);
+                    var k = DataBlock.RowKeys.DangerousGetRef<TKey>(0);
                     var v = DataBlock.Values.DangerousGetRef<TValue>(0);
                     return Opt.Present(new KeyValuePair<TKey, TValue>(k, v));
                 }
@@ -212,7 +212,7 @@ namespace Spreads.Collections.Experimental
                 int idx;
                 if (block != null && (idx = block.RowLength - 1) >= 0)
                 {
-                    var k = block.RowIndex.DangerousGetRef<TKey>(idx);
+                    var k = block.RowKeys.DangerousGetRef<TKey>(idx);
                     var v = block.Values.DangerousGetRef<TValue>(idx);
                     return new Opt<KeyValuePair<TKey, TValue>>(new KeyValuePair<TKey, TValue>(k, v));
                 }
@@ -267,7 +267,7 @@ namespace Spreads.Collections.Experimental
             {
                 if (TryGetBlockAt(index, out var chunk, out var chunkIndex))
                 {
-                    var k = chunk.RowIndex.DangerousGet<TKey>(chunkIndex);
+                    var k = chunk.RowKeys.DangerousGet<TKey>(chunkIndex);
                     var v = chunk.Values.DangerousGet<TValue>(chunkIndex);
                     kvp = new KeyValuePair<TKey, TValue>(k, v);
                     result = true;

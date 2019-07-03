@@ -171,7 +171,7 @@ namespace Spreads.Collections.Internal
                     mc = MoveRare(stride, allowPartial, ref nextPosition, ref nextBlock);
                 }
 
-                k = _currentBlock.RowIndex.DangerousGetRef<TKey>((int)nextPosition); // Note: do not use _blockPosition, it's 20% slower than second cast to int
+                k = _currentBlock.RowKeys.DangerousGetRef<TKey>((int)nextPosition); // Note: do not use _blockPosition, it's 20% slower than second cast to int
 
                 if (typeof(TContainer) == typeof(Collections.Experimental.Series<TKey, TValue>))
                 {
