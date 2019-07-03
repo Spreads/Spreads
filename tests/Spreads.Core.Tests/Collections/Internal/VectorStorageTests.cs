@@ -131,26 +131,23 @@ namespace Spreads.Core.Tests.Collections.Internal
 
             var mem = ArrayMemory<int>.Create(arr, 0, arr.Length, externallyOwned: true, pin: true);
 
-            var stride = 2;
+            var vs = VectorStorage.Create(mem, 0, mem.Length);
 
-            var vs = VectorStorage.Create(mem, (stride - 1), mem.Length - (stride - 1), stride);
-
-            Assert.AreEqual(arr.Length / stride, vs.Length);
+            Assert.AreEqual(arr.Length, vs.Length);
 
             int sum = 0;
             for (int r = 0; r < rounds; r++)
             {
                 using (Benchmark.Run("VS Read", vs.Length * mult))
                 {
-                    var vector = vs.GetVector<int>();
                     for (int _ = 0; _ < mult; _++)
                     {
                         for (int i = 0; i < vs.Length; i++)
                         {
-                            var vi = vector[i];
-                            if (vi != i * stride + (stride - 1))
+                            var vi = vs.DangerousGet<int>(i);
+                            if (vi != i)
                             {
-                                Assert.Fail("vi != i * 2");
+                                Assert.Fail("vi != i");
                             }
 
                             unchecked
@@ -184,7 +181,7 @@ namespace Spreads.Core.Tests.Collections.Internal
                 {
                     for (int i = 0; i < count; i++)
                     {
-                        var vs1 = vs.Slice(0, vs.Vec.Length, 1, externallyOwned: true);
+                        var vs1 = vs.Slice(0, vs.Vec.Length, externallyOwned: true);
                         vs1.Dispose();
                     }
                 }

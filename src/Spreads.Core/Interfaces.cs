@@ -2,7 +2,6 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-using Spreads.DataTypes;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -11,7 +10,9 @@ using System.Threading.Tasks;
 
 namespace Spreads
 {
-    // NB Interfaces in a single file because current order is logical from the most primitive to complex interfaces
+    // Interfaces in a single file because current order is logical from the most primitive to complex interfaces
+
+    #region Async interfaces
 
     // This interfaces match pattern-based compilation of IEnumerable and async streams (introduced in C# 8.0)
     // The compiler will bind to the pattern-based APIs if they exist, preferring those over using the interface
@@ -25,7 +26,7 @@ namespace Spreads
     // * The enumerator may optionally expose a DisposeAsync method that may be invoked with no arguments and that returns something
     //   that can be awaited and whose GetResult() returns void.
 
-    // TODO implement unspecialized interfaces explicitly and implement specialized generic methods with the same name.
+    // TODO Ensure that we implement unspecialized interfaces explicitly and implement specialized generic methods with the same name.
 
     public interface IAsyncDisposable
     {
@@ -56,19 +57,7 @@ namespace Spreads
         ValueTask<bool> MoveNextAsync();
     }
 
-    internal interface IAsyncBatchEnumerator<T>
-    {
-        // Same contract as in cursors:
-        // if MoveNextBatchAsync(noAsync = true) returns false then there are no batches available synchronously
-        // (e.g. some SIMD operations such as Sum() could benefit if a SortedMap
-        // is available instantly, but they should not even try async call because normal Sum() will be faster )
-        // For IO case MoveNextBatchAsync(noAsync = true) is a happy-path, but if it returns false then a consumer
-        // must call and await MoveNextBatch(noAsync = false). Only after MNB(noAsync = false) returns false there
-        // will be no batches ever and consumer must switch to per-item calls.
-        ValueTask<bool> MoveNextBatchAsync(bool noAsync);
-
-        IEnumerable<T> CurrentBatch { get; }
-    }
+    
 
     /// <summary>
     /// Exposes the <see cref="IAsyncEnumerator{T}"/> async enumerator, which supports a sync and async
@@ -88,7 +77,7 @@ namespace Spreads
     public interface IAsyncCompletable
     {
         /// <summary>
-        /// Try complete an outstanding operation on a thread pool. The default case is to
+        /// Try complete an outstanding operation via the thread pool. The default case is to
         /// notify continuation of <see cref="IAsyncEnumerator{T}.MoveNextAsync"/> when
         /// a data producer has a new value.
         /// </summary>
@@ -97,21 +86,8 @@ namespace Spreads
         /// in the source and call continuation only when data is available. This is a wake up call to
         /// awaiters.
         /// </remarks>
-        /// <param name="cancel">Cancel completion. Causes OperationCancelledException in awaiters.</param>
+        /// <param name="cancel">Cancel completion. Causes <see cref="OperationCanceledException"/> in awaiters.</param>
         void TryComplete(bool cancel);
-    }
-
-    // TODO remove this
-    internal interface IAsyncSubscription : IDisposable
-    {
-        // Currently it is called with -1 after an async move completes
-        // But notifiers could decrement themselves if we guarantee that
-        // a single notification will succeed and there is no risk of missing
-        // un update. However, this matters for a hot loop with several MOPS
-        // For real-world data with so many updates we just spin and do not
-        // use async machinery, this is for less frequent but important data
-        // that we cannot miss but should not spin.
-        void RequestNotification(int count);
     }
 
     /// <summary>
@@ -122,14 +98,87 @@ namespace Spreads
         IDisposable Subscribe(IAsyncCompletable subscriber);
     }
 
-    // TODO rename to IDataContainer(?), add it to all containers
-    public interface IData
+    #endregion Async interfaces
+
+
+    // Model untyped data closely to ML.NET IDataView, but to not binary depend on it
+    // * We need serializable schema with TypeEnums, decoupled from .NET type system as much as possible (e.g. Tuple is logically a sequence of types, not .NET type)
+    // * Do not depend on upstream future changes
+    // * Make bridging the two very easy...
+    // * ... but be flexible to adjust as needed here.
+
+    public interface IDataSource
     {
+
+        // Mutability composes well for projections:
+        // If any dependency is mutable then projection is mutable.
+        // For readers it means that a vertical projection could become invalid.
+        // Immutable/Append allow structural sharing of existing data (requires ref counting of buffers)
+        // TODO review should it be here or only in containers. Due to recursive composability it doesn't hurt to have it everywhere.
+
         Mutability Mutability { get; }
+
+        // ContainerLayout ContainerLayout { get; }
+
+        /// <summary>
+        /// Returns non-null value if it is possible to get the count in O(1)
+        /// fast call without blocking.
+        /// </summary>
+        // ulong? RowCount { get; }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        bool IsEmpty { get; }
+
+        /// <summary>
+        /// Unique string identifier or a string expression describing the data (e.g. "a + b").
+        /// </summary>
+        // string? Expression { get; }
+
+        /// <summary>
+        /// True if element access by numeric index (offset) is O(1).
+        /// </summary>
+        // bool IsIndexed { get; }
+
     }
 
+    public interface IDataSourceRow
+    {
+
+    }
+
+    public interface ICursor : IEnumerator<IDataSourceRow>
+    {
+        
+    }
+
+    public interface ICursor<TRowKey> : ICursor
+    {
+
+    }
+
+
+    public interface IData<TRow>
+    {
+
+    }
+
+    public interface IRowKeyData<TKey>
+    {
+        KeySorting RowKeySorting { get; }
+    }
+
+    // TODO Is matrix a series<long> or does not have keys, only indices?
+    // Review ML.NET DataView before finalizing interfaces
+    // E.g. Count as long? present only when O(1) is nice contract
+    // IsEmpty -> IDataContainer
+    // Count -> RowCount, ColumnCount (for series 1 or undefined? is a series same as DF with one column? Or DF is a series of rows (see DataView)?)
+    // LastValueOrDefault -> (or +) LastOrDefault<K,V>, we cannot
+    // AsyncCursor -> AsyncEnumerator?
+
     // TODO merge/replace
-    public interface ISeriesNew : IData
+    public interface ISeriesNew : IDataSource
     {
         KeySorting KeySorting { get; }
     }
@@ -138,8 +187,8 @@ namespace Spreads
     {
         // while rewriting keep existing, never commit in broken state
         // ?
-        bool IsEmpty { get; }
         
+
         // TODO LastOrDefault - via Opt<> is terribly slow. Already implemented for DataSource.
     }
 
@@ -221,7 +270,7 @@ namespace Spreads
 
         /// <summary>
         /// Keys enumerable.
-        /// </summary> 
+        /// </summary>
         IEnumerable<TKey> Keys { get; }
 
         /// <summary>
@@ -261,6 +310,10 @@ namespace Spreads
         // With TryMoveNextBatch we could calculate the batch view from current position to the end of a block and move the position there. After that moves
         // could be done normally. The returned view could be disposable with the version check inside Dispose. However, we should disable this for
         // mutable containers, for append-only existing ranges are immutable. TODO test when we consume by batches and add values in parallel in append-only mode.
+
+        // Note: ISyncBatchEnumerator is for production side and async for IO.
+        // TryMoveNextBatch is for consumption, e.g. aggregation with SIMD.
+        // Both are optional: TryMoveNextBatch could just always return false.
 
         /// <summary>
         /// Moves the cursor to the end of the current contiguous block of underlying memory (if there is such a block).
@@ -398,7 +451,7 @@ namespace Spreads
     }
 
     /// <summary>
-    /// An <see cref="T:Spreads.ICursor`2" /> with a known implementation type.
+    /// A specialized <see cref="T:Spreads.ICursor`2" /> with a known implementation type.
     /// </summary>
     public interface ISpecializedCursor<TKey, TValue, TCursor> : ICursor<TKey, TValue> // TODO rename to ICursor'3, no clashes
         where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
@@ -555,50 +608,11 @@ namespace Spreads
         /// </summary>
         ValueTask<long> TryAppend(ISeries<TKey, TValue> appendMap, AppendOption option = AppendOption.RejectOnOverlap);
 
-        
-        // TODO Methods 
+        // TODO Methods
         // MarkComplete
         // MarkAppendOnly
         // All mutating methods must check mutability
-
     }
 
-    /// <summary>
-    /// `Flush` has a standard meaning, e.g. as in Stream, and saves all changes. `Dispose` calls `Flush`. `Id` is globally unique.
-    /// </summary>
-    public interface IPersistentObject : IDisposable
-    {
-        /// <summary>
-        /// Persist any cached data.
-        /// </summary>
-        Task Flush();
-
-        /// <summary>
-        /// Unique string identifier.
-        /// </summary>
-        string Id { get; }
-    }
-
-    /// <summary>
-    /// ISeries backed by some persistent storage.
-    /// </summary>
-    /// <typeparam name="TKey"></typeparam>
-    /// <typeparam name="TValue"></typeparam>
-    public interface IPersistentSeries<TKey, TValue> : IMutableSeries<TKey, TValue>, IPersistentObject
-    {
-    }
-
-    //// TODO review signature. Why chunk is mutable? Why not just Specialized mutable series?
-    //internal interface IMutableChunksSeries<TKey, TValue, TContainer> : ISeries<TKey, TContainer>, IPersistentObject
-    //    where TContainer : IMutableSeries<TKey, TValue>
-    //{
-    //    /// <summary>
-    //    /// Keep the key chunk if it is not empty, remove all other chunks to the direction side, update version from the key chunk
-    //    /// </summary>
-    //    Task<bool> RemoveMany(TKey key, TContainer keyChunk, Lookup direction);
-
-    //    Task<bool> Set(TKey key, TContainer value);
-
-    //    long Version { get; }
-    //}
+    
 }

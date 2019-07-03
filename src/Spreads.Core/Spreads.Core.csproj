@@ -9,9 +9,12 @@
     <RootNamespace>Spreads</RootNamespace>
     <PackageId>Spreads.Core</PackageId>
     <OutputType>Library</OutputType>
-    
+
     <LangVersion>8.0</LangVersion>
+    <Nullable>enable</Nullable>
+    <NullableContextOptions>enable</NullableContextOptions>
     <NullableReferenceTypes>true</NullableReferenceTypes>
+    <!-- TODO move Spreads own code to the top proj and enable this for that proj: <WarningsAsErrors>CS8600;CS8602;CS8603</WarningsAsErrors>-->
   </PropertyGroup>
   
   <ItemGroup>

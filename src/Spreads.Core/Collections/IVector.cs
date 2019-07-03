@@ -2,12 +2,9 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-using System.Collections;
-using System.Collections.Generic;
-
 namespace Spreads.Collections
 {
-    public interface IVector<out T> : IReadOnlyList<T>
+    public interface IVector<out T>
     {
         /// <summary>
         /// Get the total number of elements in Vec.
@@ -44,7 +41,7 @@ namespace Spreads.Collections
         T Get<T>(int index);
 
         /// <summary>
-        /// Returns the element at the specified index without bound checks.
+        /// Returns the element at the specified index without bound and type checks.
         /// </summary>
         T DangerousGet<T>(int index);
     }

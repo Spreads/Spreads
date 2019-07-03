@@ -7,7 +7,6 @@ using Spreads.Collections.Concurrent;
 using Spreads.Native;
 using Spreads.Serialization;
 using System;
-using System.Buffers;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -55,12 +54,15 @@ namespace Spreads.Collections.Internal
     //}
 
     /// <summary>
-    /// VectorStorage is logical representation of data and its source.
+    /// VectorStorage is logical representation of data and its source, of which it borrows a counted reference.
     /// </summary>
     [StructLayout(LayoutKind.Sequential)]
     internal sealed class VectorStorage : IDisposable, IVector
     {
-        // private string StackTrace = Environment.StackTrace;
+        // TODO (review): this could be made a struct if it is always owned by a class container
+#if DEBUG
+        private string StackTrace = Environment.StackTrace;
+#endif
 
         public static readonly VectorStorage Empty = new VectorStorage();
 
@@ -69,148 +71,120 @@ namespace Spreads.Collections.Internal
         private VectorStorage()
         { }
 
-        // untyped storage of Vector data
-
         /// <summary>
-        /// A source that owns Vec memory
+        /// A source that owns Vec memory.
         /// </summary>
-        internal IRefCounted _memorySource;
+        /// <remarks>
+        /// This is intended to be <see cref="RetainableMemory{T}"/>, but we do not have T here and only care about ref counting.
+        /// </remarks>
+        internal IRefCounted? _memorySource;
 
-        // slicing via this
         private Vec _vec;
-
-        // vectorized ops only when == 1
-        // _vec.len/_stride = this.Length
-        // Slice with stride => multiply strides
-        /// <summary>
-        /// If it is > 1 then this is a column/row of a matrix. Stride is equal to the number of columns if storage is by rows and vice versa.
-        /// Series/Panel are endless, so this is only for a chunk.
-        /// </summary>
-        internal int _stride;
-
-        // _vec.Length is capacity, this is the number of valid elements in the Vector
-        // also need to cache _vec.Length/_stride result because it is used by bound-checking getter
-        internal int _length;
-
-        // internal Sorting Sorting;
-
-        // internal bool _isSorted;
-
-        public void Unpin()
-        {
-            // TODO review
-            // _memoryHandle.Dispose();
-            // _source.Unpin();
-        }
 
         /// <summary>
         /// Returns new VectorStorage instance with the same memory source but (optionally) different memory start, length and stride.
         /// Increments underlying memory reference count.
         /// </summary>
         /// <returns></returns>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public VectorStorage Slice(int memoryStart,
-            int memoryLength,
-            int stride = 1,
-            int elementLength = -1,
+        public VectorStorage Slice(int start,
+            int length,
             bool externallyOwned = false)
         {
-            Debug.Assert(stride > 0);
-
             var vs = ObjectPool.Allocate();
 
             vs._memorySource = _memorySource;
 
             if (!externallyOwned)
             {
-                vs._memorySource.Increment();
+                vs._memorySource!.Increment();
             }
 
-            vs._vec = _vec.Slice(memoryStart, memoryLength);
+            vs._vec = _vec.Slice(start, length);
 
-            vs._stride = stride;
+            // TODO move stride logic elsewhere
+            //var numberOfStridesFromZero = vs._vec.Length;
+            //if (stride > 1)
+            //{
+            //    // last full stride could be incomplete but with the current logic we will access only the first element
+            //    if (vs._vec.Length - numberOfStridesFromZero * stride > 0)
+            //    {
+            //        numberOfStridesFromZero++;
+            //    }
+            //}
 
-            var numberOfStridesFromZero = vs._vec.Length / stride;
-            if (stride > 1)
-            {
-                // last full stride could be incomplete but with the current logic we will access only the first element
-                if (vs._vec.Length - numberOfStridesFromZero * stride > 0)
-                {
-                    numberOfStridesFromZero++;
-                }
-            }
+            //if (elementLength != -1)
+            //{
+            //    if ((uint)elementLength < numberOfStridesFromZero)
+            //    {
+            //        numberOfStridesFromZero = elementLength;
+            //    }
+            //    else
+            //    {
+            //        ThrowHelper.ThrowArgumentOutOfRangeException("elementLength");
+            //    }
+            //}
 
-            if (elementLength != -1)
-            {
-                if ((uint)elementLength < numberOfStridesFromZero)
-                {
-                    numberOfStridesFromZero = elementLength;
-                }
-                else
-                {
-                    ThrowHelper.ThrowArgumentOutOfRangeException("elementLength");
-                }
-            }
-
-            vs._length = numberOfStridesFromZero;
+            //vs._length = numberOfStridesFromZero;
 
             return vs;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static VectorStorage Create<T>(RetainableMemory<T> memorySource,
-            int memoryStart,
-            int memoryLength,
-            int stride = 1,
-            int elementLength = -1,
+            int start,
+            int length,
             bool externallyOwned = false)
         {
-            Debug.Assert(stride > 0);
-
             var vs = ObjectPool.Allocate();
 
-            vs._memorySource = memorySource;
+            vs._memorySource = memorySource ?? throw new ArgumentNullException(nameof(memorySource));
 
             if (!externallyOwned)
             {
                 vs._memorySource.Increment();
             }
 
-            vs._vec = memorySource.Vec.AsVec().Slice(memoryStart, memoryLength);
+            vs._vec = memorySource.Vec.AsVec().Slice(start, length);
 
-            vs._stride = stride;
+            // TODO move stride logic elsewhere
+            //vs._stride = stride;
 
-            var numberOfStridesFromZero = vs._vec.Length / stride;
-            if (stride > 1)
-            {
-                // last full stride could be incomplete but with the current logic we will access only the first element
-                if (vs._vec.Length - numberOfStridesFromZero * stride > 0)
-                {
-                    numberOfStridesFromZero++;
-                }
-            }
+            //var numberOfStridesFromZero = vs._vec.Length / stride;
+            //if (stride > 1)
+            //{
+            //    // last full stride could be incomplete but with the current logic we will access only the first element
+            //    if (vs._vec.Length - numberOfStridesFromZero * stride > 0)
+            //    {
+            //        numberOfStridesFromZero++;
+            //    }
+            //}
 
-            if (elementLength != -1)
-            {
-                if ((uint)elementLength <= numberOfStridesFromZero)
-                {
-                    numberOfStridesFromZero = elementLength;
-                }
-                else
-                {
-                    ThrowHelper.ThrowArgumentOutOfRangeException("elementLength");
-                }
-            }
+            //if (elementLength != -1)
+            //{
+            //    if ((uint)elementLength <= numberOfStridesFromZero)
+            //    {
+            //        numberOfStridesFromZero = elementLength;
+            //    }
+            //    else
+            //    {
+            //        ThrowHelper.ThrowArgumentOutOfRangeException("elementLength");
+            //    }
+            //}
 
-            vs._length = numberOfStridesFromZero;
+            //vs._length = numberOfStridesFromZero;
 
             return vs;
+        }
+
+        public bool IsEmpty
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => _vec.Length == 0;
         }
 
         public int Length
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => _length;
+            get => _vec.Length;
         }
 
         public Type Type
@@ -219,24 +193,12 @@ namespace Spreads.Collections.Internal
             get => _vec.Type;
         }
 
-        public Vector Vector
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => new Vector(this);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Vector<T> GetVector<T>()
-        {
-            return new Vector<T>(this);
-        }
-
         public object this[int index]
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
-                if (unchecked((uint)index) >= unchecked((uint)_length))
+                if (unchecked((uint)index) >= unchecked((uint)_vec.Length))
                 {
                     VecThrowHelper.ThrowIndexOutOfRangeException();
                 }
@@ -245,7 +207,7 @@ namespace Spreads.Collections.Internal
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             set
             {
-                if (unchecked((uint)index) >= unchecked((uint)_length))
+                if (unchecked((uint)index) >= unchecked((uint)_vec.Length))
                 {
                     VecThrowHelper.ThrowIndexOutOfRangeException();
                 }
@@ -253,44 +215,40 @@ namespace Spreads.Collections.Internal
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public object DangerousGet(int index)
         {
-            return _vec.DangerousGet(index * _stride);
+            return _vec.DangerousGet(index);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void DangerousSet(int index, object value)
         {
-            _vec.DangerousSet(index * _stride, value);
+            _vec.DangerousSet(index, value);
         }
 
         [Obsolete("This is slow if the type T knownly matches the underlying type (the method has type check in addition to bound check). Use typed Vector<T> view over VectorStorage.")]
         public T Get<T>(int index)
         {
-            return _vec.Get<T>(index * _stride);
+            return _vec.Get<T>(index);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public T DangerousGet<T>(int index)
         {
-            return _vec.DangerousGet<T>(index * _stride);
+            return _vec.DangerousGet<T>(index);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ref T GetRef<T>(int index)
         {
-            return ref _vec.GetRef<T>(index * _stride);
+            return ref _vec.GetRef<T>(index);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ref T DangerousGetRef<T>(int index)
         {
-            return ref _vec.DangerousGetRef<T>(index * _stride);
-        }
-
-        public int Stride
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => _stride;
+            return ref _vec.DangerousGetRef<T>(index);
         }
 
         public Vec Vec
@@ -310,7 +268,7 @@ namespace Spreads.Collections.Internal
         private void Dispose(bool disposing)
         {
             var ms = _memorySource;
-            if (ms == null)
+            if (ms == null) // TODO Empty should have special _memorySource, allocated VSs should never have null ms.
             {
                 Debug.Assert(ReferenceEquals(this, Empty));
                 return;
@@ -325,17 +283,13 @@ namespace Spreads.Collections.Internal
                 {
                     ThrowDisposed();
                 }
-                _memorySource.Decrement();
+                ms.Decrement();
                 _memorySource = null;
             }
             // now we do not care about _source, it is either borrowed by other VectorStorage instances or returned to a pool/GC
 
             // clear all fields before pooling
             _vec = default;
-            // _isSorted = default;
-            _length = default;
-            // Sorting = default;
-            _stride = default;
 
             ObjectPool.Free(this);
         }
@@ -358,19 +312,22 @@ namespace Spreads.Collections.Internal
             GC.SuppressFinalize(this);
         }
 
-        // TODO need high-load test to detect if there is impact even with correct usage
+        // TODO need high-load test to detect if there is impact even with correct usage (when always disposing explicitly)
         // VS is owned by DataBlockStorage
         ~VectorStorage()
         {
-            //if (Environment.HasShutdownStarted)
-            //{
-            //    return;
-            //}
+#if DEBUG
+            Trace.TraceWarning($"Finalizing VectorStorage: {StackTrace}");
+#endif
             Dispose(false);
         }
 
         #endregion Dispose logic
     }
+
+    // TODO if we register it similarly to ArrayBinaryConverter only for blittable Ts
+    // then we could just use BinarySerializer over the wrapper and it will automatically
+    // use JSON and set the right header. We do not want to use JSON inside binary with confusing header.
 
     internal delegate int SizeOfDelegate(VectorStorage value,
         out (BufferWriter bufferWriter, SerializationFormat format) payload,
@@ -382,10 +339,6 @@ namespace Spreads.Collections.Internal
         SerializationFormat format = default);
 
     internal delegate int ReadDelegate(ref DirectBuffer source, out VectorStorage value);
-
-    // TODO is we register it similarly to ArrayBinaryConverter only for blittable Ts
-    // then we could just use BinarySerializer over the wrapper and it will automatically
-    // use JSON and set the right header. We do not want to use JSON inside binary with confusing header.
 
     internal readonly struct VectorStorage<T>
     {

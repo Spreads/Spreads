@@ -58,10 +58,10 @@ namespace Spreads.Collections.Experimental
             _flags = new Flags((byte)((byte)Mutability.ReadOnly | (byte)ks));
 
             var keyMemory = ArrayMemory<TKey>.Create(keys, externallyOwned: true);
-            var keyVs = VectorStorage.Create(keyMemory, 0, keyMemory.Length, 1);
+            var keyVs = VectorStorage.Create(keyMemory, 0, keyMemory.Length);
 
             var valMemory = ArrayMemory<TValue>.Create(values, externallyOwned: true);
-            var valVs = VectorStorage.Create(valMemory, 0, valMemory.Length, 1);
+            var valVs = VectorStorage.Create(valMemory, 0, valMemory.Length);
 
             var block = DataBlock.Create(rowIndex: keyVs, values: valVs, rowLength: keys.Length);
 

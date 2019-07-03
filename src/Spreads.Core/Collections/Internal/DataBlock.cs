@@ -13,7 +13,7 @@ using System.Runtime.CompilerServices;
 namespace Spreads.Collections.Internal
 {
     // TODO Delete, but review the original idea with WRs for data streams
-    internal interface INextBlockGetter
+    internal interface INextBlockGetterX
     {
         DataBlock GetNextBlock(DataBlock current);
     }
@@ -270,8 +270,7 @@ namespace Spreads.Collections.Internal
             {
                 newRiBuffer = BufferPool<TKey>.MemoryPool.RentMemory(newLen);
 
-                newRi = VectorStorage.Create(newRiBuffer, 0, newRiBuffer.Length,
-                    elementLength: newLen); // new buffer could be larger
+                newRi = VectorStorage.Create(newRiBuffer, 0, newRiBuffer.Length); // new buffer could be larger
                 if (ri.Length > 0)
                 {
                     ri.Vec.AsSpan<TKey>().CopyTo(newRi.Vec.AsSpan<TKey>());
@@ -279,7 +278,7 @@ namespace Spreads.Collections.Internal
 
                 newValsBuffer = BufferPool<TValue>.MemoryPool.RentMemory(newLen);
 
-                newVals = VectorStorage.Create(newValsBuffer, 0, newValsBuffer.Length, elementLength: newLen);
+                newVals = VectorStorage.Create(newValsBuffer, 0, newValsBuffer.Length);
                 if (vals.Length > 0)
                 {
                     vals.Vec.AsSpan<TValue>().CopyTo(newVals.Vec.AsSpan<TValue>());

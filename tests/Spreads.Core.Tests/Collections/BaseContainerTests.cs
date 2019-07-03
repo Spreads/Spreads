@@ -24,7 +24,7 @@ namespace Spreads.Core.Tests.Collections
             var bc = new BaseContainer<int>();
 
             var rm = ArrayMemory<int>.Create(Enumerable.Range(0, capacity).ToArray(), externallyOwned: true);
-            var vs = VectorStorage.Create(rm, 0, rm.Length, 1);
+            var vs = VectorStorage.Create(rm, 0, rm.Length);
 
             var block = DataBlock.Create(rowIndex: vs, rowLength: vs.Length / 2);
 
@@ -46,7 +46,7 @@ namespace Spreads.Core.Tests.Collections
             var bc = new BaseContainer<long>();
 
             var rm = ArrayMemory<long>.Create(Enumerable.Range(0, capacity).Select(x => (long)x).ToArray(), externallyOwned: true);
-            var vs = VectorStorage.Create(rm, 0, rm.Length, 1);
+            var vs = VectorStorage.Create(rm, 0, rm.Length);
 
             var block = DataBlock.Create(rowIndex: vs, rowLength: vs.Length / 2);
 
@@ -73,7 +73,7 @@ namespace Spreads.Core.Tests.Collections
             var capacity = count / 100;
             var bc = new BaseContainer<int>();
             var rm = ArrayMemory<int>.Create(Enumerable.Range(0, capacity).ToArray(), externallyOwned: true);
-            var vs = VectorStorage.Create(rm, 0, rm.Length, 1);
+            var vs = VectorStorage.Create(rm, 0, rm.Length);
 
             var block = DataBlock.Create(rowIndex: vs, rowLength: vs.Length);
 
@@ -113,7 +113,7 @@ namespace Spreads.Core.Tests.Collections
             var capacity = 100;
             var bc = new BaseContainer<long>();
             var rm = ArrayMemory<long>.Create(Enumerable.Range(0, capacity).Select(x => (long)x).ToArray(), externallyOwned: true);
-            var vs = VectorStorage.Create(rm, 0, rm.Length, 1);
+            var vs = VectorStorage.Create(rm, 0, rm.Length);
 
             var block = DataBlock.Create(rowIndex: vs, rowLength: vs.Length / 2);
 
@@ -140,7 +140,7 @@ namespace Spreads.Core.Tests.Collections
             var bc = new BaseContainer<int>();
 
             var rm = ArrayMemory<int>.Create(Enumerable.Range(0, capacity).ToArray(), externallyOwned: true);
-            var vs = VectorStorage.Create(rm, 0, rm.Length, 1);
+            var vs = VectorStorage.Create(rm, 0, rm.Length);
 
             var block = DataBlock.Create(rowIndex: vs, rowLength: vs.Length);
 

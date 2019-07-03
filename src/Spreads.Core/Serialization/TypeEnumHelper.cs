@@ -316,10 +316,9 @@ namespace Spreads.Serialization
 
             if (te == TypeEnum.Array)
             {
-                var func = ReflectionHelper.MakeFunc<TypeEnumHelper<T>, DataTypeHeader>(
-                    nameof(CreateArrayInfo),
-                    typeof(T).GetElementType()
-                );
+                var tyT = typeof(T);
+                var tyG = tyT.IsArray ? tyT.GetElementType() : tyT.GetGenericArguments()[0];
+                var func = ReflectionHelper.MakeFunc<TypeEnumHelper<T>, DataTypeHeader>(nameof(CreateArrayInfo), tyG);
                 var header = func();
                 return new TypeEnumInfo()
                 {

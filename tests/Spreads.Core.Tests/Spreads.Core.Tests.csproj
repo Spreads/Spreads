@@ -22,7 +22,9 @@
 
     <ItemGroup>
         <PackageReference Include="CRC32C.Standard" Version="1.0.0" />
+        <PackageReference Include="Disruptor" Version="3.4.2" />
         <PackageReference Include="FSharp.Core" Version="4.6.2" />
+        <PackageReference Include="FSharpx.Collections" Version="2.0.0" />
         <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Scripting" Version="3.0.0-beta4-final" />
         <PackageReference Include="Microsoft.CSharp" Version="4.6.0-preview1-27018-01" />
         <PackageReference Include="Microsoft.IO.RecyclableMemoryStream" Version="1.2.2" />

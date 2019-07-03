@@ -11,6 +11,7 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using FSharpx.Collections;
 using ObjectLayoutInspector;
 
 namespace Spreads.Core.Tests.Performance
@@ -123,6 +124,65 @@ namespace Spreads.Core.Tests.Performance
                 }
             }
         }
+
+
+
+
+        #region PHM
+
+        [Test]
+        public void PersistentHashMap()
+        {
+            var count = TestUtils.GetBenchCount(1_000_000);
+            var rounds = 5;
+            var im = PersistentHashMap<long, long>.Empty();
+            
+            for (int r = 0; r < rounds; r++)
+            {
+                im = PHM_Add(count);
+                PHM_Get(count, im);
+            }
+
+            Benchmark.Dump();
+
+            
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining | MethodImplOptions.AggressiveOptimization)]
+        private static PersistentHashMap<long, long> PHM_Add(long count)
+        {
+            PersistentHashMap<long, long> im;
+            im = PersistentHashMap<long, long>.Empty();
+            using (Benchmark.Run("Add", count))
+            {
+                for (int i = 0; i < count; i++)
+                {
+                    im = im.Add(i, i);
+                }
+
+                GC.Collect(2, GCCollectionMode.Forced, true);
+                GC.WaitForPendingFinalizers();
+                GC.Collect(2, GCCollectionMode.Forced, true);
+                GC.WaitForPendingFinalizers();
+            }
+
+            return im;
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining | MethodImplOptions.AggressiveOptimization)]
+        private static void PHM_Get(long count, PersistentHashMap<long, long> im)
+        {
+            using (Benchmark.Run("Get", count))
+            {
+                var sum = 0L;
+                for (int i = 0; i < count; i++)
+                {
+                    sum += im[i];
+                }
+            }
+        }
+
+        #endregion
 
         private static TV Find<TK, TV>(KeyComparer<TK> comparer, TK k, MapTree<TK, TV> m)
         {

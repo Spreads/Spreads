@@ -33,6 +33,7 @@ open Spreads.Collections
 open Spreads.Utils
 open Spreads
 open Spreads.Collections.Concurrent
+open Spreads.Collections.Internal
 open System
 open System.Net.Http.Headers
 

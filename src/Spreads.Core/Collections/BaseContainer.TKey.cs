@@ -23,8 +23,8 @@ namespace Spreads.Collections
 
         protected internal KeyComparer<TKey> _comparer = default;
 
-        internal DataBlock DataBlock;
-        internal DataBlockSource<TKey> DataSource;
+        internal DataBlock? DataBlock;
+        internal DataBlockSource<TKey>? DataSource;
 
         // TODO we are forking existing series implementation from here
         // All containers inherit this.
@@ -59,8 +59,6 @@ namespace Spreads.Collections
 
             if (block != null)
             {
-                Debug.Assert(block.RowIndex._stride == 1);
-
                 blockIndex = VectorSearch.SortedSearch(ref block.RowIndex.DangerousGetRef<TKey>(0),
                     block.RowLength, key, _comparer);
 
@@ -101,8 +99,6 @@ namespace Spreads.Collections
 
                 if (block != null)
                 {
-                    Debug.Assert(block.RowIndex._stride == 1);
-
                     var blockIndex = VectorSearch.SortedSearch(ref block.RowIndex.DangerousGetRef<TKey>(0),
                         block.RowLength, key, _comparer);
 
@@ -278,8 +274,6 @@ namespace Spreads.Collections
 
                 // Here we use internal knowledge that for series RowIndex in contiguous vec
                 // TODO(?) do check if VS is pure, allow strides > 1 or just create Nth cursor?
-
-                Debug.Assert(block.RowIndex._stride == 1);
 
                 // TODO if _stride > 1 is valid at some point, optimize this search via non-generic IVector with generic getter
                 // ReSharper disable once PossibleNullReferenceException

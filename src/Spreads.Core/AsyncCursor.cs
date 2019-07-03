@@ -13,6 +13,7 @@ using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Sources;
+using Spreads.Collections.Internal;
 
 namespace Spreads
 {

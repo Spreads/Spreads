@@ -26,11 +26,6 @@ namespace Spreads.Collections
             return (_array as IEnumerable<T>).GetEnumerator();
         }
 
-        IEnumerator IEnumerable.GetEnumerator()
-        {
-            return _array.GetEnumerator();
-        }
-
         public int Count
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]

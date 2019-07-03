@@ -6,6 +6,12 @@
     <RootNamespace>Spreads</RootNamespace>
     <PackageId>Spreads</PackageId>
     <OutputType>Library</OutputType>
+
+    <LangVersion>8.0</LangVersion>
+    <Nullable>enable</Nullable>
+    <NullableContextOptions>enable</NullableContextOptions>
+    <NullableReferenceTypes>true</NullableReferenceTypes>
+    <!-- TODO <WarningsAsErrors>CS8600;CS8602;CS8603</WarningsAsErrors>-->
   </PropertyGroup>
 
   <ItemGroup>

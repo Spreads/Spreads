@@ -6,6 +6,12 @@ using System.Runtime.Serialization;
 
 namespace Spreads.Serialization
 {
+    // Should be DataSchema, not ContainerSchema
+    // Projections must (should/could - optional?) be able to build schema?
+    // Projections are in-memory generics, we could possibly build schema via reflection
+    // Could model after ML.NET IDataView schema, but we need it serializable with TypeEnum
+
+
     /// <summary>
     /// DTO for a container schema.
     /// </summary>

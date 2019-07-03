@@ -26,7 +26,7 @@ namespace Spreads.Collections.Internal
     // TODO fallback to ArrayWrapperSerializer with params
     // TODO do not throw not supported, just do not register a binary serializer
     // and add Json formatter.
-    internal class VectorStorageSerializer<T> : BinarySerializer<VectorStorage<T>>
+    internal class VectorStorageSerializer<T> : InternalSerializer<VectorStorage<T>>
     {
         public override byte KnownTypeId => 0;
 
@@ -34,7 +34,7 @@ namespace Spreads.Collections.Internal
 
         public override int SizeOf(in VectorStorage<T> value, BufferWriter payload)
         {
-            if (value.Storage.Stride != 1 || !TypeHelper<T>.IsFixedSize)
+            if (!TypeHelper<T>.IsFixedSize)
             {
                 ThrowHelper.ThrowNotSupportedException();
             }
@@ -43,7 +43,7 @@ namespace Spreads.Collections.Internal
 
         public override unsafe int Write(in VectorStorage<T> value, DirectBuffer destination)
         {
-            if (value.Storage.Stride != 1 || !TypeHelper<T>.IsFixedSize)
+            if (!TypeHelper<T>.IsFixedSize)
             {
                 ThrowHelper.ThrowNotSupportedException();
             }

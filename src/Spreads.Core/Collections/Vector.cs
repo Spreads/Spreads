@@ -5,7 +5,6 @@
 using Spreads.Collections.Internal;
 using Spreads.Native;
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
@@ -18,6 +17,7 @@ namespace Spreads.Collections
 
     // TODO check order version if storage is mutable?
 
+    [Obsolete("Do not use internally, maybe keep as a public API later")]
     public readonly struct Vector : IVector
     {
         // We keep dangerous readonly methods because they could only crash app or get wrong data
@@ -32,11 +32,11 @@ namespace Spreads.Collections
             _vectorStorage = vectorStorage;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Vector<T> As<T>()
-        {
-            return _vectorStorage.GetVector<T>();
-        }
+        //[MethodImpl(MethodImplOptions.AggressiveInlining)]
+        //public Vector<T> As<T>()
+        //{
+        //    return _vectorStorage.GetVector<T>();
+        //}
 
         public object this[int index]
         {
@@ -103,7 +103,9 @@ namespace Spreads.Collections
 
     public readonly struct Vector<T> : IVector<T>
     {
-        internal readonly VectorStorage _vectorStorage;
+        // Mainly used as a strongly-typed view over VectorStorage
+
+        internal readonly VectorStorage? _vectorStorage;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal Vector(VectorStorage vectorStorage)
@@ -158,7 +160,7 @@ namespace Spreads.Collections
         public T Get(int index)
         {
             // type is checked in ctor, only BC
-            if (unchecked((uint)index) >= unchecked((uint)_vectorStorage._length))
+            if (unchecked((uint)index) >= unchecked((uint)_vectorStorage.Length))
             {
                 VecThrowHelper.ThrowIndexOutOfRangeException();
             }
@@ -169,21 +171,21 @@ namespace Spreads.Collections
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public T DangerousGet(int index)
         {
-            return _vectorStorage.DangerousGet<T>(index);
+            return _vectorStorage!.DangerousGet<T>(index);
         }
 
         [EditorBrowsable(EditorBrowsableState.Never)]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ref readonly T DangerousGetRef(int index)
         {
-            return ref _vectorStorage.DangerousGetRef<T>(index);
+            return ref _vectorStorage!.DangerousGetRef<T>(index);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ref readonly T GetRef(int index)
         {
             // type is checked in ctor, only BC
-            if (unchecked((uint)index) >= unchecked((uint)_vectorStorage._length))
+            if (unchecked((uint)index) >= unchecked((uint)_vectorStorage.Length))
             {
                 VecThrowHelper.ThrowIndexOutOfRangeException();
             }
@@ -207,14 +209,5 @@ namespace Spreads.Collections
         {
             throw new NotImplementedException();
         }
-
-        IEnumerator IEnumerable.GetEnumerator()
-        {
-            return GetEnumerator();
-        }
-
-        int IReadOnlyCollection<T>.Count => Length;
     }
-
-    
 }
