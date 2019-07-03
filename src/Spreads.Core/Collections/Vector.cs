@@ -105,7 +105,7 @@ namespace Spreads.Collections
     {
         // Mainly used as a strongly-typed view over VectorStorage
 
-        internal readonly VectorStorage? _vectorStorage;
+        internal readonly VectorStorage _vectorStorage;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal Vector(VectorStorage vectorStorage)

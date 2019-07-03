@@ -3,73 +3,29 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 using Spreads.Buffers;
-using Spreads.Collections.Concurrent;
 using Spreads.Native;
 using Spreads.Serialization;
 using System;
-using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
 namespace Spreads.Collections.Internal
 {
-    // **Ownership rules**
-    // * Vector storage is owned by DataStorage
-    // * Matrix: DataStorage could create multiple VS columns over the same memory,
-    //   but in that case there must be DS._values that owns a reference to memory
-    //   and the columns MUST NOT increment increment RC for that memory
-    // * If DS columns point to different memory then DS._values must be null and
-    //   each column owns its reference.
-    // * VS owns a reference when its _handle field is not default. It's OK to call Free on default to simplify disposal implementation.
-
-    // TODO comments are just thoughts, most relevant at the bottom, work in progress
-
-    // Design: this may be a struct if we could handle ownership, which
-    // implies that is it always owned by another container.
-    // Structural sharing: IPinnable with Unpin in dispose
-    // Every vector owns a reference to memory manager
-
-    // A. This could be a publicly immutable struct with internal mutability methods and internal Dispose(Unpin/Return) method.
-    // Then we could return it as a row of matrices/frames
-
-    // Vec/Vec<T> is logical representation of continuous storage.
-    // Vector/Vector<T> is logical vector. It could be continuous or not.
-
-    //[StructLayout(LayoutKind.Sequential)]
-    //internal class Vector<T> : VectorStorage
-    //{
-    //    // no storage in typed Vector
-
-    //    public Vector(RetainableMemory<T> memoryManager, int start, int length)
-    //    {
-    //        _source = memoryManager;
-    //        // store the handle as a field
-    //        var handle = _source.Pin(start);
-
-    //        if (MemoryMarshal.TryGetArray<T>(memoryManager.Memory, out var segment))
-    //        {
-    //            var vec = new Vec<T>(segment.Array, segment.Offset, segment.Count);
-    //        }
-    //    }
-    //}
-
     /// <summary>
-    /// VectorStorage is logical representation of data and its source, of which it borrows a counted reference.
+    /// VectorStorage is a grouping of data and its source, of which it borrows a counted reference.
     /// </summary>
     [StructLayout(LayoutKind.Sequential)]
-    internal sealed class VectorStorage : IDisposable, IVector
+    internal readonly struct VectorStorage : IDisposable, IVector, IEquatable<VectorStorage>
     {
-        // TODO (review): this could be made a struct if it is always owned by a class container
 #if DEBUG
         private string StackTrace = Environment.StackTrace;
 #endif
 
-        public static readonly VectorStorage Empty = new VectorStorage();
-
-        private static readonly ObjectPool<VectorStorage> ObjectPool = new ObjectPool<VectorStorage>(() => new VectorStorage(), Environment.ProcessorCount * 16);
-
-        private VectorStorage()
-        { }
+        private VectorStorage(IRefCounted memorySource, Vec vec)
+        {
+            _memorySource = memorySource;
+            _vec = vec;
+        }
 
         /// <summary>
         /// A source that owns Vec memory.
@@ -77,9 +33,9 @@ namespace Spreads.Collections.Internal
         /// <remarks>
         /// This is intended to be <see cref="RetainableMemory{T}"/>, but we do not have T here and only care about ref counting.
         /// </remarks>
-        internal IRefCounted? _memorySource;
+        internal readonly IRefCounted _memorySource;
 
-        private Vec _vec;
+        private readonly Vec _vec;
 
         /// <summary>
         /// Returns new VectorStorage instance with the same memory source but (optionally) different memory start, length and stride.
@@ -90,16 +46,15 @@ namespace Spreads.Collections.Internal
             int length,
             bool externallyOwned = false)
         {
-            var vs = ObjectPool.Allocate();
-
-            vs._memorySource = _memorySource;
+            var ms = _memorySource;
+            var vec = _vec.Slice(start, length);
 
             if (!externallyOwned)
             {
-                vs._memorySource!.Increment();
+                ms!.Increment();
             }
 
-            vs._vec = _vec.Slice(start, length);
+            var vs = new VectorStorage(ms, vec);
 
             // TODO move stride logic elsewhere
             //var numberOfStridesFromZero = vs._vec.Length;
@@ -134,16 +89,15 @@ namespace Spreads.Collections.Internal
             int length,
             bool externallyOwned = false)
         {
-            var vs = ObjectPool.Allocate();
-
-            vs._memorySource = memorySource ?? throw new ArgumentNullException(nameof(memorySource));
+            var ms = memorySource ?? throw new ArgumentNullException(nameof(memorySource));
+            var vec = ms.Vec.AsVec().Slice(start, length);
 
             if (!externallyOwned)
             {
-                vs._memorySource.Increment();
+                ms.Increment();
             }
 
-            vs._vec = memorySource.Vec.AsVec().Slice(start, length);
+            var vs = new VectorStorage(ms, vec);
 
             // TODO move stride logic elsewhere
             //vs._stride = stride;
@@ -257,72 +211,46 @@ namespace Spreads.Collections.Internal
             get => _vec;
         }
 
-        #region Dispose logic
-
-        public bool IsDisposed
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => _memorySource == null;
-        }
-
-        private void Dispose(bool disposing)
-        {
-            var ms = _memorySource;
-            if (ms == null) // TODO Empty should have special _memorySource, allocated VSs should never have null ms.
-            {
-                Debug.Assert(ReferenceEquals(this, Empty));
-                return;
-            }
-            lock (ms)
-            {
-                if (!disposing)
-                {
-                    WarnFinalizing();
-                }
-                if (IsDisposed)
-                {
-                    ThrowDisposed();
-                }
-                ms.Decrement();
-                _memorySource = null;
-            }
-            // now we do not care about _source, it is either borrowed by other VectorStorage instances or returned to a pool/GC
-
-            // clear all fields before pooling
-            _vec = default;
-
-            ObjectPool.Free(this);
-        }
-
-        [MethodImpl(MethodImplOptions.NoInlining)]
-        private void WarnFinalizing()
-        {
-            Trace.TraceWarning("Finalizing VectorStorage. It must be properly disposed. \n "); // + StackTrace);
-        }
-
-        [MethodImpl(MethodImplOptions.NoInlining)]
-        private static void ThrowDisposed()
-        {
-            ThrowHelper.ThrowObjectDisposedException("source");
-        }
-
         public void Dispose()
         {
-            Dispose(true);
-            GC.SuppressFinalize(this);
+            _memorySource?.Decrement();
         }
 
-        // TODO need high-load test to detect if there is impact even with correct usage (when always disposing explicitly)
-        // VS is owned by DataBlockStorage
-        ~VectorStorage()
+        public bool Equals(VectorStorage other)
         {
-#if DEBUG
-            Trace.TraceWarning($"Finalizing VectorStorage: {StackTrace}");
-#endif
-            Dispose(false);
+            if (ReferenceEquals(_memorySource, other._memorySource)
+                && Length == other.Length)
+            {
+                if (_memorySource != null)
+                {
+                    return Length == 0 || Unsafe.AreSame(ref DangerousGetRef<byte>(0), ref other.DangerousGetRef<byte>(0));
+                }
+
+                return other._memorySource == null;
+            }
+
+            return false;
         }
 
-        #endregion Dispose logic
+        public override bool Equals(object obj)
+        {
+            return obj is VectorStorage other && Equals(other);
+        }
+
+        public override int GetHashCode()
+        {
+            throw new NotSupportedException();
+        }
+
+        public static bool operator ==(VectorStorage left, VectorStorage right)
+        {
+            return left.Equals(right);
+        }
+
+        public static bool operator !=(VectorStorage left, VectorStorage right)
+        {
+            return !(left == right);
+        }
     }
 
     // TODO if we register it similarly to ArrayBinaryConverter only for blittable Ts

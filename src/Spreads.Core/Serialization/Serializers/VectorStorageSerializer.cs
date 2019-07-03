@@ -143,7 +143,7 @@ namespace Spreads.Collections.Internal
             }
             else
             {
-                value = new VectorStorage<T>(VectorStorage.Empty);
+                value = new VectorStorage<T>(default);
             }
 
             return 4 + payloadSize;

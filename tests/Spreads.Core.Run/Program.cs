@@ -9,6 +9,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Spreads.Core.Tests.Algorithms;
 using Spreads.Core.Tests.Collections;
+using Spreads.Core.Tests.Collections.Internal;
 using Spreads.Core.Tests.Cursors;
 using Spreads.Core.Tests.Performance;
 
@@ -41,8 +42,8 @@ namespace Spreads.Core.Run
             ExecutionContext.SuppressFlow();
             Settings.SharedSpinLockNotificationPort = 53412;
 
-            var test = new ImmutableTests();
-            test.PersistentHashMap();
+            var test = new VectorStorageTests();
+            test.VectorStorageReadBench();
 
             // Console.WriteLine("Finished, press enter to exit...");
             // Console.ReadLine();

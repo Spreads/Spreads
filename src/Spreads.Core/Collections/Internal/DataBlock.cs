@@ -32,30 +32,30 @@ namespace Spreads.Collections.Internal
         { }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static DataBlock Create(VectorStorage rowIndex = null, VectorStorage columnIndex = null, VectorStorage values = null, VectorStorage[] columns = null, int rowLength = -1)
+        public static DataBlock Create(VectorStorage rowIndex = default, VectorStorage columnIndex = default, VectorStorage values = default, VectorStorage[]? columns = null, int rowLength = -1)
         {
             var block = ObjectPool.Allocate();
 
             Debug.Assert(block._rowLength == -1);
-            Debug.Assert(block._values == VectorStorage.Empty);
-            Debug.Assert(block._rowIndex == VectorStorage.Empty);
-            Debug.Assert(block._columnIndex == VectorStorage.Empty);
+            Debug.Assert(block._values == default);
+            Debug.Assert(block._rowIndex == default);
+            Debug.Assert(block._columnIndex == default);
             Debug.Assert(block._columns == null);
 
             var maxRowLen = 0;
 
-            if (rowIndex != null)
+            if (rowIndex != default)
             {
                 block._rowIndex = rowIndex;
                 maxRowLen = rowIndex.Length;
             }
 
-            if (columnIndex != null)
+            if (columnIndex != default)
             {
                 block._columnIndex = columnIndex;
             }
 
-            if (values != null)
+            if (values != default)
             {
                 block._values = values;
                 maxRowLen = Math.Min(maxRowLen, values.Length);
@@ -104,11 +104,11 @@ namespace Spreads.Collections.Internal
         // internal int RowCapacity;
 
         // TODO these should be lazy?
-        private VectorStorage _rowIndex = VectorStorage.Empty;
+        private VectorStorage _rowIndex;
 
-        private VectorStorage _columnIndex = VectorStorage.Empty;
+        private VectorStorage _values;
 
-        private VectorStorage _values = VectorStorage.Empty;
+        private VectorStorage _columnIndex;
 
         private VectorStorage[] _columns; // arrays is allocated and GCed, so far OK
 
@@ -167,7 +167,7 @@ namespace Spreads.Collections.Internal
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
-                if (_rowIndex == null)
+                if (_rowIndex == default)
                 {
                     // TODO lazy load if lazy is supported
                 }
@@ -180,7 +180,7 @@ namespace Spreads.Collections.Internal
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
-                if (_rowIndex == null)
+                if (_rowIndex == default)
                 {
                     // TODO lazy load if lazy is supported
                 }
@@ -262,9 +262,9 @@ namespace Spreads.Collections.Internal
             var newLen = Math.Max(minCapacity, BitUtil.FindNextPositivePowerOfTwo(ri.Length + 1));
 
             RetainableMemory<TKey> newRiBuffer = null;
-            VectorStorage newRi = null;
+            VectorStorage newRi = default;
             RetainableMemory<TValue> newValsBuffer = null;
-            VectorStorage newVals = null;
+            VectorStorage newVals = default;
 
             try
             {
@@ -286,7 +286,7 @@ namespace Spreads.Collections.Internal
             }
             catch (OutOfMemoryException)
             {
-                if (newRi != null)
+                if (newRi != default)
                 {
                     newRi.Dispose();
                 }
@@ -295,7 +295,7 @@ namespace Spreads.Collections.Internal
                     newRiBuffer?.DecrementIfOne();
                 }
 
-                if (newVals != null)
+                if (newVals != default)
                 {
                     newVals.Dispose();
                 }
@@ -357,7 +357,7 @@ namespace Spreads.Collections.Internal
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
-                if (_values == null)
+                if (_values == default)
                 {
                     return false;
                 }
@@ -384,7 +384,7 @@ namespace Spreads.Collections.Internal
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
-                if (_values == null)
+                if (_values == default)
                 {
                     return false;
                 }
@@ -443,18 +443,19 @@ namespace Spreads.Collections.Internal
                 }
 
                 // shared source by any column
-                if (colLength >= 0 && _values != null && !_columns.Any(c => c._memorySource == _values._memorySource))
+                // ReSharper disable once AssignNullToNotNullAttribute : colLength >= 0 guarantees _columns != null
+                if ( colLength >= 0 && _values != default && _columns.All(c => c._memorySource != _values._memorySource))
                 {
                     // have _value set without shared source, that is not supported
                     return false;
                 }
 
-                if (colLength == -1 && _values != null)
+                if (colLength == -1 && _values != default)
                 {
                     colLength = _values.Length;
                 }
 
-                if (_rowIndex != null && _rowIndex.Length != colLength)
+                if (_rowIndex != default && _rowIndex.Length != colLength)
                 {
                     return false;
                 }
@@ -471,7 +472,7 @@ namespace Spreads.Collections.Internal
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
-                if (_values == null)
+                if (_values == default)
                 {
                     return false;
                 }
@@ -528,22 +529,22 @@ namespace Spreads.Collections.Internal
                 _columns = null;
             }
 
-            if (_rowIndex != VectorStorage.Empty)
+            if (_rowIndex != default)
             {
                 _rowIndex.Dispose();
-                _rowIndex = VectorStorage.Empty;
+                _rowIndex = default;
             }
 
-            if (_columnIndex != VectorStorage.Empty)
+            if (_columnIndex != default)
             {
                 _columnIndex.Dispose();
-                _columnIndex = VectorStorage.Empty;
+                _columnIndex = default;
             }
 
-            if (_values != VectorStorage.Empty)
+            if (_values != default)
             {
                 _values.Dispose();
-                _values = VectorStorage.Empty;
+                _values = default;
             }
 
             ObjectPool.Free(this);

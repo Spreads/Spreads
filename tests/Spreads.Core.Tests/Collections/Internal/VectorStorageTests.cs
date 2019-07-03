@@ -18,6 +18,36 @@ namespace Spreads.Core.Tests.Collections.Internal
     [TestFixture]
     public unsafe class VectorStorageTests
     {
+        [Test, Explicit("output")]
+        public void SizeOfVectorStorage()
+        {
+            ObjectLayoutInspector.TypeLayout.PrintLayout<VectorStorage>();
+        }
+
+        [Test]
+        public void Equality()
+        {
+            VectorStorage vs1 = default;
+            VectorStorage vs2 = default;
+            Assert.AreEqual(vs1, vs2);
+            Assert.AreEqual(vs1.Length, 0);
+
+            var count = 1000;
+            var arr = Enumerable.Range(0, count).ToArray();
+            var r = ArrayMemory<int>.Create(arr, 0, arr.Length, externallyOwned: true, pin: true);
+            var vs = VectorStorage.Create(r, 0, r.Length);
+
+            Assert.AreNotEqual(vs1, vs);
+
+            var vsCopy = vs.Slice(0, vs.Length, true);
+            var vsSlice = vs.Slice(0, vs.Length - 1, true);
+
+            Assert.AreEqual(vs, vsCopy);
+            Assert.AreNotEqual(vs, vsSlice);
+
+            vs.Dispose();
+        }
+
         [Test]
         public void CouldCreateVsAndReadElements()
         {
@@ -42,7 +72,6 @@ namespace Spreads.Core.Tests.Collections.Internal
 
             vs.Dispose();
 
-            Assert.IsTrue(vs.IsDisposed);
         }
 
         [Test]
@@ -112,7 +141,6 @@ namespace Spreads.Core.Tests.Collections.Internal
             }
 
             vs.Dispose();
-            Assert.IsTrue(vs.IsDisposed);
         }
 
         //[Test]
@@ -121,6 +149,8 @@ namespace Spreads.Core.Tests.Collections.Internal
         //    VectorStorage.Empty.Dispose();
         //}
 
+        
+        [MethodImpl(MethodImplOptions.NoInlining | MethodImplOptions.AggressiveOptimization)]
         [Test, Explicit("long running")]
         public void VectorStorageReadBench()
         {
@@ -145,10 +175,10 @@ namespace Spreads.Core.Tests.Collections.Internal
                         for (int i = 0; i < vs.Length; i++)
                         {
                             var vi = vs.DangerousGet<int>(i);
-                            if (vi != i)
-                            {
-                                Assert.Fail("vi != i");
-                            }
+                            //if (vi != i)
+                            //{
+                            //    Assert.Fail("vi != i");
+                            //}
 
                             unchecked
                             {
@@ -191,7 +221,6 @@ namespace Spreads.Core.Tests.Collections.Internal
 
             vs.Dispose();
 
-            Assert.IsTrue(vs.IsDisposed);
         }
     }
 }

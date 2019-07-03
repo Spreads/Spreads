@@ -5,7 +5,7 @@
         <AssemblyName>Spreads.Core.Tests</AssemblyName>
         <RootNamespace>Spreads.Core.Tests</RootNamespace>
         <LangVersion>8.0</LangVersion>
-        <TieredCompilation>true</TieredCompilation>
+        <TieredCompilation>false</TieredCompilation>
     </PropertyGroup>
 
     <PropertyGroup>
