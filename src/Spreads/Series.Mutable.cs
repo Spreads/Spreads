@@ -5,13 +5,11 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using Spreads.Collections.Internal;
 
-namespace Spreads.X
+namespace Spreads
 {
     public partial class Series<TKey, TValue> : IMutableSeries<TKey, TValue>
     {
-        
         [Obsolete]
         public long Count => throw new System.NotImplementedException();
 

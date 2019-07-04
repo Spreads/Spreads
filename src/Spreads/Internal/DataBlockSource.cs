@@ -2,21 +2,13 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-using Spreads.Collections.Experimental;
-using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
-using System.Runtime.CompilerServices;
-using System.Threading.Tasks;
 using Spreads.Collections.Internal;
+using System;
+using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 
-namespace Spreads.X.Internal
+namespace Spreads.Internal
 {
-
-
-
     internal class DataBlockSource<TKey> : IDisposable //  ISeries<TKey, DataBlock>, // TODO review: we do not need ISeries, we expose only needed methods and could inject inner implementation
     {
         /// <summary>

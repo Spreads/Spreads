@@ -12,7 +12,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using Spreads.DataTypes;
-using Spreads.X;
+using Spreads.Deprecated;
+using Spreads.Internal;
 
 namespace Spreads.Core.Tests.Collections.Internal
 {
@@ -103,7 +104,7 @@ namespace Spreads.Core.Tests.Collections.Internal
                 sl.Add(i, i);
             }
 
-            var series = new Spreads.X.Series<int, int>(Enumerable.Range(0, count).ToArray(),
+            var series = new Series<int, int>(Enumerable.Range(0, count).ToArray(),
                 Enumerable.Range(0, count).ToArray());
 
             for (int r = 0; r < rounds; r++)
@@ -134,7 +135,7 @@ namespace Spreads.Core.Tests.Collections.Internal
                     | MethodImplOptions.AggressiveOptimization
 #endif
         )]
-        private static void MoveNextBenchSeries(Spreads.X.Series<int, int> sm, int count, int mult)
+        private static void MoveNextBenchSeries(Series<int, int> sm, int count, int mult)
         {
             // warm up
             for (int _ = 0; _ < 1; _++)

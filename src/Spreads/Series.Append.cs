@@ -9,9 +9,9 @@ using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
-using Spreads.X.Internal;
+using Spreads.Internal;
 
-namespace Spreads.X
+namespace Spreads
 {
     // ReSharper disable once RedundantExtendsListEntry
     public partial class Series<TKey, TValue> : IAppendSeries<TKey, TValue>

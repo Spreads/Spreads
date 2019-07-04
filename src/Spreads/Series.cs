@@ -10,7 +10,7 @@ using System.Runtime.CompilerServices;
 using System.Threading;
 using Spreads.Collections;
 
-namespace Spreads.X
+namespace Spreads
 {
     // TODO Interfaces to match hierarchy
 

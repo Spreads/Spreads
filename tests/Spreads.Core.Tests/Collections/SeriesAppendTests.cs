@@ -7,6 +7,7 @@ using Spreads.Buffers;
 using Spreads.Collections;
 using Spreads.Collections.Experimental;
 using Spreads.Collections.Internal;
+using Spreads.Deprecated;
 using Spreads.Utils;
 using System;
 using System.Collections.Generic;
@@ -22,7 +23,7 @@ namespace Spreads.Core.Tests.Collections
         [Test, Ignore("broken")] // TODO
         public void CouldAppendSeries()
         {
-            var sa = new Spreads.X.Series<int, int>(DataBlock.Empty);
+            var sa = new Series<int, int>(DataBlock.Empty);
 
             Assert.IsTrue(sa.TryAddLast(1, 1).Result);
             Assert.IsFalse(sa.TryAddLast(1, 1).Result);
@@ -79,7 +80,7 @@ namespace Spreads.Core.Tests.Collections
             int count = 10_000_000;
             int rounds = 100;
 
-            var sa = new Spreads.X.Series<int, int>(DataBlock.Empty);
+            var sa = new Series<int, int>(DataBlock.Empty);
             var sm = new SortedMap<int, int>();
 
             //for (int r = 0; r < rounds; r++)
@@ -142,13 +143,13 @@ namespace Spreads.Core.Tests.Collections
 
             // TODO disposal
 
-            var sas = new List<Spreads.X.Series<long, long>>();
+            var sas = new List<Series<long, long>>();
             var counts = new[] { 10, 100, 1000, 10_000, 100_000, 1_000_000, 10_000_000, 100_000_000 };
             foreach (var count in counts)
             {
                 long rounds = 10;
 
-                var sa = new Spreads.X.Series<long, long>(DataBlock.Empty);
+                var sa = new Series<long, long>(DataBlock.Empty);
                 sas.Add(sa);
                 var sm = new SortedMap<long, long>();
                 for (int i = 0; i < count; i++)
@@ -192,7 +193,7 @@ namespace Spreads.Core.Tests.Collections
                     | MethodImplOptions.AggressiveOptimization
 #endif
         )]
-        private static void AppendSeriesTGBench(int count, int mult, Spreads.X.Series<long, long> sa)
+        private static void AppendSeriesTGBench(int count, int mult, Series<long, long> sa)
         {
             using (Benchmark.Run($"AS.TG {count.ToString("N")}", count * mult))
             {

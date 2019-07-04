@@ -11,10 +11,9 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
-using Spreads.Collections;
 using Spreads.Collections.Internal;
 
-namespace Spreads.X
+namespace Spreads.Internal
 {
     // TODO maybe it's possible to create a single cursor for all containers?
 
@@ -106,7 +105,7 @@ namespace Spreads.X
                 found = _source.TryFindBlockAt(ref key, direction, out nextBlock, out nextPosition, updateDataBlock: false);
                 if (found)
                 {
-                    if (typeof(TContainer) == typeof(X.Series<TKey, TValue>))
+                    if (typeof(TContainer) == typeof(Series<TKey, TValue>))
                     {
                         // TODO review. Via _vec is much faster but we assume that stride is 1
                         v = _currentBlock.Values.DangerousGetRef<TValue>(nextPosition);
@@ -175,7 +174,7 @@ namespace Spreads.X
 
                 k = _currentBlock.RowKeys.DangerousGetRef<TKey>((int)nextPosition); // Note: do not use _blockPosition, it's 20% slower than second cast to int
 
-                if (typeof(TContainer) == typeof(X.Series<TKey, TValue>))
+                if (typeof(TContainer) == typeof(Series<TKey, TValue>))
                 {
                     // TODO review. Via _vec is much faster but we assume that stride is 1
                     v = _currentBlock.Values.DangerousGetRef<TValue>((int)nextPosition);

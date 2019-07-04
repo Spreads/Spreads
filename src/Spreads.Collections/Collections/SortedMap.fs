@@ -4,7 +4,7 @@
 
 #nowarn "44"
 
-namespace rec Spreads.Collections
+namespace rec Spreads.Deprecated
 // TODO [x] Simplify monster method TryFindWithIndex (done)
 // TODO Test TryFindWithIndex
 // TODO Finalize new interfaces, strides are needed in containers most of all

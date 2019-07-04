@@ -6,6 +6,7 @@ using NUnit.Framework;
 using Spreads.Buffers;
 using Spreads.Collections;
 using Spreads.DataTypes;
+using Spreads.Deprecated;
 using Spreads.Serialization;
 using Spreads.Serialization.Utf8Json;
 using Spreads.Threading;

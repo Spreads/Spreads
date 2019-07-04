@@ -1,4 +1,4 @@
-﻿namespace Spreads.X.Internal.Experimental
+﻿namespace Spreads.Internal.Experimental
 {
 
     public interface ISeries<TKey> // where TKey : IIntDiffable

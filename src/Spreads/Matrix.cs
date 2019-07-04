@@ -1,4 +1,4 @@
-﻿namespace Spreads.X
+﻿namespace Spreads
 {
     // Rewrite of initial (and battle-tested) F# version using
     // Memory<T> instead of arrays as the backing

@@ -7,6 +7,7 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using NUnit.Framework;
 using Spreads.Collections;
+using Spreads.Deprecated;
 
 namespace Spreads.Core.Tests.Cursors
 {

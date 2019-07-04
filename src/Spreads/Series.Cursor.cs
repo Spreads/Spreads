@@ -8,8 +8,9 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using Spreads.Internal;
 
-namespace Spreads.X
+namespace Spreads
 {
     public partial class Series<TKey, TValue> // : IDataBlockValueGetter<TValue>
     {

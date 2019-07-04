@@ -12,6 +12,7 @@ using Spreads.Core.Tests.Collections;
 using Spreads.Core.Tests.Collections.Internal;
 using Spreads.Core.Tests.Cursors;
 using Spreads.Core.Tests.Performance;
+using Spreads.Deprecated;
 
 namespace Spreads.Core.Run
 {

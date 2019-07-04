@@ -25,7 +25,7 @@ namespace Spreads.Core.Tests
             // works
             var x1 = ds1 + ds2;
 
-            var x2 = ds1 + ds3;
+            // var x2 = ds1 + ds3;
 
             // var x3 = ds1 + (ds2 + ds2);
         }

@@ -4,6 +4,7 @@
 
 using NUnit.Framework;
 using Spreads.Collections;
+using Spreads.Deprecated;
 using Spreads.Utils;
 using System;
 using System.Threading;

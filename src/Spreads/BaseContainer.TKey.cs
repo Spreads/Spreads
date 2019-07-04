@@ -2,16 +2,16 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-using Spreads.Algorithms;
-using Spreads.Collections.Internal;
 using System;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Threading;
+using Spreads.Algorithms;
 using Spreads.Collections;
-using Spreads.X.Internal;
+using Spreads.Collections.Internal;
+using Spreads.Internal;
 
-namespace Spreads.X
+namespace Spreads
 {
     /// <summary>
     /// Base container with row keys of type <typeparamref name="TKey"/>.

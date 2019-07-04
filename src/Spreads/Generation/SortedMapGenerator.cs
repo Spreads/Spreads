@@ -7,6 +7,7 @@ using System.Diagnostics;
 using Spreads.Collections;
 using System.Threading;
 using System.Threading.Tasks;
+using Spreads.Deprecated;
 
 namespace Spreads.Generation
 {
