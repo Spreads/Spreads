@@ -5,6 +5,7 @@
 // ReSharper disable once CheckNamespace
 
 using Spreads.Collections;
+using Spreads.Deprecated;
 
 namespace Spreads
 {

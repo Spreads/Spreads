@@ -150,9 +150,9 @@ namespace Spreads.Collections.Internal
             var minCapacity = Math.Max(newCapacity, Settings.MIN_POOLED_BUFFER_LEN);
             var newLen = Math.Max(minCapacity, BitUtil.FindNextPositivePowerOfTwo(ri.Length + 1));
 
-            RetainableMemory<TKey> newRiBuffer = null;
+            RetainableMemory<TKey>? newRiBuffer = null;
             VectorStorage newRi = default;
-            RetainableMemory<TValue> newValsBuffer = null;
+            RetainableMemory<TValue>? newValsBuffer = null;
             VectorStorage newVals = default;
 
             try

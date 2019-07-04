@@ -6,6 +6,7 @@ using Spreads.Utils;
 using System;
 using System.Diagnostics;
 using System.Linq;
+using Spreads.Deprecated;
 
 // ReSharper disable once CheckNamespace
 namespace Spreads

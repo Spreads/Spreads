@@ -9,14 +9,16 @@ using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
+using Spreads.X.Internal;
 
-namespace Spreads.Collections.Experimental
+namespace Spreads.X
 {
-    public class AppendSeries<TKey, TValue> : Series<TKey, TValue>, IAppendSeries<TKey, TValue>
+    // ReSharper disable once RedundantExtendsListEntry
+    public partial class Series<TKey, TValue> : IAppendSeries<TKey, TValue>
     {
         private static readonly int MaxBufferLength = Math.Max(Settings.MIN_POOLED_BUFFER_LEN, Settings.LARGE_BUFFER_LIMIT / Math.Max(Unsafe.SizeOf<TKey>(), Unsafe.SizeOf<TValue>()));
 
-        internal AppendSeries(DataBlock initialBlock)
+        internal Series(DataBlock initialBlock)
         {
             DataBlock = initialBlock;
         }
@@ -25,22 +27,22 @@ namespace Spreads.Collections.Experimental
 
         // We could afford simple locking for mutation. We have API to create series from batches, uncontended lock is not so slow.
         // Will add manual locking via Interlocked later. It is 2.5 faster.
-        private object _syncRoot;
+        //private object _syncRoot;
 
-        protected object SyncRoot
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get
-            {
-                if (_syncRoot == null)
-                {
-                    Interlocked.CompareExchange(ref _syncRoot, new object(), null);
-                }
-                return _syncRoot;
-            }
-        }
+        //protected object SyncRoot
+        //{
+        //    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        //    get
+        //    {
+        //        if (_syncRoot == null)
+        //        {
+        //            Interlocked.CompareExchange(ref _syncRoot, new object(), null);
+        //        }
+        //        return _syncRoot;
+        //    }
+        //}
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)] // if devirt works
+        
         public virtual Task<bool> TryAddLast(TKey key, TValue value)
         {
 #pragma warning disable 618

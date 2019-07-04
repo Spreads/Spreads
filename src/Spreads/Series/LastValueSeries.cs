@@ -6,6 +6,7 @@ using Spreads.Collections;
 using System;
 using System.Collections.Generic;
 using Spreads.Cursors;
+using Spreads.Deprecated;
 
 namespace Spreads
 {

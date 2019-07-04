@@ -14,7 +14,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Spreads.Collections;
 
-namespace Spreads
+namespace Spreads.Deprecated
 {
     /// <summary>
     /// Base generic class for all series implementations.

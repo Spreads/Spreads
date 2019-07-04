@@ -10,32 +10,12 @@ using System.Diagnostics;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
+using Spreads.Collections.Internal;
 
-namespace Spreads.Collections.Internal
+namespace Spreads.X.Internal
 {
 
-    /// <summary>
-    /// This is an optional capability of <see cref="IAsyncEnumerator{T}"/> that
-    /// is detected during runtime. It is internal because it's tricky to implement
-    /// right and follow the contract and intended usage is only for DataSpreads
-    /// (loading blocks of data via async IO).
-    /// </summary>
-    /// <typeparam name="T"></typeparam>
-    internal interface IAsyncBatchEnumerator<out T>
-    {
-        // TODO this is over-complicated: we either want a block of data or not. Usage of double negative noAsync is vague, should remove it.
 
-        // Same contract as in cursors:
-        // if MoveNextBatchAsync(noAsync = true) returns false then there are no batches available synchronously
-        // (e.g. some SIMD operations such as Sum() could benefit if a SortedMap
-        // is available instantly, but they should not even try async call because normal Sum() will be faster )
-        // For IO case MoveNextBatchAsync(noAsync = true) is a happy-path, but if it returns false then a consumer
-        // must call and await MoveNextBatchAsync(noAsync = false). Only after MNB(noAsync = false) returns false there
-        // will be no batches ever and consumer must switch to per-item calls.
-        ValueTask<bool> MoveNextBatchAsync(bool noAsync);
-
-        IEnumerable<T> CurrentBatch { get; }
-    }
 
     internal class DataBlockSource<TKey> : IDisposable //  ISeries<TKey, DataBlock>, // TODO review: we do not need ISeries, we expose only needed methods and could inject inner implementation
     {
@@ -48,19 +28,19 @@ namespace Spreads.Collections.Internal
         /// DataBlock has Next property to form a linked list. If _root is set then all blocks after it are GC-rooted and won't be collected.
         /// </summary>
         // ReSharper disable once NotAccessedField.Local
-        private DataBlock _root;
+        private DataBlock? _root;
 
         /// <summary>
         /// Last block is always rooted and speeds up most frequent operations.
         /// </summary>
-        private DataBlock _last;
+        private DataBlock? _last;
 
         // This is used from locked context, do not use locked methods
         internal IMutableSeries<TKey, DataBlock> _blockSeries;
 
         public DataBlockSource()
         {
-            _blockSeries = new MutableSeries<TKey, DataBlock>(DataBlock.Create());
+            _blockSeries = new Series<TKey, DataBlock>(DataBlock.Empty);
         }
 
         internal DataBlockSource(IMutableSeries<TKey, DataBlock> blockSeries)

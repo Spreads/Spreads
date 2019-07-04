@@ -9,7 +9,7 @@ using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
-namespace Spreads.Collections.Experimental
+namespace Spreads.X
 {
     public partial class Series<TKey, TValue> // : IDataBlockValueGetter<TValue>
     {

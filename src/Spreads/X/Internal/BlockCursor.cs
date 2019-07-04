@@ -11,8 +11,10 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
+using Spreads.Collections;
+using Spreads.Collections.Internal;
 
-namespace Spreads.Collections.Internal
+namespace Spreads.X
 {
     // TODO maybe it's possible to create a single cursor for all containers?
 
@@ -27,7 +29,7 @@ namespace Spreads.Collections.Internal
     //}
 
     /// <summary>
-    /// <see cref="Collections.Experimental.Series{TKey,TValue}"/> cursor implementation.
+    /// <see cref="X.Series{TKey,TValue}"/> cursor implementation.
     /// </summary>
     [StructLayout(LayoutKind.Sequential, Pack = 4)] // This struct will be aligned to IntPtr.Size bytes because it has references, but small fields could be packed within 8 bytes.
     internal struct BlockCursor<TKey, TValue, TContainer> : ICursorNew<TKey, TValue>, ISpecializedCursor<TKey, DataBlock, BlockCursor<TKey, TValue, TContainer>>
@@ -104,7 +106,7 @@ namespace Spreads.Collections.Internal
                 found = _source.TryFindBlockAt(ref key, direction, out nextBlock, out nextPosition, updateDataBlock: false);
                 if (found)
                 {
-                    if (typeof(TContainer) == typeof(Collections.Experimental.Series<TKey, TValue>))
+                    if (typeof(TContainer) == typeof(X.Series<TKey, TValue>))
                     {
                         // TODO review. Via _vec is much faster but we assume that stride is 1
                         v = _currentBlock.Values.DangerousGetRef<TValue>(nextPosition);
@@ -173,7 +175,7 @@ namespace Spreads.Collections.Internal
 
                 k = _currentBlock.RowKeys.DangerousGetRef<TKey>((int)nextPosition); // Note: do not use _blockPosition, it's 20% slower than second cast to int
 
-                if (typeof(TContainer) == typeof(Collections.Experimental.Series<TKey, TValue>))
+                if (typeof(TContainer) == typeof(X.Series<TKey, TValue>))
                 {
                     // TODO review. Via _vec is much faster but we assume that stride is 1
                     v = _currentBlock.Values.DangerousGetRef<TValue>((int)nextPosition);

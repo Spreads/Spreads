@@ -12,7 +12,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 
-namespace Spreads.Collections
+namespace Spreads.Collections.Generic
 {
     /// <summary>
     /// Very simple heap data structure, of fixed size.

@@ -8,8 +8,9 @@ using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Threading;
+using Spreads.Collections;
 
-namespace Spreads.Collections.Experimental
+namespace Spreads.X
 {
     // TODO Interfaces to match hierarchy
 

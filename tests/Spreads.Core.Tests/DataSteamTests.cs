@@ -4,6 +4,7 @@
 
 using NUnit.Framework;
 using Spreads.DataTypes;
+using Spreads.Deprecated;
 
 namespace Spreads.Core.Tests
 {

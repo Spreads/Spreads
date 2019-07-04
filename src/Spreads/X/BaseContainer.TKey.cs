@@ -8,8 +8,10 @@ using System;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Threading;
+using Spreads.Collections;
+using Spreads.X.Internal;
 
-namespace Spreads.Collections
+namespace Spreads.X
 {
     /// <summary>
     /// Base container with row keys of type <typeparamref name="TKey"/>.

@@ -6,6 +6,7 @@ using Spreads.Utils;
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 
@@ -38,12 +39,14 @@ namespace Spreads
         /// </summary>
         /// <param name="cursor"></param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Cursor([NotNull] ICursor<TKey, TValue> cursor)
+        public Cursor(ICursor<TKey, TValue> cursor)
         {
             if (cursor == null)
             {
                 ThrowHelper.ThrowArgumentNullException("cursor");
             }
+
+            Debug.Assert(cursor != null, nameof(cursor) + " != null");
             _cursor = cursor;
         }
 

@@ -3,6 +3,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 using Spreads.Collections;
+using Spreads.Deprecated;
 
 // ReSharper disable once CheckNamespace
 namespace Spreads

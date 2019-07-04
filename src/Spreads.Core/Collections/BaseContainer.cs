@@ -200,7 +200,7 @@ namespace Spreads.Collections
         #endregion Synchronization
 
         // Union of ContainerSubscription | ThreadSafeList<ContainerSubscription> (ThreadSafeList could be implemented differently)
-        private object _subscriptions;
+        private object? _subscriptions;
 
         private class ContainerSubscription : IDisposable
         {

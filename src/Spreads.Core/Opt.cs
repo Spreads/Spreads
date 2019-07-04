@@ -36,7 +36,7 @@ namespace Spreads
     /// </summary>
     [StructLayout(LayoutKind.Sequential)]
     [DebuggerDisplay("{" + nameof(ToString) + "()}")]
-    public readonly struct Opt<T> // : IEquatable<Opt<T>>
+    public readonly struct Opt<T>
     {
         /// <summary>
         /// Missing value.
@@ -142,9 +142,9 @@ namespace Spreads
             return c <= 0 ? first : second;
         }
 
-        // NB Do not add implicit convertion to this direction, it's too easy to convert `default` to Present.
+        // Do not add implicit conversion to this direction, it's too easy to convert `default` to Present.
         // Instead, Opt.Present(...) is short enough and infers types automatically. Had bugs with this already
-        // due to this implicit operator - do not add it back! Do not try to compare with default! Be explicit!
+        // due to this implicit operator - do not add it back. Do not try to compare with default - be explicit.
         ///// <summary>
         ///// Implicit cast from a value of type <typeparamref name="T"/> to <see cref="Opt{T}"/>.
         ///// </summary>

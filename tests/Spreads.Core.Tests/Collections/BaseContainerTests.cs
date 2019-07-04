@@ -8,6 +8,7 @@ using Spreads.Collections;
 using Spreads.Collections.Internal;
 using Spreads.Utils;
 using System.Linq;
+using Spreads.X;
 
 #pragma warning disable 618
 

@@ -3,6 +3,9 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 // ReSharper disable once CheckNamespace
+
+using Spreads.Deprecated;
+
 namespace Spreads
 {
     public static partial class Series

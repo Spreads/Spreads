@@ -72,6 +72,21 @@
       <AutoGen>True</AutoGen>
       <DependentUpon>Series'3 (Operators).tt</DependentUpon>
     </None>
+    <None Update="Series%273 %28Operators%29.tt">
+      <Generator>TextTemplatingFileGenerator</Generator>
+      <LastGenOutput>Series'3 (Operators).cs</LastGenOutput>
+    </None>
+    <None Update="Series%273 %28Operators%29.tt">
+      <Generator>TextTemplatingFileGenerator</Generator>
+      <LastGenOutput>Series'3 (Operators).cs</LastGenOutput>
+    </None>
+    <None Update="Series'3 (Operators).tt">
+      <Generator>TextTemplatingFileGenerator</Generator>
+      <LastGenOutput>Series%273 %28Operators%29.cs</LastGenOutput>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <Service Include="{508349b6-6b84-4df5-91f0-309beebad82d}" />
   </ItemGroup>
 
 </Project>

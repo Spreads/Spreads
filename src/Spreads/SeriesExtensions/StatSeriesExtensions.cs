@@ -5,6 +5,7 @@
 // ReSharper disable once CheckNamespace
 
 using Spreads.DataTypes;
+using Spreads.Deprecated;
 using Spreads.Utils;
 
 // ReSharper disable once CheckNamespace

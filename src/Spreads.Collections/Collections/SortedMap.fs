@@ -31,7 +31,7 @@ open Spreads.DataTypes
 open Spreads.Serialization
 open Spreads.Collections
 open Spreads.Utils
-open Spreads
+open Spreads.Deprecated
 open Spreads.Collections.Concurrent
 open Spreads.Collections.Internal
 open System

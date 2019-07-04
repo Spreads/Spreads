@@ -7,15 +7,11 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using Spreads.Collections.Internal;
 
-namespace Spreads.Collections.Experimental
+namespace Spreads.X
 {
-    public class MutableSeries<TKey, TValue> : AppendSeries<TKey, TValue>, IMutableSeries<TKey, TValue>
+    public partial class Series<TKey, TValue> : IMutableSeries<TKey, TValue>
     {
-        internal MutableSeries(DataBlock initialBlock) : base(initialBlock)
-        {
-            
-        }
-
+        
         [Obsolete]
         public long Count => throw new System.NotImplementedException();
 
