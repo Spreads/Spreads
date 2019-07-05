@@ -2,14 +2,14 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-using System;
-using System.Diagnostics;
-using System.Runtime.CompilerServices;
-using System.Threading;
 using Spreads.Algorithms;
 using Spreads.Collections;
 using Spreads.Collections.Internal;
 using Spreads.Internal;
+using System;
+using System.Diagnostics;
+using System.Runtime.CompilerServices;
+using System.Threading;
 
 namespace Spreads
 {
@@ -18,15 +18,14 @@ namespace Spreads
     /// </summary>
     public class BaseContainer<TKey> : BaseContainer, IDisposable
     {
-        // for tests only, it should have been abstract otherwise
+        // internal ctor for tests only, it should have been abstract otherwise
         internal BaseContainer()
-        {
-        }
+        { }
 
         protected internal KeyComparer<TKey> _comparer = default;
 
-        internal DataBlock? DataBlock;
-        internal DataBlockSource<TKey>? DataSource;
+        internal DataBlock? DataBlock => Data as DataBlock;
+        internal DataBlockSource<TKey>? DataSource => Data as DataBlockSource<TKey>;
 
         // TODO we are forking existing series implementation from here
         // All containers inherit this.
@@ -41,7 +40,7 @@ namespace Spreads
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal bool TryGetBlock(TKey key, out DataBlock block, out int blockIndex,
+        internal bool TryGetBlock(TKey key, out DataBlock? block, out int blockIndex,
             bool updateDataBlock = false)
         {
             // follows TryFindBlockAt implementation, do not edit this directly
@@ -55,7 +54,7 @@ namespace Spreads
                 TryFindBlock_ValidateOrGetBlockFromSource(ref block, key, Lookup.EQ, Lookup.LE);
                 if (updateDataBlock)
                 {
-                    DataBlock = block;
+                    Data = block;
                 }
             }
 
@@ -84,7 +83,9 @@ namespace Spreads
         internal bool TryGetSeriesValue<TValue>(TKey key, out TValue value)
         {
             var sw = new SpinWait();
+#nullable disable
             value = default;
+#nullable enable
         SYNC:
             var found = false;
             var version = Volatile.Read(ref _version);
@@ -96,7 +97,7 @@ namespace Spreads
                     TryFindBlock_ValidateOrGetBlockFromSource(ref block, key, Lookup.EQ, Lookup.LE);
 
                     // this is huge when key lookup locality > 0
-                    DataBlock = block;
+                    Data = block;
                 }
 
                 if (block != null)
@@ -196,7 +197,7 @@ namespace Spreads
         /// <param name="updateDataBlock"></param>
         /// <returns></returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal bool TryFindBlockAt(ref TKey key, Lookup lookup, out DataBlock block, out int blockIndex,
+        internal bool TryFindBlockAt(ref TKey key, Lookup lookup, out DataBlock? block, out int blockIndex,
             bool updateDataBlock = false)
         {
             // This is non-obvious part:
@@ -264,11 +265,11 @@ namespace Spreads
                 // and likely the next search will be around current value anyway
                 if (updateDataBlock)
                 {
-                    DataBlock = block;
+                    Data = block;
                 }
             }
 
-        RETRY:
+            RETRY:
 
             if (block != null)
             {
@@ -288,7 +289,7 @@ namespace Spreads
                     // TODO this is not needed? left from initial?
                     if (updateDataBlock)
                     {
-                        DataBlock = block;
+                        Data = block;
                     }
 
                     return true;
@@ -324,7 +325,7 @@ namespace Spreads
 
         // TODO Test multi-block case and this attribute impact. Maybe direct call is OK without inlining
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void TryFindBlock_ValidateOrGetBlockFromSource(ref DataBlock block,
+        private void TryFindBlock_ValidateOrGetBlockFromSource(ref DataBlock? block,
             TKey key, Lookup direction, Lookup sourceDirection)
         {
             // for single block this should exist, for sourced blocks this value is updated by a last search
@@ -422,20 +423,15 @@ namespace Spreads
                     "returned an empty block or key that doesn't match the first row index value");
         }
 
-        public IDisposable Subscribe(IAsyncCompletable subscriber)
-        {
-            throw new NotImplementedException();
-        }
-
         public void Dispose()
         {
             var block = DataBlock;
-            DataBlock = null;
             block?.Dispose();
 
             var ds = DataSource;
-            DataSource = null;
             ds?.Dispose();
+
+            Data = null;
         }
 
         //object IDataBlockValueGetter<object>.GetValue(DataBlock block, int rowIndex)

@@ -17,11 +17,7 @@ namespace Spreads.Collections.Internal
     [StructLayout(LayoutKind.Sequential)]
     internal readonly struct VectorStorage : IDisposable, IVector, IEquatable<VectorStorage>
     {
-#if DEBUG
-        private string StackTrace = Environment.StackTrace;
-#endif
-
-        private VectorStorage(IRefCounted memorySource, Vec vec)
+        private VectorStorage(IRefCounted? memorySource, Vec vec)
         {
             _memorySource = memorySource;
             _vec = vec;
@@ -33,7 +29,7 @@ namespace Spreads.Collections.Internal
         /// <remarks>
         /// This is intended to be <see cref="RetainableMemory{T}"/>, but we do not have T here and only care about ref counting.
         /// </remarks>
-        internal readonly IRefCounted _memorySource;
+        internal readonly IRefCounted? _memorySource;
 
         private readonly Vec _vec;
 
@@ -51,10 +47,9 @@ namespace Spreads.Collections.Internal
 
             if (!externallyOwned)
             {
-                ms!.Increment();
+                ms?.Increment();
             }
 
-            // TODO ms should be null when externally owned? See shared columns in DataBlock. Then equality should just compare length and reference equality of the first data item
             var vs = new VectorStorage(ms, vec);
 
             // TODO move stride logic elsewhere
@@ -98,7 +93,7 @@ namespace Spreads.Collections.Internal
                 ms.Increment();
             }
 
-            var vs = new VectorStorage(ms, vec);
+            var vs = new VectorStorage(externallyOwned ? null : ms, vec);
 
             // TODO move stride logic elsewhere
             //vs._stride = stride;
@@ -128,6 +123,15 @@ namespace Spreads.Collections.Internal
             //vs._length = numberOfStridesFromZero;
 
             return vs;
+        }
+
+        /// <summary>
+        /// True if this VectorStorage does not own a RefCount of the underlying memory source.
+        /// </summary>
+        public bool IsExternallyOwned
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => _memorySource == null;
         }
 
         public bool IsEmpty

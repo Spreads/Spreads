@@ -3,13 +3,12 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 using Spreads.Collections.Internal;
+using Spreads.Internal;
 using Spreads.Utils;
 using System;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
-using System.Threading;
 using System.Threading.Tasks;
-using Spreads.Internal;
 
 namespace Spreads
 {
@@ -17,11 +16,6 @@ namespace Spreads
     public partial class Series<TKey, TValue> : IAppendSeries<TKey, TValue>
     {
         private static readonly int MaxBufferLength = Math.Max(Settings.MIN_POOLED_BUFFER_LEN, Settings.LARGE_BUFFER_LIMIT / Math.Max(Unsafe.SizeOf<TKey>(), Unsafe.SizeOf<TValue>()));
-
-        internal Series(DataBlock initialBlock)
-        {
-            DataBlock = initialBlock;
-        }
 
         // TODO review, we still have _locker and versions at BaseContainer
 
@@ -42,7 +36,6 @@ namespace Spreads
         //    }
         //}
 
-        
         public virtual Task<bool> TryAddLast(TKey key, TValue value)
         {
 #pragma warning disable 618
@@ -136,9 +129,9 @@ namespace Spreads
                     // refactor switching to source logic to reuse in MutableSeries
                     if (DataSource == null)
                     {
-                        DataSource = new DataBlockSource<TKey>();
-                        DataSource.AddLast(block.RowKeys.DangerousGetRef<TKey>(0), block);
-                        DataBlock = null;
+                        var ds = new DataBlockSource<TKey>();
+                        ds.AddLast(block.RowKeys.DangerousGetRef<TKey>(0), block);
+                        Data = ds;
                     }
 
                     var minCapacity = block.RowKeys.Length;
@@ -153,7 +146,7 @@ namespace Spreads
 
                 return block;
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
                 Trace.TraceError(ex.ToString());
                 return null;

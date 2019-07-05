@@ -3,10 +3,6 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 using NUnit.Framework;
-using Spreads.Buffers;
-using Spreads.Collections;
-using Spreads.Collections.Experimental;
-using Spreads.Collections.Internal;
 using Spreads.Deprecated;
 using Spreads.Utils;
 using System;
@@ -20,10 +16,10 @@ namespace Spreads.Core.Tests.Collections
     [TestFixture]
     public unsafe class SeriesAppendTests
     {
-        [Test, Ignore("broken")] // TODO
+        [Test, Explicit("broken")] // TODO
         public void CouldAppendSeries()
         {
-            var sa = new Series<int, int>(DataBlock.Empty);
+            var sa = new Series<int, int>();
 
             Assert.IsTrue(sa.TryAddLast(1, 1).Result);
             Assert.IsFalse(sa.TryAddLast(1, 1).Result);
@@ -66,7 +62,6 @@ namespace Spreads.Core.Tests.Collections
             GC.WaitForPendingFinalizers();
             GC.Collect(2, GCCollectionMode.Forced, true, true);
             GC.WaitForPendingFinalizers();
-
         }
 
         [Test, Explicit("long running")]
@@ -80,7 +75,7 @@ namespace Spreads.Core.Tests.Collections
             int count = 10_000_000;
             int rounds = 100;
 
-            var sa = new Series<int, int>(DataBlock.Empty);
+            var sa = new Series<int, int>();
             var sm = new SortedMap<int, int>();
 
             //for (int r = 0; r < rounds; r++)
@@ -123,8 +118,6 @@ namespace Spreads.Core.Tests.Collections
                 Console.WriteLine($"Added {((r + 1) * count / 1000000).ToString("N")}");
             }
 
-            
-
             Benchmark.Dump();
 
             Console.WriteLine("Finished, press enter");
@@ -149,7 +142,7 @@ namespace Spreads.Core.Tests.Collections
             {
                 long rounds = 10;
 
-                var sa = new Series<long, long>(DataBlock.Empty);
+                var sa = new Series<long, long>();
                 sas.Add(sa);
                 var sm = new SortedMap<long, long>();
                 for (int i = 0; i < count; i++)
@@ -195,7 +188,7 @@ namespace Spreads.Core.Tests.Collections
         )]
         private static void AppendSeriesTGBench(int count, int mult, Series<long, long> sa)
         {
-            using (Benchmark.Run($"AS.TG {count.ToString("N")}", count * mult))
+            using (Benchmark.Run($"AS.TG {count:N}", count * mult))
             {
                 for (int _ = 0; _ < mult; _++)
                 {

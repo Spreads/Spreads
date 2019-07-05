@@ -100,7 +100,7 @@ namespace Spreads
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     public struct SCursor<TKey, TValue> : ICursorNew<TKey, TValue>, ISpecializedCursor<TKey, TValue, SCursor<TKey, TValue>>
     {
-        // ReSharper disable once FieldCanBeMadeReadOnly.Local mutable struct
+        // mutable struct
         private BlockCursor<TKey, TValue, Series<TKey, TValue>> _cursor;
 
         public SCursor(Series<TKey, TValue> source)

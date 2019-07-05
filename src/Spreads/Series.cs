@@ -64,9 +64,9 @@ namespace Spreads
             var valMemory = ArrayMemory<TValue>.Create(values, externallyOwned: true);
             var valVs = VectorStorage.Create(valMemory, 0, valMemory.Length);
 
-            var block = DataBlock.Create(rowIndex: keyVs, values: valVs, rowLength: keys.Length);
+            var block = DataBlock.SeriesCreate(rowIndex: keyVs, values: valVs, rowLength: keys.Length);
 
-            DataBlock = block;
+            Data = block;
         }
 
         public KeySorting KeySorting

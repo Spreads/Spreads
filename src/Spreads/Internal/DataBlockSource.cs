@@ -32,7 +32,7 @@ namespace Spreads.Internal
 
         public DataBlockSource()
         {
-            _blockSeries = new Series<TKey, DataBlock>(DataBlock.Empty);
+            _blockSeries = new Series<TKey, DataBlock>();
         }
 
         internal DataBlockSource(IMutableSeries<TKey, DataBlock> blockSeries)

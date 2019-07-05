@@ -50,7 +50,7 @@ namespace Spreads.Collections.Internal
         [Obsolete("Should work without this, was intended as optimization")]
         internal DataBlock? NextBlock;
 
-        protected DataBlock()
+        private DataBlock()
         {
         }
 
@@ -141,8 +141,14 @@ namespace Spreads.Collections.Internal
         {
             if (IsDisposed)
             {
-                ThrowHelper.ThrowObjectDisposedException("DataBlock");
+                ThrowDisposed();
             }
+
+            if (!disposing)
+            {
+                WarnFinalizing();
+            }
+
             _rowLength = -1;
 
             // just break the chain, if the remaining linked list was only rooted here it will be GCed TODO review
@@ -176,13 +182,13 @@ namespace Spreads.Collections.Internal
         [MethodImpl(MethodImplOptions.NoInlining)]
         private static void WarnFinalizing()
         {
-            Trace.TraceWarning("Finalizing VectorStorage. It must be properly disposed.");
+            Trace.TraceWarning("Finalizing DataBlock. It must be properly disposed.");
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
         private static void ThrowDisposed()
         {
-            ThrowHelper.ThrowObjectDisposedException("source");
+            ThrowHelper.ThrowObjectDisposedException(nameof(DataBlock));
         }
 
         public void Dispose()
@@ -230,7 +236,7 @@ namespace Spreads.Collections.Internal
                 }
                 void DoThrow()
                 {
-                    ThrowHelper.ThrowInvalidOperationException("DataBlock.Empty must only be used as sentinel");
+                    ThrowHelper.ThrowInvalidOperationException("DataBlock.Empty must only be used as sentinel in DataBlock cursor");
                 }
             }
         }
@@ -368,7 +374,7 @@ namespace Spreads.Collections.Internal
                     return false;
                 }
 
-                var len = -1;
+                // var len = -1;
                 foreach (var vectorStorage in _columns)
                 {
                     if (vectorStorage._memorySource != _values._memorySource)

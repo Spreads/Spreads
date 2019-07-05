@@ -29,7 +29,7 @@ namespace Spreads.Core.Tests.Collections.Internal
             var vs = VectorStorage.Create(rm, 0, rm.Length);
 
             var block = DataBlock.Create(rowIndex:vs, rowLength: length);
-            bc.DataBlock = block;
+            bc.Data = block;
             return bc;
         }
 

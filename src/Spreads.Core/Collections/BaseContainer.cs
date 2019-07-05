@@ -9,6 +9,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Threading;
+using Spreads.Collections.Internal;
 
 namespace Spreads.Collections
 {
@@ -20,6 +21,11 @@ namespace Spreads.Collections
     {
         internal BaseContainer()
         { }
+
+        /// <summary>
+        /// A union of <see cref="DataBlock"/> and container-specific DataSource.
+        /// </summary>
+        internal object? Data;
 
         // immutable & not sorted
         internal Flags _flags;
@@ -199,6 +205,8 @@ namespace Spreads.Collections
 
         #endregion Synchronization
 
+        #region Subscription & notification
+
         // Union of ContainerSubscription | ThreadSafeList<ContainerSubscription> (ThreadSafeList could be implemented differently)
         private object? _subscriptions;
 
@@ -293,41 +301,41 @@ namespace Spreads.Collections
                 switch (_subscriptions)
                 {
                     case null:
-                        {
-                            Interlocked.Exchange(ref _subscriptions, subscription);
-                            break;
-                        }
+                    {
+                        Interlocked.Exchange(ref _subscriptions, subscription);
+                        break;
+                    }
 
                     case ContainerSubscription sub when !ReferenceEquals(_subscriptions, subscription):
-                        {
-                            var newArr = new[] { sub, subscription };
-                            Interlocked.Exchange(ref _subscriptions, newArr);
-                            break;
-                        }
+                    {
+                        var newArr = new[] { sub, subscription };
+                        Interlocked.Exchange(ref _subscriptions, newArr);
+                        break;
+                    }
 
                     case ContainerSubscription[] subsArray when Array.IndexOf(subsArray, subscription) < 0:
+                    {
+                        int i;
+                        if ((i = Array.IndexOf(subsArray, null)) >= 0)
                         {
-                            int i;
-                            if ((i = Array.IndexOf(subsArray, null)) >= 0)
-                            {
-                                Volatile.Write(ref subsArray[i], subscription);
-                            }
-                            else
-                            {
-                                var newArr = new ContainerSubscription[subsArray.Length * 2];
-                                subsArray.CopyTo(newArr, 0);
-                                Interlocked.Exchange(ref _subscriptions, newArr);
-                            }
-
-                            break;
+                            Volatile.Write(ref subsArray[i], subscription);
                         }
+                        else
+                        {
+                            var newArr = new ContainerSubscription[subsArray.Length * 2];
+                            subsArray.CopyTo(newArr, 0);
+                            Interlocked.Exchange(ref _subscriptions, newArr);
+                        }
+
+                        break;
+                    }
 
                     default:
-                        {
-                            // ignoring repeated subscription but it will be caught here
-                            ThrowHelper.FailFast("_subscriptions could be either null, a single element or an array. (or repeated subscription)");
-                            break;
-                        }
+                    {
+                        // ignoring repeated subscription but it will be caught here
+                        ThrowHelper.FailFast("_subscriptions could be either null, a single element or an array. (or repeated subscription)");
+                        break;
+                    }
                 }
 
                 return subscription;
@@ -359,44 +367,48 @@ namespace Spreads.Collections
             switch (subscriptions)
             {
                 case ContainerSubscription sub:
-                    {
-                        sub.Subscriber?.TryComplete(false);
-                        break;
-                    }
+                {
+                    sub.Subscriber?.TryComplete(false);
+                    break;
+                }
 
                 case ContainerSubscription[] subsArray:
+                {
+                    // We want to avoid a lock here for reading subsArray,
+                    // which is modified only inside a lock in Subscribe/Dispose.
+                    // Reference assignment is atomic, no synchronization is needed for subsArray.
+                    // If we miss one that is being added concurrently then it was added after NotifyUpdate.
+                    // We need to iterate over the entire array and not just until first null
+                    // because removed subscribers could leave an empty slot.
+                    // Async subscription should be rare and the number of subscribers is typically small.
+                    for (int i = 0; i < subsArray.Length; i++)
                     {
-                        // We want to avoid a lock here for reading subsArray,
-                        // which is modified only inside a lock in Subscribe/Dispose.
-                        // Reference assignment is atomic, no synchronization is needed for subsArray.
-                        // If we miss one that is being added concurrently then it was added after NotifyUpdate.
-                        // We need to iterate over the entire array and not just until first null
-                        // because removed subscribers could leave an empty slot.
-                        // Async subscription should be rare and the number of subscribers is typically small.
-                        for (int i = 0; i < subsArray.Length; i++)
-                        {
-                            var subI = Volatile.Read(ref subsArray[i]);
-                            subI.Subscriber?.TryComplete(false);
-                        }
-
-                        break;
+                        var subI = Volatile.Read(ref subsArray[i]);
+                        subI.Subscriber?.TryComplete(false);
                     }
+
+                    break;
+                }
 
                 default:
+                {
+                    if (!(subscriptions is null))
                     {
-                        if (!(subscriptions is null))
-                        {
-                            ThrowHelper.FailFast("Wrong cursors subscriptions type");
-                        }
-                        else
-                        {
-                            ThrowHelper.FailFast("Cursors field is null, but that was checked in NotifyUpdate that calls this method");
-                        }
-
-                        break;
+                        ThrowHelper.FailFast("Wrong cursors subscriptions type");
                     }
+                    else
+                    {
+                        ThrowHelper.FailFast("Cursors field is null, but that was checked in NotifyUpdate that calls this method");
+                    }
+
+                    break;
+                }
             }
         }
+
+        
+
+        #endregion
 
         #region Attributes
 
@@ -408,7 +420,7 @@ namespace Spreads.Collections
         /// </summary>
         /// <param name="attributeName">Name of an attribute.</param>
         /// <returns>Return an attribute value or null is the attribute is not found.</returns>
-        public object GetAttribute(string attributeName)
+        public object? GetAttribute(string attributeName)
         {
             if (Attributes.TryGetValue(this, out Dictionary<string, object> dic) &&
                 dic.TryGetValue(attributeName, out object res))
@@ -453,11 +465,10 @@ namespace Spreads.Collections
             }
             catch (Exception ex)
             {
-                Trace.TraceError("Exception in BaseContainer finalizer: " + ex);
+                Trace.TraceError("Exception during BaseContainer finalization: " + ex);
 #if DEBUG
                 // Kill it in debug. Should not finalize but in the end we just ask GC for disposing
-                // it and we do often have native resources. But classes where this is important should
-                // have their own finalizers.
+                // it and we do often have native resources.
                 throw;
 #endif
             }

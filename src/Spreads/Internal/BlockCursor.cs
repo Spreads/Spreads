@@ -28,7 +28,7 @@ namespace Spreads.Internal
     //}
 
     /// <summary>
-    /// <see cref="X.Series{TKey,TValue}"/> cursor implementation.
+    /// <see cref="Series{TKey,TValue}"/> cursor implementation.
     /// </summary>
     [StructLayout(LayoutKind.Sequential, Pack = 4)] // This struct will be aligned to IntPtr.Size bytes because it has references, but small fields could be packed within 8 bytes.
     internal struct BlockCursor<TKey, TValue, TContainer> : ICursorNew<TKey, TValue>, ISpecializedCursor<TKey, DataBlock, BlockCursor<TKey, TValue, TContainer>>

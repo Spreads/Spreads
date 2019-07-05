@@ -28,7 +28,7 @@ namespace Spreads.Core.Tests.Collections
 
             var block = DataBlock.Create(rowIndex: vs, rowLength: vs.Length / 2);
 
-            bc.DataBlock = block;
+            bc.Data = block;
 
             var searchIndex = 40;
             var found = bc.TryGetBlockAt(searchIndex, out var c, out var ci);
@@ -50,7 +50,7 @@ namespace Spreads.Core.Tests.Collections
 
             var block = DataBlock.Create(rowIndex: vs, rowLength: vs.Length / 2);
 
-            bc.DataBlock = block;
+            bc.Data = block;
 
             var searchIndex = 40L;
             var searchIndexRef = searchIndex;
@@ -77,7 +77,7 @@ namespace Spreads.Core.Tests.Collections
 
             var block = DataBlock.Create(rowIndex: vs, rowLength: vs.Length);
 
-            bc.DataBlock = block;
+            bc.Data = block;
 
             for (int r = 0; r < rounds; r++)
             {
@@ -117,7 +117,7 @@ namespace Spreads.Core.Tests.Collections
 
             var block = DataBlock.Create(rowIndex: vs, rowLength: vs.Length / 2);
 
-            bc.DataBlock = block;
+            bc.Data = block;
 
             var searchIndex = 40L;
             var searchIndexRef = searchIndex;
@@ -144,7 +144,7 @@ namespace Spreads.Core.Tests.Collections
 
             var block = DataBlock.Create(rowIndex: vs, rowLength: vs.Length);
 
-            bc.DataBlock = block;
+            bc.Data = block;
 
             for (int r = 0; r < rounds; r++)
             {
