@@ -33,6 +33,7 @@
   </ItemGroup>
   
   <ItemGroup>
+    <PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="1.0.0-preview6.19303.8" />
     <PackageReference Include="Spreads.Native" Version="2019.0.402" />
     <PackageReference Include="System.Buffers" Version="4.5.0" />
     <PackageReference Include="System.Collections.Immutable" Version="1.5.0" />

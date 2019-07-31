@@ -712,7 +712,7 @@ namespace Spreads.Core.Tests.Algorithms
 
         private static void WorksOnNonExistingMiddleVec<T>(ArrayVector<T> arr, T valueIn)
         {
-           var value = valueIn;
+            var value = valueIn;
             var idxI = arr.InterpolationSearch(value);
             Assert.AreEqual(-2, idxI);
 
@@ -1042,9 +1042,9 @@ namespace Spreads.Core.Tests.Algorithms
                 // search at the start of range
                 foreach (var lookup in lookups)
                 {
-                    var val = arr.Get(i);
+                    var val = arr.GetItem(i);
                     var idxILt = arr.InterpolationLookup(i, arr.Length - i, ref val, lookup);
-                    val = arr.Get(i);
+                    val = arr.GetItem(i);
                     var idxBLt = arr.BinaryLookup(i, arr.Length - i, ref val, lookup);
                     Assert.AreEqual(idxILt, idxBLt);
 
@@ -1070,9 +1070,9 @@ namespace Spreads.Core.Tests.Algorithms
                 // search at the end of range
                 foreach (var lookup in lookups)
                 {
-                    var val = arr.Get(i);
+                    var val = arr.GetItem(i);
                     var idxILt = arr.InterpolationLookup(0, i + 1, ref val, lookup);
-                    val = arr.Get(i);
+                    val = arr.GetItem(i);
                     var idxBLt = arr.BinaryLookup(0, i + 1, ref val, lookup);
                     Assert.AreEqual(idxILt, idxBLt);
 
@@ -1100,56 +1100,59 @@ namespace Spreads.Core.Tests.Algorithms
         [Test, Explicit("long running")]
         public void SearchBench()
         {
+            var count = 10 * 1024 * 1024;
             var rounds = 5;
-            var counts = new[] { 1, 10, 100, 1000, 10_000, 100_000, 1_000_000 };
+            var lens = new[] { 0, 1, 16, 128, 512, 1024, 16 * 1024, 128 * 1024, 512 * 1024, 1024 * 1024, 10 * 1024 * 1024 };
+            var vec = (Enumerable.Range(0, count).Select(x => (Timestamp)(long)x).ToArray());
+
             for (int r = 0; r < rounds; r++)
             {
-                foreach (var count in counts)
+                foreach (var len in lens)
                 {
-                    var vec = new Vec<Timestamp>(Enumerable.Range(0, count).Select(x => (Timestamp)x).ToArray());
+                    var mask = len - 1;
+                    // var mult = 10_000_000 / len;
 
-                    var mult = 10_000_000 / count;
-
-                    using (Benchmark.Run("Binary" + count, count * mult))
+                    using (Benchmark.Run("Binary" + len, count))
                     {
-                        for (int m = 0; m < mult; m++)
+                        // for (int m = 0; m < mult; m++)
                         {
                             for (int i = 0; i < count; i++)
                             {
+                                var value = i & mask;
 #pragma warning disable 618
-                                var idx = vec.DangerousBinarySearch(0, count, (Timestamp)i, KeyComparer<Timestamp>.Default);
+                                var idx = vec.DangerousBinarySearch(0, len, (Timestamp)value, KeyComparer<Timestamp>.Default);
 #pragma warning restore 618
-                                if (idx < 0)
-                                {
-                                    ThrowHelper.FailFast(String.Empty);
-                                }
-                            }
-                        }
-                    }
-
-                    using (Benchmark.Run($"Interpolation {count}", count * mult))
-                    {
-                        for (int m = 0; m < mult; m++)
-                        {
-                            for (int i = 0; i < count; i++)
-                            {
-#pragma warning disable 618
-                                var idx = vec.DangerousInterpolationSearch(0, count, (Timestamp)i, KeyComparer<Timestamp>.Default);
-#pragma warning restore 618
-                                if (idx < 0)
-                                {
-                                    ThrowHelper.FailFast(String.Empty);
-                                }
-
-                                //var idx = VectorSearch.InterpolationSearch(ref vec.DangerousGetRef(0),
-                                //    count, (Timestamp)i);
-                                //if (idx != i)
+                                //if (idx < 0)
                                 //{
-                                //    Console.WriteLine($"val {i} -> idx {idx}");
+                                //    ThrowHelper.FailFast(String.Empty);
                                 //}
                             }
                         }
                     }
+
+                    //                    using (Benchmark.Run($"Interpolation {count}", count * mult))
+                    //                    {
+                    //                        for (int m = 0; m < mult; m++)
+                    //                        {
+                    //                            for (int i = 0; i < count; i++)
+                    //                            {
+                    //#pragma warning disable 618
+                    //                                var idx = vec.DangerousInterpolationSearch(0, count, (Timestamp)i, KeyComparer<Timestamp>.Default);
+                    //#pragma warning restore 618
+                    //                                if (idx < 0)
+                    //                                {
+                    //                                    ThrowHelper.FailFast(String.Empty);
+                    //                                }
+
+                    //                                //var idx = VectorSearch.InterpolationSearch(ref vec.DangerousGetRef(0),
+                    //                                //    count, (Timestamp)i);
+                    //                                //if (idx != i)
+                    //                                //{
+                    //                                //    Console.WriteLine($"val {i} -> idx {idx}");
+                    //                                //}
+                    //                            }
+                    //                        }
+                    //                    }
                 }
             }
             Benchmark.Dump();

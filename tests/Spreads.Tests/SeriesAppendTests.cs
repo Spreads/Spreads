@@ -2,20 +2,30 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-using NUnit.Framework;
-using Spreads.Deprecated;
-using Spreads.Utils;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using NUnit.Framework;
+using Spreads.Deprecated;
+using Spreads.Utils;
 
-namespace Spreads.Core.Tests.Collections
+namespace Spreads.Tests
 {
     [Category("CI")]
     [TestFixture]
     public unsafe class SeriesAppendTests
     {
+
+        [Test, Explicit("broken")] // TODO
+        public void NewSeries()
+        {
+            var s = new Series<int, int>();
+            Assert.AreEqual(s.Mutability, Mutability.Mutable);
+            Assert.AreEqual(s.KeySorting, KeySorting.Strong);
+            s.Dispose();
+        }
+
         [Test, Explicit("broken")] // TODO
         public void CouldAppendSeries()
         {

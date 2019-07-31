@@ -27,12 +27,6 @@ namespace Spreads
         internal DataBlock? DataBlock => Data as DataBlock;
         internal DataBlockSource<TKey>? DataSource => Data as DataBlockSource<TKey>;
 
-        // TODO we are forking existing series implementation from here
-        // All containers inherit this.
-        // Matrix has Int64 key.
-        // Matrix could be sparse, it is no more than a series of rows.
-        // All series functionality should be moved to new Series
-
         internal bool IsSingleBlock
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -269,7 +263,7 @@ namespace Spreads
                 }
             }
 
-            RETRY:
+        RETRY:
 
             if (block != null)
             {
@@ -423,7 +417,7 @@ namespace Spreads
                     "returned an empty block or key that doesn't match the first row index value");
         }
 
-        public void Dispose()
+        protected override void Dispose(bool disposing)
         {
             var block = DataBlock;
             block?.Dispose();
@@ -432,11 +426,8 @@ namespace Spreads
             ds?.Dispose();
 
             Data = null;
-        }
 
-        //object IDataBlockValueGetter<object>.GetValue(DataBlock block, int rowIndex)
-        //{
-        //    throw new NotImplementedException();
-        //}
+            base.Dispose(true);
+        }
     }
 }

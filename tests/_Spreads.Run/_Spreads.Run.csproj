@@ -23,7 +23,9 @@
   </PropertyGroup>-->
   <ItemGroup>
     <ProjectReference Include="..\..\src\Spreads.Core\Spreads.Core.csproj" />
+    <ProjectReference Include="..\..\src\Spreads\Spreads.csproj" />
     <ProjectReference Include="..\Spreads.Core.Tests\Spreads.Core.Tests.csproj" />
+    <ProjectReference Include="..\Spreads.Tests\Spreads.Tests.csproj" />
   </ItemGroup>
   <!--<ItemGroup>
     <PackageReference Include="runtime.win-x64.Microsoft.Private.CoreFx.NETCoreApp" Version="4.6.0-dev.19120.1" />

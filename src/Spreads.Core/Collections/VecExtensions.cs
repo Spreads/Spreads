@@ -45,13 +45,13 @@ namespace Spreads.Collections
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public T Get(int index)
+        public T GetItem(int index)
         {
             return _array[index];
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public T DangerousGet(int index)
+        public T DangerousGetItem(int index)
         {
             // TODO without BC
             return _array[index];
@@ -90,10 +90,10 @@ namespace Spreads.Collections
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int DangerousBinarySearch<T>(this ref Vec<T> vec, int start, int length, T value, KeyComparer<T> comparer = default)
         {
-            if (length == 0)
-            {
-                return -1;
-            }
+            //if (length == 0)
+            //{
+            //    return -1;
+            //}
             return VectorSearch.BinarySearch(ref Unsafe.Add(ref vec.DangerousGetPinnableReference(), start), vec.Length, value, comparer);
         }
 

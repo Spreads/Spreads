@@ -121,7 +121,7 @@ namespace Spreads.Collections
         public T this[int index]
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => Get(index);
+            get => GetItem(index);
         }
 
         public int Length
@@ -157,7 +157,7 @@ namespace Spreads.Collections
 
         [EditorBrowsable(EditorBrowsableState.Never)]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public T Get(int index)
+        public T GetItem(int index)
         {
             // type is checked in ctor, only BC
             if (unchecked((uint)index) >= unchecked((uint)_vectorStorage.Length))
@@ -169,7 +169,7 @@ namespace Spreads.Collections
 
         [EditorBrowsable(EditorBrowsableState.Never)]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public T DangerousGet(int index)
+        public T DangerousGetItem(int index)
         {
             return _vectorStorage!.DangerousGet<T>(index);
         }

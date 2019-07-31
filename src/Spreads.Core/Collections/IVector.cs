@@ -7,22 +7,23 @@ namespace Spreads.Collections
     public interface IVector<out T>
     {
         /// <summary>
-        /// Get the total number of elements in Vec.
+        /// Get the total number of items in IVector.
         /// </summary>
         int Length
         {
             get;
         }
 
+        // TODO rename to GetItem(index)
         /// <summary>
-        /// Returns the element at the specified index.
+        /// Returns an item at the specified index.
         /// </summary>
-        T Get(int index);
+        T GetItem(int index);
 
         /// <summary>
-        /// Returns the element at the specified index without bound checks.
+        /// Returns an item at the specified index without bound checks.
         /// </summary>
-        T DangerousGet(int index);
+        T DangerousGetItem(int index);
     }
 
     public interface IVector

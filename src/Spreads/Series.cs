@@ -28,11 +28,22 @@ namespace Spreads
 
     public partial class Series<TKey, TValue> : BaseContainer<TKey>, ISeriesNew, ISpecializedSeries<TKey, TValue, SCursor<TKey, TValue>>, ISeriesNew<TKey, TValue>
     {
-        internal Series()
+
+        // Series could be read-only, append-only and mutable.
+        // There should be no public ctor that accepts data, only static Series.X methods that take a single lock for multiple ops.
+        // We could later add Series.OfArrays() method that takes ownership of the arrays, but that is not a typical use case (Series are rather primitive objects similar to List<T>)
+
+        internal Series(Mutability mutability = Mutability.Mutable, KeySorting keySorting = KeySorting.Strong, uint capacity = 0)
         {
+            if (keySorting == KeySorting.Weak)
+            {
+                throw new NotImplementedException();
+            }
+            _flags = new Flags(ContainerLayout.Series, keySorting, mutability);
         }
 
-        public Series(TKey[] keys, TValue[] values)
+        [Obsolete("TODO remove usage from tests")]
+        internal Series(TKey[] keys, TValue[] values)
         {
             if (keys.Length != values.Length)
             {

@@ -27,7 +27,7 @@ namespace Spreads.Collections
         /// </summary>
         internal object? Data;
 
-        // immutable & not sorted
+        // immutable & not sorted & none layout
         internal Flags _flags;
 
         // TODO these sync fields need rework: move to in-mem only containers or use TLocker object so that persistent series could have their own locking logic without cost
@@ -445,7 +445,7 @@ namespace Spreads.Collections
         {
         }
 
-        void IDisposable.Dispose()
+        public void Dispose()
         {
             Dispose(true);
             GC.SuppressFinalize(this);

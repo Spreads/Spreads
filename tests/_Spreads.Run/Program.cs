@@ -43,8 +43,8 @@ namespace Spreads.Core.Run
             ExecutionContext.SuppressFlow();
             Settings.SharedSpinLockNotificationPort = 53412;
 
-            var test = new VectorStorageTests();
-            test.VectorStorageReadBench();
+            var test = new VecSearchTests();
+            test.SearchBench();
 
             // Console.WriteLine("Finished, press enter to exit...");
             // Console.ReadLine();

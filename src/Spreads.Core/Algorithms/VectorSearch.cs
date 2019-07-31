@@ -82,7 +82,7 @@ namespace Spreads.Algorithms
                 {
                     int i = (int)(((uint)hi + (uint)lo) >> 1);
 
-                    int c = comparer.Compare(value, vec.DangerousGet(i));
+                    int c = comparer.Compare(value, vec.DangerousGetItem(i));
                     if (c == 0)
                     {
                         return i;
@@ -207,7 +207,7 @@ namespace Spreads.Algorithms
 
             if (li != i && li >= 0)
             {
-                value = vec.DangerousGet(li);
+                value = vec.DangerousGetItem(li);
             }
 
             return li;
@@ -425,8 +425,8 @@ namespace Spreads.Algorithms
                 int hi = start + length - 1;
                 if (lo < hi)
                 {
-                    long vlo = vec.DangerousGet(lo);
-                    long vhi = vec.DangerousGet(hi);
+                    long vlo = vec.DangerousGetItem(lo);
+                    long vhi = vec.DangerousGetItem(hi);
                     long vRange = vhi - vlo;
 
                     Debug.Assert(vRange > 0);
@@ -444,7 +444,7 @@ namespace Spreads.Algorithms
                         i = i > hi ? hi : lo;
                     }
 
-                    var vi = vec.DangerousGet(i);
+                    var vi = vec.DangerousGetItem(i);
 
                     if (value == vi)
                     {
@@ -458,7 +458,7 @@ namespace Spreads.Algorithms
                         // lo = i - 1, but could be < hi
                         while ((i = i - offset) >= start)
                         {
-                            vi = vec.DangerousGet(i);
+                            vi = vec.DangerousGetItem(i);
 
                             if (value == vi)
                             {
@@ -491,7 +491,7 @@ namespace Spreads.Algorithms
 
                         while ((i = i + offset) <= hi)
                         {
-                            vi = vec.DangerousGet(i);
+                            vi = vec.DangerousGetItem(i);
 
                             if (value == vi)
                             {
@@ -672,8 +672,8 @@ namespace Spreads.Algorithms
                 int hi = start + length - 1;
                 if (lo < hi)
                 {
-                    long vlo = vec.DangerousGet(lo);
-                    long vhi = vec.DangerousGet(hi);
+                    long vlo = vec.DangerousGetItem(lo);
+                    long vhi = vec.DangerousGetItem(hi);
                     long vRange = vhi - vlo;
 
                     Debug.Assert(vRange > 0);
@@ -691,7 +691,7 @@ namespace Spreads.Algorithms
                         i = i > hi ? hi : lo;
                     }
 
-                    var vi = vec.DangerousGet(i);
+                    var vi = vec.DangerousGetItem(i);
 
                     if (value == vi)
                     {
@@ -705,7 +705,7 @@ namespace Spreads.Algorithms
                         // lo = i - 1, but could be < hi
                         while ((i = i - offset) >= start)
                         {
-                            vi = vec.DangerousGet(i);
+                            vi = vec.DangerousGetItem(i);
 
                             if (value == vi)
                             {
@@ -738,7 +738,7 @@ namespace Spreads.Algorithms
 
                         while ((i = i + offset) <= hi)
                         {
-                            vi = vec.DangerousGet(i);
+                            vi = vec.DangerousGetItem(i);
 
                             if (value == vi)
                             {
@@ -920,8 +920,8 @@ namespace Spreads.Algorithms
                 int hi = start + length - 1;
                 if (lo < hi)
                 {
-                    var vlo = vec.DangerousGet(lo);
-                    var vhi = vec.DangerousGet(hi);
+                    var vlo = vec.DangerousGetItem(lo);
+                    var vhi = vec.DangerousGetItem(hi);
                     long vRange = comparer.Diff(vhi, vlo);
 
                     Debug.Assert(vRange > 0);
@@ -939,7 +939,7 @@ namespace Spreads.Algorithms
                         i = i > hi ? hi : lo;
                     }
 
-                    int c = comparer.Compare(value, vec.DangerousGet(i));
+                    int c = comparer.Compare(value, vec.DangerousGetItem(i));
 
                     if (c == 0)
                     {
@@ -953,7 +953,7 @@ namespace Spreads.Algorithms
                         // lo = i - 1, but could be < hi
                         while ((i = i - offset) >= start)
                         {
-                            c = comparer.Compare(value, vec.DangerousGet(i));
+                            c = comparer.Compare(value, vec.DangerousGetItem(i));
 
                             if (c == 0)
                             {
@@ -986,7 +986,7 @@ namespace Spreads.Algorithms
 
                         while ((i = i + offset) <= hi)
                         {
-                            c = comparer.Compare(value, vec.DangerousGet(i));
+                            c = comparer.Compare(value, vec.DangerousGetItem(i));
 
                             if (c == 0)
                             {
@@ -1063,7 +1063,7 @@ namespace Spreads.Algorithms
 
             if (li != i && li >= 0)
             {
-                value = vec.DangerousGet(li);
+                value = vec.DangerousGetItem(li);
             }
 
             return li;
