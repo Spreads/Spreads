@@ -12,7 +12,7 @@ namespace Spreads
     public enum CursorState : byte
     {
         /// <summary>
-        /// A cursor is either not initialized or disposed. Some (re)initialization work may be needed before moving.
+        /// A cursor is not initialized or is disposed. Some (re)initialization work may be needed before moving.
         /// </summary>
         None = 0,
 
@@ -23,7 +23,7 @@ namespace Spreads
         Initialized = 1,
 
         /// <summary>
-        /// A cursor has started moving and is at valid position.
+        /// A cursor has started moving and is at a valid position.
         /// A false move from this state must restore the cursor to its position before the move.
         /// </summary>
         Moving = 2,

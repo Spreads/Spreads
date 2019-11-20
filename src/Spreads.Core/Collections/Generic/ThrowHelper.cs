@@ -2,10 +2,9 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-
 // This file defines an internal class used to throw exceptions in BCL code.
-// The main purpose is to reduce code size. 
-// 
+// The main purpose is to reduce code size.
+//
 // The old way to throw an exception generates quite a lot IL code and assembly code.
 // Following is an example:
 //     C# source
@@ -17,10 +16,10 @@
 //          IL_0012:  newobj     instance void System.ArgumentNullException::.ctor(string,string)
 //          IL_0017:  throw
 //    which is 21bytes in IL.
-// 
+//
 // So we want to get rid of the ldstr and call to Environment.GetResource in IL.
 // In order to do that, I created two enums: ExceptionResource, ExceptionArgument to represent the
-// argument name and resource name in a small integer. The source code will be changed to 
+// argument name and resource name in a small integer. The source code will be changed to
 //    ThrowHelper.ThrowArgumentNullException(ExceptionArgument.key, ExceptionResource.ArgumentNull_Key);
 //
 // The IL code will be 7 bytes.
@@ -29,84 +28,99 @@
 //    IL_000a:  call       void System.ThrowHelper::ThrowArgumentNullException(valuetype System.ExceptionArgument)
 //    IL_000f:  ldarg.0
 //
-// This will also reduce the Jitted code size a lot. 
+// This will also reduce the Jitted code size a lot.
 //
-// It is very important we do this for generic classes because we can easily generate the same code 
-// multiple times for different instantiation. 
-// 
+// It is very important we do this for generic classes because we can easily generate the same code
+// multiple times for different instantiation.
+//
 
+using System;
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
+using System.Diagnostics.Contracts;
 using System.Runtime.CompilerServices;
 using System.Runtime.Serialization;
-using System.Diagnostics.Contracts;
-using System.Diagnostics;
-using System;
+
+// ReSharper disable InconsistentNaming
 
 namespace Spreads.Collections.Generic
 {
     [Pure]
     internal static class ThrowHelper
     {
+        [DoesNotReturn]
         internal static void ThrowArrayTypeMismatchException()
         {
             throw new ArrayTypeMismatchException();
         }
 
+        [DoesNotReturn]
         internal static void ThrowInvalidTypeWithPointersNotSupported(Type targetType)
         {
             throw new ArgumentException("SR.Format(SR.Argument_InvalidTypeWithPointersNotSupported, targetType)");
         }
 
+        [DoesNotReturn]
         internal static void ThrowIndexOutOfRangeException()
         {
             throw new IndexOutOfRangeException();
         }
 
+        [DoesNotReturn]
         internal static void ThrowArgumentOutOfRangeException()
         {
             throw new ArgumentOutOfRangeException();
         }
 
+        [DoesNotReturn]
         internal static void ThrowArgumentException_DestinationTooShort()
         {
             throw new ArgumentException("SR.Argument_DestinationTooShort");
         }
 
+        [DoesNotReturn]
         internal static void ThrowArgumentOutOfRange_IndexException()
         {
             throw GetArgumentOutOfRangeException(ExceptionArgument.index,
                                                     ExceptionResource.ArgumentOutOfRange_Index);
         }
 
+        [DoesNotReturn]
         internal static void ThrowIndexArgumentOutOfRange_NeedNonNegNumException()
         {
             throw GetArgumentOutOfRangeException(ExceptionArgument.index,
                                                     ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
         }
 
+        [DoesNotReturn]
         internal static void ThrowLengthArgumentOutOfRange_ArgumentOutOfRange_NeedNonNegNum()
         {
             throw GetArgumentOutOfRangeException(ExceptionArgument.length,
                                                     ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
         }
 
+        [DoesNotReturn]
         internal static void ThrowStartIndexArgumentOutOfRange_ArgumentOutOfRange_Index()
         {
             throw GetArgumentOutOfRangeException(ExceptionArgument.startIndex,
                                                     ExceptionResource.ArgumentOutOfRange_Index);
         }
 
+        [DoesNotReturn]
         internal static void ThrowCountArgumentOutOfRange_ArgumentOutOfRange_Count()
         {
             throw GetArgumentOutOfRangeException(ExceptionArgument.count,
                                                     ExceptionResource.ArgumentOutOfRange_Count);
         }
 
+        [DoesNotReturn]
         internal static void ThrowWrongKeyTypeArgumentException(object key, Type targetType)
         {
             throw GetWrongKeyTypeArgumentException(key, targetType);
         }
 
+        [DoesNotReturn]
         internal static void ThrowWrongValueTypeArgumentException(object value, Type targetType)
         {
             throw GetWrongValueTypeArgumentException(value, targetType);
@@ -114,26 +128,30 @@ namespace Spreads.Collections.Generic
 
         private static ArgumentException GetAddingDuplicateWithKeyArgumentException(object key)
         {
-            return new ArgumentException("SR.Format(SR.Argument_AddingDuplicateWithKey, key)");
+            return new ArgumentException($"SR.Format(SR.Argument_AddingDuplicateWithKey, {key})");
         }
 
+        [DoesNotReturn]
         [MethodImpl(MethodImplOptions.NoInlining)]
         internal static void ThrowAddingDuplicateWithKeyArgumentException(object key)
         {
             throw GetAddingDuplicateWithKeyArgumentException(key);
         }
 
+        [DoesNotReturn]
         [MethodImpl(MethodImplOptions.NoInlining)]
         internal static void ThrowKeyNotFoundException()
         {
             throw new KeyNotFoundException();
         }
 
+        [DoesNotReturn]
         internal static void ThrowArgumentException(ExceptionResource resource)
         {
             throw GetArgumentException(resource);
         }
 
+        [DoesNotReturn]
         internal static void ThrowArgumentException(ExceptionResource resource, ExceptionArgument argument)
         {
             throw GetArgumentException(resource, argument);
@@ -144,117 +162,140 @@ namespace Spreads.Collections.Generic
             return new ArgumentNullException(GetArgumentName(argument));
         }
 
+        [DoesNotReturn]
         [MethodImpl(MethodImplOptions.NoInlining)]
         internal static void ThrowArgumentNullException(ExceptionArgument argument)
         {
             throw GetArgumentNullException(argument);
         }
 
+        [DoesNotReturn]
         internal static void ThrowArgumentNullException(ExceptionResource resource)
         {
             throw new ArgumentNullException(GetResourceString(resource));
         }
 
+        [DoesNotReturn]
         internal static void ThrowArgumentNullException(ExceptionArgument argument, ExceptionResource resource)
         {
             throw new ArgumentNullException(GetArgumentName(argument), GetResourceString(resource));
         }
 
+        [DoesNotReturn]
         internal static void ThrowArgumentOutOfRangeException(ExceptionArgument argument)
         {
             throw new ArgumentOutOfRangeException(GetArgumentName(argument));
         }
 
+        [DoesNotReturn]
         internal static void ThrowArgumentOutOfRangeException(ExceptionArgument argument, ExceptionResource resource)
         {
             throw GetArgumentOutOfRangeException(argument, resource);
         }
 
+        [DoesNotReturn]
         internal static void ThrowArgumentOutOfRangeException(ExceptionArgument argument, int paramNumber, ExceptionResource resource)
         {
             throw GetArgumentOutOfRangeException(argument, paramNumber, resource);
         }
 
+        [DoesNotReturn]
         internal static void ThrowInvalidOperationException(ExceptionResource resource)
         {
             throw GetInvalidOperationException(resource);
         }
 
+        [DoesNotReturn]
         internal static void ThrowInvalidOperationException(ExceptionResource resource, Exception e)
         {
             throw new InvalidOperationException(GetResourceString(resource), e);
         }
 
+        [DoesNotReturn]
         internal static void ThrowSerializationException(ExceptionResource resource)
         {
             throw new SerializationException(GetResourceString(resource));
         }
 
+        [DoesNotReturn]
         internal static void ThrowSecurityException(ExceptionResource resource)
         {
             throw new System.Security.SecurityException(GetResourceString(resource));
         }
 
+        [DoesNotReturn]
         internal static void ThrowRankException(ExceptionResource resource)
         {
             throw new RankException(GetResourceString(resource));
         }
 
+        [DoesNotReturn]
         internal static void ThrowNotSupportedException(ExceptionResource resource)
         {
             throw new NotSupportedException(GetResourceString(resource));
         }
 
+        [DoesNotReturn]
         internal static void ThrowUnauthorizedAccessException(ExceptionResource resource)
         {
             throw new UnauthorizedAccessException(GetResourceString(resource));
         }
 
+        [DoesNotReturn]
         internal static void ThrowObjectDisposedException(string objectName, ExceptionResource resource)
         {
             throw new ObjectDisposedException(objectName, GetResourceString(resource));
         }
 
+        [DoesNotReturn]
         internal static void ThrowObjectDisposedException(ExceptionResource resource)
         {
             throw new ObjectDisposedException(null, GetResourceString(resource));
         }
 
+        [DoesNotReturn]
         internal static void ThrowNotSupportedException()
         {
             throw new NotSupportedException();
         }
 
+        [DoesNotReturn]
         internal static void ThrowAggregateException(List<Exception> exceptions)
         {
             throw new AggregateException(exceptions);
         }
 
+        [DoesNotReturn]
         internal static void ThrowArgumentException_Argument_InvalidArrayType()
         {
             throw GetArgumentException(ExceptionResource.Argument_InvalidArrayType);
         }
 
+        [DoesNotReturn]
         internal static void ThrowInvalidOperationException_InvalidOperation_EnumNotStarted()
         {
             throw GetInvalidOperationException(ExceptionResource.InvalidOperation_EnumNotStarted);
         }
 
+        [DoesNotReturn]
         internal static void ThrowInvalidOperationException_InvalidOperation_EnumEnded()
         {
             throw GetInvalidOperationException(ExceptionResource.InvalidOperation_EnumEnded);
         }
 
+        [DoesNotReturn]
         internal static void ThrowInvalidOperationException_InvalidOperation_EnumFailedVersion()
         {
             throw GetInvalidOperationException(ExceptionResource.InvalidOperation_EnumFailedVersion);
         }
 
+        [DoesNotReturn]
         internal static void ThrowInvalidOperationException_InvalidOperation_EnumOpCantHappen()
         {
             throw GetInvalidOperationException(ExceptionResource.InvalidOperation_EnumOpCantHappen);
         }
 
+        [DoesNotReturn]
         internal static void ThrowArraySegmentCtorValidationFailedExceptions(Array array, int offset, int count)
         {
             throw GetArraySegmentCtorValidationFailedException(array, offset, count);
@@ -285,12 +326,12 @@ namespace Spreads.Collections.Generic
 
         private static ArgumentException GetWrongKeyTypeArgumentException(object key, Type targetType)
         {
-            return new ArgumentException("SR.Format(SR.Arg_WrongType, key, targetType), nameof(key)");
+            return new ArgumentException($"SR.Format(SR.Arg_WrongType, {key}, {targetType})", nameof(key));
         }
 
         private static ArgumentException GetWrongValueTypeArgumentException(object value, Type targetType)
         {
-            return new ArgumentException("SR.Format(SR.Arg_WrongType, value, targetType), nameof(value)");
+            return new ArgumentException($"SR.Format(SR.Arg_WrongType, {value}, {targetType})", nameof(value));
         }
 
         internal static ArgumentOutOfRangeException GetArgumentOutOfRangeException(ExceptionArgument argument, ExceptionResource resource)
@@ -314,7 +355,7 @@ namespace Spreads.Collections.Generic
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static void IfNullAndNullsAreIllegalThenThrow<T>(object value, ExceptionArgument argName)
         {
-            // Note that default(T) is not equal to null for value types except when T is Nullable<U>. 
+            // Note that default(T) is not equal to null for value types except when T is Nullable<U>.
             if (!(default(T) == null) && value == null)
                 ThrowHelper.ThrowArgumentNullException(argName);
         }
@@ -342,7 +383,7 @@ namespace Spreads.Collections.Generic
 
     //
     // The convention for this enum is using the argument name as the enum name
-    // 
+    //
     internal enum ExceptionArgument
     {
         obj,
@@ -424,7 +465,7 @@ namespace Spreads.Collections.Generic
 
     //
     // The convention for this enum is using the resource name as the enum name
-    // 
+    //
     internal enum ExceptionResource
     {
         Argument_ImplementIComparable,

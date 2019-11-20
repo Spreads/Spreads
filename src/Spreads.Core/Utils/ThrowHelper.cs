@@ -2,8 +2,10 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+#nullable enable
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Runtime.CompilerServices;
 
@@ -12,72 +14,84 @@ namespace Spreads
 {
     internal static class ThrowHelper
     {
+        [DoesNotReturn]
         [MethodImpl(MethodImplOptions.NoInlining)]
         public static void ThrowArgumentException()
         {
             throw GetArgumentException();
         }
 
+        [DoesNotReturn]
         [MethodImpl(MethodImplOptions.NoInlining)]
         public static void ThrowArgumentException(string message)
         {
             throw GetArgumentException(message);
         }
 
+        [DoesNotReturn]
         [MethodImpl(MethodImplOptions.NoInlining)]
         public static void ThrowArgumentOutOfRangeException()
         {
             throw GetArgumentOutOfRangeException();
         }
 
+        [DoesNotReturn]
         [MethodImpl(MethodImplOptions.NoInlining)]
         public static void ThrowArgumentOutOfRangeException(string argument)
         {
             throw GetArgumentOutOfRangeException(argument);
         }
 
+        [DoesNotReturn]
         [MethodImpl(MethodImplOptions.NoInlining)]
         public static void ThrowInvalidOperationException()
         {
             throw GetInvalidOperationException();
         }
 
+        [DoesNotReturn]
         [MethodImpl(MethodImplOptions.NoInlining)]
         public static void ThrowInvalidCastException()
         {
             throw GetInvalidCastException();
         }
 
+        [DoesNotReturn]
         [MethodImpl(MethodImplOptions.NoInlining)]
         public static void ThrowInvalidOperationException(string message)
         {
             throw GetInvalidOperationException(message);
         }
 
+        [DoesNotReturn]
         [MethodImpl(MethodImplOptions.NoInlining)]
         public static void ThrowInvalidOperationException_ForVariantTypeMissmatch()
         {
             throw GetInvalidOperationException_ForVariantTypeMissmatch();
         }
 
+        [DoesNotReturn]
         [MethodImpl(MethodImplOptions.NoInlining)]
         public static void ThrowNotImplementedException()
         {
             throw GetNotImplementedException();
         }
 
+        [DoesNotReturn]
         [MethodImpl(MethodImplOptions.NoInlining)]
         public static void ThrowNotImplementedException(string message)
         {
             throw GetNotImplementedException(message);
         }
 
+        [DoesNotReturn]
         [MethodImpl(MethodImplOptions.NoInlining)]
         public static void ThrowNotSupportedException()
         {
             throw GetNotSupportedException();
         }
 
+        [DoesNotReturn]
         [MethodImpl(MethodImplOptions.NoInlining)]
         public static void ThrowNotSupportedException(string message)
         {
@@ -85,45 +99,69 @@ namespace Spreads
         }
 
 #if SPREADS
+
+        [DoesNotReturn]
         [MethodImpl(MethodImplOptions.NoInlining)]
         public static void ThrowOutOfOrderKeyException<TKey>(TKey key)
         {
             throw GetOutOfOrderKeyException(key);
         }
 
+        [DoesNotReturn]
         [MethodImpl(MethodImplOptions.NoInlining)]
         public static void ThrowOutOfOrderKeyException<TKey>(TKey key, string message)
         {
             throw GetOutOfOrderKeyException(key, message);
         }
+
 #endif
 
+        [DoesNotReturn]
         [MethodImpl(MethodImplOptions.NoInlining)]
         public static void ThrowKeyNotFoundException(string message)
         {
             throw GetKeyNotFoundException(message);
         }
 
+        [DoesNotReturn]
         [MethodImpl(MethodImplOptions.NoInlining)]
         public static void ThrowArgumentNullException(string argument)
         {
             throw new ArgumentNullException(argument);
         }
 
+        [DoesNotReturn]
         [MethodImpl(MethodImplOptions.NoInlining)]
         public static void ThrowObjectDisposedException(string objectName)
         {
             throw GetObjectDisposedException(objectName);
         }
 
+        [DoesNotReturn]
         [MethodImpl(MethodImplOptions.NoInlining)]
+        // ReSharper disable once InconsistentNaming
         public static void ThrowIOException(string message)
         {
             throw GetIOException(message);
         }
 
+        /// <summary>
+        /// Use this instead of Debug.Assert when not in a hot loop.
+        /// </summary>
+        /// <param name="expectedTrueCondition"></param>
+        /// <param name="message"></param>
         [MethodImpl(MethodImplOptions.NoInlining)]
-        public static void AssertFailFast(bool expectedTrueCondition, string message)
+        public static void Assert([DoesNotReturnIf(false)]bool expectedTrueCondition, string? message = null)
+        {
+            if (!expectedTrueCondition)
+            {
+                // TODO AssertionFailureException
+                throw new Exception("Assertion failure: " + (message ?? string.Empty));
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        public static void AssertFailFast([DoesNotReturnIf(false)]bool expectedTrueCondition, string? message = null)
         {
             if (!expectedTrueCondition)
             {
@@ -131,14 +169,16 @@ namespace Spreads
             }
         }
 
+        [DoesNotReturn]
         [MethodImpl(MethodImplOptions.NoInlining)]
-        public static void FailFast(string message)
+        public static void FailFast(string? message = null)
         {
             DoFailFast(message);
         }
 
+        [DoesNotReturn]
         [MethodImpl(MethodImplOptions.NoInlining)]
-        private static void DoFailFast(string message)
+        private static void DoFailFast(string? message = null)
         {
             Environment.FailFast(message, new Exception(message));
         }
@@ -218,6 +258,7 @@ namespace Spreads
         }
 
 #if SPREADS
+
         [MethodImpl(MethodImplOptions.NoInlining)]
         private static OutOfOrderKeyException<TKey> GetOutOfOrderKeyException<TKey>(TKey key)
         {
@@ -229,6 +270,7 @@ namespace Spreads
         {
             return new OutOfOrderKeyException<TKey>(key, message);
         }
+
 #endif
 
         [MethodImpl(MethodImplOptions.NoInlining)]
@@ -244,6 +286,7 @@ namespace Spreads
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
+        // ReSharper disable once InconsistentNaming
         private static IOException GetIOException(string message)
         {
             return new IOException(message);

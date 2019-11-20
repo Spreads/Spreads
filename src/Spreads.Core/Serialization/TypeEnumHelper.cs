@@ -755,7 +755,7 @@ namespace Spreads.Serialization
             if (typeof(T).GetTypeInfo().IsGenericType &&
                 typeof(T).GetGenericTypeDefinition() == typeof(RetainedMemory<>)) { return TypeEnum.Array; }
             if (typeof(T).GetTypeInfo().IsGenericType &&
-                typeof(T).GetGenericTypeDefinition() == typeof(VectorStorage<>)) { return TypeEnum.Array; }
+                typeof(T).GetGenericTypeDefinition() == typeof(VecStorage<>)) { return TypeEnum.Array; }
             if (typeof(T).GetTypeInfo().IsGenericType &&
                 typeof(T).GetGenericTypeDefinition() == typeof(ArrayWrapper<>)) { return TypeEnum.Array; }
 

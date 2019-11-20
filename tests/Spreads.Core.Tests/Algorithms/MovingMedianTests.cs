@@ -2,14 +2,15 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-using System;
-using System.Diagnostics;
 using NUnit.Framework;
 using Spreads.Algorithms.Online;
 using Spreads.Utils;
+using System;
+using System.Diagnostics;
 
 namespace Spreads.Core.Tests.Algorithms
 {
+    [Category("CI")]
     [TestFixture]
     public class MovingMedianTests
     {
@@ -61,11 +62,15 @@ namespace Spreads.Core.Tests.Algorithms
             }
         }
 
-        [Test, Explicit("long running")]
+        [Test
+#if !DEBUG
+         , Explicit("long running")
+#endif
+        ]
         public void MovingMedianIsCorrect()
         {
             var rng = new System.Random();
-            var count = 1000000;
+            var count = (int)TestUtils.GetBenchCount(1000000);
             var m = rng.Next(10, 50);
             Console.WriteLine($"Window size: {m}");
             var data = new double[count];
@@ -77,22 +82,22 @@ namespace Spreads.Core.Tests.Algorithms
             var medians = new double[count - m + 1];
             var naiveMedians = new double[count - m + 1];
 
-            var sw = new Stopwatch();
-            sw.Restart();
-            var result = mm.Rngmed(data, ref medians);
-            sw.Stop();
-            Assert.AreEqual(0, result);
-            Console.WriteLine($"Elapsed LIGO {sw.ElapsedMilliseconds} msec, {sw.MOPS(count):f2} Mops");
-
-            sw.Restart();
-            var startIdx = m - 1;
-            for (int i = startIdx; i < count; i++)
+            using (Benchmark.Run("LIGO", count))
             {
-                var arraySegment = new ArraySegment<double>(data, i - startIdx, m);
-                naiveMedians[i - startIdx] = MovingMedian.NaiveMedian(arraySegment);
+                var result = mm.Rngmed(data, ref medians);
+                Assert.AreEqual(0, result);
             }
-            sw.Stop();
-            Console.WriteLine($"Elapsed NAIVE {sw.ElapsedMilliseconds} msec, {sw.MOPS(count):f2} Mops");
+
+            var startIdx = m - 1;
+
+            using (Benchmark.Run("NAIVE", count))
+            {
+                for (int i = startIdx; i < count; i++)
+                {
+                    var arraySegment = new ArraySegment<double>(data, i - startIdx, m);
+                    naiveMedians[i - startIdx] = MovingMedian.NaiveMedian(arraySegment);
+                }
+            }
 
             for (int i = 0; i < medians.Length; i++)
             {

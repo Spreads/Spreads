@@ -8,6 +8,7 @@
 
 using System;
 using System.Runtime.CompilerServices;
+using Spreads.Algorithms.Hash.BLAKE2b;
 using Spreads.Buffers;
 
 namespace Spreads.Algorithms.Hash
@@ -44,7 +45,7 @@ namespace Spreads.Algorithms.Hash
             { FailBadOutputLength(digestLength); }
 
             var ctx = default(Blake2bContext);
-            ctx.InitUpdateFinish(input, output, digestLength, key);
+            ctx.InitUpdateHash(input, output, digestLength, key);
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
@@ -60,7 +61,7 @@ namespace Spreads.Algorithms.Hash
         public static Blake2bContext CreateIncrementalHasher(ReadOnlySpan<byte> key) => CreateIncrementalHasher(DefaultDigestLength, key);
 
         /// <summary>Create and initialize an incremental BLAKE2b hash computation.</summary>
-        /// <remarks>If you will recieve the input in segments rather than all at once, this is the most efficient way to calculate the hash.</remarks>
+        /// <remarks>If you will receive the input in segments rather than all at once, this is the most efficient way to calculate the hash.</remarks>
         /// <param name="digestLength">The hash digest length in bytes.  Valid values are 1 to 64.</param>
         /// <param name="key">0 to 64 bytes of input for initializing a keyed hash.</param>
         /// <returns>An <see cref="Blake2bContext" /> for updating and finalizing the hash.</returns>

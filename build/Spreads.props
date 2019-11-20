@@ -41,21 +41,14 @@
 
     <PlatformTarget>AnyCPU</PlatformTarget>
     <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
-    <LangVersion>7.3</LangVersion>
+    <LangVersion>8.0</LangVersion>
     <Configurations>Debug;Release</Configurations>
 
   </PropertyGroup>
 
   <PropertyGroup>
-    <DefineConstants>$(DefineConstants);NETSTANDARD;NETSTANDARD20;SPREADS</DefineConstants>
+    <DefineConstants>$(DefineConstants);SPREADS</DefineConstants>
   </PropertyGroup>
 
-  <PropertyGroup Condition="'$(TargetFramework)' == 'netcoreapp2.1' or '$(TargetFramework)' == 'netcoreapp3.0'">
-    <DefineConstants>$(DefineConstants);NETCOREAPP</DefineConstants>
-  </PropertyGroup>
 
-  <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
-    <CheckForOverflowUnderflow>True</CheckForOverflowUnderflow>
-    <DefineConstants>$(DefineConstants);TRACE;DEBUG</DefineConstants>
-  </PropertyGroup>
 </Project>

@@ -19,6 +19,12 @@ namespace Spreads.Buffers
     {
         private static readonly ObjectPool<BufferWriter> ObjectPool = new ObjectPool<BufferWriter>(() => new BufferWriter(), Environment.ProcessorCount * 4);
 
+        internal const int MinLen = 16 * 1024;
+        internal const int MaxLen = 1024 * 1024 * 1024;
+
+        private RetainedMemory<byte> _buffer;
+        private int _offset;
+
         private BufferWriter()
         { }
 
@@ -34,11 +40,7 @@ namespace Spreads.Buffers
             return buffer;
         }
 
-        internal const int MinLen = 16 * 1024;
-        internal const int MaxLen = 1024 * 1024 * 1024;
-
-        private RetainedMemory<byte> _buffer;
-        private int _offset;
+        
 
         public int WrittenLength => _offset;
 
@@ -256,7 +258,7 @@ namespace Spreads.Buffers
         }
 
         [MethodImpl(MethodImplOptions.NoInlining
-#if NETCOREAPP3_0
+#if HAS_AGGR_OPT
             | MethodImplOptions.AggressiveOptimization
 #endif
         )]
@@ -297,9 +299,6 @@ namespace Spreads.Buffers
         /// <summary>
         /// Returns <see cref="WrittenMemory"/> as <see cref="RetainedMemory{T}"/> and disposes this <see cref="BufferWriter"/>.
         /// The returned memory must be disposed after processing.
-        /// The memory is not owned (<see cref="RetainedMemory{T}.ReferenceCount"/> is zero), therefore if multiple
-        /// consumers will process the memory it must be retained by the caller using  <see cref="RetainedMemory{T}.Retain()" />
-        /// and by each additional consumer by calling <see cref="RetainedMemory{T}.Clone()"/>.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal RetainedMemory<byte> DetachMemory()

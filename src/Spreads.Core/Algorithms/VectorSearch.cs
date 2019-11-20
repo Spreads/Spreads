@@ -1113,7 +1113,7 @@ namespace Spreads.Algorithms
         /// Performs interpolation lookup for well-known types and binary lookup for other types.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int SortedLookup<T, TVec>(ref TVec vec, int start, int length, T value, Lookup lookup, KeyComparer<T> comparer = default)
+        public static int SortedLookup<T, TVec>(ref TVec vec, int start, int length, ref T value, Lookup lookup, KeyComparer<T> comparer = default)
             where TVec : IVector<T>
         {
             if (Settings.UseInterpolatedSearchForKnownTypes && KeyComparer<T>.IsDiffableSafe)

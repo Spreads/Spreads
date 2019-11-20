@@ -15,8 +15,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="NodaTime" Version="2.4.2" />
-    <PackageReference Include="MathNet.Numerics.Signed" Version="4.7.0" />
+    <PackageReference Include="NodaTime" Version="2.4.7" />
+    <PackageReference Include="MathNet.Numerics.Signed" Version="4.9.0" />
   </ItemGroup>
 
   <ItemGroup>

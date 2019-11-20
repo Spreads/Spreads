@@ -32,6 +32,9 @@ using System.IO;
 using System.Runtime.CompilerServices;
 using System.Threading;
 
+#pragma warning disable CS1690 // Accessing a member on a field of a marshal-by-reference class may cause a runtime exception
+
+
 namespace Spreads.Buffers
 {
     using Events = RecyclableMemoryStreamManager.Events;
@@ -174,8 +177,8 @@ namespace Spreads.Buffers
         internal static RecyclableMemoryStream Create(Memory<byte> initialLargeBuffer)
         {
             throw new NotImplementedException("After RM refactoring this needs review");
-            var rm = new RetainedMemory<byte>(initialLargeBuffer);
-            return Create(0, rm, rm.Length);
+            //var rm = new RetainedMemory<byte>(initialLargeBuffer);
+            //return Create(0, rm, rm.Length);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -1042,6 +1045,10 @@ namespace Spreads.Buffers
 #else
                 if (_largeBuffer.TryGetArray(out var segment))
                 {
+                    if (segment.Array == null)
+                    {
+                        ThrowHelper.ThrowInvalidOperationException("segment.Array == null");
+                    }
                     stream.Write(segment.Array, segment.Offset, checked((int)_length));
                 }
                 else

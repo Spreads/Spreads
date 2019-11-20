@@ -158,7 +158,7 @@ namespace Spreads.Buffers
         }
 
         /// <summary>
-        /// Underlying memory is a pinned array or native memory.
+        /// The underlying memory is a pinned array or native memory.
         /// </summary>
         public bool IsPinned
         {
@@ -166,16 +166,13 @@ namespace Spreads.Buffers
             get => _pointer != null;
         }
 
+        /// <summary>
+        /// <see cref="ReferenceCount"/> is positive, i.e. the memory is retained (borrowed).
+        /// </summary>
         public bool IsRetained
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => AtomicCounter.GetIsRetained(ref CounterRef);
-        }
-
-        public bool IsPooled
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => _isPooled;
         }
 
         internal bool IsPoolable
@@ -214,16 +211,21 @@ namespace Spreads.Buffers
         }
 
         /// <summary>
-        /// Returns <see cref="Vec{T}"/> backed by this instance memory.
+        /// Returns <see cref="Vec{T}"/> backed by the memory of this instance.
         /// </summary>
         public virtual Vec<T> Vec
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
+                if (_isPooled)
+                {
+                    ThrowDisposed<RetainableMemory<T>>();
+                }
+
                 var vec = new Vec<T>(_pointer, _length);
 #if SPREADS
-                Debug.Assert(vec.AsVec().Type == typeof(T));
+                Debug.Assert(vec.AsVec().ItemType == typeof(T));
 #endif
                 return vec;
             }
@@ -243,20 +245,30 @@ namespace Spreads.Buffers
         internal DirectBuffer DirectBuffer
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => new DirectBuffer(_length * Unsafe.SizeOf<T>(), (byte*)Pointer);
+            get
+            {
+                if (_isPooled)
+                {
+                    ThrowDisposed<RetainableMemory<T>>();
+                }
+                return new DirectBuffer(_length * Unsafe.SizeOf<T>(), (byte*)Pointer);
+            }
         }
 
+        [Obsolete("Prefer fixed statements on a pinnable reference for short-lived pinning")]
+#pragma warning disable CS0809 // Obsolete member overrides non-obsolete member
         public override MemoryHandle Pin(int elementIndex = 0)
+#pragma warning restore CS0809 // Obsolete member overrides non-obsolete member
         {
             Increment();
-            if (unchecked((uint)elementIndex) >= _length) // if (elementIndex < 0 || elementIndex >= _capacity)
+            if (unchecked((uint)elementIndex) >= _length)
             {
                 ThrowIndexOutOfRange();
             }
 
             if (_pointer == null)
             {
-                ThrowHelper.ThrowInvalidOperationException("RetainableMemory that could be not pinned must have it's own implementation (override) of Pin method.");
+                ThrowHelper.ThrowInvalidOperationException("RetainableMemory that is not pinned must have it's own implementation (override) of Pin method.");
             }
 
             return new MemoryHandle(Unsafe.Add<T>(_pointer, elementIndex), handle: default, this);
@@ -287,7 +299,7 @@ namespace Spreads.Buffers
         /// Retain buffer memory without pinning it.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public RetainedMemory<T> Retain(int start, int length, bool borrow = true)
+        public RetainedMemory<T> Retain(int start, int length, bool borrow = true) // TODO remove borrow param, Retain == borrow
         {
             if ((uint)start + (uint)length > (uint)_length)
             {

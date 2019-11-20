@@ -2,11 +2,13 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+using Spreads.Algorithms;
 using Spreads.Collections.Concurrent;
 using System;
 using System.Diagnostics;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using Spreads.Buffers;
 
 namespace Spreads.Collections.Internal
 {
@@ -25,20 +27,22 @@ namespace Spreads.Collections.Internal
     internal sealed partial class DataBlock : IDisposable
     {
         // We need it as a sentinel with RowLength == 0 in cursor to not penalize fast path of single-block containers
-        internal static readonly DataBlock Empty = new DataBlock { _rowLength = 0 };
+        internal static readonly DataBlock Empty = new DataBlock { _rowCount = 0 };
 
         private static readonly ObjectPool<DataBlock> ObjectPool = new ObjectPool<DataBlock>(() => new DataBlock(), Environment.ProcessorCount * 16);
 
         /// <summary>
-        /// Number of data rows (not capacity).
+        /// Number of data rows.
         /// </summary>
-        internal int _rowLength = -1;
+        internal int _rowCount = -1;
 
-        private VectorStorage _rowKeys;
+        internal int _head = -1;
 
-        private VectorStorage _values; // TODO (review) could be valuesOrColumnIndex instead of storing ColumnIndex in _columns[0]
+        private VecStorage _rowKeys;
 
-        private VectorStorage[]? _columns;
+        private VecStorage _values; // TODO (review) could be valuesOrColumnIndex instead of storing ColumnIndex in _columns[0]
+
+        private VecStorage[]? _columns;
 
         /// <summary>
         /// Fast path to get the next block from the current one.
@@ -59,11 +63,11 @@ namespace Spreads.Collections.Internal
         // TODO delete this method
         [Obsolete("Use container-specific factories, e.g. SeriesCreate")]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static DataBlock Create(VectorStorage rowIndex = default, VectorStorage values = default, VectorStorage[]? columns = null, int rowLength = -1)
+        public static DataBlock Create(VecStorage rowIndex = default, VecStorage values = default, VecStorage[]? columns = null, int rowLength = -1)
         {
             var block = ObjectPool.Allocate();
 
-            Debug.Assert(block._rowLength == -1);
+            Debug.Assert(block._rowCount == -1);
             Debug.Assert(block._rowKeys == default);
             Debug.Assert(block._values == default);
             Debug.Assert(block._columns == null);
@@ -73,21 +77,21 @@ namespace Spreads.Collections.Internal
             if (rowIndex != default)
             {
                 block._rowKeys = rowIndex;
-                rowCapacity = rowIndex.Length;
+                rowCapacity = rowIndex.Vec.Length;
             }
 
             if (values != default)
             {
                 block._values = values;
-                if (rowCapacity >= 0 && values.Length < rowCapacity)
+                if (rowCapacity >= 0 && values.Vec.Length < rowCapacity)
                 {
                     ThrowHelper.ThrowArgumentException("");
                 }
                 else
                 {
-                    rowCapacity = values.Length;
+                    rowCapacity = values.Vec.Length;
                 }
-                rowCapacity = Math.Min(rowCapacity, values.Length);
+                rowCapacity = Math.Min(rowCapacity, values.Vec.Length);
             }
 
             if (columns != null)
@@ -99,13 +103,13 @@ namespace Spreads.Collections.Internal
                 block._columns = columns;
                 foreach (var column in columns)
                 {
-                    rowCapacity = Math.Min(rowCapacity, column.Length);
+                    rowCapacity = Math.Min(rowCapacity, column.Vec.Length);
                 }
             }
 
             if (rowLength == -1)
             {
-                block._rowLength = rowCapacity;
+                block._rowCount = rowCapacity;
             }
             else
             {
@@ -115,7 +119,7 @@ namespace Spreads.Collections.Internal
                 }
                 else
                 {
-                    block._rowLength = rowLength;
+                    block._rowCount = rowLength;
                 }
             }
 
@@ -125,13 +129,14 @@ namespace Spreads.Collections.Internal
         public bool IsDisposed
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => RowLength < 0;
+            get => RowCount < 0;
         }
 
         [Conditional("DEBUG")]
         private void EnsureDisposed()
         {
-            Debug.Assert(_rowLength == -1);
+            Debug.Assert(_rowCount == -1);
+            Debug.Assert(_head == -1);
             Debug.Assert(_rowKeys == default);
             Debug.Assert(_values == default);
             Debug.Assert(_columns == null);
@@ -149,7 +154,8 @@ namespace Spreads.Collections.Internal
                 WarnFinalizing();
             }
 
-            _rowLength = -1;
+            _rowCount = -1;
+            _head = -1;
 
             // just break the chain, if the remaining linked list was only rooted here it will be GCed TODO review
             NextBlock = null;
@@ -205,25 +211,63 @@ namespace Spreads.Collections.Internal
 
         #endregion Lifecycle
 
-        public int RowLength
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private int IndexToOffset(int index)
         {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => _rowLength;
+            return RingVecUtil.IndexToOffset(index, _head, _rowCount);
         }
 
-        public ref readonly VectorStorage RowKeys
+        private unsafe int OffsetToIndex(int offset)
         {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => ref _rowKeys;
+            throw new NotImplementedException();
         }
 
-        public ref readonly VectorStorage Values
+        public int RowCount
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => ref _values;
+            get => _rowCount;
         }
 
-        public VectorStorage ColumnKeys => _columns![0];
+        public int RowCapacity
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => _rowKeys.Vec.Length;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public ref T DangerousRowKeyRef<T>(int index)
+        {
+            int index1 = IndexToOffset(index);
+            return ref _rowKeys.Vec.DangerousGetRef<T>(index1);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public ref T DangerousValueRef<T>(int index)
+        {
+            int index1 = IndexToOffset(index);
+            return ref _values.Vec.DangerousGetRef<T>(index1);
+        }
+
+#if HAS_AGGR_OPT
+        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
+
+        public int LookupKey<T>(ref T key, Lookup lookup, KeyComparer<T> comparer = default)
+        {
+            if (_head + _rowCount < _rowKeys.Vec.Length)
+            {
+                return _head + VectorSearch.SortedLookup(ref _rowKeys.Vec.DangerousGetRef<T>(_head),
+                    _rowCount, ref key, lookup, comparer);
+            }
+
+            // This should be pretty fast vs. manually managing edge cases on
+            // the wrap boundary. TODO test
+            var wrappedVec = new RingVec<T>(_rowKeys.Vec, _head, _rowCount);
+            return VectorSearch.SortedLookup(ref wrappedVec, 0,
+                       _rowCount, ref key, lookup, comparer);
+        }
+
+        #region Structure check
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void EnsureNotSentinel()
@@ -240,8 +284,6 @@ namespace Spreads.Collections.Internal
                 }
             }
         }
-
-        #region Structure check
 
         // TODO do not pretend to make it right at the first take, will review and redefine
         // TODO make tests
@@ -316,7 +358,7 @@ namespace Spreads.Collections.Internal
                 {
                     if (_columns.Length > 0)
                     {
-                        colLength = _columns[0].Length;
+                        colLength = _columns[0].Vec.Length;
                     }
                     else
                     {
@@ -327,7 +369,7 @@ namespace Spreads.Collections.Internal
                     {
                         for (int i = 1; i < _columns.Length; i++)
                         {
-                            if (colLength != _columns[0].Length)
+                            if (colLength != _columns[0].Vec.Length)
                             {
                                 return false;
                             }
@@ -345,10 +387,10 @@ namespace Spreads.Collections.Internal
 
                 if (colLength == -1 && _values != default)
                 {
-                    colLength = _values.Length;
+                    colLength = _values.Vec.Length;
                 }
 
-                if (_rowKeys != default && _rowKeys.Length != colLength)
+                if (_rowKeys != default && _rowKeys.Vec.Length != colLength)
                 {
                     return false;
                 }

@@ -43,7 +43,7 @@ namespace Spreads.Serialization.Serializers
         }
 
         [MethodImpl(MethodImplOptions.NoInlining
-#if NETCOREAPP3_0
+#if HAS_AGGR_OPT
                     | MethodImplOptions.AggressiveOptimization
 #endif
         )]
@@ -78,7 +78,7 @@ namespace Spreads.Serialization.Serializers
         }
 
         [MethodImpl(MethodImplOptions.NoInlining
-#if NETCOREAPP3_0
+#if HAS_AGGR_OPT
                     | MethodImplOptions.AggressiveOptimization
 #endif
         )]
@@ -96,7 +96,7 @@ namespace Spreads.Serialization.Serializers
         }
 
         [MethodImpl(MethodImplOptions.NoInlining
-#if NETCOREAPP3_0
+#if HAS_AGGR_OPT
                     | MethodImplOptions.AggressiveOptimization
 #endif
         )]

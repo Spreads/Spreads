@@ -21,19 +21,6 @@ using static Spreads.Buffers.BuffersThrowHelper;
 
 namespace Spreads.Buffers
 {
-    [Obsolete("26MOPS vs 44MOPS for premature abstraction")]
-    internal abstract class RetainableMemoryPoolBase<T, TImpl> : MemoryPool<T> where TImpl : RetainableMemory<T>
-    {
-        public abstract TImpl RentMemory(int minimumLength);
-
-        public abstract bool Return(TImpl memory, bool clearArray = false);
-
-        public override IMemoryOwner<T> Rent(int minBufferSize = -1)
-        {
-            return RentMemory(minBufferSize);
-        }
-    }
-
     /// <summary>
     /// This is thread-safe only with correct usage. With Rent a buffer must be returned via Return and used only by a single
     /// thread at a time and no refcounting is done. As soon as a buffer is Retain-ed it must only be used with ref-counting
@@ -186,28 +173,18 @@ namespace Spreads.Buffers
 
         public override IMemoryOwner<T> Rent(int minBufferSize = -1)
         {
-            if (minBufferSize == -1)
-            {
-                minBufferSize = _minBufferLength;
-            }
             return RentMemory(minBufferSize);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public RetainableMemory<T> RentMemory(int minimumLength)
+        public RetainableMemory<T> RentMemory(int minBufferSize = -1)
         {
-            // Arrays can't be smaller than zero.  We allow requesting zero-length arrays (even though
-            // pooling such an array isn't valuable) as it's a valid length array, and we want the pool
-            // to be usable in general instead of using `new`, even for computed lengths.
-            if (minimumLength <= 0)
-            {
-                ThrowBadLength();
-            }
+            minBufferSize = Math.Max(_minBufferLength, minBufferSize);
 
             var log = RetainableMemoryPoolEventSource.Log;
             RetainableMemory<T> buffer;
 
-            int index = SelectBucketIndex(minimumLength);
+            int index = SelectBucketIndex(minBufferSize);
             if (index < _buckets.Length)
             {
                 // Search for an array starting at the 'index' bucket. If the bucket is empty, bump up to the
@@ -249,7 +226,7 @@ namespace Spreads.Buffers
             {
                 // The request was for a size too large for the pool.  Allocate an array of exactly the requested length.
                 // When it's returned to the pool, we'll simply throw it away.
-                buffer = CreateNew(minimumLength);
+                buffer = CreateNew(minBufferSize);
                 if (buffer.IsDisposed)
                 {
                     ThrowHelper.FailFast("CreateNew(minimumLength) returned disposed buffer");
@@ -272,7 +249,7 @@ namespace Spreads.Buffers
         }
 
         [MethodImpl(MethodImplOptions.NoInlining
-#if NETCOREAPP3_0
+#if HAS_AGGR_OPT
                     | MethodImplOptions.AggressiveOptimization
 #endif
         )]

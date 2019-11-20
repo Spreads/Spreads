@@ -44,7 +44,7 @@ namespace Spreads.Buffers
 
     public class BufferPool
     {
-        internal static BufferPool Shared = new BufferPool();
+        private static BufferPool Shared = new BufferPool();
 
         internal static RetainableMemoryPool<byte> PinnedArrayMemoryPool =
             new RetainableMemoryPool<byte>(
@@ -100,8 +100,8 @@ namespace Spreads.Buffers
                 ArrayMemory<byte> CreateThreadStaticBuffer()
                 {
                     // TODO review this mess with externally owned
-                    _threadStaticBuffer = ArrayMemory<byte>.Create(new byte[StaticBufferSize], true, pin:true);
-                    _threadStaticMemory = new RetainedMemory<byte>(_threadStaticBuffer, 0, _threadStaticBuffer.Memory.Length, false);
+                    _threadStaticBuffer = ArrayMemory<byte>.Create(new byte[StaticBufferSize], externallyOwned: true, pin: true);
+                    _threadStaticMemory = new RetainedMemory<byte>(_threadStaticBuffer, 0, _threadStaticBuffer.Memory.Length, borrow: false);
                     return _threadStaticBuffer;
                 }
             }
@@ -122,7 +122,7 @@ namespace Spreads.Buffers
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public RetainedMemory<byte> RetainMemory(int length, bool requireExact = true, bool borrow = true)
+        private RetainedMemory<byte> RetainMemory(int length, bool requireExact = true, bool borrow = true)
         {
             var arrayMemory = PinnedArrayMemoryPool.RentMemory(length);
             if (arrayMemory.IsDisposed)

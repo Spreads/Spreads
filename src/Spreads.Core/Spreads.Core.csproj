@@ -11,9 +11,7 @@
     <OutputType>Library</OutputType>
 
     <LangVersion>8.0</LangVersion>
-    <Nullable>enable</Nullable>
-    <NullableContextOptions>enable</NullableContextOptions>
-    <NullableReferenceTypes>true</NullableReferenceTypes>
+    <Nullable>warnings</Nullable>
     <!-- TODO move Spreads own code to the top proj and enable this for that proj: <WarningsAsErrors>CS8600;CS8602;CS8603</WarningsAsErrors>-->
   </PropertyGroup>
   
@@ -33,19 +31,17 @@
   </ItemGroup>
   
   <ItemGroup>
-    <PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="1.0.0-preview6.19303.8" />
-    <PackageReference Include="Spreads.Native" Version="2019.0.402" />
+    <PackageReference Condition="'$(TargetFramework)' != 'netcoreapp3.0' and '$(TargetFramework)' != 'netstandard2.1' " Include="Microsoft.Bcl.AsyncInterfaces" Version="1.0.0" />
+    <PackageReference Include="Spreads.Native" Version="2019.1.1116-build221800" />
     <PackageReference Include="System.Buffers" Version="4.5.0" />
-    <PackageReference Include="System.Collections.Immutable" Version="1.5.0" />
-    <PackageReference Include="System.Memory" Version="4.5.2" />
+    <PackageReference Include="System.Collections.Immutable" Version="1.6.0" />
     <PackageReference Include="System.Numerics.Vectors" Version="4.5.0" />
-    <PackageReference Include="System.Reflection.Emit" Version="4.3.0" />
-    <PackageReference Include="System.Reflection.Emit.ILGeneration" Version="4.3.0" />
-    <PackageReference Include="System.Reflection.Emit.Lightweight" Version="4.3.0" />
+    <PackageReference Include="System.Reflection.Emit" Version="4.6.0" />
+    <PackageReference Include="System.Reflection.Emit.ILGeneration" Version="4.6.0" />
+    <PackageReference Include="System.Reflection.Emit.Lightweight" Version="4.6.0" />
     <PackageReference Include="System.Reflection.Extensions" Version="4.3.0" />
-    <PackageReference Include="System.Reflection.TypeExtensions" Version="4.5.1" />
-    <PackageReference Include="System.Runtime.CompilerServices.Unsafe" Version="4.5.2" />
-    <PackageReference Include="System.Threading.Tasks.Extensions" Version="4.5.2" />
+    <PackageReference Include="System.Reflection.TypeExtensions" Version="4.6.0" />
+    <PackageReference Include="System.Threading.Tasks.Extensions" Version="4.5.3" />
     <PackageReference Include="System.ValueTuple" Version="4.5.0" />
   </ItemGroup>
     
@@ -61,6 +57,26 @@
     <None Include="Series'3 (Operators).cs" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Update="Algorithms\Hash\BLAKE2b\Blake2bAvx2.cs">
+      <DesignTime>True</DesignTime>
+      <AutoGen>True</AutoGen>
+      <DependentUpon>Blake2bAvx2.tt</DependentUpon>
+    </Compile>
+    <Compile Update="Algorithms\Hash\BLAKE2b\Blake2bContext.cs">
+      <DesignTime>True</DesignTime>
+      <AutoGen>True</AutoGen>
+      <DependentUpon>Blake2bContext.tt</DependentUpon>
+    </Compile>
+    <Compile Update="Algorithms\Hash\BLAKE2b\Blake2bScalar.cs">
+      <DesignTime>True</DesignTime>
+      <AutoGen>True</AutoGen>
+      <DependentUpon>Blake2bScalar.tt</DependentUpon>
+    </Compile>
+    <Compile Update="Algorithms\Hash\BLAKE2b\Blake2bSse4.cs">
+      <DesignTime>True</DesignTime>
+      <AutoGen>True</AutoGen>
+      <DependentUpon>Blake2bSse4.tt</DependentUpon>
+    </Compile>
     <Compile Update="Series%273 %28Operators%29.cs">
       <DesignTime>True</DesignTime>
       <AutoGen>True</AutoGen>
@@ -68,6 +84,22 @@
     </Compile>
   </ItemGroup>
   <ItemGroup>
+    <None Update="Algorithms\Hash\BLAKE2b\Blake2bAvx2.tt">
+      <Generator>TextTemplatingFileGenerator</Generator>
+      <LastGenOutput>Blake2bAvx2.cs</LastGenOutput>
+    </None>
+    <None Update="Algorithms\Hash\BLAKE2b\Blake2bContext.tt">
+      <Generator>TextTemplatingFileGenerator</Generator>
+      <LastGenOutput>Blake2bContext.cs</LastGenOutput>
+    </None>
+    <None Update="Algorithms\Hash\BLAKE2b\Blake2bScalar.tt">
+      <Generator>TextTemplatingFileGenerator</Generator>
+      <LastGenOutput>Blake2bScalar.cs</LastGenOutput>
+    </None>
+    <None Update="Algorithms\Hash\BLAKE2b\Blake2bSse4.tt">
+      <Generator>TextTemplatingFileGenerator</Generator>
+      <LastGenOutput>Blake2bSse4.cs</LastGenOutput>
+    </None>
     <None Update="Series%273 %28Operators%29.cs">
       <DesignTime>True</DesignTime>
       <AutoGen>True</AutoGen>
@@ -83,7 +115,7 @@
     </None>
     <None Update="Series'3 (Operators).tt">
       <Generator>TextTemplatingFileGenerator</Generator>
-      <LastGenOutput>Series%273 %28Operators%29.cs</LastGenOutput>
+      <LastGenOutput>Series'3 (Operators).cs</LastGenOutput>
     </None>
   </ItemGroup>
   <ItemGroup>

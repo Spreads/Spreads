@@ -10,7 +10,7 @@ namespace Spreads.Collections.Internal
 {
     internal static class VectorStorageSerializerFactory
     {
-        public static BinarySerializer<VectorStorage<TElement>> GenericCreate<TElement>()
+        public static BinarySerializer<VecStorage<TElement>> GenericCreate<TElement>()
         {
             return new VectorStorageSerializer<TElement>();
         }
@@ -26,22 +26,22 @@ namespace Spreads.Collections.Internal
     // TODO fallback to ArrayWrapperSerializer with params
     // TODO do not throw not supported, just do not register a binary serializer
     // and add Json formatter.
-    internal class VectorStorageSerializer<T> : InternalSerializer<VectorStorage<T>>
+    internal class VectorStorageSerializer<T> : InternalSerializer<VecStorage<T>>
     {
         public override byte KnownTypeId => 0;
 
         public override short FixedSize => 0;
 
-        public override int SizeOf(in VectorStorage<T> value, BufferWriter payload)
+        public override int SizeOf(in VecStorage<T> value, BufferWriter payload)
         {
             if (!TypeHelper<T>.IsFixedSize)
             {
                 ThrowHelper.ThrowNotSupportedException();
             }
-            return 4 + value.Storage.Length * Unsafe.SizeOf<T>();
+            return 4 + value.Storage.Vec.Length * Unsafe.SizeOf<T>();
         }
 
-        public override unsafe int Write(in VectorStorage<T> value, DirectBuffer destination)
+        public override unsafe int Write(in VecStorage<T> value, DirectBuffer destination)
         {
             if (!TypeHelper<T>.IsFixedSize)
             {
@@ -51,21 +51,21 @@ namespace Spreads.Collections.Internal
             // TODO we will use negative length as shuffled flag
             // but will need to add support for ArrayConverter for this.
 
-            destination.Write(0, -value.Storage.Length); // Minus for shuffled
-            if (value.Storage.Length > 0)
+            destination.Write(0, -value.Storage.Vec.Length); // Minus for shuffled
+            if (value.Storage.Vec.Length > 0)
             {
-                var byteLen = Unsafe.SizeOf<T>() * value.Storage.Length;
+                var byteLen = Unsafe.SizeOf<T>() * value.Storage.Vec.Length;
                 Debug.Assert(destination.Length >= 4 + byteLen);
 
                 if (TypeHelper<T>.IsIDelta)
                 {
                     // one boxing TODO this is wrong direction, we need i - first, maybe add reverse delta or for binary it's OK?
-                    var first = (IDelta<T>)value.Storage.DangerousGetRef<T>(0);
-                    var arr = BufferPool<T>.Rent(value.Storage.Length);
-                    arr[0] = value.Storage.DangerousGetRef<T>(0);
-                    for (int i = 1; i < value.Storage.Length; i++)
+                    var first = (IDelta<T>)value.Storage.Vec.DangerousGetRef<T>(0);
+                    var arr = BufferPool<T>.Rent(value.Storage.Vec.Length);
+                    arr[0] = value.Storage.Vec.DangerousGetRef<T>(0);
+                    for (int i = 1; i < value.Storage.Vec.Length; i++)
                     {
-                        arr[i] = first.GetDelta(value.Storage.DangerousGetRef<T>(i));
+                        arr[i] = first.GetDelta(value.Storage.Vec.DangerousGetRef<T>(i));
                     }
 
                     fixed (byte* sPtr = &Unsafe.As<T, byte>(ref arr[0]))
@@ -94,7 +94,7 @@ namespace Spreads.Collections.Internal
             return 4;
         }
 
-        public override unsafe int Read(DirectBuffer source, out VectorStorage<T> value)
+        public override unsafe int Read(DirectBuffer source, out VecStorage<T> value)
         {
             var arraySize = source.Read<int>(0);
             if (arraySize > 0)
@@ -137,13 +137,13 @@ namespace Spreads.Collections.Internal
                     }
                 }
 
-                var vs = VectorStorage.Create<T>(rm, 0, arraySize);
+                var vs = VecStorage.Create<T>(rm, 0, arraySize);
 
-                value = new VectorStorage<T>(vs);
+                value = new VecStorage<T>(vs);
             }
             else
             {
-                value = new VectorStorage<T>(default);
+                value = new VecStorage<T>(default);
             }
 
             return 4 + payloadSize;

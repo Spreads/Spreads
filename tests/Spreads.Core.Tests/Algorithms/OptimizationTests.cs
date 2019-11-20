@@ -10,6 +10,7 @@ using Spreads.Algorithms.Optimization;
 
 namespace Spreads.Core.Tests.Algorithms
 {
+    [Category("CI")]
     [TestFixture]
     public class OptimizationTests
     {

@@ -4,43 +4,23 @@
 
 using NSec.Cryptography;
 using NUnit.Framework;
-using Spreads.Algorithms.Hash;
+using Spreads.Algorithms.Hash.BLAKE2b;
+using Spreads.Buffers;
 using Spreads.Utils;
 using System;
 using System.Linq;
-using System.Numerics;
 using System.Runtime.CompilerServices;
-using MathNet.Numerics.LinearAlgebra.Complex;
-using Spreads.Buffers;
 using Blake2b = Spreads.Algorithms.Hash.Blake2b;
+
 //using System.Runtime.Intrinsics;
 //using System.Runtime.Intrinsics.X86;
 
 namespace Spreads.Core.Tests.Algorithms
 {
+    [Category("CI")]
     [TestFixture]
     public class Blake2Tests
     {
-        //// [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        //private static Vector128<ulong> shuffle_ulong(Vector128<ulong> x, byte m)
-        //{
-        //    var y = x.As<uint>();
-        //    var z = Sse2.Shuffle(y, m); // SEHException
-        //    return z.As<ulong>();
-        //}
-
-        //[Test, Ignore("Fails with SEHException")]
-        //public void CouldSse2ShullfeZero()
-        //{
-        //    var x = new Vector128<ulong>();
-
-        //    var y = x.As<uint>();
-        //    var z = Sse2.Shuffle(y, (byte)78); // OK
-        //    var res =  z.As<ulong>();
-
-        //    var res2 = shuffle_ulong(x, (byte)78);
-        //}
-
         [Test]
         public void CouldHash()
         {
@@ -72,7 +52,7 @@ namespace Spreads.Core.Tests.Algorithms
             var hash0 = new byte[hashLength];
             var hash1 = new byte[hashLength];
 
-            var count = 1000_000;
+            var count = TestUtils.GetBenchCount(1000_000);
             var rounds = 10;
 
             // warm up
@@ -114,25 +94,30 @@ namespace Spreads.Core.Tests.Algorithms
             }
 
             Benchmark.Dump();
+            rmb.Dispose();
         }
 
-        [Test, Explicit("long running")]
+        [Test
+#if !DEBUG
+         , Explicit("long running")
+#endif
+        ]
         public void CouldHashIncrementalBench()
         {
             Console.WriteLine("Context size: " + Unsafe.SizeOf<Blake2bContext>());
 
-            var steps = 50_000;
+            var steps = TestUtils.GetBenchCount(50_000, 2);
             var incrSize = 64;
             var rng = new Random(42);
             var byteLength = incrSize * steps;
 
-            var rmb = BufferPool.Retain(byteLength);
+            var rmb = BufferPool.Retain((int)byteLength);
             var bytes = new DirectBuffer(rmb);
             rmb.TryGetArray(out var segment);
             rng.NextBytes(segment.Array);
 
             var hashLength = 32;
-            
+
             NSec.Cryptography.Blake2b b = default;
             if (hashLength == 32)
             {
@@ -165,17 +150,17 @@ namespace Spreads.Core.Tests.Algorithms
 
             for (int r = 0; r < rounds; r++)
             {
-                using (var stat = Benchmark.Run("Spreads (MBsec)", byteLength * 100, false))
+                using (var stat = Benchmark.Run("Spreads (MBsec)", byteLength, false))
                 {
-                    for (int rr = 0; rr < 100; rr++)
+                    // for (int rr = 0; rr < 100; rr++)
                     {
                         var ctx = Blake2b.CreateIncrementalHasher(hashLength);
                         var sp = bytes.Span;
                         for (int i = 0; i < steps; i++)
                         {
-                            var span = bytes.Slice(i * incrSize, incrSize);
-                            ctx.Update(span);
-                            Blake2bContext.TryFinish(ref ctx, hash0, out var len);
+                            var slice = bytes.Slice(i * incrSize, incrSize);
+                            ctx.UpdateHash(slice, hash0);
+                            
                         }
                     }
                 }
@@ -190,23 +175,28 @@ namespace Spreads.Core.Tests.Algorithms
                 //    }
                 //}
 
-                //Assert.IsTrue(hash0.SequenceEqual(hash1));
+                //Assert.IsTrue(hash0.SequenceEqual(hash1), "Different hash vs LibSodium");
             }
 
             Benchmark.Dump($"Incremental hashing by {incrSize} bytes {steps} times");
+            rmb.Dispose();
         }
 
-        [Test, Explicit("long running")]
+        [Test
+#if !DEBUG
+         , Explicit("long running")
+#endif
+        ]
         public void CouldHashChainedBench()
         {
             Console.WriteLine("Context size: " + Unsafe.SizeOf<Blake2bContext>());
 
-            var steps = 5_000;
+            var steps = TestUtils.GetBenchCount(5_000, 2);
             var incrSize = 64;
             var rng = new Random(42);
             var byteLength = incrSize * steps;
 
-            var rmb = BufferPool.Retain(byteLength);
+            var rmb = BufferPool.Retain((int)byteLength);
             var bytes = new DirectBuffer(rmb);
             rmb.TryGetArray(out var segment);
             rng.NextBytes(segment.Array);
@@ -226,7 +216,7 @@ namespace Spreads.Core.Tests.Algorithms
                 {
                     for (int rr = 0; rr < 100; rr++)
                     {
-                                                for (int i = 0; i < steps; i++)
+                        for (int i = 0; i < steps; i++)
                         {
                             var span = bytes.Slice(i * incrSize, incrSize);
 
@@ -237,19 +227,24 @@ namespace Spreads.Core.Tests.Algorithms
             }
 
             Benchmark.Dump($"Chained hashing by {incrSize} bytes {steps} times");
+            rmb.Dispose();
         }
 
-        [Test, Explicit("long running")]
+        [Test
+#if !DEBUG
+         , Explicit("long running")
+#endif
+        ]
         public void CouldHashIncrementalCorrectness()
         {
             Console.WriteLine("Context size: " + Unsafe.SizeOf<Blake2bContext>());
 
-            var steps = 200_000;
+            var steps = TestUtils.GetBenchCount(20_000, 10);
             var incrSize = 1;
             var rng = new Random(42);
             var byteLength = incrSize * steps;
 
-            var rmb = BufferPool.Retain(byteLength);
+            var rmb = BufferPool.Retain((int)byteLength);
             var bytes = new DirectBuffer(rmb);
             rmb.TryGetArray(out var segment);
             rng.NextBytes(segment.Array);
@@ -290,8 +285,7 @@ namespace Spreads.Core.Tests.Algorithms
                     var runningSpan = sp.Slice(0, i * incrSize + incrSize);
 
                     // Incremental Spreads
-                    ctx.Update(incrSpan);
-                    Blake2bContext.TryFinish(ref ctx, hash0, out var _);
+                    ctx.UpdateHash(incrSpan, hash0);
 
                     // Running Spreads
                     Blake2b.ComputeAndWriteHash(hashLength, runningBuff, hash1);
@@ -308,6 +302,7 @@ namespace Spreads.Core.Tests.Algorithms
                     }
                 }
             }
+            rmb.Dispose();
         }
     }
 }

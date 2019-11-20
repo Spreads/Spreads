@@ -55,7 +55,7 @@ namespace Spreads.Threading
         }
 
         [MethodImpl(MethodImplOptions.NoInlining
-#if NETCOREAPP3_0
+#if HAS_AGGR_OPT
             | MethodImplOptions.AggressiveOptimization
 #endif
         )]
@@ -65,7 +65,7 @@ namespace Spreads.Threading
         }
 
         [MethodImpl(MethodImplOptions.NoInlining
-#if NETCOREAPP3_0
+#if HAS_AGGR_OPT
             | MethodImplOptions.AggressiveOptimization
 #endif
         )]
@@ -74,8 +74,7 @@ namespace Spreads.Threading
             int newValue;
             while (true)
             {
-                // no volatile read, CAS will do the barriers and on next retry it will be ok.
-                var currentValue = counter;
+                var currentValue = Volatile.Read(ref counter);
 
                 if (unchecked((uint)(currentValue & CountMask)) >= CountLimit)
                 {
@@ -107,7 +106,7 @@ namespace Spreads.Threading
         /// Decrement a positive counter. Throws if counter is zero.
         /// </summary>
         [MethodImpl(MethodImplOptions.NoInlining
-#if NETCOREAPP3_0
+#if HAS_AGGR_OPT
             | MethodImplOptions.AggressiveOptimization
 #endif
         )]
@@ -116,8 +115,7 @@ namespace Spreads.Threading
             int newValue;
             while (true)
             {
-                // no volatile read, CAS will do the barriers and on next retry it will be ok.
-                var currentValue = counter;
+                var currentValue = Volatile.Read(ref counter);
 
                 // after decrement the value must remain in the range
                 if (unchecked((uint)((currentValue & CountMask) - 1)) >= CountLimit)
@@ -144,7 +142,7 @@ namespace Spreads.Threading
         /// Returns new count value if incremented or zero if the current count value is zero.
         /// </summary>
         [MethodImpl(MethodImplOptions.NoInlining
-#if NETCOREAPP3_0
+#if HAS_AGGR_OPT
                     | MethodImplOptions.AggressiveOptimization
 #endif
         )]
@@ -197,7 +195,7 @@ namespace Spreads.Threading
         /// should be skipped.
         /// </remarks>
         [MethodImpl(MethodImplOptions.NoInlining
-#if NETCOREAPP3_0
+#if HAS_AGGR_OPT
                     | MethodImplOptions.AggressiveOptimization
 #endif
         )]
@@ -279,13 +277,13 @@ namespace Spreads.Threading
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool GetIsRetained(ref int counter)
         {
-            return unchecked((uint)((counter & CountMask) - 1)) <= CountLimit;
+            return unchecked((uint)((Volatile.Read(ref counter) & CountMask) - 1)) <= CountLimit;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool GetIsDisposed(ref int counter)
         {
-            return (counter & CountMask) == CountMask;
+            return (Volatile.Read(ref counter) & CountMask) == CountMask;
         }
 
         public bool IsRetained
@@ -307,7 +305,7 @@ namespace Spreads.Threading
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining
-#if NETCOREAPP3_0
+#if HAS_AGGR_OPT
                     | MethodImplOptions.AggressiveOptimization
 #endif
         )]
@@ -338,7 +336,7 @@ namespace Spreads.Threading
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static int TryDispose(ref int counter)
         {
-            var currentValue = counter;
+            var currentValue = Volatile.Read(ref counter);
             var currentCount = currentValue & CountMask;
             
             if (currentCount != 0)

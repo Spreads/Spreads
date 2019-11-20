@@ -6,7 +6,7 @@ using System;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 
-#if NETCOREAPP3_0
+#if HAS_INTRINSICS
 
 using System.Runtime.Intrinsics;
 using System.Runtime.Intrinsics.X86;

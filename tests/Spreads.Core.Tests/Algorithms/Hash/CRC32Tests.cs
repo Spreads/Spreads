@@ -8,35 +8,22 @@ using Spreads.Buffers;
 using Spreads.Utils;
 using System;
 using System.Runtime.InteropServices;
+using Spreads.Core.Tests.Algorithms.Hash;
+
 // using System.Runtime.Intrinsics.X86;
 
 namespace Spreads.Core.Tests.Algorithms
 {
+    [Category("CI")]
     [TestFixture]
     public unsafe class CRC32Tests
     {
-        //private static uint MethodWithCrc32OK(byte* data)
-        //{
-        //    var b = *data;
-        //    var x = System.Runtime.Intrinsics.X86.Sse42.Crc32(0, b);
-        //    return x;
-        //}
-
-        //private static uint MethodWithCrc32Fail(byte* data)
-        //{
-        //    var x = System.Runtime.Intrinsics.X86.Sse42.Crc32(0, (*(data)));
-        //    return x;
-        //}
-
-        //[Test]
-        //public unsafe void CouldCallCrc32()
-        //{
-        //    var data = (byte*)Marshal.AllocHGlobal(1);
-        //    var x1 = MethodWithCrc32OK(data);
-        //    // var x2 = MethodWithCrc32Fail(data);
-        //}
-
-        [Test, Explicit("long running")]
+        
+        [Test
+#if !DEBUG
+         , Explicit("long running")
+#endif
+        ]
         public unsafe void CRCBenchmark()
         {
             var lens = new int[] { 1, 2, 3, 4, 7, 8, 9, 15, 16, 31, 32, 63, 64, 255, 256, 511, 512, 1023, 1024 };
@@ -48,7 +35,7 @@ namespace Spreads.Core.Tests.Algorithms
                 var ptr = (byte*)handle.Pointer;
                 var rng = new Random(42);
                 rng.NextBytes(arr);
-                var count = TestUtils.GetBenchCount(1_00_000_000, 10_000_000);
+                var count = TestUtils.GetBenchCount(1_00_000_000, 1_00_000);
                 var cnt = count / len;
                 var sum = 0UL;
 
@@ -115,7 +102,11 @@ namespace Spreads.Core.Tests.Algorithms
         }
 
 
-        [Test, Explicit("long running")]
+        [Test
+#if !DEBUG
+         , Explicit("long running")
+#endif
+        ]
         public unsafe void CRCCopyBenchmark()
         {
             var lens = new int[] {1, 2, 3, 4, 7, 8, 9, 15, 16, 31, 32, 63, 64, 255, 256, 511, 512, 1023, 1024 };
@@ -133,7 +124,7 @@ namespace Spreads.Core.Tests.Algorithms
 
                 var rng = new Random(42);
                 rng.NextBytes(arr);
-                var count = 1_000_000_000;
+                var count = TestUtils.GetBenchCount(1_00_000_000, 1000);
                 var cnt = count / len;
                 var sum = 0UL;
 
@@ -150,29 +141,30 @@ namespace Spreads.Core.Tests.Algorithms
                     crc0 = digest;
                 }
 
-                //{
-                //    uint digest = 0;
-                //    using (Benchmark.Run("CRC32 Only Intrinsic", count, true))
-                //    {
-                //        for (int i = 0; i < cnt; i++)
-                //        {
-                //            digest = Crc32C.CalculateCrc32C(ptr, len, digest);
-                //        }
-                //    }
-                //    crc1 = digest;
-                //}
-
                 {
                     uint digest = 0;
-                    using (Benchmark.Run("CRC32+Copy Manual", count, true))
+                    using (Benchmark.Run("CRC32 then copy Intrinsic", count, true))
                     {
                         for (int i = 0; i < cnt; i++)
                         {
-                            digest = Crc32C.CopyWithCrc32CManual(ptr, len, copyTarget, digest);
+                            digest = Crc32C.CalculateCrc32C(ptr, len, digest);
+                            System.Runtime.CompilerServices.Unsafe.CopyBlockUnaligned(copyTarget, ptr, (uint)len);
                         }
                     }
-                    crc3 = digest;
+                    crc1 = digest;
                 }
+
+                //{
+                //    uint digest = 0;
+                //    using (Benchmark.Run("CRC32+Copy Manual", count, true))
+                //    {
+                //        for (int i = 0; i < cnt; i++)
+                //        {
+                //            digest = Crc32C.CopyWithCrc32CManual(ptr, len, copyTarget, digest);
+                //        }
+                //    }
+                //    crc3 = digest;
+                //}
 
                 //{
                 //    using (Benchmark.Run("Copy only", count, true))
@@ -199,9 +191,9 @@ namespace Spreads.Core.Tests.Algorithms
                 //    crc2 = digest;
                 //}
 
-                //Assert.AreEqual(crc0, crc1);
+                Assert.AreEqual(crc0, crc1);
                 //Assert.AreEqual(crc0, crc2);
-                Assert.AreEqual(crc0, crc3);
+                // Assert.AreEqual(crc0, crc3);
 
                 Benchmark.Dump("LEN: " + len);
             }

@@ -32,7 +32,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 using System;
 using System.Runtime.CompilerServices;
 
-namespace Spreads.Algorithms.Hash
+namespace Spreads.Core.Tests.Algorithms.Hash
 {
     [Obsolete("Use CRC32C with hardware acceleration")]
     public static unsafe class XxHash

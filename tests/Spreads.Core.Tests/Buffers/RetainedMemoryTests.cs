@@ -43,6 +43,7 @@ namespace Spreads.Core.Tests.Buffers
             var rm = BufferPool.Retain(123456, true);
             // var ptr = rm.Pointer;
             var mem = rm.Memory;
+
             var clone = rm.Clone();
             var clone1 = rm.Clone();
             var clone2 = clone.Clone();
@@ -60,12 +61,12 @@ namespace Spreads.Core.Tests.Buffers
         }
 
         [Test]
-        public void CouldCreateRetainedmemoryFromArray()
+        public void CouldCreateRetainedMemoryFromArray()
         {
             var array = new byte[100];
-            var rm = new RetainedMemory<byte>(array);
+            using var rm = new RetainedMemory<byte>(array);
 
-            var rmc = rm.Clone().Slice(10);
+            using var rmc = rm.Clone(10);
 
             GC.Collect(2, GCCollectionMode.Forced, true);
             GC.WaitForPendingFinalizers();
@@ -75,19 +76,16 @@ namespace Spreads.Core.Tests.Buffers
             rmc.Span[1] = 1;
 
             Assert.AreEqual(1, array[11]);
-
-            rm.Dispose();
-            rmc.Dispose();
         }
 
         [Test]
         public void OffsetsAreOk()
         {
             var array = new byte[100];
-            var rm = new RetainedMemory<byte>(ArrayMemory<byte>.Create(array, 50, 50, true, pin: true), 25, 25, true);
+            using var rm = new RetainedMemory<byte>(ArrayMemory<byte>.Create(array, 50, 50, true, pin: true), 25, 25, true);
 
             // 85 - 95
-            var rmc = rm.Clone().Slice(10, 10);
+            using var rmc = rm.Clone(10, 10);
 
             GC.Collect(2, GCCollectionMode.Forced, true);
             GC.WaitForPendingFinalizers();
@@ -97,31 +95,30 @@ namespace Spreads.Core.Tests.Buffers
             rmc.Span[5] = 1;
 
             Assert.AreEqual(1, array[90]);
-
-            rm.Dispose();
-            rmc.Dispose();
         }
 
         [Test]
         public unsafe void TrimUpdatesPointer()
         {
-            var rm = BufferPool.Shared.RetainMemory(1000);
+            var rm = BufferPool.Retain(1000);
 
             var initialPtr = (IntPtr)rm.Pointer;
 
-            rm = rm.Slice(1, 100);
+            var rm1 = rm.Clone(1, 100);
 
-            Assert.AreEqual(initialPtr.ToInt64() + 1, ((IntPtr)rm.Pointer).ToInt64());
+            Assert.AreEqual(initialPtr.ToInt64() + 1, ((IntPtr)rm1.Pointer).ToInt64());
 
+            rm1.Dispose();
             rm.Dispose();
+
             rm = BufferPool.OffHeapMemoryPool.RentMemory(1000).Retain();
 
             initialPtr = (IntPtr)rm.Pointer;
 
-            rm = rm.Slice(1, 100);
+            rm1 = rm.Clone(1, 100);
 
-            Assert.AreEqual(initialPtr.ToInt64() + 1, ((IntPtr)rm.Pointer).ToInt64());
-
+            Assert.AreEqual(initialPtr.ToInt64() + 1, ((IntPtr)rm1.Pointer).ToInt64());
+            rm1.Dispose();
             rm.Dispose();
         }
 

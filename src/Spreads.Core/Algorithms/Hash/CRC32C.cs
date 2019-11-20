@@ -30,7 +30,7 @@ using System.Runtime.CompilerServices;
 using Spreads.Buffers;
 using static System.Runtime.CompilerServices.Unsafe;
 
-#if NETCOREAPP3_0
+#if HAS_INTRINSICS
 using System.Runtime.Intrinsics.X86;
 #endif
 
@@ -38,7 +38,7 @@ namespace Spreads.Algorithms.Hash
 {
     public static unsafe class Crc32C
     {
-#if NETCOREAPP3_0
+#if HAS_INTRINSICS
         public static readonly bool IsHardwareAccelerated = Sse42.IsSupported || Sse42.X64.IsSupported;
 #endif
         private const uint Crc32CPoly = 0x82F63B78u;
@@ -67,7 +67,7 @@ namespace Spreads.Algorithms.Hash
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static uint Append(uint crc, byte* data, int len)
         {
-#if NETCOREAPP3_0
+#if HAS_INTRINSICS
             if (IsHardwareAccelerated)
             {
                 byte* next = data;
@@ -75,36 +75,35 @@ namespace Spreads.Algorithms.Hash
                 //// TODO see for parallelism https://stackoverflow.com/questions/17645167/implementing-sse-4-2s-crc32c-in-software/17646775#17646775
                 var crc0 = uint.MaxValue ^ crc;
 
-                // We use Unsafe.ReadUnaligned instead of manual alignment
-                //while (len > 0 && ((ulong)next & 7) != 0)
-                //{
-                //    crc0 = Sse42.Crc32(crc0, *next);
-                //    next++;
-                //    len--;
-                //}
+                while (len > 0 && ((ulong)next & 7) != 0)
+                {
+                    crc0 = Sse42.Crc32(crc0, *next);
+                    next++;
+                    len--;
+                }
                 if (Sse42.X64.IsSupported)
                 {
                     while (len >= 32)
                     {
-                        crc0 = (uint) Sse42.X64.Crc32(crc0, ReadUnaligned<ulong>(next));
-                        crc0 = (uint) Sse42.X64.Crc32(crc0, ReadUnaligned<ulong>(next + 8));
-                        crc0 = (uint) Sse42.X64.Crc32(crc0, ReadUnaligned<ulong>(next + 16));
-                        crc0 = (uint) Sse42.X64.Crc32(crc0, ReadUnaligned<ulong>(next + 24));
+                        crc0 = (uint) Sse42.X64.Crc32(crc0, Read<ulong>(next));
+                        crc0 = (uint) Sse42.X64.Crc32(crc0, Read<ulong>(next + 8));
+                        crc0 = (uint) Sse42.X64.Crc32(crc0, Read<ulong>(next + 16));
+                        crc0 = (uint) Sse42.X64.Crc32(crc0, Read<ulong>(next + 24));
                         next += 32;
                         len -= 32;
                     }
 
                     while (len >= 16)
                     {
-                        crc0 = (uint) Sse42.X64.Crc32(crc0, ReadUnaligned<ulong>(next));
-                        crc0 = (uint) Sse42.X64.Crc32(crc0, ReadUnaligned<ulong>(next + 8));
+                        crc0 = (uint) Sse42.X64.Crc32(crc0, Read<ulong>(next));
+                        crc0 = (uint) Sse42.X64.Crc32(crc0, Read<ulong>(next + 8));
                         next += 16;
                         len -= 16;
                     }
 
                     while (len >= 8)
                     {
-                        crc0 = (uint) Sse42.X64.Crc32(crc0, ReadUnaligned<ulong>(next));
+                        crc0 = (uint) Sse42.X64.Crc32(crc0, Read<ulong>(next));
                         next += 8;
                         len -= 8;
                     }
@@ -112,14 +111,14 @@ namespace Spreads.Algorithms.Hash
 
                 while (len >= 4)
                 {
-                    crc0 = Sse42.Crc32(crc0, ReadUnaligned<uint>(next));
+                    crc0 = Sse42.Crc32(crc0, Read<uint>(next));
                     next += 4;
                     len -= 4;
                 }
 
                 while (len >= 2)
                 {
-                    crc0 = Sse42.Crc32(crc0, ReadUnaligned<ushort>(next));
+                    crc0 = Sse42.Crc32(crc0, Read<ushort>(next));
                     next += 2;
                     len -= 2;
                 }
@@ -145,7 +144,7 @@ namespace Spreads.Algorithms.Hash
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static uint AppendCopy(uint crc, byte* data, int len, byte* copyTarget)
         {
-#if NETCOREAPP3_0
+#if HAS_INTRINSICS
             if (IsHardwareAccelerated)
             {
                 byte* next = data;
@@ -153,21 +152,22 @@ namespace Spreads.Algorithms.Hash
                 //// TODO see for parallelism https://stackoverflow.com/questions/17645167/implementing-sse-4-2s-crc32c-in-software/17646775#17646775
                 var crc0 = uint.MaxValue ^ crc;
 
-                // We use Unsafe.ReadUnaligned instead of manual alignment
-                //while (len > 0 && ((ulong)next & 7) != 0)
-                //{
-                //    crc0 = Sse42.Crc32(crc0, *next);
-                //    next++;
-                //    len--;
-                //}
+                while (len > 0 && ((ulong)next & 7) != 0)
+                {
+                    crc0 = Sse42.Crc32(crc0, *next);
+                    *copyTarget = *next;
+                    next++;
+                    copyTarget++;
+                    len--;
+                }
                 if (Sse42.X64.IsSupported)
                 {
                     while (len >= 32)
                     {
-                        crc0 = (uint) Sse42.X64.Crc32(crc0, ReadUnaligned<ulong>(next));
-                        crc0 = (uint) Sse42.X64.Crc32(crc0, ReadUnaligned<ulong>(next + 8));
-                        crc0 = (uint) Sse42.X64.Crc32(crc0, ReadUnaligned<ulong>(next + 16));
-                        crc0 = (uint) Sse42.X64.Crc32(crc0, ReadUnaligned<ulong>(next + 24));
+                        crc0 = (uint) Sse42.X64.Crc32(crc0, Read<ulong>(next));
+                        crc0 = (uint) Sse42.X64.Crc32(crc0, Read<ulong>(next + 8));
+                        crc0 = (uint) Sse42.X64.Crc32(crc0, Read<ulong>(next + 16));
+                        crc0 = (uint) Sse42.X64.Crc32(crc0, Read<ulong>(next + 24));
 
                         CopyBlockUnaligned(copyTarget, next, 32);
 
@@ -178,8 +178,8 @@ namespace Spreads.Algorithms.Hash
 
                     while (len >= 16)
                     {
-                        crc0 = (uint) Sse42.X64.Crc32(crc0, ReadUnaligned<ulong>(next));
-                        crc0 = (uint) Sse42.X64.Crc32(crc0, ReadUnaligned<ulong>(next + 8));
+                        crc0 = (uint) Sse42.X64.Crc32(crc0, Read<ulong>(next));
+                        crc0 = (uint) Sse42.X64.Crc32(crc0, Read<ulong>(next + 8));
 
                         CopyBlockUnaligned(copyTarget, next, 16);
 
@@ -190,7 +190,7 @@ namespace Spreads.Algorithms.Hash
 
                     while (len >= 8)
                     {
-                        crc0 = (uint) Sse42.X64.Crc32(crc0, ReadUnaligned<ulong>(next));
+                        crc0 = (uint) Sse42.X64.Crc32(crc0, Read<ulong>(next));
 
                         CopyBlockUnaligned(copyTarget, next, 8);
 
@@ -202,7 +202,7 @@ namespace Spreads.Algorithms.Hash
 
                 while (len >= 4)
                 {
-                    crc0 = Sse42.Crc32(crc0, ReadUnaligned<uint>(next));
+                    crc0 = Sse42.Crc32(crc0, Read<uint>(next));
 
                     CopyBlockUnaligned(copyTarget, next, 4);
 
@@ -213,7 +213,7 @@ namespace Spreads.Algorithms.Hash
 
                 while (len >= 2)
                 {
-                    crc0 = Sse42.Crc32(crc0, ReadUnaligned<ushort>(next));
+                    crc0 = Sse42.Crc32(crc0, Read<ushort>(next));
 
                     CopyBlockUnaligned(copyTarget, next, 2);
 

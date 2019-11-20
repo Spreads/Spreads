@@ -21,7 +21,7 @@ namespace Spreads.Collections.Internal
         private void EnsureSeriesLayout()
         {
             // TODO more checks
-            if (_columns != null || _rowKeys.Length != _values.Length)
+            if (_columns != null || _rowKeys.Vec.Length != _values.Vec.Length)
             {
                 throw new DataBlockLayoutException("Bad Series layout");
             }
@@ -30,17 +30,17 @@ namespace Spreads.Collections.Internal
         /// <summary>
         /// Create a DataBlock for Series.
         /// </summary>
-        public static DataBlock SeriesCreate(VectorStorage rowIndex = default, VectorStorage values = default, int rowLength = -1)
+        public static DataBlock SeriesCreate(VecStorage rowIndex = default, VecStorage values = default, int rowLength = -1)
         {
-            if (rowIndex.Length <= 0 || values.Length <= 0 || rowIndex.Length != values.Length)
+            if (rowIndex.Vec.Length <= 0 || values.Vec.Length <= 0 || rowIndex.Vec.Length != values.Vec.Length)
             {
-                ThrowHelper.ThrowArgumentException($"rowIndex.Length [{rowIndex.Length}] <= 0 || values.Length [{values.Length}]  <= 0 || rowIndex.Length != values.Length");
+                ThrowHelper.ThrowArgumentException($"rowIndex.Length [{rowIndex.Vec.Length}] <= 0 || values.Length [{values.Vec.Length}]  <= 0 || rowIndex.Length != values.Length");
             }
 
             var block = ObjectPool.Allocate();
             block.EnsureDisposed();
 
-            var rowCapacity = rowIndex.Length;
+            var rowCapacity = rowIndex.Vec.Length;
 
             block._rowKeys = rowIndex;
 
@@ -48,7 +48,7 @@ namespace Spreads.Collections.Internal
 
             if (rowLength == -1)
             {
-                block._rowLength = rowCapacity;
+                block._rowCount = rowCapacity;
             }
             else
             {
@@ -58,7 +58,7 @@ namespace Spreads.Collections.Internal
                 }
                 else
                 {
-                    block._rowLength = rowLength;
+                    block._rowCount = rowLength;
                 }
             }
 
@@ -70,7 +70,7 @@ namespace Spreads.Collections.Internal
         /// Insert key to RowIndex and value in Values only if there is enough capacity.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining
-#if NETCOREAPP3_0
+#if HAS_AGGR_OPT
             | MethodImplOptions.AggressiveOptimization
 #endif
         )]
@@ -83,9 +83,9 @@ namespace Spreads.Collections.Internal
                 SeriesAdditionalInsertChecks(index);
             }
 
-            if (index < RowLength) // TODO Extract AddLast case. It has only this cost, but the method size could be an issue. We could keep normal inserts as non-inlined, but AddLast must be very fast and it does little checks & work.
+            if (index < RowCount) // TODO Extract AddLast case. It has only this cost, but the method size could be an issue. We could keep normal inserts as non-inlined, but AddLast must be very fast and it does little checks & work.
             {
-                var len = RowLength - index;
+                var len = RowCount - index;
                 var rowKeysSpan = _rowKeys.Vec.AsSpan<TKey>();
                 rowKeysSpan.Slice(index, len).CopyTo(rowKeysSpan.Slice(index + 1, len));
                 var valuesSpan = _values.Vec.AsSpan<TValue>();
@@ -98,7 +98,7 @@ namespace Spreads.Collections.Internal
             // we are inside write-locked context,
             // but readers check only the length during AddLast/Append
             // without spinning on order version.
-            Volatile.Write(ref _rowLength, _rowLength + 1); // TODO Volatile needed only for AddLast, see the TODO above.
+            Volatile.Write(ref _rowCount, _rowCount + 1); // TODO Volatile needed only for AddLast, see the TODO above.
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
@@ -106,24 +106,24 @@ namespace Spreads.Collections.Internal
         {
             EnsureNotSentinel();
 
-            if ((uint)index > RowLength)
+            if ((uint)index > RowCount)
             {
                 ThrowHelper.ThrowArgumentOutOfRangeException("index");
             }
 
-            if (RowLength == _rowKeys.Length)
+            if (RowCount == _rowKeys.Vec.Length)
             {
                 ThrowHelper.ThrowInvalidOperationException("Not enough capacity");
             }
 
-            if (RowLength > _rowKeys.Length)
+            if (RowCount > _rowKeys.Vec.Length)
             {
                 ThrowHelper.FailFast("Series DataBlock.RowLength exceeded capacity. That should never happen.");
             }
         }
 
         [MethodImpl(MethodImplOptions.NoInlining
-#if NETCOREAPP3_0
+#if HAS_AGGR_OPT
             | MethodImplOptions.AggressiveOptimization
 #endif
         )]
@@ -148,27 +148,27 @@ namespace Spreads.Collections.Internal
             var vals = _values;
 
             var minCapacity = Math.Max(newCapacity, Settings.MIN_POOLED_BUFFER_LEN);
-            var newLen = Math.Max(minCapacity, BitUtil.FindNextPositivePowerOfTwo(ri.Length + 1));
+            var newLen = Math.Max(minCapacity, BitUtil.FindNextPositivePowerOfTwo(ri.Vec.Length + 1));
 
             RetainableMemory<TKey>? newRiBuffer = null;
-            VectorStorage newRi = default;
+            VecStorage newRi = default;
             RetainableMemory<TValue>? newValsBuffer = null;
-            VectorStorage newVals = default;
+            VecStorage newVals = default;
 
             try
             {
                 newRiBuffer = BufferPool<TKey>.MemoryPool.RentMemory(newLen);
 
-                newRi = VectorStorage.Create(newRiBuffer, 0, newRiBuffer.Length); // new buffer could be larger
-                if (ri.Length > 0)
+                newRi = VecStorage.Create(newRiBuffer, 0, newRiBuffer.Length); // new buffer could be larger
+                if (ri.Vec.Length > 0)
                 {
                     ri.Vec.AsSpan<TKey>().CopyTo(newRi.Vec.AsSpan<TKey>());
                 }
 
                 newValsBuffer = BufferPool<TValue>.MemoryPool.RentMemory(newLen);
 
-                newVals = VectorStorage.Create(newValsBuffer, 0, newValsBuffer.Length);
-                if (vals.Length > 0)
+                newVals = VecStorage.Create(newValsBuffer, 0, newValsBuffer.Length);
+                if (vals.Vec.Length > 0)
                 {
                     vals.Vec.AsSpan<TValue>().CopyTo(newVals.Vec.AsSpan<TValue>());
                 }
@@ -213,7 +213,7 @@ namespace Spreads.Collections.Internal
                     vals.Dispose();
                 }
 
-                return _rowKeys.Length;
+                return _rowKeys.Vec.Length;
             }
             catch
             {

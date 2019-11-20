@@ -46,7 +46,7 @@ namespace Spreads.Internal
         }
 
         [MethodImpl(MethodImplOptions.NoInlining
-#if NETCOREAPP3_0
+#if HAS_AGGR_OPT
             | MethodImplOptions.AggressiveOptimization
 #endif
         )]
@@ -132,7 +132,7 @@ namespace Spreads.Internal
             }
         }
 
-        public DataBlock LastValueOrDefault
+        public DataBlock LastValueOrDefault // TODO review if should move to iface
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get

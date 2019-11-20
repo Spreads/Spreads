@@ -20,6 +20,7 @@ using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
+using Spreads.Buffers;
 using static System.Runtime.CompilerServices.Unsafe;
 
 #pragma warning disable HAA0101 // Array allocation for params parameter
@@ -42,8 +43,7 @@ namespace Spreads.Serialization
             FromPtrDelegate temp;
             if (FromPtrDelegateCache.TryGetValue(ty, out temp)) return temp;
             var mi = typeof(TypeHelper).GetMethod("ReadObject", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
-            // ReSharper disable once PossibleNullReferenceException
-
+            ThrowHelper.AssertFailFast(mi != null);
             var genericMi = mi.MakeGenericMethod(ty);
 
             temp = (FromPtrDelegate)genericMi.CreateDelegate(typeof(FromPtrDelegate));
@@ -59,7 +59,7 @@ namespace Spreads.Serialization
             ToPtrDelegate temp;
             if (ToPtrDelegateCache.TryGetValue(ty, out temp)) return temp;
             var mi = typeof(TypeHelper).GetMethod("WriteObject", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
-            // ReSharper disable once PossibleNullReferenceException
+            ThrowHelper.AssertFailFast(mi != null);
             var genericMi = mi.MakeGenericMethod(ty);
             temp = (ToPtrDelegate)genericMi.CreateDelegate(typeof(ToPtrDelegate));
             ToPtrDelegateCache[ty] = temp;
@@ -74,7 +74,7 @@ namespace Spreads.Serialization
             SizeOfDelegate temp;
             if (SizeOfDelegateCache.TryGetValue(ty, out temp)) return temp;
             var mi = typeof(TypeHelper).GetMethod("SizeOfObject", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
-            // ReSharper disable once PossibleNullReferenceException
+            ThrowHelper.AssertFailFast(mi != null);
             var genericMi = mi.MakeGenericMethod(ty);
             temp = (SizeOfDelegate)genericMi.CreateDelegate(typeof(SizeOfDelegate));
             SizeOfDelegateCache[ty] = temp;
@@ -97,9 +97,9 @@ namespace Spreads.Serialization
             int temp;
             if (SizeDelegateCache.TryGetValue(ty, out temp)) return temp;
             var mi = typeof(TypeHelper).GetMethod("Size", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
-            // ReSharper disable once PossibleNullReferenceException
+            ThrowHelper.AssertFailFast(mi != null);
             var genericMi = mi.MakeGenericMethod(ty);
-            temp = (int)genericMi.Invoke(null, new object[] { });
+            temp = (int)genericMi.Invoke(null, new object[] { })!;
             SizeDelegateCache[ty] = temp;
             return temp;
         }
@@ -451,7 +451,7 @@ namespace Spreads.Serialization
             }
 
             if (typeof(T).IsGenericType
-                && typeof(T).GetGenericTypeDefinition() == typeof(Collections.Internal.VectorStorage<>))
+                && typeof(T).GetGenericTypeDefinition() == typeof(VecStorage<>))
             {
                 // TODO TEH by type
                 var elementType = typeof(T).GenericTypeArguments[0];

@@ -16,7 +16,7 @@ namespace Spreads
     /// <summary>
     /// Base container with row keys of type <typeparamref name="TKey"/>.
     /// </summary>
-    public class BaseContainer<TKey> : BaseContainer, IDisposable
+    public class BaseContainer<TKey> : BaseContainer
     {
         // internal ctor for tests only, it should have been abstract otherwise
         internal BaseContainer()
@@ -54,8 +54,8 @@ namespace Spreads
 
             if (block != null)
             {
-                blockIndex = VectorSearch.SortedSearch(ref block.RowKeys.DangerousGetRef<TKey>(0),
-                    block.RowLength, key, _comparer);
+                blockIndex = VectorSearch.SortedSearch(ref block.DangerousRowKeyRef<TKey>(0),
+                    block.RowCount, key, _comparer);
 
                 if (blockIndex >= 0)
                 {
@@ -96,12 +96,12 @@ namespace Spreads
 
                 if (block != null)
                 {
-                    var blockIndex = VectorSearch.SortedSearch(ref block.RowKeys.DangerousGetRef<TKey>(0),
-                        block.RowLength, key, _comparer);
+                    var blockIndex = VectorSearch.SortedSearch(ref block.DangerousRowKeyRef<TKey>(0),
+                        block.RowCount, key, _comparer);
 
                     if (blockIndex >= 0)
                     {
-                        value = block.Values.DangerousGetRef<TValue>(blockIndex);
+                        value = block.DangerousValueRef<TValue>(blockIndex);
                         found = true;
                     }
                 }
@@ -134,7 +134,7 @@ namespace Spreads
             {
                 Debug.Assert(DataBlock != null, "Single-block series must always have non-null DataBlock");
 
-                if (index < DataBlock.RowLength)
+                if (index < DataBlock.RowCount)
                 {
                     block = DataBlock;
                     blockIndex = (int)index;
@@ -267,16 +267,14 @@ namespace Spreads
 
             if (block != null)
             {
-                Debug.Assert(block != null);
-
+                
                 // Here we use internal knowledge that for series RowIndex in contiguous vec
                 // TODO(?) do check if VS is pure, allow strides > 1 or just create Nth cursor?
 
                 // TODO if _stride > 1 is valid at some point, optimize this search via non-generic IVector with generic getter
                 // ReSharper disable once PossibleNullReferenceException
                 // var x = (block?.RowIndex).DangerousGetRef<TKey>(0);
-                blockIndex = VectorSearch.SortedLookup(ref block.RowKeys.DangerousGetRef<TKey>(0),
-                    block.RowLength, ref key, lookup, _comparer);
+                blockIndex = block.LookupKey(ref key, lookup, _comparer);
 
                 if (blockIndex >= 0)
                 {
@@ -291,7 +289,7 @@ namespace Spreads
 
                 // Check for SPECIAL CASE from the comment above
                 if (retryOnGt &&
-                    (~blockIndex) == block.RowLength
+                    (~blockIndex) == block.RowCount
                     && ((int)lookup & (int)Lookup.GT) != 0)
                 {
                     retryOnGt = false;
@@ -299,7 +297,7 @@ namespace Spreads
                     if (nextBlock == null)
                     {
                         TryFindBlock_ValidateOrGetBlockFromSource(ref nextBlock,
-                            block.RowKeys.DangerousGetRef<TKey>(0), lookup, Lookup.GT);
+                            block.DangerousRowKeyRef<TKey>(0), lookup, Lookup.GT);
                     }
 
                     if (nextBlock != null)
@@ -331,13 +329,13 @@ namespace Spreads
                 // the right one from storage. We do not know anything about other blocks, so we must
                 // be strictly in range so that all searches will work.
 
-                if (block.RowLength <= 1) // with 1 there are some edge cases that penalize normal path, so make just one comparison
+                if (block.RowCount <= 1) // with 1 there are some edge cases that penalize normal path, so make just one comparison
                 {
                     block = null;
                 }
                 else
                 {
-                    var firstC = _comparer.Compare(key, block.RowKeys.DangerousGetRef<TKey>(0));
+                    var firstC = _comparer.Compare(key, block.DangerousRowKeyRef<TKey>(0));
 
                     if (firstC < 0 // not in this block even if looking LT
                         || direction == Lookup.LT // first value is >= key so LT won't find the value in this block
@@ -348,7 +346,7 @@ namespace Spreads
                     }
                     else
                     {
-                        var lastC = _comparer.Compare(key, block.RowKeys.DangerousGetRef<TKey>(block.RowLength - 1));
+                        var lastC = _comparer.Compare(key, block.DangerousRowKeyRef<TKey>(block.RowCount - 1));
 
                         if (lastC > 0
                             || direction == Lookup.GT
@@ -376,7 +374,7 @@ namespace Spreads
                 {
                     if (AdditionalCorrectnessChecks.Enabled)
                     {
-                        if (kvp.Value.RowLength <= 0 || _comparer.Compare(kvp.Key, kvp.Value.RowKeys.DangerousGetRef<TKey>(0)) != 0)
+                        if (kvp.Value.RowCount <= 0 || _comparer.Compare(kvp.Key, kvp.Value.DangerousRowKeyRef<TKey>(0)) != 0)
                         {
                             ThrowBadBlockFromSource();
                         }
@@ -401,7 +399,7 @@ namespace Spreads
 
             if (AdditionalCorrectnessChecks.Enabled)
             {
-                if (kvp.Value.RowLength <= 0 || _comparer.Compare(kvp.Key, kvp.Value.RowKeys.DangerousGet<TKey>(0)) != 0)
+                if (kvp.Value.RowCount <= 0 || _comparer.Compare(kvp.Key, kvp.Value.DangerousRowKeyRef<TKey>(0)) != 0)
                 {
                     ThrowBadBlockFromSource();
                 }

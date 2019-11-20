@@ -469,7 +469,7 @@ namespace Spreads.Threading
         }
 
         [MethodImpl(MethodImplOptions.NoInlining
-#if NETCOREAPP3_0
+#if HAS_AGGR_OPT
             | MethodImplOptions.AggressiveOptimization // first call could be problematic with the loop if tiered compilation is on
 #endif
         )]

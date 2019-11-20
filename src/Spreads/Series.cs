@@ -62,7 +62,7 @@ namespace Spreads
                     }
                     else if (c < 0)
                     {
-                        ks = KeySorting.NotEnforced;
+                        ks = KeySorting.NotSorted;
                         break;
                     }
                 }
@@ -70,10 +70,10 @@ namespace Spreads
             _flags = new Flags((byte)((byte)Mutability.ReadOnly | (byte)ks));
 
             var keyMemory = ArrayMemory<TKey>.Create(keys, externallyOwned: true);
-            var keyVs = VectorStorage.Create(keyMemory, 0, keyMemory.Length);
+            var keyVs = VecStorage.Create(keyMemory, 0, keyMemory.Length);
 
             var valMemory = ArrayMemory<TValue>.Create(values, externallyOwned: true);
-            var valVs = VectorStorage.Create(valMemory, 0, valMemory.Length);
+            var valVs = VecStorage.Create(valMemory, 0, valMemory.Length);
 
             var block = DataBlock.SeriesCreate(rowIndex: keyVs, values: valVs, rowLength: keys.Length);
 
@@ -92,11 +92,11 @@ namespace Spreads
             get => _flags.Mutability;
         }
 
-        // TODO old api to remove
+        [Obsolete]
         public bool IsCompleted
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => _flags.IsImmutable;
+            get => Mutability == Mutability.ReadOnly;
         }
 
         // previously only strong sorting was supported
@@ -137,10 +137,10 @@ namespace Spreads
                     }
                 }
 
-                if (block != null && block.RowLength > 0)
+                if (block != null && block.RowCount > 0)
                 {
-                    var k = DataBlock.RowKeys.DangerousGetRef<TKey>(0);
-                    var v = DataBlock.Values.DangerousGetRef<TValue>(0);
+                    var k = block.DangerousRowKeyRef<TKey>(0);
+                    var v = block.DangerousValueRef<TValue>(0);
                     return Opt.Present(new KeyValuePair<TKey, TValue>(k, v));
                 }
                 return Opt<KeyValuePair<TKey, TValue>>.Missing;
@@ -152,7 +152,7 @@ namespace Spreads
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
-                DataBlock block;
+                DataBlock? block;
                 if (DataSource == null)
                 {
                     block = DataBlock;
@@ -162,7 +162,7 @@ namespace Spreads
                     block = DataSource.LastValueOrDefault;
                 }
 
-                if (block != null && block.RowLength > 0)
+                if (block != null && block.RowCount > 0)
                 {
                     return false;
                 }
@@ -187,9 +187,9 @@ namespace Spreads
                 }
 
                 int idx;
-                if (block != null && (idx = block.RowLength - 1) >= 0)
+                if (block != null && (idx = block.RowCount - 1) >= 0)
                 {
-                    return block.Values.DangerousGetRef<TValue>(idx);
+                    return block.DangerousValueRef<TValue>(idx);
                 }
                 return default;
             }
@@ -222,10 +222,10 @@ namespace Spreads
                 }
 
                 int idx;
-                if (block != null && (idx = block.RowLength - 1) >= 0)
+                if (block != null && (idx = block.RowCount - 1) >= 0)
                 {
-                    var k = block.RowKeys.DangerousGetRef<TKey>(idx);
-                    var v = block.Values.DangerousGetRef<TValue>(idx);
+                    var k = block.DangerousRowKeyRef<TKey>(idx);
+                    var v = block.DangerousValueRef<TValue>(idx);
                     return new Opt<KeyValuePair<TKey, TValue>>(new KeyValuePair<TKey, TValue>(k, v));
                 }
                 return Opt<KeyValuePair<TKey, TValue>>.Missing;
@@ -279,8 +279,8 @@ namespace Spreads
             {
                 if (TryGetBlockAt(index, out var chunk, out var chunkIndex))
                 {
-                    var k = chunk.RowKeys.DangerousGet<TKey>(chunkIndex);
-                    var v = chunk.Values.DangerousGet<TValue>(chunkIndex);
+                    var k = chunk.DangerousRowKeyRef<TKey>(chunkIndex);
+                    var v = chunk.DangerousValueRef<TValue>(chunkIndex);
                     kvp = new KeyValuePair<TKey, TValue>(k, v);
                     result = true;
                 }
@@ -311,7 +311,7 @@ namespace Spreads
                 if (TryFindBlockAt(ref key, direction, out var block, out var blockIndex))
                 {
                     // key is updated if not EQ according to direction
-                    var v = block.Values.DangerousGetRef<TValue>(blockIndex);
+                    var v = block.DangerousValueRef<TValue>(blockIndex);
                     kvp = new KeyValuePair<TKey, TValue>(key, v);
                     result = true;
                 }

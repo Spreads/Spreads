@@ -118,7 +118,14 @@ namespace Spreads.Buffers
         {
             [DebuggerStepThrough]
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => new Span<byte>(_pointer, (int)_length);
+            get
+            {
+#if BUILTIN_SPAN
+                return MemoryMarshal.CreateSpan(ref *_pointer, (int)_length);
+#else
+                return new Span<byte>(_pointer, (int) _length);
+#endif
+            }
         }
 
         public int Length
@@ -856,7 +863,7 @@ namespace Spreads.Buffers
         private static Vector<byte> LoadVector(ref byte start, IntPtr offset)
             => ReadUnaligned<Vector<byte>>(ref AddByteOffset(ref start, offset));
 
-#if NETCOREAPP
+#if HAS_AGGR_OPT
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
 #endif
 
@@ -913,7 +920,7 @@ namespace Spreads.Buffers
             return false;
         }
 
-#if NETCOREAPP
+#if HAS_AGGR_OPT
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
 #endif
 

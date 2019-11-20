@@ -88,7 +88,7 @@ namespace Spreads.DataTypes
     // NB cannot use generic JsonFormatter attribute, this is hardcoded in DynamicGenericResolverGetFormatterHelper
     public class TaggedKeyValueFormatter<TKey, TValue> : IJsonFormatter<TaggedKeyValue<TKey, TValue>>
     {
-#if NETCOREAPP3_0
+#if HAS_AGGR_OPT
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
 #endif
         public void Serialize(ref JsonWriter writer, TaggedKeyValue<TKey, TValue> value, IJsonFormatterResolver formatterResolver)
@@ -108,7 +108,7 @@ namespace Spreads.DataTypes
             writer.WriteEndArray();
         }
 
-#if NETCOREAPP3_0
+#if HAS_AGGR_OPT
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
 #endif
         public TaggedKeyValue<TKey, TValue> Deserialize(ref JsonReader reader, IJsonFormatterResolver formatterResolver)

@@ -108,7 +108,7 @@ namespace Spreads.Internal
                     if (typeof(TContainer) == typeof(Series<TKey, TValue>))
                     {
                         // TODO review. Via _vec is much faster but we assume that stride is 1
-                        v = _currentBlock.Values.DangerousGetRef<TValue>(nextPosition);
+                        v = _currentBlock.DangerousValueRef<TValue>(nextPosition);
                     }
                 }
             }
@@ -144,7 +144,7 @@ namespace Spreads.Internal
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining
-#if NETCOREAPP3_0
+#if HAS_AGGR_OPT
             | MethodImplOptions.AggressiveOptimization
 #endif
         )]
@@ -163,7 +163,7 @@ namespace Spreads.Internal
                 // Note: this does not handle MP from uninitialized state (_blockPosition == -1, stride < 0). // This case is rare.
                 // Uninitialized multi-block case goes to rare as well as uninitialized MP
                 nextPosition = unchecked((ulong)(_blockPosition + stride)); // long.Max + int.Max < ulong.Max
-                if (nextPosition < (ulong)_currentBlock.RowLength)
+                if (nextPosition < (ulong)_currentBlock.RowCount)
                 {
                     mc = stride;
                 }
@@ -172,12 +172,12 @@ namespace Spreads.Internal
                     mc = MoveRare(stride, allowPartial, ref nextPosition, ref nextBlock);
                 }
 
-                k = _currentBlock.RowKeys.DangerousGetRef<TKey>((int)nextPosition); // Note: do not use _blockPosition, it's 20% slower than second cast to int
+                k = _currentBlock.DangerousRowKeyRef<TKey>((int)nextPosition); // Note: do not use _blockPosition, it's 20% slower than second cast to int
 
                 if (typeof(TContainer) == typeof(Series<TKey, TValue>))
                 {
                     // TODO review. Via _vec is much faster but we assume that stride is 1
-                    v = _currentBlock.Values.DangerousGetRef<TValue>((int)nextPosition);
+                    v = _currentBlock.DangerousValueRef<TValue>((int)nextPosition);
                 }
                 //else // TODO value getter for other containers or they could do in CV getter but need to call EnsureOrder after reading value.
                 //{
@@ -235,7 +235,7 @@ namespace Spreads.Internal
         /// </summary>
         [Pure]
         [MethodImpl(MethodImplOptions.AggressiveInlining
-#if NETCOREAPP3_0
+#if HAS_AGGR_OPT
                     | MethodImplOptions.AggressiveOptimization
 #endif
         )]
@@ -253,7 +253,7 @@ namespace Spreads.Internal
                 if (_blockPosition < 0 && stride < 0)
                 {
                     Debug.Assert(State == CursorState.Initialized);
-                    var nextPosition = unchecked((localBlock.RowLength + stride));
+                    var nextPosition = unchecked((localBlock.RowCount + stride));
                     if (nextPosition >= 0)
                     {
                         nextPos = (ulong)nextPosition;
@@ -263,16 +263,16 @@ namespace Spreads.Internal
                     if (allowPartial)
                     {
                         nextPos = 0;
-                        return -localBlock.RowLength;
+                        return -localBlock.RowCount;
                     }
                 }
 
                 if (allowPartial)
                 {
                     // TODO test for edge cases
-                    if (_blockPosition + stride >= localBlock.RowLength)
+                    if (_blockPosition + stride >= localBlock.RowCount)
                     {
-                        var mc = (localBlock.RowLength - 1) - _blockPosition;
+                        var mc = (localBlock.RowCount - 1) - _blockPosition;
                         nextPos = (ulong)(_blockPosition + mc);
                         return mc;
                     }
@@ -303,7 +303,7 @@ namespace Spreads.Internal
 
         [Pure]
         [MethodImpl(MethodImplOptions.AggressiveInlining
-#if NETCOREAPP3_0
+#if HAS_AGGR_OPT
                     | MethodImplOptions.AggressiveOptimization
 #endif
         )]
@@ -323,7 +323,7 @@ namespace Spreads.Internal
             // TODO sync
             if (_source.DataSource == null)
             {
-                if (_currentBlock.RowLength > 0)
+                if (_currentBlock.RowCount > 0)
                 {
                     _blockPosition = 0;
                     return true;
@@ -339,9 +339,9 @@ namespace Spreads.Internal
             // TODO sync
             if (_source.DataSource == null)
             {
-                if (_currentBlock.RowLength > 0)
+                if (_currentBlock.RowCount > 0)
                 {
-                    _blockPosition = _currentBlock.RowLength - 1;
+                    _blockPosition = _currentBlock.RowCount - 1;
                     return true;
                 }
 

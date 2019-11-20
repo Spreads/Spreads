@@ -6,6 +6,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics.Contracts;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Spreads
@@ -28,46 +29,46 @@ namespace Spreads
 
     // TODO Ensure that we implement unspecialized interfaces explicitly and implement specialized generic methods with the same name.
 
-    public interface IAsyncDisposable
-    {
-        ValueTask DisposeAsync();
-    }
-
     /// <summary>
-    /// Extends <see cref="IEnumerator{T}"/> to support asynchronous MoveNextAsync.
+    /// Combines <see cref="System.Collections.Generic"/>'s <see cref="IEnumerator{T}"/> and <see cref="System.Collections.Generic.IAsyncEnumerator{T}"/>.
     /// </summary>
     /// <remarks>
-    /// Contract: when MoveNext() returns false it means that there are no more elements
-    /// *right now*, and a consumer must call <see cref="MoveNextAsync()"/> and await a new element, or spin
+    /// Contract:
+    ///
+    /// <para />
+    ///
+    /// When <see cref="IEnumerator{T}.Current"/> returns false it means that there are no more elements
+    /// *right now*, and a consumer must call <see cref="System.Collections.Generic.IAsyncEnumerator{T}.MoveNextAsync()"/> and await a new element, or spin
     /// and repeatedly call <see cref="IEnumerator.MoveNext"/> when a new element is expected very soon.
     /// Repeated calls to MoveNext() could eventually return true. Changes to the underlying sequence that
     /// do not affect enumeration do not invalidate the enumerator.
     ///
+    /// <para />
+    ///
     /// False moves from a valid state keep a cursor/enumerator at the previous valid state.
     /// </remarks>
-    public interface IAsyncEnumerator<out T> : IEnumerator<T>, IAsyncDisposable
+    // ReSharper disable once PossibleInterfaceMemberAmbiguity : (VB) R# is wrong , new T Current is enough, it duplicates it as get_Current
+    public interface IAsyncEnumerator<out T> : IEnumerator<T>, System.Collections.Generic.IAsyncEnumerator<T>
     {
-        /// <summary>
-        /// Async move next.
-        /// </summary>
-        /// <returns>
-        /// True when there is a next element in the sequence, false if the sequence is
-        /// complete and there will be no more elements ever.
-        /// </returns>
-        ValueTask<bool> MoveNextAsync();
-    }
+        // Note that all interface members should be implemented explicitly and
+        // implementers should have the same methods/props for pattern-based compilation.
+        // We need to inherit from SCG.IAsyncEnumerator to be able to use Ix.NET and
+        // potentially similar libraries that provide extensions for or accept as parameters
+        // SCG's interface. In this case pattern-based implementation won't work.
 
-    
+        new T Current { get; }
+    }
 
     /// <summary>
     /// Exposes the <see cref="IAsyncEnumerator{T}"/> async enumerator, which supports a sync and async
     /// iteration over a collection of a specified type.
     /// </summary>
-    public interface IAsyncEnumerable<out T> : IEnumerable<T>
+    public interface IAsyncEnumerable<out T> : IEnumerable<T> //TODO , System.Collections.Generic.IAsyncEnumerable<T>
     {
         /// <summary>
         /// Returns an async enumerator.
         /// </summary>
+        // TODO new IAsyncEnumerator<T> GetAsyncEnumerator(CancellationToken cancellationToken = default);
         IAsyncEnumerator<T> GetAsyncEnumerator();
     }
 
@@ -78,7 +79,7 @@ namespace Spreads
     {
         /// <summary>
         /// Try complete an outstanding operation via the thread pool. The default case is to
-        /// notify continuation of <see cref="IAsyncEnumerator{T}.MoveNextAsync"/> when
+        /// notify continuation of <see cref="System.Collections.Generic.IAsyncEnumerator{T}.MoveNextAsync"/> when
         /// a data producer has a new value.
         /// </summary>
         /// <remarks>
@@ -100,8 +101,7 @@ namespace Spreads
 
     #endregion Async interfaces
 
-
-    // Model untyped data closely to ML.NET IDataView, but to not binary depend on it
+    // Model untyped data closely to ML.NET IDataView, but do not binary depend on it
     // * We need serializable schema with TypeEnums, decoupled from .NET type system as much as possible (e.g. Tuple is logically a sequence of types, not .NET type)
     // * Do not depend on upstream future changes
     // * Make bridging the two very easy...
@@ -109,15 +109,6 @@ namespace Spreads
 
     public interface IDataSource
     {
-
-        // Mutability composes well for projections:
-        // If any dependency is mutable then projection is mutable.
-        // For readers it means that a vertical projection could become invalid.
-        // Immutable/Append allow structural sharing of existing data (requires ref counting of buffers)
-        // TODO review should it be here or only in containers. Due to recursive composability it doesn't hurt to have it everywhere.
-
-        Mutability Mutability { get; }
-
         // ContainerLayout ContainerLayout { get; }
 
         /// <summary>
@@ -127,7 +118,7 @@ namespace Spreads
         // ulong? RowCount { get; }
 
         /// <summary>
-        /// 
+        ///
         /// </summary>
         bool IsEmpty { get; }
 
@@ -140,34 +131,28 @@ namespace Spreads
         /// True if element access by numeric index (offset) is O(1).
         /// </summary>
         // bool IsIndexed { get; }
-
     }
 
-    public interface IDataSourceRow
-    {
+    //public interface IDataSourceRow
+    //{
+    //}
 
-    }
+    //public interface ICursor : IEnumerator<IDataSourceRow>
+    //{
+    //}
 
-    public interface ICursor : IEnumerator<IDataSourceRow>
-    {
-        
-    }
+    //public interface ICursor<TRowKey> : ICursor
+    //{
+    //}
 
-    public interface ICursor<TRowKey> : ICursor
-    {
+    //public interface IData<TRow>
+    //{
+    //}
 
-    }
-
-
-    public interface IData<TRow>
-    {
-
-    }
-
-    public interface IRowKeyData<TKey>
-    {
-        KeySorting RowKeySorting { get; }
-    }
+    //public interface IRowKeyData<TKey>
+    //{
+    //    KeySorting RowKeySorting { get; }
+    //}
 
     // TODO Is matrix a series<long> or does not have keys, only indices?
     // Review ML.NET DataView before finalizing interfaces
@@ -180,14 +165,33 @@ namespace Spreads
     // TODO merge/replace
     public interface ISeriesNew : IDataSource
     {
-        KeySorting KeySorting { get; }
     }
 
     public interface ISeriesNew<TKey, TValue> : ISeriesNew
     {
         // while rewriting keep existing, never commit in broken state
-        // ?
         
+        /// <summary>
+        /// <see cref="Mutability"/> of data source of this series.
+        /// </summary>
+        /// <remarks>
+        /// Mutability composes well for combining multiple data sources:
+        /// if any origin is mutable then resulting combination (projection/aggregation)
+        /// is mutable.
+        /// <para />
+        /// Mutable data sources could make an aggregating projection (e.g. rolling/expanding
+        /// window/average) invalid. Consuming (enumerating) mutable data sources
+        /// could throw <see cref="OutOfOrderKeyException{TKey}"/>
+        /// For data consumers that means that a aggregating projection could become invalid.
+        /// <para />
+        /// Immutable/Append allow structural sharing of existing data (requires ref counting of buffers)
+        /// </remarks>
+        Mutability Mutability { get; }
+
+        /// <summary>
+        /// <see cref="KeySorting"/> of this series.
+        /// </summary>
+        KeySorting KeySorting { get; }
 
         // TODO LastOrDefault - via Opt<> is terribly slow. Already implemented for DataSource.
     }
@@ -197,6 +201,8 @@ namespace Spreads
     /// </summary>
     public interface ISeries<TKey, TValue> : IAsyncEnumerable<KeyValuePair<TKey, TValue>>, IDisposable
     {
+        
+
         /// <summary>
         /// False if the underlying collection could be changed, true if the underlying collection is immutable or is complete
         /// for adding (e.g. after OnCompleted in Rx) or IsCompleted in terms of ICollectio/IDictionary or has fixed keys/values (all 4 definitions are the same).
@@ -356,6 +362,7 @@ namespace Spreads
         /// <summary>
         /// An optimized <see cref="IComparer{T}"/> implementation with additional members to further optimize performance in certain cases.
         /// </summary>
+        /// <seealso cref="KeyComparer{T}"/>
         KeyComparer<TKey> Comparer { get; }
 
         /// <summary>
@@ -371,10 +378,10 @@ namespace Spreads
         bool MoveLast();
 
         /// <summary>
-        /// Move the cursor to a previous item in the <see cref="Source"/> series.
+        /// Move the cursor to the next item in the <see cref="Source"/> series.
         /// </summary>
         /// <returns>Returns true if the cursor moved. When false is returned the cursor stays at the same position where it was before calling this method.</returns>
-        new bool MoveNext();
+        new bool MoveNext(); // TODO remove this
 
         // NB returning zero is the same as false, no need for TryXXX/Opt<>
         // if we moved by zero steps then we at the same position as before.
@@ -613,6 +620,4 @@ namespace Spreads
         // MarkAppendOnly
         // All mutating methods must check mutability
     }
-
-    
 }

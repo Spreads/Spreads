@@ -28,7 +28,7 @@ namespace Spreads.Serialization
         ///
         /// <remarks>
         ///
-        /// For variable size types performing actual serialization to a temp buffer is often the only
+        /// For variable size types, performing actual serialization to a temp buffer is often the only
         /// way to calculate the payload size. Write to <paramref name="payload"/> directly in that case
         /// and do not use a separate buffer. The <paramref name="payload"/> buffer content will then be used
         /// by <see cref="BinarySerializer"/> Write methods instead of performing serialization the second time.

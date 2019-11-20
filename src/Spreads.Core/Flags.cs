@@ -125,7 +125,7 @@ namespace Spreads
     }
 
     /// <summary>
-    /// Mutability of underlying data storage.
+    /// Mutability of underlying data source.
     /// </summary>
     [Flags]
     public enum Mutability : byte
@@ -156,7 +156,7 @@ namespace Spreads
         /// <summary>
         /// Key sorting is not enforced but it may still be tracked and keys could be strongly or weakly sorted by accident.
         /// </summary>
-        NotEnforced = 0b_0000_0000,
+        NotSorted = 0b_0000_0000,
 
         /// <summary>
         /// Keys are weakly monotonically sorted according to <see cref="KeyComparer{T}.Default"/> comparer.

@@ -4,10 +4,7 @@
 
 using NUnit.Framework;
 using Spreads.Buffers;
-using Spreads.Utils;
-using System;
 using System.Collections.Generic;
-using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 
 namespace Spreads.Core.Tests.Buffers
@@ -20,13 +17,13 @@ namespace Spreads.Core.Tests.Buffers
         public void SlicesDisposeSlabs()
         {
             var payload = new byte[32 * 1024];
-
+            var count = TestUtils.GetBenchCount(10000, 10);
             var tasks = new List<Task>();
             for (int t = 0; t < 100; t++)
             {
                 tasks.Add(Task.Run(() =>
                 {
-                    for (int i = 0; i < 10000; i++)
+                    for (int i = 0; i < count; i++)
                     {
                         var bw = BufferWriter.Create();
                         bw.WriteSpan(payload);
@@ -39,10 +36,6 @@ namespace Spreads.Core.Tests.Buffers
             }
 
             Task.WaitAll(tasks.ToArray());
-
-
         }
-
-        
     }
 }

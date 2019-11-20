@@ -6,8 +6,10 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Runtime.CompilerServices;
+
 
 // ReSharper disable PossibleNullReferenceException
 // ReSharper disable InconsistentNaming
@@ -109,7 +111,7 @@ namespace Spreads.Collections.Generic
         /// <returns>true if the key is present, otherwise false</returns>
         public bool ContainsKey(TKey key)
         {
-            if (key == null)
+            if (key is null)
             {
                 ThrowKeyArgumentNullException();
             }
@@ -286,17 +288,20 @@ namespace Spreads.Collections.Generic
             }
         }
 
+        [DoesNotReturn]
         [MethodImpl(MethodImplOptions.NoInlining)]
         private static void ThrowKeyArgumentNullException()
         {
             Spreads.ThrowHelper.ThrowArgumentNullException("key");
         }
 
+        [DoesNotReturn]
         [MethodImpl(MethodImplOptions.NoInlining)]
         private static void ThrowConcurrentOperationsNotSupported()
         {
             Spreads.ThrowHelper.ThrowInvalidOperationException("ConcurrentOperationsNotSupported");
         }
+
 
         [MethodImpl(MethodImplOptions.NoInlining)]
         private ref TValue AddKey(TKey key, int bucketIndex)

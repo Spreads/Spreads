@@ -104,7 +104,7 @@ namespace Spreads.Serialization
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining
-#if NETCOREAPP3_0
+#if HAS_AGGR_OPT
          | MethodImplOptions.AggressiveOptimization
 #endif
         )]

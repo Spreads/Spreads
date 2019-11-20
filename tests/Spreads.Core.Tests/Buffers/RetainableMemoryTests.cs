@@ -74,7 +74,7 @@ namespace Spreads.Core.Tests.Buffers
                 var memory = factory(len);
                 
                 Assert.IsFalse(memory.IsPoolable);
-                Assert.IsFalse(memory.IsPooled);
+                Assert.IsFalse(memory._isPooled);
                 Assert.IsFalse(memory.IsRetained);
                 Assert.IsFalse(memory.IsDisposed);
                 Assert.AreEqual(null, memory.Pool);

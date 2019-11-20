@@ -17,7 +17,7 @@ jobs:
   steps:
   - task: DotNetCoreInstaller@0
     inputs:
-      version: '3.0.100-preview4-010538'
+      version: '3.0.100'
 
   - script: dotnet test tests/Spreads.Core.Tests/Spreads.Core.Tests.csproj -f netcoreapp3.0 -c Debug  --filter TestCategory=CI -v m
     displayName: 'Test Debug netcoreapp3.0'
@@ -32,7 +32,7 @@ jobs:
   steps:
   - task: DotNetCoreInstaller@0
     inputs:
-      version: '3.0.100-preview4-010538'
+      version: '3.0.100'
 
   - script: dotnet test tests/Spreads.Core.Tests/Spreads.Core.Tests.csproj -f netcoreapp3.0 -c Debug  --filter TestCategory=CI -v m
     displayName: 'Test Debug netcoreapp3.0'
@@ -47,7 +47,7 @@ jobs:
   steps:
   - task: DotNetCoreInstaller@0
     inputs:
-      version: '3.0.100-preview4-010538'
+      version: '3.0.100'
 
   - script: dotnet test tests/Spreads.Core.Tests/Spreads.Core.Tests.csproj -f netcoreapp3.0 -c Debug  --filter TestCategory=CI -v m
     displayName: 'Test Debug netcoreapp3.0'

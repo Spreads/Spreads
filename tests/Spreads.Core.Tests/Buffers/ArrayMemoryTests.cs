@@ -35,7 +35,19 @@ namespace Spreads.Core.Tests.Buffers
             Assert.Throws<ObjectDisposedException>(() => { ((IDisposable)memory).Dispose(); });
         }
 
+        [Test]
+        public void CannotDisposeFromPoolRetained()
+        {
 
+            var memory = BufferPool<byte>.MemoryPool.RentMemory(1024);
+            var rm = memory.Retain();
+            Assert.Throws<InvalidOperationException>(() => { ((IDisposable)memory).Dispose(); });
+            
+            Assert.IsFalse(memory._isPooled, "Memory should not be pooled after failed Dispose()");
+            
+            rm.Dispose();
+            Assert.IsTrue(memory._isPooled);
+        }
 
 
         [Test
@@ -119,10 +131,10 @@ namespace Spreads.Core.Tests.Buffers
             pool.ReturnInternal(buf);
 
             Assert.IsTrue(buf.IsDisposed);
-            Assert.IsTrue(buf.IsPooled);
+            Assert.IsTrue(buf._isPooled);
 
             Console.WriteLine($"returned: {buf.ReferenceCount}");
-            Console.WriteLine($"pooled: {buf.IsPooled}");
+            Console.WriteLine($"pooled: {buf._isPooled}");
 
             Assert.Throws<ObjectDisposedException>(() =>
             {

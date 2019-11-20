@@ -255,15 +255,17 @@ namespace Spreads.Buffers
                 // var tid = VecTypeHelper<T>.RuntimeVecInfo.RuntimeTypeId;
                 var vec = _pointer == null ? new Vec<T>(_array, _arrayOffset, _length) : new Vec<T>(_pointer, _length);
 #if SPREADS
-                Debug.Assert(vec.AsVec().Type == typeof(T));
+                Debug.Assert(vec.AsVec().ItemType == typeof(T));
 #endif
                 return vec;
             }
         }
 
+        [Obsolete("Prefer fixed statements on a pinnable reference for short-lived pinning")]
+#pragma warning disable CS0809 // Obsolete member overrides non-obsolete member
         public override unsafe MemoryHandle Pin(int elementIndex = 0)
+#pragma warning restore CS0809 // Obsolete member overrides non-obsolete member
         {
-            // Pin if not pinned, the memory will remain pinned until disposed.
             if (_pointer == null)
             {
                 if (!TypeHelper<T>.IsPinnable)
@@ -271,8 +273,10 @@ namespace Spreads.Buffers
                     ThrowNotPinnable();
                 }
 
-                _handle = GCHandle.Alloc(_array, GCHandleType.Pinned);
-                _pointer = Unsafe.AsPointer(ref _array[_arrayOffset]);
+                Increment();
+                var handle = GCHandle.Alloc(_array, GCHandleType.Pinned);
+                var pointer = Unsafe.AsPointer(ref _array[_arrayOffset]);
+                return new MemoryHandle(pointer, handle, this);
             }
 
             return base.Pin(elementIndex);
@@ -287,7 +291,7 @@ namespace Spreads.Buffers
             }
 
             // if disposed Pointer & _len are null/0, no way to corrupt data, will just throw
-            return _pointer == null ? new Span<T>(_array, _arrayOffset, _length) : new Span<T>(Pointer, _length);
+            return _pointer == null ? new Span<T>(_array, _arrayOffset, _length) : new Span<T>(_pointer, _length);
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
@@ -301,6 +305,7 @@ namespace Spreads.Buffers
         {
             if (disposing)
             {
+                // TODO (review) where is ref count check?
                 var pool = Pool;
                 if (pool != null)
                 {

@@ -21,26 +21,26 @@ namespace Spreads.Core.Tests.Collections.Internal
         [Test, Explicit("output")]
         public void SizeOfVectorStorage()
         {
-            ObjectLayoutInspector.TypeLayout.PrintLayout<VectorStorage>();
+            ObjectLayoutInspector.TypeLayout.PrintLayout<VecStorage>();
         }
 
         [Test]
         public void Equality()
         {
-            VectorStorage vs1 = default;
-            VectorStorage vs2 = default;
+            VecStorage vs1 = default;
+            VecStorage vs2 = default;
             Assert.AreEqual(vs1, vs2);
-            Assert.AreEqual(vs1.Length, 0);
+            Assert.AreEqual(vs1.Vec.Length, 0);
 
             var count = 1000;
             var arr = Enumerable.Range(0, count).ToArray();
             var r = ArrayMemory<int>.Create(arr, 0, arr.Length, externallyOwned: true, pin: true);
-            var vs = VectorStorage.Create(r, 0, r.Length);
+            var vs = VecStorage.Create(r, 0, r.Length);
 
             Assert.AreNotEqual(vs1, vs);
 
-            var vsCopy = vs.Slice(0, vs.Length, true);
-            var vsSlice = vs.Slice(0, vs.Length - 1, true);
+            var vsCopy = vs.Slice(0, vs.Vec.Length, true);
+            var vsSlice = vs.Slice(0, vs.Vec.Length - 1, true);
 
             Assert.AreEqual(vs, vsCopy);
             Assert.AreNotEqual(vs, vsSlice);
@@ -54,18 +54,18 @@ namespace Spreads.Core.Tests.Collections.Internal
             var count = 1000;
             var arr = Enumerable.Range(0, count).ToArray();
             var r = ArrayMemory<int>.Create(arr, 0, arr.Length, externallyOwned: true, pin: true);
-            var vs = VectorStorage.Create(r, 0, r.Length);
+            var vs = VecStorage.Create(r, 0, r.Length);
 
-            Assert.AreEqual(arr.Length, vs.Length);
+            Assert.AreEqual(arr.Length, vs.Vec.Length);
             long sum = 0L;
             for (int i = 0; i < arr.Length; i++)
             {
-                var vi = vs.DangerousGet<int>(i);
+                var vi = vs.Vec.DangerousGet<int>(i);
                 if (vi != i)
                 {
                     Assert.Fail("vi != i");
                 }
-                sum += vs.DangerousGet<int>(i);
+                sum += vs.Vec.DangerousGet<int>(i);
             }
 
             Console.WriteLine(sum);
@@ -90,9 +90,9 @@ namespace Spreads.Core.Tests.Collections.Internal
             // arr = Enumerable.Range(0, count).Select(x => new SmallDecimal(1000 + (double)x + (double)Math.Round(0.1 * rng.NextDouble(), 5), precision:3)).ToArray();
 
             var r = ArrayMemory<SmallDecimal>.Create(arr, 0, arr.Length, externallyOwned: true, pin: true);
-            var vs = VectorStorage.Create(r, 0, r.Length);
+            var vs = VecStorage.Create(r, 0, r.Length);
 
-            var vsT = new VectorStorage<SmallDecimal>(vs);
+            var vsT = new VecStorage<SmallDecimal>(vs);
 
             var payload = count * Unsafe.SizeOf<double>() + 4;
 
@@ -115,24 +115,24 @@ namespace Spreads.Core.Tests.Collections.Internal
                 Assert.AreEqual(TypeEnum.SmallDecimal, header.TEOFS1.TypeEnum);
                 Assert.AreEqual(Unsafe.SizeOf<SmallDecimal>(), header.TEOFS1.Size);
 
-                var len2 = BinarySerializer.Read(destinationDb, out VectorStorage<SmallDecimal> value);
+                var len2 = BinarySerializer.Read(destinationDb, out VecStorage<SmallDecimal> value);
                 Assert.AreEqual(destination.Length, destinationDb.Length);
 
                 Assert.AreEqual(len, len2);
-                Assert.AreEqual(vs.Length, value.Storage.Length);
+                Assert.AreEqual(vs.Vec.Length, value.Storage.Vec.Length);
 
 
                 for (int i = 0; i < count; i++)
                 {
                     SmallDecimal left;
                     SmallDecimal right;
-                    if ((left = vs.Vec.DangerousGetRef<SmallDecimal>(i)) != (right = value.Storage.DangerousGetRef<SmallDecimal>(i)))
+                    if ((left = vs.Vec.DangerousGetRef<SmallDecimal>(i)) != (right = value.Storage.Vec.DangerousGetRef<SmallDecimal>(i)))
                     {
                         Console.WriteLine("Not equals");
                     }
                 }
 
-                Assert.IsTrue(vs.Vec.Slice(0, vs.Length).AsSpan<SmallDecimal>().SequenceEqual(value.Storage.Vec.Slice(0, value.Storage.Length).AsSpan<SmallDecimal>()));
+                Assert.IsTrue(vs.Vec.Slice(0, vs.Vec.Length).AsSpan<SmallDecimal>().SequenceEqual(value.Storage.Vec.Slice(0, value.Storage.Vec.Length).AsSpan<SmallDecimal>()));
 
                 Console.WriteLine($"{format} len: {len:N0} x{Math.Round((double)payload/len, 2)}");
 
@@ -161,20 +161,20 @@ namespace Spreads.Core.Tests.Collections.Internal
 
             var mem = ArrayMemory<int>.Create(arr, 0, arr.Length, externallyOwned: true, pin: true);
 
-            var vs = VectorStorage.Create(mem, 0, mem.Length);
+            var vs = VecStorage.Create(mem, 0, mem.Length);
 
-            Assert.AreEqual(arr.Length, vs.Length);
+            Assert.AreEqual(arr.Length, vs.Vec.Length);
 
             int sum = 0;
             for (int r = 0; r < rounds; r++)
             {
-                using (Benchmark.Run("VS Read", vs.Length * mult))
+                using (Benchmark.Run("VS Read", vs.Vec.Length * mult))
                 {
                     for (int _ = 0; _ < mult; _++)
                     {
-                        for (int i = 0; i < vs.Length; i++)
+                        for (int i = 0; i < vs.Vec.Length; i++)
                         {
-                            var vi = vs.DangerousGet<int>(i);
+                            var vi = vs.Vec.DangerousGet<int>(i);
                             //if (vi != i)
                             //{
                             //    Assert.Fail("vi != i");
@@ -202,9 +202,9 @@ namespace Spreads.Core.Tests.Collections.Internal
             var arrSize = 1000;
             var arr = Enumerable.Range(0, arrSize).ToArray();
             var mem = ArrayMemory<int>.Create(arr, 0, arr.Length, externallyOwned: true, pin: true);
-            var vs = VectorStorage.Create(mem, 0, mem.Length);
+            var vs = VecStorage.Create(mem, 0, mem.Length);
 
-            Assert.AreEqual(arr.Length, vs.Length);
+            Assert.AreEqual(arr.Length, vs.Vec.Length);
             for (int r = 0; r < rounds; r++)
             {
                 using (Benchmark.Run("Slice/Dispose", count))

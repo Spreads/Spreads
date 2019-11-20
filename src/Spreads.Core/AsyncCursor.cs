@@ -604,7 +604,7 @@ namespace Spreads
                     sc.Post(s =>
                     {
                         var t = (Tuple<Action<object>, object>)s;
-                        t.Item1(t.Item2);
+                        t!.Item1(t!.Item2);
                     }, Tuple.Create(continuation, state));
                 }
                 else
@@ -672,7 +672,7 @@ namespace Spreads
                     // Otherwise fall through to invoke it synchronously.
                     if (sc != SynchronizationContext.Current)
                     {
-                        sc.Post(s => ((AsyncCursor<TKey, TValue, TCursor>)s).SetCompletionAndInvokeContinuation(), this);
+                        sc.Post(s => ((AsyncCursor<TKey, TValue, TCursor>)s!).SetCompletionAndInvokeContinuation(), this);
                         return;
                     }
                 }
@@ -685,7 +685,7 @@ namespace Spreads
                     Debug.Assert(ts != null, "Expected a TaskScheduler");
                     if (ts != TaskScheduler.Current)
                     {
-                        Task.Factory.StartNew(s => ((AsyncCursor<TKey, TValue, TCursor>)s).SetCompletionAndInvokeContinuation(), this,
+                        Task.Factory.StartNew(s => ((AsyncCursor<TKey, TValue, TCursor>)s!).SetCompletionAndInvokeContinuation(), this,
                             CancellationToken.None, TaskCreationOptions.DenyChildAttach, ts);
                         return;
                     }
@@ -715,7 +715,7 @@ namespace Spreads
                 ExecutionContext.Run(_executionContext, s =>
                 {
                     var thisRef = (AsyncCursor<TKey, TValue, TCursor>)s;
-                    Action<object> c = thisRef._continuation;
+                    Action<object> c = thisRef!._continuation;
                     thisRef._continuation = CompletedSentinel;
                     c(thisRef._continuationState);
                 }, this);

@@ -40,7 +40,7 @@ namespace Spreads.Utils
     /// </summary>
     /// <example><code>
     /// [CanBeNull] object Test() => null;
-    /// 
+    ///
     /// void UseTest() {
     ///   var p = Test();
     ///   var s = p.ToString(); // Warning: Possible 'System.NullReferenceException'
@@ -94,7 +94,7 @@ namespace Spreads.Utils
     /// <example><code>
     /// [StringFormatMethod("message")]
     /// void ShowError(string message, params object[] args) { /* do something */ }
-    /// 
+    ///
     /// void Foo() {
     ///   ShowError("Failed: {0}"); // Warning: Non-existing argument in format string
     /// }
@@ -164,12 +164,12 @@ namespace Spreads.Utils
     /// <example><code>
     /// public class Foo : INotifyPropertyChanged {
     ///   public event PropertyChangedEventHandler PropertyChanged;
-    /// 
+    ///
     ///   [NotifyPropertyChangedInvocator]
     ///   protected virtual void NotifyChanged(string propertyName) { ... }
     ///
     ///   string _name;
-    /// 
+    ///
     ///   public string Name {
     ///     get { return _name; }
     ///     set { _name = value; NotifyChanged("LastName"); /* Warning */ }
@@ -187,7 +187,10 @@ namespace Spreads.Utils
     [AttributeUsage(AttributeTargets.Method)]
     internal sealed class NotifyPropertyChangedInvocatorAttribute : Attribute
     {
-        public NotifyPropertyChangedInvocatorAttribute() { }
+        public NotifyPropertyChangedInvocatorAttribute()
+        {
+        }
+
         public NotifyPropertyChangedInvocatorAttribute([NotNull] string parameterName)
         {
             ParameterName = parameterName;
@@ -233,7 +236,7 @@ namespace Spreads.Utils
     /// // A method that returns null if the parameter is null,
     /// // and not null if the parameter is not null
     /// [ContractAnnotation("null =&gt; null; notnull =&gt; notnull")]
-    /// public object Transform(object data) 
+    /// public object Transform(object data)
     /// </code></item>
     /// <item><code>
     /// [ContractAnnotation("=&gt; true, result: notnull; =&gt; false, result: null")]
@@ -269,7 +272,9 @@ namespace Spreads.Utils
     [AttributeUsage(AttributeTargets.All)]
     internal sealed class LocalizationRequiredAttribute : Attribute
     {
-        public LocalizationRequiredAttribute() : this(true) { }
+        public LocalizationRequiredAttribute() : this(true)
+        {
+        }
 
         public LocalizationRequiredAttribute(bool required)
         {
@@ -288,7 +293,7 @@ namespace Spreads.Utils
     /// <example><code>
     /// [CannotApplyEqualityOperator]
     /// class NoEquality { }
-    /// 
+    ///
     /// class UsesNoEquality {
     ///   void Test() {
     ///     var ca1 = new NoEquality();
@@ -309,7 +314,7 @@ namespace Spreads.Utils
     /// <example><code>
     /// [BaseTypeRequired(typeof(IComponent)] // Specify requirement
     /// class ComponentAttribute : Attribute { }
-    /// 
+    ///
     /// [Component] // ComponentAttribute requires implementing IComponent interface
     /// class MyComponent : IComponent { }
     /// </code></example>
@@ -383,15 +388,19 @@ namespace Spreads.Utils
     internal enum ImplicitUseKindFlags
     {
         Default = Access | Assign | InstantiatedWithFixedConstructorSignature,
+
         /// <summary>Only entity marked with attribute considered used.</summary>
         Access = 1,
+
         /// <summary>Indicates implicit assignment to a member.</summary>
         Assign = 2,
+
         /// <summary>
         /// Indicates implicit instantiation of a type with fixed constructor signature.
         /// That means any unused constructor parameters won't be reported as such.
         /// </summary>
         InstantiatedWithFixedConstructorSignature = 4,
+
         /// <summary>Indicates implicit instantiation of a type.</summary>
         InstantiatedNoFixedConstructorSignature = 8,
     }
@@ -405,8 +414,10 @@ namespace Spreads.Utils
     {
         Default = Itself,
         Itself = 1,
+
         /// <summary>Members of entity marked with attribute are considered used.</summary>
         Members = 2,
+
         /// <summary>Entity marked with attribute and all its members considered used.</summary>
         WithMembers = Itself | Members
     }
@@ -418,7 +429,9 @@ namespace Spreads.Utils
     [MeansImplicitUse(ImplicitUseTargetFlags.WithMembers)]
     internal sealed class PublicAPIAttribute : Attribute
     {
-        public PublicAPIAttribute() { }
+        public PublicAPIAttribute()
+        {
+        }
 
         public PublicAPIAttribute([NotNull] string comment)
         {
@@ -442,7 +455,7 @@ namespace Spreads.Utils
     /// </summary>
     /// <example><code>
     /// [Pure] int Multiply(int x, int y) => x * y;
-    /// 
+    ///
     /// void M() {
     ///   Multiply(123, 42); // Waring: Return value of pure method is not used
     /// }
@@ -456,7 +469,9 @@ namespace Spreads.Utils
     [AttributeUsage(AttributeTargets.Method)]
     internal sealed class MustUseReturnValueAttribute : Attribute
     {
-        public MustUseReturnValueAttribute() { }
+        public MustUseReturnValueAttribute()
+        {
+        }
 
         public MustUseReturnValueAttribute([NotNull] string justification)
         {
@@ -474,7 +489,7 @@ namespace Spreads.Utils
     /// <example><code>
     /// class Foo {
     ///   [ProvidesContext] IBarService _barService = ...;
-    /// 
+    ///
     ///   void ProcessNode(INode node) {
     ///     DoSomething(node, node.GetGlobalServices().Bar);
     ///     //              ^ Warning: use value of '_barService' field
@@ -493,7 +508,9 @@ namespace Spreads.Utils
     [AttributeUsage(AttributeTargets.Parameter)]
     internal sealed class PathReferenceAttribute : Attribute
     {
-        public PathReferenceAttribute() { }
+        public PathReferenceAttribute()
+        {
+        }
 
         public PathReferenceAttribute([NotNull, PathReference] string basePath)
         {
@@ -658,7 +675,9 @@ namespace Spreads.Utils
     [AttributeUsage(AttributeTargets.Parameter | AttributeTargets.Method)]
     internal sealed class AspMvcActionAttribute : Attribute
     {
-        public AspMvcActionAttribute() { }
+        public AspMvcActionAttribute()
+        {
+        }
 
         public AspMvcActionAttribute([NotNull] string anonymousProperty)
         {
@@ -676,7 +695,9 @@ namespace Spreads.Utils
     [AttributeUsage(AttributeTargets.Parameter)]
     internal sealed class AspMvcAreaAttribute : Attribute
     {
-        public AspMvcAreaAttribute() { }
+        public AspMvcAreaAttribute()
+        {
+        }
 
         public AspMvcAreaAttribute([NotNull] string anonymousProperty)
         {
@@ -695,7 +716,9 @@ namespace Spreads.Utils
     [AttributeUsage(AttributeTargets.Parameter | AttributeTargets.Method)]
     internal sealed class AspMvcControllerAttribute : Attribute
     {
-        public AspMvcControllerAttribute() { }
+        public AspMvcControllerAttribute()
+        {
+        }
 
         public AspMvcControllerAttribute([NotNull] string anonymousProperty)
         {
@@ -736,7 +759,7 @@ namespace Spreads.Utils
 
     /// <summary>
     /// ASP.NET MVC attribute. Indicates that a parameter is an MVC display template.
-    /// Use this attribute for custom wrappers similar to 
+    /// Use this attribute for custom wrappers similar to
     /// <c>System.Web.Mvc.Html.DisplayExtensions.DisplayForModel(HtmlHelper, String)</c>.
     /// </summary>
     [AttributeUsage(AttributeTargets.Parameter)]
@@ -798,7 +821,9 @@ namespace Spreads.Utils
     [AttributeUsage(AttributeTargets.Parameter | AttributeTargets.Property | AttributeTargets.Field)]
     internal sealed class HtmlElementAttributesAttribute : Attribute
     {
-        public HtmlElementAttributesAttribute() { }
+        public HtmlElementAttributesAttribute()
+        {
+        }
 
         public HtmlElementAttributesAttribute([NotNull] string name)
         {
@@ -821,7 +846,7 @@ namespace Spreads.Utils
 
     /// <summary>
     /// Razor attribute. Indicates that a parameter or a method is a Razor section.
-    /// Use this attribute for custom wrappers similar to 
+    /// Use this attribute for custom wrappers similar to
     /// <c>System.Web.WebPages.WebPageBase.RenderSection(String)</c>.
     /// </summary>
     [AttributeUsage(AttributeTargets.Parameter | AttributeTargets.Method)]
@@ -847,17 +872,20 @@ namespace Spreads.Utils
     {
         /// <summary>Method does not use or modify content of the collection.</summary>
         None = 0,
+
         /// <summary>Method only reads content of the collection but does not modify it.</summary>
         Read = 1,
+
         /// <summary>Method can change content of the collection but does not add new elements.</summary>
         ModifyExistingContent = 2,
+
         /// <summary>Method can add new elements to the collection.</summary>
         UpdatedContent = ModifyExistingContent | 4
     }
 
     /// <summary>
     /// Indicates that the marked method is assertion method, i.e. it halts control flow if
-    /// one of the conditions is satisfied. To set the condition, mark one of the parameters with 
+    /// one of the conditions is satisfied. To set the condition, mark one of the parameters with
     /// <see cref="AssertionConditionAttribute"/> attribute.
     /// </summary>
     [AttributeUsage(AttributeTargets.Method)]
@@ -887,10 +915,13 @@ namespace Spreads.Utils
     {
         /// <summary>Marked parameter should be evaluated to true.</summary>
         IS_TRUE = 0,
+
         /// <summary>Marked parameter should be evaluated to false.</summary>
         IS_FALSE = 1,
+
         /// <summary>Marked parameter should be evaluated to null value.</summary>
         IS_NULL = 2,
+
         /// <summary>Marked parameter should be evaluated to not null value.</summary>
         IS_NOT_NULL = 3,
     }
@@ -1048,3 +1079,204 @@ namespace Spreads.Utils
     [AttributeUsage(AttributeTargets.Parameter)]
     internal sealed class RazorWriteMethodParameterAttribute : Attribute { }
 }
+
+#if !NETCOREAPP3_0 && !NETSTANDARD2_1
+
+namespace System.Diagnostics.CodeAnalysis
+{
+    /// <summary>
+    ///     Specifies that <see langword="null"/> is allowed as an input even if the
+    ///     corresponding type disallows it.
+    /// </summary>
+    [AttributeUsage(
+        AttributeTargets.Field | AttributeTargets.Parameter | AttributeTargets.Property,
+        Inherited = false
+    )]
+    internal sealed class AllowNullAttribute : Attribute
+    {
+        /// <summary>
+        ///     Initializes a new instance of the <see cref="AllowNullAttribute"/> class.
+        /// </summary>
+        public AllowNullAttribute() { }
+    }
+
+    /// <summary>
+    ///     Specifies that <see langword="null"/> is disallowed as an input even if the
+    ///     corresponding type allows it.
+    /// </summary>
+    [AttributeUsage(
+        AttributeTargets.Field | AttributeTargets.Parameter | AttributeTargets.Property,
+        Inherited = false
+    )]
+    internal sealed class DisallowNullAttribute : Attribute
+    {
+        /// <summary>
+        ///     Initializes a new instance of the <see cref="DisallowNullAttribute"/> class.
+        /// </summary>
+        public DisallowNullAttribute() { }
+    }
+
+    /// <summary>
+    ///     Specifies that a method that will never return under any circumstance.
+    /// </summary>
+    [AttributeUsage(AttributeTargets.Method, Inherited = false)]
+    internal sealed class DoesNotReturnAttribute : Attribute
+    {
+        /// <summary>
+        ///     Initializes a new instance of the <see cref="DoesNotReturnAttribute"/> class.
+        /// </summary>
+        public DoesNotReturnAttribute() { }
+    }
+
+    /// <summary>
+    ///     Specifies that the method will not return if the associated <see cref="Boolean"/>
+    ///     parameter is passed the specified value.
+    /// </summary>
+    [AttributeUsage(AttributeTargets.Parameter, Inherited = false)]
+    internal sealed class DoesNotReturnIfAttribute : Attribute
+    {
+        /// <summary>
+        ///     Gets the condition parameter value.
+        ///     Code after the method is considered unreachable by diagnostics if the argument
+        ///     to the associated parameter matches this value.
+        /// </summary>
+        public bool ParameterValue { get; }
+
+        /// <summary>
+        ///     Initializes a new instance of the <see cref="DoesNotReturnIfAttribute"/>
+        ///     class with the specified parameter value.
+        /// </summary>
+        /// <param name="parameterValue">
+        ///     The condition parameter value.
+        ///     Code after the method is considered unreachable by diagnostics if the argument
+        ///     to the associated parameter matches this value.
+        /// </param>
+        public DoesNotReturnIfAttribute(bool parameterValue)
+        {
+            ParameterValue = parameterValue;
+        }
+    }
+
+    /// <summary>
+    ///     Specifies that an output may be <see langword="null"/> even if the
+    ///     corresponding type disallows it.
+    /// </summary>
+    [AttributeUsage(
+        AttributeTargets.Field | AttributeTargets.Parameter |
+        AttributeTargets.Property | AttributeTargets.ReturnValue,
+        Inherited = false
+    )]
+    internal sealed class MaybeNullAttribute : Attribute
+    {
+        /// <summary>
+        ///     Initializes a new instance of the <see cref="MaybeNullAttribute"/> class.
+        /// </summary>
+        public MaybeNullAttribute() { }
+    }
+
+    /// <summary>
+    ///     Specifies that when a method returns <see cref="ReturnValue"/>,
+    ///     the parameter may be <see langword="null"/> even if the corresponding type disallows it.
+    /// </summary>
+    [AttributeUsage(AttributeTargets.Parameter, Inherited = false)]
+    internal sealed class MaybeNullWhenAttribute : Attribute
+    {
+        /// <summary>
+        ///     Gets the return value condition.
+        ///     If the method returns this value, the associated parameter may be <see langword="null"/>.
+        /// </summary>
+        public bool ReturnValue { get; }
+
+        /// <summary>
+        ///      Initializes the attribute with the specified return value condition.
+        /// </summary>
+        /// <param name="returnValue">
+        ///     The return value condition.
+        ///     If the method returns this value, the associated parameter may be <see langword="null"/>.
+        /// </param>
+        public MaybeNullWhenAttribute(bool returnValue)
+        {
+            ReturnValue = returnValue;
+        }
+    }
+
+    /// <summary>
+    ///     Specifies that an output is not <see langword="null"/> even if the
+    ///     corresponding type allows it.
+    /// </summary>
+    [AttributeUsage(
+        AttributeTargets.Field | AttributeTargets.Parameter |
+        AttributeTargets.Property | AttributeTargets.ReturnValue,
+        Inherited = false
+    )]
+    internal sealed class NotNullAttribute : Attribute
+    {
+        /// <summary>
+        ///     Initializes a new instance of the <see cref="NotNullAttribute"/> class.
+        /// </summary>
+        public NotNullAttribute() { }
+    }
+
+    /// <summary>
+    ///     Specifies that the output will be non-<see langword="null"/> if the
+    ///     named parameter is non-<see langword="null"/>.
+    /// </summary>
+    [AttributeUsage(
+        AttributeTargets.Parameter | AttributeTargets.Property | AttributeTargets.ReturnValue,
+        AllowMultiple = true,
+        Inherited = false
+    )]
+    internal sealed class NotNullIfNotNullAttribute : Attribute
+    {
+        /// <summary>
+        ///     Gets the associated parameter name.
+        ///     The output will be non-<see langword="null"/> if the argument to the
+        ///     parameter specified is non-<see langword="null"/>.
+        /// </summary>
+        public string ParameterName { get; }
+
+        /// <summary>
+        ///     Initializes the attribute with the associated parameter name.
+        /// </summary>
+        /// <param name="parameterName">
+        ///     The associated parameter name.
+        ///     The output will be non-<see langword="null"/> if the argument to the
+        ///     parameter specified is non-<see langword="null"/>.
+        /// </param>
+        public NotNullIfNotNullAttribute(string parameterName)
+        {
+            // .NET Core 3.0 doesn't throw an ArgumentNullException, even though this is
+            // tagged as non-null.
+            // Follow this behavior here.
+            ParameterName = parameterName;
+        }
+    }
+
+    /// <summary>
+    ///     Specifies that when a method returns <see cref="ReturnValue"/>,
+    ///     the parameter will not be <see langword="null"/> even if the corresponding type allows it.
+    /// </summary>
+    [AttributeUsage(AttributeTargets.Parameter, Inherited = false)]
+    internal sealed class NotNullWhenAttribute : Attribute
+    {
+        /// <summary>
+        ///     Gets the return value condition.
+        ///     If the method returns this value, the associated parameter will not be <see langword="null"/>.
+        /// </summary>
+        public bool ReturnValue { get; }
+
+        /// <summary>
+        ///     Initializes the attribute with the specified return value condition.
+        /// </summary>
+        /// <param name="returnValue">
+        ///     The return value condition.
+        ///     If the method returns this value, the associated parameter will not be <see langword="null"/>.
+        /// </param>
+        public NotNullWhenAttribute(bool returnValue)
+        {
+            ReturnValue = returnValue;
+        }
+    }
+}
+
+#endif

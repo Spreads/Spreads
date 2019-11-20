@@ -1517,9 +1517,13 @@ type public SortedMapCursor<'K,'V> =
     interface IEnumerator<KVP<'K,'V>> with    
       member this.Current with get(): KVP<'K, 'V> = this.Current
             
-    interface IAsyncEnumerator<KVP<'K,'V>> with
+    interface System.Collections.Generic.IAsyncEnumerator<KVP<'K,'V>> with
+      member this.Current with get(): KVP<'K, 'V> = this.Current
       member this.DisposeAsync() = this.DisposeAsync()
       member this.MoveNextAsync(): ValueTask<bool> = this.MoveNextAsync()
+
+    interface IAsyncEnumerator<KVP<'K,'V>> with
+      member this.Current with get(): KVP<'K, 'V> = this.Current
       
     interface IAsyncBatchEnumerator<KVP<'K,'V>> with
       member this.MoveNextBatchAsync(noAsync: bool): ValueTask<bool> = this.MoveNextBatch()
