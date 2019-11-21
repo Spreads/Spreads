@@ -60,6 +60,8 @@ namespace Spreads.Serialization
             {
                 throw new ArgumentException("customHeaderOverrides[0] must have typeEnum in reserved range 100-119.");
             }
+#else
+            var customHeaderAsByte = 0;
 #endif
             BlittableSize = blittableSize;
             PreferBlittable = preferBlittable;

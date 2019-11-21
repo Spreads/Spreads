@@ -10,7 +10,7 @@ namespace Spreads.Buffers
     public class OffHeapMemoryPool<T> : RetainableMemoryPool<T>
     {
         public OffHeapMemoryPool(int maxBuffersCount, int maxLength = 16 * 1024 * 1024, bool rentAlwaysClean = false)
-            : this(Settings.LARGE_BUFFER_LIMIT, maxLength, maxBuffersCount, 0, rentAlwaysClean)
+            : this(Settings.LARGE_BUFFER_LIMIT, maxLength, maxBuffersCount, maxBucketsToTry: 0, rentAlwaysClean)
         { }
 
         public OffHeapMemoryPool(int minLength, int maxLength, int maxBuffersPerBucket, int maxBucketsToTry = 2, bool rentAlwaysClean = false)

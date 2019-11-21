@@ -77,9 +77,9 @@ namespace Spreads.DataTypes
                 if (value._string != null)
                 {
                     var maxLen = Encoding.UTF8.GetMaxByteCount(value._string.Length);
-                    var useShared = maxLen <= BufferPool.StaticBuffer.Array.Length;
+                    var useShared = maxLen <= JsonSerializer.MemoryPool.buffer.Length;
                     var buffer = useShared
-                        ? BufferPool.StaticBuffer.Array
+                        ? JsonSerializer.MemoryPool.buffer
                         : BufferPool<byte>.Rent(maxLen);
 
                     fixed (char* charPtr = value._string)

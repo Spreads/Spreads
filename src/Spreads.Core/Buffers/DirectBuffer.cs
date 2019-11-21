@@ -2,8 +2,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-using Spreads.Algorithms.Hash;
 using System;
+using System.Buffers;
 using System.Diagnostics;
 using System.Diagnostics.Contracts;
 using System.Numerics;
@@ -54,6 +54,12 @@ namespace Spreads.Buffers
             }
             _length = (IntPtr)length;
             _pointer = (byte*)data;
+        }
+
+        [DebuggerStepThrough]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public DirectBuffer(long length, MemoryHandle handle) : this(length, (byte*)handle.Pointer)
+        {
         }
 
         /// <summary>
@@ -839,7 +845,11 @@ namespace Spreads.Buffers
 
         public override int GetHashCode()
         {
-            return unchecked((int)Crc32C.CalculateCrc32C(_pointer, checked((int)(long)_length)));
+#if SPREADS
+            return unchecked((int)Algorithms.Hash.Crc32C.CalculateCrc32C(_pointer, checked((int)(long)_length)));
+#else
+            throw new NotSupportedException();
+#endif
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

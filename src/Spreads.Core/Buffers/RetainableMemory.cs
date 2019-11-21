@@ -22,10 +22,12 @@ namespace Spreads.Buffers
     {
         protected RetainableMemory()
         {
+#if SPREADS
             if (LeaksDetection.Enabled)
             {
                 Tag = Environment.StackTrace;
             }
+#endif
         }
 
         // [p*<-len---------------->] we must only check capacity at construction and then work from pointer

@@ -87,44 +87,93 @@ namespace Spreads.Core.Tests.Buffers
             //    GC StaticBufferSize | 1.48 | 675 ms | 2610.0 | 0.0 | 0.0 | 5.795 MB
             for (int r = 0; r < 10; r++)
             {
-                const int count = 1000000;
+                int count = (int)TestUtils.GetBenchCount(1_000_000);
 
                 var sum = 0L;
 
-                using (Benchmark.Run("Threadlocal", count))
+                //using (Benchmark.Run("ThreadStatic", count))
+                //{
+                //    for (var i = 0; i < count; i++)
+                //    {
+                //        var wrapper = BufferPool.StaticBuffer;
+                //        // using (var wrapper = BufferPool.StaticBufferMemory)
+                //        {
+                //            var s = wrapper.Memory.Span;
+                //            s[0] = 123;
+                //            sum += s[0] + s[1];
+                //        }
+                //    }
+                //    Assert.IsTrue(sum > 0);
+                //}
+
+                using (Benchmark.Run("BP.Retain", count))
                 {
+                    sum = 0L;
                     for (var i = 0; i < count; i++)
                     {
-                        // var wrapper = BufferPool.StaticBuffer;
-                        using (var wrapper = BufferPool.StaticBufferMemory)
+                        using (var wrapper = BufferPool.Retain(Settings.LARGE_BUFFER_LIMIT))
                         {
-                            wrapper.Memory.Span[0] = 123;
-                            sum += wrapper.Memory.Span[0] + wrapper.Memory.Span[1];
+                            var s = wrapper.Memory.Span;
+                            s[0] = 123;
+                            sum += s[0] + s[1];
                         }
                     }
                     Assert.IsTrue(sum > 0);
                 }
 
-                using (Benchmark.Run("GetBuffer via pool", count))
+                using (Benchmark.Run("BP.RetainTemp", count))
                 {
                     sum = 0L;
                     for (var i = 0; i < count; i++)
                     {
-                        using (var wrapper = BufferPool.Retain(BufferPool.StaticBufferSize + 1)) // BufferPool.UseTempBuffer(BufferPool.StaticBufferSize + 1
+                        using (var wrapper = BufferPool.RetainTemp(Settings.LARGE_BUFFER_LIMIT))
                         {
-                            wrapper.Memory.Span[0] = 123;
-                            sum += wrapper.Memory.Span[0] + wrapper.Memory.Span[1];
+                            var s = wrapper.Memory.Span;
+                            s[0] = 123;
+                            sum += s[0] + s[1];
                         }
                     }
                     Assert.IsTrue(sum > 0);
                 }
 
-                using (Benchmark.Run("Direct ArrayPool with StaticBufferSize", count))
+                using (Benchmark.Run("RMP", count))
                 {
                     sum = 0L;
                     for (var i = 0; i < count; i++)
                     {
-                        var buffer = BufferPool<byte>.Rent(BufferPool.StaticBufferSize);
+                        using (var wrapper = BufferPool.PinnedArrayMemoryPool.RentMemory(Settings.LARGE_BUFFER_LIMIT))
+                        {
+                            var s = wrapper.Memory.Span;
+                            s[0] = 123;
+                            sum += s[0] + s[1];
+                        }
+                    }
+                    Assert.IsTrue(sum > 0);
+                }
+
+                using (Benchmark.Run("RM([])", count))
+                {
+                    sum = 0L;
+                    for (var i = 0; i < count; i++)
+                    {
+                        var arr = BufferPool<byte>.Rent(Settings.LARGE_BUFFER_LIMIT);
+                        using (var wrapper = new RetainedMemory<byte>(arr))
+                        {
+                            var s = wrapper.Memory.Span;
+                            s[0] = 123;
+                            sum += s[0] + s[1];
+                        }
+                        BufferPool<byte>.Return(arr);
+                    }
+                    Assert.IsTrue(sum > 0);
+                }
+
+                using (Benchmark.Run("ArrayPool", count))
+                {
+                    sum = 0L;
+                    for (var i = 0; i < count; i++)
+                    {
+                        var buffer = BufferPool<byte>.Rent(Settings.LARGE_BUFFER_LIMIT);
                         buffer[0] = 123;
                         sum += buffer[0] + buffer[1];
                         BufferPool<byte>.Return(buffer, false);
@@ -133,26 +182,12 @@ namespace Spreads.Core.Tests.Buffers
                     Assert.IsTrue(sum > 0);
                 }
 
-                using (Benchmark.Run("Direct ArrayPool with StaticBufferSize + 1", count))
+                using (Benchmark.Run("GC", count))
                 {
                     sum = 0L;
                     for (var i = 0; i < count; i++)
                     {
-                        var buffer = BufferPool<byte>.Rent(BufferPool.StaticBufferSize + 1);
-                        buffer[0] = 123;
-                        sum += buffer[0] + buffer[1];
-                        BufferPool<byte>.Return(buffer, false);
-                    }
-
-                    Assert.IsTrue(sum > 0);
-                }
-
-                using (Benchmark.Run("GC StaticBufferSize", count))
-                {
-                    sum = 0L;
-                    for (var i = 0; i < count; i++)
-                    {
-                        var buffer = new byte[BufferPool.StaticBufferSize];
+                        var buffer = new byte[Settings.LARGE_BUFFER_LIMIT];
                         buffer[0] = 123;
                         sum += buffer[0] + buffer[1];
                     }
@@ -160,17 +195,6 @@ namespace Spreads.Core.Tests.Buffers
                     Assert.IsTrue(sum > 0);
                 }
 
-                using (Benchmark.Run("GC StaticBufferSize + 1", count))
-                {
-                    sum = 0L;
-                    for (var i = 0; i < count; i++)
-                    {
-                        var buffer = new byte[BufferPool.StaticBufferSize + 1];
-                        buffer[0] = 123;
-                        sum += buffer[0] + buffer[1];
-                    }
-                    Assert.IsTrue(sum > 0);
-                }
             }
 
             Benchmark.Dump($"BufferPool benchmark");
@@ -217,7 +241,7 @@ namespace Spreads.Core.Tests.Buffers
         public void SharedArrayPoolPerformance()
         {
             var sizesKb = new[] { 64, 128, 256, 512, 1024 };
-            var count = 10_000_000;
+            var count = 1_000_000;
 
             foreach (var size in sizesKb)
             {

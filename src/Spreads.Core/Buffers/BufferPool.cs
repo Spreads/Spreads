@@ -31,95 +31,39 @@ namespace Spreads.Buffers
             ArrayPoolImpl.Return(array, clearArray);
         }
 
-        // TODO Review parameters. The goal is to work mostly with 128kb buffers, all smaller ones are just slices of 128kb ones
-        // Those buffers are in LOH and always pinning them is OK and does not interfere with normal GC.
+        
         public static RetainableMemoryPool<T> MemoryPool = new RetainableMemoryPool<T>(
                 factory: null,
                 minLength: Settings.MIN_POOLED_BUFFER_LEN,
                 maxLength: Math.Max(Settings.MIN_POOLED_BUFFER_LEN * 1024, (Settings.LARGE_BUFFER_LIMIT * 2) / Unsafe.SizeOf<T>()),
-                maxBuffersPerBucket: 64 + Environment.ProcessorCount * 16,
+                maxBuffersPerBucket: (4 + Environment.ProcessorCount) * 16,
                 maxBucketsToTry: 2,
                 pin: false);
     }
 
     public class BufferPool
     {
-        private static BufferPool Shared = new BufferPool();
+        private static readonly BufferPool Shared = new BufferPool();
 
         internal static RetainableMemoryPool<byte> PinnedArrayMemoryPool =
             new RetainableMemoryPool<byte>(
                 factory: null,
                 minLength: 2048,
                 maxLength: 8 * 1024 * 1024,
-                maxBuffersPerBucket: 64,
+                maxBuffersPerBucket: (4 + Environment.ProcessorCount) * 4,
                 maxBucketsToTry: 2,
                 pin: true);
 
         /// <summary>
-        /// Default OffHeap pool has capacity of 4. This static field could be changed to a new instance.
-        /// Buffer never cleared automatically and user must clear them when needed. Zeroing is a big cost
+        /// Default OffHeap pool has capacity of 4 + Environment.ProcessorCount. This static field could be changed to a new instance.
+        /// Buffers are never cleared automatically and user must clear them when needed. Zeroing is a big cost
         /// and even new[]-ing has to zero memory, this is why it is slow.
         /// Please know what you are doing.
         /// </summary>
-        public static OffHeapMemoryPool<byte> OffHeapMemoryPool = new OffHeapMemoryPool<byte>(4);
-
-        // max pooled array size
-        internal const int SharedBufferSize = 4096;
-
-        internal static readonly int StaticBufferSize = Settings.ThreadStaticPinnedBufferSize;
-
-        /// <summary>
-        /// Temp storage e.g. for serialization
-        /// </summary>
-        [ThreadStatic]
-        private static ArrayMemory<byte> _threadStaticBuffer;
-
-        [ThreadStatic]
-        private static RetainedMemory<byte> _threadStaticMemory;
+        public static OffHeapMemoryPool<byte> OffHeapMemoryPool = new OffHeapMemoryPool<byte>((4 + Environment.ProcessorCount) * 1);
 
         internal BufferPool()
         { }
-
-        /// <summary>
-        /// Thread-static <see cref="ArrayMemory{T}"/> with size of <see cref="StaticBufferSize"/>.
-        /// Never dispose it!
-        /// </summary>
-        [Obsolete("Will be removed soon")]
-        internal static ArrayMemory<byte> StaticBuffer
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get
-            {
-                if (_threadStaticBuffer != null)
-                {
-                    return _threadStaticBuffer;
-                }
-
-                return CreateThreadStaticBuffer();
-
-                ArrayMemory<byte> CreateThreadStaticBuffer()
-                {
-                    // TODO review this mess with externally owned
-                    _threadStaticBuffer = ArrayMemory<byte>.Create(new byte[StaticBufferSize], externallyOwned: true, pin: true);
-                    _threadStaticMemory = new RetainedMemory<byte>(_threadStaticBuffer, 0, _threadStaticBuffer.Memory.Length, borrow: false);
-                    return _threadStaticBuffer;
-                }
-            }
-        }
-
-        [Obsolete("Will be removed soon")]
-        internal static RetainedMemory<byte> StaticBufferMemory
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get
-            {
-                if (_threadStaticBuffer == null)
-                {
-                    var _ = StaticBuffer; // access getter
-                }
-                return _threadStaticMemory;
-            }
-        }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private RetainedMemory<byte> RetainMemory(int length, bool requireExact = true, bool borrow = true)
@@ -145,7 +89,7 @@ namespace Spreads.Buffers
         /// Retains memory for temporary usage. Actual length could be larger than requested.
         /// When requested length is above 64kb then off-heap memory is used.
         /// </summary>
-        public static RetainedMemory<byte> RetainTemp(int length)
+        internal static RetainedMemory<byte> RetainTemp(int length)
         {
             if (length > Settings.LARGE_BUFFER_LIMIT)
             {
@@ -156,24 +100,12 @@ namespace Spreads.Buffers
                     {
                         BuffersThrowHelper.ThrowDisposed<OffHeapMemory<byte>>();
                     }
-                    return mem.Retain();
+                    return mem.Retain(0, mem.Length, borrow: false);
                 }
             }
             var rm = Shared.RetainMemory(length, false, false);
             Debug.Assert(rm.IsPinned);
             return rm;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static ArrayMemory<T> RentArrayMemory<T>(int minLength)
-        {
-            throw new NotImplementedException();
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static OffHeapMemory<T> RentOffHeapMemory<T>(int minLength) where T : struct
-        {
-            throw new NotImplementedException();
         }
     }
 

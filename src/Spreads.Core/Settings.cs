@@ -61,11 +61,6 @@ namespace Spreads
         // NB at least 85k for LOH
         internal static readonly int ThreadStaticPinnedBufferSize = BitUtil.FindNextPositivePowerOfTwo(LARGE_BUFFER_LIMIT);
 
-        /// <summary>
-        /// Call Trace.TraceWarning when a finalizer of IDisposable objects is called.
-        /// </summary>
-        public static bool TraceFinalizationOfIDisposables { get; set; }
-
         ///// <summary>
         ///// Throw <see cref="OutOfOrderKeyException{TKey}"/> if Zip input values arrive out of order.
         ///// </summary>
