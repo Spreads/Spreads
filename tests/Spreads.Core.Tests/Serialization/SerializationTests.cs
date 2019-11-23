@@ -535,7 +535,7 @@ namespace Spreads.Core.Tests.Serialization
         //[Test, Ignore("not implemented")]
         //public unsafe void CouldSerializeSortedMap()
         //{
-        //    SortedMap<DateTime, decimal>.Init();
+        //    Series<DateTime, decimal>.Init();
         //    var rng = new Random();
 
         //    var dest = (Memory<byte>)new byte[1000000];
@@ -543,7 +543,7 @@ namespace Spreads.Core.Tests.Serialization
         //    var handle = buffer.Pin();
         //    var ptr = (IntPtr)handle.Pointer;
 
-        //    var sm = new SortedMap<DateTime, decimal>();
+        //    var sm = new Series<DateTime, decimal>();
         //    for (var i = 0; i < 10000; i++)
         //    {
         //        if (i != 2)
@@ -557,7 +557,7 @@ namespace Spreads.Core.Tests.Serialization
         //    // NB interesting that with converting double to decimal savings go from 65% to 85%,
         //    // even calculated from (8+8) base size not decimal's 16 size
         //    Console.WriteLine($"Savings: {1.0 - ((len * 1.0) / (sm.Count * 24.0))}");
-        //    SortedMap<DateTime, decimal> sm2 = null;
+        //    Series<DateTime, decimal> sm2 = null;
         //    var len2 = BinarySerializer.Read(buffer, out sm2);
 
         //    Assert.AreEqual(len, len2);
@@ -576,7 +576,7 @@ namespace Spreads.Core.Tests.Serialization
             var handle = buffer.Pin();
             var ptr = (IntPtr)handle.Pointer;
 
-            var sm = new SortedMap<DateTime, decimal>();
+            var sm = new Series<DateTime, decimal>();
             for (var i = 0; i < 1000; i++)
             {
                 sm.Add(DateTime.Today.AddSeconds(i), (decimal)Math.Round(i + rng.NextDouble(), 2));
@@ -590,7 +590,7 @@ namespace Spreads.Core.Tests.Serialization
             // NB interesting that with converting double to decimal savings go from 65% to 85%,
             // even calculated from (8+8) base size not decimal's 16 size
             Console.WriteLine($"Savings: {1.0 - ((written * 1.0) / (sm.Count * 24.0))}");
-            SortedMap<DateTime, decimal> sm2 = null;
+            Series<DateTime, decimal> sm2 = null;
             var len2 = BinarySerializer.Read(buffer.Span, out sm2);
 
             Assert.AreEqual(written, len2);
@@ -609,7 +609,7 @@ namespace Spreads.Core.Tests.Serialization
             var handle = buffer.Pin();
             var ptr = (IntPtr)handle.Pointer;
 
-            var sm = new SortedMap<int, int>();
+            var sm = new Series<int, int>();
             for (var i = 0; i < 10000; i++)
             {
                 sm.Add(i, i);
@@ -623,7 +623,7 @@ namespace Spreads.Core.Tests.Serialization
             // NB interesting that with converting double to decimal savings go from 65% to 85%,
             // even calculated from (8+8) base size not decimal's 16 size
             Console.WriteLine($"Savings: {1.0 - ((len * 1.0) / (sm.Count * 8.0))}");
-            SortedMap<int, int> sm2 = null;
+            Series<int, int> sm2 = null;
             var len3 = BinarySerializer.Read(buffer.Span, out sm2);
 
             Assert.AreEqual(len, len3);
@@ -643,7 +643,7 @@ namespace Spreads.Core.Tests.Serialization
             var ptr = (IntPtr)handle.Pointer;
 
             var valueLens = 0;
-            var sm = new SortedMap<int, string>();
+            var sm = new Series<int, string>();
             for (var i = 0; i < 100000; i++)
             {
                 var str = i.ToString();
@@ -660,7 +660,7 @@ namespace Spreads.Core.Tests.Serialization
             // NB interesting that with converting double to decimal savings go from 65% to 85%,
             // even calculated from (8+8) base size not decimal's 16 size
             Console.WriteLine($"Savings: {1.0 - ((len * 1.0) / (usefulLen))}");
-            SortedMap<int, string> sm2 = null;
+            Series<int, string> sm2 = null;
             var len3 = BinarySerializer.Read(buffer.Span, out sm2);
 
             Assert.AreEqual(len, len3);

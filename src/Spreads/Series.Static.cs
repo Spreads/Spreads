@@ -48,10 +48,10 @@ namespace Spreads
         //    return new Series<TKey, TValue, TCursor>(series.GetContainerCursor());
         //}
 
-        public static SortedMap<TKey, TValue> ToSortedMap<TKey, TValue>(
+        public static Series<TKey, TValue> ToSortedMap<TKey, TValue>(
             this IEnumerable<KeyValuePair<TKey, TValue>> enumerable)
         {
-            var sm = new SortedMap<TKey, TValue>();
+            var sm = new Series<TKey, TValue>();
             foreach (var keyValuePair in enumerable)
             {
                 sm.Add(keyValuePair.Key, keyValuePair.Value);

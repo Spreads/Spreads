@@ -7,7 +7,9 @@ using Spreads.Buffers;
 using Spreads.Serialization.Utf8Json;
 using Spreads.Utils;
 using System;
+using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -264,6 +266,57 @@ namespace Spreads.Core.Tests.Serialization
             {
                 var result2 = JsonSerializer.Deserialize<int[]>(stream2);
             });
+        }
+
+        public class BinaryDataWrapper
+        {
+            public byte[] Data { get; set; }
+        }
+
+        [Test]
+        public void ByteArrayBenchmark()
+        {
+            BinaryDataWrapper wrapper = new BinaryDataWrapper();
+            wrapper.Data = Enumerable.Range(1, 512 * 1024).Select(x => unchecked((byte)x)).ToArray();
+
+            const int N = 1000;
+            var sw =Stopwatch.StartNew();
+            for (int i = 0; i < N; i++)
+            {
+                byte[] newtonSoftBytes = Encoding.UTF8.GetBytes(Newtonsoft.Json.JsonConvert.SerializeObject(wrapper, Newtonsoft.Json.Formatting.Indented));
+
+            }
+            sw.Stop();
+            GC.Collect();
+            Console.WriteLine($"Did serialize with Json.NET in {sw.Elapsed.TotalSeconds:F3}s");
+           
+            sw = Stopwatch.StartNew();
+            for (int i = 0; i < N; i++)
+            {
+                byte[] bytes = Utf8Json.JsonSerializer.Serialize(wrapper);
+            }
+            sw.Stop();
+            GC.Collect();
+            Console.WriteLine($"Did serialize with UTF8Json in {sw.Elapsed.TotalSeconds:F3}s");
+
+            sw = Stopwatch.StartNew();
+            for (int i = 0; i < N; i++)
+            {
+                byte[] bytes = JsonSerializer.Serialize(wrapper);
+            }
+            sw.Stop();
+            GC.Collect();
+            Console.WriteLine($"Did serialize with Spreads.UTF8Json in {sw.Elapsed.TotalSeconds:F3}s");
+
+
+            sw = Stopwatch.StartNew();
+            for (int i = 0; i < N; i++)
+            {
+                byte[] bytes = System.Text.Json.JsonSerializer.SerializeToUtf8Bytes(wrapper);
+            }
+            sw.Stop();
+            GC.Collect();
+            Console.WriteLine($"Did serialize with S.T.Json in {sw.Elapsed.TotalSeconds:F3}s");
         }
     }
 }

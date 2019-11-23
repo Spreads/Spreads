@@ -19,7 +19,7 @@ namespace Spreads.Core.Tests.Cursors
         [Test]
         public void DeadCursorDoesNotCauseEndlessLoopInNotifyUpdate()
         {
-            var sm = new SortedMap<int, int>();
+            var sm = new Series<int, int>();
 
             sm.Add(1, 1);
 
@@ -45,7 +45,7 @@ namespace Spreads.Core.Tests.Cursors
         [Test]
         public void CancelledCursorDoesntCauseEndlessLoopInNotifyUpdate()
         {
-            var sm = new SortedMap<int, int>();
+            var sm = new Series<int, int>();
 
             sm.Add(1, 1);
 
@@ -64,7 +64,7 @@ namespace Spreads.Core.Tests.Cursors
         //[Test]
         //public void CancelledCursorThrowsOperationCancelledException()
         //{
-        //    var sm = new SortedMap<int, int>();
+        //    var sm = new Series<int, int>();
 
         //    sm.Add(1, 1);
 
@@ -89,7 +89,7 @@ namespace Spreads.Core.Tests.Cursors
         //[Test]
         //public void CouldCancelRangeCursor()
         //{
-        //    var sm = new SortedMap<int, int>();
+        //    var sm = new Series<int, int>();
 
         //    sm.Add(-1, -1);
         //    sm.Add(1, 1);
@@ -123,7 +123,7 @@ namespace Spreads.Core.Tests.Cursors
         [Test]
         public void RangeCursorStopsBeforeEndKey()
         {
-            var sm = new SortedMap<int, int>();
+            var sm = new Series<int, int>();
 
             sm.Add(1, 1);
             sm.Add(2, 2);
@@ -156,7 +156,7 @@ namespace Spreads.Core.Tests.Cursors
         [Test]
         public void RangeCursorMovesAfterAwating()
         {
-            var sm = new SortedMap<int, int>();
+            var sm = new Series<int, int>();
 
             sm.Add(1, 1);
 
@@ -192,7 +192,7 @@ namespace Spreads.Core.Tests.Cursors
         [Test]
         public async Task NotificationWorksWhenCursorIsNotWating()
         {
-            var sm = new SortedMap<int, int>();
+            var sm = new Series<int, int>();
 
             sm.Add(1, 1);
             sm.Add(2, 2);
@@ -215,7 +215,7 @@ namespace Spreads.Core.Tests.Cursors
         [Test]
         public async Task CouldCancelCursor()
         {
-            var sm = new SortedMap<int, int>();
+            var sm = new Series<int, int>();
 
             var cursor = sm.GetAsyncEnumerator();
 
@@ -244,7 +244,7 @@ namespace Spreads.Core.Tests.Cursors
         [Test]
         public async Task CouldEnumerateSMInBatchMode()
         {
-            var map = new SortedMap<int, int>();
+            var map = new Series<int, int>();
             var count = 1_000_000;
 
             for (int i = 0; i < count; i++)
@@ -286,7 +286,7 @@ namespace Spreads.Core.Tests.Cursors
         [Test]
         public async Task CouldEnumerateSMUsingCursor()
         {
-            var map = new SortedMap<int, int>();
+            var map = new Series<int, int>();
             var count = 1_000_000;
 
             for (int i = 0; i < count; i++)
@@ -329,7 +329,7 @@ namespace Spreads.Core.Tests.Cursors
         public async Task CouldEnumerateSCMInBatchMode()
         {
             Settings.SCMDefaultChunkLength = Settings.SCMDefaultChunkLength * 4;
-            var scm = new SortedMap<int, int>();
+            var scm = new Series<int, int>();
             var count = 1_000_000; // Settings.SCMDefaultChunkLength - 1;
 
             //for (int i = 0; i < count; i++)
@@ -394,7 +394,7 @@ namespace Spreads.Core.Tests.Cursors
         public async Task CouldEnumerateSCMUsingCursor()
         {
             Settings.SCMDefaultChunkLength = Settings.SCMDefaultChunkLength * 4;
-            var scm = new SortedMap<int, int>();
+            var scm = new Series<int, int>();
             var count = 1_000_000; // Settings.SCMDefaultChunkLength - 1;
 
             for (int i = 0; i < count; i++)
@@ -457,7 +457,7 @@ namespace Spreads.Core.Tests.Cursors
         [Test]
         public async Task CouldReadDataStreamWhileWritingFromManyThreads()
         {
-            var map = new SortedMap<int, int>();
+            var map = new Series<int, int>();
 
             var count = 1000_000_000;
             var rounds = 1;
@@ -490,13 +490,13 @@ namespace Spreads.Core.Tests.Cursors
                 }
             });
 
-            AsyncCursor<int, int, SortedMapCursor<int, int>> cursor = null;
+            AsyncCursor<int, int, SCursor<int, int>> cursor = null;
             var cnt = 0L;
             var readTask = Task.Run(async () =>
             {
                 for (int r = 0; r < 1; r++)
                 {
-                    using (cursor = new AsyncCursor<int, int, SortedMapCursor<int, int>>(map.GetCursor()))
+                    using (cursor = new AsyncCursor<int, int, SCursor<int, int>>(map.GetCursor()))
                     {
                         using (Benchmark.Run("Read", count * rounds, true))
                         {

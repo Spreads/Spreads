@@ -289,7 +289,7 @@ namespace Spreads.Core.Tests.Performance
         {
             var count = TestUtils.GetBenchCount(1_000_000);
             var rounds = 200;
-            var im = ImmutableSortedMap<long, long>.Empty;
+            var im = ImmutableSeries<long, long>.Empty;
 
             im = Perf_Add(count);
 
@@ -345,10 +345,10 @@ namespace Spreads.Core.Tests.Performance
         }
 
         [MethodImpl(MethodImplOptions.NoInlining | MethodImplOptions.AggressiveOptimization)]
-        private static ImmutableSortedMap<long, long> Perf_Add(long count)
+        private static ImmutableSeries<long, long> Perf_Add(long count)
         {
-            ImmutableSortedMap<long, long> im;
-            im = ImmutableSortedMap<long, long>.Empty;
+            ImmutableSeries<long, long> im;
+            im = ImmutableSeries<long, long>.Empty;
             using (Benchmark.Run("Add", count))
             {
                 for (int i = 0; i < count; i++)
@@ -361,7 +361,7 @@ namespace Spreads.Core.Tests.Performance
         }
 
         [MethodImpl(MethodImplOptions.NoInlining | MethodImplOptions.AggressiveOptimization)]
-        private static void Perf_Get(long count, ImmutableSortedMap<long, long> im)
+        private static void Perf_Get(long count, ImmutableSeries<long, long> im)
         {
             using (Benchmark.Run("Get", count))
             {
@@ -375,7 +375,7 @@ namespace Spreads.Core.Tests.Performance
         }
 
         [MethodImpl(MethodImplOptions.NoInlining | MethodImplOptions.AggressiveOptimization)]
-        private static void Perf_GetOriginal(long count, ImmutableSortedMap<long, long> im)
+        private static void Perf_GetOriginal(long count, ImmutableSeries<long, long> im)
         {
             using (Benchmark.Run("Get Original", count))
             {
@@ -389,7 +389,7 @@ namespace Spreads.Core.Tests.Performance
         }
 
         [MethodImpl(MethodImplOptions.NoInlining | MethodImplOptions.AggressiveOptimization)]
-        private static void Perf_GetLoop_Return_After_Loop(long count, ImmutableSortedMap<long, long> im)
+        private static void Perf_GetLoop_Return_After_Loop(long count, ImmutableSeries<long, long> im)
         {
             using (Benchmark.Run("Get C# loop RAL", count))
             {
@@ -404,7 +404,7 @@ namespace Spreads.Core.Tests.Performance
         }
 
         [MethodImpl(MethodImplOptions.NoInlining | MethodImplOptions.AggressiveOptimization)]
-        private static void Perf_GetLoop(long count, ImmutableSortedMap<long, long> im)
+        private static void Perf_GetLoop(long count, ImmutableSeries<long, long> im)
         {
             using (Benchmark.Run("Get C# loop", count))
             {
@@ -419,7 +419,7 @@ namespace Spreads.Core.Tests.Performance
         }
 
         [MethodImpl(MethodImplOptions.NoInlining | MethodImplOptions.AggressiveOptimization)]
-        private static void Perf_GetLoopFSharp(long count, ImmutableSortedMap<long, long> im)
+        private static void Perf_GetLoopFSharp(long count, ImmutableSeries<long, long> im)
         {
             using (Benchmark.Run("Get F# IL->C#", count))
             {
@@ -434,7 +434,7 @@ namespace Spreads.Core.Tests.Performance
         }
 
         [MethodImpl(MethodImplOptions.NoInlining | MethodImplOptions.AggressiveOptimization)]
-        private static void Perf_GetLoopFSharpExLoc(long count, ImmutableSortedMap<long, long> im)
+        private static void Perf_GetLoopFSharpExLoc(long count, ImmutableSeries<long, long> im)
         {
             using (Benchmark.Run("Get F# IL->C# ex loc", count))
             {

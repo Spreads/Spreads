@@ -19,8 +19,8 @@ namespace Spreads.Core.Tests.Cursors
     [TestFixture]
     public class ZipCursorTests
     {
-        public void CouldAddTwoSeriesWithSameKeys(double expected, SortedMap<int, double> sm1,
-            SortedMap<int, double> sm2)
+        public void CouldAddTwoSeriesWithSameKeys(double expected, Series<int, double> sm1,
+            Series<int, double> sm2)
         {
             var count = sm1.Count;
 
@@ -36,12 +36,12 @@ namespace Spreads.Core.Tests.Cursors
             var zipSum = (sm1 + sm2);
             double actual = 0;
             var zipCursor = //zipSum.GetAsyncEnumerator();
-                new Zip<int, double, double, SortedMapCursor<int, double>,
-                        SortedMapCursor<int, double>>(
+                new Zip<int, double, double, SCursor<int, double>,
+                        SCursor<int, double>>(
                         c1, c2); //.Map((k, v) => v.Item1 + v.Item2)
 
-            var op2 = new Op2<int, double, AddOp<double>, Zip<int, double, double, SortedMapCursor<int, double>,
-                SortedMapCursor<int, double>>>(zipCursor).Source;
+            var op2 = new Op2<int, double, AddOp<double>, Zip<int, double, double, SCursor<int, double>,
+                SCursor<int, double>>>(zipCursor).Source;
 
             var zipCursorOp2 = op2.GetEnumerator();
 
@@ -124,8 +124,8 @@ namespace Spreads.Core.Tests.Cursors
         [Test]
         public void CouldAddTwoSeriesWithSameKeys()
         {
-            var sm1 = new SortedMap<int, double>();
-            var sm2 = new SortedMap<int, double>();
+            var sm1 = new Series<int, double>();
+            var sm2 = new Series<int, double>();
 
             double expected = 0;
 
@@ -145,8 +145,8 @@ namespace Spreads.Core.Tests.Cursors
         [Test, Explicit("long running")]
         public void CouldAddTwoSeriesWithSameKeysBenchmark()
         {
-            var sm1 = new SortedMap<int, double>();
-            var sm2 = new SortedMap<int, double>();
+            var sm1 = new Series<int, double>();
+            var sm2 = new Series<int, double>();
 
             double expected = 0;
 
@@ -171,10 +171,10 @@ namespace Spreads.Core.Tests.Cursors
         public void CouldAddTwoSeriesWithDifferentKeys()
         {
             var count = 10000;
-            var sm1 = new SortedMap<int, double>();
-            var sm2 = new SortedMap<int, double>();
+            var sm1 = new Series<int, double>();
+            var sm2 = new Series<int, double>();
 
-            var result = new SortedMap<int, double>();
+            var result = new Series<int, double>();
             double expected = 0;
 
             for (int i = 0; i < count; i++)
@@ -194,8 +194,8 @@ namespace Spreads.Core.Tests.Cursors
                 var c1 = sm1.GetEnumerator();
                 var c2 = sm2.GetEnumerator();
                 var zipCursor =
-                    new Zip<int, double, double, SortedMapCursor<int, double>,
-                        SortedMapCursor<int, double>>(
+                    new Zip<int, double, double, SCursor<int, double>,
+                        SCursor<int, double>>(
                         c1, c2).Initialize();
 
                 double actual = 0;
@@ -227,10 +227,10 @@ namespace Spreads.Core.Tests.Cursors
         public void CouldUseBaseSeriesAddOperator()
         {
             var count = 10000;
-            var sm1 = new SortedMap<int, double>();
-            var sm2 = new SortedMap<int, double>();
+            var sm1 = new Series<int, double>();
+            var sm2 = new Series<int, double>();
 
-            var result = new SortedMap<int, double>();
+            var result = new Series<int, double>();
             double expected = 0;
 
             sm1.Add(0, 0);
@@ -289,8 +289,8 @@ namespace Spreads.Core.Tests.Cursors
         public void CouldAddContinuousSeries()
         {
             var count = 10000; //0;
-            var sm1 = new SortedMap<int, double>();
-            var sm2 = new SortedMap<int, double>();
+            var sm1 = new Series<int, double>();
+            var sm2 = new Series<int, double>();
 
             double expected = 0;
 
@@ -310,11 +310,11 @@ namespace Spreads.Core.Tests.Cursors
 
             for (int r = 0; r < 20; r++)
             {
-                var fc1 = new Fill<int, double, SortedMapCursor<int, double>>(sm1.GetEnumerator(), 123);
-                var fc2 = new Fill<int, double, SortedMapCursor<int, double>>(sm2.GetEnumerator(), 42);
+                var fc1 = new Fill<int, double, SCursor<int, double>>(sm1.GetEnumerator(), 123);
+                var fc2 = new Fill<int, double, SCursor<int, double>>(sm2.GetEnumerator(), 42);
                 var zipCursor =
-                    new Zip<int, double, double, Fill<int, double, SortedMapCursor<int, double>>,
-                            Fill<int, double, SortedMapCursor<int, double>>>(
+                    new Zip<int, double, double, Fill<int, double, SCursor<int, double>>,
+                            Fill<int, double, SCursor<int, double>>>(
                             fc1, fc2).Map((k, v) => v.Item1 + v.Item2)
                         .Initialize();
 
@@ -349,9 +349,9 @@ namespace Spreads.Core.Tests.Cursors
         public void CouldMoveAt()
         {
             var count = 100;
-            var sm0 = new SortedMap<int, double>();
-            var sm1 = new SortedMap<int, double>();
-            var sm2 = new SortedMap<int, double>();
+            var sm0 = new Series<int, double>();
+            var sm1 = new Series<int, double>();
+            var sm2 = new Series<int, double>();
 
             double expected = 0;
 
@@ -371,13 +371,13 @@ namespace Spreads.Core.Tests.Cursors
                 }
             }
 
-            var fc = new Fill<int, double, SortedMapCursor<int, double>>(sm0.GetEnumerator(), -1);
-            var fc1 = new Fill<int, double, SortedMapCursor<int, double>>(sm1.GetEnumerator(), 123);
-            var fc2 = new Fill<int, double, SortedMapCursor<int, double>>(sm2.GetEnumerator(), 42);
+            var fc = new Fill<int, double, SCursor<int, double>>(sm0.GetEnumerator(), -1);
+            var fc1 = new Fill<int, double, SCursor<int, double>>(sm1.GetEnumerator(), 123);
+            var fc2 = new Fill<int, double, SCursor<int, double>>(sm2.GetEnumerator(), 42);
 
             var zipCursor =
-                new Zip<int, double, double, Fill<int, double, SortedMapCursor<int, double>>,
-                        Fill<int, double, SortedMapCursor<int, double>>>(
+                new Zip<int, double, double, Fill<int, double, SCursor<int, double>>,
+                        Fill<int, double, SCursor<int, double>>>(
                         fc, fc2).Map((k, v) => v.Item1 + v.Item2)
                     .Initialize();
 
@@ -397,8 +397,8 @@ namespace Spreads.Core.Tests.Cursors
             Assert.AreEqual(9, zipCursor.CurrentValue);
 
             var zipCursor1 =
-                new Zip<int, double, double, Fill<int, double, SortedMapCursor<int, double>>,
-                        Fill<int, double, SortedMapCursor<int, double>>>(
+                new Zip<int, double, double, Fill<int, double, SCursor<int, double>>,
+                        Fill<int, double, SCursor<int, double>>>(
                         fc1, fc2).Map((k, v) => v.Item1 + v.Item2)
                     .Initialize();
 
@@ -423,8 +423,8 @@ namespace Spreads.Core.Tests.Cursors
         {
             for (int r = 0; r < 10; r++)
             {
-                var sm1 = new SortedMap<int, int>();
-                var sm2 = new SortedMap<int, int>();
+                var sm1 = new Series<int, int>();
+                var sm2 = new Series<int, int>();
 
                 var rng = new Random(r);
 
@@ -448,8 +448,8 @@ namespace Spreads.Core.Tests.Cursors
         [Test, Ignore("TODO old method not supported ")]
         public void DiscreteZipIsCorrectByRandomCheck()
         {
-            var sm1 = new SortedMap<int, int>();
-            var sm2 = new SortedMap<int, int>();
+            var sm1 = new Series<int, int>();
+            var sm2 = new Series<int, int>();
 
             var rng = new Random(9);
 
@@ -467,14 +467,14 @@ namespace Spreads.Core.Tests.Cursors
             DiscreteZipIsCorrectByRandomCheck(sm1, sm2, 9);
         }
 
-        public void DiscreteZipIsCorrectByRandomCheck(SortedMap<int, int> sm1, SortedMap<int, int> sm2, int seed)
+        public void DiscreteZipIsCorrectByRandomCheck(Series<int, int> sm1, Series<int, int> sm2, int seed)
         {
             var series = new[] { sm1, sm2, };
 
             int[] expectedKeys;
             int[] expectedValues;
             int size;
-            SortedMap<int, int> expectedMap;
+            Series<int, int> expectedMap;
 
             using (Benchmark.Run("Manual join", sm1.Count + sm2.Count))
             {
@@ -502,10 +502,10 @@ namespace Spreads.Core.Tests.Cursors
                         }
                     }
                 }
-                expectedMap = SortedMap<int, int>.OfSortedKeysAndValues(expectedKeys, expectedValues, size);
+                expectedMap = Series<int, int>.OfSortedKeysAndValues(expectedKeys, expectedValues, size);
             }
 
-            SortedMap<int, int> sum;
+            Series<int, int> sum;
             Series<int, int> ser;
 
             using (Benchmark.Run("Zip join", sm1.Count + sm2.Count))
@@ -529,7 +529,7 @@ namespace Spreads.Core.Tests.Cursors
             //    Assert.AreEqual(kvp.Value, sum[kvp.Key]);
             //}
 
-            var sum1 = new SortedMap<int, int>();
+            var sum1 = new Series<int, int>();
             using (Benchmark.Run("Zip Async join", sm1.Count + sm2.Count))
             {
                 var zip = sm1.Zip(sm2, (v1, v2) => v1 + v2);
@@ -560,7 +560,7 @@ namespace Spreads.Core.Tests.Cursors
                 Assert.AreEqual(kvp.Value, sum1[kvp.Key]);
             }
 
-            //var sum2 = new SortedMap<int, int>();
+            //var sum2 = new Series<int, int>();
             //using (Benchmark.Run("ZipN Async join", sm1.Count + sm2.Count))
             //{
             //    var cur = ser.GetCursor();
@@ -589,8 +589,8 @@ namespace Spreads.Core.Tests.Cursors
         {
             for (int r = 0; r < 10; r++)
             {
-                var sm1 = new SortedMap<int, int>();
-                var sm2 = new SortedMap<int, int>();
+                var sm1 = new Series<int, int>();
+                var sm2 = new Series<int, int>();
 
                 var rng = new Random(r);
 
@@ -614,8 +614,8 @@ namespace Spreads.Core.Tests.Cursors
         [Test, Ignore("TODO old method not supported ")]
         public void ContinuousZipIsCorrectByRandomCheck()
         {
-            var sm1 = new SortedMap<int, int>();
-            var sm2 = new SortedMap<int, int>();
+            var sm1 = new Series<int, int>();
+            var sm2 = new Series<int, int>();
 
             var rng = new Random(9);
 
@@ -633,14 +633,14 @@ namespace Spreads.Core.Tests.Cursors
             ContinuousZipIsCorrectByRandomCheck(sm1, sm2, 9);
         }
 
-        public void ContinuousZipIsCorrectByRandomCheck(SortedMap<int, int> sm1, SortedMap<int, int> sm2, int seed)
+        public void ContinuousZipIsCorrectByRandomCheck(Series<int, int> sm1, Series<int, int> sm2, int seed)
         {
             var series = new ISeries<int, int>[] { sm1.Repeat(), sm2 };
 
             int[] expectedKeys;
             int[] expectedValues;
             int size;
-            SortedMap<int, int> expectedMap;
+            Series<int, int> expectedMap;
 
             using (Benchmark.Run("Manual join", sm1.Count + sm2.Count))
             {
@@ -668,10 +668,10 @@ namespace Spreads.Core.Tests.Cursors
                         }
                     }
                 }
-                expectedMap = SortedMap<int, int>.OfSortedKeysAndValues(expectedKeys, expectedValues, size);
+                expectedMap = Series<int, int>.OfSortedKeysAndValues(expectedKeys, expectedValues, size);
             }
 
-            SortedMap<int, int> sum;
+            Series<int, int> sum;
             Series<int, int> ser;
 
             using (Benchmark.Run("Zip join", sm1.Count + sm2.Count))
@@ -695,7 +695,7 @@ namespace Spreads.Core.Tests.Cursors
             //    Assert.AreEqual(kvp.Value, sum[kvp.Key]);
             //}
 
-            var sum1 = new SortedMap<int, int>();
+            var sum1 = new Series<int, int>();
             using (Benchmark.Run("Zip Async join", sm1.Count + sm2.Count))
             {
                 var zip = sm1.Repeat().Zip(sm2, (v1, v2) => v1 + v2);
@@ -727,7 +727,7 @@ namespace Spreads.Core.Tests.Cursors
             }
 
             // TODO this uses Subscribe which is not implemented yet
-            //var sum2 = new SortedMap<int, int>();
+            //var sum2 = new Series<int, int>();
             //using (Benchmark.Run("ZipN Async join", sm1.Count + sm2.Count))
             //{
             //    var cur = ser.GetCursor();
@@ -754,9 +754,9 @@ namespace Spreads.Core.Tests.Cursors
         [Test, Explicit("long running")]
         public void CouldAddSeriesArrayWithSameKeys()
         {
-            var sm1 = new SortedMap<int, double>();
-            var sm2 = new SortedMap<int, double>();
-            var sm3 = new SortedMap<int, double>();
+            var sm1 = new Series<int, double>();
+            var sm2 = new Series<int, double>();
+            var sm3 = new Series<int, double>();
 
             double expected = 0;
 
@@ -829,9 +829,9 @@ namespace Spreads.Core.Tests.Cursors
         [Test, Explicit("long running")]
         public async Task CouldUseZipNSelector()
         {
-            var sm1 = new SortedMap<int, double>();
-            var sm2 = new SortedMap<int, double>();
-            var sm3 = new SortedMap<int, double>();
+            var sm1 = new Series<int, double>();
+            var sm2 = new Series<int, double>();
+            var sm3 = new Series<int, double>();
 
             double expected = 0;
 

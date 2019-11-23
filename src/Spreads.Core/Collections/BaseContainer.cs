@@ -2,14 +2,14 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-using Spreads.Threading;
+using Spreads.Collections.Internal;
 using Spreads.Utils;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Threading;
-using Spreads.Collections.Internal;
 
 namespace Spreads.Collections
 {
@@ -19,41 +19,33 @@ namespace Spreads.Collections
     [CannotApplyEqualityOperator]
     public class BaseContainer : IAsyncCompleter, IDisposable
     {
-        internal BaseContainer()
-        { }
+        
 
         /// <summary>
         /// A union of <see cref="DataBlock"/> and container-specific DataSource.
         /// </summary>
         internal object? Data;
 
-        // immutable & not sorted & none layout
-        internal Flags _flags;
+        /// <summary>
+        /// Flags.
+        /// </summary>
+        internal Flags Flags;
 
-        // TODO these sync fields need rework: move to in-mem only containers or use TLocker object so that persistent series could have their own locking logic without cost
-        // But remember that all series must inherit from Series'2
+        private int _locker;
+        internal int OrderVersion;
 
-        internal AtomicCounter _orderVersion;
-        internal int _locker;
-        internal long _version;
-        internal long _nextVersion;
+        // See http://joeduffyblog.com/2009/06/04/a-scalable-readerwriter-scheme-with-optimistic-retry/
 
-        internal long Version
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => Volatile.Read(ref _version);
-        }
+        internal volatile int Version;
+        internal volatile int NextVersion;
 
-        internal long NextVersion
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => Volatile.Read(ref _nextVersion);
-        }
+        internal BaseContainer()
+        { }
 
         #region Synchronization
 
         /// <summary>
-        /// Takes a write lock, increments _nextVersion field and returns the current value of the _version field.
+        /// Acquire a write lock and increment <seealso cref="NextVersion"/>.
         /// </summary>
         /// <returns></returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -66,27 +58,16 @@ namespace Spreads.Collections
 #endif
             var spinwait = new SpinWait();
             // NB try{} finally{ .. code here .. } prevents method inlining, therefore should be used at the caller place, not here
-            var doSpin = !_flags.IsImmutable;
+            var doSpin = !Flags.IsImmutable;
             // ReSharper disable once LoopVariableIsNeverChangedInsideLoop
             while (doSpin)
             {
                 if (Interlocked.CompareExchange(ref _locker, 1, 0) == 0)
                 {
-                    // TODO Review
-                    // Very smart people, including even coreclr's ones, still
-                    // do not agree on this completely. See the aeron.net 49 & related coreclr issues https://github.com/dotnet/coreclr/issues/6121
-                    // Interlocked is definitely correct, but see InterlockedVsFences test - it's 10+x slower
-
-                    if (IntPtr.Size == 8)
+                    unchecked
                     {
-                        Volatile.Write(ref _nextVersion, Volatile.Read(ref _nextVersion) + 1L); // ↑
-                        Volatile.Read(ref _nextVersion); // ↓
+                        NextVersion++;
                     }
-                    else
-                    {
-                        Interlocked.Increment(ref _nextVersion); // ↕
-                    }
-
                     break;
                 }
 #if DEBUG
@@ -109,7 +90,7 @@ namespace Spreads.Collections
         }
 
         /// <summary>
-        /// Release write lock and increment _version field or decrement _nextVersion field if no updates were made.
+        /// Release write lock and increment <see cref="Version"/> or decrement <seealso cref="NextVersion"/> if no updates were made.
         /// Call NotifyUpdate if doVersionIncrement is true
         /// </summary>
         /// <param name="doVersionIncrement"></param>
@@ -117,42 +98,36 @@ namespace Spreads.Collections
         [Obsolete("Use this ONLY for IMutableSeries operations")]
         internal void AfterWrite(bool doVersionIncrement)
         {
-            if (_flags.IsImmutable)
+            if (Flags.IsImmutable)
             {
                 if (doVersionIncrement)
                 {
                     // TODO(!) review when/why this is possible
                     // ThrowHelper.FailFast("WTF, how doVersionIncrement == true when immutable!?");
-                    _version++;
-                    _nextVersion = _version;
+                    unchecked
+                    {
+                        Version++;
+                    }
+                    NextVersion = Version;
 
+                    // TODO WTF? see git blame for the next line, what was here?
                     NotifyUpdate(); // TODO remove after flags fixed
                 }
             }
             else if (doVersionIncrement)
             {
-                if (IntPtr.Size == 8)
+                unchecked
                 {
-                    Volatile.Write(ref _version, _version + 1L);
+                    Version++;
                 }
-                else
-                {
-                    Interlocked.Increment(ref _version);
-                }
+
                 // TODO
                 NotifyUpdate();
             }
             else
             {
                 // set nextVersion back to original version, no changes were made
-                if (IntPtr.Size == 8)
-                {
-                    Volatile.Write(ref _nextVersion, _version);
-                }
-                else
-                {
-                    Interlocked.Exchange(ref _nextVersion, _version);
-                }
+                NextVersion = Version;
             }
 
             ReleaseLock();
@@ -301,41 +276,41 @@ namespace Spreads.Collections
                 switch (_subscriptions)
                 {
                     case null:
-                    {
-                        Interlocked.Exchange(ref _subscriptions, subscription);
-                        break;
-                    }
+                        {
+                            Interlocked.Exchange(ref _subscriptions, subscription);
+                            break;
+                        }
 
                     case ContainerSubscription sub when !ReferenceEquals(_subscriptions, subscription):
-                    {
-                        var newArr = new[] { sub, subscription };
-                        Interlocked.Exchange(ref _subscriptions, newArr);
-                        break;
-                    }
+                        {
+                            var newArr = new[] { sub, subscription };
+                            Interlocked.Exchange(ref _subscriptions, newArr);
+                            break;
+                        }
 
                     case ContainerSubscription[] subsArray when Array.IndexOf(subsArray, subscription) < 0:
-                    {
-                        int i;
-                        if ((i = Array.IndexOf(subsArray, null)) >= 0)
                         {
-                            Volatile.Write(ref subsArray[i], subscription);
-                        }
-                        else
-                        {
-                            var newArr = new ContainerSubscription[subsArray.Length * 2];
-                            subsArray.CopyTo(newArr, 0);
-                            Interlocked.Exchange(ref _subscriptions, newArr);
-                        }
+                            int i;
+                            if ((i = Array.IndexOf(subsArray, null)) >= 0)
+                            {
+                                Volatile.Write(ref subsArray[i], subscription);
+                            }
+                            else
+                            {
+                                var newArr = new ContainerSubscription[subsArray.Length * 2];
+                                subsArray.CopyTo(newArr, 0);
+                                Interlocked.Exchange(ref _subscriptions, newArr);
+                            }
 
-                        break;
-                    }
+                            break;
+                        }
 
                     default:
-                    {
-                        // ignoring repeated subscription but it will be caught here
-                        ThrowHelper.FailFast("_subscriptions could be either null, a single element or an array. (or repeated subscription)");
-                        break;
-                    }
+                        {
+                            // ignoring repeated subscription but it will be caught here
+                            ThrowHelper.FailFast("_subscriptions could be either null, a single element or an array. (or repeated subscription)");
+                            break;
+                        }
                 }
 
                 return subscription;
@@ -367,48 +342,46 @@ namespace Spreads.Collections
             switch (subscriptions)
             {
                 case ContainerSubscription sub:
-                {
-                    sub.Subscriber?.TryComplete(false);
-                    break;
-                }
+                    {
+                        sub.Subscriber?.TryComplete(false);
+                        break;
+                    }
 
                 case ContainerSubscription[] subsArray:
-                {
-                    // We want to avoid a lock here for reading subsArray,
-                    // which is modified only inside a lock in Subscribe/Dispose.
-                    // Reference assignment is atomic, no synchronization is needed for subsArray.
-                    // If we miss one that is being added concurrently then it was added after NotifyUpdate.
-                    // We need to iterate over the entire array and not just until first null
-                    // because removed subscribers could leave an empty slot.
-                    // Async subscription should be rare and the number of subscribers is typically small.
-                    for (int i = 0; i < subsArray.Length; i++)
                     {
-                        var subI = Volatile.Read(ref subsArray[i]);
-                        subI.Subscriber?.TryComplete(false);
-                    }
+                        // We want to avoid a lock here for reading subsArray,
+                        // which is modified only inside a lock in Subscribe/Dispose.
+                        // Reference assignment is atomic, no synchronization is needed for subsArray.
+                        // If we miss one that is being added concurrently then it was added after NotifyUpdate.
+                        // We need to iterate over the entire array and not just until first null
+                        // because removed subscribers could leave an empty slot.
+                        // Async subscription should be rare and the number of subscribers is typically small.
+                        for (int i = 0; i < subsArray.Length; i++)
+                        {
+                            var subI = Volatile.Read(ref subsArray[i]);
+                            subI.Subscriber?.TryComplete(false);
+                        }
 
-                    break;
-                }
+                        break;
+                    }
 
                 default:
-                {
-                    if (!(subscriptions is null))
                     {
-                        ThrowHelper.FailFast("Wrong cursors subscriptions type");
-                    }
-                    else
-                    {
-                        ThrowHelper.FailFast("Cursors field is null, but that was checked in NotifyUpdate that calls this method");
-                    }
+                        if (!(subscriptions is null))
+                        {
+                            ThrowHelper.FailFast("Wrong cursors subscriptions type");
+                        }
+                        else
+                        {
+                            ThrowHelper.FailFast("Cursors field is null, but that was checked in NotifyUpdate that calls this method");
+                        }
 
-                    break;
-                }
+                        break;
+                    }
             }
         }
 
-        
-
-        #endregion
+        #endregion Subscription & notification
 
         #region Attributes
 
@@ -422,10 +395,15 @@ namespace Spreads.Collections
         /// <returns>Return an attribute value or null is the attribute is not found.</returns>
         public object? GetAttribute(string attributeName)
         {
-            if (Attributes.TryGetValue(this, out Dictionary<string, object> dic) &&
-                dic.TryGetValue(attributeName, out object res))
+            if (Attributes.TryGetValue(this, out Dictionary<string, object> dic))
             {
-                return res;
+                lock (dic)
+                {
+                    if (dic.TryGetValue(attributeName, out object res))
+                    {
+                        return res;
+                    }
+                }
             }
             return null;
         }
@@ -435,8 +413,12 @@ namespace Spreads.Collections
         /// </summary>
         public void SetAttribute(string attributeName, object attributeValue)
         {
+            // GetOrCreateValue is thread-safe
             var dic = Attributes.GetOrCreateValue(this);
-            dic[attributeName] = attributeValue;
+            lock (dic)
+            {
+                dic[attributeName] = attributeValue;
+            }
         }
 
         #endregion Attributes

@@ -1100,9 +1100,9 @@ namespace Spreads.Core.Tests.Algorithms
         [Test, Explicit("long running")]
         public void SearchBench()
         {
-            var count = 10 * 1024 * 1024;
-            var rounds = 5;
-            var lens = new[] { 0, 1, 16, 128, 512, 1024, 16 * 1024, 128 * 1024, 512 * 1024, 1024 * 1024, 10 * 1024 * 1024 };
+            var count = 10* 1024 * 1024;
+            var rounds = 1;
+            var lens = new[] {  16, 128, 512, 1024, 16 * 1024, 128 * 1024, 512 * 1024, 1024 * 1024, 10 * 1024 * 1024 }; //0, 1,
             var vec = (Enumerable.Range(0, count).Select(x => (Timestamp)(long)x).ToArray());
 
             for (int r = 0; r < rounds; r++)
@@ -1124,7 +1124,7 @@ namespace Spreads.Core.Tests.Algorithms
 #pragma warning restore 618
                                 //if (idx < 0)
                                 //{
-                                //    ThrowHelper.FailFast(String.Empty);
+                                //    Assert.Fail();
                                 //}
                             }
                         }

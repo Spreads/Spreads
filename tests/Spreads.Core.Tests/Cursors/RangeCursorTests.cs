@@ -18,20 +18,20 @@ namespace Spreads.Core.Tests.Cursors
         [Test]
         public void CouldUseRangeValues()
         {
-            SortedMap<int, double> sm = null;
+            Series<int, double> sm = null;
 
             Assert.Throws<NullReferenceException>(() =>
             {
                 var nullRange = sm.Range(0, Int32.MaxValue, true, true);
             });
 
-            var empty = new SortedMap<int, double>();
+            var empty = new Series<int, double>();
 
             var range = empty.Range(0, Int32.MaxValue, true, true);
             Assert.True(range.First.IsMissing);
             Assert.False(range.Any());
 
-            var nonEmpty = new SortedMap<int, double>
+            var nonEmpty = new Series<int, double>
             {
                 {1, 1}
             };
@@ -42,7 +42,7 @@ namespace Spreads.Core.Tests.Cursors
         [Test]
         public void CouldReuseRangeValuesCursor()
         {
-            var nonEmpty = new SortedMap<int, double>
+            var nonEmpty = new Series<int, double>
             {
                 {1, 1},
                 {2, 2}
@@ -95,28 +95,28 @@ namespace Spreads.Core.Tests.Cursors
         [Test]
         public void CouldUseRangeCursorStruct()
         {
-            SortedMap<int, double> sm = null;
+            Series<int, double> sm = null;
 
             Assert.Throws<NullReferenceException>(() =>
             {
-                var nullRange = new Range<int, double, SortedMapCursor<int, double>>(sm.GetEnumerator(), Opt.Present(0), Opt.Present(Int32.MaxValue), true, true);
+                var nullRange = new Range<int, double, SCursor<int, double>>(sm.GetEnumerator(), Opt.Present(0), Opt.Present(Int32.MaxValue), true, true);
             });
 
-            var empty = new SortedMap<int, double>();
+            var empty = new Series<int, double>();
 
-            var rangeCursor = new Range<int, double, SortedMapCursor<int, double>>(empty.GetEnumerator(), Opt.Present(0), Opt.Present(Int32.MaxValue), true, true);
+            var rangeCursor = new Range<int, double, SCursor<int, double>>(empty.GetEnumerator(), Opt.Present(0), Opt.Present(Int32.MaxValue), true, true);
             // NB Source just wraps the cursor in a new struct,
-            // same as new CursorSeries<int, double, RangeCursor<int, double, SortedMapCursor<int, double>>>(rangeCursor);
+            // same as new CursorSeries<int, double, RangeCursor<int, double, SCursor<int, double>>>(rangeCursor);
             var range = rangeCursor.Source;
 
             Assert.True(range.First.IsMissing);
             Assert.False(range.Any());
 
-            var nonEmpty = new SortedMap<int, double>
+            var nonEmpty = new Series<int, double>
             {
                 {1, 1}
             };
-            var rangeCursor1 = new Range<int, double, SortedMapCursor<int, double>>(nonEmpty.GetEnumerator(), Opt.Present(0), Opt.Present(Int32.MaxValue), true, true);
+            var rangeCursor1 = new Range<int, double, SCursor<int, double>>(nonEmpty.GetEnumerator(), Opt.Present(0), Opt.Present(Int32.MaxValue), true, true);
             var range1 = rangeCursor1.Source;
 
             Assert.True(range1.Any());

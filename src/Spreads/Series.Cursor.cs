@@ -22,14 +22,19 @@ namespace Spreads
             return new AsyncCursor<TKey, TValue, SCursor<TKey, TValue>>(GetCursor());
         }
 
-        public IEnumerator<KeyValuePair<TKey, TValue>> GetEnumerator()
+        IEnumerator<KeyValuePair<TKey, TValue>> IEnumerable<KeyValuePair<TKey, TValue>>.GetEnumerator()
         {
             return GetCursor();
         }
 
         IEnumerator IEnumerable.GetEnumerator()
         {
-            return GetEnumerator();
+            return GetCursor();
+        }
+
+        public SCursor<TKey, TValue> GetEnumerator()
+        {
+            return GetCursor();
         }
 
         ICursor<TKey, TValue> ISeries<TKey, TValue>.GetCursor()

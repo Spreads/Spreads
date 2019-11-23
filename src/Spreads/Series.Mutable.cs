@@ -62,5 +62,10 @@ namespace Spreads
         {
             throw new System.NotImplementedException();
         }
+
+        public void Add<TKey, TValue>(TKey key, TValue value)
+        {
+            throw new NotImplementedException();
+        }
     }
 }

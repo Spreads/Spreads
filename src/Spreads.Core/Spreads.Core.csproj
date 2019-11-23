@@ -46,6 +46,7 @@
   </ItemGroup>
     
   <ItemGroup>
+    <Folder Include="Collections\Internal\" />
     <Folder Include="Cursors\Experimental\" />
     <Folder Include="Serialization\Utf8Json\Formatters\" />
     <Folder Include="Serialization\Utf8Json\Internal\DoubleConversion\" />

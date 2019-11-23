@@ -441,7 +441,7 @@
 //        //public async Task RangeOnVariantSeriesWorks()
 //        //{
 
-//        //    var sm = new SortedMap<DateTime, int>();
+//        //    var sm = new Series<DateTime, int>();
 
 //        //    for (int i = 0; i < 100; i++)
 //        //    {

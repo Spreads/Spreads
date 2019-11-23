@@ -63,7 +63,7 @@ namespace Spreads.Core.Tests
                 var cnt3 = 0;
                 var cnt4 = 0;
 
-                var sm1 = new Spreads.Deprecated.SortedMap<int, int>(count);
+                var sm1 = new Spreads.Deprecated.Series<int, int>(count);
                 // sm1._isSynchronized = false;
                 var addTask = Task.Run(async () =>
                 {
@@ -293,8 +293,8 @@ namespace Spreads.Core.Tests
         //{
         //    var count = 10_000;
 
-        //    var sm1 = new Spreads.Collections.SortedMap<int, int>();
-        //    var sm2 = new Spreads.Collections.SortedMap<int, int>();
+        //    var sm1 = new Spreads.Collections.Series<int, int>();
+        //    var sm2 = new Spreads.Collections.Series<int, int>();
 
         //    var whenAny = new Spreads.Collections.Experimental.ReusableWhenAny2(sm1, sm2); //  ReusableValueTaskWhenAny<int>();
 

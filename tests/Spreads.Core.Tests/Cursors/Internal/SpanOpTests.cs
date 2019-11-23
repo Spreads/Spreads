@@ -151,7 +151,7 @@
 //        public void CouldCalculateSMAWithCount()
 //        {
 //            var count = 20;
-//            var sm = new SortedMap<int, double>();
+//            var sm = new Series<int, double>();
 //            for (int i = 1; i <= count; i++)
 //            {
 //                sm.Add(i, i);
@@ -166,17 +166,17 @@
 //            void DoTest(bool allowIncomplete)
 //            {
 //                // TODO separate tests/cases for true/false
-//                var smaOp = new MAvgCount<int, double, SortedMapCursor<int, double>>(10, allowIncomplete);
+//                var smaOp = new MAvgCount<int, double, SCursor<int, double>>(10, allowIncomplete);
 //                var smaCursor =
 //                    new SpanOpImpl<int,
 //                        double,
 //                        double,
-//                        MAvgCount<int, double, SortedMapCursor<int, double>>,
-//                        SortedMapCursor<int, double>
+//                        MAvgCount<int, double, SCursor<int, double>>,
+//                        SCursor<int, double>
 //                    >(sm.GetEnumerator(), smaOp);
 
 //                // this monster type must be hidden in the same way Lag hides its implementation
-//                Series<int, double, SpanOpImpl<int, double, double, MAvgCount<int, double, SortedMapCursor<int, double>>, SortedMapCursor<int, double>>> smaSeries;
+//                Series<int, double, SpanOpImpl<int, double, double, MAvgCount<int, double, SCursor<int, double>>, SCursor<int, double>>> smaSeries;
 //                smaSeries = smaCursor.Source;
 
 //                var sm2 = smaSeries.ToSortedMap();
@@ -204,18 +204,18 @@
 //            void DoTestViaSpanOpCount(bool allowIncomplete)
 //            {
 //                // TODO separate tests/cases for true/false
-//                var onlineOp = new SumAvgOnlineOp<int, double, SortedMapCursor<int, double>>();
-//                var smaOp = new SpanOpCount<int, double, double, SortedMapCursor<int, double>, SumAvgOnlineOp<int, double, SortedMapCursor<int, double>>>(10, allowIncomplete, onlineOp);
+//                var onlineOp = new SumAvgOnlineOp<int, double, SCursor<int, double>>();
+//                var smaOp = new SpanOpCount<int, double, double, SCursor<int, double>, SumAvgOnlineOp<int, double, SCursor<int, double>>>(10, allowIncomplete, onlineOp);
 //                var smaCursor =
 //                    new SpanOpImpl<int,
 //                        double,
 //                        double,
-//                        SpanOpCount<int, double, double, SortedMapCursor<int, double>, SumAvgOnlineOp<int, double, SortedMapCursor<int, double>>>,
-//                        SortedMapCursor<int, double>
+//                        SpanOpCount<int, double, double, SCursor<int, double>, SumAvgOnlineOp<int, double, SCursor<int, double>>>,
+//                        SCursor<int, double>
 //                    >(sm.GetEnumerator(), smaOp);
 
 //                // this monster type must be hidden in the same way Lag hides its implementation
-//                Series<int, double, SpanOpImpl<int, double, double, SpanOpCount<int, double, double, SortedMapCursor<int, double>, SumAvgOnlineOp<int, double, SortedMapCursor<int, double>>>, SortedMapCursor<int, double>>> smaSeries;
+//                Series<int, double, SpanOpImpl<int, double, double, SpanOpCount<int, double, double, SCursor<int, double>, SumAvgOnlineOp<int, double, SCursor<int, double>>>, SCursor<int, double>>> smaSeries;
 //                smaSeries = smaCursor.Source;
 
 //                var sm2 = smaSeries.ToSortedMap();
@@ -247,7 +247,7 @@
 //            Assert.Throws<NotImplementedException>(() =>
 //            {
 //                var count = 20;
-//                var sm = new SortedMap<int, double>();
+//                var sm = new Series<int, double>();
 //                sm.Add(0, 0);
 //                for (int i = 2; i <= count; i++)
 //                {
@@ -255,15 +255,15 @@
 //                }
 //                sm.TryRemove(11);
 //                sm.TryRemove(12);
-//                var onlineOp = new SumAvgOnlineOp<int, double, SortedMapCursor<int, double>>();
-//                var smaOp = new SpanOpWidth<int, double, double, SortedMapCursor<int, double>, SumAvgOnlineOp<int, double, SortedMapCursor<int, double>>>
+//                var onlineOp = new SumAvgOnlineOp<int, double, SCursor<int, double>>();
+//                var smaOp = new SpanOpWidth<int, double, double, SCursor<int, double>, SumAvgOnlineOp<int, double, SCursor<int, double>>>
 //                    (2, Lookup.EQ, onlineOp);
 //                var smaSeries =
 //                    new SpanOpImpl<int,
 //                        double,
 //                        double,
-//                        SpanOpWidth<int, double, double, SortedMapCursor<int, double>, SumAvgOnlineOp<int, double, SortedMapCursor<int, double>>>,
-//                        SortedMapCursor<int, double>
+//                        SpanOpWidth<int, double, double, SCursor<int, double>, SumAvgOnlineOp<int, double, SCursor<int, double>>>,
+//                        SCursor<int, double>
 //                    >(sm.GetEnumerator(), smaOp).Source;
 
 //                foreach (var keyValuePair in smaSeries)
@@ -277,7 +277,7 @@
 //        public void CouldCalculateSMAWithWidth()
 //        {
 //            var count = 20;
-//            var sm = new SortedMap<int, double>();
+//            var sm = new Series<int, double>();
 //            for (int i = 1; i <= count; i++)
 //            {
 //                sm.Add(i, i);
@@ -298,17 +298,17 @@
 //            void DoTest(Lookup lookup)
 //            {
 //                // width 9 is the same as count = 10 for the regular int series
-//                var smaOp = new MAvgWidth<int, double, SortedMapCursor<int, double>>(9, lookup);
+//                var smaOp = new MAvgWidth<int, double, SCursor<int, double>>(9, lookup);
 //                var smaCursor =
 //                    new SpanOpImpl<int,
 //                        double,
 //                        double,
-//                        MAvgWidth<int, double, SortedMapCursor<int, double>>,
-//                        SortedMapCursor<int, double>
+//                        MAvgWidth<int, double, SCursor<int, double>>,
+//                        SCursor<int, double>
 //                    >(sm.GetEnumerator(), smaOp);
 
 //                // this monster type must be hidden in the same way Lag hides its implementation
-//                Series<int, double, SpanOpImpl<int, double, double, MAvgWidth<int, double, SortedMapCursor<int, double>>, SortedMapCursor<int, double>>> smaSeries;
+//                Series<int, double, SpanOpImpl<int, double, double, MAvgWidth<int, double, SCursor<int, double>>, SCursor<int, double>>> smaSeries;
 //                smaSeries = smaCursor.Source;
 
 //                var sm2 = smaSeries.ToSortedMap();
@@ -335,13 +335,13 @@
 
 //                if (lookup == Lookup.LE)
 //                {
-//                    var smaOp1 = new MAvgCount<int, double, SortedMapCursor<int, double>>(10, true);
+//                    var smaOp1 = new MAvgCount<int, double, SCursor<int, double>>(10, true);
 //                    var trueSma =
 //                        new SpanOpImpl<int,
 //                            double,
 //                            double,
-//                            MAvgCount<int, double, SortedMapCursor<int, double>>,
-//                            SortedMapCursor<int, double>
+//                            MAvgCount<int, double, SCursor<int, double>>,
+//                            SCursor<int, double>
 //                        >(sm.GetEnumerator(), smaOp1).Source;
 
 //                    Assert.True(trueSma.Keys.SequenceEqual(smaSeries.Keys));
@@ -350,13 +350,13 @@
 
 //                if (lookup == Lookup.LT)
 //                {
-//                    var smaOp1 = new MAvgCount<int, double, SortedMapCursor<int, double>>(9, true);
+//                    var smaOp1 = new MAvgCount<int, double, SCursor<int, double>>(9, true);
 //                    var trueSma =
 //                        new SpanOpImpl<int,
 //                            double,
 //                            double,
-//                            MAvgCount<int, double, SortedMapCursor<int, double>>,
-//                            SortedMapCursor<int, double>
+//                            MAvgCount<int, double, SCursor<int, double>>,
+//                            SCursor<int, double>
 //                        >(sm.GetEnumerator(), smaOp1).Source;
 
 //                    Assert.True(trueSma.Keys.SequenceEqual(smaSeries.Keys));
@@ -374,19 +374,19 @@
 //            {
 //                // width 9 is the same as count = 10 for the regular int series
 
-//                var onlineOp = new SumAvgOnlineOp<int, double, SortedMapCursor<int, double>>();
-//                var smaOp = new SpanOpWidth<int, double, double, SortedMapCursor<int, double>, SumAvgOnlineOp<int, double, SortedMapCursor<int, double>>>(9, lookup, onlineOp);
+//                var onlineOp = new SumAvgOnlineOp<int, double, SCursor<int, double>>();
+//                var smaOp = new SpanOpWidth<int, double, double, SCursor<int, double>, SumAvgOnlineOp<int, double, SCursor<int, double>>>(9, lookup, onlineOp);
 //                var smaCursor =
 //                    new SpanOpImpl<int,
 //                        double,
 //                        double,
-//                        SpanOpWidth<int, double, double, SortedMapCursor<int, double>, SumAvgOnlineOp<int, double, SortedMapCursor<int, double>>>,
-//                        SortedMapCursor<int, double>
+//                        SpanOpWidth<int, double, double, SCursor<int, double>, SumAvgOnlineOp<int, double, SCursor<int, double>>>,
+//                        SCursor<int, double>
 //                    >(sm.GetEnumerator(), smaOp);
 
 //                // this monster type must be hidden in the same way Lag hides its implementation
 
-//                Series<int, double, SpanOpImpl<int, double, double, SpanOpWidth<int, double, double, SortedMapCursor<int, double>, SumAvgOnlineOp<int, double, SortedMapCursor<int, double>>>, SortedMapCursor<int, double>>> smaSeries;
+//                Series<int, double, SpanOpImpl<int, double, double, SpanOpWidth<int, double, double, SCursor<int, double>, SumAvgOnlineOp<int, double, SCursor<int, double>>>, SCursor<int, double>>> smaSeries;
 //                smaSeries = smaCursor.Source;
 
 //                var sm2 = smaSeries.ToSortedMap();
@@ -413,13 +413,13 @@
 
 //                if (lookup == Lookup.LE)
 //                {
-//                    var smaOp1 = new MAvgCount<int, double, SortedMapCursor<int, double>>(10, true);
+//                    var smaOp1 = new MAvgCount<int, double, SCursor<int, double>>(10, true);
 //                    var trueSma =
 //                        new SpanOpImpl<int,
 //                            double,
 //                            double,
-//                            MAvgCount<int, double, SortedMapCursor<int, double>>,
-//                            SortedMapCursor<int, double>
+//                            MAvgCount<int, double, SCursor<int, double>>,
+//                            SCursor<int, double>
 //                        >(sm.GetEnumerator(), smaOp1).Source;
 
 //                    Assert.True(trueSma.Keys.SequenceEqual(smaSeries.Keys));
@@ -428,13 +428,13 @@
 
 //                if (lookup == Lookup.LT)
 //                {
-//                    var smaOp1 = new MAvgCount<int, double, SortedMapCursor<int, double>>(9, true);
+//                    var smaOp1 = new MAvgCount<int, double, SCursor<int, double>>(9, true);
 //                    var trueSma =
 //                        new SpanOpImpl<int,
 //                            double,
 //                            double,
-//                            MAvgCount<int, double, SortedMapCursor<int, double>>,
-//                            SortedMapCursor<int, double>
+//                            MAvgCount<int, double, SCursor<int, double>>,
+//                            SCursor<int, double>
 //                        >(sm.GetEnumerator(), smaOp1).Source;
 
 //                    Assert.True(trueSma.Keys.SequenceEqual(smaSeries.Keys));
@@ -456,7 +456,7 @@
 
 //            var count = 1000000;
 //            var width = 20;
-//            var sm = new SortedMap<int, double>();
+//            var sm = new Series<int, double>();
 //            sm.Add(0, 0); // make irregular, it's faster but more memory
 //            for (int i = 2; i <= count; i++)
 //            {
@@ -467,27 +467,27 @@
 //                new SpanOpImpl<int,
 //                    double,
 //                    double,
-//                    MAvgCount<int, double, SortedMapCursor<int, double>>,
-//                    SortedMapCursor<int, double>
-//                >(sm.GetEnumerator(), new MAvgCount<int, double, SortedMapCursor<int, double>>(width, false)).Source;
+//                    MAvgCount<int, double, SCursor<int, double>>,
+//                    SCursor<int, double>
+//                >(sm.GetEnumerator(), new MAvgCount<int, double, SCursor<int, double>>(width, false)).Source;
 
 //            var indirectSma =
 //                new SpanOpImpl<int,
 //                    double,
 //                    double,
-//                    SpanOpCount<int, double, double, SortedMapCursor<int, double>, SumAvgOnlineOp<int, double, SortedMapCursor<int, double>>>,
-//                    SortedMapCursor<int, double>
+//                    SpanOpCount<int, double, double, SCursor<int, double>, SumAvgOnlineOp<int, double, SCursor<int, double>>>,
+//                    SCursor<int, double>
 //                >(sm.GetEnumerator(),
-//                    new SpanOpCount<int, double, double, SortedMapCursor<int, double>, SumAvgOnlineOp<int, double, SortedMapCursor<int, double>>>(width, false, new SumAvgOnlineOp<int, double, SortedMapCursor<int, double>>())).Source;
+//                    new SpanOpCount<int, double, double, SCursor<int, double>, SumAvgOnlineOp<int, double, SCursor<int, double>>>(width, false, new SumAvgOnlineOp<int, double, SCursor<int, double>>())).Source;
 
 //            var indirectSmaCombined =
 //                new SpanOpImpl<int,
 //                    double,
 //                    double,
-//                    SpanOp<int, double, double, SortedMapCursor<int, double>, SumAvgOnlineOp<int, double, SortedMapCursor<int, double>>>,
-//                    SortedMapCursor<int, double>
+//                    SpanOp<int, double, double, SCursor<int, double>, SumAvgOnlineOp<int, double, SCursor<int, double>>>,
+//                    SCursor<int, double>
 //                >(sm.GetEnumerator(),
-//                    new SpanOp<int, double, double, SortedMapCursor<int, double>, SumAvgOnlineOp<int, double, SortedMapCursor<int, double>>>(width, false, new SumAvgOnlineOp<int, double, SortedMapCursor<int, double>>(), sm.comparer)).Source;
+//                    new SpanOp<int, double, double, SCursor<int, double>, SumAvgOnlineOp<int, double, SCursor<int, double>>>(width, false, new SumAvgOnlineOp<int, double, SCursor<int, double>>(), sm.comparer)).Source;
 
 //            var extensionSma = sm.SMA(width);
 
@@ -577,24 +577,24 @@
 
 //            var count = 100000;
 //            var width = 20;
-//            var sm = new SortedMap<int, double>();
+//            var sm = new Series<int, double>();
 //            sm.Add(0, 0); // make irregular, it's faster but more memory
 //            for (int i = 2; i <= count; i++)
 //            {
 //                sm.Add(i, i);
 //            }
 
-//            var op = new WindowOnlineOp<int, double, SortedMapCursor<int, double>>();
+//            var op = new WindowOnlineOp<int, double, SCursor<int, double>>();
 //            var spanOp =
-//                new SpanOpCount<int, double, Range<int, double, SortedMapCursor<int, double>>,
-//                    SortedMapCursor<int, double>, WindowOnlineOp<int, double, SortedMapCursor<int, double>>>(20, false,
+//                new SpanOpCount<int, double, Range<int, double, SCursor<int, double>>,
+//                    SCursor<int, double>, WindowOnlineOp<int, double, SCursor<int, double>>>(20, false,
 //                    op);
 //            var window =
 //                new SpanOpImpl<int,
 //                    double,
-//                    Range<int, double, SortedMapCursor<int, double>>,
-//                    SpanOpCount<int, double, Range<int, double, SortedMapCursor<int, double>>, SortedMapCursor<int, double>, WindowOnlineOp<int, double, SortedMapCursor<int, double>>>,
-//                    SortedMapCursor<int, double>
+//                    Range<int, double, SCursor<int, double>>,
+//                    SpanOpCount<int, double, Range<int, double, SCursor<int, double>>, SCursor<int, double>, WindowOnlineOp<int, double, SCursor<int, double>>>,
+//                    SCursor<int, double>
 //                >(sm.GetEnumerator(), spanOp).Source
 //                    .Map(x =>
 //                    {
@@ -609,15 +609,15 @@
 //                    });
 
 //            var spanOpCombined =
-//                new SpanOp<int, double, Range<int, double, SortedMapCursor<int, double>>,
-//                    SortedMapCursor<int, double>, WindowOnlineOp<int, double, SortedMapCursor<int, double>>>(20, false,
+//                new SpanOp<int, double, Range<int, double, SCursor<int, double>>,
+//                    SCursor<int, double>, WindowOnlineOp<int, double, SCursor<int, double>>>(20, false,
 //                    op, sm.comparer);
 //            var windowCombined =
 //                new SpanOpImpl<int,
 //                    double,
-//                    Range<int, double, SortedMapCursor<int, double>>,
-//                    SpanOp<int, double, Range<int, double, SortedMapCursor<int, double>>, SortedMapCursor<int, double>, WindowOnlineOp<int, double, SortedMapCursor<int, double>>>,
-//                    SortedMapCursor<int, double>
+//                    Range<int, double, SCursor<int, double>>,
+//                    SpanOp<int, double, Range<int, double, SCursor<int, double>>, SCursor<int, double>, WindowOnlineOp<int, double, SCursor<int, double>>>,
+//                    SCursor<int, double>
 //                >(sm.GetEnumerator(), spanOpCombined).Source
 //                .Map(x =>
 //                {
@@ -686,7 +686,7 @@
 
 //            #region Create data
 
-//            var sm = new SortedMap<int, double>();
+//            var sm = new Series<int, double>();
 //            sm.Add(0, 0); // make irregular, it's faster but more memory
 //            for (int i = 2; i <= count; i++)
 //            {
@@ -750,7 +750,7 @@
 
 //            #region Create data
 
-//            var sm = new SortedMap<int, double>();
+//            var sm = new Series<int, double>();
 //            sm.Add(0, 0); // make irregular, it's faster but more memory
 //            for (int i = 2; i <= count; i++)
 //            {

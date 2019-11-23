@@ -12,6 +12,7 @@ using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Spreads.Collections.Internal;
+using Spreads.Threading;
 
 namespace Spreads.Internal
 {
@@ -36,9 +37,22 @@ namespace Spreads.Internal
     {
         internal TContainer _source;
 
-        internal DataBlock _currentBlock;
+        private DataBlock? _currentBlockStorage;
 
-        internal int _blockPosition;
+        internal DataBlock? CurrentBlock
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => _currentBlockStorage;
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            set
+            {
+                _currentBlockStorage?.Decrement();
+                value?.Increment();
+                _currentBlockStorage = value;
+            }
+        }
+
+        internal int _blockIndex;
 
         // TODO offtop, from empty to non-empty changes order from 0 to 1
 
@@ -62,11 +76,12 @@ namespace Spreads.Internal
         public BlockCursor(TContainer source)
         {
             _source = source;
-            _blockPosition = -1;
-            _currentBlock = source.DataSource == null ? source.DataBlock : DataBlock.Empty;
-            _orderVersion = _source._orderVersion.CountOrZero; // TODO
-            _currentKey = default;
-            _currentValue = default;
+            _blockIndex = -1;
+            _currentBlockStorage = null;
+            _orderVersion = AtomicCounter.GetCount(ref _source.OrderVersion); // TODO
+            _currentKey = default!;
+            _currentValue = default!;
+            CurrentBlock = source.DataSource == null ? source.DataBlock : DataBlock.Empty;
         }
 
         public CursorState State
@@ -79,7 +94,7 @@ namespace Spreads.Internal
                     return CursorState.None;
                 }
 
-                return _blockPosition >= 0 ? CursorState.Moving : CursorState.Initialized;
+                return _blockIndex >= 0 ? CursorState.Moving : CursorState.Initialized;
             }
         }
 
@@ -95,7 +110,7 @@ namespace Spreads.Internal
             bool found;
             int nextPosition;
             DataBlock nextBlock;
-            TValue v = default;
+            TValue v = default!;
             var sw = new SpinWait();
 
         RETRY:
@@ -108,7 +123,7 @@ namespace Spreads.Internal
                     if (typeof(TContainer) == typeof(Series<TKey, TValue>))
                     {
                         // TODO review. Via _vec is much faster but we assume that stride is 1
-                        v = _currentBlock.DangerousValueRef<TValue>(nextPosition);
+                        v = CurrentBlock.DangerousValueRef<TValue>(nextPosition);
                     }
                 }
             }
@@ -124,12 +139,12 @@ namespace Spreads.Internal
 
             if (found)
             {
-                _blockPosition = nextPosition;
+                _blockIndex = nextPosition;
                 _currentKey = key;
                 _currentValue = v;
                 if (nextBlock != null)
                 {
-                    _currentBlock = nextBlock;
+                    CurrentBlock = nextBlock;
                 }
             }
 
@@ -162,8 +177,8 @@ namespace Spreads.Internal
             {
                 // Note: this does not handle MP from uninitialized state (_blockPosition == -1, stride < 0). // This case is rare.
                 // Uninitialized multi-block case goes to rare as well as uninitialized MP
-                nextPosition = unchecked((ulong)(_blockPosition + stride)); // long.Max + int.Max < ulong.Max
-                if (nextPosition < (ulong)_currentBlock.RowCount)
+                nextPosition = unchecked((ulong)(_blockIndex + stride)); // long.Max + int.Max < ulong.Max
+                if (nextPosition < (ulong)CurrentBlock.RowCount)
                 {
                     mc = stride;
                 }
@@ -172,12 +187,12 @@ namespace Spreads.Internal
                     mc = MoveRare(stride, allowPartial, ref nextPosition, ref nextBlock);
                 }
 
-                k = _currentBlock.DangerousRowKeyRef<TKey>((int)nextPosition); // Note: do not use _blockPosition, it's 20% slower than second cast to int
+                k = CurrentBlock.DangerousRowKeyRef<TKey>((int)nextPosition); // Note: do not use _blockPosition, it's 20% slower than second cast to int
 
                 if (typeof(TContainer) == typeof(Series<TKey, TValue>))
                 {
                     // TODO review. Via _vec is much faster but we assume that stride is 1
-                    v = _currentBlock.DangerousValueRef<TValue>((int)nextPosition);
+                    v = CurrentBlock.DangerousValueRef<TValue>((int)nextPosition);
                 }
                 //else // TODO value getter for other containers or they could do in CV getter but need to call EnsureOrder after reading value.
                 //{
@@ -198,12 +213,12 @@ namespace Spreads.Internal
 
             if (mc != 0)
             {
-                _blockPosition = (int)nextPosition;
+                _blockIndex = (int)nextPosition;
                 _currentKey = k;
                 _currentValue = v;
                 if (nextBlock != null)
                 {
-                    _currentBlock = nextBlock;
+                    CurrentBlock = nextBlock;
                 }
             }
 
@@ -224,7 +239,7 @@ namespace Spreads.Internal
         {
             // this should be false for all cases
 
-            if (_orderVersion != _source._orderVersion.CountOrZero)
+            if (_orderVersion != AtomicCounter.GetCount(ref _source.OrderVersion))
             {
                 ThrowHelper.ThrowOutOfOrderKeyException(_currentKey);
             }
@@ -243,14 +258,14 @@ namespace Spreads.Internal
         {
             EnsureSourceNotDisposed();
 
-            var localBlock = _currentBlock;
+            var localBlock = CurrentBlock;
 
             // var nextPosition = unchecked((ulong)(_blockPosition + stride)); // long.Max + int.Max < ulong.Max
             // Debug.Assert(nextPosition >= (ulong)localBlock.RowLength);
 
             if (_source.DataSource == null)
             {
-                if (_blockPosition < 0 && stride < 0)
+                if (_blockIndex < 0 && stride < 0)
                 {
                     Debug.Assert(State == CursorState.Initialized);
                     var nextPosition = unchecked((localBlock.RowCount + stride));
@@ -270,16 +285,16 @@ namespace Spreads.Internal
                 if (allowPartial)
                 {
                     // TODO test for edge cases
-                    if (_blockPosition + stride >= localBlock.RowCount)
+                    if (_blockIndex + stride >= localBlock.RowCount)
                     {
-                        var mc = (localBlock.RowCount - 1) - _blockPosition;
-                        nextPos = (ulong)(_blockPosition + mc);
+                        var mc = (localBlock.RowCount - 1) - _blockIndex;
+                        nextPos = (ulong)(_blockIndex + mc);
                         return mc;
                     }
                     if (stride < 0) // cannot just use else without checks before, e.g. what if _blockPosition == -1 and stride == 0
                     {
                         {
-                            var mc = _blockPosition;
+                            var mc = _blockIndex;
                             nextPos = 0;
                             return -mc;
                         }
@@ -323,9 +338,9 @@ namespace Spreads.Internal
             // TODO sync
             if (_source.DataSource == null)
             {
-                if (_currentBlock.RowCount > 0)
+                if (CurrentBlock.RowCount > 0)
                 {
-                    _blockPosition = 0;
+                    _blockIndex = 0;
                     return true;
                 }
 
@@ -339,9 +354,9 @@ namespace Spreads.Internal
             // TODO sync
             if (_source.DataSource == null)
             {
-                if (_currentBlock.RowCount > 0)
+                if (CurrentBlock.RowCount > 0)
                 {
-                    _blockPosition = _currentBlock.RowCount - 1;
+                    _blockIndex = CurrentBlock.RowCount - 1;
                     return true;
                 }
 
@@ -378,7 +393,7 @@ namespace Spreads.Internal
         public DataBlock CurrentValue
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => _currentBlock;
+            get => CurrentBlock;
         }
 
         //[MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -392,7 +407,7 @@ namespace Spreads.Internal
         public int CurrentBlockPosition
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => _blockPosition;
+            get => _blockIndex;
         }
 
         public Series<TKey, DataBlock, BlockCursor<TKey, TValue, TContainer>> Source
@@ -428,6 +443,7 @@ namespace Spreads.Internal
         public BlockCursor<TKey, TValue, TContainer> Clone()
         {
             var c = this;
+            c.CurrentBlock?.Increment();
             return c;
         }
 
@@ -443,13 +459,13 @@ namespace Spreads.Internal
 
         public void Reset()
         {
-            _blockPosition = -1;
+            _blockIndex = -1;
             _currentKey = default;
-            _orderVersion = _source._orderVersion.CountOrZero;
+            _orderVersion = AtomicCounter.GetCount(ref _source.OrderVersion);
 
             if (_source.DataSource != null)
             {
-                _currentBlock = DataBlock.Empty;
+                CurrentBlock = DataBlock.Empty;
             }
         }
 

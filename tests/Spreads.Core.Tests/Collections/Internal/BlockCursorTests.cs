@@ -59,7 +59,7 @@ namespace Spreads.Core.Tests.Collections.Internal
             for (int i = 0; i < len; i++)
             {
                 Assert.IsTrue(c.MoveNext());
-                Assert.AreEqual(i, c._blockPosition);
+                Assert.AreEqual(i, c._blockIndex);
             }
 
             Assert.AreEqual(1 - len, c.Move(long.MinValue, true));
@@ -75,16 +75,15 @@ namespace Spreads.Core.Tests.Collections.Internal
             var mult = 1_00;
 
             var bcImm = CreateIntBaseContainer(count, count);
-            bcImm._flags = new Flags((byte)Mutability.ReadOnly | (byte)KeySorting.Strong);
+            bcImm.Flags = new Flags((byte)Mutability.ReadOnly | (byte)KeySorting.Strong);
 
             var bcMut = CreateIntBaseContainer(count, count);
-            bcMut._flags = new Flags((byte)Mutability.Mutable | (byte)KeySorting.Strong);
+            bcMut.Flags = new Flags((byte)Mutability.Mutable | (byte)KeySorting.Strong);
 
             BlockCursor<int, object, BaseContainer<int>>[] useMut = new BlockCursor<int, object, BaseContainer<int>>[count];
             var rng = new Random(42);
 
-            var sm = new SortedMap<int, int>(count);
-            var scm = new SortedMap<int, int>();
+            var sm = new Series<int, int>();
             var sl = new SortedList<int, int>(count);
             for (int i = 0; i < count; i++)
             {
@@ -100,7 +99,6 @@ namespace Spreads.Core.Tests.Collections.Internal
                 }
 
                 sm.Add(i, i);
-                scm.Add(i, i);
                 sl.Add(i, i);
             }
 
@@ -170,7 +168,7 @@ namespace Spreads.Core.Tests.Collections.Internal
                     | MethodImplOptions.AggressiveOptimization
 #endif
         )]
-        private static void MoveNextBenchSCM(SortedMap<int, int> sm, int count, int mult)
+        private static void MoveNextBenchSCM(Series<int, int> sm, int count, int mult)
         {
             // warm up
             for (int _ = 0; _ < 1; _++)
@@ -205,7 +203,7 @@ namespace Spreads.Core.Tests.Collections.Internal
                     | MethodImplOptions.AggressiveOptimization
 #endif
         )]
-        private static void MoveNextBenchSM(SortedMap<int, int> sm, int count, int mult)
+        private static void MoveNextBenchSM(Series<int, int> sm, int count, int mult)
         {
             // warm up
             for (int _ = 0; _ < 1; _++)

@@ -26,7 +26,7 @@ namespace Spreads.Algorithms
         /// Performs standard binary search and returns index of the value or its negative binary complement.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int BinarySearch<T>(ref T vecStart, int length, T value, KeyComparer<T> comparer = default)
+        public static unsafe int BinarySearch<T>(ref T vecStart, int length, T value, KeyComparer<T> comparer = default)
         {
             unchecked
             {
@@ -44,6 +44,7 @@ namespace Spreads.Algorithms
                     int i = (int)(((uint)hi + (uint)lo) >> 1);
 
                     int c = comparer.Compare(value, Unsafe.Add(ref vecStart, i));
+
                     if (c == 0)
                     {
                         return i;

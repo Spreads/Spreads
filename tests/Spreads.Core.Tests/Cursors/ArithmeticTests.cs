@@ -22,13 +22,13 @@
 //        [Test]
 //        public void CouldMapValues()
 //        {
-//            var sm = new SortedMap<int, double>
+//            var sm = new Series<int, double>
 //            {
 //                { 1, 1 }
 //            };
-//            var map = new ArithmeticSeries<int, double, MultiplyOp<double>, SortedMapCursor<int, double>>((sm.GetEnumerator()), 2);
+//            var map = new ArithmeticSeries<int, double, MultiplyOp<double>, SCursor<int, double>>((sm.GetEnumerator()), 2);
 //            var map1 = new ArithmeticSeries<int, double, MultiplyOp<double>, ArithmeticSeries<int, double, MultiplyOp<double>,
-//                SortedMapCursor<int, double>>>(map, 2);
+//                SCursor<int, double>>>(map, 2);
 
 //            Assert.AreEqual(2, map.First.Value);
 //            Assert.AreEqual(4, map1.First.Value);
@@ -37,7 +37,7 @@
 //        [Test, Explicit("long running")]
 //        public void CouldMapValuesBenchmark()
 //        {
-//            var sm = new SortedMap<int, double>();
+//            var sm = new Series<int, double>();
 //            var count = 10000000;
 //            //sm.AddLast(0, 0); // make irregular
 //            for (int i = 2; i < count; i++)
@@ -48,11 +48,11 @@
 //            for (int r = 0; r < 10; r++)
 //            {
 //                var map =
-//                    new ArithmeticSeries<int, double, MultiplyOp<double>, SortedMapCursor<int, double>>(
+//                    new ArithmeticSeries<int, double, MultiplyOp<double>, SCursor<int, double>>(
 //                        sm.GetEnumerator(), 2.0);
 //                var map2 =
 //                    new ArithmeticSeries<int, double, MultiplyOp<double>, ArithmeticSeries<int, double,
-//                        MultiplyOp<double>, SortedMapCursor<int, double>>>(
+//                        MultiplyOp<double>, SCursor<int, double>>>(
 //                        map, 2.0);
 //                var sum = 0.0;
 //                using (Benchmark.Run("ArithmeticSeries", count))
@@ -86,7 +86,7 @@
 //        [DotMemoryUnit(CollectAllocations = true)]
 //        public void CouldMapValuesBenchmarkArithmeticVsMapCursor()
 //        {
-//            var sm = new SortedMap<int, double>();
+//            var sm = new Series<int, double>();
 //            var count = 10000000;
 //            sm.AddLast(0, 0);
 //            for (int i = 2; i < count; i++)
@@ -110,11 +110,11 @@
 
 //                {
 //                    var map =
-//                        new ArithmeticSeries<int, double, MultiplyOp<double>, SortedMapCursor<int, double>>(sm.GetEnumerator(),
+//                        new ArithmeticSeries<int, double, MultiplyOp<double>, SCursor<int, double>>(sm.GetEnumerator(),
 //                            2.0);
 //                    var map2 = map + 2;
 //                    //new ArithmeticSeries<int, double, MultiplyOp<double>, ArithmeticSeries<int, double,
-//                    //    MultiplyOp<double>, SortedMapCursor<int, double>>>(
+//                    //    MultiplyOp<double>, SCursor<int, double>>>(
 //                    //    map.Initialize, 2.0);
 //                    var sum = 0.0;
 //                    using (Benchmark.Run("ArithmeticSeries", count))
@@ -129,14 +129,14 @@
 
 //                {
 //                    var c =
-//                        new Op<int, double, MultiplyOp<double>, SortedMapCursor<int, double>>(
+//                        new Op<int, double, MultiplyOp<double>, SCursor<int, double>>(
 //                            sm.GetEnumerator(), 2.0);
 //                    var c1 =
 //                        new Op<int, double, AddOp<double>, Op<int, double,
-//                            MultiplyOp<double>, SortedMapCursor<int, double>>>(
+//                            MultiplyOp<double>, SCursor<int, double>>>(
 //                            c, 2.0);
 //                    var series = new Series<int, double, Op<int, double, AddOp<double>, Op<int, double,
-//                        MultiplyOp<double>, SortedMapCursor<int, double>>>>(c1);
+//                        MultiplyOp<double>, SCursor<int, double>>>>(c1);
 //                    var sum = 0.0;
 //                    using (Benchmark.Run("ArithmeticCursor", count))
 //                    {
@@ -150,12 +150,12 @@
 
 //                {
 //                    var map =
-//                        new MapValuesSeries<int, double, double, SortedMapCursor<int, double>>(sm.GetEnumerator(),
+//                        new MapValuesSeries<int, double, double, SCursor<int, double>>(sm.GetEnumerator(),
 //                            i => Apply(i, 2.0));
 //                    var map2 =
 //                        new
 //                            MapValuesSeries<int, double, double, MapValuesSeries<int, double, double,
-//                                SortedMapCursor<int, double>>>(map, i => Apply2(i, 2.0));
+//                                SCursor<int, double>>>(map, i => Apply2(i, 2.0));
 //                    var sum = 0.0;
 //                    using (Benchmark.Run("MapValuesSeries", count))
 //                    {
@@ -308,7 +308,7 @@
 //        [Test]
 //        public void CouldMapValuesWithOperator()
 //        {
-//            var sm = new SortedMap<int, double>
+//            var sm = new Series<int, double>
 //            {
 //                { 1, 1 }
 //            };
@@ -335,7 +335,7 @@
 //        [Test, Explicit("long running")]
 //        public void CouldMapValuesWithOperatorBenchmark()
 //        {
-//            var sm = new SortedMap<int, double>();
+//            var sm = new Series<int, double>();
 //            var count = 10000000;
 //            sm.AddLast(0, 0);
 //            for (int i = 2; i < count; i++)
@@ -378,7 +378,7 @@
 //        [Test, Explicit("long running")]
 //        public void CouldUseStructSeries()
 //        {
-//            var sm = new SortedMap<int, double>();
+//            var sm = new Series<int, double>();
 //            var count = 10000000;
 //            sm.AddLast(0, 0); // make irregular
 //            for (int i = 2; i < count; i++)
@@ -403,11 +403,11 @@
 //                sum = 0.0;
 //                {
 //                    var map =
-//                        new ArithmeticSeries<int, double, MultiplyOp<double>, SortedMapCursor<int, double>>(
+//                        new ArithmeticSeries<int, double, MultiplyOp<double>, SCursor<int, double>>(
 //                            sm.GetEnumerator(), 2.0);
 //                    var map2 =
 //                        new ArithmeticSeries<int, double, AddOp<double>, ArithmeticSeries<int, double,
-//                            MultiplyOp<double>, SortedMapCursor<int, double>>>(
+//                            MultiplyOp<double>, SCursor<int, double>>>(
 //                            map, 2.0);
 
 //                    using (Benchmark.Run("ArithmeticSeries", count))
@@ -422,11 +422,11 @@
 //                var sum1 = 0.0;
 //                {
 //                    var c =
-//                        new Op<int, double, MultiplyOp<double>, SortedMapCursor<int, double>>(
+//                        new Op<int, double, MultiplyOp<double>, SCursor<int, double>>(
 //                            sm.GetEnumerator(), 2.0);
 //                    var c1 =
 //                        new Op<int, double, AddOp<double>, Op<int, double,
-//                            MultiplyOp<double>, SortedMapCursor<int, double>>>(
+//                            MultiplyOp<double>, SCursor<int, double>>>(
 //                            c, 2.0);
 
 //                    using (Benchmark.Run("ArithmeticCursor", count))
@@ -450,7 +450,7 @@
 //        //[DotMemoryUnit(FailIfRunWithoutSupport = false)]
 //        public void MultipleEnumerationDoesntAllocate()
 //        {
-//            var sm = new SortedMap<int, double>();
+//            var sm = new Series<int, double>();
 //            var count = 100;
 //            sm.AddLast(0, 0);
 //            for (int i = 2; i < count; i++)
@@ -461,7 +461,7 @@
 //            for (int r = 0; r < 10; r++)
 //            {
 //                var map =
-//                    new ArithmeticSeries<int, double, MultiplyOp<double>, SortedMapCursor<int, double>>(
+//                    new ArithmeticSeries<int, double, MultiplyOp<double>, SCursor<int, double>>(
 //                        sm.GetEnumerator(), 2.0);
 
 //                var sum = 0.0;
@@ -509,15 +509,15 @@
 //                }
 
 //                var cc =
-//                    new Op<int, double, MultiplyOp<double>, SortedMapCursor<int, double>>(
+//                    new Op<int, double, MultiplyOp<double>, SCursor<int, double>>(
 //                        sm.GetEnumerator(), 2.0);
 
 //                var cc1 =
 //                    new Op<int, double, AddOp<double>, Op<int, double,
-//                        MultiplyOp<double>, SortedMapCursor<int, double>>>(
+//                        MultiplyOp<double>, SCursor<int, double>>>(
 //                        cc, 2.0);
 //                var series = new Series<int, double, Op<int, double, AddOp<double>, Op<int, double,
-//                    MultiplyOp<double>, SortedMapCursor<int, double>>>>(cc1);
+//                    MultiplyOp<double>, SCursor<int, double>>>>(cc1);
 
 //                void Run2(ref double s)
 //                {
@@ -559,7 +559,7 @@
 //                    //{
 //                    //    Assert.That(
 //                    //        memory.GetObjects(where =>
-//                    //            where.Type.Is<ArithmeticSeries<int, double, MultiplyOp<double>, SortedMapCursor<int, double>>>()).ObjectsCount,
+//                    //            where.Type.Is<ArithmeticSeries<int, double, MultiplyOp<double>, SCursor<int, double>>>()).ObjectsCount,
 //                    //        Is.EqualTo(1)
 //                    //    );
 //                    //});

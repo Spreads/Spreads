@@ -67,7 +67,7 @@ namespace Spreads.Core.Tests.Cursors.Online
         {
             var count = 30;
 
-            var sm = new SortedMap<int, double>();
+            var sm = new Series<int, double>();
             for (int i = 1; i <= count; i++)
             {
                 sm.Add(i, i);
@@ -85,7 +85,7 @@ namespace Spreads.Core.Tests.Cursors.Online
             var comparer = KeyComparer<int>.Default;
             var count = 1_000_000;
             var width = 20;
-            var sm = new SortedMap<int, double>(count, comparer);
+            var sm = new Series<int, double>(count, comparer);
             sm.Add(0, 0);
             for (int i = 2; i <= count; i++)
             {

@@ -36,10 +36,10 @@ namespace Spreads.Generation
         /// <param name="durationMsecs"></param>
         /// <param name="existing"></param>
         /// <returns></returns>
-        public SortedMap<DateTime, V> Generate(int durationMsecs = 0, SortedMap<DateTime, V> existing = null, CancellationTokenSource cts = null)
+        public Series<DateTime, V> Generate(int durationMsecs = 0, Series<DateTime, V> existing = null, CancellationTokenSource cts = null)
         {
             var spin = new SpinWait();
-            var sm = existing ?? new SortedMap<DateTime, V>();
+            var sm = existing ?? new Series<DateTime, V>();
             Cts = cts ?? new CancellationTokenSource();
             var c = 0;
             var previous = sm.Last.Present.Value; // if missing then default OK

@@ -9,20 +9,28 @@ using Spreads.Internal;
 using System;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
-using System.Threading;
 
 namespace Spreads
 {
     /// <summary>
     /// Base container with row keys of type <typeparamref name="TKey"/>.
     /// </summary>
-    public class BaseContainer<TKey> : BaseContainer
+    public partial class BaseContainer<TKey> : BaseContainer
     {
         // internal ctor for tests only, it should have been abstract otherwise
         internal BaseContainer()
         { }
 
         protected internal KeyComparer<TKey> _comparer = default;
+
+        /// <summary>
+        /// Power of 2 of the preferred block size.
+        /// </summary>
+        /// <remarks>
+        /// Block size is limited by <seealso cref="Settings.LARGE_BUFFER_LIMIT"/>,
+        /// but for small or circular series it could be smaller.
+        /// </remarks>
+        internal byte BlockSizePow2;
 
         internal DataBlock? DataBlock => Data as DataBlock;
         internal DataBlockSource<TKey>? DataSource => Data as DataBlockSource<TKey>;
@@ -68,52 +76,6 @@ namespace Spreads
             }
 
             return false;
-        }
-
-        /// <summary>
-        /// Read synced
-        /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal bool TryGetSeriesValue<TValue>(TKey key, out TValue value)
-        {
-            var sw = new SpinWait();
-#nullable disable
-            value = default;
-#nullable enable
-        SYNC:
-            var found = false;
-            var version = Volatile.Read(ref _version);
-            {
-                var block = DataBlock;
-
-                if (DataSource != null)
-                {
-                    TryFindBlock_ValidateOrGetBlockFromSource(ref block, key, Lookup.EQ, Lookup.LE);
-
-                    // this is huge when key lookup locality > 0
-                    Data = block;
-                }
-
-                if (block != null)
-                {
-                    var blockIndex = VectorSearch.SortedSearch(ref block.DangerousRowKeyRef<TKey>(0),
-                        block.RowCount, key, _comparer);
-
-                    if (blockIndex >= 0)
-                    {
-                        value = block.DangerousValueRef<TValue>(blockIndex);
-                        found = true;
-                    }
-                }
-            }
-
-            if (Volatile.Read(ref _nextVersion) != version)
-            {
-                sw.SpinOnce();
-                goto SYNC;
-            }
-
-            return found;
         }
 
         /// <summary>
@@ -267,7 +229,6 @@ namespace Spreads
 
             if (block != null)
             {
-                
                 // Here we use internal knowledge that for series RowIndex in contiguous vec
                 // TODO(?) do check if VS is pure, allow strides > 1 or just create Nth cursor?
 

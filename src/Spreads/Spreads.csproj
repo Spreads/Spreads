@@ -9,8 +9,6 @@
 
     <LangVersion>8.0</LangVersion>
     <Nullable>enable</Nullable>
-    <NullableContextOptions>enable</NullableContextOptions>
-    <NullableReferenceTypes>true</NullableReferenceTypes>
     <!-- TODO <WarningsAsErrors>CS8600;CS8602;CS8603</WarningsAsErrors>-->
   </PropertyGroup>
 
@@ -25,12 +23,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Spreads.Collections\Spreads.Collections.fsproj" />
     <ProjectReference Include="..\Spreads.Core\Spreads.Core.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="Collections\" />
   </ItemGroup>
 
 

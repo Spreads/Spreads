@@ -160,14 +160,14 @@ namespace Spreads
         /// Get history of offsets with keys as UTC time. Used to convert from UTC to zoned time.
         /// </summary>
         /// <returns></returns>
-        public static SortedMap<DateTime, long> GetOffsetsFromUtc(string tzFrom, bool standardOffsetOnly = false)
+        public static Series<DateTime, long> GetOffsetsFromUtc(string tzFrom, bool standardOffsetOnly = false)
         {
             string tz;
             if (!Normalizer.TryGetValue(tzFrom.ToLowerInvariant(), out tz))
             {
                 tz = tzFrom;
             }
-            var sortedMap = new SortedMap<DateTime, long>();
+            var sortedMap = new Series<DateTime, long>();
             if (tz.ToLowerInvariant() == "utc")
             {
                 sortedMap.Set(new DateTime(0L, DateTimeKind.Utc), 0);
@@ -196,14 +196,14 @@ namespace Spreads
         /// Get history of offsets with keys as zoned time. Used to convert from zoned to UTC time.
         /// </summary>
         /// <returns></returns>
-        public static SortedMap<DateTime, long> GetOffsetsFromZoned(string tzFrom, bool standardOffsetOnly = false)
+        public static Series<DateTime, long> GetOffsetsFromZoned(string tzFrom, bool standardOffsetOnly = false)
         {
             string tz;
             if (!Normalizer.TryGetValue(tzFrom.ToLowerInvariant(), out tz))
             {
                 tz = tzFrom;
             }
-            var sortedMap = new SortedMap<DateTime, long>();
+            var sortedMap = new Series<DateTime, long>();
             if (tz.ToLowerInvariant() == "utc")
             {
                 sortedMap.Set(new DateTime(0L, DateTimeKind.Unspecified), 0);

@@ -15,7 +15,7 @@ namespace Spreads.Core.Tests.Cursors
         [Test]
         public void CouldFillValues()
         {
-            var sm = new SortedMap<int, double>
+            var sm = new Series<int, double>
             {
                 { 1, 1 },
                 { 3, 3 },
@@ -62,7 +62,7 @@ namespace Spreads.Core.Tests.Cursors
         [Test]
         public void CouldFillThenMapValues()
         {
-            var sm = new SortedMap<int, double>
+            var sm = new Series<int, double>
             {
                 { 1, 0 },
                 { 3, 2 },
@@ -110,7 +110,7 @@ namespace Spreads.Core.Tests.Cursors
         [Test]
         public void CouldFillThenAddValues()
         {
-            var sm = new SortedMap<int, double>
+            var sm = new Series<int, double>
             {
                 { 1, 0 },
                 { 3, 2 },
@@ -119,9 +119,9 @@ namespace Spreads.Core.Tests.Cursors
 
 
 
-            var src = (sm.GetEnumerator() as ISpecializedCursor<int, double, SortedMapCursor<int, double>>).Source;
+            var src = (sm.GetEnumerator() as ISpecializedCursor<int, double, SCursor<int, double>>).Source;
             var filled = src.Fill(0);
-            var filled2 = (src as ISpecializedSeries<int, double, SortedMapCursor<int, double>>).Fill(0);
+            var filled2 = (src as ISpecializedSeries<int, double, SCursor<int, double>>).Fill(0);
             var filled3 = sm.Fill(0);
 
             var fc = new Fill<int, double, Cursor<int, double>>(sm.GetSpecializedCursor(), 41).Initialize();

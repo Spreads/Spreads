@@ -32,14 +32,14 @@ namespace Spreads
         // Series could be read-only, append-only and mutable.
         // There should be no public ctor that accepts data, only static Series.X methods that take a single lock for multiple ops.
         // We could later add Series.OfArrays() method that takes ownership of the arrays, but that is not a typical use case (Series are rather primitive objects similar to List<T>)
-
-        internal Series(Mutability mutability = Mutability.Mutable, KeySorting keySorting = KeySorting.Strong, uint capacity = 0)
+        
+        internal Series(Mutability mutability = Mutability.Mutable, KeySorting keySorting = KeySorting.Strong, uint minCircularCapacity = 0)
         {
             if (keySorting == KeySorting.Weak)
             {
                 throw new NotImplementedException();
             }
-            _flags = new Flags(ContainerLayout.Series, keySorting, mutability);
+            Flags = new Flags(ContainerLayout.Series, keySorting, mutability);
         }
 
         [Obsolete("TODO remove usage from tests")]
@@ -67,7 +67,7 @@ namespace Spreads
                     }
                 }
             }
-            _flags = new Flags((byte)((byte)Mutability.ReadOnly | (byte)ks));
+            Flags = new Flags((byte)((byte)Mutability.ReadOnly | (byte)ks));
 
             var keyMemory = ArrayMemory<TKey>.Create(keys, externallyOwned: true);
             var keyVs = VecStorage.Create(keyMemory, 0, keyMemory.Length);
@@ -83,13 +83,13 @@ namespace Spreads
         public KeySorting KeySorting
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => _flags.KeySorting;
+            get => Flags.KeySorting;
         }
 
         public Mutability Mutability
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => _flags.Mutability;
+            get => Flags.Mutability;
         }
 
         [Obsolete]
@@ -103,7 +103,7 @@ namespace Spreads
         public bool IsIndexed
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => !_flags.IsStronglySorted;
+            get => !Flags.IsStronglySorted;
         }
 
         public KeyComparer<TKey> Comparer
@@ -258,9 +258,9 @@ namespace Spreads
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool TryGetValue(TKey key, out TValue value)
         {
-            if (key == null)
+            if (key is null)
             {
-                value = default;
+                value = default!;
                 return false;
             }
 

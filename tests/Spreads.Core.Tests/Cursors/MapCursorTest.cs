@@ -20,12 +20,12 @@ namespace Spreads.Core.Tests.Cursors
         //[Test]
         //public void CouldMapValues()
         //{
-        //    var sm = new SortedMap<int, double>
+        //    var sm = new Series<int, double>
         //    {
         //        { 1, 1 }
         //    };
 
-        //    Series<int, double, Range<int, double, SortedMapCursor<int, double>>> s1;
+        //    Series<int, double, Range<int, double, SCursor<int, double>>> s1;
         //    s1 = sm.After(1);
         //    // TODO see the monster signature!
         //    // try to swap Map with Range (or any CursorSeries) so that this signature could
@@ -39,8 +39,8 @@ namespace Spreads.Core.Tests.Cursors
         //        .Map((x) => x + 1).After(1).Map((x) => x + 1).After(1).Map((x) => x + 1)
         //        .Map((x) => x + 1).After(1).Map((x) => x + 1).After(1).Map((x) => x + 1);
 
-        //    var map = new MapValuesSeries<int, double, double, SortedMapCursor<int, double>>(sm.GetEnumerator(), i => i * 2);
-        //    var map1 = new MapValuesSeries<int, double, double, MapValuesSeries<int, double, double, SortedMapCursor<int, double>>>(map, i => i * 2);
+        //    var map = new MapValuesSeries<int, double, double, SCursor<int, double>>(sm.GetEnumerator(), i => i * 2);
+        //    var map1 = new MapValuesSeries<int, double, double, MapValuesSeries<int, double, double, SCursor<int, double>>>(map, i => i * 2);
         //    var map2 = new MapValuesSeries<int, double, double, Cursor<int, double>>(new Cursor<int, double>(map.Range(0, Int32.MaxValue, true, true).GetEnumerator()), i => i * 2);
         //    var map3 = new MapValuesSeries<int, double, double, Cursor<int, double>>(new Cursor<int, double>(map.Range(2, Int32.MaxValue, true, true).GetEnumerator()), i => i * 2);
 
@@ -53,7 +53,7 @@ namespace Spreads.Core.Tests.Cursors
         //[Test, Explicit("long running")]
         //public void CouldMapValuesBenchmark()
         //{
-        //    var sm = new SortedMap<int, double>();
+        //    var sm = new Series<int, double>();
         //    var count = 10000000;
         //    sm.AddLast(0, 0);
         //    for (int i = 2; i < count; i++)
@@ -65,8 +65,8 @@ namespace Spreads.Core.Tests.Cursors
         //    {
         //        var sw = new Stopwatch();
         //        sw.Restart();
-        //        var map = new MapValuesSeries<int, double, double, SortedMapCursor<int, double>>(sm.GetEnumerator(), i => i * 2);
-        //        var map2 = new MapValuesSeries<int, double, double, MapValuesSeries<int, double, double, SortedMapCursor<int, double>>>(map, i => i * 2);
+        //        var map = new MapValuesSeries<int, double, double, SCursor<int, double>>(sm.GetEnumerator(), i => i * 2);
+        //        var map2 = new MapValuesSeries<int, double, double, MapValuesSeries<int, double, double, SCursor<int, double>>>(map, i => i * 2);
         //        var sum = 0.0;
         //        foreach (var kvp in map2)
         //        {
@@ -100,7 +100,7 @@ namespace Spreads.Core.Tests.Cursors
         [Test]
         public void CouldMapValuesViaExtensionMethods()
         {
-            var sm = new SortedMap<int, int>
+            var sm = new Series<int, int>
             {
                 { 1, 1 }
             };
@@ -118,7 +118,7 @@ namespace Spreads.Core.Tests.Cursors
         [Test, Explicit("long running")]
         public void CouldMapValuesViaExtensionMethodsBenchmark()
         {
-            var sm = new SortedMap<int, int>();
+            var sm = new Series<int, int>();
             var count = 10000000;
             for (int i = 0; i < count; i++)
             {
@@ -164,7 +164,7 @@ namespace Spreads.Core.Tests.Cursors
         [Test]
         public void CouldMapRangeSeriesViaExtensionMethods()
         {
-            var sm = new SortedMap<int, int>
+            var sm = new Series<int, int>
             {
                 { 1, 1 }
             };
@@ -183,7 +183,7 @@ namespace Spreads.Core.Tests.Cursors
         [Test, Explicit("long running")]
         public void CouldMapRangeSeriesViaExtensionMethodsBenchmark()
         {
-            var sm = new SortedMap<int, int>();
+            var sm = new Series<int, int>();
             var count = 10000000;
             for (int i = 0; i < count; i++)
             {
@@ -233,7 +233,7 @@ namespace Spreads.Core.Tests.Cursors
         public void CouldConsumeMapAsync()
         {
             var count = 10;
-            var sm = new SortedMap<int, int>();
+            var sm = new Series<int, int>();
             var zipMap = sm.Map(x => x * x).Zip(sm.Map(x => x * x), (l,r) => l + r);
 
             var t1 = Task.Run(async () =>

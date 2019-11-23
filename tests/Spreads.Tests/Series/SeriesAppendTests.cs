@@ -10,7 +10,7 @@ using NUnit.Framework;
 using Spreads.Deprecated;
 using Spreads.Utils;
 
-namespace Spreads.Tests
+namespace Spreads.Tests.Series
 {
     [Category("CI")]
     [TestFixture]

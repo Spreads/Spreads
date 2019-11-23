@@ -17,8 +17,8 @@ namespace Spreads.Core.Tests.Cursors
         [Test]
         public void CouldUseRepeatWithKeyCursor()
         {
-            SortedMap<int, double> sm1 = new SortedMap<int, double>();
-            SortedMap<int, double> sm2 = new SortedMap<int, double>();
+            Series<int, double> sm1 = new Series<int, double>();
+            Series<int, double> sm2 = new Series<int, double>();
 
             var count = 10;
 

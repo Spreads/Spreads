@@ -1072,7 +1072,7 @@ namespace Spreads.Deprecated
                 // and ignores all further logic if that is false, but BeforeWrite
                 // always increments _nextVersion when _isSynchronized = true
                 // We have it only here, ok for now but TODO review later
-                _nextVersion = _version;
+                NextVersion = Version;
             }
 #pragma warning disable 618
             AfterWrite(false);

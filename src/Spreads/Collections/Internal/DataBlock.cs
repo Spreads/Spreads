@@ -8,35 +8,43 @@ using System;
 using System.Diagnostics;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Threading;
 using Spreads.Buffers;
+using Spreads.Threading;
 
 namespace Spreads.Collections.Internal
 {
-    // TODO Delete, but review the original idea with WRs for data streams
-    internal interface INextBlockGetterX
-    {
-        DataBlock GetNextBlock(DataBlock current);
-    }
-
     /// <summary>
     /// Physycal storage for Series, Matrix and DataFrame blocks.
     /// </summary>
     /// <remarks>
     /// This is thread-unsafe storage. Callers should use some locking mechanism.
     /// </remarks>
-    internal sealed partial class DataBlock : IDisposable
+    internal sealed partial class DataBlock : IRefCounted, IDisposable
     {
-        // We need it as a sentinel with RowLength == 0 in cursor to not penalize fast path of single-block containers
+        /// <summary>
+        /// We need this as a sentinel with RowLength == 0 in cursor to not penalize fast path of single-block containers.
+        /// </summary>
         internal static readonly DataBlock Empty = new DataBlock { _rowCount = 0 };
 
         private static readonly ObjectPool<DataBlock> ObjectPool = new ObjectPool<DataBlock>(() => new DataBlock(), Environment.ProcessorCount * 16);
 
         /// <summary>
+        /// Primarily for cursors and circular implementation.
+        /// We do not release blocks used by cursors, which must
+        /// decrement a block ref count when they no longer need it.
+        /// </summary>
+        private int _refCount;
+
+        /// <summary>
         /// Number of data rows.
         /// </summary>
-        internal int _rowCount = -1;
+        private volatile int _rowCount = -1;
 
-        internal int _head = -1;
+        /// <summary>
+        /// Vec offset where data starts (where index ==0).
+        /// </summary>
+        private volatile int _head = -1;
 
         private VecStorage _rowKeys;
 
@@ -144,6 +152,8 @@ namespace Spreads.Collections.Internal
 
         private void Dispose(bool disposing)
         {
+            AtomicCounter.Dispose(ref _refCount);
+            
             if (IsDisposed)
             {
                 ThrowDisposed();
@@ -434,6 +444,18 @@ namespace Spreads.Collections.Internal
         }
 
         #endregion Structure check
+
+        public int ReferenceCount => AtomicCounter.GetCount(ref _refCount);
+
+        public int Increment()
+        {
+            return AtomicCounter.Increment(ref _refCount);
+        }
+
+        public int Decrement()
+        {
+            return AtomicCounter.Decrement(ref _refCount);
+        }
     }
 
     internal class DataBlockLayoutException : SpreadsException
