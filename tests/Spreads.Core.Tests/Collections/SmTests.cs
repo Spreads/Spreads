@@ -3,8 +3,6 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 using NUnit.Framework;
-using Spreads.Collections;
-using Spreads.Deprecated;
 using Spreads.Utils;
 using System;
 using System.Collections.Generic;
@@ -24,12 +22,8 @@ namespace Spreads.Core.Tests.Collections
             {
                 var sl = new SortedList<int, int>();
                 var sm = new Series<int, int>();
-                var scm = new Series<int, int>();
 
                 var c = sm.GetCursor();
-
-                sm._isSynchronized = false;
-                scm._isSynchronized = false;
 
                 using (Benchmark.Run("SL", count))
                 {
@@ -42,7 +36,7 @@ namespace Spreads.Core.Tests.Collections
                     }
                 }
 
-                using (Benchmark.Run("SM", count))
+                using (Benchmark.Run("Series", count))
                 {
                     for (int i = 0; i < count; i++)
                     {
@@ -52,18 +46,6 @@ namespace Spreads.Core.Tests.Collections
                         }
                     }
                 }
-
-                using (Benchmark.Run("SCM", count))
-                {
-                    for (int i = 0; i < count; i++)
-                    {
-                        if (i != 2)
-                        {
-                            await scm.TryAdd(i, i);
-                        }
-                    }
-                }
-                scm.Dispose();
             }
 
             Benchmark.Dump();
@@ -170,8 +152,7 @@ namespace Spreads.Core.Tests.Collections
                 var count = (int)(1024 * Math.Pow(2, size));
                 const int mult = 1000;
                 var sl = new SortedList<DateTime, int>();
-                var sm = new Series<DateTime, int>(count);
-                var scm = new Series<DateTime, int>();
+                var sm = new Series<DateTime, int>();
 
                 var start = DateTime.Today.ToUniversalTime();
                 for (int i = 0; i < count; i++)
@@ -180,18 +161,12 @@ namespace Spreads.Core.Tests.Collections
                     {
                         sl.Add(start.AddTicks(i), i);
                         sm.Add(start.AddTicks(i), i);
-                        scm.Add(start.AddTicks(i), i);
                     }
                 }
 
                 Assert.IsFalse(sm.IsCompleted);
-                Assert.IsFalse(sm.IsCompleted);
-                Assert.IsTrue(sm.IsSynchronized);
                 sm.Complete();
                 Assert.IsTrue(sm.IsCompleted);
-                Assert.IsTrue(sm.IsCompleted);
-                Assert.IsFalse(sm.IsSynchronized);
-                scm.Complete();
 
                 for (int r = 0; r < 20; r++)
                 {
@@ -219,7 +194,7 @@ namespace Spreads.Core.Tests.Collections
                         {
                             for (int i = 0; i < count; i++)
                             {
-                                if (sm.TryGetValueUnchecked(start.AddTicks(i), out var v))
+                                if (sm.TryGetValue(start.AddTicks(i), out var v))
                                 {
                                     sum2 += v;
                                 }
@@ -320,7 +295,7 @@ namespace Spreads.Core.Tests.Collections
                     sm.Complete();
                 });
 
-                var c = sm.GetCursor();
+                var c = sm.GetAsyncCursor();
                 while (await c.MoveNextAsync())
                 {
                     sum += c.CurrentValue;

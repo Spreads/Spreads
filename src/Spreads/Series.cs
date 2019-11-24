@@ -9,6 +9,7 @@ using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using Spreads.Collections;
+using Spreads.Utils;
 
 namespace Spreads
 {
@@ -40,6 +41,14 @@ namespace Spreads
                 throw new NotImplementedException();
             }
             Flags = new Flags(ContainerLayout.Series, keySorting, mutability);
+        }
+
+        internal Series(int capacity, KeyComparer<TKey> comparer = default) : this(Mutability.Mutable, KeySorting.Strong, 0)
+        {
+            _comparer = comparer;
+
+            // TODO review/test
+            BlockSizePow2 = checked((byte) BitUtil.FindNextPositivePowerOfTwo(Math.Min(Settings.LARGE_BUFFER_LIMIT/Unsafe.SizeOf<TKey>(), capacity)));
         }
 
         [Obsolete("TODO remove usage from tests")]

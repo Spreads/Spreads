@@ -192,19 +192,19 @@ namespace Spreads.Core.Tests.Cursors
         [Test]
         public async Task NotificationWorksWhenCursorIsNotWating()
         {
-            var sm = new Series<int, int>();
+            var s = new Series<int, int>();
 
-            sm.Add(1, 1);
-            sm.Add(2, 2);
+            s.Add(1, 1);
+            s.Add(2, 2);
             // sm.Flush();
 
-            var cursor = sm.GetAsyncEnumerator();
+            var cursor = s.GetAsyncEnumerator();
             Assert.True(await cursor.MoveNextAsync());
             Assert.True(await cursor.MoveNextAsync());
 
             Assert.IsTrue(cursor.MovePrevious());
 
-            await sm.TryAdd(3, 3);
+            await s.TryAdd(3, 3);
 
             await Task.Delay(250);
 
@@ -329,7 +329,7 @@ namespace Spreads.Core.Tests.Cursors
         public async Task CouldEnumerateSCMInBatchMode()
         {
             Settings.SCMDefaultChunkLength = Settings.SCMDefaultChunkLength * 4;
-            var scm = new Series<int, int>();
+            var s = new Series<int, int>();
             var count = 1_000_000; // Settings.SCMDefaultChunkLength - 1;
 
             //for (int i = 0; i < count; i++)
@@ -340,7 +340,7 @@ namespace Spreads.Core.Tests.Cursors
             Console.WriteLine("Added first half");
 
 #pragma warning disable HAA0401 // Possible allocation of reference type enumerator
-            var ae = scm.GetAsyncEnumerator();
+            var ae = s.GetAsyncEnumerator();
 #pragma warning restore HAA0401 // Possible allocation of reference type enumerator
 
             var t = Task.Run(async () =>
@@ -379,13 +379,13 @@ namespace Spreads.Core.Tests.Cursors
 
             for (int i = count; i < count * 2; i++)
             {
-                await scm.TryAdd(i, i);
+                await s.TryAdd(i, i);
                 //Thread.SpinWait(50);
             }
 
             // Thread.Sleep(2000);
 
-            await scm.Complete();
+            await s.Complete();
 
             t.Wait();
         }

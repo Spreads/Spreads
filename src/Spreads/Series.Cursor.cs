@@ -19,7 +19,12 @@ namespace Spreads
 
         IAsyncEnumerator<KeyValuePair<TKey, TValue>> IAsyncEnumerable<KeyValuePair<TKey, TValue>>.GetAsyncEnumerator()
         {
-            return new AsyncCursor<TKey, TValue, SCursor<TKey, TValue>>(GetCursor());
+            return GetAsyncCursor();
+        }
+
+        public AsyncCursor<TKey, TValue, SCursor<TKey, TValue>> GetAsyncEnumerator()
+        {
+            return GetAsyncCursor();
         }
 
         IEnumerator<KeyValuePair<TKey, TValue>> IEnumerable<KeyValuePair<TKey, TValue>>.GetEnumerator()
@@ -59,7 +64,7 @@ namespace Spreads
 
         public AsyncCursor<TKey, TValue, SCursor<TKey, TValue>> GetAsyncCursor()
         {
-            throw new NotImplementedException();
+            return new AsyncCursor<TKey, TValue, SCursor<TKey, TValue>>(GetCursor());
         }
 
         public IEnumerable<TKey> Keys

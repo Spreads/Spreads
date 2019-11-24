@@ -63,7 +63,7 @@ namespace Spreads.Core.Tests
                 var cnt3 = 0;
                 var cnt4 = 0;
 
-                var sm1 = new Spreads.Deprecated.Series<int, int>(count);
+                var sm1 = new Series<int, int>(count);
                 // sm1._isSynchronized = false;
                 var addTask = Task.Run(async () =>
                 {
@@ -103,7 +103,7 @@ namespace Spreads.Core.Tests
                     Thread.CurrentThread.Name = "MNA1";
                     try
                     {
-                        using (var cursor1 = sm1.GetCursor())
+                        using (var cursor1 = sm1.GetAsyncCursor())
                         {
                             // Console.WriteLine("MNA1 started");
                             while (await cursor1.MoveNextAsync())
@@ -147,13 +147,12 @@ namespace Spreads.Core.Tests
                     }
                 });
 
-                    
                     var t2 = Task.Run(async () =>
                     {
                         Thread.CurrentThread.Name = "MNA2";
                         try
                         {
-                            using (var cursor2 = sm1.GetCursor())
+                            using (var cursor2 = sm1.GetAsyncCursor())
                             {
                                 // Console.WriteLine("MNA2 started");
                                 while (await cursor2.MoveNextAsync())
@@ -195,7 +194,7 @@ namespace Spreads.Core.Tests
                         Thread.CurrentThread.Name = "MNA3";
                         try
                         {
-                            using (var cursor3 = sm1.GetCursor())
+                            using (var cursor3 = sm1.GetAsyncCursor())
                             {
                                 // Console.WriteLine("MNA2 started");
                                 while (await cursor3.MoveNextAsync())
@@ -237,7 +236,7 @@ namespace Spreads.Core.Tests
                         Thread.CurrentThread.Name = "MNA4";
                         try
                         {
-                            using (var cursor4 = sm1.GetCursor())
+                            using (var cursor4 = sm1.GetAsyncCursor())
                             {
                                 // Console.WriteLine("MNA2 started");
                                 while (await cursor4.MoveNextAsync())
