@@ -7,11 +7,17 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics.Contracts;
 using System.Threading;
-using System.Threading.Tasks;
 
 namespace Spreads
 {
+    // TODOs
+    // Remove all IsIndexed
+    // MutableSeries.Count -> RowCount
+    // Ensure that we implement unspecialized interfaces explicitly and implement specialized generic methods with the same name.
+
+    // TODO Split interfaces to files by groups
     // Interfaces in a single file because current order is logical from the most primitive to complex interfaces
+    // DEFAULT_INTERFACE_IMPL block are mostly for documentation, we still target netstandard2.0
 
     #region Async interfaces
 
@@ -27,24 +33,17 @@ namespace Spreads
     // * The enumerator may optionally expose a DisposeAsync method that may be invoked with no arguments and that returns something
     //   that can be awaited and whose GetResult() returns void.
 
-    // TODO Ensure that we implement unspecialized interfaces explicitly and implement specialized generic methods with the same name.
-
     /// <summary>
     /// Combines <see cref="System.Collections.Generic"/>'s <see cref="IEnumerator{T}"/> and <see cref="System.Collections.Generic.IAsyncEnumerator{T}"/>.
     /// </summary>
     /// <remarks>
-    /// Contract:
-    ///
-    /// <para />
-    ///
-    /// When <see cref="IEnumerator{T}.Current"/> returns false it means that there are no more elements
+    /// Contract: When <see cref="IEnumerator.MoveNext"/> returns false it means that there are no more elements
     /// *right now*, and a consumer must call <see cref="System.Collections.Generic.IAsyncEnumerator{T}.MoveNextAsync()"/> and await a new element, or spin
     /// and repeatedly call <see cref="IEnumerator.MoveNext"/> when a new element is expected very soon.
     /// Repeated calls to MoveNext() could eventually return true. Changes to the underlying sequence that
-    /// do not affect enumeration do not invalidate the enumerator.
+    /// do not affect enumeration (e.g. append) do not invalidate the enumerator.
     ///
     /// <para />
-    ///
     /// False moves from a valid state keep a cursor/enumerator at the previous valid state.
     /// </remarks>
     // ReSharper disable once PossibleInterfaceMemberAmbiguity : (VB) R# is wrong , new T Current is enough, it duplicates it as get_Current
@@ -63,13 +62,13 @@ namespace Spreads
     /// Exposes the <see cref="IAsyncEnumerator{T}"/> async enumerator, which supports a sync and async
     /// iteration over a collection of a specified type.
     /// </summary>
-    public interface IAsyncEnumerable<out T> : IEnumerable<T> //TODO , System.Collections.Generic.IAsyncEnumerable<T>
+    public interface IAsyncEnumerable<out T> : IEnumerable<T>, System.Collections.Generic.IAsyncEnumerable<T>
     {
-        /// <summary>
-        /// Returns an async enumerator.
-        /// </summary>
-        // TODO new IAsyncEnumerator<T> GetAsyncEnumerator(CancellationToken cancellationToken = default);
-        IAsyncEnumerator<T> GetAsyncEnumerator();
+        // Do not need new, delete
+        ///// <summary>
+        ///// Returns an async enumerator.
+        ///// </summary>
+        new IAsyncEnumerator<T> GetAsyncEnumerator(CancellationToken cancellationToken = default);
     }
 
     /// <summary>
@@ -109,68 +108,8 @@ namespace Spreads
 
     public interface IDataSource
     {
-        // ContainerLayout ContainerLayout { get; }
+        ContainerLayout ContainerLayout { get; }
 
-        /// <summary>
-        /// Returns non-null value if it is possible to get the count in O(1)
-        /// fast call without blocking.
-        /// </summary>
-        // ulong? RowCount { get; }
-
-        /// <summary>
-        ///
-        /// </summary>
-        bool IsEmpty { get; }
-
-        /// <summary>
-        /// Unique string identifier or a string expression describing the data (e.g. "a + b").
-        /// </summary>
-        // string? Expression { get; }
-
-        /// <summary>
-        /// True if element access by numeric index (offset) is O(1).
-        /// </summary>
-        // bool IsIndexed { get; }
-    }
-
-    //public interface IDataSourceRow
-    //{
-    //}
-
-    //public interface ICursor : IEnumerator<IDataSourceRow>
-    //{
-    //}
-
-    //public interface ICursor<TRowKey> : ICursor
-    //{
-    //}
-
-    //public interface IData<TRow>
-    //{
-    //}
-
-    //public interface IRowKeyData<TKey>
-    //{
-    //    KeySorting RowKeySorting { get; }
-    //}
-
-    // TODO Is matrix a series<long> or does not have keys, only indices?
-    // Review ML.NET DataView before finalizing interfaces
-    // E.g. Count as long? present only when O(1) is nice contract
-    // IsEmpty -> IDataContainer
-    // Count -> RowCount, ColumnCount (for series 1 or undefined? is a series same as DF with one column? Or DF is a series of rows (see DataView)?)
-    // LastValueOrDefault -> (or +) LastOrDefault<K,V>, we cannot
-    // AsyncCursor -> AsyncEnumerator?
-
-    // TODO merge/replace
-    public interface ISeriesNew : IDataSource
-    {
-    }
-
-    public interface ISeriesNew<TKey, TValue> : ISeriesNew
-    {
-        // while rewriting keep existing, never commit in broken state
-        
         /// <summary>
         /// <see cref="Mutability"/> of data source of this series.
         /// </summary>
@@ -189,170 +128,49 @@ namespace Spreads
         Mutability Mutability { get; }
 
         /// <summary>
-        /// <see cref="KeySorting"/> of this series.
+        /// <see cref="KeySorting"/> of row keys.
         /// </summary>
         KeySorting KeySorting { get; }
 
-        // TODO LastOrDefault - via Opt<> is terribly slow. Already implemented for DataSource.
+        /// <summary>
+        /// Returns non-null value if it is possible to get the count in O(1)
+        /// fast call without blocking.
+        /// </summary>
+        ulong? RowCount { get; }
+
+        /// <summary>
+        ///
+        /// </summary>
+        bool IsEmpty { get; }
+
+        ///// <summary>
+        ///// Unique string identifier or a string expression describing the data (e.g. "a + b").
+        ///// </summary>
+        // string? Expression { get; } TODO this could be done much later and added as a layer, core functionality does not depend on this
     }
 
     /// <summary>
-    /// Series are navigable ordered data streams of key-value pairs.
-    /// </summary>
-    public interface ISeries<TKey, TValue> : IAsyncEnumerable<KeyValuePair<TKey, TValue>>, IDisposable
-    {
-        
-
-        /// <summary>
-        /// False if the underlying collection could be changed, true if the underlying collection is immutable or is complete
-        /// for adding (e.g. after OnCompleted in Rx) or IsCompleted in terms of ICollectio/IDictionary or has fixed keys/values (all 4 definitions are the same).
-        /// </summary>
-        [Obsolete("Use Mutability enum & Flags struct")]
-        bool IsCompleted { get; }
-
-        /// <summary>
-        /// If true then elements are placed by some custom order (e.g. order of addition, index) and not sorted by keys.
-        /// If false then the keys are sorted according to <see cref="Comparer"/>.
-        /// </summary>
-        [Obsolete("Use KeySorting enum & Flags struct")]
-        bool IsIndexed { get; }
-
-        /// <summary>
-        /// Get cursor, which is an advanced enumerator supporting moves to first, last, previous, next, exact
-        /// positions and relative LT/LE/GT/GE moves.
-        /// </summary>
-        ICursor<TKey, TValue> GetCursor();
-
-        IAsyncCursor<TKey, TValue> GetAsyncCursor();
-
-        /// <summary>
-        /// An optimized <see cref="IComparer{T}"/> implementation with additional members to further optimize performance in certain cases.
-        /// </summary>
-        KeyComparer<TKey> Comparer { get; }
-
-        /// <summary>
-        /// First element option.
-        /// </summary>
-        Opt<KeyValuePair<TKey, TValue>> First { get; }
-
-        /// <summary>
-        /// Last element option.
-        /// </summary>
-        Opt<KeyValuePair<TKey, TValue>> Last { get; }
-
-        /// <summary>
-        /// Optimized access to last value. For value types <see cref="IsEmpty"/> could be used to distinguish between a present default value and a missing value.
-        /// </summary>
-        /// <remarks>
-        /// <see cref="Last"/> property is convenient but slowish in hot loops.
-        /// </remarks>
-        TValue LastValueOrDefault { get; }
-
-        /// <summary>
-        /// A throwing equivalent of <see cref="ICursor{TKey,TValue}.TryGetValue"/> and a series counterpart of <see cref="ICursor{TKey,TValue}.TryGetValue"/>.
-        /// </summary>
-        /// <exception cref="KeyNotFoundException">Throws if key was not found in a series.</exception>
-        TValue this[TKey key] { get; }
-
-        /// <summary>
-        /// Get a value at the given key. Evaluates continuous series at the key if there is no observed value at the key.
-        /// </summary>
-        bool TryGetValue(TKey key, out TValue value);
-
-        /// <summary>
-        /// Try get value at index (offset). The method is implemented efficiently for some containers (in-memory or immutable/append-only), but default implementation
-        /// is LINQ's <code>[series].Skip(idx-1).Take(1).Value</code>.
-        /// </summary>
-        bool TryGetAt(long index, out KeyValuePair<TKey, TValue> kvp); // TODO support negative moves in all implementations, -1 is last
-
-        /// <summary>
-        /// The method finds value according to direction, returns false if it could not find such a value.
-        /// For indexed series LE/GE directions are invalid and throw InvalidOperationException, while
-        /// LT/GT search is done by index rather than by key and is possible only when a key exists.
-        /// TryFindAt works only with observed keys and is a series counterpart of <see cref="ICursor{TKey,TValue}.MoveAt"/>.
-        /// </summary>
-        /// <exception cref="InvalidOperationException">The <paramref name="direction">direction</paramref> is <see cref="Lookup.LE"/> or <see cref="Lookup.GE"/> for indexed series (<see cref="IsIndexed"/> = true). </exception>
-        bool TryFindAt(TKey key, Lookup direction, out KeyValuePair<TKey, TValue> kvp);
-
-        /// <summary>
-        /// Keys enumerable.
-        /// </summary>
-        IEnumerable<TKey> Keys { get; }
-
-        /// <summary>
-        /// Values enumerable.
-        /// </summary>
-        IEnumerable<TValue> Values { get; }
-    }
-
-    /// <summary>
-    /// A series with a known strongly typed cursor type.
-    /// </summary>
-    public interface ISpecializedSeries<TKey, TValue, TCursor> : ISeries<TKey, TValue>
-        where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
-    {
-        /// <summary>
-        /// Get a strongly typed cursor that implements the <see cref="ISpecializedCursor{TKey,TValue,TCursor}"/> interface.
-        /// </summary>
-        /// <returns></returns>
-        new TCursor GetCursor();
-
-        new AsyncCursor<TKey, TValue, TCursor> GetAsyncCursor();
-    }
-
-    public interface ICursorNew<TKey, TValue> // TODO merge with existing
-    {
-        /// <summary>
-        /// Move by <paramref name="stride"/> elements or maximum number of elements less than stride if <paramref name="allowPartial"/> is true.
-        /// The <paramref name="stride"/> parameter could be negative.
-        /// </summary>
-        /// <param name="stride">The number of steps to move.</param>
-        /// <param name="allowPartial">Allow to move by less then Abs(stride) steps.</param>
-        /// <returns>Actual number of moves. Equals to <paramref name="stride"/> or zero if <paramref name="allowPartial"/> is false.</returns>
-        long Move(long stride, bool allowPartial);
-
-        // Alternative (previous) design was bool MoveNextBatch() + CurrentBatch, but it requires additional state in cursor and complicates implementation.
-        // Also it is impossible to move normally after MNB without checking the state on every move and this penalizes performance of simple most important MN.
-        // With TryMoveNextBatch we could calculate the batch view from current position to the end of a block and move the position there. After that moves
-        // could be done normally. The returned view could be disposable with the version check inside Dispose. However, we should disable this for
-        // mutable containers, for append-only existing ranges are immutable. TODO test when we consume by batches and add values in parallel in append-only mode.
-
-        // Note: ISyncBatchEnumerator is for production side and async for IO.
-        // TryMoveNextBatch is for consumption, e.g. aggregation with SIMD.
-        // Both are optional: TryMoveNextBatch could just always return false.
-
-        /// <summary>
-        /// Moves the cursor to the end of the current contiguous block of underlying memory (if there is such a block).
-        /// TODO Returns a view over that memory with direct read-only access to keys and values.
-        /// TODO K/V are vectors, even if they are with stride > 1 navigating them is faster than moving this cursor.
-        /// </summary>
-        /// <param name="batch"></param>
-        /// <returns></returns>
-        bool TryMoveNextBatch(out Segment<TKey, TValue> batch);
-    }
-
-    /// <summary>
-    /// ICursor is an advanced enumerator that supports moves to first, last, previous, next, exact
-    /// positions and relative LT/LE/GT/GE moves.
+    /// <see cref="ICursor{TKey,TValue}"/> is an advanced enumerator that supports moves to first, last, previous, next, exact
+    /// positions and relative LT/LE/GT/GE (<see cref="Lookup"/>) moves.
     /// </summary>
     /// <remarks>
-    /// Cursor is resilient to changes in an underlying sequence during movements, e.g. the
+    /// A cursor is resilient to changes in an underlying sequence during movements, e.g. the
     /// sequence could grow during move next. (See documentation for out of order behavior.)
     ///
     /// Contracts:
     /// 1. At the beginning a cursor consumer could call any single move method.
-    /// 2. Synchronous moves return true if data is instantly available, e.g. in a map data structure in memory or on fast disk DB.
-    ///    ICursor implementations should not block threads, e.g. if a series is not completed synchronous MoveNext should not wait for
+    /// 2. Synchronous moves return true if data is instantly available, e.g. in a series data structure in memory or on fast disk DB.
+    ///    ICursor implementations should not block threads, e.g. if a series is not completed then synchronous MoveNext should not wait for
     ///    an update but return false if there is no data right now.
     /// 3. When synchronous MoveNext or MoveLast return false, the consumer should call MoveNextAsync. Inside the async
-    ///    implementation of MoveNextAsync, a cursor must check if the source is could have new values and return Task.FromResult(false) immediately if it is not.
+    ///    implementation of MoveNextAsync, a cursor must check if the source could have new values and return Task.FromResult(false) immediately if it is not.
     /// 4. When any move returns false, a cursor stays at the position before that move. Current/CurrentKey/CurrentValue could be called
-    ///    any number of times and they are ususually lazy and cached after the move (for containers) or the first call (for values that require evaluation).
+    ///    any number of times and they are usually lazy and cached after the move (for containers) or the first call (for values that require evaluation).
     ///    Any change in underlying container data will not be reflected in the current cursor values if the cursor is not moving and
     ///    no out-of-order exception is thrown e.g. when `SortedMap.Set(k, v)` is called and the cursor is at `k` position.
     ///    Subsequent move of the cursor will throw OOO exception.
     /// </remarks>
-    public interface ICursor<TKey, TValue> : IEnumerator<KeyValuePair<TKey, TValue>>// TODO, IAsyncBatchEnumerator<KeyValuePair<TKey, TValue>>
+    public interface ICursor<TKey, TValue> : IEnumerator<KeyValuePair<TKey, TValue>>
     {
         /// <summary>
         /// Cursor current state.
@@ -378,36 +196,19 @@ namespace Spreads
         bool MoveLast();
 
         /// <summary>
-        /// Move the cursor to the next item in the <see cref="Source"/> series.
+        /// Move by <paramref name="stride"/> elements or maximum number of elements less than stride if <paramref name="allowPartial"/> is true.
+        /// The <paramref name="stride"/> parameter could be negative.
         /// </summary>
-        /// <returns>Returns true if the cursor moved. When false is returned the cursor stays at the same position where it was before calling this method.</returns>
-        new bool MoveNext(); // TODO remove this
-
-        // NB returning zero is the same as false, no need for TryXXX/Opt<>
-        // if we moved by zero steps then we at the same position as before.
-        // Zero means we are by stride or less close to the end. If allowPartial = true or stride = 1
-        // then we are at the end of series if the return value is zero.
-
-        /// <summary>
-        /// Move next by <paramref name="stride"/> elements or maximum number of elements less than stride if <paramref name="allowPartial"/> is true.
-        /// </summary>
-        /// <param name="stride"></param>
-        /// <param name="allowPartial"></param>
+        /// <param name="stride">The number of steps to move.</param>
+        /// <param name="allowPartial">Allow to move by less then Abs(stride) steps.</param>
         /// <returns>Actual number of moves. Equals to <paramref name="stride"/> or zero if <paramref name="allowPartial"/> is false.</returns>
-        [Obsolete("Use Move(2)")]
-        long MoveNext(long stride, bool allowPartial);
+        long Move(long stride, bool allowPartial);
 
         /// <summary>
         /// Move the cursor to a previous item in the <see cref="Source"/> series.
         /// </summary>
         /// <returns>Returns true if the cursor moved. When false is returned the cursor stays at the same position where it was before calling this method.</returns>
         bool MovePrevious();
-
-        /// <summary>
-        /// Opposite direction of <see cref="MoveNext(long,bool)"/>.
-        /// </summary>
-        [Obsolete("Use Move(2)")]
-        long MovePrevious(long stride, bool allowPartial);
 
         /// <summary>
         /// Move the cursor to the position according to the Lookup direction. An observed value at key must exist. Use <see cref="ICursor{TKey,TValue}.TryGetValue"/> to get a calculated value for continuous series.
@@ -426,20 +227,20 @@ namespace Spreads
         TValue CurrentValue { get; }
 
         /// <summary>
-        /// Original series. Note that .Source.GetCursor() is equivalent to .Clone() called on not started cursor
+        /// Original series. Note that <see cref="Source"/>'s <see cref="ISeries{TKey,TValue}.GetCursor"/> is equivalent to <see cref="ICursor{TKey,TValue,TCursor}.Initialize"/> or <see cref="Clone"/> called on not started cursor.
         /// </summary>
         ISeries<TKey, TValue> Source { get; }
-
-        /// <summary>
-        /// If true then TryGetValue could return values for any keys, not only for existing keys.
-        /// E.g. previous value, interpolated value, etc.
-        /// </summary>
-        bool IsContinuous { get; }
 
         /// <summary>
         /// Copy this cursor and position the copy at the same place as this cursor.
         /// </summary>
         ICursor<TKey, TValue> Clone();
+
+        /// <summary>
+        /// If true then <see cref="TryGetValue"/> could return values for any keys, not only for existing keys.
+        /// E.g. previous value, interpolated value, etc.
+        /// </summary>
+        bool IsContinuous { get; }
 
         /// <summary>
         /// Gets a calculated value for continuous series without moving the cursor position.
@@ -448,20 +249,23 @@ namespace Spreads
         /// </summary>
         bool TryGetValue(TKey key, out TValue value);
 
-        // TODO (review)
-        // The TryGetValue method should be optimized
-        // for sort join case using enumerator, e.g. for repeat it should keep previous value and check if
-        // the requested key is between the previous and the current keys, and then return the previous one.
-        // NB This is not thread safe. ICursors must be used from a single thread.
-
-        // TODO new Series<TKey, TValue, Segment<TKey, TValue>> CurrentBatch { get; }
+        // TODO Problem with KeyValueReadOnlySpan is that it cannot support untyped data row case
+        // Key/Values getters there are span factories, so we should do column span factories
+        // The return value should be untyped with GetKeys<TKey>():Span<TKey>, GetValues, GetColumn...
+        // Also we may want to return Keys as IEnumerable, e.g. virtual/calculated keys
+        ///// <summary>
+        ///// Moves the cursor to the end of the current contiguous block of underlying memory (if there is such a block).
+        ///// </summary>
+        ///// <param name="batch"></param>
+        ///// <returns></returns>
+        // bool TryMoveNextBatch(out Span<TKey> batch);
     }
 
     /// <summary>
-    /// A specialized <see cref="T:Spreads.ICursor`2" /> with a known implementation type.
+    /// A specialized <see cref="ICursor{TKey,TValue}" /> with a known implementation type.
     /// </summary>
-    public interface ISpecializedCursor<TKey, TValue, TCursor> : ICursor<TKey, TValue> // TODO rename to ICursor'3, no clashes
-        where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
+    public interface ICursor<TKey, TValue, TCursor> : ICursor<TKey, TValue>
+        where TCursor : ICursor<TKey, TValue, TCursor>
     {
         /// <summary>
         /// Returns an initialized (ready to move) instance of <typeparamref name="TCursor"/>.
@@ -469,20 +273,15 @@ namespace Spreads
         /// It is the equivalent to calling the method <see cref="ISeries{TKey,TValue}.GetCursor"/> on <see cref="ICursor{TKey,TValue}.Source"/> for the non-specialized ICursor.
         /// </summary>
         /// <remarks>
-        /// This method must work on disposed instances of <see cref="ISpecializedCursor{TKey, TValue, TCursor}"/>, i.e. it acts as a factory.
+        /// This method must work on disposed instances of <see cref="ICursor{TKey,TValue,TCursor}"/>, i.e. it acts as a factory.
         /// </remarks>
         [Pure]
         TCursor Initialize();
 
         /// <summary>
-        /// Copy this cursor and position the copy at the same place as this cursor.
+        /// Copy this cursor and move the copy to the same <see cref="ICursor{TKey,Tvalue}.CurrentKey"/> as this cursor.
         /// </summary>
         new TCursor Clone();
-
-        /// <summary>
-        /// Same as <see cref="ISeries{TKey,TValue}.IsIndexed"/>
-        /// </summary>
-        bool IsIndexed { get; }
 
         /// <summary>
         /// Same as <see cref="ISeries{TKey,TValue}.IsCompleted"/>
@@ -494,130 +293,222 @@ namespace Spreads
         new Series<TKey, TValue, TCursor> Source { get; }
     }
 
-    // Not needed, delete
-    public interface IAsyncCursor<TKey, TValue> : ICursor<TKey, TValue>, IAsyncEnumerator<KeyValuePair<TKey, TValue>>
+    /// <summary>
+    /// Series are navigable ordered data streams of key-value pairs.
+    /// </summary>
+    public interface ISeries<TKey, TValue> : IDataSource, IAsyncEnumerable<KeyValuePair<TKey, TValue>>, IDisposable
     {
+        /// <summary>
+        /// False if the underlying collection could be changed, true if the underlying collection is immutable or is complete
+        /// for adding (e.g. after OnCompleted in Rx) or IsCompleted in terms of ICollection/IDictionary or has fixed keys/values (all 4 definitions are the same).
+        /// </summary>
+        bool IsCompleted
+        {
+            get
+#if DEFAULT_INTERFACE_IMPL
+                => this.Mutability == Mutability.ReadOnly
+#endif
+            ;
+        }
+
+        /// <summary>
+        /// Get cursor, which is an advanced enumerator supporting moves to first, last, previous, next, exact
+        /// positions and relative LT/LE/GT/GE moves.
+        /// </summary>
+        ICursor<TKey, TValue> GetCursor();
+
+        //IAsyncCursor<TKey, TValue> GetAsyncCursor();
+
+        /// <summary>
+        /// An optimized <see cref="IComparer{T}"/> implementation with additional members to further optimize performance in certain cases.
+        /// </summary>
+        KeyComparer<TKey> Comparer { get; }
+
+        /// <summary>
+        /// First element option.
+        /// </summary>
+        Opt<KeyValuePair<TKey, TValue>> First { get; }
+
+        /// <summary>
+        /// Last element option.
+        /// </summary>
+        Opt<KeyValuePair<TKey, TValue>> Last { get; }
+
+        /// <summary>
+        /// Optimized access to last value. For value types <see cref="IDataSource.IsEmpty"/> could be used to distinguish between a present default value and a missing value.
+        /// </summary>
+        /// <remarks>
+        /// <see cref="Last"/> property is convenient but slowish in hot loops.
+        /// </remarks>
+        [Obsolete("TODO implement on Series, not on the interface. Check type of interface, use Opt Last if not series.")]
+        TValue LastValueOrDefault { get; }
+
+        /// <summary>
+        /// A throwing equivalent of <see cref="ICursor{TKey,TValue}.TryGetValue"/> and a series counterpart of <see cref="ICursor{TKey,TValue}.TryGetValue"/>.
+        /// </summary>
+        /// <exception cref="KeyNotFoundException">Throws if key was not found in a series.</exception>
+        TValue this[TKey key] { get; }
+
+        /// <summary>
+        /// Get a value at the given key. Evaluates continuous series at the key if there is no observed value at the key.
+        /// </summary>
+        bool TryGetValue(TKey key, out TValue value);
+
+        /// <summary>
+        /// Try get value at index (offset). The method is implemented efficiently for some containers (in-memory or immutable/append-only), but default implementation
+        /// is LINQ <code>[series].Skip(idx-1).Take(1).Value</code>.
+        /// </summary>
+        bool TryGetAt(long index, out KeyValuePair<TKey, TValue> kvp);
+
+        /// <summary>
+        /// The method finds value according to direction, returns false if it could not find such a value.
+        /// For indexed series LE/GE directions are invalid and throw InvalidOperationException, while
+        /// LT/GT search is done by index rather than by key and is possible only when a key exists.
+        /// TryFindAt works only with observed keys and is a series counterpart of <see cref="ICursor{TKey,TValue}.MoveAt"/>.
+        /// </summary>
+        /// <exception cref="InvalidOperationException">The <paramref name="direction">direction</paramref> is <see cref="Lookup.LE"/> or <see cref="Lookup.GE"/> for not sorted series (<see cref="KeySorting.NotSorted"/>). </exception>
+        bool TryFindAt(TKey key, Lookup direction, out KeyValuePair<TKey, TValue> kvp);
+
+        /// <summary>
+        /// Keys enumerable.
+        /// </summary>
+        IEnumerable<TKey> Keys { get; }
+
+        /// <summary>
+        /// Values enumerable.
+        /// </summary>
+        IEnumerable<TValue> Values { get; }
     }
-
-    public interface IAsyncCursor<TKey, TValue, TCursor> : ISpecializedCursor<TKey, TValue, TCursor>, IAsyncEnumerator<KeyValuePair<TKey, TValue>>
-        where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
-    {
-    }
-
-    ///// <summary>
-    ///// An untyped <see cref="ISeries{TKey, TValue}"/> interface with both keys and values as <see cref="Variant"/> types.
-    ///// </summary>
-    //public interface IVariantSeries : ISeries<Variant, Variant>
-    //{
-    //    /// <summary>
-    //    /// <see cref="TypeEnum"/> for the keys type.
-    //    /// </summary>
-    //    TypeEnumEx KeyType { get; }
-
-    //    /// <summary>
-    //    /// <see cref="TypeEnum"/> for the values type.
-    //    /// </summary>
-    //    TypeEnumEx ValueType { get; }
-    //}
-
-    ///// <summary>
-    ///// An untyped <see cref="ISeries{TKey, TValue}"/> interface with both keys and values as <see cref="Variant"/> types.
-    ///// </summary>
-    //public interface ISeries : ISeries, ISeries<Variant, Variant>
-    //{
-    //}
 
     /// <summary>
-    /// Mutable series
+    /// A series with a known strongly typed cursor type.
     /// </summary>
-    public interface IAppendSeries<TKey, TValue> : ISeries<TKey, TValue> //, IDictionary<TKey, TValue>
+    public interface ISeries<TKey, TValue, out TCursor> : ISeries<TKey, TValue>
+        where TCursor : ICursor<TKey, TValue, TCursor>
     {
+        /// <summary>
+        /// Get a strongly typed cursor that implements the <see cref="ICursor{TKey,TValue,TCursor}"/> interface.
+        /// </summary>
+        /// <returns></returns>
+        new TCursor GetCursor();
+    }
+
+    /// <summary>
+    /// Append series.
+    /// </summary>
+    public interface IAppendSeries<TKey, TValue> : ISeries<TKey, TValue>
+    {
+        /// <summary>
+        /// Attempts to add the specified key and value to the end of the series.
+        /// </summary>
+        /// <param name="key">The key of the element to add.</param>
+        /// <param name="value">
+        /// The value of the element to add. The value can be null for reference types.
+        /// </param>
+        /// <returns>
+        /// True on successful addition. False if the <paramref name="key"/>
+        /// is null or breaks sorting order or series <see cref="IDataSource.Mutability"/>
+        /// is <see cref="Mutability.ReadOnly"/>.
+        /// </returns>
+        bool TryAppend(TKey key, TValue value);
+
         /// <summary>
         /// Adds key and value to the end of the series.
         /// </summary>
-        /// <returns>True on successful addition. False if the key already exists or the new key breaks sorting order.</returns>
-        Task<bool> TryAddLast(TKey key, TValue value);
+        /// <param name="key">The key of the element to add.</param>
+        /// <param name="value">
+        /// The value of the element to add. The value can be null for reference types.
+        /// </param>
+        /// <exception cref="ArgumentOutOfRangeException">
+        /// <paramref name="key"/> is null or breaks sorting order.
+        /// </exception>
+        /// <exception cref="InvalidOperationException">
+        /// Series <see cref="IDataSource.Mutability"/> is <see cref="Mutability.ReadOnly"/>.
+        /// </exception>
+        void Append(TKey key, TValue value);
+
+        bool TryAppend<TPairs>(TPairs pairs) where TPairs : IEnumerable<KeyValuePair<TKey, TValue>>;
+
+        void Append<TPairs>(TPairs pairs) where TPairs : IEnumerable<KeyValuePair<TKey, TValue>>;
 
         /// <summary>
-        /// Make the map read-only and disable all subsequent Add/Remove/Set methods (they will throw InvalidOperationException)
+        /// Change <see cref="Mutability"/> of this series to <see cref="Mutability.ReadOnly"/>.
+        /// If the current mutability is already <see cref="Mutability.ReadOnly"/> then this is noop.
         /// </summary>
-        [Obsolete]
-        Task Complete();
+        /// <exception cref="InvalidOperationException"><see cref="Mutability"/> of this series is already <see cref="Mutability.ReadOnly"/></exception>
+        void MarkReadOnly();
     }
 
     /// <summary>
-    /// Mutable series
+    /// Mutable series.
     /// </summary>
     public interface IMutableSeries<TKey, TValue> : IAppendSeries<TKey, TValue>
     {
-        // NB even if Async methods add some overhead in sync case, it is small due to caching if Task<bool> return values
-        // In persistence layer is used to be a PITA to deal with sync methods with async IO
-        [Obsolete] // TODO make this Nullable and move up to Series.
-        long Count { get; }
+        /// <summary>
+        ///
+        /// </summary>
+        /// <param name="key"></param>
+        /// <returns></returns>
+        /// <exception cref="KeyNotFoundException"></exception>
+        /// <seealso cref="ISeries{TKey, TValue}.TryGetValue"/>
+        /// <seealso cref="Set"/>
+        new TValue this[TKey key] { get; set; }
 
         /// <summary>
-        /// Incremented after any change to data, including setting the same value to the same key.
+        /// Sets the specified value at the key. Returns true if key did not exist before.
         /// </summary>
-        long Version { get; } // TODO move up to Series
+        bool Set(TKey key, TValue value);
 
-        // TODO review Should we expose OrderVersion?
+        void Set<TPairs>(TPairs pairs) where TPairs : IEnumerable<KeyValuePair<TKey, TValue>>;
 
-        [Obsolete]
-        bool IsAppendOnly { get; }
+        bool TryAdd(TKey key, TValue value);
+
+        void Add(TKey key, TValue value);
+
+        bool TryAdd<TPairs>(TPairs pairs) where TPairs : IEnumerable<KeyValuePair<TKey, TValue>>;
+
+        void Add<TPairs>(TPairs pairs) where TPairs : IEnumerable<KeyValuePair<TKey, TValue>>;
+
+        bool TryPrepend(TKey key, TValue value);
+
+        void Prepend(TKey key, TValue value);
+
+        bool TryPrepend<TPairs>(TPairs pairs) where TPairs : IEnumerable<KeyValuePair<TKey, TValue>>;
+
+        void Prepend<TPairs>(TPairs pairs) where TPairs : IEnumerable<KeyValuePair<TKey, TValue>>;
 
         /// <summary>
-        /// Set value at key. Returns true if key did not exist before.
+        ///
         /// </summary>
-        Task<bool> Set(TKey key, TValue value);
+        /// <returns>Returns true and the value removed at the specified key on success
+        /// or false if the key does not exists.</returns>
+        bool TryRemove(TKey key, out TValue value);
 
         /// <summary>
-        /// Attempts to add new key and value to map.
+        /// Attempts to remove the first key/value pair from a series.
         /// </summary>
-        Task<bool> TryAdd(TKey key, TValue value);
+        /// <returns>Returns true and the removed first element if the series was not
+        /// empty before calling this method. Returns false otherwise.</returns>
+        bool TryRemoveFirst(out KeyValuePair<TKey, TValue> pair);
 
         /// <summary>
-        /// Checked addition, checks that new element's key is smaller/earlier than the First element's key
-        /// and adds element to this map
-        /// throws ArgumentOutOfRangeException if new key is larger than the first
+        /// Attempts to remove the last key/value pair from a series.
         /// </summary>
-        Task<bool> TryAddFirst(TKey key, TValue value);
+        /// <returns>Returns true and the removed last element if the series was not
+        /// empty before calling this method. Returns false otherwise.</returns>
+        bool TryRemoveLast(out KeyValuePair<TKey, TValue> pair);
 
         /// <summary>
-        /// Returns Value deleted at the given key on success.
+        /// Removes all keys from the specified key towards the specified direction and returns the nearest removed key/value pair.
         /// </summary>
-        ValueTask<Opt<TValue>> TryRemove(TKey key);
+        bool TryRemoveMany(TKey key, Lookup direction, out KeyValuePair<TKey, TValue> pair);
 
         /// <summary>
-        /// Returns KeyValue deleted at the first key.
+        /// Change <see cref="Mutability"/> of this series to <see cref="Mutability.AppendOnly"/>.
+        /// If the current mutability is already <see cref="Mutability.AppendOnly"/> then this is noop.
+        /// If the current mutability is <see cref="Mutability.ReadOnly"/> then this methods throws <see cref="InvalidOperationException"/>.
         /// </summary>
-        ValueTask<Opt<KeyValuePair<TKey, TValue>>> TryRemoveFirst();
-
-        /// <summary>
-        /// Returns KeyValue deleted at the last key (with version before deletion)
-        /// </summary>
-        ValueTask<Opt<KeyValuePair<TKey, TValue>>> TryRemoveLast();
-
-        /// <summary>
-        /// Removes all keys from the given key towards the given direction and returns the nearest removed key.
-        /// </summary>
-        ValueTask<Opt<KeyValuePair<TKey, TValue>>> TryRemoveMany(TKey key, Lookup direction);
-
-        /// <summary>
-        /// Update value at key and remove other elements according to direction.
-        /// Value of updatedAtKey could be invalid (e.g. null for reference types) and ignored,
-        /// i.e. there is no guarantee that the given key is present after calling this method.
-        /// This method is only used for atomic RemoveMany operation in SCM and could be not implemented/supported.
-        /// </summary>
-        Task<bool> TryRemoveMany(TKey key, TValue updatedAtKey, Lookup direction);
-
-        /// <summary>
-        /// Add values from appendMap to the end of this map.
-        /// </summary>
-        ValueTask<long> TryAppend(ISeries<TKey, TValue> appendMap, AppendOption option = AppendOption.RejectOnOverlap);
-
-        // TODO Methods
-        // MarkComplete
-        // MarkAppendOnly
-        // All mutating methods must check mutability
+        /// <exception cref="InvalidOperationException"><see cref="Mutability"/> of this series is already <see cref="Mutability.ReadOnly"/></exception>
+        void MarkAppendOnly();
     }
 }

@@ -12,8 +12,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using Spreads.DataTypes;
-using Spreads.Deprecated;
-using Spreads.Internal;
 
 namespace Spreads.Core.Tests.Collections.Internal
 {
@@ -63,7 +61,7 @@ namespace Spreads.Core.Tests.Collections.Internal
             }
 
             Assert.AreEqual(1 - len, c.Move(long.MinValue, true));
-
+            c.Dispose();
             bc.Dispose();
         }
 
@@ -83,7 +81,7 @@ namespace Spreads.Core.Tests.Collections.Internal
             BlockCursor<int, object, BaseContainer<int>>[] useMut = new BlockCursor<int, object, BaseContainer<int>>[count];
             var rng = new Random(42);
 
-            var sm = new Series<int, int>();
+            var sm = new MutableSeries<int, int>();
             var sl = new SortedList<int, int>(count);
             for (int i = 0; i < count; i++)
             {

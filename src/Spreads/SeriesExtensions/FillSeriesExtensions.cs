@@ -14,7 +14,7 @@ namespace Spreads
 
         public static Series<TKey, TValue, Fill<TKey, TValue, TCursor>> Fill<TKey, TValue, TCursor>(
             this ContainerSeries<TKey, TValue, TCursor> series, TValue value)
-            where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
+            where TCursor : ICursor<TKey, TValue, TCursor>
         {
             var cursor = new Fill<TKey, TValue, TCursor>(series.GetContainerCursor(), value);
             return cursor.Source;
@@ -36,8 +36,8 @@ namespace Spreads
         #region ISpecializedSeries
 
         public static Series<TKey, TValue, Fill<TKey, TValue, TCursor>> Fill<TKey, TValue, TCursor>(
-            this ISpecializedSeries<TKey, TValue, TCursor> series, TValue value)
-            where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
+            this ISeries<TKey, TValue, TCursor> series, TValue value)
+            where TCursor : ICursor<TKey, TValue, TCursor>
         {
             var cursor = new Fill<TKey, TValue, TCursor>(series.GetCursor(), value);
             return cursor.Source;
@@ -49,7 +49,7 @@ namespace Spreads
 
         public static Series<TKey, TValue, Fill<TKey, TValue, TCursor>> Fill<TKey, TValue, TCursor>(
             this Series<TKey, TValue, TCursor> series, TValue value)
-            where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
+            where TCursor : ICursor<TKey, TValue, TCursor>
         {
             var cursor = new Fill<TKey, TValue, TCursor>(series.GetEnumerator(), value);
             return cursor.Source;

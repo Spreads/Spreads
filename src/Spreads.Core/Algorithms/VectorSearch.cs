@@ -185,7 +185,7 @@ namespace Spreads.Algorithms
 
             var li = SearchToLookup(0, length, lookup, i);
 
-            if (li != i && li >= 0)
+            if (li != i & li >= 0) // not &&
             {
                 value = Unsafe.Add(ref vecStart, li);
             }
@@ -206,7 +206,7 @@ namespace Spreads.Algorithms
 
             var li = SearchToLookup(start, length, lookup, i);
 
-            if (li != i && li >= 0)
+            if (li != i & li >= 0) // not &&
             {
                 value = vec.DangerousGetItem(li);
             }
@@ -1036,7 +1036,7 @@ namespace Spreads.Algorithms
 
             var li = SearchToLookup(0, length, lookup, i);
 
-            if (li != i && li >= 0)
+            if (li != i & li >= 0) // not &&
             {
                 value = Unsafe.Add(ref vecStart, li);
             }
@@ -1062,7 +1062,7 @@ namespace Spreads.Algorithms
 
             var li = SearchToLookup(start, length, lookup, i);
 
-            if (li != i && li >= 0)
+            if (li != i & li >= 0) // not &&
             {
                 value = vec.DangerousGetItem(li);
             }

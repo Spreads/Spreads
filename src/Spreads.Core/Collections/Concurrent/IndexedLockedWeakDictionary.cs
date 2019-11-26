@@ -92,15 +92,12 @@ namespace Spreads.Collections.Concurrent
     /// <summary>
     /// Long-term storage where added items could be retrieved by ushort index.
     /// Pessimized write operations in favor of fast reads. Scenario is for
-    /// a lot of objects stored as weak references and cleaned when no used,
-    /// ensuring that an async cleanup is
+    /// a lot of objects stored as weak references and cleaned when no used.
     /// </summary>
     public sealed class IndexedLockedWeakDictionary<TKey, TValue> 
         where TValue : class, IStorageIndexed where TKey : IEquatable<TKey>
     {
-#pragma warning disable CS0618 // Type or member is obsolete
         private readonly DictionarySlim<TKey, GCHandle> _inner = new DictionarySlim<TKey, GCHandle>();
-#pragma warning restore CS0618 // Type or member is obsolete
         private long _locker;
 
         private int _counter;

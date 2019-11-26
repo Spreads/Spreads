@@ -11,7 +11,7 @@
     <OutputType>Library</OutputType>
 
     <LangVersion>8.0</LangVersion>
-    <Nullable>warnings</Nullable>
+    <Nullable>annotations</Nullable>
     <!-- TODO move Spreads own code to the top proj and enable this for that proj: <WarningsAsErrors>CS8600;CS8602;CS8603</WarningsAsErrors>-->
   </PropertyGroup>
   
@@ -25,9 +25,6 @@
     <Compile Remove="..\..\lib\Utf8Json\src\Utf8Json\Internal\UnsafeMemory.cs" />
     <Compile Remove="..\..\lib\Utf8Json\src\Utf8Json\Internal\UnsafeMemory.Low.cs" />
     <Compile Remove="..\..\lib\Utf8Json\src\Utf8Json\Spreads\*.cs" />
-  </ItemGroup>
-  <ItemGroup>
-    <Compile Remove="Cursors\Experimental\*.cs" />
   </ItemGroup>
   
   <ItemGroup>
@@ -46,16 +43,10 @@
   </ItemGroup>
     
   <ItemGroup>
-    <Folder Include="Collections\Internal\" />
-    <Folder Include="Cursors\Experimental\" />
     <Folder Include="Serialization\Utf8Json\Formatters\" />
     <Folder Include="Serialization\Utf8Json\Internal\DoubleConversion\" />
     <Folder Include="Serialization\Utf8Json\Internal\Emit\" />
     <Folder Include="Serialization\Utf8Json\Resolvers\" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="Cursors\Readme.md" />
-    <None Include="Series'3 (Operators).cs" />
   </ItemGroup>
   <ItemGroup>
     <Compile Update="Algorithms\Hash\BLAKE2b\Blake2bAvx2.cs">
@@ -79,9 +70,9 @@
       <DependentUpon>Blake2bSse4.tt</DependentUpon>
     </Compile>
     <Compile Update="Series%273 %28Operators%29.cs">
+      <DependentUpon>Series'3 (Operators).tt</DependentUpon>
       <DesignTime>True</DesignTime>
       <AutoGen>True</AutoGen>
-      <DependentUpon>Series'3 (Operators).tt</DependentUpon>
     </Compile>
   </ItemGroup>
   <ItemGroup>
@@ -100,23 +91,6 @@
     <None Update="Algorithms\Hash\BLAKE2b\Blake2bSse4.tt">
       <Generator>TextTemplatingFileGenerator</Generator>
       <LastGenOutput>Blake2bSse4.cs</LastGenOutput>
-    </None>
-    <None Update="Series%273 %28Operators%29.cs">
-      <DesignTime>True</DesignTime>
-      <AutoGen>True</AutoGen>
-      <DependentUpon>Series'3 (Operators).tt</DependentUpon>
-    </None>
-    <None Update="Series%273 %28Operators%29.tt">
-      <Generator>TextTemplatingFileGenerator</Generator>
-      <LastGenOutput>Series'3 (Operators).cs</LastGenOutput>
-    </None>
-    <None Update="Series%273 %28Operators%29.tt">
-      <Generator>TextTemplatingFileGenerator</Generator>
-      <LastGenOutput>Series'3 (Operators).cs</LastGenOutput>
-    </None>
-    <None Update="Series'3 (Operators).tt">
-      <Generator>TextTemplatingFileGenerator</Generator>
-      <LastGenOutput>Series'3 (Operators).cs</LastGenOutput>
     </None>
   </ItemGroup>
   <ItemGroup>

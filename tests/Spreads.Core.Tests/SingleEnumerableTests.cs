@@ -8,6 +8,7 @@ using System.Diagnostics;
 using System.Linq;
 using NUnit.Framework;
 using Spreads.Collections;
+using Spreads.Collections.Generic;
 
 namespace Spreads.Core.Tests
 {

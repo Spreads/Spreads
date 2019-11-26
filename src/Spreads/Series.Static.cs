@@ -2,7 +2,7 @@
 
 using Spreads.Collections;
 using System.Collections.Generic;
-using Spreads.Deprecated;
+using Spreads.Collections.Generic;
 
 // ReSharper disable once CheckNamespace
 namespace Spreads

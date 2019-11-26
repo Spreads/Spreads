@@ -15,7 +15,7 @@ namespace Spreads
 
         public static Series<TKey, (TKey, TValue), RepeatWithKey<TKey, TValue, TCursor>> RepeatWithKey<TKey, TValue, TCursor>(
             this ContainerSeries<TKey, TValue, TCursor> series)
-            where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
+            where TCursor : ICursor<TKey, TValue, TCursor>
         {
             var cursor = new RepeatWithKey<TKey, TValue, TCursor>(series.GetContainerCursor());
             return cursor.Source;
@@ -23,7 +23,7 @@ namespace Spreads
 
         public static Series<TKey, TValue, Repeat<TKey, TValue, TCursor>> Repeat<TKey, TValue, TCursor>(
             this ContainerSeries<TKey, TValue, TCursor> series)
-            where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
+            where TCursor : ICursor<TKey, TValue, TCursor>
         {
             var cursor = new Repeat<TKey, TValue, TCursor>(series.GetContainerCursor());
             return cursor.Source;
@@ -53,7 +53,7 @@ namespace Spreads
 
         public static Series<TKey, (TKey, TValue), RepeatWithKey<TKey, TValue, TCursor>> RepeatWithKey<TKey, TValue, TCursor>(
             this Series<TKey, TValue, TCursor> series)
-            where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
+            where TCursor : ICursor<TKey, TValue, TCursor>
         {
             var cursor = new RepeatWithKey<TKey, TValue, TCursor>(series.GetEnumerator());
             return cursor.Source;
@@ -61,7 +61,7 @@ namespace Spreads
 
         public static Series<TKey, TValue, Repeat<TKey, TValue, TCursor>> Repeat<TKey, TValue, TCursor>(
             this Series<TKey, TValue, TCursor> series)
-            where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
+            where TCursor : ICursor<TKey, TValue, TCursor>
         {
             var cursor = new Repeat<TKey, TValue, TCursor>(series.GetEnumerator());
             return cursor.Source;

@@ -6,7 +6,6 @@ using NUnit.Framework;
 using Spreads.Buffers;
 using Spreads.Collections;
 using Spreads.DataTypes;
-using Spreads.Deprecated;
 using Spreads.Serialization;
 using Spreads.Serialization.Utf8Json;
 using Spreads.Threading;
@@ -576,7 +575,7 @@ namespace Spreads.Core.Tests.Serialization
             var handle = buffer.Pin();
             var ptr = (IntPtr)handle.Pointer;
 
-            var sm = new Series<DateTime, decimal>();
+            var sm = new MutableSeries<DateTime, decimal>();
             for (var i = 0; i < 1000; i++)
             {
                 sm.Add(DateTime.Today.AddSeconds(i), (decimal)Math.Round(i + rng.NextDouble(), 2));
@@ -585,11 +584,11 @@ namespace Spreads.Core.Tests.Serialization
             var sizeOf = BinarySerializer.SizeOf(sm, out var tmp);
             var written = BinarySerializer.Write(sm, dest.Span, tmp);
             Assert.AreEqual(sizeOf, written);
-            Console.WriteLine($"Useful: {sm.Count * 24}");
+            Console.WriteLine($"Useful: {sm.RowCount * 24}");
             Console.WriteLine($"Total: {written}");
             // NB interesting that with converting double to decimal savings go from 65% to 85%,
             // even calculated from (8+8) base size not decimal's 16 size
-            Console.WriteLine($"Savings: {1.0 - ((written * 1.0) / (sm.Count * 24.0))}");
+            Console.WriteLine($"Savings: {1.0 - ((written * 1.0) / (sm.RowCount * 24.0))}");
             Series<DateTime, decimal> sm2 = null;
             var len2 = BinarySerializer.Read(buffer.Span, out sm2);
 
@@ -609,7 +608,7 @@ namespace Spreads.Core.Tests.Serialization
             var handle = buffer.Pin();
             var ptr = (IntPtr)handle.Pointer;
 
-            var sm = new Series<int, int>();
+            var sm = new MutableSeries<int, int>();
             for (var i = 0; i < 10000; i++)
             {
                 sm.Add(i, i);
@@ -618,11 +617,11 @@ namespace Spreads.Core.Tests.Serialization
             var len = BinarySerializer.SizeOf(sm, out var temp);
             var len2 = BinarySerializer.Write(sm, buffer.Span, temp);
             Assert.AreEqual(len, len2);
-            Console.WriteLine($"Useful: {sm.Count * 8}");
+            Console.WriteLine($"Useful: {sm.RowCount * 8}");
             Console.WriteLine($"Total: {len}");
             // NB interesting that with converting double to decimal savings go from 65% to 85%,
             // even calculated from (8+8) base size not decimal's 16 size
-            Console.WriteLine($"Savings: {1.0 - ((len * 1.0) / (sm.Count * 8.0))}");
+            Console.WriteLine($"Savings: {1.0 - ((len * 1.0) / (sm.RowCount * 8.0))}");
             Series<int, int> sm2 = null;
             var len3 = BinarySerializer.Read(buffer.Span, out sm2);
 
@@ -643,7 +642,7 @@ namespace Spreads.Core.Tests.Serialization
             var ptr = (IntPtr)handle.Pointer;
 
             var valueLens = 0;
-            var sm = new Series<int, string>();
+            var sm = new MutableSeries<int, string>();
             for (var i = 0; i < 100000; i++)
             {
                 var str = i.ToString();
@@ -654,7 +653,7 @@ namespace Spreads.Core.Tests.Serialization
             var len = BinarySerializer.SizeOf(sm, out var temp);
             var len2 = BinarySerializer.Write(sm, buffer.Span, temp);
             Assert.AreEqual(len, len2);
-            var usefulLen = sm.Count * 4 + valueLens;
+            var usefulLen = ((int)sm.RowCount * 4) + valueLens;
             Console.WriteLine($"Useful: {usefulLen}");
             Console.WriteLine($"Total: {len}");
             // NB interesting that with converting double to decimal savings go from 65% to 85%,

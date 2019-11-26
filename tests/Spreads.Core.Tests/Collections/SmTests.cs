@@ -21,7 +21,7 @@ namespace Spreads.Core.Tests.Collections
             for (int r = 0; r < 10; r++)
             {
                 var sl = new SortedList<int, int>();
-                var sm = new Series<int, int>();
+                var sm = new MutableSeries<int, int>();
 
                 var c = sm.GetCursor();
 
@@ -42,7 +42,7 @@ namespace Spreads.Core.Tests.Collections
                     {
                         if (i != 2)
                         {
-                            await sm.TryAdd(i, i);
+                            sm.Add(i, i);
                         }
                     }
                 }
@@ -57,8 +57,7 @@ namespace Spreads.Core.Tests.Collections
             const int count = 10_000_000;
 
             var sl = new SortedList<int, int>();
-            var sm = new Series<int, int>();
-            var scm = new Series<int, int>();
+            var sm = new MutableSeries<int, int>();
 
             for (int i = 0; i < count; i++)
             {
@@ -152,7 +151,7 @@ namespace Spreads.Core.Tests.Collections
                 var count = (int)(1024 * Math.Pow(2, size));
                 const int mult = 1000;
                 var sl = new SortedList<DateTime, int>();
-                var sm = new Series<DateTime, int>();
+                var sm = new MutableSeries<DateTime, int>();
 
                 var start = DateTime.Today.ToUniversalTime();
                 for (int i = 0; i < count; i++)
@@ -281,7 +280,7 @@ namespace Spreads.Core.Tests.Collections
         [Test, Explicit("long running")]
         public async Task MNATest()
         {
-            var sm = new Series<int, int>();
+            var sm = new MutableSeries<int, int>();
             var count = 1_0;
             var sum = 0;
             using (Benchmark.Run("MNA"))

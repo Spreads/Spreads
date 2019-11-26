@@ -22,7 +22,7 @@ namespace Spreads.Buffers
     /// method. See <see cref="DataBlock"/> implementation as an example.
     /// </remarks>
     [StructLayout(LayoutKind.Sequential)]
-    internal readonly struct VecStorage : IDisposable, IEquatable<VecStorage>
+    public readonly struct VecStorage : IDisposable, IEquatable<VecStorage>
     {
         /// <summary>
         /// A source that owns Vec memory.

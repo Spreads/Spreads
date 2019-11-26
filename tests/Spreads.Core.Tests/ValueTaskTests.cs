@@ -63,7 +63,7 @@ namespace Spreads.Core.Tests
                 var cnt3 = 0;
                 var cnt4 = 0;
 
-                var sm1 = new Series<int, int>(count);
+                var sm1 = new MutableSeries<int, int>();
                 // sm1._isSynchronized = false;
                 var addTask = Task.Run(async () =>
                 {

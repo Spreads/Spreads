@@ -2,6 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+using System;
 using NUnit.Framework;
 using Spreads.Buffers;
 using Spreads.Collections.Internal;
@@ -31,6 +32,8 @@ namespace Spreads.Core.Tests.Collections.Internal
             var values = keys.Slice(0, count, true);
 
             var block = DataBlock.SeriesCreate(keys, values, count);
+
+            throw new NotImplementedException();
 
             block.Dispose();
         }

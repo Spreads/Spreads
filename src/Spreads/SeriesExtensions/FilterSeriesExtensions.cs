@@ -17,7 +17,7 @@ namespace Spreads
 
         public static Series<TKey, TValue, Filter<TKey, TValue, TCursor>> Filter<TKey, TValue, TCursor>(
             this ContainerSeries<TKey, TValue, TCursor> series, Func<TKey, TValue, bool> predicate)
-            where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
+            where TCursor : ICursor<TKey, TValue, TCursor>
         {
             var cursor = new Filter<TKey, TValue, TCursor>(series.GetContainerCursor(), predicate);
             return cursor.Source;
@@ -25,7 +25,7 @@ namespace Spreads
 
         public static Series<TKey, TValue, Filter<TKey, TValue, TCursor>> Filter<TKey, TValue, TCursor>(
             this ContainerSeries<TKey, TValue, TCursor> series, Func<TKey, bool> predicate)
-            where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
+            where TCursor : ICursor<TKey, TValue, TCursor>
         {
             var cursor = new Filter<TKey, TValue, TCursor>(series.GetContainerCursor(), predicate);
             return cursor.Source;
@@ -33,7 +33,7 @@ namespace Spreads
 
         public static Series<TKey, TValue, Filter<TKey, TValue, TCursor>> Filter<TKey, TValue, TCursor>(
             this ContainerSeries<TKey, TValue, TCursor> series, Func<TValue, bool> predicate)
-            where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
+            where TCursor : ICursor<TKey, TValue, TCursor>
         {
             var cursor = new Filter<TKey, TValue, TCursor>(series.GetContainerCursor(), predicate);
             return cursor.Source;
@@ -76,7 +76,7 @@ namespace Spreads
 
         public static Series<TKey, TValue, Filter<TKey, TValue, TCursor>> Filter<TKey, TValue, TCursor>(
             this Series<TKey, TValue, TCursor> series, Func<TKey, TValue, bool> predicate)
-            where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
+            where TCursor : ICursor<TKey, TValue, TCursor>
         {
             var cursor = new Filter<TKey, TValue, TCursor>(series.GetEnumerator(), predicate);
             return cursor.Source;
@@ -84,7 +84,7 @@ namespace Spreads
 
         public static Series<TKey, TValue, Filter<TKey, TValue, TCursor>> Filter<TKey, TValue, TCursor>(
             this Series<TKey, TValue, TCursor> series, Func<TKey, bool> predicate)
-            where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
+            where TCursor : ICursor<TKey, TValue, TCursor>
         {
             var cursor = new Filter<TKey, TValue, TCursor>(series.GetEnumerator(), predicate);
             return cursor.Source;
@@ -92,7 +92,7 @@ namespace Spreads
 
         public static Series<TKey, TValue, Filter<TKey, TValue, TCursor>> Filter<TKey, TValue, TCursor>(
             this Series<TKey, TValue, TCursor> series, Func<TValue, bool> predicate)
-            where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
+            where TCursor : ICursor<TKey, TValue, TCursor>
         {
             var cursor = new Filter<TKey, TValue, TCursor>(series.GetEnumerator(), predicate);
             return cursor.Source;

@@ -2,13 +2,11 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+using NUnit.Framework;
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
-using NUnit.Framework;
-using Spreads.Deprecated;
 
 namespace Spreads.Core.Tests
 {
@@ -23,7 +21,7 @@ namespace Spreads.Core.Tests
     public unsafe class LockFreeTests
     {
         //sealed
-        public class LockTestSeries : ContainerSeries<int, int, Cursor<int, int>>
+        public class LockTestSeries : BaseContainer<int>
         {
             private object _syncRoot = new object();
             private long _counter;
@@ -72,40 +70,7 @@ namespace Spreads.Core.Tests
                 _counter++;
             }
 
-            public override KeyComparer<int> Comparer => throw new NotImplementedException();
-
-            public override Opt<KeyValuePair<int, int>> First => throw new NotImplementedException();
-
-            public override Opt<KeyValuePair<int, int>> Last => throw new NotImplementedException();
-
-            public override bool IsIndexed => throw new NotImplementedException();
-
-            public override bool TryGetValue(int key, out int value)
-            {
-                throw new NotImplementedException();
-            }
-
-            public override bool TryFindAt(int key, Lookup direction, out KeyValuePair<int, int> kvp)
-            {
-                throw new NotImplementedException();
-            }
-
-            public override IEnumerable<int> Keys => throw new NotImplementedException();
-
-            public override IEnumerable<int> Values => throw new NotImplementedException();
-
             public long Counter => _counter;
-
-            protected override ICursor<int, int> GetCursorImpl()
-            {
-                throw new NotImplementedException();
-            }
-
-
-            internal override Cursor<int, int> GetContainerCursor()
-            {
-                return this.GetCursor();
-            }
         }
 
         [Test, Explicit("long running")]

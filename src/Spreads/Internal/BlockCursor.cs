@@ -2,6 +2,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+using Spreads.Collections.Internal;
+using Spreads.Threading;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -11,8 +13,6 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
-using Spreads.Collections.Internal;
-using Spreads.Threading;
 
 namespace Spreads.Internal
 {
@@ -32,15 +32,20 @@ namespace Spreads.Internal
     /// <see cref="Series{TKey,TValue}"/> cursor implementation.
     /// </summary>
     [StructLayout(LayoutKind.Sequential, Pack = 4)] // This struct will be aligned to IntPtr.Size bytes because it has references, but small fields could be packed within 8 bytes.
-    internal struct BlockCursor<TKey, TValue, TContainer> : ICursorNew<TKey, TValue>, ISpecializedCursor<TKey, DataBlock, BlockCursor<TKey, TValue, TContainer>>
-        where TContainer : BaseContainer<TKey> // , IDataBlockValueGetter<TValue>
+    internal struct BlockCursor<TKey, TValue, TContainer> : ICursor<TKey, DataBlock, BlockCursor<TKey, TValue, TContainer>>
+        where TContainer : BaseContainer<TKey>
     {
         internal TContainer _source;
 
+        /// <summary>
+        /// Backing storage for <see cref="CurrentBlock"/>. Must never be used directly.
+        /// </summary>
+        [Obsolete("Use CurrentBlock")]
         private DataBlock? _currentBlockStorage;
 
         internal DataBlock? CurrentBlock
         {
+#pragma warning disable 618
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => _currentBlockStorage;
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -50,6 +55,7 @@ namespace Spreads.Internal
                 value?.Increment();
                 _currentBlockStorage = value;
             }
+#pragma warning restore 618
         }
 
         internal int _blockIndex;
@@ -77,7 +83,9 @@ namespace Spreads.Internal
         {
             _source = source;
             _blockIndex = -1;
+#pragma warning disable 618
             _currentBlockStorage = null;
+#pragma warning restore 618
             _orderVersion = AtomicCounter.GetCount(ref _source.OrderVersion); // TODO
             _currentKey = default!;
             _currentValue = default!;
@@ -151,12 +159,6 @@ namespace Spreads.Internal
             return found;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool TryMoveNextBatch(out Segment<TKey, TValue> batch)
-        {
-            batch = default;
-            return false;
-        }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining
 #if HAS_AGGR_OPT
@@ -492,16 +494,6 @@ namespace Spreads.Internal
 
         #region Obsolete members
 
-        public long MoveNext(long stride, bool allowPartial)
-        {
-            throw new NotImplementedException();
-        }
-
-        public long MovePrevious(long stride, bool allowPartial)
-        {
-            throw new NotImplementedException();
-        }
-
         public bool IsIndexed
         {
             get { throw new NotImplementedException(); }
@@ -509,7 +501,7 @@ namespace Spreads.Internal
 
         public bool IsCompleted
         {
-            get { throw new NotImplementedException(); }
+            get => _source.Flags.Mutability == Mutability.ReadOnly;
         }
 
         #endregion Obsolete members

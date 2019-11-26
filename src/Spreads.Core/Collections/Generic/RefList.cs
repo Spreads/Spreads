@@ -18,13 +18,8 @@ using System.Runtime.CompilerServices;
 
 namespace Spreads.Collections.Generic
 {
-    // TODO (perf) use a pool for arrays and clear non-pinnable ones on release
-
-    // NB insetad of making the indexer return a ref, add additional method. Indexer with ref could have unexpected behavior,
-    // better to have an explicit usage of refs.
-
     /// <summary>
-    /// A <see cref="RefList{T}"/> collection with additional method <see cref="Ref"/> that returns a reference by index.
+    /// A <see cref="List{T}"/> with an indexer that returns a reference to an item.
     /// </summary>
     /// <typeparam name="T"></typeparam>
     [DebuggerDisplay("Count = {Count}")]
@@ -41,9 +36,9 @@ namespace Spreads.Collections.Generic
         private int _version;
 
         [NonSerialized]
-        private Object _syncRoot;
+        private object _syncRoot;
 
-        private static readonly T[] _emptyArray = new T[0];
+        private static readonly T[] _emptyArray = Array.Empty<T>();
 
         // Constructs a RefList. The list is initially empty and has a capacity
         // of zero. Upon adding the first element to the list the capacity is
@@ -181,7 +176,6 @@ namespace Spreads.Collections.Generic
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
-                // Following trick can reduce the range check by one
                 if ((uint)index >= (uint)_size)
                 {
                     ThrowHelper.ThrowArgumentOutOfRange_IndexException();
@@ -189,19 +183,7 @@ namespace Spreads.Collections.Generic
                 Contract.EndContractBlock();
                 return ref _items[index];
             }
-
         }
-
-        //[MethodImpl(MethodImplOptions.AggressiveInlining)]
-        //public ref T Ref(int index)
-        //{
-        //    if ((uint)index >= (uint)_size)
-        //    {
-        //        ThrowHelper.ThrowArgumentOutOfRange_IndexException();
-        //    }
-        //    Contract.EndContractBlock();
-        //    return ref _items[index];
-        //}
 
         T IList<T>.this[int index]
         {

@@ -146,10 +146,11 @@ namespace Spreads
     /// The default implementation of <see cref="ICursor{TKey,TValue}"/> with supported <see cref="IAsyncEnumerator{T}.MoveNextAsync"/>.
     /// </summary>
     public sealed class AsyncCursor<TKey, TValue, TCursor> : AsyncCursor,
-        IAsyncCursor<TKey, TValue>,
-        IAsyncCursor<TKey, TValue, TCursor>,
+        ICursor<TKey, TValue>,
+        ICursor<TKey, TValue, TCursor>,
+        IAsyncEnumerator<KeyValuePair<TKey, TValue>>,
          IValueTaskSource<bool>, IAsyncCompletable, ISpreadsThreadPoolWorkItem
-         where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
+         where TCursor : ICursor<TKey, TValue, TCursor>
     {
         // Modeled after corefx Channels.AsyncOperation: https://github.com/dotnet/corefx/blob/master/src/System.Threading.Channels/src/System/Threading/Channels/AsyncOperation.cs
         // Pooling is not needed, because there would be too
@@ -338,14 +339,9 @@ namespace Spreads
             {
                 var c = Volatile.Read(ref _continuation);
 
-                if (c != null
-                    && !ReferenceEquals(c, CompletedSentinel)
-                    && !ReferenceEquals(c, AvailableSentinel))
-                {
-                    return true;
-                }
-
-                return false;
+                return c != null
+                       & !ReferenceEquals(c, CompletedSentinel)
+                       & !ReferenceEquals(c, AvailableSentinel);
             }
         }
 
@@ -874,13 +870,13 @@ namespace Spreads
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public long MoveNext(long stride, bool allowPartial)
+        public long Move(long stride, bool allowPartial)
         {
             if (_isInBatch)
             {
                 ThrowHelper.ThrowNotSupportedException();
             }
-            return _innerCursor.MoveNext(stride, allowPartial);
+            return _innerCursor.Move(stride, allowPartial);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -891,16 +887,6 @@ namespace Spreads
                 ThrowHelper.ThrowNotSupportedException();
             }
             return _innerCursor.MovePrevious();
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public long MovePrevious(long stride, bool allowPartial)
-        {
-            if (_isInBatch)
-            {
-                ThrowHelper.ThrowNotSupportedException();
-            }
-            return _innerCursor.MovePrevious(stride, allowPartial);
         }
 
         public TKey CurrentKey
@@ -932,7 +918,7 @@ namespace Spreads
         public bool IsIndexed
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => _innerCursor.IsIndexed;
+            get => throw new NotSupportedException();
         }
 
         public bool IsCompleted

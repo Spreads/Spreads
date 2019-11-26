@@ -34,7 +34,7 @@ namespace Spreads
     /// <summary>
     /// A minimal implementation of the Option type. <typeparamref name="T"/> must implement <see cref="IEquatable{T}"/> for custom equality.
     /// </summary>
-    [StructLayout(LayoutKind.Sequential)]
+    [StructLayout(LayoutKind.Auto)]
     [DebuggerDisplay("{" + nameof(ToString) + "()}")]
     public readonly struct Opt<T>
     {
@@ -186,6 +186,19 @@ namespace Spreads
         public override string ToString()
         {
             return IsMissing ? "{Opt: Missing}" : $"{{Opt: {Present.ToString()}}}";
+        }
+    }
+
+    public static class OptExtensions
+    {
+        public static T? AsNullable<T>(this Opt<T> opt) where T : struct
+        {
+            return opt.IsPresent ? (T?)opt.Present : null;
+        }
+
+        public static Opt<T> AsOpt<T>(this T? nullable) where T : struct
+        {
+            return nullable.HasValue ? Opt.Present(nullable.Value) : Opt<T>.Missing;
         }
     }
 }

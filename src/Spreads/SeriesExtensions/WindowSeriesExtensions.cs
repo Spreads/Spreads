@@ -14,7 +14,7 @@ namespace Spreads
 
         public static Series<TKey, Series<TKey, TValue, Range<TKey, TValue, TCursor>>, Window<TKey, TValue, TCursor>> Window<TKey, TValue, TCursor>(
             this ContainerSeries<TKey, TValue, TCursor> series, int count, bool allowIncomplete = false)
-            where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
+            where TCursor : ICursor<TKey, TValue, TCursor>
         {
             var cursor = new Window<TKey, TValue, TCursor>(series.GetContainerCursor(), count, allowIncomplete);
             return cursor.Source;
@@ -22,7 +22,7 @@ namespace Spreads
 
         public static Series<TKey, Series<TKey, TValue, Range<TKey, TValue, TCursor>>, Window<TKey, TValue, TCursor>> Window<TKey, TValue, TCursor>(
             this ContainerSeries<TKey, TValue, TCursor> series, TKey width, Lookup lookup = Lookup.GE)
-            where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
+            where TCursor : ICursor<TKey, TValue, TCursor>
         {
             var cursor = new Window<TKey, TValue, TCursor>(series.GetContainerCursor(), width, lookup);
             return cursor.Source;
@@ -59,7 +59,7 @@ namespace Spreads
 
         public static Series<TKey, Series<TKey, TValue, Range<TKey, TValue, TCursor>>, Window<TKey, TValue, TCursor>> Window<TKey, TValue, TCursor>(
             this Series<TKey, TValue, TCursor> series, int count, bool allowIncomplete = false)
-            where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
+            where TCursor : ICursor<TKey, TValue, TCursor>
         {
             var cursor = new Window<TKey, TValue, TCursor>(series.GetEnumerator(), count, allowIncomplete);
             return cursor.Source;
@@ -67,7 +67,7 @@ namespace Spreads
 
         public static Series<TKey, Series<TKey, TValue, Range<TKey, TValue, TCursor>>, Window<TKey, TValue, TCursor>> Window<TKey, TValue, TCursor>(
             this Series<TKey, TValue, TCursor> series, TKey width, Lookup lookup = Lookup.GE)
-            where TCursor : ISpecializedCursor<TKey, TValue, TCursor>
+            where TCursor : ICursor<TKey, TValue, TCursor>
         {
             var cursor = new Window<TKey, TValue, TCursor>(series.GetEnumerator(), width, lookup);
             return cursor.Source;
