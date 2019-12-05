@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
@@ -93,7 +94,7 @@ namespace Spreads
 #if DEBUG
                 if (IsMissing)
                 {
-                    throw new InvalidOperationException("Cannot access Opt<>.Present when value is missing");
+                    Debug.Assert((EqualityComparer<T>.Default.Equals(default, _present)));
                 }
 #endif
                 return _present;

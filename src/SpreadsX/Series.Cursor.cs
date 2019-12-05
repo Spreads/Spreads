@@ -8,6 +8,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Threading;
 
 namespace Spreads
 {
@@ -16,9 +17,20 @@ namespace Spreads
         // TODO review & document
         // Maybe separate ICursor and IAsyncCursor, ISeries return IAsyncCursor, while specialized return TCursor
 
-        public AsyncCursor<TKey, TValue, SCursor<TKey, TValue>> GetAsyncEnumerator()
+        public SCursor<TKey, TValue> GetCursor()
         {
-            return GetAsyncCursor();
+            return new SCursor<TKey, TValue>(this);
+        }
+
+        ICursor<TKey, TValue> ISeries<TKey, TValue>.GetCursor()
+        {
+            return new AsyncCursor<TKey, TValue, SCursor<TKey, TValue>>(GetCursor());
+        }
+
+        // strongly typed for pattern-based compilation
+        public SCursor<TKey, TValue> GetEnumerator()
+        {
+            return GetCursor();
         }
 
         IEnumerator<KeyValuePair<TKey, TValue>> IEnumerable<KeyValuePair<TKey, TValue>>.GetEnumerator()
@@ -31,77 +43,32 @@ namespace Spreads
             return GetCursor();
         }
 
-        public SCursor<TKey, TValue> GetEnumerator()
-        {
-            return GetCursor();
-        }
-
-        ICursor<TKey, TValue> ISeries<TKey, TValue>.GetCursor()
+        internal AsyncCursor<TKey, TValue, SCursor<TKey, TValue>> GetAsyncCursor()
         {
             return new AsyncCursor<TKey, TValue, SCursor<TKey, TValue>>(GetCursor());
         }
 
-        SCursor<TKey, TValue> ISeries<TKey, TValue, SCursor<TKey, TValue>>.GetCursor()
+        System.Collections.Generic.IAsyncEnumerator<KeyValuePair<TKey, TValue>> System.Collections.Generic.IAsyncEnumerable<KeyValuePair<TKey, TValue>>.GetAsyncEnumerator(CancellationToken cancellationToken)
         {
-            return GetCursor();
+            return GetAsyncCursor();
         }
 
-        public SCursor<TKey, TValue> GetCursor()
+        IAsyncEnumerator<KeyValuePair<TKey, TValue>> IAsyncEnumerable<KeyValuePair<TKey, TValue>>.GetAsyncEnumerator(CancellationToken cancellationToken)
         {
-            return new SCursor<TKey, TValue>(this);
+            return GetAsyncCursor();
         }
 
-        //IAsyncCursor<TKey, TValue> ISeries<TKey, TValue>.GetAsyncCursor()
-        //{
-        //    return GetAsyncCursor();
-        //}
-
-        public AsyncCursor<TKey, TValue, SCursor<TKey, TValue>> GetAsyncCursor()
+        // strongly typed for pattern-based compilation
+        public AsyncCursor<TKey, TValue, SCursor<TKey, TValue>> GetAsyncEnumerator()
         {
-            return new AsyncCursor<TKey, TValue, SCursor<TKey, TValue>>(GetCursor());
+            return GetAsyncCursor();
         }
-
-        public IEnumerable<TKey> Keys
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get
-            {
-                using (var c = GetCursor())
-                {
-                    while (c.MoveNext())
-                    {
-                        yield return c.CurrentKey;
-                    }
-                }
-            }
-        }
-
-        public IEnumerable<TValue> Values
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get
-            {
-                using (var c = GetCursor())
-                {
-                    while (c.MoveNext())
-                    {
-                        yield return c.CurrentValue;
-                    }
-                }
-            }
-        }
-
-        //[MethodImpl(MethodImplOptions.AggressiveInlining)]
-        //public TValue GetValue(DataBlock block, int rowIndex)
-        //{
-        //    return block.Values.DangerousGetRef<TValue>(rowIndex);
-        //}
     }
 
     /// <summary>
     /// <see cref="Series{TKey,TValue}"/> cursor implementation.
     /// </summary>
-    [StructLayout(LayoutKind.Sequential, Pack = 1)]
+    [StructLayout(LayoutKind.Sequential, Pack = 4)]
     public struct SCursor<TKey, TValue> : ICursor<TKey, TValue, SCursor<TKey, TValue>>
     {
         // mutable struct

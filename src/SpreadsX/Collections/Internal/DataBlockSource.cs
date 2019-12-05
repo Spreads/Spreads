@@ -8,7 +8,7 @@ using System.Runtime.CompilerServices;
 
 namespace Spreads.Collections.Internal
 {
-    internal class DataBlockSource<TKey> : IDisposable //  ISeries<TKey, DataBlock>, // TODO review: we do not need ISeries, we expose only needed methods and could inject inner implementation
+    internal class DataBlockSource<TKey> : IRowCount, IDisposable //  ISeries<TKey, DataBlock>, // TODO review: we do not need ISeries, we expose only needed methods and could inject inner implementation
     {
         /// <summary>
         /// For append-only containers blocks will have the same size. Last block could be only partially filled.
@@ -52,7 +52,7 @@ namespace Spreads.Collections.Internal
         public bool AddLast(TKey key, DataBlock value)
         {
             // var wr = new WeakReference<DataBlock>(value);
-            DataBlock lastBlock = null;
+            DataBlock? lastBlock = null;
             var last = _blockSeries.Last;
             if (last.IsPresent)
             {
@@ -201,5 +201,9 @@ namespace Spreads.Collections.Internal
             _root = null;
             _blockSeries.Dispose();
         }
+
+        public ulong? RowCount => null; // TODO here it won't be O(1) but O(N/average block size), maybe we should implement it as sum.
+
+        public bool IsEmpty => LastValueOrDefault == null || LastValueOrDefault.RowCount == 0;
     }
 }

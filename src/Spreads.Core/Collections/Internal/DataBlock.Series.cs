@@ -32,7 +32,7 @@ namespace Spreads.Collections.Internal
         /// </summary>
         public static DataBlock SeriesCreate(VecStorage rowIndex = default, VecStorage values = default, int rowLength = -1)
         {
-            if (rowIndex.Vec.Length <= 0 || values.Vec.Length <= 0 || rowIndex.Vec.Length != values.Vec.Length)
+            if (rowIndex.Vec.Length < 0 || values.Vec.Length < 0 || rowIndex.Vec.Length != values.Vec.Length)
             {
                 ThrowHelper.ThrowArgumentException($"rowIndex.Length [{rowIndex.Vec.Length}] <= 0 || values.Length [{values.Vec.Length}]  <= 0 || rowIndex.Length != values.Length");
             }
@@ -61,7 +61,7 @@ namespace Spreads.Collections.Internal
                     block._rowCount = rowLength;
                 }
             }
-
+            block._head = 0;
             block.EnsureSeriesLayout();
             return block;
         }

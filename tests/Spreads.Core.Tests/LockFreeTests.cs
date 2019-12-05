@@ -7,6 +7,7 @@ using System;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
+using Spreads.Collections;
 
 namespace Spreads.Core.Tests
 {

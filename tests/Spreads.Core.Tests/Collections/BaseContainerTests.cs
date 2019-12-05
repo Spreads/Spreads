@@ -31,9 +31,9 @@ namespace Spreads.Core.Tests.Collections
             bc.Data = block;
 
             var searchIndex = 40;
-            var found = bc.TryGetBlockAt(searchIndex, out var c, out var ci);
+            var found = bc.TryGetBlockAt(searchIndex, out var dataBlock, out var ci);
             Assert.IsTrue(found);
-            Assert.AreSame(block, c);
+            Assert.AreSame(block, dataBlock);
             Assert.AreEqual(searchIndex, ci);
 
             bc.Dispose();

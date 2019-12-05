@@ -69,7 +69,7 @@ namespace Spreads.Core.Tests.Collections
                 }
             }
 
-            sm.Complete();
+            sm.MarkReadOnly();
             // scm.Complete();
 
             for (int r = 0; r < 20; r++)
@@ -164,7 +164,7 @@ namespace Spreads.Core.Tests.Collections
                 }
 
                 Assert.IsFalse(sm.IsCompleted);
-                sm.Complete();
+                sm.MarkReadOnly();
                 Assert.IsTrue(sm.IsCompleted);
 
                 for (int r = 0; r < 20; r++)
@@ -289,9 +289,9 @@ namespace Spreads.Core.Tests.Collections
                 {
                     for (int i = 0; i < count; i++)
                     {
-                        sm.TryAddLast(i, i);
+                        sm.TryAppend(i, i);
                     }
-                    sm.Complete();
+                    sm.MarkReadOnly();
                 });
 
                 var c = sm.GetAsyncCursor();

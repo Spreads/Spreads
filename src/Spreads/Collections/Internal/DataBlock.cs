@@ -44,6 +44,7 @@ namespace Spreads.Collections.Internal
         /// <summary>
         /// Vec offset where data starts (where index ==0).
         /// </summary>
+        /// <remarks>Some logic depends on volatile semantics implicitly</remarks>
         private volatile int _head = -1;
 
         private VecStorage _rowKeys;

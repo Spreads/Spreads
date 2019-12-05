@@ -75,7 +75,7 @@ namespace Spreads.Core.Tests
                         {
                             if (i != 2)
                             {
-                                await sm1.TryAddLast(i, i);
+                                sm1.TryAppend(i, i);
                                 Thread.SpinWait(5);
 
                                 //if (i % 250000 == 0)
@@ -85,7 +85,7 @@ namespace Spreads.Core.Tests
                             }
                         }
 
-                        await sm1.Complete();
+                        sm1.MarkReadOnly();
                         //Console.WriteLine("cnt1: " + cnt1);
                         //Console.WriteLine("cnt2: " + cnt2);
                     }

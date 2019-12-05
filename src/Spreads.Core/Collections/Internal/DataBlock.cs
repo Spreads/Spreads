@@ -75,6 +75,7 @@ namespace Spreads.Collections.Internal
             var block = ObjectPool.Allocate();
 
             Debug.Assert(block._rowCount == -1);
+            Debug.Assert(block._head == -1);
             Debug.Assert(block._rowKeys == default);
             Debug.Assert(block._values == default);
             Debug.Assert(block._columns == null);
@@ -130,6 +131,8 @@ namespace Spreads.Collections.Internal
                 }
             }
 
+            block._head = 0;
+
             return block;
         }
 
@@ -151,6 +154,10 @@ namespace Spreads.Collections.Internal
 
         private void Dispose(bool disposing)
         {
+            if (this == Empty)
+            {
+                return;
+            }
             AtomicCounter.Dispose(ref _refCount);
 
             if (IsDisposed)

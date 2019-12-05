@@ -40,6 +40,7 @@
 
     <ItemGroup>
       <ProjectReference Include="..\..\src\Spreads.Core\Spreads.Core.csproj" />
+      <ProjectReference Include="..\..\src\SpreadsX\SpreadsX.csproj" />
     </ItemGroup>
 
 

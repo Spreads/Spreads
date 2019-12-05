@@ -106,7 +106,24 @@ namespace Spreads
     // * Make bridging the two very easy...
     // * ... but be flexible to adjust as needed here.
 
-    public interface IDataSource
+    /// <summary>
+    /// O(1) methods to check if a container is empty or get the number of rows if it is available.
+    /// </summary>
+    public interface IRowCount
+    {
+        /// <summary>
+        /// Returns non-null value if it is possible to get the count in O(1)
+        /// fast call without blocking.
+        /// </summary>
+        ulong? RowCount { get; }
+
+        /// <summary>
+        ///
+        /// </summary>
+        bool IsEmpty { get; }
+    }
+
+    public interface IDataSource : IRowCount
     {
         ContainerLayout ContainerLayout { get; }
 
@@ -133,15 +150,17 @@ namespace Spreads
         KeySorting KeySorting { get; }
 
         /// <summary>
-        /// Returns non-null value if it is possible to get the count in O(1)
-        /// fast call without blocking.
+        /// False if the underlying collection could be changed, true if the underlying collection is immutable or is complete
+        /// for adding (e.g. after OnCompleted in Rx) or IsCompleted in terms of ICollection/IDictionary or has fixed keys/values (all 4 definitions are the same).
         /// </summary>
-        ulong? RowCount { get; }
-
-        /// <summary>
-        ///
-        /// </summary>
-        bool IsEmpty { get; }
+        bool IsCompleted
+        {
+            get
+#if DEFAULT_INTERFACE_IMPL
+                => this.Mutability == Mutability.ReadOnly
+#endif
+            ;
+        }
 
         ///// <summary>
         ///// Unique string identifier or a string expression describing the data (e.g. "a + b").
@@ -299,27 +318,6 @@ namespace Spreads
     public interface ISeries<TKey, TValue> : IDataSource, IAsyncEnumerable<KeyValuePair<TKey, TValue>>, IDisposable
     {
         /// <summary>
-        /// False if the underlying collection could be changed, true if the underlying collection is immutable or is complete
-        /// for adding (e.g. after OnCompleted in Rx) or IsCompleted in terms of ICollection/IDictionary or has fixed keys/values (all 4 definitions are the same).
-        /// </summary>
-        bool IsCompleted
-        {
-            get
-#if DEFAULT_INTERFACE_IMPL
-                => this.Mutability == Mutability.ReadOnly
-#endif
-            ;
-        }
-
-        /// <summary>
-        /// Get cursor, which is an advanced enumerator supporting moves to first, last, previous, next, exact
-        /// positions and relative LT/LE/GT/GE moves.
-        /// </summary>
-        ICursor<TKey, TValue> GetCursor();
-
-        //IAsyncCursor<TKey, TValue> GetAsyncCursor();
-
-        /// <summary>
         /// An optimized <see cref="IComparer{T}"/> implementation with additional members to further optimize performance in certain cases.
         /// </summary>
         KeyComparer<TKey> Comparer { get; }
@@ -342,6 +340,16 @@ namespace Spreads
         /// </remarks>
         [Obsolete("TODO implement on Series, not on the interface. Check type of interface, use Opt Last if not series.")]
         TValue LastValueOrDefault { get; }
+
+        /// <summary>
+        /// Keys enumerable.
+        /// </summary>
+        IEnumerable<TKey> Keys { get; }
+
+        /// <summary>
+        /// Values enumerable.
+        /// </summary>
+        IEnumerable<TValue> Values { get; }
 
         /// <summary>
         /// A throwing equivalent of <see cref="ICursor{TKey,TValue}.TryGetValue"/> and a series counterpart of <see cref="ICursor{TKey,TValue}.TryGetValue"/>.
@@ -370,14 +378,10 @@ namespace Spreads
         bool TryFindAt(TKey key, Lookup direction, out KeyValuePair<TKey, TValue> kvp);
 
         /// <summary>
-        /// Keys enumerable.
+        /// Get <see cref="ICursor{TKey,TValue}"/>, which is an advanced enumerator supporting moves to first, last, previous, next, exact
+        /// positions and relative LT/LE/GT/GE (<see cref="Lookup"/>) moves.
         /// </summary>
-        IEnumerable<TKey> Keys { get; }
-
-        /// <summary>
-        /// Values enumerable.
-        /// </summary>
-        IEnumerable<TValue> Values { get; }
+        ICursor<TKey, TValue> GetCursor();
     }
 
     /// <summary>

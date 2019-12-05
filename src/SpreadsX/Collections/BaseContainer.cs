@@ -2,10 +2,11 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-using Spreads.Utils;
+using Spreads.Collections.Internal;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using System.Threading;
 
@@ -14,13 +15,14 @@ namespace Spreads.Collections
     /// <summary>
     /// Base class for data container implementations.
     /// </summary>
-    [CannotApplyEqualityOperator]
-    public class BaseContainer : IAsyncCompleter, IDisposable
+    [Utils.CannotApplyEqualityOperator]
+    public class BaseContainer : IDataSource, IAsyncCompleter, IDisposable
     {
         /// <summary>
-        /// Container-specific data.
+        /// Container-specific data. Never null - instead <see cref="DataBlock.Empty"/> is used as a sentinel.
         /// </summary>
-        internal object? Data;
+        [NotNull]
+        internal object Data = DataBlock.Empty;
 
         /// <summary>
         /// Flags.
@@ -37,6 +39,62 @@ namespace Spreads.Collections
 
         internal BaseContainer()
         { }
+
+        public ContainerLayout ContainerLayout => Flags.ContainerLayout;
+
+        public Mutability Mutability => Flags.Mutability;
+
+        public KeySorting KeySorting => Flags.KeySorting;
+
+        public bool IsCompleted => Mutability == Mutability.ReadOnly;
+
+        public ulong? RowCount
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get
+            {
+                if (Data is DataBlock block)
+                {
+                    return (ulong)block.RowCount;
+                }
+
+                if (Data is IRowCount rc)
+                {
+                    return rc.RowCount;
+                }
+
+                return RowCountImpl();
+            }
+        }
+
+        protected virtual ulong? RowCountImpl()
+        {
+            return null;
+        }
+
+        public bool IsEmpty
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get
+            {
+                if (Data is DataBlock block)
+                {
+                    return block.RowCount == 0;
+                }
+
+                if (Data is IRowCount rc)
+                {
+                    return rc.IsEmpty;
+                }
+
+                return IsEmptyImpl();
+            }
+        }
+
+        protected virtual bool IsEmptyImpl()
+        {
+            throw new NotSupportedException("Derived containers must implement this method if Data does not provide it.");
+        }
 
         #region Synchronization
 
@@ -163,15 +221,7 @@ namespace Spreads.Collections
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal void ReleaseLock()
         {
-            // release write lock
-            if (IntPtr.Size == 8)
-            {
-                Volatile.Write(ref _locker, 0);
-            }
-            else
-            {
-                Interlocked.Exchange(ref _locker, 0);
-            }
+            Volatile.Write(ref _locker, 0);
         }
 
         #endregion Synchronization
@@ -422,9 +472,12 @@ namespace Spreads.Collections
         {
         }
 
+        internal bool IsDisposed => Data == null;
+
         public void Dispose()
         {
             Dispose(true);
+            Data = null;
             GC.SuppressFinalize(this);
         }
 
@@ -435,7 +488,7 @@ namespace Spreads.Collections
             // memory, and properly releasing that memory is important to avoid GC and high
             // peaks of memory usage.
 
-            Trace.TraceWarning("Finalizing BaseContainer. This should not normally happen.");
+            Trace.TraceWarning("Finalizing BaseContainer. This should not normally happen and containers should be explicitly disposed.");
             try
             {
                 Dispose(false);
@@ -443,11 +496,7 @@ namespace Spreads.Collections
             catch (Exception ex)
             {
                 Trace.TraceError("Exception during BaseContainer finalization: " + ex);
-#if DEBUG
-                // Kill it in debug. Should not finalize but in the end we just ask GC for disposing
-                // it and we do often have native resources.
                 throw;
-#endif
             }
         }
     }

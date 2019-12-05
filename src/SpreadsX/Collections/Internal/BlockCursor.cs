@@ -22,15 +22,10 @@ namespace Spreads.Collections.Internal
     // to be synced. If we compare order version then we throw on CV getter, otherwise
     // we will throw on next move but CV could be stale.
 
-    //public interface IDataBlockValueGetter<TValue>
-    //{
-    //    TValue GetValue(DataBlock block, int rowIndex);
-    //}
-
     /// <summary>
     /// <see cref="Series{TKey,TValue}"/> cursor implementation.
     /// </summary>
-    [StructLayout(LayoutKind.Sequential, Pack = 4)] // This struct will be aligned to IntPtr.Size bytes because it has references, but small fields could be packed within 8 bytes.
+    [StructLayout(LayoutKind.Sequential, Pack = 4)]
     internal struct BlockCursor<TKey, TValue, TContainer> : ICursor<TKey, DataBlock, BlockCursor<TKey, TValue, TContainer>>
         where TContainer : BaseContainer<TKey>
     {
@@ -40,9 +35,9 @@ namespace Spreads.Collections.Internal
         /// Backing storage for <see cref="CurrentBlock"/>. Must never be used directly.
         /// </summary>
         [Obsolete("Use CurrentBlock")]
-        private DataBlock? _currentBlockStorage;
+        private DataBlock _currentBlockStorage;
 
-        internal DataBlock? CurrentBlock
+        internal DataBlock CurrentBlock
         {
 #pragma warning disable 618
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -51,8 +46,9 @@ namespace Spreads.Collections.Internal
             set
             {
                 _currentBlockStorage?.Decrement();
-                value?.Increment();
                 _currentBlockStorage = value;
+                value?.Increment();
+                
             }
 #pragma warning restore 618
         }
@@ -88,7 +84,15 @@ namespace Spreads.Collections.Internal
             _orderVersion = AtomicCounter.GetCount(ref _source.OrderVersion); // TODO
             _currentKey = default!;
             _currentValue = default!;
-            CurrentBlock = source.DataSource == null ? source.DataBlock : DataBlock.Empty;
+            Debug.Assert(source.Data != null, "source.Data != null: must be DataBlock.Empty instead of null");
+            if (source.IsDataBlock(out var db, out _))
+            {
+                CurrentBlock = db;
+            }
+            else
+            {
+                CurrentBlock = DataBlock.Empty;
+            }
         }
 
         public CursorState State
@@ -228,7 +232,7 @@ namespace Spreads.Collections.Internal
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal void EnsureSourceNotDisposed()
         {
-            if (_source.DataBlock == null)
+            if (_source.IsDisposed)
             {
                 ThrowCursorSourceDisposed();
             }
@@ -263,7 +267,7 @@ namespace Spreads.Collections.Internal
             // var nextPosition = unchecked((ulong)(_blockPosition + stride)); // long.Max + int.Max < ulong.Max
             // Debug.Assert(nextPosition >= (ulong)localBlock.RowLength);
 
-            if (_source.DataSource == null)
+            if (_source.IsDataBlock(out var db, out var ds))
             {
                 if (_blockIndex < 0 && stride < 0)
                 {
@@ -317,7 +321,7 @@ namespace Spreads.Collections.Internal
         }
 
         [Pure]
-        [MethodImpl(MethodImplOptions.AggressiveInlining
+        [MethodImpl(MethodImplOptions.NoInlining
 #if HAS_AGGR_OPT
                     | MethodImplOptions.AggressiveOptimization
 #endif
@@ -336,7 +340,7 @@ namespace Spreads.Collections.Internal
         public bool MoveFirst()
         {
             // TODO sync
-            if (_source.DataSource == null)
+            if (_source.IsDataBlock(out var db, out var ds))
             {
                 if (CurrentBlock.RowCount > 0)
                 {
@@ -352,7 +356,7 @@ namespace Spreads.Collections.Internal
         public bool MoveLast()
         {
             // TODO sync
-            if (_source.DataSource == null)
+            if (_source.IsDataBlock(out var db, out var ds))
             {
                 if (CurrentBlock.RowCount > 0)
                 {
@@ -463,7 +467,7 @@ namespace Spreads.Collections.Internal
             _currentKey = default;
             _orderVersion = AtomicCounter.GetCount(ref _source.OrderVersion);
 
-            if (_source.DataSource != null)
+            if (!_source.IsDataBlock(out _, out _))
             {
                 CurrentBlock = DataBlock.Empty;
             }

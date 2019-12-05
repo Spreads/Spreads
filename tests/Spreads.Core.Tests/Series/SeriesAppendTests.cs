@@ -7,34 +7,24 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using NUnit.Framework;
-using Spreads.Deprecated;
 using Spreads.Utils;
 
-namespace Spreads.Tests.Series
+namespace Spreads.Core.Tests.Series
 {
     [Category("CI")]
     [TestFixture]
     public unsafe class SeriesAppendTests
     {
-
-        [Test, Explicit("broken")] // TODO
-        public void NewSeries()
-        {
-            var s = new Series<int, int>();
-            Assert.AreEqual(s.Mutability, Mutability.Mutable);
-            Assert.AreEqual(s.KeySorting, KeySorting.Strong);
-            s.Dispose();
-        }
-
-        [Test, Explicit("broken")] // TODO
+        [Test]
         public void CouldAppendSeries()
         {
-            var sa = new Series<int, int>();
+            var sa = new AppendSeries<int, int>();
 
-            Assert.IsTrue(sa.TryAddLast(1, 1).Result);
-            Assert.IsFalse(sa.TryAddLast(1, 1).Result);
+            Assert.IsTrue(sa.TryAppend(1, 1));
+            Assert.AreEqual(1, sa.RowCount, "Row count == 1");
+            Assert.IsFalse(sa.TryAppend(1, 1));
 
-            Assert.IsTrue(sa.TryAddLast(2, 2).Result);
+            Assert.IsTrue(sa.TryAppend(2, 2));
 
             Assert.Throws<KeyNotFoundException>(() =>
             {
@@ -48,18 +38,14 @@ namespace Spreads.Tests.Series
 
             for (int i = 3; i < 42000; i++)
             {
-                Assert.IsTrue(sa.TryAddLast(i, i).Result);
+                if (i == 16385)
+                {
+                    Console.WriteLine();
+                }
+                Assert.IsTrue(sa.TryAppend(i, i));
                 Assert.AreEqual(i, sa.Last.Present.Value);
             }
 
-            //// TODO remove when implemented
-            //Assert.Throws<NotImplementedException>(() =>
-            //{
-            //    for (int i = 32000; i < 33000; i++)
-            //    {
-            //        Assert.IsTrue(sa.TryAddLast(i, i).Result);
-            //    }
-            //});
 
             GC.Collect(2, GCCollectionMode.Forced, true, true);
             GC.WaitForPendingFinalizers();
@@ -82,11 +68,10 @@ namespace Spreads.Tests.Series
                 Console.WriteLine("AdditionalCorrectnessChecks.Enabled");
             }
 
-            int count = 10_000_000;
-            int rounds = 100;
+            int count = (int)TestUtils.GetBenchCount(10_000_000, 10_000_000);
+            int rounds = (int)TestUtils.GetBenchCount(100, 1);
 
-            var sa = new Series<int, int>();
-            var sm = new SortedMap<int, int>();
+            var sa = new AppendSeries<int, int>();
 
             //for (int r = 0; r < rounds; r++)
             //{
@@ -117,7 +102,7 @@ namespace Spreads.Tests.Series
                         {
                             continue;
                         }
-                        if (!sa.TryAddLast(i, i).Result)
+                        if (!sa.TryAppend(i, i))
                         {
                             Console.WriteLine("Cannot add " + i);
                             return;
@@ -130,8 +115,8 @@ namespace Spreads.Tests.Series
 
             Benchmark.Dump();
 
-            Console.WriteLine("Finished, press enter");
-            Console.ReadLine();
+            //Console.WriteLine("Finished, press enter");
+            //Console.ReadLine();
 
             sa.Dispose();
         }
@@ -152,9 +137,8 @@ namespace Spreads.Tests.Series
             {
                 long rounds = 10;
 
-                var sa = new Series<long, long>();
+                var sa = new AppendSeries<long, long>();
                 sas.Add(sa);
-                var sm = new SortedMap<long, long>();
                 for (int i = 0; i < count; i++)
                 {
                     if (i == 3)
@@ -162,12 +146,7 @@ namespace Spreads.Tests.Series
                         continue;
                     }
 
-                    if (!sa.TryAddLastDirect(i, i))
-                    {
-                        Assert.Fail("Cannot add " + i);
-                    }
-
-                    if (!sm.TryAddLast(i, i).Result)
+                    if (!sa.DoTryAddLast(i, i))
                     {
                         Assert.Fail("Cannot add " + i);
                     }
@@ -177,9 +156,7 @@ namespace Spreads.Tests.Series
 
                 for (int r = 0; r < rounds; r++)
                 {
-                    AppendSeriesTGBench(count, mult, sa);
-
-                    SortedMapTGBench(count, mult, sm);
+                    AppendSeriesTgvBench(count, mult, sa);
                 }
             }
 
@@ -196,7 +173,7 @@ namespace Spreads.Tests.Series
                     | MethodImplOptions.AggressiveOptimization
 #endif
         )]
-        private static void AppendSeriesTGBench(int count, int mult, Series<long, long> sa)
+        private static void AppendSeriesTgvBench(int count, int mult, Series<long, long> sa)
         {
             using (Benchmark.Run($"AS.TG {count:N}", count * mult))
             {
@@ -209,31 +186,6 @@ namespace Spreads.Tests.Series
                             if (i != 3)
                             {
                                 Assert.Fail($"!sa.TryGetValue(i, out var val) || val {val} != i {i}");
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        [MethodImpl(MethodImplOptions.NoInlining
-#if NETCOREAPP3_0
-                    | MethodImplOptions.AggressiveOptimization
-#endif
-        )]
-        private static void SortedMapTGBench(int count, int mult, SortedMap<long, long> sm)
-        {
-            using (Benchmark.Run($"SM.TG {count.ToString("N")}", count * mult))
-            {
-                for (int _ = 0; _ < mult; _++)
-                {
-                    for (int i = 0; i < count; i++)
-                    {
-                        if (!sm.TryGetValue(i, out var val) || val != i)
-                        {
-                            if (i != 3)
-                            {
-                                Assert.Fail($"!sm.TryGetValue(i, out var val) || val {val} != i {i}");
                             }
                         }
                     }

@@ -100,7 +100,7 @@ namespace Spreads
             _value &= 0b_1111_1101; // clear mutability bit
         }
 
-        public void MarkImmutable()
+        public void MarkReadOnly()
         {
             _value &= 0b_1111_1100; // clear mutability & append-only bits
         }
