@@ -38,10 +38,6 @@ namespace Spreads.Core.Tests.Series
 
             for (int i = 3; i < 42000; i++)
             {
-                if (i == 16385)
-                {
-                    Console.WriteLine();
-                }
                 Assert.IsTrue(sa.TryAppend(i, i));
                 Assert.AreEqual(i, sa.Last.Present.Value);
             }
@@ -51,6 +47,12 @@ namespace Spreads.Core.Tests.Series
             GC.WaitForPendingFinalizers();
             GC.Collect(2, GCCollectionMode.Forced, true, true);
             GC.WaitForPendingFinalizers();
+
+            // enumeration
+            foreach (var kvp in sa)
+            {
+                    
+            }
 
             sa.Dispose();
 
@@ -146,7 +148,7 @@ namespace Spreads.Core.Tests.Series
                         continue;
                     }
 
-                    if (!sa.DoTryAddLast(i, i))
+                    if (!sa.DoTryAppend(i, i))
                     {
                         Assert.Fail("Cannot add " + i);
                     }

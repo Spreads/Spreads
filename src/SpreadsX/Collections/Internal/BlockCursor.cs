@@ -133,7 +133,6 @@ namespace Spreads.Collections.Internal
                 {
                     if (typeof(TContainer) == typeof(Series<TKey, TValue>))
                     {
-                        // TODO review. Via _vec is much faster but we assume that stride is 1
                         v = CurrentBlock.DangerousValueRef<TValue>(nextPosition);
                     }
                 }
@@ -170,8 +169,7 @@ namespace Spreads.Collections.Internal
         public long Move(long stride, bool allowPartial)
         {
             long mc;
-            ulong nextPosition;
-            DataBlock nextBlock = null;
+            ulong nextBlockIndex;
             TKey k;
             TValue v = default;
             var sw = new SpinWait();
@@ -179,24 +177,24 @@ namespace Spreads.Collections.Internal
 
             var version = _source.Version;
             {
-                // Note: this does not handle MP from uninitialized state (_blockPosition == -1, stride < 0). // This case is rare.
+                // Note: this does not handle MP from uninitialized state (_blockPosition == -1, stride < 0). This case is rare.
                 // Uninitialized multi-block case goes to rare as well as uninitialized MP
-                nextPosition = unchecked((ulong)(_blockIndex + stride)); // long.Max + int.Max < ulong.Max
-                if (nextPosition < (ulong)CurrentBlock.RowCount)
+                nextBlockIndex = unchecked((ulong)(_blockIndex + stride)); // int.Max + long.Max < ulong.Max
+                if (nextBlockIndex < (ulong)CurrentBlock.RowCount)
                 {
                     mc = stride;
                 }
                 else
                 {
-                    mc = MoveRare(stride, allowPartial, ref nextPosition, ref nextBlock);
+                    // TODO it should set CB
+                    mc = MoveRare(stride, allowPartial, ref nextBlockIndex);
                 }
 
-                k = CurrentBlock.DangerousRowKeyRef<TKey>((int)nextPosition); // Note: do not use _blockPosition, it's 20% slower than second cast to int
+                k = CurrentBlock.DangerousRowKeyRef<TKey>((int)nextBlockIndex); // Note: do not use _blockPosition, it's 20% slower than second cast to int
 
                 if (typeof(TContainer) == typeof(Series<TKey, TValue>))
                 {
-                    // TODO review. Via _vec is much faster but we assume that stride is 1
-                    v = CurrentBlock.DangerousValueRef<TValue>((int)nextPosition);
+                    v = CurrentBlock.DangerousValueRef<TValue>((int)nextBlockIndex);
                 }
                 //else // TODO value getter for other containers or they could do in CV getter but need to call EnsureOrder after reading value.
                 //{
@@ -206,10 +204,8 @@ namespace Spreads.Collections.Internal
 
             if (_source.NextVersion != version)
             {
-                // TODO set different versions on source Dispose and _currentBlock.RowLength  to 0, MoveRare has disposal check at the beginning
                 EnsureSourceNotDisposed();
 
-                // TODO review if this is logically correct to check order version only here? We do check is again in value getter later
                 EnsureOrder();
                 sw.SpinOnce();
                 goto SYNC;
@@ -217,48 +213,29 @@ namespace Spreads.Collections.Internal
 
             if (mc != 0)
             {
-                _blockIndex = (int)nextPosition;
+                _blockIndex = (int)nextBlockIndex;
                 _currentKey = k;
                 _currentValue = v;
-                if (nextBlock != null)
-                {
-                    CurrentBlock = nextBlock;
-                }
+                //if (nextBlock != null)
+                //{
+                //    CurrentBlock = nextBlock;
+                //}
             }
 
             return mc;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal void EnsureSourceNotDisposed()
-        {
-            if (_source.IsDisposed)
-            {
-                ThrowCursorSourceDisposed();
-            }
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void EnsureOrder()
-        {
-            // this should be false for all cases
-
-            if (_orderVersion != AtomicCounter.GetCount(ref _source.OrderVersion))
-            {
-                ThrowHelper.ThrowOutOfOrderKeyException(_currentKey);
-            }
-        }
+        
 
         /// <summary>
         /// Called when next position is outside current block. Must be pure and do not change state.
         /// </summary>
-        [Pure]
-        [MethodImpl(MethodImplOptions.AggressiveInlining
+        [MethodImpl(MethodImplOptions.NoInlining
 #if HAS_AGGR_OPT
                     | MethodImplOptions.AggressiveOptimization
 #endif
         )]
-        public long MoveRare(long stride, bool allowPartial, ref ulong nextPos, ref DataBlock nextBlock)
+        public long MoveRare(long stride, bool allowPartial, ref ulong nextPos)
         {
             EnsureSourceNotDisposed();
 
@@ -269,7 +246,7 @@ namespace Spreads.Collections.Internal
 
             if (_source.IsDataBlock(out var db, out var ds))
             {
-                if (_blockIndex < 0 && stride < 0)
+                if (_blockIndex < 0 & stride < 0) // not &&
                 {
                     Debug.Assert(State == CursorState.Initialized);
                     var nextPosition = unchecked((localBlock.RowCount + stride));
@@ -297,20 +274,52 @@ namespace Spreads.Collections.Internal
                     }
                     if (stride < 0) // cannot just use else without checks before, e.g. what if _blockPosition == -1 and stride == 0
                     {
-                        {
-                            var mc = _blockIndex;
-                            nextPos = 0;
-                            return -mc;
-                        }
+                        var mc = _blockIndex;
+                        nextPos = 0;
+                        return -mc;
                     }
                 }
 
                 nextPos = 0;
                 return 0;
             }
-            else
+
+            return MoveBlock(stride, allowPartial, ref nextPos);
+
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining
+#if HAS_AGGR_OPT
+                    | MethodImplOptions.AggressiveOptimization
+#endif
+        )]
+        private long MoveBlock(long stride, bool allowPartial, ref ulong nextPos)
+        {
+            // TODO another non-inlined slow method. We need do change block, so isolate as much as possible from the fast path
+            // fetch next block, do total/remaining calcs
+            ThrowHelper.ThrowNotImplementedException();
+            nextPos = 0;
+            return default;
+        }
+
+        [Obsolete("TODO cursor counter, throw on dispose if there are undisposed cursors")]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal void EnsureSourceNotDisposed()
+        {
+            if (_source.IsDisposed)
             {
-                return MoveSlow(stride, allowPartial, ref nextPos, ref nextBlock);
+                ThrowCursorSourceDisposed();
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void EnsureOrder()
+        {
+            // this should be false for all cases
+
+            if (_orderVersion != AtomicCounter.GetCount(ref _source.OrderVersion))
+            {
+                ThrowHelper.ThrowOutOfOrderKeyException(_currentKey);
             }
         }
 
@@ -320,21 +329,7 @@ namespace Spreads.Collections.Internal
             throw new ObjectDisposedException("Cursor.Source");
         }
 
-        [Pure]
-        [MethodImpl(MethodImplOptions.NoInlining
-#if HAS_AGGR_OPT
-                    | MethodImplOptions.AggressiveOptimization
-#endif
-        )]
-        private long MoveSlow(long stride, bool allowPartial, ref ulong nextPos, ref DataBlock nextBlock)
-        {
-            // TODO another non-inlined slow method. We need do change block, so isolate as much as possible from the fast path
-            // fetch next block, do total/remaining calcs
-            ThrowHelper.ThrowNotImplementedException();
-            nextPos = 0;
-            nextBlock = default;
-            return default;
-        }
+
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool MoveFirst()

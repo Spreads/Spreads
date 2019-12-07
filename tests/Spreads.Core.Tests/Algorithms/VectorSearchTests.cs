@@ -1097,62 +1097,65 @@ namespace Spreads.Core.Tests.Algorithms
             }
         }
 
-        [Test, Explicit("long running")]
+        [Test
+#if !DEBUG
+         , Explicit("long running")
+#endif
+        ]
         public void SearchBench()
         {
-            var count = 10* 1024 * 1024;
+#if  DEBUG
+            var count = 1024;
             var rounds = 1;
-            var lens = new[] {  16, 128, 512, 1024, 16 * 1024, 128 * 1024, 512 * 1024, 1024 * 1024, 10 * 1024 * 1024 }; //0, 1,
-            var vec = (Enumerable.Range(0, count).Select(x => (Timestamp)(long)x).ToArray());
+            // must be power of 2
+            var lens = new[] { 16, 128, 512, 1024 };
+
+#else
+            var count = 10L * 1024 * 1024;
+            var rounds = 1;
+            // must be power of 2
+            var lens = new[] { 16, 128, 512, 1024, 16 * 1024, 128 * 1024, 512 * 1024, 1024 * 1024, 8 * 1024 * 1024 };
+
+#endif
+            var vec = (Enumerable.Range(0, (int)count).Select(x => (Timestamp)(long)x).ToArray());
 
             for (int r = 0; r < rounds; r++)
             {
                 foreach (var len in lens)
                 {
                     var mask = len - 1;
-                    // var mult = 10_000_000 / len;
 
                     using (Benchmark.Run("Binary" + len, count))
                     {
-                        // for (int m = 0; m < mult; m++)
+                        for (int i = 0; i < count; i++)
                         {
-                            for (int i = 0; i < count; i++)
-                            {
-                                var value = i & mask;
+                            var value = i & mask;
 #pragma warning disable 618
-                                var idx = vec.DangerousBinarySearch(0, len, (Timestamp)value, KeyComparer<Timestamp>.Default);
+                            var idx = vec.DangerousBinarySearch(0, len, (Timestamp)value,
+                                KeyComparer<Timestamp>.Default);
 #pragma warning restore 618
-                                //if (idx < 0)
-                                //{
-                                //    Assert.Fail();
-                                //}
+                            if (idx != value)
+                            {
+                                Assert.Fail("idx != value");
                             }
                         }
                     }
 
-                    //                    using (Benchmark.Run($"Interpolation {count}", count * mult))
-                    //                    {
-                    //                        for (int m = 0; m < mult; m++)
-                    //                        {
-                    //                            for (int i = 0; i < count; i++)
-                    //                            {
-                    //#pragma warning disable 618
-                    //                                var idx = vec.DangerousInterpolationSearch(0, count, (Timestamp)i, KeyComparer<Timestamp>.Default);
-                    //#pragma warning restore 618
-                    //                                if (idx < 0)
-                    //                                {
-                    //                                    ThrowHelper.FailFast(String.Empty);
-                    //                                }
-
-                    //                                //var idx = VectorSearch.InterpolationSearch(ref vec.DangerousGetRef(0),
-                    //                                //    count, (Timestamp)i);
-                    //                                //if (idx != i)
-                    //                                //{
-                    //                                //    Console.WriteLine($"val {i} -> idx {idx}");
-                    //                                //}
-                    //                            }
-                    //                        }
-                    //                    }
+                    using (Benchmark.Run($"Interpolation{len}", count))
+                    {
+                        for (int i = 0; i < count; i++)
+                        {
+                            var value = i & mask;
+#pragma warning disable 618
+                            var idx = vec.DangerousInterpolationSearch(0, len, (Timestamp)value,
+                                KeyComparer<Timestamp>.Default);
+#pragma warning restore 618
+                            if (idx != value)
+                            {
+                                Assert.Fail("idx != value");
+                            }
+                        }
+                    }
                 }
             }
             Benchmark.Dump();
@@ -1256,10 +1259,10 @@ namespace Spreads.Core.Tests.Algorithms
             Random rng;
 
 #if DEBUG
-            var rounds = 10;
+            var rounds = 2;
             var counts = new[] { 50, 100, 256, 512, 1000, 2048, 4096, 10_000 };
 #else
-            var rounds = 100;
+            var rounds = 10;
             var counts = new[] { 50, 100, 256, 512, 1000, 2048, 4096, 10_000, 100_000, 1_000_000 };
 #endif
             for (int r = 0; r < rounds; r++)

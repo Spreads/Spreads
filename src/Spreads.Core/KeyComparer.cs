@@ -14,11 +14,11 @@ using System.Runtime.CompilerServices;
 
 namespace Spreads
 {
-    internal class DummyKeyComparer<T> : IKeyComparer<T>
+    internal class WrapperKeyComparer<T> : IKeyComparer<T>
     {
         private IComparer<T> _comparer;
 
-        public DummyKeyComparer(IComparer<T> comparer)
+        public WrapperKeyComparer(IComparer<T> comparer)
         {
             _comparer = comparer;
         }
@@ -88,22 +88,28 @@ namespace Spreads
         {
             if (comparer != null && !ReferenceEquals(comparer, Comparer<T>.Default))
             {
-                //
-                if (IsBuiltInNumericType)
+                if (!(comparer is IgnoreComparer<T>))
                 {
-                    ThrowHelper.ThrowNotSupportedException("Custom IComparer<T> for built-in type is not supported. Create a wrapper struct that implements IComparable<T> and use KeyComparer<T>.Default for it.");
+                    if (IsBuiltInNumericType)
+                    {
+                        ThrowHelper.ThrowNotSupportedException(
+                            "Custom IComparer<T> for built-in type is not supported. Create a wrapper struct that implements IComparable<T> and use KeyComparer<T>.Default for it.");
+                    }
+
+                    if (IsIComparable)
+                    {
+                        ThrowHelper.ThrowNotSupportedException(
+                            "Custom IComparer<T> for a type T that implements IComparable<T> is not supported. Create a wrapper struct that implements a different IComparable<T> logic and use KeyComparer<T>.Default for it.");
+                    }
                 }
-                if (IsIComparable)
-                {
-                    ThrowHelper.ThrowNotSupportedException("Custom IComparer<T> for a type T that implements IComparable<T> is not supported. Create a wrapper struct that implements a different IComparable<T> logic and use KeyComparer<T>.Default for it.");
-                }
+
                 if (comparer is IKeyComparer<T> kc)
                 {
                     _keyComparer = kc;
                 }
                 else
                 {
-                    _keyComparer = new DummyKeyComparer<T>(comparer);
+                    _keyComparer = new WrapperKeyComparer<T>(comparer);
                 }
             }
             else
@@ -854,12 +860,22 @@ namespace Spreads
         }
     }
 
+    internal class IgnoreComparer<T> : IComparer<T>
+    {
+        public int Compare(T x, T y)
+        {
+            return 0;
+        }
+    }
+
     /// <summary>
     /// Fast IComparer for KeyValuePair.
     /// </summary>
     // ReSharper disable once InconsistentNaming
-    public sealed class KVPComparer<TKey, TValue> : IComparer<KeyValuePair<TKey, TValue>>, IEqualityComparer<KeyValuePair<TKey, TValue>>, IEquatable<KVPComparer<TKey, TValue>>
+    public readonly struct KVPComparer<TKey, TValue> : IComparer<KeyValuePair<TKey, TValue>>, IEqualityComparer<KeyValuePair<TKey, TValue>>, IEquatable<KVPComparer<TKey, TValue>>
     {
+        private static readonly KeyComparer<TValue> IgnoreComparer = KeyComparer<TValue>.Create(new IgnoreComparer<TValue>());
+
         private readonly KeyComparer<TKey> _keyComparer;
         private readonly KeyComparer<TValue> _valueComparer;
 
@@ -868,17 +884,17 @@ namespace Spreads
         /// </summary>
         public KVPComparer(KeyComparer<TKey> keyComparer, KeyComparer<TValue> valueComparer)
         {
-            _keyComparer = keyComparer.Equals(default(KeyComparer<TKey>)) ? KeyComparer<TKey>.Default : keyComparer;
-            _valueComparer = valueComparer.Equals(default(KeyComparer<TValue>)) ? KeyComparer<TValue>.Default : valueComparer;
+            _keyComparer = keyComparer;
+            _valueComparer = valueComparer;
         }
 
         /// <summary>
-        /// Create a KVP comparer that only compares keys. Pass null as a second constructor argument
-        /// to use a default comparer for values. With this constructor values are ignored.
+        /// Create a KVP comparer that only compares keys. With this constructor values are ignored.
         /// </summary>
         public KVPComparer(KeyComparer<TKey> keyComparer)
         {
-            _keyComparer = keyComparer.Equals(default(KeyComparer<TKey>)) ? KeyComparer<TKey>.Default : keyComparer;
+            _keyComparer = keyComparer;
+            _valueComparer = IgnoreComparer;
         }
 
         /// <inheritdoc />
@@ -886,7 +902,7 @@ namespace Spreads
         public int Compare(KeyValuePair<TKey, TValue> x, KeyValuePair<TKey, TValue> y)
         {
             var c1 = _keyComparer.Compare(x.Key, y.Key);
-            if (c1 == 0 && !_valueComparer.Equals(default(KeyComparer<TValue>)))
+            if (c1 == 0 && !_valueComparer.Equals(IgnoreComparer))
             {
                 return _valueComparer.Compare(x.Value, y.Value);
             }
@@ -896,7 +912,7 @@ namespace Spreads
         /// <inheritdoc />
         public bool Equals(KeyValuePair<TKey, TValue> x, KeyValuePair<TKey, TValue> y)
         {
-            return _keyComparer.Equals(x.Key, y.Key) && _valueComparer.Equals(default(KeyComparer<TValue>)) || _valueComparer.Equals(x.Value, y.Value);
+            return _keyComparer.Equals(x.Key, y.Key) && _valueComparer.Equals(IgnoreComparer) || _valueComparer.Equals(x.Value, y.Value);
         }
 
         /// <summary>
@@ -910,16 +926,13 @@ namespace Spreads
 
         public bool Equals(KVPComparer<TKey, TValue> other)
         {
-            if (ReferenceEquals(null, other)) return false;
-            if (ReferenceEquals(this, other)) return true;
-            return Equals(_keyComparer, other._keyComparer) && Equals(_valueComparer, other._valueComparer);
+            return _keyComparer.Equals(other._keyComparer) && _valueComparer.Equals(other._valueComparer);
         }
 
         public override bool Equals(object obj)
         {
             if (ReferenceEquals(null, obj)) return false;
-            if (ReferenceEquals(this, obj)) return true;
-            return obj is KVPComparer<TKey, TValue> && Equals((KVPComparer<TKey, TValue>)obj);
+            return obj is KVPComparer<TKey, TValue> comparer && Equals(comparer);
         }
 
         public override int GetHashCode()

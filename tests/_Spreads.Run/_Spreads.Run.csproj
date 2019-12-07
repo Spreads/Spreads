@@ -3,6 +3,7 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>netcoreapp3.0</TargetFramework>
+    <RootNamespace>Spreads.Run</RootNamespace>
     <!--<RuntimeFrameworkVersion>3.0.0-preview-27324-5</RuntimeFrameworkVersion>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>-->
     <TieredCompilation>False</TieredCompilation>
@@ -23,9 +24,7 @@
   </PropertyGroup>-->
   <ItemGroup>
     <ProjectReference Include="..\..\src\Spreads.Core\Spreads.Core.csproj" />
-    <ProjectReference Include="..\..\src\Spreads\Spreads.csproj" />
     <ProjectReference Include="..\Spreads.Core.Tests\Spreads.Core.Tests.csproj" />
-    <ProjectReference Include="..\Spreads.Tests\Spreads.Tests.csproj" />
   </ItemGroup>
   <!--<ItemGroup>
     <PackageReference Include="runtime.win-x64.Microsoft.Private.CoreFx.NETCoreApp" Version="4.6.0-dev.19120.1" />

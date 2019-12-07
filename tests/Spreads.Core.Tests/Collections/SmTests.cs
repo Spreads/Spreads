@@ -42,7 +42,7 @@ namespace Spreads.Core.Tests.Collections
                     {
                         if (i != 2)
                         {
-                            sm.Add(i, i);
+                            sm.Append(i, i);
                         }
                     }
                 }

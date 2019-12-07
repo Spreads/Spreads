@@ -83,7 +83,7 @@ namespace Spreads
             | MethodImplOptions.AggressiveOptimization
 #endif
         )]
-        internal bool DoTryAddLast(TKey key, TValue value)
+        internal bool DoTryAppend(TKey key, TValue value)
         {
             if (!IsDataBlock(out var db, out var ds))
             {
@@ -192,7 +192,7 @@ namespace Spreads
             AcquireLock();
             try
             {
-                return DoTryAddLast(key, value);
+                return DoTryAppend(key, value);
             }
             finally
             {

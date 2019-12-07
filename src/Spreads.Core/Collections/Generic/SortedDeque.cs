@@ -7,13 +7,13 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using Spreads.Utils;
-
-#if DEBUG
 using System.Diagnostics;
-#endif
 
 namespace Spreads.Collections.Generic
 {
+    // TODO Replace binary search with SortedSearch
+    // TODO (?) Replace T[] with Vec<T>, or use it as a benchmark for Series with MW option
+
     /// <summary>
     /// SortedDeque for KeyValuePairs.
     /// </summary>
@@ -31,7 +31,7 @@ namespace Spreads.Collections.Generic
         public SortedDeque(int capacity, KeyComparer<T> comparer)
         {
             if (capacity <= 0) throw new ArgumentOutOfRangeException(nameof(capacity));
-            _comparer = comparer.Equals(default(KeyComparer<T>)) ? throw new ArgumentNullException(nameof(comparer)) : comparer;
+            _comparer = comparer;
             var cap = BitUtil.FindNextPositivePowerOfTwo(capacity);
             _buffer = new T[cap];
             // capacity is always a power of two and we use bitshift instead of modulo
@@ -168,9 +168,7 @@ namespace Spreads.Collections.Generic
                 {
                     if (offset < _firstOffset) // we are at the left part of the split [__._>    ___]
                     {
-#if DEBUG
-                        Trace.Assert(offset < _firstOffset + _count - _buffer.Length);
-#endif
+                        Debug.Assert(offset < _firstOffset + _count - _buffer.Length);
                         Array.Copy(_buffer, offset, _buffer, offset + 1, _firstOffset + _count - _buffer.Length - offset);
                     }
                     else // we are at the left part of the split [___    <__._]
@@ -178,18 +176,16 @@ namespace Spreads.Collections.Generic
                         Array.Copy(_buffer, _firstOffset, _buffer, _firstOffset - 1, (offset - _firstOffset) + 1);
                         _firstOffset = _firstOffset - 1;
                         offset = offset - 1;
-#if DEBUG
-                        Trace.Assert(_comparer.Compare(element, _buffer[offset - 1]) > 0);
-#endif
+                        Debug.Assert(_comparer.Compare(element, _buffer[offset - 1]) > 0);
                     }
                 }
                 else
                 {
                     if (_firstOffset == 0) // avoid split if possible [>_____     ]
                     {
-#if DEBUG
-                        Trace.Assert(offset < _count);
-#endif
+
+                        Debug.Assert(offset < _count);
+
                         Array.Copy(_buffer, offset, _buffer, offset + 1, _count - offset);
                     }
                     else if ((_count - (offset - _firstOffset) <= _count / 2)) // [   _______.>__     ]
@@ -203,18 +199,14 @@ namespace Spreads.Collections.Generic
                         {
                             Array.Copy(_buffer, offset, _buffer, offset + 1, _count - (offset - _firstOffset));
                         }
-#if DEBUG
-                        Trace.Assert(_comparer.Compare(element, _buffer[offset - 1]) > 0);
-#endif
+                        Debug.Assert(_comparer.Compare(element, _buffer[offset - 1]) > 0);
                     }
                     else //[   __<._______     ]
                     {
                         Array.Copy(_buffer, _firstOffset, _buffer, _firstOffset - 1, offset - _firstOffset);
                         offset = offset - 1;
                         _firstOffset = _firstOffset - 1;
-#if DEBUG
-                        Trace.Assert(_comparer.Compare(element, _buffer[offset - 1]) > 0);
-#endif
+                        Debug.Assert(_comparer.Compare(element, _buffer[offset - 1]) > 0);
                     }
                 }
                 _buffer[offset] = element;
@@ -565,7 +557,7 @@ namespace Spreads.Collections.Generic
         public SortedDeque(int capacity, KVPComparer<TKey, TValue> comparer)
         {
             if (capacity <= 0) throw new ArgumentOutOfRangeException(nameof(capacity));
-            _comparer = comparer ?? throw new ArgumentNullException(nameof(comparer));
+            _comparer = comparer;
             var cap = BitUtil.FindNextPositivePowerOfTwo(capacity);
             _buffer = new KeyValuePair<TKey, TValue>[cap];
             // capacity is always a power of two and we use bitshift instead of modulo
@@ -721,9 +713,7 @@ namespace Spreads.Collections.Generic
                 {
                     if (offset < _firstOffset) // we are at the left part of the split [__._>    ___]
                     {
-#if DEBUG
-                        Trace.Assert(offset < _firstOffset + _count - _buffer.Length);
-#endif
+                        Debug.Assert(offset < _firstOffset + _count - _buffer.Length);
                         Array.Copy(_buffer, offset, _buffer, offset + 1, _firstOffset + _count - _buffer.Length - offset);
                     }
                     else // we are at the left part of the split [___    <__._]
@@ -731,18 +721,14 @@ namespace Spreads.Collections.Generic
                         Array.Copy(_buffer, _firstOffset, _buffer, _firstOffset - 1, (offset - _firstOffset) + 1);
                         _firstOffset = _firstOffset - 1;
                         offset = offset - 1;
-#if DEBUG
-                        Trace.Assert(_comparer.Compare(element, _buffer[offset - 1]) > 0);
-#endif
+                        Debug.Assert(_comparer.Compare(element, _buffer[offset - 1]) > 0);
                     }
                 }
                 else
                 {
                     if (_firstOffset == 0) // avoid split if possible [>_____     ]
                     {
-#if DEBUG
-                        Trace.Assert(offset < _count);
-#endif
+                        Debug.Assert(offset < _count);
                         Array.Copy(_buffer, offset, _buffer, offset + 1, _count - offset);
                     }
                     else if ((_count - (offset - _firstOffset) <= _count / 2)) // [   _______.>__     ]
@@ -756,18 +742,14 @@ namespace Spreads.Collections.Generic
                         {
                             Array.Copy(_buffer, offset, _buffer, offset + 1, _count - (offset - _firstOffset));
                         }
-#if DEBUG
-                        Trace.Assert(_comparer.Compare(element, _buffer[offset - 1]) > 0);
-#endif
+                        Debug.Assert(_comparer.Compare(element, _buffer[offset - 1]) > 0);
                     }
                     else //[   __<._______     ]
                     {
                         Array.Copy(_buffer, _firstOffset, _buffer, _firstOffset - 1, offset - _firstOffset);
                         offset = offset - 1;
                         _firstOffset = _firstOffset - 1;
-#if DEBUG
-                        Trace.Assert(_comparer.Compare(element, _buffer[offset - 1]) > 0);
-#endif
+                        Debug.Assert(_comparer.Compare(element, _buffer[offset - 1]) > 0);
                     }
                 }
                 _buffer[offset] = element;

@@ -39,11 +39,6 @@ namespace Spreads.Collections.Internal
             _blockSeries = blockSeries;
         }
 
-        public IAsyncEnumerator<KeyValuePair<TKey, DataBlock>> GetAsyncEnumerator()
-        {
-            throw new NotImplementedException();
-        }
-
         [MethodImpl(MethodImplOptions.NoInlining
 #if HAS_AGGR_OPT
             | MethodImplOptions.AggressiveOptimization
