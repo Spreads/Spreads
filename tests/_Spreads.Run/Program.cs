@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Spreads.Core.Tests.Algorithms;
 using Spreads.Core.Tests.Collections.Concurrent;
 using Spreads.Core.Tests.Serialization;
+using Spreads.Core.Tests.X.Series;
 
 namespace Spreads.Run
 {
@@ -35,8 +36,8 @@ namespace Spreads.Run
             ExecutionContext.SuppressFlow();
             Settings.SharedSpinLockNotificationPort = 53412;
 
-            var test = new VecSearchTests();
-            test.SearchIrregularBench();
+            var test = new SeriesAppendTests();
+            test.SearchOverLargeSeriesBench();
 
             // Console.WriteLine("Finished, press enter to exit...");
             // Console.ReadLine();

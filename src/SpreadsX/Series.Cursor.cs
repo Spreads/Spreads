@@ -137,6 +137,7 @@ namespace Spreads
 
         public TValue CurrentValue
         {
+            // TODO (201912) review this long comment, it may be irrelevant after all changes
             // Note: alternative to storing CV is accessing it by index, but then we need to check
             // order that was already checked during MN - otherwise CV could mismatch CK.
             // But if we do not store CV and then use it after accessing this property

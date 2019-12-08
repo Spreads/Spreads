@@ -29,8 +29,6 @@ namespace Spreads.Collections
                 if (!IsDataBlock(out var block, out var ds))
                 {
                     TryFindBlock_ValidateOrGetBlockFromSource(ref block, ds, key, Lookup.EQ, Lookup.LE);
-                    // TODO review we had this but looks wrong
-                    // Data = block;
                 }
 
                 if (block != null)

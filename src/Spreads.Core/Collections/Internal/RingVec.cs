@@ -12,6 +12,7 @@ namespace Spreads.Collections.Internal
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int IndexToOffset(int index, int head, int len)
         {
+            // return (head + index) % len;
             // len is not guaranteed to be power of 2, cannot use bit mask
             // but we could avoid branch: we do not need modulo
             // instead we only need to subtract len if we wrap over it
@@ -41,6 +42,7 @@ namespace Spreads.Collections.Internal
 
         public int Length => _count;
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public T DangerousGetItem(int index)
         {
             return _vec.DangerousGetRef<T>(RingVecUtil.IndexToOffset(index, _head, _count));

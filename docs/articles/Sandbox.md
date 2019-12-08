@@ -43,3 +43,13 @@ Unknown types
 ```
 
 Var-sized type have length prefix LEB128 encoded. 
+
+
+## Cursors
+
+Caching: current value is always cached and constintent with the key.
+
+For Map we do not need to cache the result value if the inner cursor caches its value,
+but then Selector must be pure. Calling CurrentValue could evaluate the selector
+multiple times. We could add a bool field `hasValue`, but then need to clear it on
+every move.

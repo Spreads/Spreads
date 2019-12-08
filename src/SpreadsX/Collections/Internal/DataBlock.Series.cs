@@ -8,6 +8,7 @@ using System;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Threading;
+using Spreads.Threading;
 
 namespace Spreads.Collections.Internal
 {
@@ -63,6 +64,10 @@ namespace Spreads.Collections.Internal
             }
             block._head = 0;
             block.EnsureSeriesLayout();
+
+            block._refCount = 0;
+            Debug.Assert(!block.IsDisposed);
+
             return block;
         }
 

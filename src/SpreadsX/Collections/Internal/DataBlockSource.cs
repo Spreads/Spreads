@@ -4,6 +4,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 
 namespace Spreads.Collections.Internal
@@ -76,6 +77,7 @@ namespace Spreads.Collections.Internal
             if (lastBlock != null)
             {
                 lastBlock.NextBlock = value;
+                value.PreviousBlock = lastBlock;
             }
             else
             {
@@ -172,14 +174,7 @@ namespace Spreads.Collections.Internal
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool TryFindAt(TKey key, Lookup direction, out KeyValuePair<TKey, DataBlock> kvp)
         {
-            if (_blockSeries.TryFindAt(key, direction, out var kvpBlock)) // && kvpBlock.Value.TryGetTarget(out var block))
-            {
-                kvp = kvpBlock; // new KeyValuePair<TKey, DataBlock>(kvpBlock.Key, block);
-                return true;
-            }
-            // TODO handle weak reference collected case
-            kvp = default;
-            return false;
+            return _blockSeries.TryFindAt(key, direction, out kvp);
         }
 
         public IEnumerable<TKey> Keys => _blockSeries.Keys;
@@ -200,5 +195,46 @@ namespace Spreads.Collections.Internal
         public ulong? RowCount => null; // TODO here it won't be O(1) but O(N/average block size), maybe we should implement it as sum.
 
         public bool IsEmpty => LastValueOrDefault == null || LastValueOrDefault.RowCount == 0;
+
+        public bool TryGetNextBlock(DataBlock currentBlock, [NotNullWhen(true)] out DataBlock? nextBlock)
+        {
+            nextBlock = currentBlock.NextBlock;
+            if (nextBlock != null)
+            {
+                return true;
+            }
+            if (currentBlock == LastValueOrDefault)
+            {
+                nextBlock = null;
+                return false;
+            }
+
+            if (currentBlock == DataBlock.Empty && First.IsPresent)
+            {
+                nextBlock = First.Present.Value;
+                return true;
+            }
+            throw new NotImplementedException();
+        }
+
+        public bool TryGetPreviousBlock(DataBlock currentBlock, [NotNullWhen(true)] out DataBlock? previousBlock)
+        {
+            previousBlock = currentBlock.PreviousBlock;
+            if (previousBlock != null)
+            {
+                return true;
+            }
+            if (currentBlock == First.Present.Value)
+            {
+                previousBlock = null;
+                return false;
+            }
+            if (currentBlock == DataBlock.Empty && LastValueOrDefault != null)
+            {
+                previousBlock = LastValueOrDefault;
+                return true;
+            }
+            throw new NotImplementedException();
+        }
     }
 }

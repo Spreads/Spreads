@@ -477,7 +477,7 @@ namespace Spreads.Collections
         public void Dispose()
         {
             Dispose(true);
-            Data = null;
+            Data = null!;
             GC.SuppressFinalize(this);
         }
 

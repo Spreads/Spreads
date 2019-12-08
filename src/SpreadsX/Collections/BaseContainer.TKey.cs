@@ -153,7 +153,12 @@ namespace Spreads.Collections
         /// <param name="blockIndex"></param>
         /// <param name="updateDataBlock"></param>
         /// <returns></returns>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(MethodImplOptions.AggressiveInlining
+        #if HAS_AGGR_OPT
+            | MethodImplOptions.AggressiveOptimization
+        #endif
+        
+        )]
         internal bool TryFindBlockAt(ref TKey key, Lookup lookup, [NotNullWhen(returnValue: true)] out DataBlock? block,
             out int blockIndex,
             bool updateDataBlock = false)
@@ -270,8 +275,11 @@ namespace Spreads.Collections
             return false;
         }
 
-        // TODO Test multi-block case and this attribute impact. Maybe direct call is OK without inlining
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(MethodImplOptions.NoInlining
+#if HAS_AGGR_OPT
+            | MethodImplOptions.AggressiveOptimization
+#endif
+        )]
         private void TryFindBlock_ValidateOrGetBlockFromSource(ref DataBlock? db,
             DataBlockSource<TKey> ds,
             TKey key,
@@ -324,10 +332,10 @@ namespace Spreads.Collections
                 // compiler should do magic to convert all this to a loop at JIT stage, so likely it does not
                 // and the question is where to break the chain. We probably could afford non-inlined
                 // DataSource.TryFindAt if this method will be faster for single-block and cache-hit cases.
-                
+
                 Debug.Assert(ds != null, "ds != null"); // TODO review why ds!?
 
-                if (!ds!.TryFindAt(key, sourceDirection, out var kvp))
+                if (!ds.TryFindAt(key, sourceDirection, out var kvp))
                 {
                     db = null;
                 }

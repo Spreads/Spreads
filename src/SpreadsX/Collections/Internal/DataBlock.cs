@@ -53,16 +53,27 @@ namespace Spreads.Collections.Internal
 
         /// <summary>
         /// Fast path to get the next block from the current one.
-        /// (TODO review) callers should not rely on this return value:
-        /// if null it does NOT mean that there is no next block but
+        /// </summary>
+        /// <remarks>
+        /// A null value does not mean that there is no next block but
         /// it just means that we cannot get it in a super fast way (whatever
         /// this means depends on implementation).
-        /// </summary>
-        [Obsolete("Should work without this, was intended as optimization")]
+        /// </remarks>
+        /// <seealso cref="PreviousBlock"/>
         internal DataBlock? NextBlock;
+
+        /// <summary>
+        /// Fast path to get the previous block from the current one.
+        /// </summary>
+        /// <remarks>
+        /// See remarks in <see cref="NextBlock"/>
+        /// </remarks>
+        /// <seealso cref="NextBlock"/>
+        internal DataBlock? PreviousBlock;
 
         private DataBlock()
         {
+            AtomicCounter.Dispose(ref _refCount);
         }
 
         #region Lifecycle
@@ -139,17 +150,20 @@ namespace Spreads.Collections.Internal
         public bool IsDisposed
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => RowCount < 0;
+            get => AtomicCounter.GetIsDisposed(ref _refCount) || RowCount < 0;
         }
 
         [Conditional("DEBUG")]
         private void EnsureDisposed()
         {
+            Debug.Assert(AtomicCounter.GetIsDisposed(ref _refCount));
             Debug.Assert(_rowCount == -1);
             Debug.Assert(_head == -1);
             Debug.Assert(_rowKeys == default);
             Debug.Assert(_values == default);
             Debug.Assert(_columns == null);
+            Debug.Assert(NextBlock == null);
+            Debug.Assert(PreviousBlock == null);
         }
 
         private void Dispose(bool disposing)
@@ -158,12 +172,13 @@ namespace Spreads.Collections.Internal
             {
                 return;
             }
-            AtomicCounter.Dispose(ref _refCount);
 
             if (IsDisposed)
             {
                 ThrowDisposed();
             }
+
+            AtomicCounter.Dispose(ref _refCount);
 
             if (!disposing)
             {
@@ -173,8 +188,19 @@ namespace Spreads.Collections.Internal
             _rowCount = -1;
             _head = -1;
 
-            // just break the chain, if the remaining linked list was only rooted here it will be GCed TODO review
-            NextBlock = null;
+            if (NextBlock != null)
+            {
+                Debug.Assert(NextBlock.PreviousBlock == this);
+                NextBlock.PreviousBlock = null;
+                NextBlock = null;
+            }
+
+            if (PreviousBlock != null)
+            {
+                Debug.Assert(PreviousBlock.NextBlock == this);
+                PreviousBlock.NextBlock = null;
+                PreviousBlock = null;
+            }
 
             if (_columns != null)
             {
@@ -270,17 +296,22 @@ namespace Spreads.Collections.Internal
 
         public int LookupKey<T>(ref T key, Lookup lookup, KeyComparer<T> comparer = default)
         {
-            if (_head + _rowCount < _rowKeys.Vec.Length)
+            if (_head + _rowCount <= _rowKeys.Vec.Length)
             {
                 return _head + VectorSearch.SortedLookup(ref _rowKeys.Vec.DangerousGetRef<T>(_head),
                     _rowCount, ref key, lookup, comparer);
             }
+            return LookupKeySlow(ref key, lookup, comparer);
+        }
 
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private int LookupKeySlow<T>(ref T key, Lookup lookup, KeyComparer<T> comparer)
+        {
             // This should be pretty fast vs. manually managing edge cases on
             // the wrap boundary. TODO test
             var wrappedVec = new RingVec<T>(_rowKeys.Vec, _head, _rowCount);
             return VectorSearch.SortedLookup(ref wrappedVec, 0,
-                       _rowCount, ref key, lookup, comparer);
+                _rowCount, ref key, lookup, comparer);
         }
 
         #region Structure check
@@ -441,7 +472,7 @@ namespace Spreads.Collections.Internal
                     }
                     else
                     {
-                        Debug.Assert(vectorStorage.Vec._runtimeTypeId == _values.Vec._runtimeTypeId);
+                        Debug.Assert(vectorStorage.Vec.RuntimeTypeId == _values.Vec.RuntimeTypeId);
                     }
                 }
 
