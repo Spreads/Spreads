@@ -9,6 +9,7 @@ using Spreads.Utils;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using System.Threading;
 
@@ -218,21 +219,21 @@ namespace Spreads
 
         #region ISeries Try... Methods
 
-#if HAS_AGGR_OPT
-        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
-#endif
+        //#if HAS_AGGR_OPT
+        //        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+        //#endif
 
-        public bool TryGetValue(TKey key, out TValue value)
-        {
-            if (key is null)
-            {
-                value = default!;
-                return false;
-            }
+        //        public bool TryGetValue(TKey key, out TValue value)
+        //        {
+        //            if (key is null)
+        //            {
+        //                value = default!;
+        //                return false;
+        //            }
 
-            // this method is already read synced
-            return TryGetSeriesValue(key, out value);
-        }
+        //            // this method is already read synced
+        //            return TryGetSeriesValue(key, out value);
+        //        }
 
 #if HAS_AGGR_OPT
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
@@ -272,7 +273,6 @@ namespace Spreads
 #if HAS_AGGR_OPT
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
 #endif
-
         public bool TryFindAt(TKey key, Lookup direction, out KeyValuePair<TKey, TValue> kvp)
         {
             bool result;
@@ -282,6 +282,29 @@ namespace Spreads
             var version = Version;
             {
                 result = DoTryFindAt(key, direction, out kvp);
+            }
+            if (NextVersion != version)
+            {
+                sw.SpinOnce();
+                goto SYNC;
+            }
+
+            return result;
+        }
+
+#if HAS_AGGR_OPT
+        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
+
+        public bool TryGetValue(TKey key, [NotNullWhen(true)] out TValue value)
+        {
+            bool result;
+            var sw = new SpinWait();
+
+        SYNC:
+            var version = Version;
+            {
+                result = DoTryGetValue(key, out value);
             }
             if (NextVersion != version)
             {
@@ -310,6 +333,23 @@ namespace Spreads
             }
 
             kvp = default;
+            return false;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining
+#if HAS_AGGR_OPT
+                    | MethodImplOptions.AggressiveOptimization
+#endif
+        )]
+        internal bool DoTryGetValue(TKey key, [NotNullWhen(true)] out TValue value)
+        {
+            if (TryGetBlock(key, out var block, out var blockIndex))
+            {
+                value = block.DangerousValueRef<TValue>(blockIndex);
+                return true;
+            }
+
+            value = default!;
             return false;
         }
     }

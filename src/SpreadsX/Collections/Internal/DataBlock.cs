@@ -259,7 +259,7 @@ namespace Spreads.Collections.Internal
             return RingVecUtil.IndexToOffset(index, _head, _rowCount);
         }
 
-        private unsafe int OffsetToIndex(int offset)
+        private int OffsetToIndex(int offset)
         {
             throw new NotImplementedException();
         }
@@ -302,11 +302,11 @@ namespace Spreads.Collections.Internal
                 return _head + VectorSearch.SortedLookup(ref _rowKeys.Vec.DangerousGetRef<T>(_head),
                     _rowCount, ref key, lookup, comparer);
             }
-            return LookupKeySlow(ref key, lookup, comparer);
+            return LookupKeySlower(ref key, lookup, comparer);
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
-        private int LookupKeySlow<T>(ref T key, Lookup lookup, KeyComparer<T> comparer)
+        private int LookupKeySlower<T>(ref T key, Lookup lookup, KeyComparer<T> comparer)
         {
             // This should be pretty fast vs. manually managing edge cases on
             // the wrap boundary. TODO test
@@ -327,11 +327,15 @@ namespace Spreads.Collections.Internal
                 return _head + VectorSearch.SortedSearch(ref _rowKeys.Vec.DangerousGetRef<T>(_head),
                            _rowCount, key, comparer);
             }
-            return SearchKeySlow(key, comparer);
+
+            // TODO for EQ search we do not need a wrapper, we just need to
+            // decide where to search based on comparison with the last offset
+
+            return SearchKeySlower(key, comparer);
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
-        private int SearchKeySlow<T>(T key, KeyComparer<T> comparer)
+        private int SearchKeySlower<T>(T key, KeyComparer<T> comparer)
         {
             // This should be pretty fast vs. manually managing edge cases on
             // the wrap boundary. TODO test

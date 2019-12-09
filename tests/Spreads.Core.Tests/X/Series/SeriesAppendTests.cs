@@ -177,15 +177,12 @@ namespace Spreads.Core.Tests.X.Series
                 Console.WriteLine("AdditionalCorrectnessChecks.Enabled");
             }
 
-            // TODO disposal
-
-            var sas = new List<Series<int, int>>();
 #if DEBUG
             var counts = new[] { 10, 100, 1000 };
 
 #else
             var counts = new[] { 10, 100, 1000, 10_000, 20_000, 40_000, 100_000, 1_000_000, 10_000_000 };
-            // var counts = new[] { 15_000 };
+            //var counts = new[] { 1_000_000 };
 
 #endif
             foreach (var count in counts)
@@ -194,7 +191,7 @@ namespace Spreads.Core.Tests.X.Series
 
                 var sa = new AppendSeries<int, int>();
                 var sl = new SortedList<int, int>();
-                sas.Add(sa);
+
                 for (int i = 0; i < count; i++)
                 {
                     if (i == 3)
@@ -210,21 +207,22 @@ namespace Spreads.Core.Tests.X.Series
                     sl.Add(i, i);
                 }
 
-                var mult = Math.Max(1, 1_000_000 / count);
+                var mult = Math.Max(1, 1_00_000 / count);
+
+                if (count < 20000)
+                {
+                    mult *= 10;
+                }
 
                 for (int r = 0; r < rounds; r++)
                 {
                     AppendSeriesTgvBench(count, mult, sa);
                     SortedListTgvBench(count, mult, sl);
                 }
+                sa.Dispose();
             }
 
             Benchmark.Dump();
-
-            foreach (var sa in sas)
-            {
-                sa.Dispose();
-            }
         }
 
         [MethodImpl(MethodImplOptions.NoInlining

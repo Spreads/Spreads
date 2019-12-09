@@ -2,7 +2,6 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-using Spreads.Algorithms;
 using Spreads.Collections.Internal;
 using System;
 using System.Diagnostics;
@@ -48,35 +47,6 @@ namespace Spreads.Collections
 
             dataBlock = null;
             dataSource = Unsafe.As<DataBlockSource<TKey>>(d);
-            return false;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal bool TryGetBlock(TKey key, out DataBlock? block, out int blockIndex,
-            bool updateDataBlock = false)
-        {
-            // follows TryFindBlockAt implementation, do not edit this directly
-            // * always search source with LE, do not retry, no special case since we are always searching EQ key
-            // * replace SortedLookup with SortedSearch
-
-            if (!IsDataBlock(out block, out var ds))
-            {
-                TryFindBlock_ValidateOrGetBlockFromSource(ref block, ds, key, Lookup.EQ, Lookup.LE);
-                if (updateDataBlock) Data = block;
-            }
-
-            if (block != null)
-            {
-                blockIndex = VectorSearch.SortedSearch(ref block.DangerousRowKeyRef<TKey>(index: 0),
-                    block.RowCount, key, _comparer);
-
-                if (blockIndex >= 0) return true;
-            }
-            else
-            {
-                blockIndex = -1;
-            }
-
             return false;
         }
 
@@ -151,7 +121,6 @@ namespace Spreads.Collections
         /// <param name="lookup"></param>
         /// <param name="block"></param>
         /// <param name="blockIndex"></param>
-        /// <param name="updateDataBlock"></param>
         /// <returns></returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining
 #if HAS_AGGR_OPT
@@ -159,9 +128,10 @@ namespace Spreads.Collections
 #endif
 
         )]
-        internal bool TryFindBlockAt(ref TKey key, Lookup lookup, [NotNullWhen(returnValue: true)] out DataBlock? block,
-            out int blockIndex,
-            bool updateDataBlock = false)
+        internal bool TryFindBlockAt(ref TKey key,
+            Lookup lookup,
+            [NotNullWhen(returnValue: true)] out DataBlock? block,
+            out int blockIndex)
         {
             // This is non-obvious part:
             // For most searches we could find the right block
@@ -210,68 +180,46 @@ namespace Spreads.Collections
             // even if we could detect special cases in advance. Only when we cannot find check if there was a
             // special case and process it in a slow path as non-inlined method.
 
-            bool retryOnGt = default;
+            bool retryOnGt = false;
 
             if (!IsDataBlock(out block, out var ds))
             {
                 retryOnGt = true;
-                TryFindBlock_ValidateOrGetBlockFromSource(ref block, ds, key, lookup,
-                    lookup == Lookup.LT ? Lookup.LT : Lookup.LE);
-
-                // TODO (review) updating cache is not responsibility of this method
-                // There could be a situation when we know that a search is irregular
-                // Also we return the block from this method so a caller could update itself.
-                // Cursors should not update
-
-                // Even if we do not find the key update cache anyway here unconditionally to search result below,
-                // do not penalize single-block case with this op (significant)
-                // and likely the next search will be around current value anyway
-                if (updateDataBlock) Data = block;
+                if (!TryFindBlockAtFromSource(out block, ds, key,
+                    lookup == Lookup.LT ? Lookup.LT : Lookup.LE))
+                {
+                    block = null;
+                    blockIndex = -1;
+                    return false;
+                }
             }
 
-        RETRY:
-
-            if (block != null)
+            while (true)
             {
-                // Here we use internal knowledge that for series RowIndex in contiguous vec
-                // TODO(?) do check if VS is pure, allow strides > 1 or just create Nth cursor?
-
-                // TODO if _stride > 1 is valid at some point, optimize this search via non-generic IVector with generic getter
-                // ReSharper disable once PossibleNullReferenceException
-                // var x = (block?.RowIndex).DangerousGetRef<TKey>(0);
                 blockIndex = block.LookupKey(ref key, lookup, _comparer);
 
                 if (blockIndex >= 0)
                 {
-                    // TODO this is not needed? left from initial?
-                    if (updateDataBlock) Data = block;
-
                     return true;
                 }
 
                 // Check for SPECIAL CASE from the comment above
-                if (retryOnGt &&
-                    ~blockIndex == block.RowCount
-                    && ((int)lookup & (int)Lookup.GT) != 0)
+                if (retryOnGt
+                    & /*not a type, single & */ ((int)lookup & (int)Lookup.GT) != 0
+                    && ~blockIndex == block.RowCount)
                 {
                     retryOnGt = false;
-                    var nextBlock = block.NextBlock;
-                    if (nextBlock == null)
-                        TryFindBlock_ValidateOrGetBlockFromSource(ref nextBlock, ds,
-                            block.DangerousRowKeyRef<TKey>(index: 0), lookup, Lookup.GT);
-
-                    if (nextBlock != null)
+                    Debug.Assert(ds != null, "retryOnGt is set only when ds != null");
+                    if (ds!.TryGetNextBlock(block, out block))
                     {
-                        block = nextBlock;
-                        goto RETRY;
+                        continue;
                     }
                 }
-            }
-            else
-            {
-                blockIndex = -1;
+                break;
             }
 
+            block = null;
+            blockIndex = -1;
             return false;
         }
 
@@ -280,99 +228,80 @@ namespace Spreads.Collections
             | MethodImplOptions.AggressiveOptimization
 #endif
         )]
-        private void TryFindBlock_ValidateOrGetBlockFromSource(ref DataBlock? db,
+        internal bool TryFindBlockAtFromSource([NotNullWhen(true)]out DataBlock? db,
             DataBlockSource<TKey> ds,
             TKey key,
-            Lookup direction,
             Lookup sourceDirection)
         {
-            // for single block this should exist, for sourced blocks this value is updated by a last search
-            // Take reference, do not work directly. Reference assignment is atomic in .NET
-
-            if (db != null) // cached block
+            if (!ds.TryFindAt(key, sourceDirection, out var kvp))
             {
-                // Check edge cases if key is outside the block and we may need to retrieve
-                // the right one from storage. We do not know anything about other blocks, so we must
-                // be strictly in range so that all searches will work.
-
-                if (db.RowCount <= 1
-                ) // with 1 there are some edge cases that penalize normal path, so make just one comparison
-                {
-                    db = null;
-                }
-                else
-                {
-                    var firstC = _comparer.Compare(key, db.DangerousRowKeyRef<TKey>(index: 0));
-
-                    if (firstC < 0 // not in this block even if looking LT
-                        || direction == Lookup.LT // first value is >= key so LT won't find the value in this block
-                                                  // Because rowLength >= 2 we do not need to check for firstC == 0 && GT
-                    )
-                    {
-                        db = null;
-                    }
-                    else
-                    {
-                        var lastC = _comparer.Compare(key, db.DangerousRowKeyRef<TKey>(db.RowCount - 1));
-
-                        if (lastC > 0
-                            || direction == Lookup.GT
-                        )
-                            db = null;
-                    }
-                }
+                db = null;
+                return false;
             }
 
-            // if block is null here we have rejected it and need to get it from source
-            // or it is the first search and cached block was not set yet
-            if (db == null)
+            if (AdditionalCorrectnessChecks.Enabled)
             {
-                // Lookup sourceDirection = direction == Lookup.LT ? Lookup.LT : Lookup.LE;
-                // TODO review: next line will eventually call this method for in-memory case, so how inlining possible?
-                // compiler should do magic to convert all this to a loop at JIT stage, so likely it does not
-                // and the question is where to break the chain. We probably could afford non-inlined
-                // DataSource.TryFindAt if this method will be faster for single-block and cache-hit cases.
-
-                Debug.Assert(ds != null, "ds != null"); // TODO review why ds!?
-
-                if (!ds.TryFindAt(key, sourceDirection, out var kvp))
-                {
-                    db = null;
-                }
-                else
-                {
-                    if (AdditionalCorrectnessChecks.Enabled)
-                        if (kvp.Value.RowCount <= 0 ||
-                            _comparer.Compare(kvp.Key, kvp.Value.DangerousRowKeyRef<TKey>(index: 0)) != 0)
-                            ThrowBadBlockFromSource();
-
-                    db = kvp.Value;
-                }
+                if (kvp.Value.RowCount <= 0 ||
+                    _comparer.Compare(kvp.Key, kvp.Value.DangerousRowKeyRef<TKey>(index: 0)) != 0)
+                { ThrowBadBlockFromSource(); }
             }
+
+            db = kvp.Value;
+            return true;
         }
 
-        //[MethodImpl(MethodImplOptions.AggressiveInlining)]
-        //private DataBlock TryFindBlockAt_LookUpSource(TKey sourceKey, Lookup direction)
-        //{
-        //    // TODO review: next line will eventually call this method for in-memory case, so how inlining possible?
-        //    // compiler should do magic to convert all this to a loop at JIT stage, so likely it does not
-        //    // and the question is where to break the chain. We probably could afford non-inlined
-        //    // DataSource.TryFindAt if this method will be faster for single-block and cache-hit cases.
-        //    if (!DataSource.TryFindAt(sourceKey, direction, out var kvp))
-        //    {
-        //        return null;
-        //    }
+        /// <summary>
+        /// Finds block and key index inside the block.
+        /// </summary>
+        /// <param name="key"></param>
+        /// <param name="block"></param>
+        /// <param name="blockIndex"></param>
+        /// <returns></returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining
+#if HAS_AGGR_OPT
+            | MethodImplOptions.AggressiveOptimization
+#endif
+        )]
+        internal bool TryGetBlock(TKey key,
+            [NotNullWhen(returnValue: true)] out DataBlock? block,
+            out int blockIndex)
+        {
+            if (!IsDataBlock(out block, out var ds)
+                && !TryGetBlockFromSource(out block, ds, in key))
+            {
+                block = null;
+                blockIndex = -1;
+                return false;
+            }
+            blockIndex = block.SearchKey(key, _comparer);
+            return blockIndex >= 0;
+        }
 
-        //    if (AdditionalCorrectnessChecks.Enabled)
-        //    {
-        //        if (kvp.Value.RowCount <= 0 || _comparer.Compare(kvp.Key, kvp.Value.DangerousRowKeyRef<TKey>(0)) != 0)
-        //        {
-        //            ThrowBadBlockFromSource();
-        //        }
-        //    }
+        [MethodImpl(MethodImplOptions.NoInlining
+#if HAS_AGGR_OPT
+            | MethodImplOptions.AggressiveOptimization
+#endif
+        )]
+        private bool TryGetBlockFromSource([NotNullWhen(true)]out DataBlock? db,
+            DataBlockSource<TKey> ds,
+            in TKey key)
+        {
+            if (!ds.TryFindAt(key, Lookup.LE, out var kvp))
+            {
+                db = null;
+                return false;
+            }
 
-        //    return kvp.Value;
-        //}
+            if (AdditionalCorrectnessChecks.Enabled)
+            {
+                if (kvp.Value.RowCount <= 0 ||
+                    _comparer.Compare(kvp.Key, kvp.Value.DangerousRowKeyRef<TKey>(index: 0)) != 0)
+                { ThrowBadBlockFromSource(); }
+            }
+
+            db = kvp.Value;
+            return true;
+        }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
         private static void ThrowBadBlockFromSource()
@@ -388,7 +317,7 @@ namespace Spreads.Collections
             else
                 ds.Dispose();
 
-            Data = null;
+            Data = null!;
 
             base.Dispose(disposing: true);
         }

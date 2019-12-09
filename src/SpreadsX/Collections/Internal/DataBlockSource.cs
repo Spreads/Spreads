@@ -171,7 +171,6 @@ namespace Spreads.Collections.Internal
             throw new NotImplementedException();
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool TryFindAt(TKey key, Lookup direction, out KeyValuePair<TKey, DataBlock> kvp)
         {
             return _blockSeries.DoTryFindAt(key, direction, out kvp);
@@ -196,25 +195,42 @@ namespace Spreads.Collections.Internal
 
         public bool IsEmpty => LastValueOrDefault == null || LastValueOrDefault.RowCount == 0;
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool TryGetNextBlock(DataBlock currentBlock, [NotNullWhen(true)] out DataBlock? nextBlock)
         {
             nextBlock = currentBlock.NextBlock;
+
             if (nextBlock != null)
             {
                 return true;
             }
+
             if (currentBlock == LastValueOrDefault)
             {
                 nextBlock = null;
                 return false;
             }
 
+            return TryGetNextBlockSlower(currentBlock, out nextBlock);
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private bool TryGetNextBlockSlower(DataBlock currentBlock, out DataBlock? nb)
+        {
             if (currentBlock == DataBlock.Empty && First.IsPresent)
             {
-                nextBlock = First.Present.Value;
+                nb = First.Present.Value;
                 return true;
             }
-            throw new NotImplementedException();
+
+            if (_blockSeries.TryFindBlockAtFromSource(out nb, this,
+                currentBlock.DangerousRowKeyRef<TKey>(index: 0), Lookup.GT))
+            {
+                return true;
+            }
+
+            nb = null;
+            return false;
         }
 
         public bool TryGetPreviousBlock(DataBlock currentBlock, [NotNullWhen(true)] out DataBlock? previousBlock)

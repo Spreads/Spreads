@@ -128,7 +128,7 @@ namespace Spreads.Collections.Internal
 
             var version = _source.Version;
             {
-                found = _source.TryFindBlockAt(ref key, direction, out nextBlock, out nextPosition, updateDataBlock: false);
+                found = _source.TryFindBlockAt(ref key, direction, out nextBlock, out nextPosition);
                 if (found)
                 {
                     v = GetCurrentValue(nextPosition);
