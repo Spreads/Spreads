@@ -154,10 +154,10 @@ namespace Spreads.Collections
         /// <param name="updateDataBlock"></param>
         /// <returns></returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining
-        #if HAS_AGGR_OPT
+#if HAS_AGGR_OPT
             | MethodImplOptions.AggressiveOptimization
-        #endif
-        
+#endif
+
         )]
         internal bool TryFindBlockAt(ref TKey key, Lookup lookup, [NotNullWhen(returnValue: true)] out DataBlock? block,
             out int blockIndex,

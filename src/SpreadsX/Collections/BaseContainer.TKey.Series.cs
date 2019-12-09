@@ -33,7 +33,7 @@ namespace Spreads.Collections
 
                 if (block != null)
                 {
-                    var blockIndex = block.LookupKey(ref key, Lookup.EQ, _comparer);
+                    var blockIndex = block.SearchKey(key, _comparer);
                     if (blockIndex >= 0)
                     {
                         value = block.DangerousValueRef<TValue>(blockIndex);

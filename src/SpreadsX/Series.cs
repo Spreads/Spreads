@@ -281,18 +281,7 @@ namespace Spreads
         SYNC:
             var version = Version;
             {
-                if (TryFindBlockAt(ref key, direction, out var block, out var blockIndex))
-                {
-                    // key is updated if not EQ according to direction
-                    var v = block.DangerousValueRef<TValue>(blockIndex);
-                    kvp = new KeyValuePair<TKey, TValue>(key, v);
-                    result = true;
-                }
-                else
-                {
-                    kvp = default;
-                    result = false;
-                }
+                result = DoTryFindAt(key, direction, out kvp);
             }
             if (NextVersion != version)
             {
@@ -304,5 +293,24 @@ namespace Spreads
         }
 
         #endregion ISeries Try... Methods
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining
+#if HAS_AGGR_OPT
+                    | MethodImplOptions.AggressiveOptimization
+#endif
+        )]
+        internal bool DoTryFindAt(TKey key, Lookup direction, out KeyValuePair<TKey, TValue> kvp)
+        {
+            if (TryFindBlockAt(ref key, direction, out var block, out var blockIndex))
+            {
+                // key is updated if not EQ according to direction
+                var v = block.DangerousValueRef<TValue>(blockIndex);
+                kvp = new KeyValuePair<TKey, TValue>(key, v);
+                return true;
+            }
+
+            kvp = default;
+            return false;
+        }
     }
 }

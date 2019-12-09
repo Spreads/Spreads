@@ -185,7 +185,7 @@ namespace Spreads.Core.Tests.X.Series
 
 #else
             var counts = new[] { 10, 100, 1000, 10_000, 20_000, 40_000, 100_000, 1_000_000, 10_000_000 };
-            // var counts = new[] { 16_000 };
+            // var counts = new[] { 15_000 };
 
 #endif
             foreach (var count in counts)

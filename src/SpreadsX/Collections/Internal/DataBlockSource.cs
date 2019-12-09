@@ -28,14 +28,14 @@ namespace Spreads.Collections.Internal
         private DataBlock? _last;
 
         // This is used from locked context, do not use locked methods
-        internal IMutableSeries<TKey, DataBlock> _blockSeries;
+        internal MutableSeries<TKey, DataBlock> _blockSeries;
 
         public DataBlockSource()
         {
             _blockSeries = new MutableSeries<TKey, DataBlock>();
         }
 
-        internal DataBlockSource(IMutableSeries<TKey, DataBlock> blockSeries)
+        internal DataBlockSource(MutableSeries<TKey, DataBlock> blockSeries)
         {
             _blockSeries = blockSeries;
         }
@@ -174,7 +174,7 @@ namespace Spreads.Collections.Internal
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool TryFindAt(TKey key, Lookup direction, out KeyValuePair<TKey, DataBlock> kvp)
         {
-            return _blockSeries.TryFindAt(key, direction, out kvp);
+            return _blockSeries.DoTryFindAt(key, direction, out kvp);
         }
 
         public IEnumerable<TKey> Keys => _blockSeries.Keys;

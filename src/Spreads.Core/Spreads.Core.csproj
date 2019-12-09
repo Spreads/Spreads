@@ -29,7 +29,7 @@
   
   <ItemGroup>
     <PackageReference Condition="'$(TargetFramework)' != 'netcoreapp3.0' and '$(TargetFramework)' != 'netstandard2.1' " Include="Microsoft.Bcl.AsyncInterfaces" Version="1.0.0" />
-    <PackageReference Include="Spreads.Native" Version="2019.1.1116-build221800" />
+    <PackageReference Include="Spreads.Native" Version="2019.1.1209" />
     <PackageReference Include="System.Buffers" Version="4.5.0" />
     <PackageReference Include="System.Collections.Immutable" Version="1.6.0" />
     <PackageReference Include="System.Numerics.Vectors" Version="4.5.0" />
