@@ -117,27 +117,45 @@ namespace Spreads.Core.Tests.X.Series
             }
 
             int count = (int)TestUtils.GetBenchCount(10_000_000);
-            int rounds = (int)TestUtils.GetBenchCount(100, 1);
+            int rounds = (int)TestUtils.GetBenchCount(10, 1);
 
             var sl = new SortedList<int, int>();
             var sa = new AppendSeries<int, int>();
+            var di = new Dictionary<int,int>();
 
-            //for (int r = 0; r < rounds; r++)
-            //{
-            //    using (Benchmark.Run("SL.Add", count))
-            //    {
-            //        for (int i = r * count; i < (r + 1) * count; i++)
-            //        {
-            //            if (i == r * count + 3)
-            //            {
-            //                continue;
-            //            }
+            for (int r = 0; r < rounds; r++)
+            {
+                using (Benchmark.Run("SL.Add", count))
+                {
+                    for (int i = r * count; i < (r + 1) * count; i++)
+                    {
+                        if (i == r * count + 3)
+                        {
+                            continue;
+                        }
 
-            //            sl.Add(i, i);
-            //        }
-            //    }
-            //    Console.WriteLine($"Added {((r + 1) * count / 1000000).ToString("N")}");
-            //}
+                        sl.Add(i, i);
+                    }
+                }
+                Console.WriteLine($"Added {((r + 1) * count / 1000000):N}");
+            }
+
+            for (int r = 0; r < rounds; r++)
+            {
+                using (Benchmark.Run("DI.Add", count))
+                {
+                    for (int i = r * count; i < (r + 1) * count; i++)
+                    {
+                        if (i == r * count + 3)
+                        {
+                            continue;
+                        }
+
+                        di.Add(i, i);
+                    }
+                }
+                Console.WriteLine($"Added {((r + 1) * count / 1000000):N}");
+            }
 
             for (int r = 0; r < rounds; r++)
             {
@@ -149,7 +167,8 @@ namespace Spreads.Core.Tests.X.Series
                         {
                             continue;
                         }
-                        if (!sa.TryAppend(i, i))
+
+                        if (!sa.DangerousTryAppend(i, i))
                         {
                             Console.WriteLine("Cannot add " + i);
                             return;
@@ -157,7 +176,7 @@ namespace Spreads.Core.Tests.X.Series
                     }
                 }
 
-                Console.WriteLine($"Added {((r + 1) * count / 1000000).ToString("N")}");
+                Console.WriteLine($"Added {((r + 1) * count / 1000000):N}");
             }
 
             Benchmark.Dump();
@@ -191,6 +210,7 @@ namespace Spreads.Core.Tests.X.Series
 
                 var sa = new AppendSeries<int, int>();
                 var sl = new SortedList<int, int>();
+                var dict = new Dictionary<int,int>();
 
                 for (int i = 0; i < count; i++)
                 {
@@ -199,12 +219,13 @@ namespace Spreads.Core.Tests.X.Series
                         continue;
                     }
 
-                    if (!sa.DoTryAppend(i, i))
+                    if (!sa.DangerousTryAppend(i, i))
                     {
                         Assert.Fail("Cannot add " + i);
                     }
 
                     sl.Add(i, i);
+                    dict.Add(i, i);
                 }
 
                 var mult = Math.Max(1, 1_00_000 / count);
@@ -218,6 +239,7 @@ namespace Spreads.Core.Tests.X.Series
                 {
                     AppendSeriesTgvBench(count, mult, sa);
                     SortedListTgvBench(count, mult, sl);
+                    DictionaryTgvBench(count, mult, dict);
                 }
                 sa.Dispose();
             }
@@ -255,7 +277,7 @@ namespace Spreads.Core.Tests.X.Series
                     | MethodImplOptions.AggressiveOptimization
 #endif
         )]
-        private static void SortedListTgvBench(int count, int mult, SortedList<int, int> sa)
+        private static void SortedListTgvBench(int count, int mult, SortedList<int, int> sl)
         {
             using (Benchmark.Run($"SL {count:N}", count * mult))
             {
@@ -263,7 +285,32 @@ namespace Spreads.Core.Tests.X.Series
                 {
                     for (int i = 0; i < count; i++)
                     {
-                        if (!sa.TryGetValue(i, out var val) || val != i)
+                        if (!sl.TryGetValue(i, out var val) || val != i)
+                        {
+                            if (i != 3)
+                            {
+                                Assert.Fail($"!sl.TryGetValue(i, out var val) || val {val} != i {i}");
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining
+#if NETCOREAPP3_0
+                    | MethodImplOptions.AggressiveOptimization
+#endif
+        )]
+        private static void DictionaryTgvBench(int count, int mult, Dictionary<int, int> dictionary)
+        {
+            using (Benchmark.Run($"DI {count:N}", count * mult))
+            {
+                for (int _ = 0; _ < mult; _++)
+                {
+                    for (int i = 0; i < count; i++)
+                    {
+                        if (!dictionary.TryGetValue(i, out var val) || val != i)
                         {
                             if (i != 3)
                             {

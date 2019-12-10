@@ -128,6 +128,7 @@ namespace Spreads.Collections.Internal
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
+                // very important optimization for Series.Append
                 if (_last != null)
                 {
                     return _last;

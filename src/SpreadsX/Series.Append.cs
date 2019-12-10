@@ -78,12 +78,18 @@ namespace Spreads
         {
         }
 
+        /// <summary>
+        /// Thread-unsafe equivalent of <see cref="TryAppend"/>.
+        /// 2x faster but concurrent access could corrupt data or
+        /// readers could get wrong results.
+        /// Use it only when single-threaded access is guaranteed.
+        /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining
 #if HAS_AGGR_OPT
-            | MethodImplOptions.AggressiveOptimization
+                    | MethodImplOptions.AggressiveOptimization
 #endif
         )]
-        internal bool DoTryAppend(TKey key, TValue value)
+        public bool DangerousTryAppend(TKey key, TValue value)
         {
             if (Mutability == Mutability.ReadOnly)
             {
@@ -98,10 +104,10 @@ namespace Spreads
 #if BUILTIN_NULLABLE
             Debug.Assert(db != null, "Data source must not be set if empty");
 #endif
-
-            if (db.RowCount > 0)
+            var dbRowCount = db.RowCount;
+            if (dbRowCount > 0)
             {
-                var lastKey = db.DangerousRowKeyRef<TKey>(db.RowCount - 1);
+                var lastKey = db.DangerousRowKeyRef<TKey>(dbRowCount - 1);
 
                 var c = _comparer.Compare(key, lastKey);
                 if (c <= 0 // faster path is c > 0
@@ -115,7 +121,7 @@ namespace Spreads
                 }
             }
 
-            if (db.RowCount == db.RowCapacity)
+            if (dbRowCount == db.RowCapacity)
             {
                 if (!TryGrowCapacity(key, ref db))
                 {
@@ -200,7 +206,7 @@ namespace Spreads
             AcquireLock();
             try
             {
-                return DoTryAppend(key, value);
+                return DangerousTryAppend(key, value);
             }
             finally
             {

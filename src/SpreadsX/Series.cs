@@ -160,7 +160,7 @@ namespace Spreads
                 {
                     return db.DangerousValueRef<TValue>(idx);
                 }
-                return default;
+                return default!;
             }
         }
 
