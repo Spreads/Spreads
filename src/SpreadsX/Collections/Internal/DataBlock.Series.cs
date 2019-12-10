@@ -7,8 +7,6 @@ using Spreads.Utils;
 using System;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
-using System.Threading;
-using Spreads.Threading;
 
 namespace Spreads.Collections.Internal
 {
@@ -79,6 +77,32 @@ namespace Spreads.Collections.Internal
             | MethodImplOptions.AggressiveOptimization
 #endif
         )]
+        internal void SeriesAppend<TKey, TValue>(int index, TKey key, TValue value)
+        {
+            EnsureSeriesLayout();
+
+            if (AdditionalCorrectnessChecks.Enabled)
+            {
+                SeriesAdditionalInsertChecks(index);
+            }
+
+            Debug.Assert(index == RowCount);
+
+            _rowKeys.Vec.DangerousGetRef<TKey>(index) = key;
+            _values.Vec.DangerousGetRef<TValue>(index) = value;
+
+            // volatile increment goes last
+            _rowCount++;
+        }
+
+        /// <summary>
+        /// Insert key to RowIndex and value in Values only if there is enough capacity.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining
+#if HAS_AGGR_OPT
+            | MethodImplOptions.AggressiveOptimization
+#endif
+        )]
         internal void SeriesInsert<TKey, TValue>(int index, TKey key, TValue value)
         {
             EnsureSeriesLayout();
@@ -100,10 +124,8 @@ namespace Spreads.Collections.Internal
             _rowKeys.Vec.DangerousGetRef<TKey>(index) = key;
             _values.Vec.DangerousGetRef<TValue>(index) = value;
 
-            // we are inside write-locked context,
-            // but readers check only the length during AddLast/Append
-            // without spinning on order version.
-            Volatile.Write(ref _rowCount, _rowCount + 1); // TODO Volatile needed only for AddLast, see the TODO above.
+            // volatile increment goes last
+            _rowCount++;
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
@@ -136,6 +158,10 @@ namespace Spreads.Collections.Internal
         {
             EnsureSeriesLayout();
             EnsureNotSentinel();
+
+            // TODO At RMP level we must make sure that memory is never allocated
+            // larger than requested at least when the next buffer is in LOH
+            // all LOH buffers are 128k to avoid LOH fragmentation
 
             // TODO handle OutOfMemory in RentMemory, operation must be atomic in a sense that any error does not change existing data, no partial updates.
 

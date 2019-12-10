@@ -31,7 +31,6 @@ namespace Spreads.Buffers
             ArrayPoolImpl.Return(array, clearArray);
         }
 
-        
         public static RetainableMemoryPool<T> MemoryPool = new RetainableMemoryPool<T>(
                 factory: null,
                 minLength: Settings.MIN_POOLED_BUFFER_LEN,

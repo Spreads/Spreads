@@ -122,22 +122,22 @@ namespace Spreads.Core.Tests.X.Series
             var sl = new SortedList<int, int>();
             var sa = new AppendSeries<int, int>();
 
-            for (int r = 0; r < rounds; r++)
-            {
-                using (Benchmark.Run("SL.Add", count))
-                {
-                    for (int i = r * count; i < (r + 1) * count; i++)
-                    {
-                        if (i == r * count + 3)
-                        {
-                            continue;
-                        }
+            //for (int r = 0; r < rounds; r++)
+            //{
+            //    using (Benchmark.Run("SL.Add", count))
+            //    {
+            //        for (int i = r * count; i < (r + 1) * count; i++)
+            //        {
+            //            if (i == r * count + 3)
+            //            {
+            //                continue;
+            //            }
 
-                        sl.Add(i, i);
-                    }
-                }
-                Console.WriteLine($"Added {((r + 1) * count / 1000000).ToString("N")}");
-            }
+            //            sl.Add(i, i);
+            //        }
+            //    }
+            //    Console.WriteLine($"Added {((r + 1) * count / 1000000).ToString("N")}");
+            //}
 
             for (int r = 0; r < rounds; r++)
             {

@@ -26,7 +26,7 @@ namespace Spreads
             KeyComparer<TKey> comparer = default,
             MovingWindowOptions<TKey> movingWindowOptions = default)
         {
-            if (keySorting == KeySorting.Weak)
+            if (keySorting != KeySorting.Strong)
             {
                 throw new NotImplementedException();
             }

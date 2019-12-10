@@ -13,7 +13,7 @@ namespace Spreads.Collections
     /// <summary>
     /// Base container with row keys of type <typeparamref name="TKey"/>.
     /// </summary>
-    public partial class BaseContainer<TKey> : BaseContainer
+    public class BaseContainer<TKey> : BaseContainer
     {
         // internal ctor for tests only, it should have been abstract otherwise
         internal BaseContainer()

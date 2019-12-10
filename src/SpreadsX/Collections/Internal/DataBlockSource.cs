@@ -233,24 +233,42 @@ namespace Spreads.Collections.Internal
             return false;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool TryGetPreviousBlock(DataBlock currentBlock, [NotNullWhen(true)] out DataBlock? previousBlock)
         {
             previousBlock = currentBlock.PreviousBlock;
+
             if (previousBlock != null)
             {
                 return true;
             }
+
             if (currentBlock == First.Present.Value)
             {
                 previousBlock = null;
                 return false;
             }
+
+            return TryGetPreviousBlockSlower(currentBlock, out previousBlock);
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private bool TryGetPreviousBlockSlower(DataBlock currentBlock, out DataBlock? previousBlock)
+        {
             if (currentBlock == DataBlock.Empty && LastValueOrDefault != null)
             {
                 previousBlock = LastValueOrDefault;
                 return true;
             }
-            throw new NotImplementedException();
+
+            if (_blockSeries.TryFindBlockAtFromSource(out previousBlock, this,
+                currentBlock.DangerousRowKeyRef<TKey>(index: 0), Lookup.LT))
+            {
+                return true;
+            }
+
+            previousBlock = null;
+            return false;
         }
     }
 }

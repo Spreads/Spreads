@@ -85,6 +85,11 @@ namespace Spreads
         )]
         internal bool DoTryAppend(TKey key, TValue value)
         {
+            if (Mutability == Mutability.ReadOnly)
+            {
+                return false;
+            }
+
             if (!IsDataBlock(out var db, out var ds))
             {
                 db = ds.LastValueOrDefault!;
@@ -99,8 +104,13 @@ namespace Spreads
                 var lastKey = db.DangerousRowKeyRef<TKey>(db.RowCount - 1);
 
                 var c = _comparer.Compare(key, lastKey);
-                if (c <= 0)
+                if (c <= 0 // faster path is c > 0
+                    && (c < 0 & KeySorting == KeySorting.Weak)
+                    | // no short-circuit && or || here
+                    (c == 0 & KeySorting == KeySorting.Strong)
+                    )
                 {
+                    // TODO detect which condition caused that in Append.ThrowCannotAppend
                     return false;
                 }
             }
@@ -112,9 +122,7 @@ namespace Spreads
                     return false;
                 }
             }
-
-            // TODO append, see comments inside SeriesInsert
-            db.SeriesInsert(db.RowCount, key, value);
+            db.SeriesAppend(db.RowCount, key, value);
             return true;
         }
 
@@ -125,20 +133,20 @@ namespace Spreads
         )]
         private bool TryGrowCapacity(TKey key, [NotNullWhen(true)] ref DataBlock? block)
         {
-            if (block == null)
-            {
-                throw new ArgumentNullException(nameof(block));
-            }
+            ThrowHelper.AssertFailFast(block != null);
+
             try
             {
-                // TODO review: do we want buffers in LOH or not? <= vs <
-                // next increment will be 64kb, avoid buffer in LOH
                 if (block == DataBlock.Empty)
                 {
                     block = DataBlock.SeriesCreate(rowLength: 0);
                     Data = block;
                 }
 
+                // TODO review: do we want buffers in LOH or not? <= vs <
+                // next increment will be 64kb, avoid buffer in LOH
+
+                // ReSharper disable once PossibleNullReferenceException
                 if (block.RowCapacity < MaxBufferLength)
                 {
                     if (block.SeriesIncreaseCapacity<TKey, TValue>() < 0)
@@ -209,7 +217,17 @@ namespace Spreads
         {
             if (!TryAppend(key, value))
             {
-                ThrowHelper.ThrowInvalidOperationException($"Cannot append key {key}");
+                ThrowCannotAppend();
+            }
+
+            void ThrowCannotAppend()
+            {
+                if (Mutability == Mutability.ReadOnly)
+                {
+                    ThrowHelper.ThrowInvalidOperationException("Cannot append values to read-only series.");
+                }
+
+                ThrowHelper.ThrowInvalidOperationException($"Cannot append [{key}, {value}]");
             }
         }
 
@@ -230,7 +248,19 @@ namespace Spreads
 
         public void Append<TPairs>(TPairs pairs) where TPairs : IEnumerable<KeyValuePair<TKey, TValue>>
         {
-            throw new NotImplementedException();
+            if (!TryAppend(pairs))
+            {
+                ThrowCannotAppend();
+            }
+            void ThrowCannotAppend()
+            {
+                if (Mutability == Mutability.ReadOnly)
+                {
+                    ThrowHelper.ThrowInvalidOperationException("Cannot append values to read-only series.");
+                }
+
+                ThrowHelper.ThrowInvalidOperationException($"Cannot append key-value pair");
+            }
         }
 
         /// <inheritdoc />
