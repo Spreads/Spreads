@@ -1,7 +1,3 @@
-[submodule "lib/Ix.NET"]
-	path = lib/Ix.NET
-	url = https://github.com/Spreads/Ix.NET
-	branch = spreads
 [submodule "lib/Utf8Json"]
 	path = lib/Utf8Json
 	url = https://github.com/Spreads/Utf8Json

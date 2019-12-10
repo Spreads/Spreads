@@ -219,22 +219,6 @@ namespace Spreads
 
         #region ISeries Try... Methods
 
-        //#if HAS_AGGR_OPT
-        //        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
-        //#endif
-
-        //        public bool TryGetValue(TKey key, out TValue value)
-        //        {
-        //            if (key is null)
-        //            {
-        //                value = default!;
-        //                return false;
-        //            }
-
-        //            // this method is already read synced
-        //            return TryGetSeriesValue(key, out value);
-        //        }
-
 #if HAS_AGGR_OPT
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
 #endif
@@ -273,6 +257,7 @@ namespace Spreads
 #if HAS_AGGR_OPT
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
 #endif
+
         public bool TryFindAt(TKey key, Lookup direction, out KeyValuePair<TKey, TValue> kvp)
         {
             bool result;
