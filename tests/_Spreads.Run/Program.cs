@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 using Spreads.Core.Tests.Algorithms;
+using Spreads.Core.Tests.Buffers;
 using Spreads.Core.Tests.Collections.Concurrent;
 using Spreads.Core.Tests.Serialization;
 using Spreads.Core.Tests.X.Series;
@@ -36,8 +37,8 @@ namespace Spreads.Run
             ExecutionContext.SuppressFlow();
             Settings.SharedSpinLockNotificationPort = 53412;
 
-            var test = new SeriesAppendTests();
-            test.CouldAppendSeriesBench();
+            var test = new ArrayMemoryTests();
+            test.PoolReturnsSameSizeUsingSlices(5);
 
             // Console.WriteLine("Finished, press enter to exit...");
             // Console.ReadLine();

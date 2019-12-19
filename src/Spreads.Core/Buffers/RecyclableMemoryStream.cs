@@ -585,7 +585,7 @@ namespace Spreads.Buffers
             // InternalRead will check for existence of largeBuffer, so make sure we
             // don't set it until after we've copied the data.
             InternalRead(newBuffer, 0, _length, 0);
-            _largeBuffer = ArrayMemory<byte>.Create(newBuffer).Retain();
+            _largeBuffer = ArrayMemory<byte>.Create(newBuffer, false).Retain();
 
             if (_blocks.Count > 0)
             {

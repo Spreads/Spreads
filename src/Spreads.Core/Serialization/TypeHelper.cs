@@ -147,6 +147,8 @@ namespace Spreads.Serialization
         // ReSharper disable once StaticMemberInGenericType
         public static readonly bool IsPinnable = PinnedSize > 0;
 
+        public static readonly bool IsReferenceOrContainsReferences = VecTypeHelper<T>.RuntimeVecInfo.IsReferenceOrContainsReferences;
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int EnsureFixedSize()
         {

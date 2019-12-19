@@ -251,5 +251,16 @@ namespace Spreads.Collections.Internal
                 return -1;
             }
         }
+
+
+        internal bool SeriesTrimFirstValue<TKey, TValue>(out TKey key, out TValue value)
+        {
+            throw new NotImplementedException();
+            //value = DangerousValueRef<TValue>(0);
+
+            //return _rowCount > 0;
+
+            
+        }
     }
 }

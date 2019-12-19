@@ -15,8 +15,7 @@ namespace Spreads.Buffers
     }
 
     /// <summary>
-    /// Base class for retainable memory. Buffers are pinned during initialization if that is possible.
-    /// Initialization could be from a pool of arrays or from native memory.
+    /// Base class for retainable memory from a pool of arrays or from native memory.
     /// </summary>
     public abstract unsafe class RetainableMemory<T> : MemoryManager<T>, IRefCounted
     {
@@ -30,24 +29,28 @@ namespace Spreads.Buffers
 #endif
         }
 
+
+        
         // [p*<-len---------------->] we must only check capacity at construction and then work from pointer
         // [p*<-len-[<--lenPow2-->]>] buffer could be larger, pooling always by max pow2 we could store
 
         protected void* _pointer;
-
         protected int _length;
 
         [Obsolete("Must be used only from CounterRef or for custom storage when _isNativeWithHeader == true")]
         internal int _counterOrReserved;
 
-        // Internals with private-like _name are not intended for usage outside RMPool and tests.
-
-        internal byte _poolIdx;
+        /// <summary>
+        /// 0 - externally owned;
+        /// 1 - default array pool (no RM pool);
+        /// 2+ - custom pool.
+        /// </summary>
+        internal byte PoolIndex;
 
         /// <summary>
-        /// A pool sets this value atomically from a SpinLock.
+        /// A pool sets this value atomically from inside a lock.
         /// </summary>
-        internal volatile bool _isPooled;
+        internal volatile bool IsPooled;
 
         /// <summary>
         /// True if the memory is already clean (all zeros) on return. Useful for the case when
@@ -58,15 +61,18 @@ namespace Spreads.Buffers
         internal bool SkipCleaning;
 
         /// <summary>
-        /// True if there is a header at <see cref="NativeHeaderSize"/> before the <see cref="_pointer"/>.
-        /// Special case for DS's SM.
+        /// True if there is a header at <see cref="NativeHeaderSize"/> before the <see cref="Pointer"/>.
+        /// Special case for DataSpreads SM.
         /// </summary>
-        internal bool _isNativeWithHeader;
+        internal bool IsNativeWithHeader;
 
         // One byte slot is padded anyway, so _isNativeWithHeader takes no space.
         // Storing offset as int will increase object size by 4 bytes.
         // (actually in this class 4 bytes are padded as well to 24, but ArrayMemory
         //  uses that and adding a new field will increase AM size by 8 bytes)
+        /// <summary>
+        /// DataSpreads shared memory header before <see cref="Pointer"/>.
+        /// </summary>
         internal const int NativeHeaderSize = 8;
 
         internal ref int CounterRef
@@ -74,7 +80,7 @@ namespace Spreads.Buffers
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
-                if (_isNativeWithHeader)
+                if (IsNativeWithHeader)
                 {
                     return ref Unsafe.AsRef<int>((byte*)_pointer - NativeHeaderSize);
                 }
@@ -94,7 +100,7 @@ namespace Spreads.Buffers
         internal RetainableMemoryPool<T> Pool
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => _poolIdx >= 2 ? RetainableMemoryPool<T>.KnownPools[_poolIdx] : null;
+            get => PoolIndex >= 2 ? RetainableMemoryPool<T>.KnownPools[PoolIndex] : null;
         }
 
         /// <summary>
@@ -103,7 +109,7 @@ namespace Spreads.Buffers
         protected bool ExternallyOwned
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => _poolIdx == 0;
+            get => PoolIndex == 0;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -118,10 +124,6 @@ namespace Spreads.Buffers
             return AtomicCounter.IncrementIfRetained(ref CounterRef);
         }
 
-        /// <summary>
-        /// Returns count value after decrement.
-        /// </summary>
-        /// <returns></returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public int Decrement()
         {
@@ -133,6 +135,7 @@ namespace Spreads.Buffers
             return newRefCount;
         }
 
+        // TODO check usages, they must use the return value
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal int DecrementIfOne()
         {
@@ -180,7 +183,7 @@ namespace Spreads.Buffers
         internal bool IsPoolable
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => _poolIdx > 1;
+            get => PoolIndex > 1;
         }
 
         public int ReferenceCount
@@ -220,14 +223,14 @@ namespace Spreads.Buffers
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
-                if (_isPooled)
+                if (IsPooled)
                 {
                     ThrowDisposed<RetainableMemory<T>>();
                 }
 
                 var vec = new Vec<T>(_pointer, _length);
 #if SPREADS
-                Debug.Assert(vec.AsVec().ItemType == typeof(T));
+                ThrowHelper.DebugAssert(vec.AsVec().ItemType == typeof(T));
 #endif
                 return vec;
             }
@@ -235,13 +238,15 @@ namespace Spreads.Buffers
 
         public override Span<T> GetSpan()
         {
-            if (_isPooled)
+            if (IsPooled)
             {
                 ThrowDisposed<RetainableMemory<T>>();
             }
 
+            ThrowHelper.DebugAssert(_pointer != null && _length > 0, "Pointer != null && _length > 0");
+
             // if disposed Pointer & _len are null/0, no way to corrupt data, will just throw
-            return new Span<T>(Pointer, _length);
+            return new Span<T>(_pointer, _length);
         }
 
         internal DirectBuffer DirectBuffer
@@ -249,11 +254,14 @@ namespace Spreads.Buffers
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
-                if (_isPooled)
+                if (IsPooled)
                 {
                     ThrowDisposed<RetainableMemory<T>>();
                 }
-                return new DirectBuffer(_length * Unsafe.SizeOf<T>(), (byte*)Pointer);
+
+                ThrowHelper.DebugAssert(_pointer != null && _length > 0, "Pointer != null && _length > 0");
+
+                return new DirectBuffer(_length * Unsafe.SizeOf<T>(), (byte*)_pointer);
             }
         }
 
@@ -276,7 +284,11 @@ namespace Spreads.Buffers
             return new MemoryHandle(Unsafe.Add<T>(_pointer, elementIndex), handle: default, this);
         }
 
+        [Obsolete("Unpin should never be called directly, it is called during disposal of MemoryHandle returned by Pin.")]
+#pragma warning disable CS0809 // Obsolete member overrides non-obsolete member
         public override void Unpin()
+#pragma warning restore CS0809 // Obsolete member overrides non-obsolete member
+
         {
             Decrement();
         }
@@ -310,19 +322,25 @@ namespace Spreads.Buffers
             return new RetainedMemory<T>(this, start, length, borrow: borrow);
         }
 
+        public void Dispose()
+        {
+            Dispose(disposing: true);
+            GC.SuppressFinalize(this);
+        }
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal void DisposeFinalize()
         {
-            GC.SuppressFinalize(this);
             Dispose(false);
+            GC.SuppressFinalize(this);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal void ClearAfterDispose()
         {
             // Do not clear counter, it is in disposed state in the pool or it will be GCed.
-            Debug.Assert(AtomicCounter.GetIsDisposed(ref CounterRef));
-            Debug.Assert(!_isPooled);
+            ThrowHelper.DebugAssert(AtomicCounter.GetIsDisposed(ref CounterRef));
+            ThrowHelper.DebugAssert(!IsPooled);
             _pointer = null;
             _length = default; // not -1, we have uint cast. Also len = 0 should not corrupt existing data
         }
@@ -339,11 +357,10 @@ namespace Spreads.Buffers
         }
 
         /// <summary>
-        /// We need a finalizer because reference count and backing memory is a native resource.
+        /// We need a finalizer because reference count and backing memory could be a native resource.
         /// If object dies without releasing a reference then it is an error.
         /// Current code kills application by throwing in finalizer and this is what we want
-        /// for DS - ensure correct memory management. Maybe we should just decrement the counter
-        /// and trace a warning.
+        /// for DS - ensure correct memory management.
         /// </summary>
         ~RetainableMemory()
         {

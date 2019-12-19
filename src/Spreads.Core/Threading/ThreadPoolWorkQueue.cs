@@ -19,6 +19,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Threading;
+// ReSharper disable InconsistentNaming
 
 namespace Spreads.Threading
 {
@@ -604,15 +605,15 @@ namespace Spreads.Threading
             public static ThreadPoolWorkQueueThreadLocals threadLocals;
 
             public readonly ThreadPoolWorkQueue workQueue;
-            public readonly ThreadPoolWorkQueue.WorkStealingQueue workStealingQueue;
+            public readonly WorkStealingQueue workStealingQueue;
             public readonly Thread currentThread;
             public FastRandom random = new FastRandom(Thread.CurrentThread.ManagedThreadId); // mutable struct, do not copy or make readonly
 
             public ThreadPoolWorkQueueThreadLocals(ThreadPoolWorkQueue tpq)
             {
                 workQueue = tpq;
-                workStealingQueue = new ThreadPoolWorkQueue.WorkStealingQueue();
-                ThreadPoolWorkQueue.WorkStealingQueueList.Add(workStealingQueue);
+                workStealingQueue = new WorkStealingQueue();
+                WorkStealingQueueList.Add(workStealingQueue);
                 currentThread = Thread.CurrentThread;
             }
 
@@ -630,7 +631,7 @@ namespace Spreads.Threading
                         }
                     }
 
-                    ThreadPoolWorkQueue.WorkStealingQueueList.Remove(workStealingQueue);
+                    WorkStealingQueueList.Remove(workStealingQueue);
                 }
             }
 

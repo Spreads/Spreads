@@ -11,7 +11,7 @@
     <OutputType>Library</OutputType>
 
     <LangVersion>8.0</LangVersion>
-    <Nullable>warnings</Nullable>
+    <Nullable>annotations</Nullable>
     <!-- TODO move Spreads own code to the top proj and enable this for that proj: <WarningsAsErrors>CS8600;CS8602;CS8603</WarningsAsErrors>-->
   </PropertyGroup>
   

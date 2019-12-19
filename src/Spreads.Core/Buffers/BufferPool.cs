@@ -37,7 +37,7 @@ namespace Spreads.Buffers
                 maxLength: Math.Max(Settings.MIN_POOLED_BUFFER_LEN * 1024, (Settings.LARGE_BUFFER_LIMIT * 2) / Unsafe.SizeOf<T>()),
                 maxBuffersPerBucket: (4 + Environment.ProcessorCount) * 16,
                 maxBucketsToTry: 2,
-                pin: false);
+                pinned: false);
     }
 
     public class BufferPool
@@ -51,7 +51,7 @@ namespace Spreads.Buffers
                 maxLength: 8 * 1024 * 1024,
                 maxBuffersPerBucket: (4 + Environment.ProcessorCount) * 4,
                 maxBucketsToTry: 2,
-                pin: true);
+                pinned: true);
 
         /// <summary>
         /// Default OffHeap pool has capacity of 4 + Environment.ProcessorCount. This static field could be changed to a new instance.

@@ -12,12 +12,15 @@ using System.Buffers;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using System.Threading;
 using static Spreads.Buffers.BuffersThrowHelper;
 
 namespace Spreads.Buffers
 {
-    public class ArrayMemorySliceBucket<T>
+    /// <summary>
+    /// Used in <see cref="RetainableMemoryPool{T}"/> for pinned memory less than LOH size.
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
+    public class PinnedArrayMemorySliceBucket<T>
     {
         private ArrayMemory<T> _slab;
         private int _slabFreeCount;
@@ -25,9 +28,9 @@ namespace Spreads.Buffers
         private readonly int _bufferLength;
         private readonly LockedObjectPool<ArrayMemorySlice<T>> _pool;
 
-        public ArrayMemorySliceBucket(int bufferLength, int maxBufferCount)
+        public PinnedArrayMemorySliceBucket(int bufferLength, int maxBufferCount)
         {
-            if (!BitUtil.IsPowerOfTwo(bufferLength) || bufferLength >= Settings.SlabLength)
+            if (!BitUtil.IsPowerOfTwo(bufferLength) || bufferLength >= Settings.PinnedSlabLength)
             {
                 ThrowHelper.ThrowArgumentException("bufferLength must be a power of two max 64MB");
             }
@@ -36,15 +39,29 @@ namespace Spreads.Buffers
             // NOTE: allocateOnEmpty = true
             _pool = new LockedObjectPool<ArrayMemorySlice<T>>(maxBufferCount, Factory, allocateOnEmpty: true);
 
-            _slab = ArrayMemory<T>.Create(Settings.SlabLength, true);
+            CreateSlab();
+        }
+
+        private void CreateSlab()
+        {
+            _slab?.Decrement();
+            _slab = ArrayMemory<T>.Create(Settings.PinnedSlabLength, true);
+            _slab.Increment(); // bucket owns slab
+            ThrowHelper.DebugAssert(_slab != null && !_slab.IsDisposed && _slab.Length >= _bufferLength, "_slab != null && !_slab.IsDisposed");
+
             _slabFreeCount = _slab.Length / _bufferLength;
+            ThrowHelper.DebugAssert(_slabFreeCount > 0);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ArrayMemorySlice<T> RentMemory()
         {
             var arrayMemorySlice = _pool.Rent();
+#if DEBUG
+            ThrowHelper.Assert(arrayMemorySlice.IsDisposed);
+#endif
             arrayMemorySlice.CounterRef &= ~AtomicCounter.CountMask;
+            ThrowHelper.DebugAssert(!arrayMemorySlice.IsDisposed && arrayMemorySlice.CounterRef == 0);
             return arrayMemorySlice;
         }
 
@@ -57,13 +74,16 @@ namespace Spreads.Buffers
                 {
                     // drop previous slab, it is owned by previous slices
                     // and will be returned to the pool when all slices are disposed
-                    _slab = ArrayMemory<T>.Create(Settings.SlabLength, true);
-                    _slabFreeCount = _slab.Length / _bufferLength;
+                    CreateSlab();
                 }
-
+                ThrowHelper.DebugAssert(_slab != null && !_slab.IsDisposed && _slab.Length >= _bufferLength, "_slab.Length >= _bufferLength");
                 var offset = _slab.Length - _slabFreeCount-- * _bufferLength;
+                ThrowHelper.DebugAssert(offset >= 0);
 
-                var slice = new ArrayMemorySlice<T>(_slab, _pool, offset, _bufferLength);
+                var slice = ArrayMemorySlice<T>.Create(_slab, offset, _bufferLength, _pool);
+#if DEBUG
+                slice.CounterRef = AtomicCounter.Disposed;
+#endif
                 return slice;
             }
         }
@@ -71,67 +91,58 @@ namespace Spreads.Buffers
 
     public class ArrayMemorySlice<T> : ArrayMemory<T>
     {
+        private static readonly ObjectPool<ArrayMemorySlice<T>> ObjectPool = new ObjectPool<ArrayMemorySlice<T>>(() => new ArrayMemorySlice<T>(), Environment.ProcessorCount * 16);
+
         [Obsolete("internal only for tests/disgnostics")]
-        internal readonly ArrayMemory<T> _slab;
+        internal ArrayMemory<T> _slab;
 
-        private readonly LockedObjectPool<ArrayMemorySlice<T>> _slicesPool;
+        private LockedObjectPool<ArrayMemorySlice<T>>? _slicesPool;
 
-        public unsafe ArrayMemorySlice(ArrayMemory<T> slab, LockedObjectPool<ArrayMemorySlice<T>> slicesPool, int offset, int length)
+        public static unsafe ArrayMemorySlice<T> Create(ArrayMemory<T> slab, int offset, int length,
+            LockedObjectPool<ArrayMemorySlice<T>>? slicesPool = null)
         {
-            if (!TypeHelper<T>.IsPinnable)
-            {
-                ThrowHelper.FailFast("Do not use slices for not pinnable");
-            }
+            var slice = ObjectPool.Allocate();
 
 #pragma warning disable 618
-            _slab = slab;
-            _slab.Increment();
-            _pointer = Unsafe.Add<T>(_slab.Pointer, offset);
-            _handle = GCHandle.Alloc(_slab);
+            slice._slab = slab;
+            slice._slab.Increment();
+            slice._pointer = slab.Pointer == null ? null : Unsafe.Add<T>(slab.Pointer, offset);
+            slice._handle = GCHandle.Alloc(slab);
 #pragma warning restore 618
-            _slicesPool = slicesPool;
-            _length = length;
-            _array = slab._array;
-            _arrayOffset = slab._arrayOffset + offset;
+            slice._slicesPool = slicesPool;
+            slice._length = length;
+            slice._array = slab._array;
+            slice._arrayOffset = slab._arrayOffset + offset;
+            slice.CounterRef = 0;
+            return slice;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         protected override void Dispose(bool disposing)
         {
-            if (ExternallyOwned)
-            {
-                ThrowHelper.ThrowNotSupportedException();
-            }
+            AtomicCounter.Dispose(ref CounterRef);
 
             if (disposing)
             {
-                var pool = Pool;
-                if (pool != null)
+                if (_slicesPool != null)
                 {
-                    pool.ReturnInternal(this, clearMemory: !TypeHelper<T>.IsPinnable);
-                    // pool calls Dispose(false) if a bucket is full
-                    return;
+                    var pooledToFreeSlicesPool = _slicesPool.Return(this);
+                    if (pooledToFreeSlicesPool)
+                    {
+                        return;
+                    }
                 }
-
                 // not pooled, doing finalization work now
                 GC.SuppressFinalize(this);
             }
 
             // Finalization
 
-            AtomicCounter.Dispose(ref CounterRef);
+            Debug.Assert(!IsPooled);
+            PoolIndex = default;
 
-            Debug.Assert(!_isPooled);
-            _poolIdx = default;
-
-            // we still could add this to the pool of free pinned slices that are backed by an existing slab
-            var pooledToFreeSlicesPool = _slicesPool.Return(this);
-            if (pooledToFreeSlicesPool)
-            {
-                return;
-            }
-
-            var array = Interlocked.Exchange(ref _array, null);
+            var array = _array;
+            _array = null;
             if (array != null)
             {
                 ClearAfterDispose();
@@ -139,6 +150,11 @@ namespace Spreads.Buffers
 #pragma warning disable 618
                 _slab.Decrement();
                 _handle.Free();
+                _handle = default;
+                _slab = null;
+                _slicesPool = null;
+                _arrayOffset = -1;
+                PoolIndex = default;
 #pragma warning restore 618
             }
             else
@@ -147,6 +163,9 @@ namespace Spreads.Buffers
             }
 
             Debug.Assert(!_handle.IsAllocated);
+
+            // see AM comment on the same line
+            ObjectPool.Free(this);
         }
     }
 
@@ -178,20 +197,9 @@ namespace Spreads.Buffers
         /// Create <see cref="ArrayMemory{T}"/> backed by an array from shared array pool.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static ArrayMemory<T> Create(int minLength, bool pin)
+        public static ArrayMemory<T> Create(int minLength, bool pin = false)
         {
-            return Create(BufferPool<T>.Rent(minLength), false, pin);
-        }
-
-        /// <summary>
-        /// Create <see cref="ArrayMemory{T}"/> backed by the provided array.
-        /// Ownership of the provided array if transferred to <see cref="ArrayMemory{T}"/> after calling
-        /// this method and no other code should touch the array afterwards.
-        /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static ArrayMemory<T> Create(T[] array)
-        {
-            return Create(array, false);
+            return Create(BufferPool<T>.Rent(minLength), externallyOwned: false, pin);
         }
 
         /// <summary>
@@ -229,7 +237,7 @@ namespace Spreads.Buffers
 
             arrayMemory._arrayOffset = offset;
             arrayMemory._length = length;
-            arrayMemory._poolIdx =
+            arrayMemory.PoolIndex =
                 pool is null
                 ? externallyOwned ? (byte)0 : (byte)1
                 : pool.PoolIdx;
@@ -238,7 +246,7 @@ namespace Spreads.Buffers
             // We cannot tell if ObjectPool allocated a new one or took from pool
             // other then by checking if the counter is disposed, so we cannot require
             // that the counter is disposed. We only need that pooled object has the counter
-            // in disposed state so that no-one accidentally uses the object while it is in the pool.
+            // in disposed state so that no one accidentally uses the object while it is in the pool.
             arrayMemory.CounterRef = 0;
 
             return arrayMemory;
@@ -255,7 +263,7 @@ namespace Spreads.Buffers
                 // var tid = VecTypeHelper<T>.RuntimeVecInfo.RuntimeTypeId;
                 var vec = _pointer == null ? new Vec<T>(_array, _arrayOffset, _length) : new Vec<T>(_pointer, _length);
 #if SPREADS
-                Debug.Assert(vec.AsVec().ItemType == typeof(T));
+                ThrowHelper.DebugAssert(vec.AsVec().ItemType == typeof(T));
 #endif
                 return vec;
             }
@@ -275,7 +283,7 @@ namespace Spreads.Buffers
 
                 Increment();
                 var handle = GCHandle.Alloc(_array, GCHandleType.Pinned);
-                var pointer = Unsafe.AsPointer(ref _array[_arrayOffset]);
+                var pointer = Unsafe.AsPointer(ref _array[_arrayOffset + elementIndex]);
                 return new MemoryHandle(pointer, handle, this);
             }
 
@@ -285,13 +293,18 @@ namespace Spreads.Buffers
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public override unsafe Span<T> GetSpan()
         {
-            if (_isPooled)
+            if (IsPooled)
             {
                 ThrowDisposed<ArrayMemory<T>>();
             }
 
             // if disposed Pointer & _len are null/0, no way to corrupt data, will just throw
-            return _pointer == null ? new Span<T>(_array, _arrayOffset, _length) : new Span<T>(_pointer, _length);
+            if (_pointer == null)
+            {
+                return new Span<T>(_array, _arrayOffset, _length);
+            }
+
+            return new Span<T>(_pointer, _length);
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
@@ -305,11 +318,11 @@ namespace Spreads.Buffers
         {
             if (disposing)
             {
-                // TODO (review) where is ref count check?
                 var pool = Pool;
                 if (pool != null)
                 {
-                    pool.ReturnInternal(this, clearMemory: !TypeHelper<T>.IsPinnable);
+                    // throws if ref count is not zero
+                    pool.ReturnInternal(this, clearMemory: TypeHelper<T>.IsReferenceOrContainsReferences);
                     // pool calls Dispose(false) if a bucket is full
                     return;
                 }
@@ -322,7 +335,7 @@ namespace Spreads.Buffers
 
             // Finalization
 
-            Debug.Assert(!_isPooled);
+            ThrowHelper.DebugAssert(!IsPooled);
 
             var array = _array;
             _array = null;
@@ -331,26 +344,27 @@ namespace Spreads.Buffers
                 ClearAfterDispose();
                 if (!ExternallyOwned)
                 {
-                    BufferPool<T>.Return(array, !TypeHelper<T>.IsFixedSize); // TODO !ContainsReferences
+                    BufferPool<T>.Return(array, clearArray: TypeHelper<T>.IsReferenceOrContainsReferences);
                 }
 
-                Debug.Assert(_pointer == null || _handle.IsAllocated);
+                ThrowHelper.DebugAssert(_pointer == null || _handle.IsAllocated);
                 if (_handle.IsAllocated)
                 {
                     _handle.Free();
+                    _handle = default;
                 }
 
                 _handle = default;
                 _arrayOffset = -1; // make it unusable if not re-initialized
-                _poolIdx = default; // after ExternallyOwned check!
+                PoolIndex = default; // after ExternallyOwned check!
             }
             else if (disposing)
             {
-                // when no pinned we do not create a memory handle and during finalization
+                // when no pinned we do not create a memory handle
                 ThrowDisposed<ArrayMemory<T>>();
             }
 
-            Debug.Assert(!_handle.IsAllocated);
+            ThrowHelper.DebugAssert(!_handle.IsAllocated);
 
             // We cannot tell if this object is pooled, so we rely on finalizer
             // that will be called only if the object is not in the pool.

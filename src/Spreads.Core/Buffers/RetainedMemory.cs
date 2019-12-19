@@ -32,7 +32,7 @@ namespace Spreads.Buffers
     public readonly struct RetainedMemory<T> : IDisposable
     {
         internal readonly RetainableMemory<T> _manager;
-        private readonly int _start;
+        internal readonly int _start;
         private readonly int _length;
 
         /// <summary>
@@ -284,8 +284,14 @@ namespace Spreads.Buffers
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool TryGetArray(this RetainedMemory<byte> rm, out ArraySegment<byte> segment)
         {
-            throw new NotImplementedException("What about R-edM start & length!?"); // TODO fix & test
-            // return MemoryMarshal.TryGetArray(rm.Memory, out segment);
+            // throw new NotImplementedException("What about R-edM start & length!?"); // TODO fix & test
+            if (MemoryMarshal.TryGetArray(rm.Memory, out segment))
+            {
+                segment = new ArraySegment<byte>(segment.Array, segment.Offset + rm._start, rm.Length);
+                return true;
+            }
+
+            return false;
         }
 
         /// <summary>

@@ -117,45 +117,45 @@ namespace Spreads.Core.Tests.X.Series
             }
 
             int count = (int)TestUtils.GetBenchCount(10_000_000);
-            int rounds = (int)TestUtils.GetBenchCount(10, 1);
+            int rounds = (int)TestUtils.GetBenchCount(100, 1);
 
             var sl = new SortedList<int, int>();
-            var sa = new AppendSeries<int, int>();
+            var sa = new AppendSeries<int, int>(new MovingWindowOptions<int>(10));
             var di = new Dictionary<int,int>();
 
-            for (int r = 0; r < rounds; r++)
-            {
-                using (Benchmark.Run("SL.Add", count))
-                {
-                    for (int i = r * count; i < (r + 1) * count; i++)
-                    {
-                        if (i == r * count + 3)
-                        {
-                            continue;
-                        }
+            //for (int r = 0; r < rounds; r++)
+            //{
+            //    using (Benchmark.Run("SL.Add", count))
+            //    {
+            //        for (int i = r * count; i < (r + 1) * count; i++)
+            //        {
+            //            if (i == r * count + 3)
+            //            {
+            //                continue;
+            //            }
 
-                        sl.Add(i, i);
-                    }
-                }
-                Console.WriteLine($"Added {((r + 1) * count / 1000000):N}");
-            }
+            //            sl.Add(i, i);
+            //        }
+            //    }
+            //    Console.WriteLine($"Added {((r + 1) * count / 1000000):N}");
+            //}
 
-            for (int r = 0; r < rounds; r++)
-            {
-                using (Benchmark.Run("DI.Add", count))
-                {
-                    for (int i = r * count; i < (r + 1) * count; i++)
-                    {
-                        if (i == r * count + 3)
-                        {
-                            continue;
-                        }
+            //for (int r = 0; r < rounds; r++)
+            //{
+            //    using (Benchmark.Run("DI.Add", count))
+            //    {
+            //        for (int i = r * count; i < (r + 1) * count; i++)
+            //        {
+            //            if (i == r * count + 3)
+            //            {
+            //                continue;
+            //            }
 
-                        di.Add(i, i);
-                    }
-                }
-                Console.WriteLine($"Added {((r + 1) * count / 1000000):N}");
-            }
+            //            di.Add(i, i);
+            //        }
+            //    }
+            //    Console.WriteLine($"Added {((r + 1) * count / 1000000):N}");
+            //}
 
             for (int r = 0; r < rounds; r++)
             {

@@ -67,7 +67,7 @@ namespace Spreads.Threading
             ApartmentState = apartmentState;
             ExceptionHandler = exceptionHandler ?? (ex =>
             {
-                ThrowHelper.FailFast("Unhandled exception in dedicated thread pool: " + ex.ToString());
+                ThrowHelper.FailFast("Unhandled exception in dedicated thread pool: " + ex);
             });
             ThreadMaxStackSize = threadMaxStackSize;
 
@@ -105,20 +105,27 @@ namespace Spreads.Threading
     /// <summary>
     /// Non-allocating thread pool.
     /// </summary>
+    /// <remarks>
+    /// When using <see cref="Default"/> pool, it polyfills <see cref="ThreadPool.UnsafeQueueUserWorkItem(IThreadPoolWorkItem, bool)"/>
+    /// method for .NET Standard using <see cref="ISpreadsThreadPoolWorkItem"/> and uses
+    /// <see cref="ThreadPool"/> for .NET Core 3 and above.
+    /// <para/>
+    /// When using non-<see cref="Default"/> pools, a custom implementation
+    /// with <see cref="ThreadPoolSettings"/> is always used.
+    /// </remarks>
     public class SpreadsThreadPool
     {
-        // it's shared and there is a comment from MSFT that the number should
+        // It's shared and there is a comment from MSFT that the number should
         // be larger than intuition tells. By default ThreadPool has number
         // of workers equals to processor count.
         public static readonly int DefaultDedicatedWorkerThreads =
-            1 * 16 + 1 * 8 + Environment.ProcessorCount * 4;
+            1 * 4 + 1 * 2 + Environment.ProcessorCount * 2;
 
         // Without accessing this namespace and class it is not created
         private static SpreadsThreadPool _default;
 
         private TaskScheduler _scheduler;
 
-        [Obsolete("Use built-in ThreadPool unless custom priority or other non-standard setting is required.")]
         public static SpreadsThreadPool Default
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -164,9 +171,17 @@ namespace Spreads.Threading
             {
                 if (_default == null)
                 {
+                    const string tpName = "DefaultSpreadsThreadPool";
                     var settings = new ThreadPoolSettings(DefaultDedicatedWorkerThreads,
-                        "DefaultSpreadsThreadPool");
+                        tpName);
+#if HAS_TPWORKITEM
+                    var settings0 = new ThreadPoolSettings(0,
+                        tpName);
+                    _default = new SpreadsThreadPool(settings0);
+#else
+
                     _default = new SpreadsThreadPool(settings);
+#endif
                     ThreadPool.SetMinThreads(settings.NumThreads, settings.NumThreads);
                 }
             }
@@ -184,35 +199,25 @@ namespace Spreads.Threading
 
             for (int i = 0; i < settings.NumThreads; i++)
             {
-                _workers[i] = new PoolWorker(this, i);
+                _workers[i] = new PoolWorker(this);
             }
-        }
-
-        [Obsolete("SpreadsThreadPool does not support working with ExecutionContext, use UnsafeQueueCompletableItem method.")]
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void QueueCompletableItem(ISpreadsThreadPoolWorkItem workItem, bool preferLocal)
-        {
-            if (workItem == null)
-            {
-                ThrowWorkItemIsNull();
-            }
-            workQueue.Enqueue(workItem, forceGlobal: !preferLocal);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void UnsafeQueueCompletableItem(ISpreadsThreadPoolWorkItem workItem, bool preferLocal)
         {
+#if HAS_TPWORKITEM
+            if (this == Default)
+            {
+                ThreadPool.UnsafeQueueUserWorkItem(workItem, preferLocal);
+                return;
+            }
+#endif
             if (workItem == null)
             {
                 ThrowHelper.ThrowArgumentNullException(nameof(workItem));
             }
             workQueue.Enqueue(workItem, forceGlobal: !preferLocal);
-        }
-
-        [MethodImpl(MethodImplOptions.NoInlining)]
-        private static void ThrowWorkItemIsNull()
-        {
-            ThrowHelper.ThrowArgumentNullException("workItem");
         }
 
         // Get all workitems.  Called by TaskScheduler in its debugger hooks.
@@ -304,6 +309,10 @@ namespace Spreads.Threading
 
         public void WaitForThreadsExit(TimeSpan timeout)
         {
+            if (this == Default)
+            {
+                return;
+            }
             Task.WaitAll(_workers.Select(worker => worker.ThreadExit).ToArray(), timeout);
         }
 
@@ -320,7 +329,7 @@ namespace Spreads.Threading
                 get { return _threadExit.Task; }
             }
 
-            public PoolWorker(SpreadsThreadPool pool, int workerId)
+            public PoolWorker(SpreadsThreadPool pool)
             {
                 _pool = pool;
                 _threadExit = new TaskCompletionSource<object>();
@@ -333,8 +342,7 @@ namespace Spreads.Threading
 
                 if (pool.Settings.Name != null)
                 {
-                    // TODO setting for same/diff name. Profiler merges threads with the same name which is better by default.
-                    thread.Name = pool.Settings.Name + "_worker"; //string.Format("{0}_{1}", pool.Settings.Name, workerId);
+                    thread.Name = pool.Settings.Name + "_worker";
                 }
 
                 if (pool.Settings.ApartmentState != ApartmentState.Unknown)

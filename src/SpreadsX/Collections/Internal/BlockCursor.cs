@@ -57,7 +57,7 @@ namespace Spreads.Collections.Internal
 #pragma warning restore 618
         }
 
-        internal int _blockIndex;
+        internal int BlockIndex;
 
         // TODO offtop, from empty to non-empty changes order from 0 to 1
 
@@ -81,7 +81,7 @@ namespace Spreads.Collections.Internal
         public BlockCursor(TContainer source)
         {
             _source = source;
-            _blockIndex = -1;
+            BlockIndex = -1;
 #pragma warning disable 618
             _currentBlockStorage = DataBlock.Empty;
 #pragma warning restore 618
@@ -105,7 +105,7 @@ namespace Spreads.Collections.Internal
                     return CursorState.None;
                 }
 
-                return _blockIndex >= 0 ? CursorState.Moving : CursorState.Initialized;
+                return BlockIndex >= 0 ? CursorState.Moving : CursorState.Initialized;
             }
         }
 
@@ -146,7 +146,7 @@ namespace Spreads.Collections.Internal
 
             if (found)
             {
-                _blockIndex = nextPosition;
+                BlockIndex = nextPosition;
                 _currentKey = key;
                 _currentValue = v;
                 if (nextBlock != null)
@@ -164,6 +164,10 @@ namespace Spreads.Collections.Internal
             if (typeof(TContainer) == typeof(Series<TKey, TValue>))
             {
                 return CurrentBlock.DangerousValueRef<TValue>(currentBlockIndex);
+            }
+            if (typeof(TContainer) == typeof(BaseContainer<TKey>))
+            {
+                return default;
             }
             //else // TODO value getter for other containers or they could do in CV getter but need to call EnsureOrder after reading value.
             //{
@@ -191,7 +195,7 @@ namespace Spreads.Collections.Internal
             {
                 // Note: this does not handle MP from uninitialized state (_blockPosition == -1, stride <= 0). This case is rare.
                 // Uninitialized multi-block case goes to rare as well as uninitialized MP
-                newBlockIndex = unchecked((ulong)(_blockIndex + stride)); // int.Max + long.Max < ulong.Max
+                newBlockIndex = unchecked((ulong)(BlockIndex + stride)); // int.Max + long.Max < ulong.Max
                 if (newBlockIndex < (ulong)CurrentBlock.RowCount)
                 {
                     mc = stride;
@@ -217,7 +221,7 @@ namespace Spreads.Collections.Internal
 
             if (mc != 0)
             {
-                _blockIndex = (int)newBlockIndex;
+                BlockIndex = (int)newBlockIndex;
                 _currentKey = k;
                 _currentValue = v;
             }
@@ -244,7 +248,7 @@ namespace Spreads.Collections.Internal
             {
                 Debug.Assert(CurrentBlock == localBlock);
 
-                if (_blockIndex < 0 & stride < 0) // not &&
+                if (BlockIndex < 0 & stride < 0) // not &&
                 {
                     Debug.Assert(State == CursorState.Initialized);
                     var nextPosition = unchecked((localBlock.RowCount + stride));
@@ -264,16 +268,16 @@ namespace Spreads.Collections.Internal
                 if (allowPartial)
                 {
                     // TODO test for edge cases
-                    if (_blockIndex + stride >= localBlock.RowCount)
+                    if (BlockIndex + stride >= localBlock.RowCount)
                     {
-                        var mc = (localBlock.RowCount - 1) - _blockIndex;
-                        newBlockIndex = (ulong)(_blockIndex + mc);
+                        var mc = (localBlock.RowCount - 1) - BlockIndex;
+                        newBlockIndex = (ulong)(BlockIndex + mc);
                         return mc;
                     }
                     if (stride < 0) // cannot just use else without checks before, e.g. what if _blockPosition == -1 and stride == 0
                     {
                         newBlockIndex = 0;
-                        return -_blockIndex;
+                        return -BlockIndex;
                     }
                 }
 
@@ -296,7 +300,7 @@ namespace Spreads.Collections.Internal
 
             if (stride > 0)
             {
-                mc = _blockIndex == -1 ? 1 : CurrentBlock.RowCount - _blockIndex; // we left CB, at first pos of NB
+                mc = BlockIndex == -1 ? 1 : CurrentBlock.RowCount - BlockIndex; // we left CB, at first pos of NB
 
                 while (true)
                 {
@@ -333,7 +337,7 @@ namespace Spreads.Collections.Internal
             {
                 Debug.Assert(stride < 0);
 
-                mc = _blockIndex == -1 ? -1 : -(_blockIndex + 1); // at last pos of PB
+                mc = BlockIndex == -1 ? -1 : -(BlockIndex + 1); // at last pos of PB
 
                 while (true)
                 {
@@ -405,7 +409,7 @@ namespace Spreads.Collections.Internal
             {
                 if (CurrentBlock.RowCount > 0)
                 {
-                    _blockIndex = 0;
+                    BlockIndex = 0;
                     return true;
                 }
 
@@ -421,7 +425,7 @@ namespace Spreads.Collections.Internal
             {
                 if (CurrentBlock.RowCount > 0)
                 {
-                    _blockIndex = CurrentBlock.RowCount - 1;
+                    BlockIndex = CurrentBlock.RowCount - 1;
                     return true;
                 }
 
@@ -473,7 +477,7 @@ namespace Spreads.Collections.Internal
         public int CurrentBlockPosition
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => _blockIndex;
+            get => BlockIndex;
         }
 
         public Series<TKey, DataBlock, BlockCursor<TKey, TValue, TContainer>> Source
@@ -525,7 +529,7 @@ namespace Spreads.Collections.Internal
 
         public void Reset()
         {
-            _blockIndex = -1;
+            BlockIndex = -1;
             _currentKey = default;
             _orderVersion = AtomicCounter.GetCount(ref _source.OrderVersion);
 
@@ -545,7 +549,7 @@ namespace Spreads.Collections.Internal
 
         public void Dispose()
         {
-            _blockIndex = -1;
+            BlockIndex = -1;
             _currentKey = default;
             _orderVersion = AtomicCounter.GetCount(ref _source.OrderVersion);
             CurrentBlock = DataBlock.Empty;

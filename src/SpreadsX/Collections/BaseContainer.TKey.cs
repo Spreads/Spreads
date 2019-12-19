@@ -3,13 +3,13 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 using Spreads.Collections.Internal;
-using System;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 
 namespace Spreads.Collections
 {
+    
     /// <summary>
     /// Base container with row keys of type <typeparamref name="TKey"/>.
     /// </summary>
@@ -104,14 +104,21 @@ namespace Spreads.Collections
 
         [MethodImpl(MethodImplOptions.NoInlining)]
         // ReSharper disable once UnusedParameter.Local
-        private static bool TryGetBlockAtSlow(long index, out DataBlock block, out int blockIndex)
+        private static bool TryGetBlockAtSlow(long index, out DataBlock? block, out int blockIndex)
         {
-            // TODO slow path as non-inlined method
-            throw new NotImplementedException();
-            //foreach (var kvp in DataSource)
-            //{
-            //    // if (kvp.Value.RowLength)
-            //}
+            using (var bc = new BlockCursor<TKey, int, BaseContainer<TKey>>())
+            {
+                if (bc.Move(index, false) == 0)
+                {
+                    block = null;
+                    blockIndex = -1;
+                    return false;
+                }
+
+                block = bc.CurrentBlock;
+                blockIndex = bc.BlockIndex;
+                return true;
+            }
         }
 
         /// <summary>

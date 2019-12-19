@@ -4,8 +4,10 @@
 
 #nullable enable
 
+using Spreads.Utils;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Runtime.CompilerServices;
@@ -15,21 +17,27 @@ namespace Spreads
 {
     internal static class ThrowHelper
     {
+        [DebuggerStepThrough]
         [DoesNotReturn]
+        [ContractAnnotation("=> halt")]
         [MethodImpl(MethodImplOptions.NoInlining)]
         public static void ThrowArgumentException()
         {
             throw GetArgumentException();
         }
 
+        [DebuggerStepThrough]
         [DoesNotReturn]
+        [ContractAnnotation("=> halt")]
         [MethodImpl(MethodImplOptions.NoInlining)]
         public static void ThrowArgumentException(string message)
         {
             throw GetArgumentException(message);
         }
 
+        [DebuggerStepThrough]
         [DoesNotReturn]
+        [ContractAnnotation("=> halt")]
         [MethodImpl(MethodImplOptions.NoInlining)]
         public static void ThrowArgumentOutOfRangeException()
         {
@@ -37,62 +45,79 @@ namespace Spreads
         }
 
         [DoesNotReturn]
+        [ContractAnnotation("=> halt")]
         [MethodImpl(MethodImplOptions.NoInlining)]
         public static void ThrowArgumentOutOfRangeException(string argument)
         {
             throw GetArgumentOutOfRangeException(argument);
         }
 
+        [DebuggerStepThrough]
         [DoesNotReturn]
+        [ContractAnnotation("=> halt")]
         [MethodImpl(MethodImplOptions.NoInlining)]
         public static void ThrowInvalidOperationException()
         {
             throw GetInvalidOperationException();
         }
 
+        [DebuggerStepThrough]
         [DoesNotReturn]
+        [ContractAnnotation("=> halt")]
         [MethodImpl(MethodImplOptions.NoInlining)]
         public static void ThrowInvalidCastException()
         {
             throw GetInvalidCastException();
         }
 
+        [DebuggerStepThrough]
         [DoesNotReturn]
+        [ContractAnnotation("=> halt")]
         [MethodImpl(MethodImplOptions.NoInlining)]
         public static void ThrowInvalidOperationException(string message)
         {
             throw GetInvalidOperationException(message);
         }
 
+        [DebuggerStepThrough]
         [DoesNotReturn]
+        [ContractAnnotation("=> halt")]
         [MethodImpl(MethodImplOptions.NoInlining)]
         public static void ThrowInvalidOperationException_ForVariantTypeMissmatch()
         {
             throw GetInvalidOperationException_ForVariantTypeMissmatch();
         }
 
+        [DebuggerStepThrough]
         [DoesNotReturn]
+        [ContractAnnotation("=> halt")]
         [MethodImpl(MethodImplOptions.NoInlining)]
         public static void ThrowNotImplementedException()
         {
             throw GetNotImplementedException();
         }
 
+        [DebuggerStepThrough]
         [DoesNotReturn]
+        [ContractAnnotation("=> halt")]
         [MethodImpl(MethodImplOptions.NoInlining)]
         public static void ThrowNotImplementedException(string message)
         {
             throw GetNotImplementedException(message);
         }
 
+        [DebuggerStepThrough]
         [DoesNotReturn]
+        [ContractAnnotation("=> halt")]
         [MethodImpl(MethodImplOptions.NoInlining)]
         public static void ThrowNotSupportedException()
         {
             throw GetNotSupportedException();
         }
 
+        [DebuggerStepThrough]
         [DoesNotReturn]
+        [ContractAnnotation("=> halt")]
         [MethodImpl(MethodImplOptions.NoInlining)]
         public static void ThrowNotSupportedException(string message)
         {
@@ -101,14 +126,18 @@ namespace Spreads
 
 #if SPREADS
 
+        [DebuggerStepThrough]
         [DoesNotReturn]
+        [ContractAnnotation("=> halt")]
         [MethodImpl(MethodImplOptions.NoInlining)]
         public static void ThrowOutOfOrderKeyException<TKey>(TKey key)
         {
             throw GetOutOfOrderKeyException(key);
         }
 
+        [DebuggerStepThrough]
         [DoesNotReturn]
+        [ContractAnnotation("=> halt")]
         [MethodImpl(MethodImplOptions.NoInlining)]
         public static void ThrowOutOfOrderKeyException<TKey>(TKey key, string message)
         {
@@ -117,21 +146,27 @@ namespace Spreads
 
 #endif
 
+        [DebuggerStepThrough]
         [DoesNotReturn]
+        [ContractAnnotation("=> halt")]
         [MethodImpl(MethodImplOptions.NoInlining)]
         public static void ThrowKeyNotFoundException(string message)
         {
             throw GetKeyNotFoundException(message);
         }
 
+        [DebuggerStepThrough]
         [DoesNotReturn]
+        [ContractAnnotation("=> halt")]
         [MethodImpl(MethodImplOptions.NoInlining)]
         public static void ThrowArgumentNullException(string argument)
         {
             throw new ArgumentNullException(argument);
         }
 
+        [DebuggerStepThrough]
         [DoesNotReturn]
+        [ContractAnnotation("=> halt")]
         [MethodImpl(MethodImplOptions.NoInlining)]
         public static void ThrowObjectDisposedException(string objectName)
         {
@@ -139,6 +174,7 @@ namespace Spreads
         }
 
         [DoesNotReturn]
+        [ContractAnnotation("=> halt")]
         [MethodImpl(MethodImplOptions.NoInlining)]
         // ReSharper disable once InconsistentNaming
         public static void ThrowIOException(string message)
@@ -147,21 +183,48 @@ namespace Spreads
         }
 
         /// <summary>
-        /// Use this instead of Debug.Assert when not in a hot loop.
+        ///
         /// </summary>
         /// <param name="expectedTrueCondition"></param>
         /// <param name="message"></param>
-        [MethodImpl(MethodImplOptions.NoInlining)]
+        [DebuggerStepThrough]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [ContractAnnotation("halt <= expectedTrueCondition:false")]
         public static void Assert([DoesNotReturnIf(false)]bool expectedTrueCondition, string? message = null)
         {
             if (!expectedTrueCondition)
             {
-                // TODO AssertionFailureException
-                throw new Exception("Assertion failure: " + (message ?? string.Empty));
+                ThrowAssertionFailure(message);
             }
         }
 
+        /// <summary>
+        /// Throw exception instead of just printing Fail: xxx with Debug.Assert. Zero cost in release.
+        /// </summary>
+        /// <param name="expectedTrueCondition"></param>
+        /// <param name="message"></param>
+        [DebuggerStepThrough]
+        [Conditional("DEBUG")]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [ContractAnnotation("halt <= expectedTrueCondition:false")]
+        public static void DebugAssert([DoesNotReturnIf(false)]bool expectedTrueCondition, string? message = null)
+        {
+            if (!expectedTrueCondition)
+            {
+                ThrowAssertionFailure(message);
+            }
+        }
+
+        [DebuggerStepThrough]
         [MethodImpl(MethodImplOptions.NoInlining)]
+        private static void ThrowAssertionFailure(string? message = null)
+        {
+            throw new AssertionFailureException("Assertion failure: " + (message ?? string.Empty));
+        }
+
+        [Obsolete("Use only when data could be corrupted or for debug")]
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        [ContractAnnotation("halt <= expectedTrueCondition:false")]
         public static void AssertFailFast([DoesNotReturnIf(false)]bool expectedTrueCondition, string? message = null)
         {
             if (!expectedTrueCondition)
@@ -172,6 +235,8 @@ namespace Spreads
 
         [DoesNotReturn]
         [MethodImpl(MethodImplOptions.NoInlining)]
+        [ContractAnnotation("=> halt")]
+        [Obsolete("Use only when data could be corrupted or for debug")]
         public static void FailFast(string? message = null)
         {
             DoFailFast(message);
@@ -291,6 +356,14 @@ namespace Spreads
         private static IOException GetIOException(string message)
         {
             return new IOException(message);
+        }
+
+        public class AssertionFailureException : Exception
+        {
+            public AssertionFailureException(string? message = null) : base(message)
+            {
+                
+            }
         }
     }
 }

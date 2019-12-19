@@ -1,5 +1,7 @@
 ﻿using Spreads.DataTypes;
 using System;
+using System.Collections.Generic;
+using Spreads.Utils;
 
 namespace Spreads
 {
@@ -52,23 +54,56 @@ namespace Spreads
 
     public delegate bool MovingWindowFunc<in T>(T previous, T current);
 
-    public struct MovingWindowOptions<T>
+    public class MovingWindowOptions<T>
     {
-        private readonly MovingWindowFunc<T>? _movingWindowFunc;
-        private readonly int? _itemCount;
+        internal readonly MovingWindowFunc<T>? MovingWindowFunc;
+        internal readonly int? ItemCount;
+
+        // TODO Key/Value delegates (e.g. to dispose or return to pool)
+        // BlockSize - we could override default logic. E.g. if reference types
+        // are used as values (or even keys) then we will release the entire block
+        // at once. By default it is c.8k
+        protected MovingWindowOptions() { }
 
         public MovingWindowOptions(int itemCount)
         {
-            _itemCount = itemCount;
-            _movingWindowFunc = default;
+            if (itemCount <= 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(itemCount));
+            }
+            ItemCount = itemCount;
+            MovingWindowFunc = default;
         }
 
         public MovingWindowOptions(MovingWindowFunc<T> movingWindowFunc)
         {
-            _itemCount = default;
-            _movingWindowFunc = movingWindowFunc;
+            ItemCount = default;
+            MovingWindowFunc = movingWindowFunc;
+        }
+    }
+
+    public class MovingWindowOptions<TKey, TValue> : MovingWindowOptions<TKey>
+    {
+        /// <summary>
+        /// Process items that are removed from the moving window.
+        /// </summary>
+        internal Action<KeyValuePair<TKey, TValue>>? OnRemovedHandler;
+
+        /// <summary>
+        /// Limit block size to some smaller value than the default, to release
+        /// less items per block.
+        /// </summary>
+        internal readonly int WindowBlockSize;
+
+        public MovingWindowOptions(Action<KeyValuePair<TKey, TValue>> onRemovedHandler)
+        {
+            OnRemovedHandler = onRemovedHandler;
         }
 
-        internal bool IsDefault => _itemCount == default && _movingWindowFunc == default;
+        public MovingWindowOptions(Action<KeyValuePair<TKey, TValue>> onRemovedHandler, int windowBlockSize)
+        {
+            OnRemovedHandler = onRemovedHandler;
+            WindowBlockSize = windowBlockSize > 0 ? Math.Max(Settings.MIN_POOLED_BUFFER_LEN, BitUtil.FindNextPositivePowerOfTwo(windowBlockSize)) : 0;
+        }
     }
 }

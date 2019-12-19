@@ -8,14 +8,12 @@ namespace Spreads.Threading
 {
     /// <summary>Represents a work item that can be executed by the ThreadPool.</summary>
     public interface ISpreadsThreadPoolWorkItem
-#if NETCOREAPP3_0
+#if HAS_TPWORKITEM
         : IThreadPoolWorkItem
 #endif
     {
 #if !NETCOREAPP3_0
-
         void Execute();
-
 #endif
     }
 }

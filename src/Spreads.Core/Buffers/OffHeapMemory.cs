@@ -30,9 +30,9 @@ namespace Spreads.Buffers
 
         internal OffHeapMemory(RetainableMemoryPool<T> pool, int minLength)
         {
-            _poolIdx = pool == null ? (byte)0 : pool.PoolIdx;
+            PoolIndex = pool == null ? (byte)0 : pool.PoolIdx;
             // store counter inside the buffer as proof of concept.
-            _isNativeWithHeader = true;
+            IsNativeWithHeader = true;
             Init(minLength);
             CounterRef = 0; // after init!
         }
@@ -55,11 +55,11 @@ namespace Spreads.Buffers
                 GC.SuppressFinalize(this);
             }
 
-            Debug.Assert(!_isPooled);
-            _poolIdx = default;
+            Debug.Assert(!IsPooled);
+            PoolIndex = default;
 
             AtomicCounter.Dispose(ref CounterRef);
-            _isNativeWithHeader = false;
+            IsNativeWithHeader = false;
             CounterRef = AtomicCounter.CountMask;
 
             ClearAfterDispose();

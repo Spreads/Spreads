@@ -36,17 +36,14 @@ namespace Spreads
     /// </summary>
     public static class Settings
     {
-        // ReSharper disable once InconsistentNaming
         internal const int LARGE_BUFFER_LIMIT = 64 * 1024;
+        internal const int LARGE_BUFFER_POOL_SCALE = 4;
 
-        // ReSharper disable once InconsistentNaming
+        /// <summary>
+        /// Multiply pool buffer count by this scale factor when buffer size is equal to <see cref="LARGE_BUFFER_POOL_SCALE"/>
+        /// </summary>
         internal const int MIN_POOLED_BUFFER_LEN = 16;
 
-        // TODO find best values
-        /// <summary>
-        ///
-        /// </summary>
-        public const int SliceMemoryAlignment = 8;
 
         // TODO Review: we do not need that big for every worker thread (default thread pool + Spreads' one = a lot)
         // It's used for temp serialization when we need pinned memory without costs of Rent/Pin/Unpin/Return
@@ -283,7 +280,7 @@ namespace Spreads
         /// </summary>
         public static bool UseStructLayoutSizeAsBlittableSize = false;
 
-        internal const int SlabLength = 128 * 1024;
+        internal const int PinnedSlabLength = 128 * 1024;
 
         /// <summary>
         /// This only affects known types for which interpolation search works correctly

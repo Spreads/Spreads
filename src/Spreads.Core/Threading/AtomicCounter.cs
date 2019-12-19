@@ -26,6 +26,7 @@ namespace Spreads.Threading
         // we could work with the pointer directly.
 
         public const int CountMask = 0b_00000000_11111111_11111111_11111111;
+        public const int Disposed = CountMask;
         public const int CountLimit = CountMask >> 1;
 
         /// <summary>

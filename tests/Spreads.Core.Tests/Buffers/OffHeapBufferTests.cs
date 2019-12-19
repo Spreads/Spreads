@@ -187,7 +187,7 @@ namespace Spreads.Core.Tests.Buffers
             var offHeapMemory2 = pool.RentMemory(32 * 1024);
             var offHeapMemory3 = pool.RentMemory(32 * 1024);
 
-            Assert.AreEqual(pool.PoolIdx, offHeapMemory3._poolIdx, "pool idx of newlly allocated");
+            Assert.AreEqual(pool.PoolIdx, offHeapMemory3.PoolIndex, "pool idx of newlly allocated");
 
             ((IDisposable)offHeapMemory).Dispose();
             ((IDisposable)offHeapMemory2).Dispose();
@@ -238,7 +238,7 @@ namespace Spreads.Core.Tests.Buffers
 
             var buffer = new OffHeapMemory<byte>(1000);
 
-            Assert.Throws<InvalidOperationException>(() => { buffer.Unpin(); });
+            Assert.Throws<InvalidOperationException>(() => { buffer.Decrement(); });
 
             Assert.Throws<InvalidOperationException>(() => { pool.ReturnInternal(buffer); });
 

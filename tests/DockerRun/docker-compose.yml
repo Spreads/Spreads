@@ -5,4 +5,4 @@ services:
     image: ${DOCKER_REGISTRY}spreadscorerun
     build:
       context: .
-      dockerfile: ../Spreads.Core.Run/Dockerfile
+      dockerfile: ../_Spreads.Run/Dockerfile

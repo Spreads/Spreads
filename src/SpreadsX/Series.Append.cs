@@ -3,6 +3,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 using Spreads.Collections.Internal;
+using Spreads.Threading;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -14,7 +15,9 @@ namespace Spreads
     // ReSharper disable once RedundantExtendsListEntry
     public class AppendSeries<TKey, TValue> : Series<TKey, TValue>, IAppendSeries<TKey, TValue>
     {
-        private static readonly int MaxBufferLength = Math.Max(Settings.MIN_POOLED_BUFFER_LEN, Settings.LARGE_BUFFER_LIMIT / Math.Max(Unsafe.SizeOf<TKey>(), Unsafe.SizeOf<TValue>()));
+        private static readonly int DefaultMaxBlockRowCount = Math.Max(Settings.MIN_POOLED_BUFFER_LEN, Settings.LARGE_BUFFER_LIMIT / Math.Max(Unsafe.SizeOf<TKey>(), Unsafe.SizeOf<TValue>()));
+
+        internal WindowOptions? Options;
 
         #region Public ctors
 
@@ -74,8 +77,12 @@ namespace Spreads
             KeySorting keySorting = KeySorting.Strong,
             uint capacity = 0,
             KeyComparer<TKey> comparer = default,
-            MovingWindowOptions<TKey> movingWindowOptions = default) : base(mutability, keySorting, capacity, comparer, movingWindowOptions)
+            MovingWindowOptions<TKey>? movingWindowOptions = default) : base(mutability, keySorting, capacity, comparer, movingWindowOptions)
         {
+            if (movingWindowOptions != null)
+            {
+                Options = new WindowOptions(movingWindowOptions);
+            }
         }
 
         /// <summary>
@@ -128,9 +135,26 @@ namespace Spreads
                     return false;
                 }
             }
+            Options?.OnBeforeAppend();
             db.SeriesAppend(db.RowCount, key, value);
             return true;
         }
+
+
+        internal int MaxBlockRowCount
+        {
+            get
+            {
+                if (Options?.MovingWindowOptions != null
+                    && Options.MovingWindowOptions is MovingWindowOptions<TKey, TValue> typedMvo
+                    && typedMvo.WindowBlockSize > 0)
+                {
+                    return typedMvo.WindowBlockSize;
+                }
+                return DefaultMaxBlockRowCount;
+            }
+        }
+
 
         [MethodImpl(MethodImplOptions.NoInlining
 #if HAS_AGGR_OPT
@@ -153,7 +177,7 @@ namespace Spreads
                 // next increment will be 64kb, avoid buffer in LOH
 
                 // ReSharper disable once PossibleNullReferenceException
-                if (block.RowCapacity < MaxBufferLength)
+                if (block.RowCapacity < MaxBlockRowCount)
                 {
                     if (block.SeriesIncreaseCapacity<TKey, TValue>() < 0)
                     {
@@ -180,6 +204,14 @@ namespace Spreads
                         block = null;
                         return false;
                     }
+
+                    if (Options?.MovingWindowOptions != null)
+                    {
+                        // before adding new block try to remove first blocks that
+                        // are not used and satisfy MovingWindowOptions
+                        TryTrimWindowBlocks();
+                    }
+
                     ds.AddLast(key, newBlock);
                     block = newBlock;
                 }
@@ -273,6 +305,73 @@ namespace Spreads
         public void MarkReadOnly()
         {
             Flags.MarkReadOnly();
+        }
+
+        internal class WindowOptions : ISpreadsThreadPoolWorkItem
+        {
+            public readonly MovingWindowOptions<TKey> MovingWindowOptions;
+            public DataBlock? LingeringDataBlock;
+            private long _counter;
+
+            public WindowOptions(MovingWindowOptions<TKey> movingWindowOptions)
+            {
+                MovingWindowOptions = movingWindowOptions ?? throw new ArgumentNullException(nameof(movingWindowOptions));
+            }
+
+            public void OnBeforeAppend()
+            {
+                _counter++;
+                if (MovingWindowOptions is MovingWindowOptions<TKey, TValue> typedOpts
+                    && typedOpts.OnRemovedHandler != null)
+                {
+                    SpreadsThreadPool.Default.UnsafeQueueCompletableItem(this, true);
+                }
+            }
+
+            public void OnBeforeNewBlock()
+            {
+                if (LingeringDataBlock != null)
+                {
+                    // TODO handle remaining block items and the block itself
+                    // before
+                }
+                if (MovingWindowOptions != null
+                    )
+                {
+                    _counter++;
+                }
+            }
+
+            public void Execute()
+            {
+                // we cannot trust delegates to call them from inside lock
+                // also cleaning up items after removal is background job semantically
+
+                ;
+            }
+        }
+
+        private void TryTrimWindowBlocks()
+        {
+            var options = Options?.MovingWindowOptions!;
+            if (IsDataBlock(out _, out var ds) || options == null)
+            {
+                throw new InvalidOperationException();
+            }
+
+            var bs = ds._blockSeries;
+
+            // find deepest DS level
+            DataBlock? bsDb;
+            while (!bs.IsDataBlock(out bsDb, out var bsDs))
+            {
+                bs = bsDs._blockSeries;
+            }
+
+            // bsDb is from where we should delete the first data block
+            bsDb.SeriesTrimFirstValue<TKey, DataBlock>(out _, out _);
+
+            var firstBlock = ds._blockSeries.First;
         }
     }
 }

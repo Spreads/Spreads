@@ -57,7 +57,7 @@ namespace Spreads.Core.Tests.Collections.Internal
             for (int i = 0; i < len; i++)
             {
                 Assert.IsTrue(c.MoveNext());
-                Assert.AreEqual(i, c._blockIndex);
+                Assert.AreEqual(i, c.BlockIndex);
             }
 
             Assert.AreEqual(1 - len, c.Move(long.MinValue, true));

@@ -74,13 +74,13 @@ namespace Spreads.Core.Tests.Buffers
                 var memory = factory(len);
                 
                 Assert.IsFalse(memory.IsPoolable);
-                Assert.IsFalse(memory._isPooled);
+                Assert.IsFalse(memory.IsPooled);
                 Assert.IsFalse(memory.IsRetained);
                 Assert.IsFalse(memory.IsDisposed);
                 Assert.AreEqual(null, memory.Pool);
                 Assert.AreEqual(memory.Vec.Length, memory.Length);
 
-                Assert.AreEqual(0, memory._poolIdx, "0, memory._poolIdx");
+                Assert.AreEqual(0, memory.PoolIndex, "0, memory._poolIdx");
 
                 Assert.GreaterOrEqual(memory.Length, len, "memory.Length, len");
                 var pow2Len = BitUtil.IsPowerOfTwo(memory.Length) ? memory.Length : (BitUtil.FindNextPositivePowerOfTwo(memory.Length) / 2);

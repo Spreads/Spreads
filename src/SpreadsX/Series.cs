@@ -24,7 +24,7 @@ namespace Spreads
             KeySorting keySorting = KeySorting.Strong,
             uint capacity = 0,
             KeyComparer<TKey> comparer = default,
-            MovingWindowOptions<TKey> movingWindowOptions = default)
+            MovingWindowOptions<TKey>? movingWindowOptions = default)
         {
             if (keySorting != KeySorting.Strong)
             {
@@ -38,10 +38,7 @@ namespace Spreads
 
             _comparer = comparer;
 
-            if (!movingWindowOptions.IsDefault)
-            {
-                ThrowHelper.ThrowNotImplementedException();
-            }
+            
         }
 
         internal Series(TKey[] keys, TValue[] values)
