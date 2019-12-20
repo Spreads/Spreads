@@ -605,6 +605,12 @@ namespace Spreads.Buffers
                     return false;
                 }
 
+                // before lock
+                if (Volatile.Read(ref _slab) == null)
+                {
+                    return false;
+                }
+
                 lock (this)
                 {
                     if (_slab == null)
