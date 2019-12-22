@@ -37,6 +37,8 @@ namespace Spreads
             BlockSizePow2 = Math.Max((byte)4, checked((byte)(32 - IntUtil.NumberOfLeadingZeros(bufferSize - 1))));
 
             _comparer = comparer;
+
+            
         }
 
         internal Series(TKey[] keys, TValue[] values)
@@ -331,33 +333,6 @@ namespace Spreads
 
             value = default!;
             return false;
-        }
-
-        /// <summary>
-        /// Lock this series and perform any thread-unsafe action on it. Not atomic.
-        /// </summary>
-        /// <remarks>
-        /// An example of the unsafe action is <see cref="AppendSeries{TKey,TValue}.DangerousTryAppend(TKey, TValue)"/>.
-        /// In general, this should be as fast for batching operation as existing
-        /// methods that work on multiple values, e.g. <see cref="AppendSeries{TKey,TValue}.AppendMany{TPairs}(TPairs)"/>.
-        /// However, depending on the context and use case either a batching method or the action
-        /// could be better optimized.
-        /// </remarks>
-        /// <param name="action"></param>
-        [Obsolete("Probably not needed, batching methods should guarantee atomicity and version increments when needed. Simple lock should be enough for calling dangerous methods.")]
-        internal void Lock(Action<Series<TKey, TValue>> action)
-        {
-            // We need to increment next version here or do so in any mutating dangerous methods
-            // Also this is not atomic
-            AcquireLock();
-            try
-            {
-                action(this);
-            }
-            finally
-            {
-                ReleaseLock();
-            }
         }
     }
 }
