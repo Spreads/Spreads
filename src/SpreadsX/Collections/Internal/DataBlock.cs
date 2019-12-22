@@ -51,6 +51,13 @@ namespace Spreads.Collections.Internal
 
         private VecStorage[]? _columns;
 
+        [Obsolete("Use only in tests")]
+        internal VecStorage RowKeys => _rowKeys;
+        [Obsolete("Use only in tests")]
+        internal VecStorage Values => _values;
+        [Obsolete("Use only in tests")]
+        internal VecStorage[]? Columns => _columns;
+
         /// <summary>
         /// Fast path to get the next block from the current one.
         /// </summary>
@@ -81,16 +88,11 @@ namespace Spreads.Collections.Internal
         // TODO delete this method
         [Obsolete("Use container-specific factories, e.g. SeriesCreate")]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static DataBlock Create(VecStorage rowIndex = default, VecStorage values = default, VecStorage[]? columns = null, int rowLength = -1)
+        internal static DataBlock Create(VecStorage rowIndex = default, VecStorage values = default, VecStorage[]? columns = null, int rowLength = -1)
         {
             var block = ObjectPool.Allocate();
-
-            Debug.Assert(block._rowCount == -1);
-            Debug.Assert(block._head == -1);
-            Debug.Assert(block._rowKeys == default);
-            Debug.Assert(block._values == default);
-            Debug.Assert(block._columns == null);
-
+            block.EnsureDisposed();
+            
             var rowCapacity = -1;
 
             if (rowIndex != default)
@@ -143,6 +145,9 @@ namespace Spreads.Collections.Internal
             }
 
             block._head = 0;
+            block._refCount = 0;
+
+            ThrowHelper.DebugAssert(!block.IsDisposed, "!block.IsDisposed");
 
             return block;
         }
@@ -247,7 +252,9 @@ namespace Spreads.Collections.Internal
 
         ~DataBlock()
         {
+            #if DEBUG
             ThrowHelper.ThrowInvalidOperationException("Finalizing DataBlock");
+            #endif
             Dispose(false);
         }
 

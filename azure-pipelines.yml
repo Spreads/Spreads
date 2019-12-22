@@ -4,7 +4,7 @@
 # https://docs.microsoft.com/azure/devops/pipelines/languages/dotnet-core
 
 trigger:
-- none
+- master
 
 variables:
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
@@ -17,7 +17,7 @@ jobs:
   steps:
   - task: DotNetCoreInstaller@0
     inputs:
-      version: '3.0.100'
+      version: '3.1.100'
 
   - script: dotnet test tests/Spreads.Core.Tests/Spreads.Core.Tests.csproj -f netcoreapp3.0 -c Debug  --filter TestCategory=CI -v m
     displayName: 'Test Debug netcoreapp3.0'
@@ -32,7 +32,7 @@ jobs:
   steps:
   - task: DotNetCoreInstaller@0
     inputs:
-      version: '3.0.100'
+      version: '3.1.100'
 
   - script: dotnet test tests/Spreads.Core.Tests/Spreads.Core.Tests.csproj -f netcoreapp3.0 -c Debug  --filter TestCategory=CI -v m
     displayName: 'Test Debug netcoreapp3.0'
@@ -47,15 +47,12 @@ jobs:
   steps:
   - task: DotNetCoreInstaller@0
     inputs:
-      version: '3.0.100'
+      version: '3.1.100'
 
   - script: dotnet test tests/Spreads.Core.Tests/Spreads.Core.Tests.csproj -f netcoreapp3.0 -c Debug  --filter TestCategory=CI -v m
     displayName: 'Test Debug netcoreapp3.0'
 
   - script: dotnet test tests/Spreads.Core.Tests/Spreads.Core.Tests.csproj -f netcoreapp3.0 -c Release  --filter TestCategory=CI -v m
     displayName: 'Test Release netcoreapp3.0'
-
-  - script: dotnet test tests/Spreads.Core.Tests/Spreads.Core.Tests.csproj -f net461 -c Release  --filter TestCategory=CI -v m
-    displayName: 'Test Release net461'
 
 

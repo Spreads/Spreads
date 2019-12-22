@@ -64,7 +64,8 @@ namespace Spreads.Collections.Internal
             block.EnsureSeriesLayout();
 
             block._refCount = 0;
-            Debug.Assert(!block.IsDisposed);
+
+            ThrowHelper.DebugAssert(!block.IsDisposed, "!block.IsDisposed");
 
             return block;
         }
