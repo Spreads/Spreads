@@ -273,6 +273,8 @@ namespace Spreads.Buffers
         )]
         internal bool ReturnInternal(RetainableMemory<T> memory, bool clearMemory = true)
         {
+            // This method is called by Memory.Dispose and never directly.
+            // Slices have different dispose logic and do not call this method.
             ThrowHelper.DebugAssert(!(memory is ArrayMemorySlice<T>), "!(memory is ArrayMemorySlice<T>)");
 
             if (_disposed)

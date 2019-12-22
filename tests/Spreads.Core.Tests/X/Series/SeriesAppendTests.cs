@@ -121,7 +121,7 @@ namespace Spreads.Core.Tests.X.Series
 
             var sl = new SortedList<int, int>();
             var sa = new AppendSeries<int, int>(new MovingWindowOptions<int>(10));
-            var di = new Dictionary<int,int>();
+            var di = new Dictionary<int, int>();
 
             //for (int r = 0; r < rounds; r++)
             //{
@@ -210,7 +210,7 @@ namespace Spreads.Core.Tests.X.Series
 
                 var sa = new AppendSeries<int, int>();
                 var sl = new SortedList<int, int>();
-                var dict = new Dictionary<int,int>();
+                var dict = new Dictionary<int, int>();
 
                 for (int i = 0; i < count; i++)
                 {
@@ -319,6 +319,89 @@ namespace Spreads.Core.Tests.X.Series
                         }
                     }
                 }
+            }
+        }
+
+        [Test]
+        public void AddExistingThrowsAndKeepsVersion()
+        {
+            var s = new AppendSeries<long, long>();
+            s.Append(1, 1);
+            Assert.AreEqual(0, s.Version);
+            Assert.AreEqual(0, s.OrderVersion);
+            Assert.Throws<ArgumentException>(() => s.Append(1, 1));
+            Assert.AreEqual(0, s.Version);
+            Assert.AreEqual(0, s.OrderVersion);
+            Assert.AreEqual(0, s.NextVersion);
+        }
+
+        [Test]
+        public void CouldMoveAtGe()
+        {
+            var s = new AppendSeries<int, int>(50);
+            for (int i = 0; i < 100; i++)
+            {
+                s.Append(i, i);
+            }
+
+            var cursor = s.GetCursor();
+
+            cursor.MoveAt(-100, Lookup.GE);
+
+            Assert.AreEqual(0, cursor.CurrentKey);
+            Assert.AreEqual(0, cursor.CurrentValue);
+            var shouldBeFalse = cursor.MoveAt(-100, Lookup.LE);
+            Assert.IsFalse(shouldBeFalse);
+        }
+
+        [Test]
+        public void CouldMoveAtLe()
+        {
+            var scm = new AppendSeries<long, long>();
+            for (long i = int.MaxValue; i < int.MaxValue * 4L; i = i + int.MaxValue)
+            {
+                scm.Append(i, i);
+            }
+
+            var cursor = scm.GetCursor();
+
+            var shouldBeFalse = cursor.MoveAt(0, Lookup.LE);
+            Assert.IsFalse(shouldBeFalse);
+        }
+
+        [Test]
+        public void CouldMoveAt()
+        {
+            var s = new AppendSeries<int, int>();
+
+            s.Append(1, 1);
+            s.Append(3, 3);
+            s.Append(5, 5);
+
+            Assert.AreEqual(5, s.LastValueOrDefault);
+            var cursor = s.GetCursor();
+
+            cursor.MoveAt(-100, Lookup.GE);
+
+            Assert.AreEqual(1, cursor.CurrentKey);
+            Assert.AreEqual(1, cursor.CurrentValue);
+
+            var shouldBeFalse = cursor.MoveAt(-100, Lookup.LE);
+            Assert.IsFalse(shouldBeFalse);
+        }
+
+        [Test]
+        public void CouldEnumerateGrowingSeries()
+        {
+            var count = 1_000_000;
+            var sm = new AppendSeries<DateTime, double>();
+            var c = sm.GetCursor();
+
+            for (int i = 0; i < count; i++)
+            {
+                sm.Append(DateTime.UtcNow.Date.AddSeconds(i), i);
+                c.MoveNext();
+                Assert.AreEqual(i, c.CurrentValue);
             }
         }
     }

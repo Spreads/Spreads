@@ -431,9 +431,9 @@ namespace Spreads
         /// </exception>
         void Append(TKey key, TValue value);
 
-        bool TryAppend<TPairs>(TPairs pairs) where TPairs : IEnumerable<KeyValuePair<TKey, TValue>>;
+        bool TryAppendMany<TPairs>(TPairs pairs) where TPairs : IEnumerable<KeyValuePair<TKey, TValue>>;
 
-        void Append<TPairs>(TPairs pairs) where TPairs : IEnumerable<KeyValuePair<TKey, TValue>>;
+        void AppendMany<TPairs>(TPairs pairs) where TPairs : IEnumerable<KeyValuePair<TKey, TValue>>;
 
         /// <summary>
         /// Change <see cref="Mutability"/> of this series to <see cref="Mutability.ReadOnly"/>.

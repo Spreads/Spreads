@@ -12,7 +12,10 @@ using System.Runtime.CompilerServices;
 
 namespace Spreads
 {
-    // ReSharper disable once RedundantExtendsListEntry
+    public partial class Series<TKey, TValue>
+    {
+    }
+
     public class AppendSeries<TKey, TValue> : Series<TKey, TValue>, IAppendSeries<TKey, TValue>
     {
         private static readonly int DefaultMaxBlockRowCount = Math.Max(Settings.MIN_POOLED_BUFFER_LEN, Settings.LARGE_BUFFER_LIMIT / Math.Max(Unsafe.SizeOf<TKey>(), Unsafe.SizeOf<TValue>()));
@@ -140,7 +143,6 @@ namespace Spreads
             return true;
         }
 
-
         internal int MaxBlockRowCount
         {
             get
@@ -154,7 +156,6 @@ namespace Spreads
                 return DefaultMaxBlockRowCount;
             }
         }
-
 
         [MethodImpl(MethodImplOptions.NoInlining
 #if HAS_AGGR_OPT
@@ -255,18 +256,35 @@ namespace Spreads
         {
             if (!TryAppend(key, value))
             {
-                ThrowCannotAppend();
+                ThrowCannotAppend(key, value);
             }
+        }
 
-            void ThrowCannotAppend()
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private void ThrowCannotAppend(TKey key, TValue value)
+        {
+            if (Mutability == Mutability.ReadOnly)
             {
-                if (Mutability == Mutability.ReadOnly)
-                {
-                    ThrowHelper.ThrowInvalidOperationException("Cannot append values to read-only series.");
-                }
-
-                ThrowHelper.ThrowInvalidOperationException($"Cannot append [{key}, {value}]");
+                ThrowHelper.ThrowInvalidOperationException("Cannot append values to read-only series.");
             }
+
+            if (TryGetValue(key, out _) && KeySorting == KeySorting.Strong)
+            {
+                ThrowHelper.ThrowArgumentException($"Cannot append [{key}, {value}]. Key already exists.");
+            }
+
+            var last = Last;
+            if (last.IsPresent)
+            {
+                var c = Comparer.Compare(key, Last.Present.Key);
+                if ((c < 0 && KeySorting != KeySorting.NotSorted)
+                    || (c == 0 && KeySorting == KeySorting.Strong))
+                {
+                    ThrowHelper.ThrowArgumentException($"Cannot append [{key}, {value}]. Key [{key}] would break sorting order {KeySorting}.");
+                }
+            }
+
+            ThrowHelper.ThrowInvalidOperationException($"Cannot append [{key}, {value}].");
         }
 
         /// <inheritdoc />
@@ -274,7 +292,7 @@ namespace Spreads
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
 #endif
 
-        public bool TryAppend<TPairs>(TPairs pairs) where TPairs : IEnumerable<KeyValuePair<TKey, TValue>>
+        public bool TryAppendMany<TPairs>(TPairs pairs) where TPairs : IEnumerable<KeyValuePair<TKey, TValue>>
         {
             throw new NotImplementedException();
         }
@@ -284,9 +302,9 @@ namespace Spreads
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
 #endif
 
-        public void Append<TPairs>(TPairs pairs) where TPairs : IEnumerable<KeyValuePair<TKey, TValue>>
+        public void AppendMany<TPairs>(TPairs pairs) where TPairs : IEnumerable<KeyValuePair<TKey, TValue>>
         {
-            if (!TryAppend(pairs))
+            if (!TryAppendMany(pairs))
             {
                 ThrowCannotAppend();
             }

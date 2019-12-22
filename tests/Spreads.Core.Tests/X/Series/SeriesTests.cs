@@ -51,5 +51,30 @@ namespace Spreads.Core.Tests.Series
             mus.Dispose();
             Assert.IsTrue(mus.IsDisposed);
         }
+
+        [Test]
+        public void CouldMoveAtOnEmpty()
+        {
+            var scm = new Series<int, int>(Array.Empty<int>(), Array.Empty<int>());
+            var c = scm.GetCursor();
+            Assert.IsFalse(c.MoveAt(1, Lookup.GT));
+            Assert.IsFalse(c.MoveAt(1, Lookup.GE));
+            Assert.IsFalse(c.MoveAt(1, Lookup.EQ));
+            Assert.IsFalse(c.MoveAt(1, Lookup.LE));
+            Assert.IsFalse(c.MoveAt(1, Lookup.LT));
+        }
+
+        [Test]
+        public void CouldMoveAtOnNonEmpty()
+        {
+            var scm = new AppendSeries<int,int>();
+            scm.Append(1, 1);
+            var c = scm.GetCursor();
+            Assert.IsFalse(c.MoveAt(1, Lookup.GT));
+            Assert.IsTrue(c.MoveAt(1, Lookup.GE));
+            Assert.IsTrue(c.MoveAt(1, Lookup.EQ));
+            Assert.IsTrue(c.MoveAt(1, Lookup.LE));
+            Assert.IsFalse(c.MoveAt(1, Lookup.LT));
+        }
     }
 }

@@ -14,10 +14,6 @@
 //    [TestFixture]
 //    public class SortedChunkedMapTests {
 
-//        [SetUp]
-//        public void Init() {
-//        }
-
 //        [Test]
 //        public void CouldRemoveFirst() {
 //            var scm = new SortedChunkedMap<int, int>(50);
@@ -35,32 +31,6 @@
 //            Assert.AreEqual(0, scm.outerMap.First.Key);
 //        }
 
-//        [Test]
-//        public void CouldSetInsteadOfAddWithCorrectChunks() {
-//            var scm = new SortedChunkedMap<int, int>(50);
-//            for (int i = 0; i < 100; i++) {
-//                scm[i] = i;
-//            }
-
-//            Assert.AreEqual(2, scm.outerMap.Count());
-//        }
-
-//        [Test]
-//        public void CouldMoveAtGE() {
-//            var scm = new SortedChunkedMap<int, int>(50);
-//            for (int i = 0; i < 100; i++) {
-//                scm[i] = i;
-//            }
-
-//            var cursor = scm.GetCursor();
-
-//            cursor.MoveAt(-100, Lookup.GE);
-
-//            Assert.AreEqual(0, cursor.CurrentKey);
-//            Assert.AreEqual(0, cursor.CurrentValue);
-//            var shouldBeFalse = cursor.MoveAt(-100, Lookup.LE);
-//            Assert.IsFalse(shouldBeFalse);
-//        }
 
 //        [Test]
 //        public async void CouldReadReadOnlyChildWhileAddingToParent() {
@@ -154,51 +124,6 @@
 //            Assert.IsTrue(GetImplementation().Count > 0);
 //        }
 
-//        [Test]
-//        public void CouldCreateSCM() {
-//            var scm_irregular_small = new SortedChunkedMap<DateTime, double>();
-
-//            scm_irregular_small.Add(DateTime.Today.AddDays(-2), -2.0);
-
-//            for (int i = 0; i < _small; i++) {
-//                scm_irregular_small.Add(DateTime.Today.AddDays(i), i);
-//            }
-//        }
-
-//        [Test]
-//        public void CouldAddMoreThanChunkSize() {
-//            var scm = new SortedChunkedMap<int, int>(1024);
-//            var cnt = 0;
-//            for (int i = 0; i < 10000; i = i + 2) {
-//                scm.Add(i, i);
-//                cnt++;
-//            }
-
-//            for (int i = 1; i < 10000; i = i + 2) {
-//                scm.Add(i, i);
-//                cnt++;
-//            }
-
-//            Assert.AreEqual(cnt, scm.Count);
-//            Assert.IsTrue(scm.outerMap.First.Value.Count > 1024);
-
-//            for (int i = 0; i < 10000; i++) {
-//                Assert.AreEqual(i, scm[i]);
-//            }
-//        }
-
-//        [Test]
-//        public void CouldCompareDates() {
-//            var dtc = KeyComparer<DateTime>.Default;
-//            var neg = dtc.Compare(DateTime.Today.AddDays(-2), DateTime.Today);
-//            var pos = dtc.Compare(DateTime.Today.AddDays(2), DateTime.Today.AddDays(-2));
-
-//            Console.WriteLine(neg);
-//            Assert.IsTrue(neg < 0);
-
-//            Console.WriteLine(pos);
-//            Assert.IsTrue(pos > 0);
-//        }
 
 //        [Test]
 //        public void CouldRemoveMany() {
@@ -225,28 +150,7 @@
 //            Assert.IsTrue(scm.First.Key == 1);
 //        }
 
-//        [Test]
-//        public void CouldMoveAtOnEmpty() {
-//            var scm = new SortedChunkedMap<int, int>();
-//            var c = scm.GetCursor();
-//            Assert.IsFalse(c.MoveAt(1, Lookup.GT));
-//            Assert.IsFalse(c.MoveAt(1, Lookup.GE));
-//            Assert.IsFalse(c.MoveAt(1, Lookup.EQ));
-//            Assert.IsFalse(c.MoveAt(1, Lookup.LE));
-//            Assert.IsFalse(c.MoveAt(1, Lookup.LT));
-//        }
 
-//        [Test]
-//        public void CouldMoveAtOnNonEmpty() {
-//            var scm = new SortedChunkedMap<int, int>();
-//            scm.Add(1, 1);
-//            var c = scm.GetCursor();
-//            Assert.IsFalse(c.MoveAt(1, Lookup.GT));
-//            Assert.IsTrue(c.MoveAt(1, Lookup.GE));
-//            Assert.IsTrue(c.MoveAt(1, Lookup.EQ));
-//            Assert.IsTrue(c.MoveAt(1, Lookup.LE));
-//            Assert.IsFalse(c.MoveAt(1, Lookup.LT));
-//        }
 
 //        /// <summary>
 //        /// MoveAt inside SCM was failing
@@ -277,15 +181,6 @@
 //                }
 //            }).ToSortedMap();
 //            Console.WriteLine(sm.Count);
-//        }
-
-//        [Test]
-//        public void AddExistingThrowsAndKeepsVersion() {
-//            var sm = new SortedChunkedMap<long, long>();
-//            sm.Add(1, 1);
-//            Assert.AreEqual(1, sm.Version);
-//            Assert.Throws<ArgumentException>(() => sm.Add(1, 1));
-//            Assert.AreEqual(1, sm.Version);
 //        }
 
 
@@ -420,30 +315,5 @@
 //            Assert.True(map.IsEmpty);
 //        }
 
-//        [Test]
-//        public void OuterMapCachesInnerMaps(SortedChunkedMap<int, int> scm)
-//        {
-//            scm.RemoveMany(int.MinValue, Lookup.GE);
-//            for (int i = 0; i < 10000; i++)
-//            {
-//                scm.Add(i,i);
-//            }
-//            var outer = scm.outerMap;
-//            var oc = outer.GetCursor();
-
-//            var first = outer.First;
-//            scm.Add(10001, 10001);
-//            Assert.True(oc.MoveFirst());
-//            Assert.ReferenceEquals(first.Value, oc.CurrentValue);
-
-
-//            var last = outer.Last;
-//            Assert.True(oc.MoveLast());
-//            Assert.ReferenceEquals(last.Value, oc.CurrentValue);
-
-//            // TODO other cases
-
-//            scm.RemoveMany(int.MinValue, Lookup.GE);
-//        }
 //    }
 //}

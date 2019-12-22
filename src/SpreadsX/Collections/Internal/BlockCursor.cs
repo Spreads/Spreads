@@ -246,6 +246,13 @@ namespace Spreads.Collections.Internal
 
             if (_source.IsDataBlock(out var localBlock, out var ds))
             {
+                if (CurrentBlock != localBlock && ReferenceEquals(CurrentBlock, DataBlock.Empty))
+                {
+                    // initialized cursor before adding first value
+                    CurrentBlock = localBlock;
+                    return Move(stride, allowPartial);
+                }
+
                 Debug.Assert(CurrentBlock == localBlock);
 
                 if (BlockIndex < 0 & stride < 0) // not &&
