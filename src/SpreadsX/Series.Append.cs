@@ -88,7 +88,8 @@ namespace Spreads
         /// Thread-unsafe equivalent of <see cref="TryAppend"/>.
         /// 2x faster but concurrent access could corrupt data or
         /// readers could get wrong results.
-        /// Use it only when single-threaded access is guaranteed.
+        /// Use it only when single-threaded access is guaranteed
+        /// or from inside an action passed to <see cref="Series{TKey,TValue}.Lock"/> method.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining
 #if HAS_AGGR_OPT
