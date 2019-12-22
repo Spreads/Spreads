@@ -322,87 +322,104 @@ namespace Spreads.Core.Tests.X.Series
             }
         }
 
-        [Test]
-        public void AddExistingThrowsAndKeepsVersion()
-        {
-            var s = new AppendSeries<long, long>();
-            s.Append(1, 1);
-            Assert.AreEqual(0, s.Version);
-            Assert.AreEqual(0, s.OrderVersion);
-            Assert.Throws<ArgumentException>(() => s.Append(1, 1));
-            Assert.AreEqual(0, s.Version);
-            Assert.AreEqual(0, s.OrderVersion);
-            Assert.AreEqual(0, s.NextVersion);
-        }
+        //[Test]
+        //public void AddExistingThrowsAndKeepsVersion()
+        //{
+        //    using (var s = new AppendSeries<long, long>())
+        //    {
+        //        s.Append(1, 1);
+        //        Assert.AreEqual(0, s.Version);
+        //        Assert.AreEqual(0, s.OrderVersion);
+        //        Assert.Throws<ArgumentException>(() => s.Append(1, 1));
+        //        Assert.AreEqual(0, s.Version);
+        //        Assert.AreEqual(0, s.OrderVersion);
+        //        Assert.AreEqual(0, s.NextVersion);
+        //    }
+        //}
 
-        [Test]
-        public void CouldMoveAtGe()
-        {
-            var s = new AppendSeries<int, int>(50);
-            for (int i = 0; i < 100; i++)
-            {
-                s.Append(i, i);
-            }
+        //[Test]
+        //public void CouldMoveAtGe()
+        //{
+        //    using (var s = new AppendSeries<int, int>(50))
+        //    {
+        //        for (int i = 0; i < 100; i++)
+        //        {
+        //            s.Append(i, i);
+        //        }
 
-            var cursor = s.GetCursor();
+        //        var c = s.GetCursor();
 
-            cursor.MoveAt(-100, Lookup.GE);
+        //        c.MoveAt(-100, Lookup.GE);
 
-            Assert.AreEqual(0, cursor.CurrentKey);
-            Assert.AreEqual(0, cursor.CurrentValue);
-            var shouldBeFalse = cursor.MoveAt(-100, Lookup.LE);
-            Assert.IsFalse(shouldBeFalse);
-        }
+        //        Assert.AreEqual(0, c.CurrentKey);
+        //        Assert.AreEqual(0, c.CurrentValue);
+        //        var shouldBeFalse = c.MoveAt(-100, Lookup.LE);
+        //        Assert.IsFalse(shouldBeFalse);
+        //        c.Dispose();
+        //    }
+        //}
 
-        [Test]
-        public void CouldMoveAtLe()
-        {
-            var scm = new AppendSeries<long, long>();
-            for (long i = int.MaxValue; i < int.MaxValue * 4L; i = i + int.MaxValue)
-            {
-                scm.Append(i, i);
-            }
+        //[Test]
+        //public void CouldMoveAtLe()
+        //{
+        //    using (var s = new AppendSeries<long, long>())
+        //    {
+        //        for (long i = int.MaxValue; i < int.MaxValue * 4L; i = i + int.MaxValue)
+        //        {
+        //            s.Append(i, i);
+        //        }
 
-            var cursor = scm.GetCursor();
+        //        var c = s.GetCursor();
 
-            var shouldBeFalse = cursor.MoveAt(0, Lookup.LE);
-            Assert.IsFalse(shouldBeFalse);
-        }
+        //        var shouldBeFalse = c.MoveAt(0, Lookup.LE);
+        //        Assert.IsFalse(shouldBeFalse);
 
-        [Test]
-        public void CouldMoveAt()
-        {
-            var s = new AppendSeries<int, int>();
+        //        c.Dispose();
+        //    }
+        //}
 
-            s.Append(1, 1);
-            s.Append(3, 3);
-            s.Append(5, 5);
+        //[Test]
+        //public void CouldMoveAt()
+        //{
+        //    using (var s = new AppendSeries<int, int>())
+        //    {
 
-            Assert.AreEqual(5, s.LastValueOrDefault);
-            var cursor = s.GetCursor();
+        //        s.Append(1, 1);
+        //        s.Append(3, 3);
+        //        s.Append(5, 5);
 
-            cursor.MoveAt(-100, Lookup.GE);
+        //        Assert.AreEqual(5, s.LastValueOrDefault);
+        //        var c = s.GetCursor();
 
-            Assert.AreEqual(1, cursor.CurrentKey);
-            Assert.AreEqual(1, cursor.CurrentValue);
+        //        c.MoveAt(-100, Lookup.GE);
 
-            var shouldBeFalse = cursor.MoveAt(-100, Lookup.LE);
-            Assert.IsFalse(shouldBeFalse);
-        }
+        //        Assert.AreEqual(1, c.CurrentKey);
+        //        Assert.AreEqual(1, c.CurrentValue);
 
-        [Test]
-        public void CouldEnumerateGrowingSeries()
-        {
-            var count = 1_000_000;
-            var sm = new AppendSeries<DateTime, double>();
-            var c = sm.GetCursor();
+        //        var shouldBeFalse = c.MoveAt(-100, Lookup.LE);
+        //        Assert.IsFalse(shouldBeFalse);
 
-            for (int i = 0; i < count; i++)
-            {
-                sm.Append(DateTime.UtcNow.Date.AddSeconds(i), i);
-                c.MoveNext();
-                Assert.AreEqual(i, c.CurrentValue);
-            }
-        }
+        //        c.Dispose();
+        //    }
+        //}
+
+        //[Test]
+        //public void CouldEnumerateGrowingSeries()
+        //{
+        //    var count = 1_000_000;
+        //    using (var s = new AppendSeries<DateTime, double>())
+        //    {
+        //        var c = s.GetCursor();
+
+        //        for (int i = 0; i < count; i++)
+        //        {
+        //            s.Append(DateTime.UtcNow.Date.AddSeconds(i), i);
+        //            c.MoveNext();
+        //            Assert.AreEqual(i, c.CurrentValue);
+        //        }
+
+        //        c.Dispose();
+        //    }
+        //}
     }
 }

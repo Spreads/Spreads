@@ -12,10 +12,6 @@ using System.Runtime.CompilerServices;
 
 namespace Spreads
 {
-    public partial class Series<TKey, TValue>
-    {
-    }
-
     public class AppendSeries<TKey, TValue> : Series<TKey, TValue>, IAppendSeries<TKey, TValue>
     {
         private static readonly int DefaultMaxBlockRowCount = Math.Max(Settings.MIN_POOLED_BUFFER_LEN, Settings.LARGE_BUFFER_LIMIT / Math.Max(Unsafe.SizeOf<TKey>(), Unsafe.SizeOf<TValue>()));

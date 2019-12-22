@@ -54,8 +54,7 @@ namespace Spreads.Buffers
         private readonly Bucket[] _buckets;
         private readonly int _minBufferLengthPow2;
         internal bool _disposed;
-
-        internal bool AddStackTraceOnRent = false;
+        internal bool AddStackTraceOnRent = LeaksDetection.Enabled;
 
         public RetainableMemoryPool(Func<RetainableMemoryPool<T>, int, RetainableMemory<T>> factory)
             : this(factory, DefaultMinArrayLength, DefaultMaxArrayLength, DefaultMaxNumberOfArraysPerBucket)

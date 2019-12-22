@@ -367,7 +367,7 @@ namespace Spreads.Buffers
             if (Tag != null)
             {
                 // in general we do not know that Dispose(false) will throw/fail, so just print it here
-                Trace.TraceWarning("Finalizing RetainableMemory: " + Tag);
+                Console.WriteLine("Finalizing RetainableMemory: " + Tag);
             }
 
             // always dies in Debug

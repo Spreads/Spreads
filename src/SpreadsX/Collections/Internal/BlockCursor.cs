@@ -118,6 +118,8 @@ namespace Spreads.Collections.Internal
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool MoveAt(TKey key, Lookup direction)
         {
+            ThrowHelper.DebugAssert(!CurrentBlock.IsDisposed || ReferenceEquals(CurrentBlock, DataBlock.Empty));
+
             bool found;
             int nextPosition;
             DataBlock nextBlock;
@@ -184,6 +186,8 @@ namespace Spreads.Collections.Internal
         )]
         public long Move(long stride, bool allowPartial)
         {
+            ThrowHelper.DebugAssert(!CurrentBlock.IsDisposed || ReferenceEquals(CurrentBlock, DataBlock.Empty));
+
             long mc;
             ulong newBlockIndex;
             TKey k = default!;
@@ -531,6 +535,8 @@ namespace Spreads.Collections.Internal
 
         public bool TryGetValue(TKey key, out DataBlock value)
         {
+            ThrowHelper.DebugAssert(!CurrentBlock.IsDisposed || ReferenceEquals(CurrentBlock, DataBlock.Empty));
+
             throw new NotImplementedException();
         }
 
