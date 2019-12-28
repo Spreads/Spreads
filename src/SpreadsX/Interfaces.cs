@@ -90,6 +90,19 @@ namespace Spreads
         void TryComplete(bool cancel);
     }
 
+    public interface IAsyncSubscription : IDisposable {
+        // TODO review ReactiveStreams
+        // void Request();
+
+        /// <summary>
+        /// GC root for async continuation. Any strong reference storage should work.
+        /// </summary>
+        /// <remarks>
+        /// This is bad for interface and .NET specific.
+        /// </remarks>
+        IAsyncCompletable AwaitingCompletable { set; }
+    }
+
     /// <summary>
     /// An interface to pass a notification to waiting consumers (if any) when new data is available at a producer.
     /// </summary>

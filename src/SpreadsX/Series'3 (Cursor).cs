@@ -79,7 +79,7 @@ namespace Spreads
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public AsyncCursor<TKey, TValue, TCursor> GetAsyncEnumerator(CancellationToken ct = default)
         {
-            return new AsyncCursor<TKey, TValue, TCursor>(_cursor.Initialize(), true); // TODO review batch mode
+            return new AsyncCursor<TKey, TValue, TCursor>(_cursor.Initialize()); // TODO review batch mode
         }
 
         #region ISeries members

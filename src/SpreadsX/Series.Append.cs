@@ -25,18 +25,8 @@ namespace Spreads
         {
         }
 
-        public AppendSeries(int capacity)
-            : this(Mutability.AppendOnly, KeySorting.Strong, (uint)capacity)
-        {
-        }
-
         public AppendSeries(KeyComparer<TKey> comparer)
-            : this(Mutability.AppendOnly, KeySorting.Strong, 0, comparer)
-        {
-        }
-
-        public AppendSeries(int capacity, KeyComparer<TKey> comparer)
-            : this(Mutability.AppendOnly, KeySorting.Strong, (uint)capacity, comparer)
+            : this(Mutability.AppendOnly, KeySorting.Strong, comparer)
         {
         }
 
@@ -46,27 +36,22 @@ namespace Spreads
         }
 
         public AppendSeries(KeyComparer<TKey> comparer, KeySorting keySorting)
-            : this(Mutability.AppendOnly, keySorting, 0, comparer, default)
-        {
-        }
-
-        public AppendSeries(int capacity, KeyComparer<TKey> comparer, KeySorting keySorting)
-            : this(Mutability.AppendOnly, keySorting, (uint)capacity, comparer, default)
+            : this(Mutability.AppendOnly, keySorting, comparer, default)
         {
         }
 
         public AppendSeries(MovingWindowOptions<TKey> movingWindowOptions)
-            : this(Mutability.AppendOnly, KeySorting.Strong, 0, default, movingWindowOptions)
+            : this(Mutability.AppendOnly, KeySorting.Strong, default, movingWindowOptions)
         {
         }
 
         public AppendSeries(KeySorting keySorting, MovingWindowOptions<TKey> movingWindowOptions)
-            : this(Mutability.AppendOnly, keySorting, 0, default, movingWindowOptions)
+            : this(Mutability.AppendOnly, keySorting, default, movingWindowOptions)
         {
         }
 
         public AppendSeries(KeyComparer<TKey> comparer, KeySorting keySorting, MovingWindowOptions<TKey> movingWindowOptions)
-            : this(Mutability.AppendOnly, keySorting, 0, comparer, movingWindowOptions)
+            : this(Mutability.AppendOnly, keySorting, comparer, movingWindowOptions)
         {
         }
 
@@ -74,9 +59,8 @@ namespace Spreads
 
         protected AppendSeries(Mutability mutability = Mutability.ReadOnly,
             KeySorting keySorting = KeySorting.Strong,
-            uint capacity = 0,
             KeyComparer<TKey> comparer = default,
-            MovingWindowOptions<TKey>? movingWindowOptions = default) : base(mutability, keySorting, capacity, comparer, movingWindowOptions)
+            MovingWindowOptions<TKey>? movingWindowOptions = default) : base(mutability, keySorting, comparer)
         {
             if (movingWindowOptions != null)
             {
@@ -136,6 +120,10 @@ namespace Spreads
             }
             Options?.OnBeforeAppend();
             db.SeriesAppend(db.RowCount, key, value);
+
+            // TODO Version++;
+            // NotifyUpdate();
+
             return true;
         }
 
@@ -160,7 +148,7 @@ namespace Spreads
         )]
         private bool TryGrowCapacity(TKey key, [NotNullWhen(true)] ref DataBlock? block)
         {
-            ThrowHelper.AssertFailFast(block != null);
+            ThrowHelper.DebugAssert(block != null);
 
             try
             {

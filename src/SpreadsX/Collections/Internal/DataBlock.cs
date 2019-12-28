@@ -13,13 +13,37 @@ using System.Runtime.CompilerServices;
 
 namespace Spreads.Collections.Internal
 {
+    internal class DataBlockCounters
+    {
+        /// <summary>
+        /// Number of data rows.
+        /// </summary>
+        protected volatile int _rowCount = -1;
+
+        /// <summary>
+        /// Primarily for cursors and circular implementation.
+        /// We do not release blocks used by cursors, which must
+        /// decrement a block ref count when they no longer need it.
+        /// </summary>
+        protected int _refCount;
+    }
+
+    internal class DataBlockVectors : DataBlockCounters
+    {
+        protected VecStorage _rowKeys;
+
+        protected VecStorage _values; // TODO (review) could be valuesOrColumnIndex instead of storing ColumnIndex in _columns[0]
+
+        protected VecStorage[]? _columns;
+    }
+
     /// <summary>
     /// Physycal storage for Series, Matrix and DataFrame blocks.
     /// </summary>
     /// <remarks>
     /// This is thread-unsafe storage. Callers should use some locking mechanism.
     /// </remarks>
-    internal sealed partial class DataBlock : IRefCounted, IDisposable
+    internal sealed partial class DataBlock : DataBlockVectors, IRefCounted, IDisposable
     {
         /// <summary>
         /// We need this as a sentinel with RowLength == 0 in cursor to not penalize fast path of single-block containers.
@@ -28,33 +52,12 @@ namespace Spreads.Collections.Internal
 
         private static readonly ObjectPool<DataBlock> ObjectPool = new ObjectPool<DataBlock>(() => new DataBlock(), Environment.ProcessorCount * 16);
 
-        /// <summary>
-        /// Primarily for cursors and circular implementation.
-        /// We do not release blocks used by cursors, which must
-        /// decrement a block ref count when they no longer need it.
-        /// </summary>
-        private int _refCount;
-
-        /// <summary>
-        /// Number of data rows.
-        /// </summary>
-        private volatile int _rowCount = -1;
-
-        /// <summary>
-        /// Vec offset where data starts (where index ==0).
-        /// </summary>
-        private volatile int _head = -1;
-
-        private VecStorage _rowKeys;
-
-        private VecStorage _values; // TODO (review) could be valuesOrColumnIndex instead of storing ColumnIndex in _columns[0]
-
-        private VecStorage[]? _columns;
-
         [Obsolete("Use only in tests")]
         internal VecStorage RowKeys => _rowKeys;
+
         [Obsolete("Use only in tests")]
         internal VecStorage Values => _values;
+
         [Obsolete("Use only in tests")]
         internal VecStorage[]? Columns => _columns;
 
@@ -78,6 +81,11 @@ namespace Spreads.Collections.Internal
         /// <seealso cref="NextBlock"/>
         internal DataBlock? PreviousBlock;
 
+        /// <summary>
+        /// Vec offset where data starts (where index ==0).
+        /// </summary>
+        private volatile int _head = -1;
+
         private DataBlock()
         {
             AtomicCounter.Dispose(ref _refCount);
@@ -92,7 +100,7 @@ namespace Spreads.Collections.Internal
         {
             var block = ObjectPool.Allocate();
             block.EnsureDisposed();
-            
+
             var rowCapacity = -1;
 
             if (rowIndex != default)
@@ -252,9 +260,9 @@ namespace Spreads.Collections.Internal
 
         ~DataBlock()
         {
-            #if DEBUG
+#if DEBUG
             ThrowHelper.ThrowInvalidOperationException("Finalizing DataBlock");
-            #endif
+#endif
             Dispose(false);
         }
 
@@ -283,18 +291,33 @@ namespace Spreads.Collections.Internal
             get => _rowKeys.Vec.Length;
         }
 
+        /// <summary>
+        /// True if <see cref="RowCount"/> is equal to <see cref="RowCapacity"/>.
+        /// </summary>
+        public bool IsFull
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => _rowCount == _rowKeys.Vec.Length;
+        }
+
+        public bool IsEmptySentinel
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => ReferenceEquals(this, Empty);
+        }
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ref T DangerousRowKeyRef<T>(int index)
         {
-            int index1 = IndexToOffset(index);
-            return ref _rowKeys.Vec.DangerousGetRef<T>(index1);
+            int offset = IndexToOffset(index);
+            return ref _rowKeys.Vec.DangerousGetRef<T>(offset);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ref T DangerousValueRef<T>(int index)
         {
-            int index1 = IndexToOffset(index);
-            return ref _values.Vec.DangerousGetRef<T>(index1);
+            int offset = IndexToOffset(index);
+            return ref _values.Vec.DangerousGetRef<T>(offset);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining

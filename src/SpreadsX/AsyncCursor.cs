@@ -17,29 +17,6 @@ using System.Threading.Tasks.Sources;
 namespace Spreads
 {
     /// <summary>
-    /// This is an optional capability of <see cref="IAsyncEnumerator{T}"/> that
-    /// is detected during runtime. It is internal because it's tricky to implement
-    /// right and follow the contract and intended usage is only for DataSpreads
-    /// (loading blocks of data via async IO).
-    /// </summary>
-    /// <typeparam name="T"></typeparam>
-    internal interface IAsyncBatchEnumerator<out T>
-    {
-        // TODO this is over-complicated: we either want a block of data or not. Usage of double negative noAsync is vague, should split into sync MoveNextBatch and MNBAsync without params.
-
-        // Same contract as in cursors:
-        // if MoveNextBatchAsync(noAsync = true) returns false then there are no batches available synchronously
-        // (e.g. some SIMD operations such as Sum() could benefit if a SortedMap
-        // is available instantly, but they should not even try async call because normal Sum() will be faster )
-        // For IO case MoveNextBatchAsync(noAsync = true) is a happy-path, but if it returns false then a consumer
-        // must call and await MoveNextBatchAsync(noAsync = false). Only after MNB(noAsync = false) returns false there
-        // will be no batches ever and consumer must switch to per-item calls.
-        ValueTask<bool> MoveNextBatchAsync(bool noAsync);
-
-        IEnumerable<T> CurrentBatch { get; }
-    }
-
-    /// <summary>
     /// Base class with mostly internal static fields used by <see cref="AsyncCursor{TKey,TValue,TCursor}"/>.
     /// </summary>
     public class AsyncCursor
@@ -113,8 +90,8 @@ namespace Spreads
             _finishedCount = 0;
         }
 
-        protected static readonly Action<object> CompletedSentinel = s => throw new InvalidOperationException($"{nameof(CompletedSentinel)} invoked with {s}");
-        protected static readonly Action<object> AvailableSentinel = s => throw new InvalidOperationException($"{nameof(AvailableSentinel)} invoked with {s}");
+        protected static readonly Action<object?> CompletedSentinel = s => throw new InvalidOperationException($"{nameof(CompletedSentinel)} invoked with {s}");
+        protected static readonly Action<object?> AvailableSentinel = s => throw new InvalidOperationException($"{nameof(AvailableSentinel)} invoked with {s}");
 
         [MethodImpl(MethodImplOptions.NoInlining)]
         protected static void ThrowIncompleteOperationException()
@@ -134,28 +111,18 @@ namespace Spreads
             ThrowHelper.ThrowInvalidOperationException("Multiple continuations");
         }
 
-        [MethodImpl(MethodImplOptions.NoInlining)]
-        protected static void FailContinuationIsNull()
-        {
-            // TODO do not FF
-            ThrowHelper.FailFast("continuation");
-        }
     }
 
     /// <summary>
-    /// The default implementation of <see cref="ICursor{TKey,TValue}"/> with supported <see cref="IAsyncEnumerator{T}.MoveNextAsync"/>.
+    /// The default implementation of <see cref="ICursor{TKey,TValue}"/> with supported <see cref="System.Collections.Generic.IAsyncEnumerator{T}.MoveNextAsync"/>.
     /// </summary>
     public sealed class AsyncCursor<TKey, TValue, TCursor> : AsyncCursor,
-        ICursor<TKey, TValue>,
         ICursor<TKey, TValue, TCursor>,
         IAsyncEnumerator<KeyValuePair<TKey, TValue>>,
          IValueTaskSource<bool>, IAsyncCompletable, ISpreadsThreadPoolWorkItem
          where TCursor : ICursor<TKey, TValue, TCursor>
     {
         // Modeled after corefx Channels.AsyncOperation: https://github.com/dotnet/corefx/blob/master/src/System.Threading.Channels/src/System/Threading/Channels/AsyncOperation.cs
-        // Pooling is not needed, because there would be too
-        // many pools for each generic types combination
-        // and using AsyncCursor is supposed to be long running.
 
         // ReSharper disable once FieldCanBeMadeReadOnly.Local Mutable struct
         private TCursor _innerCursor;
@@ -165,70 +132,52 @@ namespace Spreads
         /// or <see cref="AsyncCursor.CompletedSentinel"/> if the operation completed before a callback was supplied,
         /// or null if a callback hasn't yet been provided and the operation hasn't yet completed.
         /// </summary>
-        private Action<object> _continuation;
-
-        private int _isExecuting;
+        private Action<object?>? _continuation;
 
         /// <summary>State to pass to <see cref="_continuation"/>.</summary>
-        private object _continuationState;
+        private object? _continuationState;
 
         /// <summary><see cref="ExecutionContext"/> to flow to the callback, or null if no flowing is required.</summary>
-        private ExecutionContext _executionContext;
+        private ExecutionContext? _executionContext;
 
         /// <summary>
         /// A "captured" <see cref="SynchronizationContext"/> or <see cref="TaskScheduler"/> with which to invoke the callback,
         /// or null if no special context is required.
         /// </summary>
-        private object _schedulingContext;
+        private object? _schedulingContext;
 
         /// <summary>The result with which the operation succeeded, or the default value if it hasn't yet completed or failed.</summary>
         private bool _result;
 
         /// <summary>The exception with which the operation failed, or null if it hasn't yet completed or completed successfully.</summary>
-        private ExceptionDispatchInfo _error;
+        private ExceptionDispatchInfo? _error;
 
         /// <summary>The current version of this value, used to help prevent misuse.</summary>
         private short _currentId;
 
         /// <summary>
-        /// Set to true in TryComplete unconditionally and cleared before cursor MN attempts.
-        /// If MN is unsuccessful, we check _hasUpdate after failed move and retry if hasUpdate is true.
-        /// We also check this field after OnCompleted and call TryComplete if it's true.
+        /// This counter replaces two bool values (we used to have them):
+        /// _hasUpdate and _isExecuting.
         /// </summary>
-        private bool _hasUpdate;
+        /// <remarks>
+        /// <see cref="TryComplete"/> increments the counter. When it's GT(0) it's
+        /// equivalent of hasUpdate.
+        /// When counter after increment equals to 1 then
+        /// it means hasUpdate was false before and awaiter has not yet tried to move.
+        /// <see cref="OnCompleted"/> sets the counter to 0 after setting continuation
+        /// and checks previous value of the counter. If it was positive (hasUpdate) then it
+        /// calls <see cref="TryComplete"/>, only one call to which could schedule
+        /// <see cref="Execute"/> on a thread pool because incrementing the counter
+        /// from 0 to 1 is atomic.
+        /// </remarks>
+        internal long _counter = 1;
 
-        private IDisposable _subscription;
+        private IDisposable? _subscription;
 
-        // TODO(?) remove all batch related logic. But the feature is really useful, only impl is bad
-        // E.g. we could replace SQLite by any RDBMS/Cassandra/etc. to retrieve blocks
-        // But that feature should be only in AsyncEnumerator. Not sure if we need AsyncCursor at all.
-        private bool _preferBatchMode;
 
-        private bool _isInBatch;
-        private readonly IAsyncBatchEnumerator<KeyValuePair<TKey, TValue>> _outerBatchEnumerator;
-        private IEnumerator<KeyValuePair<TKey, TValue>> _innerBatchEnumerator;
-        private IEnumerable<KeyValuePair<TKey, TValue>> _nextBatch;
-
-        // TODO review batch mode and all ctor usages
-        internal AsyncCursor(TCursor cursor, bool preferBatchMode = false)
+        internal AsyncCursor(TCursor cursor)
         {
             _innerCursor = cursor;
-
-            _preferBatchMode = preferBatchMode;
-
-            if (_preferBatchMode)
-            {
-                // ReSharper disable once SuspiciousTypeConversion.Global
-                if (cursor is IAsyncBatchEnumerator<KeyValuePair<TKey, TValue>> batchEnumerator)
-                {
-                    _outerBatchEnumerator = batchEnumerator;
-                }
-                else
-                {
-                    _preferBatchMode = false;
-                }
-            }
-
             _continuation = AvailableSentinel;
         }
 
@@ -242,10 +191,10 @@ namespace Spreads
 
         private bool TryOwnAndReset()
         {
-            if (ReferenceEquals(Interlocked.CompareExchange(ref _continuation, null, AvailableSentinel),
+            if (ReferenceEquals(Interlocked.CompareExchange(ref _continuation, value: null, AvailableSentinel),
                  AvailableSentinel))
             {
-                _isExecuting = 0;
+                _counter = 1;
                 _continuationState = null;
                 _result = default;
                 _error = null;
@@ -254,69 +203,19 @@ namespace Spreads
                 return true;
             }
 
-            Console.WriteLine($"Cannot get ownership: CS: {_continuation == CompletedSentinel} null: {_continuation == null}");
+            Debug.WriteLine($"Cannot get ownership: CS: {_continuation == CompletedSentinel} null: {_continuation == null}");
 
             return false;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private ValueTask<bool> GetMoveNextAsyncValueTask()
-        {
-            var sw = new SpinWait();
-            while (true)
-            {
-                if (_innerCursor.MoveNext())
-                {
-                    LogSync();
-                    return new ValueTask<bool>(true);
-                }
-
-                if (_innerCursor.IsCompleted)
-                {
-                    LogSync();
-                    if (_innerCursor.MoveNext())
-                    {
-                        return new ValueTask<bool>(true);
-                    }
-
-                    return new ValueTask<bool>(false);
-                }
-                sw.SpinOnce();
-                if (sw.NextSpinWillYield)
-                {
-                    break;
-                }
-            }
-
-            // Delay subscribing as much as possible
-            if (_subscription == null)
-            {
-                _subscription = _innerCursor.AsyncCompleter?.Subscribe(this) ?? _nullSubscriptionSentinel;
-            }
-
-            if (ReferenceEquals(_subscription, _nullSubscriptionSentinel))
-            {
-                // NB last chance, no async support
-                return new ValueTask<bool>(_innerCursor.MoveNext());
-            }
-
-            // before this line we do not touch async machinery at all
-
-            if (!TryOwnAndReset())
-            {
-                // TODO remove FF, but in the main test it should not happen
-                ThrowHelper.FailFast("Cannot get ownership");
-                ThrowMultipleContinuations();
-            }
-
-            Debug.WriteLine("Owned");
-            return new ValueTask<bool>(this, _currentId);
         }
 
         /// <summary>Gets the current status of the operation.</summary>
         /// <param name="token">The token that must match <see cref="_currentId"/>.</param>
         public ValueTaskSourceStatus GetStatus(short token)
         {
+            // We try to MN synchronously (and even spin a little) before
+            // touching IValueTask machinery, do not try to MN here, it's
+            // a pure method.
+
             Debug.WriteLine("GetStatus");
             ValidateToken(token);
 
@@ -327,8 +226,6 @@ namespace Spreads
                 ValueTaskSourceStatus.Faulted;
         }
 
-        /// <summary>Gets whether the current task operation has completed.</summary>
-        internal bool IsTaskExecuting => _isExecuting != 0;
 
         internal bool IsTaskCompleted => ReferenceEquals(_continuation, CompletedSentinel);
 
@@ -352,7 +249,6 @@ namespace Spreads
 
             if (!IsTaskCompleted)
             {
-                ThrowHelper.FailFast("");
                 ThrowIncompleteOperationException();
             }
 
@@ -385,7 +281,7 @@ namespace Spreads
         /// </summary>
         /// <remarks>
         /// This method should try to detect that there is no outstanding async awaiter.
-        /// Usually <see cref="IAsyncEnumerator{T}.MoveNextAsync"/> completes synchronously if
+        /// Usually <see cref="System.Collections.Generic.IAsyncEnumerator{T}.MoveNextAsync"/> completes synchronously if
         /// data is available. If data is produced faster than a cursor consumes it then
         /// there will be too many work items on the ThreadPool, most of them just doing nothing,
         /// and this significantly reduces performance.
@@ -396,63 +292,31 @@ namespace Spreads
         {
             if (cancel || _error != null)
             {
-                Console.WriteLine("cancel || _error != null");
+                //Console.WriteLine("cancel || _error != null");
                 // Do not call SetException here, it could call completion synchronously
                 // but we must never do so from writer threads, only from the thread pool.
+                // Always call Execute on TP.
                 _error ??= ExceptionDispatchInfo.Capture(new OperationCanceledException());
             }
             else // always call Execute on cancel or error
             {
-                Volatile.Write(ref _hasUpdate, true);
-
-                // if _continuation is set in OnComplete after the read above
-                // then at the end of the OnComplete we check _hasUpdate and
-                // call this method to try complete without notification.
-
-                if (IsTaskAwating
-                    && Volatile.Read(ref _isExecuting) == 0
-                    && Interlocked.CompareExchange(ref _isExecuting, 1, 0) == 0)
+                var afterIncrement = Interlocked.Increment(ref _counter);
+                if (afterIncrement > 1 // it's set to 0 in OnCompleted, opening a "gate" for a single entrant incrementing in from 0 to 1
+                    ||
+                    !IsTaskAwating // nothing to complete, do not anything
+                    )
                 {
-                    // We took exec lock, but we have read c
-                    if (!IsTaskAwating)
-                    {
-                        Console.WriteLine("RACE ON IsTaskAwating");
-                        Volatile.Write(ref _isExecuting, 0);
-                        return;
-                    }
-                    // proceed
-                }
-                else
-                {
-                    // Debug.WriteLine($"MISSED {IsTaskAwating} {_continuationEx == null} {_continuationEx == CompletedSentinel} {_continuationEx == AvailableSentinel}");
-                    LogMissed();
                     return;
                 }
-
-                //if (!(IsTaskAwating
-                //    &&
-                //    Volatile.Read(ref _continuationEx) == null
-                //    &&
-                //    Interlocked.CompareExchange(ref _continuationEx, _continuation, null) == null
-                //    ))
-                //{
-                //    Debug.WriteLine($"MISSED {IsTaskAwating} {_continuationEx == null}");
-                //    LogMissed();
-                //    return;
-                //}
-                // no continuation is currently being executed, should call Execute on ThreadPool
+                Debug.WriteLine("Queue Execute on TP");
             }
 
-#if NETCOREAPP3_0
-            ThreadPool.UnsafeQueueUserWorkItem(this, true);
-#else
-            ThreadPool.UnsafeQueueUserWorkItem(state => ((AsyncCursor<TKey, TValue, TCursor>)state).Execute(), this);
-#endif
+            SpreadsThreadPool.Default.UnsafeQueueCompletableItem(this, true);
         }
 
         /// <summary>
-        /// This method is called by the ThreadPool. If there is no context (execution or scheduling) then execute continuation synchronuously
-        /// since we are on the ThreadPool worker thread or a caller of this method knows what is going on.
+        /// This method is called by the ThreadPool. If there is no context
+        /// (execution or scheduling) then execute continuation synchronously.
         /// </summary>
         public void Execute()
         {
@@ -465,35 +329,66 @@ namespace Spreads
 
             try
             {
+                long counter;
+                
                 do
                 {
-                    // if during checks someones notifies us about updates but we are trying to move,
-                    // then we could miss update (happened in tests once in 355M-5.5B ops)
-                    Volatile.Write(ref _hasUpdate, false);
-
-                    if (_innerCursor.MoveNext())
+                    counter = Volatile.Read(ref _counter);
+                    if (Moved(out var result))
                     {
-                        SetResult(true);
+                        Debug.WriteLine($"Moved in Execute with result={result}");
+                        SetResult(result);
                         LogAsync();
                         return;
                     }
+                    Debug.WriteLine($"Not moved in Execute with result={result}");
+                } while (Volatile.Read(ref _counter) > counter && _error == null);
 
-                    if (_innerCursor.IsCompleted)
+                if (_error != null)
+                {
+                    SignalCompletion();
+                }
+
+                if (IsTaskAwating)
+                {
+                    // we entered but could not move, open the "gate"
+                    if (IntPtr.Size == 8)
                     {
-                        var moved = _innerCursor.MoveNext();
-                        SetResult(moved);
-                        LogAsync();
-                        return;
+                        Debug.WriteLine("Set counter to zero from execute");
+                        Volatile.Write(ref _counter, 0);
                     }
-                } while (Volatile.Read(ref _hasUpdate));
-
-                Debug.WriteLine($"FALSE NOTIFICATION: {_innerCursor.CurrentKey}");
-                Volatile.Write(ref _isExecuting, 0);
+                    else
+                    {
+                        Interlocked.Exchange(ref _counter, 0);
+                    }
+                }
             }
             catch (Exception e)
             {
                 SetException(e);
             }
+        }
+
+        /// <summary>
+        /// This could throw any exception a cursor throws (therefore not name TryMove).
+        /// </summary>
+        /// <param name="result">True if moved or false if not moved but is completed.</param>
+        /// <returns>True if moved or completed.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private bool Moved(out bool result)
+        {
+            if ((result = _innerCursor.MoveNext()) // parens!
+                || _innerCursor.IsCompleted) 
+            {
+                if (!result)
+                {
+                    // we need to try MN after reading IsCompleted==true
+                    result = _innerCursor.MoveNext();
+                }
+                return true;
+            }
+
+            return false;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -515,7 +410,7 @@ namespace Spreads
         /// <param name="state">The state to pass to the callback.</param>
         /// <param name="token">The current token that must match <see cref="_currentId"/>.</param>
         /// <param name="flags">Flags that influence the behavior of the callback.</param>
-        public void OnCompleted(Action<object> continuation, object state, short token, ValueTaskSourceOnCompletedFlags flags)
+        public void OnCompleted(Action<object?> continuation, object? state, short token, ValueTaskSourceOnCompletedFlags flags)
         {
             ValidateToken(token);
 
@@ -539,8 +434,8 @@ namespace Spreads
 
             // Capture the scheduling context if necessary.
             Debug.Assert(_schedulingContext == null);
-            SynchronizationContext sc = null;
-            TaskScheduler ts = null;
+            SynchronizationContext? sc = null;
+            TaskScheduler? ts = null;
             if ((flags & ValueTaskSourceOnCompletedFlags.UseSchedulingContext) != 0)
             {
                 sc = SynchronizationContext.Current;
@@ -565,7 +460,7 @@ namespace Spreads
             // that means the operation has already completed, and we must invoke the callback, but because we're still
             // inside the awaiter's OnCompleted method and we want to avoid possible stack dives, we must invoke
             // the continuation asynchronously rather than synchronously.
-            Action<object> prevContinuation = Interlocked.CompareExchange(ref _continuation, continuation, null);
+            Action<object?>? prevContinuation = Interlocked.CompareExchange(ref _continuation, continuation, null);
 
             if (prevContinuation != null)
             {
@@ -605,7 +500,7 @@ namespace Spreads
                 }
                 else
                 {
-                    Debug.Assert(ts != null);
+                    ThrowHelper.DebugAssert(ts != null, "ts != null");
 
                     // ReSharper disable once AssignNullToNotNullAttribute
                     Task.Factory.StartNew(continuation, state, CancellationToken.None, TaskCreationOptions.DenyChildAttach, ts);
@@ -627,11 +522,12 @@ namespace Spreads
                 // We have set _continuation and are awaiting. Before that no Execute
                 // could have been scheduled, but we could have missed updates.
 
-                if (Volatile.Read(ref _hasUpdate))
+                ThrowHelper.DebugAssert(IsTaskAwating);
+                var counter = Interlocked.Exchange(ref _counter, 0);
+                Debug.WriteLine($"Counter: {counter}");
+                if (counter > 0) // had update
                 {
-                    Debug.WriteLine("Try complete self");
-                    // Retry self, _continuations is now set, last chance to get result
-                    // without external notification.
+                    Debug.WriteLine($"Call TryComplete from OnCompleted: {counter}");
                     TryComplete(false);
                 }
             }
@@ -693,7 +589,7 @@ namespace Spreads
             }
             else
             {
-                Console.WriteLine("Void signal");
+                Debug.WriteLine("Void signal");
             }
         }
 
@@ -702,7 +598,7 @@ namespace Spreads
             if (_executionContext == null)
             {
                 Debug.WriteLine("SYNC");
-                Action<object> c = _continuation;
+                Action<object?> c = _continuation!;
                 _continuation = CompletedSentinel;
                 c(_continuationState);
             }
@@ -710,8 +606,8 @@ namespace Spreads
             {
                 ExecutionContext.Run(_executionContext, s =>
                 {
-                    var thisRef = (AsyncCursor<TKey, TValue, TCursor>)s;
-                    Action<object> c = thisRef!._continuation;
+                    var thisRef = (AsyncCursor<TKey, TValue, TCursor>)s!;
+                    Action<object?> c = thisRef._continuation!;
                     thisRef._continuation = CompletedSentinel;
                     c(thisRef._continuationState);
                 }, this);
@@ -723,87 +619,48 @@ namespace Spreads
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ValueTask<bool> MoveNextAsync()
         {
-            if (!_preferBatchMode) { return GetMoveNextAsyncValueTask(); }
-
-            ////////// BATCH MODE //////////
-
-            if (_isInBatch && _innerBatchEnumerator.MoveNext())
+            var sw = new SpinWait();
+            while (true)
             {
-                return new ValueTask<bool>(true);
-            }
-            return MoveNextAsyncBatchMode();
+                if (Moved(out var result))
+                {
+                    LogSync();
+                    return new ValueTask<bool>(result);
+                }
 
-            async ValueTask<bool> MoveNextAsyncBatchMode()
+                sw.SpinOnce();
+                if (sw.NextSpinWillYield)
+                {
+                    break;
+                }
+            }
+
+            // Delay subscribing as much as possible
+            if (_subscription == null)
             {
-                var wasInBatch = _isInBatch;
-
-                // _nextBatch = _outerBatchEnumerator.CurrentBatch;
-                // previous happy-path move was false, try to get next batch
-                // but we do not use read locking here, probably new values were added to the current batch
-                // cache the new batch and retry current
-                _isInBatch = _nextBatch != null || await _outerBatchEnumerator.MoveNextBatchAsync(false);
-                if (_isInBatch)
-                {
-                    if (_nextBatch == null)
-                    {
-                        _nextBatch = _outerBatchEnumerator.CurrentBatch;
-                    }
-
-                    if (wasInBatch && _innerBatchEnumerator.MoveNext())
-                    {
-                        // try move over potentially missed values
-                        // regardless of movedNextBatch, if previous moved then next is either null or unused cached
-                        return true;
-                    }
-
-                    if (_nextBatch != null)
-                    {
-                        _innerBatchEnumerator?.Dispose();
-                        _innerBatchEnumerator = _nextBatch.GetEnumerator();
-                        _nextBatch = null;
-                        if (_innerBatchEnumerator.MoveNext())
-                        {
-                            return true;
-                        }
-                        else
-                        {
-                            ThrowHelper.ThrowInvalidOperationException("Batches should not be empty");
-                        }
-                    }
-                    else
-                    {
-                        ThrowHelper.ThrowInvalidOperationException("_nextBatch == null");
-                    }
-
-                    //     _isInBatch = await MoveNextBatch();
-                }
-                else
-                {
-                    // when MNB returns false there will be no more batches
-                    _preferBatchMode = false;
-                    if (wasInBatch)
-                    {
-                        // NB: in the current implementation moveat must work because the batch
-                        // was available and we have not yet disposed _innerBatchEnumerator
-                        // This depends on the fact that batching is an optional internal feature of ICursor
-                        // and not a standalone implementation
-                        if (!_innerCursor.MoveAt(_innerBatchEnumerator.Current.Key, Lookup.EQ))
-                        {
-                            ThrowHelper.ThrowInvalidOperationException("Cannot move to the current batch key after no more batches are available.");
-                        }
-                    }
-                }
-                return await MoveNextAsync();
+                _subscription = _innerCursor.AsyncCompleter?.Subscribe(this) ?? _nullSubscriptionSentinel;
             }
+
+            if (ReferenceEquals(_subscription, _nullSubscriptionSentinel))
+            {
+                // NB last chance, no async support
+                return new ValueTask<bool>(_innerCursor.MoveNext());
+            }
+
+            // before this line we do not touch async machinery at all
+
+            if (!TryOwnAndReset())
+            {
+                ThrowMultipleContinuations();
+            }
+
+            Debug.WriteLine("Owned");
+            return new ValueTask<bool>(this, _currentId);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool MoveNext()
         {
-            if (_isInBatch)
-            {
-                return _innerBatchEnumerator.MoveNext();
-            }
             return _innerCursor.MoveNext();
         }
 
@@ -820,13 +677,12 @@ namespace Spreads
             }
 
             _innerCursor?.Reset();
-            _innerBatchEnumerator?.Reset();
         }
 
         public KeyValuePair<TKey, TValue> Current
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => _isInBatch ? _innerBatchEnumerator.Current : _innerCursor.Current;
+            get => _innerCursor.Current;
         }
 
         object IEnumerator.Current => ((IEnumerator)_innerCursor).Current;
@@ -840,65 +696,61 @@ namespace Spreads
         public KeyComparer<TKey> Comparer => _innerCursor.Comparer;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void EnsureNotAwaiting()
+        {
+            if (IsTaskAwating)
+            {
+                ThrowHelper.ThrowInvalidOperationException("AsyncCursor is awaiting MoveNextAsync");
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool MoveAt(TKey key, Lookup direction)
         {
-            if (_isInBatch)
-            {
-                ThrowHelper.ThrowNotSupportedException();
-            }
+            EnsureNotAwaiting();
             return _innerCursor.MoveAt(key, direction);
         }
+
+        
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool MoveFirst()
         {
-            if (_isInBatch)
-            {
-                return _innerBatchEnumerator.MoveNext();
-            }
+            EnsureNotAwaiting();
             return _innerCursor.MoveFirst();
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool MoveLast()
         {
-            if (_isInBatch)
-            {
-                ThrowHelper.ThrowNotSupportedException();
-            }
+            EnsureNotAwaiting();
             return _innerCursor.MoveLast();
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public long Move(long stride, bool allowPartial)
         {
-            if (_isInBatch)
-            {
-                ThrowHelper.ThrowNotSupportedException();
-            }
+            EnsureNotAwaiting();
             return _innerCursor.Move(stride, allowPartial);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool MovePrevious()
         {
-            if (_isInBatch)
-            {
-                ThrowHelper.ThrowNotSupportedException();
-            }
+            EnsureNotAwaiting();
             return _innerCursor.MovePrevious();
         }
 
         public TKey CurrentKey
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => _isInBatch ? _innerBatchEnumerator.Current.Key : _innerCursor.CurrentKey;
+            get => _innerCursor.CurrentKey;
         }
 
         public TValue CurrentValue
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => _isInBatch ? _innerBatchEnumerator.Current.Value : _innerCursor.CurrentValue;
+            get => _innerCursor.CurrentValue;
         }
 
         public Series<TKey, TValue, TCursor> Source => _innerCursor.Source;
@@ -957,18 +809,14 @@ namespace Spreads
         private void Dispose(bool disposing)
         {
             _subscription?.Dispose();
-            _innerBatchEnumerator?.Dispose();
             Debug.WriteLine("AsyncCursor dispose");
-            //if (_keepAliveHandle.IsAllocated)
-            //{
-            //    _keepAliveHandle.Free();
-            //}
-
+            
             if (!disposing) return;
 
             Reset();
             _innerCursor?.Dispose();
-            // TODO (docs) a disposed cursor could still be used as a cursor factory and is actually used
+            // TODO (docs)
+            // A disposed cursor could still be used as a cursor factory and is actually used
             // via Source.GetCursor(). This must be clearly mentioned in cursor specification
             // and be a part of contracts test suite
             // NB don't do this: _innerCursor = default(TCursor);
@@ -982,8 +830,7 @@ namespace Spreads
 
         ~AsyncCursor()
         {
-            //Debug.WriteLine("Async cursor finalized: " + _st);
-            Debug.WriteLine("-----------------------------------");
+            Debug.WriteLine("Async cursor finalize");
             Dispose(false);
         }
 

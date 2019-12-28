@@ -71,8 +71,10 @@ namespace Spreads.Threading
             });
             ThreadMaxStackSize = threadMaxStackSize;
 
+#if !HAS_TPWORKITEM
             if (numThreads <= 0)
                 throw new ArgumentOutOfRangeException("numThreads", string.Format("numThreads must be at least 1. Was {0}", numThreads));
+#endif
         }
 
         /// <summary>

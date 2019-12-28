@@ -12,18 +12,34 @@ using System.Threading;
 
 namespace Spreads.Collections
 {
-    /// <summary>
-    /// Base class for data container implementations.
-    /// </summary>
-    [Utils.CannotApplyEqualityOperator]
-    public class BaseContainer : IDataSource, IAsyncCompleter, IDisposable
+    public class BaseContainerData
     {
+        protected BaseContainerData()
+        {
+        }
+
         /// <summary>
         /// Container-specific data. Never null - instead <see cref="DataBlock.Empty"/> is used as a sentinel.
         /// </summary>
         [NotNull]
         internal object Data = DataBlock.Empty;
 
+        private long _padding0;
+        private long _padding1;
+        private long _padding2;
+        private long _padding3;
+        private long _padding4;
+        private long _padding5;
+        private long _padding6;
+        private long _padding7;
+    }
+
+    /// <summary>
+    /// Base class for data container implementations.
+    /// </summary>
+    [Utils.CannotApplyEqualityOperator]
+    public class BaseContainer : BaseContainerData, IDataSource, IAsyncCompleter, IDisposable
+    {
         /// <summary>
         /// Flags.
         /// </summary>
@@ -231,10 +247,10 @@ namespace Spreads.Collections
         // Union of ContainerSubscription | ThreadSafeList<ContainerSubscription> (ThreadSafeList could be implemented differently)
         private object? _subscriptions;
 
-        private class ContainerSubscription : IDisposable
+        private class ContainerSubscription : IAsyncSubscription
         {
             private readonly BaseContainer _container;
-            public readonly IAsyncCompletable Subscriber;
+            public readonly IAsyncCompletable? Subscriber;
 
             public ContainerSubscription(BaseContainer container, IAsyncCompletable subscriber)
             {
@@ -294,6 +310,11 @@ namespace Spreads.Collections
                 Trace.TraceWarning("Container subscription is finalized");
                 Dispose(false);
             }
+
+            public IAsyncCompletable AwaitingCompletable
+            {
+                set => throw new NotImplementedException();
+            }
         }
 
         public IDisposable Subscribe(IAsyncCompletable subscriber)
@@ -315,7 +336,7 @@ namespace Spreads.Collections
                 ReleaseLock();
             }
 
-            IDisposable DoSubscribe()
+            IAsyncSubscription DoSubscribe()
             {
                 var subscription = new ContainerSubscription(this, subscriber);
 
@@ -384,45 +405,31 @@ namespace Spreads.Collections
 
             var subscriptions = _subscriptions;
 
-            switch (subscriptions)
+            if (subscriptions is ContainerSubscription sub)
             {
-                case ContainerSubscription sub:
-                    {
-                        sub.Subscriber?.TryComplete(false);
-                        break;
-                    }
-
-                case ContainerSubscription[] subsArray:
-                    {
-                        // We want to avoid a lock here for reading subsArray,
-                        // which is modified only inside a lock in Subscribe/Dispose.
-                        // Reference assignment is atomic, no synchronization is needed for subsArray.
-                        // If we miss one that is being added concurrently then it was added after NotifyUpdate.
-                        // We need to iterate over the entire array and not just until first null
-                        // because removed subscribers could leave an empty slot.
-                        // Async subscription should be rare and the number of subscribers is typically small.
-                        for (int i = 0; i < subsArray.Length; i++)
-                        {
-                            var subI = Volatile.Read(ref subsArray[i]);
-                            subI.Subscriber?.TryComplete(false);
-                        }
-
-                        break;
-                    }
-
-                default:
-                    {
-                        if (!(subscriptions is null))
-                        {
-                            ThrowHelper.FailFast("Wrong cursors subscriptions type");
-                        }
-                        else
-                        {
-                            ThrowHelper.FailFast("Cursors field is null, but that was checked in NotifyUpdate that calls this method");
-                        }
-
-                        break;
-                    }
+                sub.Subscriber?.TryComplete(false);
+            }
+            else if (subscriptions is ContainerSubscription[] subsArray)
+            {
+                // We want to avoid a lock here for reading subsArray,
+                // which is modified only inside a lock in Subscribe/Dispose.
+                // Reference assignment is atomic, no synchronization is needed for subsArray.
+                // If we miss one that is being added concurrently then it was added after NotifyUpdate.
+                // We need to iterate over the entire array and not just until first null
+                // because removed subscribers could leave an empty slot.
+                // Async subscription should be rare and the number of subscribers is typically small.
+                for (int i = 0; i < subsArray.Length; i++)
+                {
+                    var subI = Volatile.Read(ref subsArray[i]);
+                    subI.Subscriber?.TryComplete(false);
+                }
+            }
+            else
+            {
+                var errMsg = subscriptions is null
+                    ? "Cursors field is null, but that was checked in NotifyUpdate that calls this method"
+                    : "Wrong cursors subscriptions type";
+                Environment.FailFast(errMsg);
             }
         }
 

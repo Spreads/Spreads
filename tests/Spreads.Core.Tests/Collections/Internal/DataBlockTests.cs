@@ -7,6 +7,8 @@ using NUnit.Framework;
 using Spreads.Buffers;
 using Spreads.Collections.Internal;
 using System.Linq;
+using Spreads.Native;
+
 #pragma warning disable 618
 
 namespace Spreads.Core.Tests.Collections.Internal
@@ -18,6 +20,7 @@ namespace Spreads.Core.Tests.Collections.Internal
         [Test, Explicit("output")]
         public void SizeOf()
         {
+            // ObjectLayoutInspector.TypeLayout.PrintLayout<Vec>();
             ObjectLayoutInspector.TypeLayout.PrintLayout<DataBlock>();
         }
 

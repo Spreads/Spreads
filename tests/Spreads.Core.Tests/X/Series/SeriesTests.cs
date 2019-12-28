@@ -80,5 +80,14 @@ namespace Spreads.Core.Tests.Series
             c.Dispose();
             s.Dispose();
         }
+        [Test]
+        public void CouldNotMoveNextOnEmpty()
+        {
+            var s = new AppendSeries<int,int>();
+            var c = s.GetCursor();
+            Assert.IsFalse(c.MoveNext());
+            c.Dispose();
+            s.Dispose();
+        }
     }
 }

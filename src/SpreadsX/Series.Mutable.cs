@@ -16,18 +16,9 @@ namespace Spreads
         {
         }
 
-        public MutableSeries(int capacity)
-            : base(Mutability.Mutable, KeySorting.Strong, (uint)capacity)
-        {
-        }
 
         public MutableSeries(KeyComparer<TKey> comparer)
-            : base(Mutability.Mutable, KeySorting.Strong, 0, comparer)
-        {
-        }
-
-        public MutableSeries(int capacity, KeyComparer<TKey> comparer)
-            : base(Mutability.Mutable, KeySorting.Strong, (uint)capacity, comparer)
+            : base(Mutability.Mutable, KeySorting.Strong, comparer)
         {
         }
 
@@ -37,27 +28,22 @@ namespace Spreads
         }
 
         public MutableSeries(KeyComparer<TKey> comparer, KeySorting keySorting)
-            : base(Mutability.Mutable, keySorting, 0, comparer, default)
-        {
-        }
-
-        public MutableSeries(int capacity, KeyComparer<TKey> comparer, KeySorting keySorting)
-            : base(Mutability.Mutable, keySorting, (uint)capacity, comparer, default)
+            : base(Mutability.Mutable, keySorting, comparer, default)
         {
         }
 
         public MutableSeries(MovingWindowOptions<TKey> movingWindowOptions)
-            : base(Mutability.Mutable, KeySorting.Strong, 0, default, movingWindowOptions)
+            : base(Mutability.Mutable, KeySorting.Strong, default, movingWindowOptions)
         {
         }
 
         public MutableSeries(KeySorting keySorting, MovingWindowOptions<TKey> movingWindowOptions)
-            : base(Mutability.Mutable, keySorting, 0, default, movingWindowOptions)
+            : base(Mutability.Mutable, keySorting, default, movingWindowOptions)
         {
         }
 
         public MutableSeries(KeyComparer<TKey> comparer, KeySorting keySorting, MovingWindowOptions<TKey> movingWindowOptions)
-            : base(Mutability.Mutable, keySorting, 0, comparer, movingWindowOptions)
+            : base(Mutability.Mutable, keySorting, comparer, movingWindowOptions)
         {
         }
 

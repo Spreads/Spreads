@@ -118,7 +118,7 @@ namespace Spreads.Collections.Internal
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool MoveAt(TKey key, Lookup direction)
         {
-            ThrowHelper.DebugAssert(!CurrentBlock.IsDisposed || ReferenceEquals(CurrentBlock, DataBlock.Empty));
+            ThrowHelper.DebugAssert(!CurrentBlock.IsDisposed || ReferenceEquals(CurrentBlock, DataBlock.Empty), "!CurrentBlock.IsDisposed || ReferenceEquals(CurrentBlock, DataBlock.Empty)");
 
             bool found;
             int nextPosition;
@@ -171,25 +171,64 @@ namespace Spreads.Collections.Internal
             {
                 return default;
             }
-            //else // TODO value getter for other containers or they could do in CV getter but need to call EnsureOrder after reading value.
-            //{
-            //    v = default; // _source.GetValue(_currentBlock, (int)nextPosition);
-            //}
             ThrowHelper.ThrowNotImplementedException();
             return default;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void GetCurrentKeyValue(int currentBlockIndex, out TKey key, out TValue value)
+        {
+            if (typeof(TContainer) == typeof(Series<TKey, TValue>))
+            {
+                CurrentBlock.DangerousGetRowKeyValueRef(currentBlockIndex, out key, out value);
+                return;
+            }
+            if (typeof(TContainer) == typeof(BaseContainer<TKey>))
+            {
+                key = CurrentBlock.DangerousRowKeyRef<TKey>(currentBlockIndex);
+                value = default;
+                return;
+            }
+            ThrowHelper.ThrowNotImplementedException();
+            key = default;
+            value = default;
+        }
+
         [MethodImpl(MethodImplOptions.AggressiveInlining
 #if HAS_AGGR_OPT
-            | MethodImplOptions.AggressiveOptimization
+                    | MethodImplOptions.AggressiveOptimization
 #endif
         )]
         public long Move(long stride, bool allowPartial)
         {
-            ThrowHelper.DebugAssert(!CurrentBlock.IsDisposed || ReferenceEquals(CurrentBlock, DataBlock.Empty));
+            if (TryMove(stride, allowPartial, out var mc))
+            {
+                return mc;
+            }
+            ThrowHelper.ThrowOutOfOrderKeyException(_currentKey);
+            return 0;
+        }
 
-            long mc;
-            ulong newBlockIndex;
+        // TODO docs on handling OOO
+        /// <summary>
+        /// Returns true if a move is valid or false if the source order changed
+        /// since this cursor construction or last <see cref="MoveAt"/> move.
+        /// </summary>
+        /// <seealso cref="OutOfOrderKeyException{TKey}"/>
+        [MethodImpl(MethodImplOptions.AggressiveInlining
+#if HAS_AGGR_OPT
+                    | MethodImplOptions.AggressiveOptimization
+#endif
+        )]
+        public bool TryMove(long stride, bool allowPartial, out long moveCount)
+        {
+            // In this top part of Move we touch CurrentBlock.RowCount only once,
+            // hope that we are still in the current block and moving forward
+            // and handle all other scenarios in the MoveRare part
+
+            ThrowHelper.DebugAssert(!CurrentBlock.IsDisposed || ReferenceEquals(CurrentBlock, DataBlock.Empty), "!CurrentBlock.IsDisposed || ReferenceEquals(CurrentBlock, DataBlock.Empty)");
+
+            ulong newBlockIndex; // we need a local var
             TKey k = default!;
             TValue v = default!;
             var sw = new SpinWait();
@@ -200,19 +239,32 @@ namespace Spreads.Collections.Internal
                 // Note: this does not handle MP from uninitialized state (_blockPosition == -1, stride <= 0). This case is rare.
                 // Uninitialized multi-block case goes to rare as well as uninitialized MP
                 newBlockIndex = unchecked((ulong)(BlockIndex + stride)); // int.Max + long.Max < ulong.Max
-                if (newBlockIndex < (ulong)CurrentBlock.RowCount)
+
+                var rowCount = CurrentBlock.RowCount;
+                if (AdditionalCorrectnessChecks.Enabled)
+                { ThrowHelper.Assert(rowCount >= 0, "rowCount >= 0 for all CurrentBlocks, empty sentinel has zero length specifically for this case"); }
+
+                if (newBlockIndex < (ulong)rowCount)
                 {
-                    mc = stride;
+                    moveCount = stride;
                 }
                 else
                 {
-                    mc = MoveRare(stride, allowPartial, ref newBlockIndex);
+                    moveCount = MoveRare(stride, allowPartial, ref newBlockIndex);
+                    if (AdditionalCorrectnessChecks.Enabled && moveCount != 0)
+                    {
+                        if (newBlockIndex >= (ulong)CurrentBlock.RowCount)
+                        {
+                            ThrowBadNewBlockIndex(newBlockIndex, moveCount);
+                        }
+                    }
                 }
 
-                if (mc != 0)
+                if (moveCount != 0)
                 {
-                    k = CurrentBlock.DangerousRowKeyRef<TKey>((int)newBlockIndex); // Note: do not use _blockPosition, it's 20% slower than second cast to int
-                    v = GetCurrentValue((int)newBlockIndex);
+                    // ThrowHelper.Assert((long)newBlockIndex <= CurrentBlock.RowCount);
+                    // Note: do not use _blockPosition, it's 20% slower than second cast to int
+                    GetCurrentKeyValue((int)newBlockIndex, out k, out v);
                 }
             }
             if (_source.NextVersion != version)
@@ -221,16 +273,37 @@ namespace Spreads.Collections.Internal
                 goto SYNC;
             }
 
-            EnsureOrder();
+            if (_orderVersion != AtomicCounter.GetCount(ref _source.OrderVersion))
+            {
+                moveCount = 0;
+                return false;
+            }
 
-            if (mc != 0)
+            if (moveCount != 0)
             {
                 BlockIndex = (int)newBlockIndex;
                 _currentKey = k;
                 _currentValue = v;
             }
 
-            return mc;
+            if (AdditionalCorrectnessChecks.Enabled)
+            { if (moveCount != 0 && moveCount != stride && !allowPartial) { ThrowBadReturnValue(stride, moveCount); } }
+
+            return true;
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private void ThrowBadNewBlockIndex(ulong newBlockIndex, long mc)
+        {
+            ThrowHelper.ThrowInvalidOperationException(
+                $"newBlockIndex [{(long)newBlockIndex}] >= (ulong)CurrentBlock.RowCount [{CurrentBlock.RowCount}], mc={mc}");
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private void ThrowBadReturnValue(long stride, long mc)
+        {
+            ThrowHelper.ThrowInvalidOperationException(
+                $"Return value mc={mc} does not equal to stride=[{stride}]");
         }
 
         /// <summary>
@@ -257,11 +330,11 @@ namespace Spreads.Collections.Internal
                     return Move(stride, allowPartial);
                 }
 
-                Debug.Assert(CurrentBlock == localBlock);
+                ThrowHelper.DebugAssert(CurrentBlock == localBlock, "CurrentBlock == localBlock");
 
                 if (BlockIndex < 0 & stride < 0) // not &&
                 {
-                    Debug.Assert(State == CursorState.Initialized);
+                    ThrowHelper.DebugAssert(State == CursorState.Initialized, "State == CursorState.Initialized");
                     var nextPosition = unchecked((localBlock.RowCount + stride));
                     if (nextPosition >= 0)
                     {
@@ -296,7 +369,12 @@ namespace Spreads.Collections.Internal
                 return 0;
             }
 
-            return MoveBlock(ds, stride, allowPartial, ref newBlockIndex);
+            if (CurrentBlock.IsFull)
+            {
+                return MoveBlock(ds, stride, allowPartial, ref newBlockIndex);
+            }
+
+            return 0;
         }
 
         [MethodImpl(MethodImplOptions.NoInlining
@@ -311,15 +389,17 @@ namespace Spreads.Collections.Internal
 
             if (stride > 0)
             {
-                mc = BlockIndex == -1 ? 1 : CurrentBlock.RowCount - BlockIndex; // we left CB, at first pos of NB
-
+                mc = BlockIndex == -1 ? 1 : cb.RowCount - BlockIndex; // we left CB, at first pos of NB
+                // TODO this works now in tests because it doesn't work
+                //ThrowHelper.Assert(mc == 1 | mc == 0, $"mc={mc} rc={cb.RowCount} bi={BlockIndex}");
                 while (true)
                 {
                     if (ds.TryGetNextBlock(cb, out var nb))
                     {
-                        Debug.Assert(nb.RowCount > 0);
+                        var rowCount = nb.RowCount;
+                        ThrowHelper.DebugAssert(rowCount > 0, $"nb.RowCount [{rowCount}] > 0, is DataBlock.Empty = {ReferenceEquals(nb, DataBlock.Empty)}");
                         var idx = stride - mc;
-                        if (idx < nb.RowCount)
+                        if ((ulong)idx < (ulong)rowCount)
                         {
                             // this block
                             nextBlockIndex = (ulong)idx;
@@ -328,7 +408,9 @@ namespace Spreads.Collections.Internal
                         }
 
                         cb = nb;
-                        mc += nb.RowCount;
+                        mc += rowCount;
+                        Console.WriteLine($"mc [{mc}] == 1");
+                        //ThrowHelper.Assert(mc == 1, $"mc [{mc}] == 1");
                     }
                     else
                     {
@@ -346,7 +428,7 @@ namespace Spreads.Collections.Internal
             }
             else
             {
-                Debug.Assert(stride < 0);
+                ThrowHelper.DebugAssert(stride < 0, "stride < 0");
 
                 mc = BlockIndex == -1 ? -1 : -(BlockIndex + 1); // at last pos of PB
 
@@ -354,8 +436,8 @@ namespace Spreads.Collections.Internal
                 {
                     if (ds.TryGetPreviousBlock(cb, out var pb))
                     {
-                        Debug.Assert(pb.RowCount > 0);
-                        Debug.Assert(stride - mc <= 0, "stride - mc < 0");
+                        ThrowHelper.DebugAssert(pb.RowCount > 0, "pb.RowCount > 0");
+                        ThrowHelper.DebugAssert(stride - mc <= 0, "stride - mc < 0");
                         var idx = pb.RowCount - 1 + (stride - mc);
                         if (idx >= 0)
                         {
@@ -535,7 +617,7 @@ namespace Spreads.Collections.Internal
 
         public bool TryGetValue(TKey key, out DataBlock value)
         {
-            ThrowHelper.DebugAssert(!CurrentBlock.IsDisposed || ReferenceEquals(CurrentBlock, DataBlock.Empty));
+            ThrowHelper.DebugAssert(!CurrentBlock.IsDisposed || ReferenceEquals(CurrentBlock, DataBlock.Empty), "!CurrentBlock.IsDisposed || ReferenceEquals(CurrentBlock, DataBlock.Empty)");
 
             throw new NotImplementedException();
         }

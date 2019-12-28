@@ -5,7 +5,6 @@
 using Spreads.Buffers;
 using Spreads.Collections;
 using Spreads.Collections.Internal;
-using Spreads.Utils;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -20,11 +19,9 @@ namespace Spreads
         // There is no ctors for series because they are read-only,
         // only factories in static Series class
 
-        protected Series(Mutability mutability = Mutability.ReadOnly,
+        internal Series(Mutability mutability = Mutability.ReadOnly,
             KeySorting keySorting = KeySorting.Strong,
-            uint capacity = 0,
-            KeyComparer<TKey> comparer = default,
-            MovingWindowOptions<TKey>? movingWindowOptions = default)
+            KeyComparer<TKey> comparer = default)
         {
             if (keySorting != KeySorting.Strong)
             {
@@ -32,13 +29,7 @@ namespace Spreads
             }
             Flags = new Flags(ContainerLayout.Series, keySorting, mutability);
 
-            // TODO review/test
-            var bufferSize = Math.Min(Settings.LARGE_BUFFER_LIMIT / Unsafe.SizeOf<TKey>(), Math.Max(16, (int)capacity));
-            BlockSizePow2 = Math.Max((byte)4, checked((byte)(32 - IntUtil.NumberOfLeadingZeros(bufferSize - 1))));
-
             _comparer = comparer;
-
-            
         }
 
         internal Series(TKey[] keys, TValue[] values)

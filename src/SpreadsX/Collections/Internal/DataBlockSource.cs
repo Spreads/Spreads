@@ -203,7 +203,7 @@ namespace Spreads.Collections.Internal
 
             if (nextBlock != null)
             {
-                return true;
+                return nextBlock.RowCount > 0;
             }
 
             if (currentBlock == LastValueOrDefault)
@@ -227,7 +227,7 @@ namespace Spreads.Collections.Internal
             if (_blockSeries.TryFindBlockAtFromSource(out nb, this,
                 currentBlock.DangerousRowKeyRef<TKey>(index: 0), Lookup.GT))
             {
-                return true;
+                return nb.RowCount > 0;
             }
 
             nb = null;

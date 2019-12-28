@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Spreads.Core.Tests.Algorithms;
 using Spreads.Core.Tests.Buffers;
 using Spreads.Core.Tests.Collections.Concurrent;
+using Spreads.Core.Tests.Cursors;
 using Spreads.Core.Tests.Serialization;
 using Spreads.Core.Tests.X.Series;
 
@@ -32,13 +33,13 @@ namespace Spreads.Run
 
             Settings.DoAdditionalCorrectnessChecks = false;
 
-            // Process.GetCurrentProcess().ProcessorAffinity = (IntPtr) 0b_0011_0000;
+            Process.GetCurrentProcess().ProcessorAffinity = (IntPtr) 0b_0000_0011;
             // EquiJoinBench();
             ExecutionContext.SuppressFlow();
             Settings.SharedSpinLockNotificationPort = 53412;
 
-            var test = new ArrayMemoryTests();
-            test.PoolReturnsSameSizeUsingSlices(5);
+            var test = new SeriesAppendTests();
+            test.SpinningReadWhileWriteBenchmark();
 
             // Console.WriteLine("Finished, press enter to exit...");
             // Console.ReadLine();

@@ -8,12 +8,14 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Spreads.Core.Tests.X.Series
 {
     [Category("CI")]
     [TestFixture]
-    public unsafe class SeriesAppendTests
+    public class SeriesAppendTests
     {
         [Test]
         [TestCase(5)]
@@ -120,7 +122,9 @@ namespace Spreads.Core.Tests.X.Series
             int rounds = (int)TestUtils.GetBenchCount(100, 1);
 
             var sl = new SortedList<int, int>();
-            var sa = new AppendSeries<int, int>(new MovingWindowOptions<int>(10));
+            var sa = new AppendSeries<long, long>();
+            var cursor = sa.GetAsyncCursor();
+            cursor.MoveNextAsync();
             var di = new Dictionary<int, int>();
 
             //for (int r = 0; r < rounds; r++)
@@ -322,104 +326,174 @@ namespace Spreads.Core.Tests.X.Series
             }
         }
 
-        //[Test]
-        //public void AddExistingThrowsAndKeepsVersion()
-        //{
-        //    using (var s = new AppendSeries<long, long>())
-        //    {
-        //        s.Append(1, 1);
-        //        Assert.AreEqual(0, s.Version);
-        //        Assert.AreEqual(0, s.OrderVersion);
-        //        Assert.Throws<ArgumentException>(() => s.Append(1, 1));
-        //        Assert.AreEqual(0, s.Version);
-        //        Assert.AreEqual(0, s.OrderVersion);
-        //        Assert.AreEqual(0, s.NextVersion);
-        //    }
-        //}
+        [Test]
+        public void AddExistingThrowsAndKeepsVersion()
+        {
+            using (var s = new AppendSeries<long, long>())
+            {
+                s.Append(1, 1);
+                Assert.AreEqual(0, s.Version);
+                Assert.AreEqual(0, s.OrderVersion);
+                Assert.Throws<ArgumentException>(() => s.Append(1, 1));
+                Assert.AreEqual(0, s.Version);
+                Assert.AreEqual(0, s.OrderVersion);
+                Assert.AreEqual(0, s.NextVersion);
+            }
+        }
 
-        //[Test]
-        //public void CouldMoveAtGe()
-        //{
-        //    using (var s = new AppendSeries<int, int>(50))
-        //    {
-        //        for (int i = 0; i < 100; i++)
-        //        {
-        //            s.Append(i, i);
-        //        }
+        [Test]
+        public void CouldMoveAtGe()
+        {
+            using (var s = new AppendSeries<int, int>())
+            {
+                for (int i = 0; i < 100; i++)
+                {
+                    s.Append(i, i);
+                }
 
-        //        var c = s.GetCursor();
+                var c = s.GetCursor();
 
-        //        c.MoveAt(-100, Lookup.GE);
+                c.MoveAt(-100, Lookup.GE);
 
-        //        Assert.AreEqual(0, c.CurrentKey);
-        //        Assert.AreEqual(0, c.CurrentValue);
-        //        var shouldBeFalse = c.MoveAt(-100, Lookup.LE);
-        //        Assert.IsFalse(shouldBeFalse);
-        //        c.Dispose();
-        //    }
-        //}
+                Assert.AreEqual(0, c.CurrentKey);
+                Assert.AreEqual(0, c.CurrentValue);
+                var shouldBeFalse = c.MoveAt(-100, Lookup.LE);
+                Assert.IsFalse(shouldBeFalse);
+                c.Dispose();
+            }
+        }
 
-        //[Test]
-        //public void CouldMoveAtLe()
-        //{
-        //    using (var s = new AppendSeries<long, long>())
-        //    {
-        //        for (long i = int.MaxValue; i < int.MaxValue * 4L; i = i + int.MaxValue)
-        //        {
-        //            s.Append(i, i);
-        //        }
+        [Test]
+        public void CouldMoveAtLe()
+        {
+            using (var s = new AppendSeries<long, long>())
+            {
+                for (long i = int.MaxValue; i < int.MaxValue * 4L; i = i + int.MaxValue)
+                {
+                    s.Append(i, i);
+                }
 
-        //        var c = s.GetCursor();
+                var c = s.GetCursor();
 
-        //        var shouldBeFalse = c.MoveAt(0, Lookup.LE);
-        //        Assert.IsFalse(shouldBeFalse);
+                var shouldBeFalse = c.MoveAt(0, Lookup.LE);
+                Assert.IsFalse(shouldBeFalse);
 
-        //        c.Dispose();
-        //    }
-        //}
+                c.Dispose();
+            }
+        }
 
-        //[Test]
-        //public void CouldMoveAt()
-        //{
-        //    using (var s = new AppendSeries<int, int>())
-        //    {
+        [Test]
+        public void CouldMoveAt()
+        {
+            using (var s = new AppendSeries<int, int>())
+            {
+                s.Append(1, 1);
+                s.Append(3, 3);
+                s.Append(5, 5);
 
-        //        s.Append(1, 1);
-        //        s.Append(3, 3);
-        //        s.Append(5, 5);
+                Assert.AreEqual(5, s.LastValueOrDefault);
+                var c = s.GetCursor();
 
-        //        Assert.AreEqual(5, s.LastValueOrDefault);
-        //        var c = s.GetCursor();
+                c.MoveAt(-100, Lookup.GE);
 
-        //        c.MoveAt(-100, Lookup.GE);
+                Assert.AreEqual(1, c.CurrentKey);
+                Assert.AreEqual(1, c.CurrentValue);
 
-        //        Assert.AreEqual(1, c.CurrentKey);
-        //        Assert.AreEqual(1, c.CurrentValue);
+                var shouldBeFalse = c.MoveAt(-100, Lookup.LE);
+                Assert.IsFalse(shouldBeFalse);
 
-        //        var shouldBeFalse = c.MoveAt(-100, Lookup.LE);
-        //        Assert.IsFalse(shouldBeFalse);
+                c.Dispose();
+            }
+        }
 
-        //        c.Dispose();
-        //    }
-        //}
+        [Test]
+        public void CouldEnumerateGrowingSeries()
+        {
+            var count = 1_000_000;
+            using (var s = new AppendSeries<DateTime, double>())
+            {
+                var c = s.GetCursor();
 
-        //[Test]
-        //public void CouldEnumerateGrowingSeries()
-        //{
-        //    var count = 1_000_000;
-        //    using (var s = new AppendSeries<DateTime, double>())
-        //    {
-        //        var c = s.GetCursor();
+                for (int i = 0; i < count; i++)
+                {
+                    s.Append(DateTime.UtcNow.Date.AddSeconds(i), i);
+                    c.MoveNext();
+                    Assert.AreEqual(i, c.CurrentValue);
+                }
 
-        //        for (int i = 0; i < count; i++)
-        //        {
-        //            s.Append(DateTime.UtcNow.Date.AddSeconds(i), i);
-        //            c.MoveNext();
-        //            Assert.AreEqual(i, c.CurrentValue);
-        //        }
+                c.Dispose();
+            }
+        }
 
-        //        c.Dispose();
-        //    }
-        //}
+        [Test, Ignore("manual benchmark, needs input to terminate")]
+        public void SpinningReadWhileWriteBenchmark()
+        {
+            var s = new AppendSeries<long, long>();
+
+            var monitor = new TestUtils.ReaderWriterCountersMonitor();
+
+            var countDown = new CountdownEvent(1);
+
+            var writeTask = new Thread(() =>
+            {
+                try
+                {
+                    countDown.Wait();
+                    while (monitor.IsRunning)
+                    {
+                        var value = (int)monitor.IncrementWrite();
+                        s.DangerousTryAppend(value, value);
+                    }
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine("Writer:" +e);
+                    throw;
+                }
+            });
+
+            writeTask.Start();
+
+            var readTask = new Thread(() =>
+            {
+                var c = s.GetCursor();
+                try
+                {
+                    countDown.Signal();
+                    var i = 0L;
+
+                    while (monitor.IsRunning)
+                    {
+                        while (!c.MoveNext())
+                        {
+                            // Thread.Sleep(1);
+                        }
+
+                        i++;
+                        if (c.CurrentKey != i || c.CurrentValue != i)
+                        {
+                            throw new ThrowHelper.AssertionFailureException($"c.CurrentKey [{c.CurrentKey}] != i [{i}] || c.CurrentValue [{c.CurrentValue}] != i [{i}]");
+                        }
+
+                        monitor.IncrementRead();
+                    }
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine("Reader:" + e);
+                    throw;
+                }
+                c.Dispose();
+            });
+            readTask.Start();
+
+            Console.ReadLine();
+            monitor.Dispose();
+
+            writeTask.Join();
+            readTask.Join();
+
+            s.Dispose();
+        }
     }
 }

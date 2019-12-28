@@ -9,12 +9,17 @@ namespace Spreads
 {
     internal class AdditionalCorrectnessChecks
     {
-        // Unless _doAdditionalCorrectnessChecks is changed from default before this internal
-        // class is ever referenced from any code path it will have default
-        // value and this field will be JIT compile-time constant. If set to false checks such as
-        // if(AdditionalCorrectnessChecks.Enabled) will be
-        // completely eliminated by JIT.
-
+        /// <summary>
+        /// A JIT-time constant that could be enabled via <see cref="Settings.DoAdditionalCorrectnessChecks"/>
+        /// in Release mode (default is false). It is always true in Debug mode.
+        /// </summary>
+        /// <remarks>
+        /// Unless <see cref="Settings.DoAdditionalCorrectnessChecks"/> is changed from default before this internal
+        /// class is ever referenced from any code path it will have default
+        /// value and this field will be JIT compile-time constant. If set to false, checks such as
+        /// `if(AdditionalCorrectnessChecks.Enabled)` will be
+        /// completely eliminated by JIT.
+        /// </remarks>
 #if DEBUG
         public static readonly bool Enabled = true;
 #else
@@ -44,7 +49,6 @@ namespace Spreads
         /// </summary>
         internal const int MIN_POOLED_BUFFER_LEN = 16;
 
-
         // TODO Review: we do not need that big for every worker thread (default thread pool + Spreads' one = a lot)
         // It's used for temp serialization when we need pinned memory without costs of Rent/Pin/Unpin/Return
         // If we make it small then buffers are not in LOH and will fragment heap.
@@ -71,6 +75,7 @@ namespace Spreads
         // TODO when/if used often benchmark its effect and if significant then set default to false
         // ReSharper disable once NotAccessedField.Local
         internal static bool _doAdditionalCorrectnessChecks = true;
+
         internal static bool _doDetectBufferLeaks = false;
 
         /// <summary>
@@ -125,9 +130,6 @@ namespace Spreads
                 }
             }
         }
-
-        // ReSharper disable once InconsistentNaming
-        internal static int SCMDefaultChunkLength = 4096;
 
         // See e.g. https://gregoryszorc.com/blog/2017/03/07/better-compression-with-zstandard/
         internal static int _lz4CompressionLevel = 5;
@@ -291,6 +293,5 @@ namespace Spreads
         public static int SharedSpinLockNotificationPort = 0;
 
         internal static Action ZeroValueNotificationCallback = null;
-        
     }
 }

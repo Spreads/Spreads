@@ -698,7 +698,7 @@ namespace Spreads.Buffers
         }
     }
 
-    [EventSource(Guid = "C5BB9D49-21E4-4339-B6BC-981486D123DB", Name = "Spreads.Buffers.MemoryManagerPoolEventSource")]
+    [EventSource(Guid = "C5BB9D49-21E4-4339-B6BC-981486D123DB", Name = "Spreads.Buffers." + nameof(RetainableMemoryPoolEventSource))]
     internal sealed class RetainableMemoryPoolEventSource : EventSource
     {
         internal static readonly RetainableMemoryPoolEventSource Log = new RetainableMemoryPoolEventSource();
@@ -717,7 +717,7 @@ namespace Spreads.Buffers
         }
 
         private RetainableMemoryPoolEventSource() : base(
-            "Spreads.Buffers.MemoryManagerPoolEventSource")
+            "Spreads.Buffers." + nameof(RetainableMemoryPoolEventSource))
         {
         }
 

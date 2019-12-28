@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
+using Spreads.Buffers;
 using Spreads.Native;
 
 namespace Spreads.Collections.Internal
@@ -12,6 +13,10 @@ namespace Spreads.Collections.Internal
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int IndexToOffset(int index, int head, int len)
         {
+            if (AdditionalCorrectnessChecks.Enabled && (head < 0 || len < 0))
+            {
+                BuffersThrowHelper.ThrowIndexOutOfRange();
+            }
             // return (head + index) % len;
             // len is not guaranteed to be power of 2, cannot use bit mask
             // but we could avoid branch: we do not need modulo
@@ -19,8 +24,12 @@ namespace Spreads.Collections.Internal
             var offset = head + index;
             var isWrapped = (len - (offset + 1)) >> 31; // 0 or -1
             var result = offset + isWrapped * len;
-            Debug.Assert(result >= 0);
-            Debug.Assert(result < len);
+            if (AdditionalCorrectnessChecks.Enabled)
+            {
+                ThrowHelper.Assert(result >= 0);
+                ThrowHelper.Assert(result < len);
+            }
+
             return result;
         }
     }

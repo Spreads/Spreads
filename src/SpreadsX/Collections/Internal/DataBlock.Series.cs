@@ -16,6 +16,24 @@ namespace Spreads.Collections.Internal
 
     internal sealed partial class DataBlock
     {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void DangerousGetRowKeyValueRef<TKey, TValue>(int index, out TKey key, out TValue value)
+        {
+            int offset = IndexToOffset(index);
+            ThrowHelper.DebugAssert(offset >= 0 && offset < _rowCount, $"DangerousGetRowKeyValueRef: index1 [{offset}] >=0 && index1 < _rowCount [{_rowCount}]");
+            key = _rowKeys.Vec.DangerousGetRef<TKey>(offset);
+            value = _rowKeys.Vec.DangerousGetRef<TValue>(offset);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void DangerousSetRowKeyValueRef<TKey, TValue>(int index, in TKey key, in TValue value)
+        {
+            int offset = IndexToOffset(index);
+            ThrowHelper.DebugAssert(offset >= 0 && offset < _rowCount, $"DangerousSetRowKeyValueRef: index1 [{offset}] >=0 && index1 < _rowCount [{_rowCount}]");
+            _rowKeys.Vec.DangerousGetRef<TKey>(offset) = key;
+            _rowKeys.Vec.DangerousGetRef<TValue>(offset) = value;
+        }
+
         [Conditional("DEBUG")]
         private void EnsureSeriesLayout()
         {
@@ -89,8 +107,9 @@ namespace Spreads.Collections.Internal
 
             Debug.Assert(index == RowCount);
 
-            _rowKeys.Vec.DangerousGetRef<TKey>(index) = key;
-            _values.Vec.DangerousGetRef<TValue>(index) = value;
+            var offset = RingVecUtil.IndexToOffset(index, _head, _rowCount + 1);
+            _rowKeys.Vec.DangerousGetRef<TKey>(offset) = key;
+            _values.Vec.DangerousGetRef<TValue>(offset) = value;
 
             // volatile increment goes last
             _rowCount++;
@@ -253,15 +272,12 @@ namespace Spreads.Collections.Internal
             }
         }
 
-
         internal bool SeriesTrimFirstValue<TKey, TValue>(out TKey key, out TValue value)
         {
             throw new NotImplementedException();
             //value = DangerousValueRef<TValue>(0);
 
             //return _rowCount > 0;
-
-            
         }
     }
 }

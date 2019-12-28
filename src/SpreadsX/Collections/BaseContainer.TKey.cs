@@ -9,7 +9,6 @@ using System.Runtime.CompilerServices;
 
 namespace Spreads.Collections
 {
-    
     /// <summary>
     /// Base container with row keys of type <typeparamref name="TKey"/>.
     /// </summary>
@@ -17,19 +16,9 @@ namespace Spreads.Collections
     {
         // internal ctor for tests only, it should have been abstract otherwise
         internal BaseContainer()
-        {
-        }
+        { }
 
         protected internal KeyComparer<TKey> _comparer = default;
-
-        /// <summary>
-        /// Power of 2 of the preferred block size.
-        /// </summary>
-        /// <remarks>
-        /// Block size is limited by <seealso cref="Settings.LARGE_BUFFER_LIMIT"/>,
-        /// but for small or circular series it could be smaller.
-        /// </remarks>
-        internal byte BlockSizePow2;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal bool IsDataBlock([NotNullWhen(returnValue: true)] out DataBlock? dataBlock,
@@ -216,7 +205,7 @@ namespace Spreads.Collections
                     && ~blockIndex == block.RowCount)
                 {
                     retryOnGt = false;
-                    Debug.Assert(ds != null, "retryOnGt is set only when ds != null");
+                    ThrowHelper.DebugAssert(ds != null, "retryOnGt is set only when ds != null");
                     if (ds!.TryGetNextBlock(block, out block))
                     {
                         continue;
