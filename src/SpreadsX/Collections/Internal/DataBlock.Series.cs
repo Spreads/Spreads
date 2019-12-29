@@ -17,21 +17,41 @@ namespace Spreads.Collections.Internal
     internal sealed partial class DataBlock
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private int GetSeriesOffset<TValue>(int index)
+        {
+            int offset;
+            if (typeof(TValue) == typeof(DataBlock))
+            {
+                // in series _head is only used for MovingWindow
+                // and is only applied to DataSource.
+                offset = RingVecUtil.IndexToOffset(index, _head, _rowCount);
+            }
+            else
+            {
+                if (AdditionalCorrectnessChecks.Enabled)
+                { ThrowHelper.Assert(_head == 0, "_head == 0 for Series leaves"); }
+                offset = index;
+            }
+
+            return offset;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void DangerousGetRowKeyValueRef<TKey, TValue>(int index, out TKey key, out TValue value)
         {
-            int offset = IndexToOffset(index);
+            int offset = GetSeriesOffset<TValue>(index);
             ThrowHelper.DebugAssert(offset >= 0 && offset < _rowCount, $"DangerousGetRowKeyValueRef: index1 [{offset}] >=0 && index1 < _rowCount [{_rowCount}]");
             key = _rowKeys.Vec.DangerousGetRef<TKey>(offset);
-            value = _rowKeys.Vec.DangerousGetRef<TValue>(offset);
+            value = _values.Vec.DangerousGetRef<TValue>(offset);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void DangerousSetRowKeyValueRef<TKey, TValue>(int index, in TKey key, in TValue value)
         {
-            int offset = IndexToOffset(index);
+            int offset = GetSeriesOffset<TValue>(index);
             ThrowHelper.DebugAssert(offset >= 0 && offset < _rowCount, $"DangerousSetRowKeyValueRef: index1 [{offset}] >=0 && index1 < _rowCount [{_rowCount}]");
             _rowKeys.Vec.DangerousGetRef<TKey>(offset) = key;
-            _rowKeys.Vec.DangerousGetRef<TValue>(offset) = value;
+            _values.Vec.DangerousGetRef<TValue>(offset) = value;
         }
 
         [Conditional("DEBUG")]
@@ -107,7 +127,18 @@ namespace Spreads.Collections.Internal
 
             Debug.Assert(index == RowCount);
 
-            var offset = RingVecUtil.IndexToOffset(index, _head, _rowCount + 1);
+            int offset;
+            if (typeof(TValue) == typeof(DataBlock))
+            {
+                offset = RingVecUtil.IndexToOffset(index, _head, _rowCount + 1);
+            }
+            else
+            {
+                if (AdditionalCorrectnessChecks.Enabled)
+                { ThrowHelper.Assert(_head == 0, "_head == 0"); }
+                offset = index;
+            }
+
             _rowKeys.Vec.DangerousGetRef<TKey>(offset) = key;
             _values.Vec.DangerousGetRef<TValue>(offset) = value;
 

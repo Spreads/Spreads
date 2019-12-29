@@ -501,91 +501,7 @@ namespace Spreads.Core.Tests.Blosc
             Benchmark.Dump();
         }
 
-#if NETCOREAPP3_0xx
-
-        [Test]
-        public void BrotliBenchmark()
-        {
-            // R2 has some strange very slow read perf on this data when count is small
-            // R3 is balanced, good compr and fast enough
-
-            var count = itemCount;
-            var values = new TestValue[count];
-            for (int i = 0; i < count; i++)
-            {
-                values[i] = new TestValue()
-                {
-                    // Dec = (((decimal)i + 1M / (decimal)(i + 1))),
-                    Dbl = (double)i + 1 / (double)(i + 1),
-                    //Dbl1 = (double)i + 1 / (double)(i + 1),
-                    Num = i,
-                    Num1 = i,
-                    Num2 = i,
-                    Str = i.ToString(),
-                    //Str1 = ((double)i + 1 / (double)(i + 1)).ToString(),
-                    Boo = i % 2 == 0
-                };
-            }
-
-            var bufferLen = 1000000;
-            var originalPtr = Marshal.AllocHGlobal(bufferLen);
-            var compressedPtr = Marshal.AllocHGlobal(bufferLen);
-            var decompressedPtr = Marshal.AllocHGlobal(bufferLen);
-
-            var originalDB = new DirectBuffer(bufferLen, originalPtr);
-            var compressedDB = new DirectBuffer(bufferLen, compressedPtr);
-            var decompressedDB = new DirectBuffer(bufferLen, decompressedPtr);
-
-            var originalLen = BinarySerializer.Write(values, ref originalDB, default, SerializationFormat.Json);
-            Console.WriteLine("Original len: " + originalLen);
-
-            for (int level = 0; level < 10; level++)
-            {
-                Settings.BrotliCompressionLevel = level;
-
-                var compressedLen = BinarySerializer.WriteBrotli(originalDB.Slice(0, originalLen), compressedDB);
-                //Console.WriteLine("Compressed len: " + compressedLen);
-
-                var decompressedLen = BinarySerializer.ReadBrotli(compressedDB, decompressedDB);
-                //Console.WriteLine("Decompressed len: " + decompressedLen);
-
-                Console.WriteLine($"Level: {Settings.BrotliCompressionLevel}, ratio: {1.0 * decompressedLen / compressedLen}");
-
-                Assert.AreEqual(originalLen, decompressedLen);
-            }
-
-            Console.WriteLine("-------------------------------");
-
-            var rounds = 10;
-            var iterations = Iterations / itemCount;
-            for (int r = 0; r < rounds; r++)
-            {
-                for (int level = 1; level < 5; level++)
-                {
-                    Settings.BrotliCompressionLevel = level;
-
-                    using (Benchmark.Run($"W{level}", originalLen * iterations, true))
-                    {
-                        for (int i = 0; i < iterations; i++)
-                        {
-                            BinarySerializer.WriteBrotli(originalDB.Slice(0, originalLen), compressedDB);
-                        }
-                    }
-
-                    using (Benchmark.Run($"R{level}", originalLen * iterations, true))
-                    {
-                        for (int i = 0; i < iterations; i++)
-                        {
-                            BinarySerializer.ReadBrotli(compressedDB, decompressedDB);
-                        }
-                    }
-                }
-            }
-
-            Benchmark.Dump();
-        }
-
-#endif
+#if NETCOREAPP3_0
 
         [Test]
         public void ZlibDeflateStreamCompat()
@@ -655,5 +571,7 @@ namespace Spreads.Core.Tests.Blosc
 
             Console.WriteLine(readSize);
         }
+
+#endif
     }
 }

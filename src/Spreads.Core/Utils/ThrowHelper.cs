@@ -236,7 +236,7 @@ namespace Spreads
         [DoesNotReturn]
         [MethodImpl(MethodImplOptions.NoInlining)]
         [ContractAnnotation("=> halt")]
-        [Obsolete("Use only when data could be corrupted or for debug")]
+        [Obsolete("Use only when data could be corrupted or for debug")] // TODO review all usage, we should fail only if data could be corrupted or segfault is expected
         public static void FailFast(string? message = null)
         {
             DoFailFast(message);

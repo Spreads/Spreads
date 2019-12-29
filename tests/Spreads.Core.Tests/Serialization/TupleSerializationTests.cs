@@ -147,7 +147,9 @@ namespace Spreads.Core.Tests.Serialization
          , Explicit("bench")
 #endif
         ]
+#if NETCOREAPP3_0
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
         public void CouldSerializeTuple2NestedBench()
         {
             var count = TestUtils.GetBenchCount(10_000_000);
@@ -199,7 +201,9 @@ namespace Spreads.Core.Tests.Serialization
          , Explicit("bench")
 #endif
         ]
+#if NETCOREAPP3_0
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
         public void CouldSerializeTuple3Bench()
         {
             var count = TestUtils.GetBenchCount(1_000_000);
@@ -306,7 +310,9 @@ namespace Spreads.Core.Tests.Serialization
          , Explicit("bench")
 #endif
         ]
+#if NETCOREAPP3_0
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
         public void CouldSerializeTuple4Bench()
         {
             var count = TestUtils.GetBenchCount(1_000_000);
@@ -362,7 +368,9 @@ namespace Spreads.Core.Tests.Serialization
          , Explicit("bench")
 #endif
         ]
+#if NETCOREAPP3_0
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
         public void CouldSerializeTuple5Bench()
         {
             var count = TestUtils.GetBenchCount(1_000_000);
@@ -438,7 +446,9 @@ namespace Spreads.Core.Tests.Serialization
          , Explicit("bench")
 #endif
         ]
+#if NETCOREAPP3_0
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
         public void CouldSerializeITuple2Bench()
         {
             var count = TestUtils.GetBenchCount(10_000_000);
@@ -469,7 +479,9 @@ namespace Spreads.Core.Tests.Serialization
                 BinarySerializer.WarmUp<T>();
             }
 
-            [MethodImpl(MethodImplOptions.AggressiveOptimization | MethodImplOptions.NoInlining)]
+#if NETCOREAPP3_0
+        [MethodImpl(MethodImplOptions.AggressiveOptimization | MethodImplOptions.NoInlining)]
+#endif
             public void Bench_Loop(long count, T val,
                 SerializationFormat format, DirectBuffer db)
             {
@@ -669,7 +681,9 @@ namespace Spreads.Core.Tests.Serialization
          , Explicit("bench")
 #endif
         ]
+#if NETCOREAPP3_0
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
         public void CouldSerializeTaggedKeyValueBench()
         {
             var count = TestUtils.GetBenchCount(100_000_000);
@@ -692,7 +706,9 @@ namespace Spreads.Core.Tests.Serialization
             rm.Dispose();
         }
 
+#if NETCOREAPP3_0
         [MethodImpl(MethodImplOptions.AggressiveOptimization | MethodImplOptions.NoInlining)]
+#endif
         private static void CouldSerializeTaggedKeyValueBench_Loop(long count, TaggedKeyValue<int, long> val, SerializationFormat preferredFormat, DirectBuffer db)
         {
             using (Benchmark.Run("TKV roundtrip", count))

@@ -28,7 +28,19 @@ namespace Spreads.Collections.Internal
         protected int _refCount;
     }
 
-    internal class DataBlockVectors : DataBlockCounters
+    internal class DataBlockCountersPadding : DataBlockCounters
+    {
+        private long _padding0;
+        private long _padding1;
+        private long _padding2;
+        private long _padding3;
+        private long _padding4;
+        private long _padding5;
+        private long _padding6;
+        private long _padding7;
+    }
+
+    internal class DataBlockVectors : DataBlockCountersPadding
     {
         protected VecStorage _rowKeys;
 
@@ -86,6 +98,7 @@ namespace Spreads.Collections.Internal
         /// </summary>
         private volatile int _head = -1;
 
+        private volatile bool _isFull = false;
         private DataBlock()
         {
             AtomicCounter.Dispose(ref _refCount);
@@ -300,6 +313,9 @@ namespace Spreads.Collections.Internal
             get => _rowCount == _rowKeys.Vec.Length;
         }
 
+        /// <summary>
+        /// This data block is <see cref="DataBlock.Empty"/>.
+        /// </summary>
         public bool IsEmptySentinel
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -309,14 +325,15 @@ namespace Spreads.Collections.Internal
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ref T DangerousRowKeyRef<T>(int index)
         {
-            int offset = IndexToOffset(index);
+            int offset = RingVecUtil.IndexToOffset(index, _head, _rowCount);
             return ref _rowKeys.Vec.DangerousGetRef<T>(offset);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ref T DangerousValueRef<T>(int index)
         {
-            int offset = IndexToOffset(index);
+            // TODO review if we will use ring buffer structure for something other than Series.DataSource
+            int offset = GetSeriesOffset<T>(index);
             return ref _values.Vec.DangerousGetRef<T>(offset);
         }
 
@@ -381,7 +398,7 @@ namespace Spreads.Collections.Internal
         {
             if (AdditionalCorrectnessChecks.Enabled)
             {
-                if (ReferenceEquals(this, Empty))
+                if (IsEmptySentinel)
                 {
                     DoThrow();
                 }

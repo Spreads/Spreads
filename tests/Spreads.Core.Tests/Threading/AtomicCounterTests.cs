@@ -153,7 +153,9 @@ namespace Spreads.Core.Tests.Threading
 
         private int _field;
 
+        #if NETCOREAPP3_0
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+        #endif
         [Test, Explicit("long running")]
         public void IncrementDecrementBenchmark()
         {

@@ -149,7 +149,9 @@ namespace Spreads.Core.Tests.Buffers
         //}
 
         
-        [MethodImpl(MethodImplOptions.NoInlining | MethodImplOptions.AggressiveOptimization)]
+#if NETCOREAPP3_0
+        [MethodImpl(MethodImplOptions.AggressiveOptimization| MethodImplOptions.NoInlining)]
+#endif
         [Test, Explicit("long running")]
         public void VectorStorageReadBench()
         {

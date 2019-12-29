@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Diagnostics;
+using System.Runtime;
 using System.Threading;
 using System.Threading.Tasks;
 using Spreads.Core.Tests.Algorithms;
@@ -28,12 +29,13 @@ namespace Spreads.Run
     {
         private static async Task Main(string[] args)
         {
+            System.Runtime.GCSettings.LatencyMode = GCLatencyMode.SustainedLowLatency;
             Trace.Listeners.Clear();
             Trace.Listeners.Add(new ConsoleListener());
 
             Settings.DoAdditionalCorrectnessChecks = false;
 
-            Process.GetCurrentProcess().ProcessorAffinity = (IntPtr) 0b_0000_0011;
+            // Process.GetCurrentProcess().ProcessorAffinity = (IntPtr) 0b_0000_1111;
             // EquiJoinBench();
             ExecutionContext.SuppressFlow();
             Settings.SharedSpinLockNotificationPort = 53412;

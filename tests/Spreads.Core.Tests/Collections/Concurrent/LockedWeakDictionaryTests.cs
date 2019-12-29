@@ -170,7 +170,9 @@ namespace Spreads.Core.Tests.Collections.Concurrent
             Console.WriteLine(d.Count);
         }
 
-        [MethodImpl(MethodImplOptions.NoInlining | MethodImplOptions.AggressiveOptimization)]
+#if NETCOREAPP3_0
+        [MethodImpl(MethodImplOptions.AggressiveOptimization| MethodImplOptions.NoInlining)]
+#endif
         private static void LWD(int count, int mult, LockedWeakDictionary<long> lockedWeakDictionary)
         {
             using (Benchmark.Run("LWD", count * mult))
@@ -189,7 +191,9 @@ namespace Spreads.Core.Tests.Collections.Concurrent
             }
         }
 
-        [MethodImpl(MethodImplOptions.NoInlining | MethodImplOptions.AggressiveOptimization)]
+#if NETCOREAPP3_0
+        [MethodImpl(MethodImplOptions.AggressiveOptimization| MethodImplOptions.NoInlining)]
+#endif
         private static void WCD_H(int count, int mult, ConcurrentDictionary<long, GCHandle> wcd3)
         {
             using (Benchmark.Run("WCD H", count * mult))

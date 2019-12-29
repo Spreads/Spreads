@@ -215,7 +215,7 @@ namespace Spreads.Core.Tests.DataTypes
             sd = new SmallDecimal(3.5M, 0, MidpointRounding.AwayFromZero);
 
             Assert.AreEqual(4.0M, (decimal)sd);
-
+#if NETCOREAPP3_0
             sd = new SmallDecimal(3.5M, 0, MidpointRounding.ToZero);
 
             Assert.AreEqual(3.0M, (decimal)sd);
@@ -223,7 +223,7 @@ namespace Spreads.Core.Tests.DataTypes
             sd = new SmallDecimal(3.5M, 16, MidpointRounding.ToZero);
 
             Assert.AreEqual(3.5M, (decimal)sd);
-
+#endif
             Assert.Throws<ArgumentOutOfRangeException>(() =>
             {
                 sd = new SmallDecimal(3.5M, 17);

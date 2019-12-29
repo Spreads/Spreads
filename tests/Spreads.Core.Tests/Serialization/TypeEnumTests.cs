@@ -102,7 +102,9 @@ namespace Spreads.Core.Tests.Serialization
         }
 
         [Test, Explicit("bench")]
+#if NETCOREAPP3_0
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
         public void SizeGetterBench()
         {
             var count = 2_000_000L;

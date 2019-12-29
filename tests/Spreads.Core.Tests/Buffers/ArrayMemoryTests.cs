@@ -95,7 +95,9 @@ namespace Spreads.Core.Tests.Buffers
          , Explicit("long running")
 #endif
         ]
+#if NETCOREAPP3_0
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
         public void RentReturnBenchmark()
         {
 #if !DEBUG
@@ -163,14 +165,14 @@ namespace Spreads.Core.Tests.Buffers
             ArraySegment<byte> prev = default;
             for (int r = 0; r < TestUtils.GetBenchCount(50, 5); r++)
             {
-                for (int i = 0; i < TestUtils.GetBenchCount(10240, 1024) ; i++)
+                for (int i = 0; i < TestUtils.GetBenchCount(10240, 1024); i++)
                 {
                     const int sizeKb = 1;
-                    var buf = (ArrayMemory<byte>) pool.Rent(sizeKb * 1024);
+                    var buf = (ArrayMemory<byte>)pool.Rent(sizeKb * 1024);
                     list.Add(buf);
                     if (!cw.TryGetValue(buf.Array, out var id))
                     {
-                        id = (object) i;
+                        id = (object)i;
                         cw.Add(buf.Array, id);
                     }
 
@@ -209,7 +211,9 @@ namespace Spreads.Core.Tests.Buffers
          , Explicit("bench")
 #endif
         ]
+#if NETCOREAPP3_0
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
         public void RentReturnDefaultRetainablePoolBench()
         {
             var count = TestUtils.GetBenchCount(1_000_000, 1_000);
@@ -256,7 +260,9 @@ namespace Spreads.Core.Tests.Buffers
          , Explicit("bench")
 #endif
         ]
+#if NETCOREAPP3_0
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
         public void RentReturnArrayPoolBench()
         {
 #if !DEBUG
@@ -284,7 +290,9 @@ namespace Spreads.Core.Tests.Buffers
          , Explicit("long running")
 #endif
         ]
+#if NETCOREAPP3_0
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
         public void ConcurrentRentReturn()
         {
 #if !DEBUG
@@ -347,7 +355,9 @@ namespace Spreads.Core.Tests.Buffers
          , Explicit("long running")
 #endif
         ]
+#if NETCOREAPP3_0
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
         public void RentReturnBenchmarkRetainablePoolOverCapacity()
         {
 #if !DEBUG
@@ -393,7 +403,9 @@ namespace Spreads.Core.Tests.Buffers
          , Explicit("long running")
 #endif
         ]
+#if NETCOREAPP3_0
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
         public void RentReturnPinUnpinBenchmark()
         {
 #if !DEBUG

@@ -74,7 +74,7 @@ namespace Spreads
 
         // TODO when/if used often benchmark its effect and if significant then set default to false
         // ReSharper disable once NotAccessedField.Local
-        internal static bool _doAdditionalCorrectnessChecks = true;
+        internal static bool _doAdditionalCorrectnessChecks = false;
 
         internal static bool _doDetectBufferLeaks = false;
 

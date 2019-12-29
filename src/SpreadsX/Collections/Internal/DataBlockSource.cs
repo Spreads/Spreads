@@ -134,13 +134,7 @@ namespace Spreads.Collections.Internal
                     return _last;
                 }
 
-                var wOpt = _blockSeries.LastValueOrDefault;
-                //if (wOpt.TryGetTarget(out var block))
-                //{
-                //    _last = block;
-                //    return block;
-                //}
-                return wOpt;
+                return _blockSeries.LastValueOrDefault;
             }
         }
 
@@ -203,6 +197,8 @@ namespace Spreads.Collections.Internal
 
             if (nextBlock != null)
             {
+                if (AdditionalCorrectnessChecks.Enabled)
+                    ThrowHelper.Assert(nextBlock.RowCount > 0, "nextBlock.RowCount > 0");
                 return nextBlock.RowCount > 0;
             }
 
@@ -216,21 +212,26 @@ namespace Spreads.Collections.Internal
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
-        private bool TryGetNextBlockSlower(DataBlock currentBlock, out DataBlock? nb)
+        private bool TryGetNextBlockSlower(DataBlock currentBlock, out DataBlock? nextBlock)
         {
             if (currentBlock == DataBlock.Empty && First.IsPresent)
             {
-                nb = First.Present.Value;
-                return true;
-            }
-
-            if (_blockSeries.TryFindBlockAtFromSource(out nb, this,
+                nextBlock = First.Present.Value;
+            } else if (!_blockSeries.TryFindBlockAtFromSource(out nextBlock, this,
                 currentBlock.DangerousRowKeyRef<TKey>(index: 0), Lookup.GT))
             {
-                return nb.RowCount > 0;
+                if (AdditionalCorrectnessChecks.Enabled)
+                    ThrowHelper.Assert(nextBlock == null, "nextBlock == null");
+                nextBlock = null;
             }
 
-            nb = null;
+            if (nextBlock != null)
+            {
+                if (AdditionalCorrectnessChecks.Enabled)
+                    ThrowHelper.DebugAssert(nextBlock.RowCount > 0, "nextBlock.RowCount > 0 2");
+                return nextBlock.RowCount > 0;
+            }
+
             return false;
         }
 
@@ -241,7 +242,9 @@ namespace Spreads.Collections.Internal
 
             if (previousBlock != null)
             {
-                return true;
+                if (AdditionalCorrectnessChecks.Enabled)
+                    ThrowHelper.Assert(previousBlock.RowCount > 0);
+                return previousBlock.RowCount > 0;
             }
 
             if (currentBlock == First.Present.Value)
@@ -259,16 +262,22 @@ namespace Spreads.Collections.Internal
             if (currentBlock == DataBlock.Empty && LastValueOrDefault != null)
             {
                 previousBlock = LastValueOrDefault;
-                return true;
             }
-
-            if (_blockSeries.TryFindBlockAtFromSource(out previousBlock, this,
+            else if (!_blockSeries.TryFindBlockAtFromSource(out previousBlock, this,
                 currentBlock.DangerousRowKeyRef<TKey>(index: 0), Lookup.LT))
             {
-                return true;
+                if (AdditionalCorrectnessChecks.Enabled)
+                    ThrowHelper.Assert(previousBlock == null);
+                previousBlock = null;
             }
 
-            previousBlock = null;
+            if (previousBlock != null)
+            {
+                if (AdditionalCorrectnessChecks.Enabled)
+                    ThrowHelper.DebugAssert(previousBlock.RowCount > 0);
+                return previousBlock.RowCount > 0;
+            }
+
             return false;
         }
     }

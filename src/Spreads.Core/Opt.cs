@@ -91,12 +91,9 @@ namespace Spreads
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
-#if DEBUG
-                if (IsMissing)
-                {
-                    Debug.Assert((EqualityComparer<T>.Default.Equals(default, _present)));
-                }
-#endif
+                if (AdditionalCorrectnessChecks.Enabled && IsMissing)
+                    ThrowHelper.Assert((EqualityComparer<T>.Default.Equals(default, _present)));
+                
                 return _present;
             }
         }

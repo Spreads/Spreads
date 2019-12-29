@@ -46,12 +46,12 @@ namespace Spreads.Collections
         internal Flags Flags;
 
         private int _locker;
-        internal int OrderVersion;
 
         // See http://joeduffyblog.com/2009/06/04/a-scalable-readerwriter-scheme-with-optimistic-retry/
+        internal volatile int OrderVersion;
+        internal volatile int NextOrderVersion;
 
         internal volatile int Version;
-        internal volatile int NextVersion;
 
         internal BaseContainer()
         { }
@@ -115,7 +115,7 @@ namespace Spreads.Collections
         #region Synchronization
 
         /// <summary>
-        /// Acquire a write lock and increment <seealso cref="NextVersion"/>.
+        /// Acquire a write lock and increment <seealso cref="NextOrderVersion"/>.
         /// </summary>
         /// <returns></returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -136,7 +136,7 @@ namespace Spreads.Collections
                 {
                     unchecked
                     {
-                        NextVersion++;
+                        NextOrderVersion++;
                     }
                     break;
                 }
@@ -160,7 +160,7 @@ namespace Spreads.Collections
         }
 
         /// <summary>
-        /// Release write lock and increment <see cref="Version"/> or decrement <seealso cref="NextVersion"/> if no updates were made.
+        /// Release write lock and increment <see cref="Version"/> or decrement <seealso cref="NextOrderVersion"/> if no updates were made.
         /// Call NotifyUpdate if doVersionIncrement is true
         /// </summary>
         /// <param name="doVersionIncrement"></param>
@@ -178,7 +178,7 @@ namespace Spreads.Collections
                     {
                         Version++;
                     }
-                    NextVersion = Version;
+                    NextOrderVersion = Version;
 
                     // TODO WTF? see git blame for the next line, what was here?
                     NotifyUpdate(); // TODO remove after flags fixed
@@ -197,7 +197,7 @@ namespace Spreads.Collections
             else
             {
                 // set nextVersion back to original version, no changes were made
-                NextVersion = Version;
+                NextOrderVersion = Version;
             }
 
             ReleaseLock();

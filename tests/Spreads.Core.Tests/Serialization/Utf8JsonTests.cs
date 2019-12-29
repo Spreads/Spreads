@@ -55,8 +55,9 @@ namespace Spreads.Core.Tests.Serialization
 
             public bool Boo { get; set; }
         }
-
+        #if NETCOREAPP3_0
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+        #endif
         [Test, Explicit("long running")]
         public unsafe void CompareUtf8JsonWithBinarySerializer()
         {
@@ -113,7 +114,10 @@ namespace Spreads.Core.Tests.Serialization
             Benchmark.Dump();
         }
 
+#if NETCOREAPP3_0
         [MethodImpl(MethodImplOptions.AggressiveOptimization | MethodImplOptions.NoInlining)]
+#endif
+
         private static void CompareUtf8JsonWithBinarySerializer_UR(int count, byte[] bytes)
         {
             using (Benchmark.Run("Utf8Json Read", count))
@@ -137,7 +141,10 @@ namespace Spreads.Core.Tests.Serialization
             }
         }
 
+#if NETCOREAPP3_0
         [MethodImpl(MethodImplOptions.AggressiveOptimization | MethodImplOptions.NoInlining)]
+#endif
+
         private static void CompareUtf8JsonWithBinarySerializer_UW(int count, byte[] bytes, Serialization.TestValue[] values)
         {
             using (Benchmark.Run("Utf8Json Write", count))
@@ -156,7 +163,10 @@ namespace Spreads.Core.Tests.Serialization
             }
         }
 
+#if NETCOREAPP3_0
         [MethodImpl(MethodImplOptions.AggressiveOptimization | MethodImplOptions.NoInlining)]
+#endif
+
         private static void CompareUtf8JsonWithBinarySerializer_SR(int count, DirectBuffer db)
         {
             using (Benchmark.Run("Spreads Read", count))
@@ -181,7 +191,10 @@ namespace Spreads.Core.Tests.Serialization
             }
         }
 
+#if NETCOREAPP3_0
         [MethodImpl(MethodImplOptions.AggressiveOptimization | MethodImplOptions.NoInlining)]
+#endif
+
         private static void CompareUtf8JsonWithBinarySerializer_SW(int count, byte[] bytes, Serialization.TestValue[] values)
         {
             using (Benchmark.Run("Spreads Write", count))
@@ -280,16 +293,15 @@ namespace Spreads.Core.Tests.Serialization
             wrapper.Data = Enumerable.Range(1, 512 * 1024).Select(x => unchecked((byte)x)).ToArray();
 
             const int N = 1000;
-            var sw =Stopwatch.StartNew();
+            var sw = Stopwatch.StartNew();
             for (int i = 0; i < N; i++)
             {
                 byte[] newtonSoftBytes = Encoding.UTF8.GetBytes(Newtonsoft.Json.JsonConvert.SerializeObject(wrapper, Newtonsoft.Json.Formatting.Indented));
-
             }
             sw.Stop();
             GC.Collect();
             Console.WriteLine($"Did serialize with Json.NET in {sw.Elapsed.TotalSeconds:F3}s");
-           
+
             sw = Stopwatch.StartNew();
             for (int i = 0; i < N; i++)
             {
@@ -308,6 +320,7 @@ namespace Spreads.Core.Tests.Serialization
             GC.Collect();
             Console.WriteLine($"Did serialize with Spreads.UTF8Json in {sw.Elapsed.TotalSeconds:F3}s");
 
+#if NETCOREAPP3_0
 
             sw = Stopwatch.StartNew();
             for (int i = 0; i < N; i++)
@@ -317,6 +330,8 @@ namespace Spreads.Core.Tests.Serialization
             sw.Stop();
             GC.Collect();
             Console.WriteLine($"Did serialize with S.T.Json in {sw.Elapsed.TotalSeconds:F3}s");
+
+#endif
         }
     }
 }

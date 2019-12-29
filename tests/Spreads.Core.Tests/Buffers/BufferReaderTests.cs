@@ -38,7 +38,10 @@ namespace Spreads.Core.Tests.Buffers
             Benchmark.Dump();
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveOptimization | MethodImplOptions.NoInlining)]
+#if NETCOREAPP3_0
+        [MethodImpl(MethodImplOptions.AggressiveOptimization| MethodImplOptions.NoInlining)]
+#endif
+
         private static void CompareWithDirectRead_Array(int count, long mult, byte[] bytes)
         {
             long sum;
@@ -59,7 +62,9 @@ namespace Spreads.Core.Tests.Buffers
             Assert.IsTrue(sum != 1);
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveOptimization | MethodImplOptions.NoInlining)]
+#if NETCOREAPP3_0
+        [MethodImpl(MethodImplOptions.AggressiveOptimization| MethodImplOptions.NoInlining)]
+#endif
         private static void CompareWithDirectRead_BufferReader(int count, long mult, byte[] bytes)
         {
             long sum;

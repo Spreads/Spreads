@@ -62,10 +62,8 @@ namespace Spreads
             KeyComparer<TKey> comparer = default,
             MovingWindowOptions<TKey>? movingWindowOptions = default) : base(mutability, keySorting, comparer)
         {
-            if (movingWindowOptions != null)
-            {
+            if (movingWindowOptions != null) 
                 Options = new WindowOptions(movingWindowOptions);
-            }
         }
 
         /// <summary>
@@ -82,14 +80,10 @@ namespace Spreads
         public bool DangerousTryAppend(TKey key, TValue value)
         {
             if (Mutability == Mutability.ReadOnly)
-            {
                 return false;
-            }
 
-            if (!IsDataBlock(out var db, out var ds))
-            {
+            if (!IsDataBlock(out var db, out var ds)) 
                 db = ds.LastValueOrDefault!;
-            }
 
 #if BUILTIN_NULLABLE
             Debug.Assert(db != null, "Data source must not be set if empty");
@@ -111,18 +105,32 @@ namespace Spreads
                 }
             }
 
+            object? data = null;
             if (dbRowCount == db.RowCapacity)
             {
-                if (!TryGrowCapacity(key, ref db))
+                if (!TryAppendGrowCapacity(key, value, ref db, out data))
                 {
                     return false;
                 }
+                // increased capacity
             }
-            Options?.OnBeforeAppend();
-            db.SeriesAppend(db.RowCount, key, value);
+            else
+            {
+                Options?.OnBeforeAppend();
+                db.SeriesAppend(db.RowCount, key, value);
+            }
+            
 
-            // TODO Version++;
-            // NotifyUpdate();
+            // Switch Data only after adding values to a data block.
+            // Otherwise DS could have an empty block for a short
+            // time and that requires a lot of special case handling
+            // on readers' side.
+            if (data != null)
+                Data = data;
+
+            // TODO unchecked { Version++; }
+
+            NotifyUpdate();
 
             return true;
         }
@@ -146,16 +154,16 @@ namespace Spreads
                      | MethodImplOptions.AggressiveOptimization
 #endif
         )]
-        private bool TryGrowCapacity(TKey key, [NotNullWhen(true)] ref DataBlock? block)
+        private bool TryAppendGrowCapacity(TKey key, TValue value, [NotNullWhen(true)] ref DataBlock? block, out object? data)
         {
             ThrowHelper.DebugAssert(block != null);
-
+            data = null;
             try
             {
                 if (block == DataBlock.Empty)
                 {
                     block = DataBlock.SeriesCreate(rowLength: 0);
-                    Data = block;
+                    data = block;
                 }
 
                 // TODO review: do we want buffers in LOH or not? <= vs <
@@ -169,6 +177,8 @@ namespace Spreads
                         block = null;
                         return false;
                     }
+                    Options?.OnBeforeAppend();
+                    block.SeriesAppend(block.RowCount, key, value);
                 }
                 else
                 {
@@ -179,7 +189,7 @@ namespace Spreads
 
                         ds = new DataBlockSource<TKey>();
                         ds.AddLast(block.DangerousRowKeyRef<TKey>(0), block);
-                        Data = ds;
+                        data = ds;
                     }
 
                     var minCapacity = block.RowCapacity;
@@ -197,8 +207,12 @@ namespace Spreads
                         TryTrimWindowBlocks();
                     }
 
+                    Options?.OnBeforeAppend();
+                    newBlock.SeriesAppend(newBlock.RowCount, key, value);
+
                     ds.AddLast(key, newBlock);
                     block = newBlock;
+                    ThrowHelper.DebugAssert(Data == ds || data == ds);
                 }
 
                 return true;

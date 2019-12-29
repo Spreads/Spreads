@@ -500,7 +500,7 @@ namespace Spreads.Core.Tests.Cursors
                                 while (await cursor.MoveNextAsync())
                                 {
                                     Interlocked.Increment(ref cnt);
-                                    Thread.Sleep(1);
+                                    // Thread.Sleep(1);
                                 }
                             }
                             catch (Exception e)

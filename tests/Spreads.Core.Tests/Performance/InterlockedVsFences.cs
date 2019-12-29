@@ -65,7 +65,9 @@ namespace Spreads.Core.Tests.Performance
             Benchmark.Dump();
         }
 
-        [MethodImpl(MethodImplOptions.NoInlining | MethodImplOptions.AggressiveOptimization)]
+#if NETCOREAPP3_0
+        [MethodImpl(MethodImplOptions.AggressiveOptimization| MethodImplOptions.NoInlining)]
+#endif
         private long IncrementInterlocked(long count)
         {
             var sum = 0L;
@@ -78,7 +80,9 @@ namespace Spreads.Core.Tests.Performance
             return sum;
         }
 
-        [MethodImpl(MethodImplOptions.NoInlining | MethodImplOptions.AggressiveOptimization)]
+#if NETCOREAPP3_0
+        [MethodImpl(MethodImplOptions.AggressiveOptimization| MethodImplOptions.NoInlining)]
+#endif
         private long IncrementFences(long count)
         {
             var sum = 0L;

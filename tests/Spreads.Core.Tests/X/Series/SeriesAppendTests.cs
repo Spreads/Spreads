@@ -337,7 +337,7 @@ namespace Spreads.Core.Tests.X.Series
                 Assert.Throws<ArgumentException>(() => s.Append(1, 1));
                 Assert.AreEqual(0, s.Version);
                 Assert.AreEqual(0, s.OrderVersion);
-                Assert.AreEqual(0, s.NextVersion);
+                Assert.AreEqual(0, s.NextOrderVersion);
             }
         }
 
@@ -428,6 +428,8 @@ namespace Spreads.Core.Tests.X.Series
         [Test, Ignore("manual benchmark, needs input to terminate")]
         public void SpinningReadWhileWriteBenchmark()
         {
+            Console.WriteLine($"Additional checks: {AdditionalCorrectnessChecks.Enabled}");
+
             var s = new AppendSeries<long, long>();
 
             var monitor = new TestUtils.ReaderWriterCountersMonitor();
@@ -464,9 +466,15 @@ namespace Spreads.Core.Tests.X.Series
 
                     while (monitor.IsRunning)
                     {
+                        var sw = new SpinWait();
                         while (!c.MoveNext())
                         {
-                            // Thread.Sleep(1);
+                            //Thread.SpinWait(10000000);
+                            sw.SpinOnce();
+                            //if (sw.NextSpinWillYield)
+                            //{
+                            //    //sw.Reset();
+                            //}
                         }
 
                         i++;

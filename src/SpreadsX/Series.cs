@@ -233,7 +233,7 @@ namespace Spreads
                 }
             }
 
-            if (NextVersion != version)
+            if (NextOrderVersion != version)
             {
                 sw.SpinOnce();
                 goto SYNC;
@@ -256,7 +256,7 @@ namespace Spreads
             {
                 result = DoTryFindAt(key, direction, out kvp);
             }
-            if (NextVersion != version)
+            if (NextOrderVersion != version)
             {
                 sw.SpinOnce();
                 goto SYNC;
@@ -279,7 +279,7 @@ namespace Spreads
             {
                 result = DoTryGetValue(key, out value);
             }
-            if (NextVersion != version)
+            if (NextOrderVersion != version)
             {
                 sw.SpinOnce();
                 goto SYNC;

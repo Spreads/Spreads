@@ -336,7 +336,9 @@ namespace Spreads.Core.Tests.Performance
             }
         }
 
+#if NETCOREAPP3_0
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
         [Test, Explicit("long running")]
         public void CallVsCallVirt(int r)
         {
@@ -415,7 +417,9 @@ namespace Spreads.Core.Tests.Performance
             //Console.WriteLine($"Composed class {sw.ElapsedMilliseconds}");
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveOptimization | MethodImplOptions.NoInlining)]
+#if NETCOREAPP3_0
+        [MethodImpl(MethodImplOptions.AggressiveOptimization| MethodImplOptions.NoInlining)]
+#endif
         private static void CallVsCallVirt_Value(int count)
         {
             using (Benchmark.Run("Value", count))
@@ -431,7 +435,9 @@ namespace Spreads.Core.Tests.Performance
             }
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveOptimization | MethodImplOptions.NoInlining)]
+#if NETCOREAPP3_0
+        [MethodImpl(MethodImplOptions.AggressiveOptimization| MethodImplOptions.NoInlining)]
+#endif
         private static void CallVsCallVirt_Struct(int count)
         {
             using (Benchmark.Run("Struct", count))
@@ -444,7 +450,9 @@ namespace Spreads.Core.Tests.Performance
             }
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveOptimization | MethodImplOptions.NoInlining)]
+#if NETCOREAPP3_0
+        [MethodImpl(MethodImplOptions.AggressiveOptimization| MethodImplOptions.NoInlining)]
+#endif
         private static void CallVsCallVirt_Struct_IFace(int count)
         {
             using (Benchmark.Run("Str>Interface", count))
@@ -457,7 +465,9 @@ namespace Spreads.Core.Tests.Performance
             }
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveOptimization | MethodImplOptions.NoInlining)]
+#if NETCOREAPP3_0
+        [MethodImpl(MethodImplOptions.AggressiveOptimization| MethodImplOptions.NoInlining)]
+#endif
         private void CallVsCallVirt_Constr_Struct(int count)
         {
             using (Benchmark.Run("Str>Constr", count))
@@ -467,7 +477,9 @@ namespace Spreads.Core.Tests.Performance
             }
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveOptimization | MethodImplOptions.NoInlining)]
+#if NETCOREAPP3_0
+        [MethodImpl(MethodImplOptions.AggressiveOptimization| MethodImplOptions.NoInlining)]
+#endif
         private static void CallVsCallVirt_StaticClass(int count)
         {
             using (Benchmark.Run("Static Class", count))
@@ -479,7 +491,9 @@ namespace Spreads.Core.Tests.Performance
             }
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveOptimization | MethodImplOptions.NoInlining)]
+#if NETCOREAPP3_0
+        [MethodImpl(MethodImplOptions.AggressiveOptimization| MethodImplOptions.NoInlining)]
+#endif
         private static void CallVsCallVirt_Class(int count)
         {
             using (Benchmark.Run("Class", count))
@@ -492,7 +506,9 @@ namespace Spreads.Core.Tests.Performance
             }
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveOptimization | MethodImplOptions.NoInlining)]
+#if NETCOREAPP3_0
+        [MethodImpl(MethodImplOptions.AggressiveOptimization| MethodImplOptions.NoInlining)]
+#endif
         private static void CallVsCallVirt_Class_ILIcr(int count)
         {
             using (Benchmark.Run("Class+ILIncr", count))
@@ -506,7 +522,9 @@ namespace Spreads.Core.Tests.Performance
         }
 
 
-        [MethodImpl(MethodImplOptions.AggressiveOptimization | MethodImplOptions.NoInlining)]
+#if NETCOREAPP3_0
+        [MethodImpl(MethodImplOptions.AggressiveOptimization| MethodImplOptions.NoInlining)]
+#endif
         private static void CallVsCallVirt_Class_CAS(int count)
         {
             using (Benchmark.Run("Class+CASLock", count))
@@ -519,7 +537,9 @@ namespace Spreads.Core.Tests.Performance
             }
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveOptimization | MethodImplOptions.NoInlining)]
+#if NETCOREAPP3_0
+        [MethodImpl(MethodImplOptions.AggressiveOptimization| MethodImplOptions.NoInlining)]
+#endif
         private static void CallVsCallVirt_SealedClass(int count)
         {
             using (Benchmark.Run("Sealed Class", count))
@@ -532,7 +552,9 @@ namespace Spreads.Core.Tests.Performance
             }
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveOptimization | MethodImplOptions.NoInlining)]
+#if NETCOREAPP3_0
+        [MethodImpl(MethodImplOptions.AggressiveOptimization| MethodImplOptions.NoInlining)]
+#endif
         private static void CallVsCallVirt_Class_IFace(int count)
         {
             using (Benchmark.Run("Class>IFace", count))
@@ -545,7 +567,9 @@ namespace Spreads.Core.Tests.Performance
             }
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveOptimization | MethodImplOptions.NoInlining)]
+#if NETCOREAPP3_0
+        [MethodImpl(MethodImplOptions.AggressiveOptimization| MethodImplOptions.NoInlining)]
+#endif
         private static void CallVsCallVirt_Derived(int count, ThisIsBaseClass dcl)
         {
             using (Benchmark.Run("Derived Class", count))
