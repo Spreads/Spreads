@@ -452,11 +452,11 @@ namespace Spreads.Buffers
                         arrayMemory.PoolIndex = _pool.PoolIdx;
                     }
 
-                    if (AdditionalCorrectnessChecks.Enabled && arrayMemory.LengthPow2 != _bufferLength)
-                    {
-                        // TODO proper exception, this is for args
-                        ThrowBadLength();
-                    }
+                    //if (AdditionalCorrectnessChecks.Enabled && arrayMemory.LengthPow2 != _bufferLength)
+                    //{
+                    //    // TODO proper exception, this is for args
+                    //    ThrowBadLength();
+                    //}
                     buffer = arrayMemory;
                 }
                 else

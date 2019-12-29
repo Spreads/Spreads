@@ -17,16 +17,16 @@ namespace Spreads.Core.Tests.Cursors
         [Test]
         public void DeadCursorDoesNotCauseEndlessLoopInNotifyUpdate()
         {
-            var sm = new AppendSeries<int, int>();
+            var s = new AppendSeries<int, int>();
 
-            sm.Append(1, 1);
+            s.Append(1, 1);
 
-            var cursor = sm.GetAsyncEnumerator();
+            var cursor = s.GetAsyncEnumerator();
             Assert.True(cursor.MoveNext());
             Assert.False(cursor.MoveNext());
 
             cursor.MoveNextAsync();
-
+            cursor.Dispose();
             cursor = default;
 
             GC.Collect(2, GCCollectionMode.Forced, true);
@@ -34,29 +34,34 @@ namespace Spreads.Core.Tests.Cursors
 
             //var t = Task.Run(() => cursor.MoveNextAsync(cts.Token));
 
-            sm.Append(2, 2);
-            sm.Append(3, 3);
+            s.Append(2, 2);
+            s.Append(3, 3);
 
-            Assert.True(sm.RowCount == 3);
+            Assert.True(s.RowCount == 3);
+
+            s.Dispose();
         }
 
         [Test]
         public void CancelledCursorDoesntCauseEndlessLoopInNotifyUpdate()
         {
-            var sm = new AppendSeries<int,int>();
+            var s = new AppendSeries<int,int>();
 
-            sm.Append(1, 1);
+            s.Append(1, 1);
 
-            var cursor = sm.GetAsyncEnumerator();
-            Assert.True(cursor.MoveNext());
-            Assert.False(cursor.MoveNext());
+            var c = s.GetAsyncEnumerator();
+            Assert.True(c.MoveNext());
+            Assert.False(c.MoveNext());
 
-            cursor.MoveNextAsync();
+            c.MoveNextAsync();
 
-            sm.Append(2, 2);
-            sm.Append(3, 3);
+            s.Append(2, 2);
+            s.Append(3, 3);
 
-            Assert.True(sm.RowCount == 3);
+            Assert.True(s.RowCount == 3);
+
+            c.Dispose();
+            s.Dispose();
         }
 
         //[Test]
@@ -195,32 +200,34 @@ namespace Spreads.Core.Tests.Cursors
             s.Append(1, 1);
             s.Append(2, 2);
 
-            var cursor = s.GetAsyncEnumerator();
-            Assert.True(await cursor.MoveNextAsync());
-            Assert.True(await cursor.MoveNextAsync());
+            var c = s.GetAsyncEnumerator();
+            Assert.True(await c.MoveNextAsync());
+            Assert.True(await c.MoveNextAsync());
 
-            Assert.IsTrue(cursor.MovePrevious());
+            Assert.IsTrue(c.MovePrevious());
 
             s.Append(3, 3);
 
             await Task.Delay(250);
 
-            Assert.AreEqual(1, cursor.CurrentKey);
-            Assert.AreEqual(1, cursor.CurrentValue);
+            Assert.AreEqual(1, c.CurrentKey);
+            Assert.AreEqual(1, c.CurrentValue);
+            c.Dispose();
+            s.Dispose();
         }
 
         [Test]
         public async Task CouldCancelCursor()
         {
-            var sm = new AppendSeries<int, int>();
+            var s = new AppendSeries<int, int>();
 
-            var cursor = sm.GetAsyncEnumerator();
+            var c = s.GetAsyncEnumerator();
 
             var t = Task.Run(async () =>
             {
                 try
                 {
-                    await cursor.MoveNextAsync();
+                    await c.MoveNextAsync();
                     Assert.Fail();
                 }
                 catch (Exception ex)
@@ -231,9 +238,12 @@ namespace Spreads.Core.Tests.Cursors
 
             Thread.Sleep(100);
 
-            cursor.TryComplete(true);
+            c.TryComplete(true);
 
             t.Wait();
+
+            c.Dispose();
+            s.Dispose();
         }
 
         [Test
@@ -243,12 +253,12 @@ namespace Spreads.Core.Tests.Cursors
         ]
         public async Task CouldAsyncEnumerate()
         {
-            var map = new AppendSeries<int, int>();
+            var s = new AppendSeries<int, int>();
             var count = (int)TestUtils.GetBenchCount(10_000_000, 5);
 
             for (int i = 0; i < count; i++)
             {
-                map.Append(i, i);
+                s.Append(i, i);
             }
 
             var t = Task.Run(async () =>
@@ -256,7 +266,7 @@ namespace Spreads.Core.Tests.Cursors
                 using (Benchmark.Run("SCM.AsyncEnumerator", count))
                 {
                     var cnt = 0;
-                    await foreach (var _ in map)
+                    await foreach (var _ in s)
                     {
                         cnt++;
                     }
@@ -269,27 +279,29 @@ namespace Spreads.Core.Tests.Cursors
 
             for (int i = count; i < count * 2; i++)
             {
-                map.Append(i, i);
+                s.Append(i, i);
             }
 
-            map.MarkReadOnly();
+            s.MarkReadOnly();
 
             t.Wait();
+
+            s.Dispose();
         }
 
         [Test]
         public async Task CouldEnumerateSMUsingCursor()
         {
-            var map = new AppendSeries<int, int>();
-            var count = 1_000_000;
+            var s = new AppendSeries<int, int>();
+            var count = (int)TestUtils.GetBenchCount();
 
             for (int i = 0; i < count; i++)
             {
-                map.Append(i, i);
+                s.Append(i, i);
             }
 
 #pragma warning disable HAA0401 // Possible allocation of reference type enumerator
-            var ae = map.GetAsyncEnumerator();
+            var ae = s.GetAsyncEnumerator();
 #pragma warning restore HAA0401 // Possible allocation of reference type enumerator
 
             var t = Task.Run(async () =>
@@ -311,12 +323,14 @@ namespace Spreads.Core.Tests.Cursors
 
             for (int i = count; i < count * 2; i++)
             {
-                map.Append(i, i);
+                s.Append(i, i);
             }
 
-            map.MarkReadOnly();
+            s.MarkReadOnly();
 
             t.Wait();
+
+            s.Dispose();
         }
 
         [Test]
@@ -381,6 +395,8 @@ namespace Spreads.Core.Tests.Cursors
             s.MarkReadOnly();
 
             t.Wait();
+
+            s.Dispose();
         }
 
         [Test]
@@ -444,9 +460,11 @@ namespace Spreads.Core.Tests.Cursors
             s.MarkReadOnly();
 
             t.Wait();
+
+            s.Dispose();
         }
 
-        [Test]
+        [Test, Ignore("manual")]
         public async Task CouldReadDataStreamWhileWritingFromManyThreads()
         {
             var map = new AppendSeries<int, int>();

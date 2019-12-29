@@ -256,7 +256,15 @@ namespace Spreads.Collections.Internal
             }
 
             if (AdditionalCorrectnessChecks.Enabled)
-            { if (moveCount != 0 && ((moveCount != stride && !allowPartial) || allowPartial && Math.Abs(moveCount) > Math.Abs(stride))) { ThrowBadReturnValue(stride, moveCount, allowPartial); } }
+            { if (moveCount != 0 
+                  && ((moveCount != stride && !allowPartial) 
+                      || allowPartial && 
+                        (stride > 0 && moveCount > stride
+                         ||
+                         stride < 0 && moveCount < stride
+                         )
+                      )
+                  ) { ThrowBadReturnValue(stride, moveCount, allowPartial); } }
 
             return true;
         }
