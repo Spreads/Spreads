@@ -10,6 +10,9 @@ using System.Threading;
 
 namespace Spreads.Threading
 {
+    // TODO Review thread https://www.realworldtech.com/forum/?threadid=189711&curpostid=189723
+    // and especially this post: https://www.realworldtech.com/forum/?threadid=189711&curpostid=189755
+
     /// <summary>
     /// Helper methods for <see cref="SharedSpinLock"/> and <see cref="Wpid"/>.
     /// Think of this interface as a collection of delegates and not as an object.
