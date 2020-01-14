@@ -103,9 +103,9 @@ namespace Spreads.DataTypes
             return _guid.GetHashCode();
         }
 
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
-            return Equals((UUID)obj);
+            return obj is UUID other && Equals(other);
         }
 
         public static bool operator ==(UUID first, UUID second)

@@ -31,10 +31,11 @@ namespace Spreads.Buffers
             ArrayPoolImpl.Return(array, clearArray);
         }
 
+        // This is entry/exit point for data buffers. All in-memory data containers use this pool.
         public static RetainableMemoryPool<T> MemoryPool = new RetainableMemoryPool<T>(
                 factory: null,
                 minLength: Settings.MIN_POOLED_BUFFER_LEN,
-                maxLength: Math.Max(Settings.MIN_POOLED_BUFFER_LEN * 1024, (Settings.LARGE_BUFFER_LIMIT * 2) / Unsafe.SizeOf<T>()),
+                maxLength: Math.Max(Settings.MIN_POOLED_BUFFER_LEN, Settings.LARGE_BUFFER_LIMIT / Unsafe.SizeOf<T>()),
                 maxBuffersPerBucket: (4 + Environment.ProcessorCount) * 16,
                 maxBucketsToTry: 2,
                 pinned: false);

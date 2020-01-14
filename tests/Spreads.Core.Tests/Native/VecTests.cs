@@ -180,7 +180,7 @@ namespace Spreads.Core.Tests.Native
                     {
                         for (int j = 0; j < count; j++)
                         {
-                            sum += vec.DangerousGet<int>(j);
+                            sum += vec.DangerousGetUnaligned<int>(j);
                         }
                     }
                 }

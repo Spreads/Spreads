@@ -37,21 +37,21 @@ namespace Spreads.Collections.Internal
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void DangerousGetRowKeyValueRef<TKey, TValue>(int index, out TKey key, out TValue value)
+        public void DangerousGetRowKeyValue<TKey, TValue>(int index, out TKey key, out TValue value)
         {
             int offset = GetSeriesOffset<TValue>(index);
             ThrowHelper.DebugAssert(offset >= 0 && offset < _rowCount, $"DangerousGetRowKeyValueRef: index1 [{offset}] >=0 && index1 < _rowCount [{_rowCount}]");
-            key = _rowKeys.Vec.DangerousGetRef<TKey>(offset);
-            value = _values.Vec.DangerousGetRef<TValue>(offset);
+            key = _rowKeys.Vec.DangerousGetUnaligned<TKey>(offset);
+            value = _values.Vec.DangerousGetUnaligned<TValue>(offset);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void DangerousSetRowKeyValueRef<TKey, TValue>(int index, in TKey key, in TValue value)
+        public void DangerousSetRowKeyValue<TKey, TValue>(int index, in TKey key, in TValue value)
         {
             int offset = GetSeriesOffset<TValue>(index);
             ThrowHelper.DebugAssert(offset >= 0 && offset < _rowCount, $"DangerousSetRowKeyValueRef: index1 [{offset}] >=0 && index1 < _rowCount [{_rowCount}]");
-            _rowKeys.Vec.DangerousGetRef<TKey>(offset) = key;
-            _values.Vec.DangerousGetRef<TValue>(offset) = value;
+            _rowKeys.Vec.DangerousSetUnaligned<TKey>(offset, key);
+            _values.Vec.DangerousSetUnaligned<TValue>(offset, value);
         }
 
         [Conditional("DEBUG")]
@@ -116,68 +116,65 @@ namespace Spreads.Collections.Internal
             | MethodImplOptions.AggressiveOptimization
 #endif
         )]
-        internal void SeriesAppend<TKey, TValue>(int index, TKey key, TValue value)
+        internal void SeriesAppend<TKey, TValue>(TKey key, TValue value)
         {
             EnsureSeriesLayout();
 
             if (AdditionalCorrectnessChecks.Enabled)
             {
-                SeriesAdditionalInsertChecks(index);
+                SeriesAdditionalInsertChecks(_rowCount);
             }
-
-            Debug.Assert(index == RowCount);
 
             int offset;
             if (typeof(TValue) == typeof(DataBlock))
             {
-                offset = RingVecUtil.IndexToOffset(index, _head, _rowCount + 1);
+                offset = RingVecUtil.IndexToOffset(_rowCount, _head, _rowCount + 1);
             }
             else
             {
                 if (AdditionalCorrectnessChecks.Enabled)
                 { ThrowHelper.Assert(_head == 0, "_head == 0"); }
-                offset = index;
+                offset = _rowCount;
             }
 
-            _rowKeys.Vec.DangerousGetRef<TKey>(offset) = key;
-            _values.Vec.DangerousGetRef<TValue>(offset) = value;
+            _rowKeys.Vec.DangerousSetUnaligned<TKey>(offset, key);
+            _values.Vec.DangerousSetUnaligned<TValue>(offset, value);
 
             // volatile increment goes last
             _rowCount++;
         }
 
-        /// <summary>
-        /// Insert key to RowIndex and value in Values only if there is enough capacity.
-        /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining
-#if HAS_AGGR_OPT
-            | MethodImplOptions.AggressiveOptimization
-#endif
-        )]
-        internal void SeriesInsert<TKey, TValue>(int index, TKey key, TValue value)
-        {
-            EnsureSeriesLayout();
+//        /// <summary>
+//        /// Insert key to RowIndex and value in Values only if there is enough capacity.
+//        /// </summary>
+//        [MethodImpl(MethodImplOptions.AggressiveInlining
+//#if HAS_AGGR_OPT
+//            | MethodImplOptions.AggressiveOptimization
+//#endif
+//        )]
+//        internal void SeriesInsert<TKey, TValue>(int index, TKey key, TValue value)
+//        {
+//            EnsureSeriesLayout();
 
-            if (AdditionalCorrectnessChecks.Enabled)
-            {
-                SeriesAdditionalInsertChecks(index);
-            }
+//            if (AdditionalCorrectnessChecks.Enabled)
+//            {
+//                SeriesAdditionalInsertChecks(index);
+//            }
 
-            if (index < RowCount) // TODO Extract AddLast case. It has only this cost, but the method size could be an issue. We could keep normal inserts as non-inlined, but AddLast must be very fast and it does little checks & work.
-            {
-                var len = RowCount - index;
-                var rowKeysSpan = _rowKeys.Vec.AsSpan<TKey>();
-                rowKeysSpan.Slice(index, len).CopyTo(rowKeysSpan.Slice(index + 1, len));
-                var valuesSpan = _values.Vec.AsSpan<TValue>();
-                valuesSpan.Slice(index, len).CopyTo(valuesSpan.Slice(index + 1, len));
-            }
+//            if (index < RowCount) // TODO Extract AddLast case. It has only this cost, but the method size could be an issue. We could keep normal inserts as non-inlined, but AddLast must be very fast and it does little checks & work.
+//            {
+//                var len = RowCount - index;
+//                var rowKeysSpan = _rowKeys.Vec.AsSpan<TKey>();
+//                rowKeysSpan.Slice(index, len).CopyTo(rowKeysSpan.Slice(index + 1, len));
+//                var valuesSpan = _values.Vec.AsSpan<TValue>();
+//                valuesSpan.Slice(index, len).CopyTo(valuesSpan.Slice(index + 1, len));
+//            }
 
-            _rowKeys.Vec.DangerousGetRef<TKey>(index) = key;
-            _values.Vec.DangerousGetRef<TValue>(index) = value;
+//            DangerousSetRowKeyValue(index, in key, in value);
 
-            // volatile increment goes last
-            _rowCount++;
-        }
+//            // volatile increment goes last
+//            _rowCount++;
+//        }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
         private void SeriesAdditionalInsertChecks(int index)
@@ -209,22 +206,6 @@ namespace Spreads.Collections.Internal
         {
             EnsureSeriesLayout();
             EnsureNotSentinel();
-
-            // TODO At RMP level we must make sure that memory is never allocated
-            // larger than requested at least when the next buffer is in LOH
-            // all LOH buffers are 128k to avoid LOH fragmentation
-
-            // TODO handle OutOfMemory in RentMemory, operation must be atomic in a sense that any error does not change existing data, no partial updates.
-
-            // TODO _rowIndex.Vec.Length could be already 2x larger because array pool could have returned larger array on previous doubling
-            // TODO (!, new) VS now hides total capacity of RM, we could get RM by casting and here we have types.
-            // But is it always true that unused part of RM is always free and we could just expand to it without copying?
-
-            // We ignore this now
-            //if (_rowIndex.Vec.Length != _rowIndex.Length)
-            //{
-            //    Console.WriteLine($"_rowIndex.Vec.Length {_rowIndex.Vec.Length} != _rowIndex.Length {_rowIndex.Length}");
-            //}
 
             var ri = _rowKeys;
             var vals = _values;
@@ -305,10 +286,13 @@ namespace Spreads.Collections.Internal
 
         internal bool SeriesTrimFirstValue<TKey, TValue>(out TKey key, out TValue value)
         {
-            throw new NotImplementedException();
+            //throw new NotImplementedException();
             //value = DangerousValueRef<TValue>(0);
 
             //return _rowCount > 0;
+            key = default;
+            value = default;
+            return false;
         }
     }
 }

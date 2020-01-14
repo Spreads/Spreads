@@ -148,9 +148,9 @@ namespace Spreads.Utils
                 Interlocked.Exchange(ref _sw, Stopwatch);
 
                 _statSnapshot.Elapsed = statEntry.Elapsed;
-                _statSnapshot.Gc0 = statEntry.Gc0 - _statSnapshot.Gc0 - 2;
-                _statSnapshot.Gc1 = statEntry.Gc1 - _statSnapshot.Gc1 - 2;
-                _statSnapshot.Gc2 = statEntry.Gc2 - _statSnapshot.Gc2 - 2;
+                _statSnapshot.Gc0 = statEntry.Gc0 - _statSnapshot.Gc0 ;
+                _statSnapshot.Gc1 = statEntry.Gc1 - _statSnapshot.Gc1;
+                _statSnapshot.Gc2 = statEntry.Gc2 - _statSnapshot.Gc2;
                 _statSnapshot.Memory = statEntry.Memory - _statSnapshot.Memory;
 
                 var list = Stats.GetOrAdd(CaseName, (s1) => new List<Stat>());
@@ -216,10 +216,10 @@ namespace Spreads.Utils
                     Memory = GC.GetTotalMemory(false);
                 }
 
-                GC.Collect(2, GCCollectionMode.Forced, true);
-                GC.WaitForPendingFinalizers();
-                GC.Collect(2, GCCollectionMode.Forced, true);
-                GC.WaitForPendingFinalizers();
+                //GC.Collect(2, GCCollectionMode.Forced, true);
+                //GC.WaitForPendingFinalizers();
+                //GC.Collect(2, GCCollectionMode.Forced, true);
+                //GC.WaitForPendingFinalizers();
 
 
                 Gc0 = GC.CollectionCount(0);

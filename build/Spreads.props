@@ -9,7 +9,7 @@
     <Product>Spreads</Product>
     <Authors>Victor Baybekov</Authors>
     <Company>DataSpreads!io</Company>
-    <Copyright>Victor Baybekov 2017-2019</Copyright>
+    <Copyright>Victor Baybekov 2017-2020</Copyright>
     <NeutralLanguage>en-US</NeutralLanguage>
 
     <VersionPrefix>"This is invalid placeholder version. Proper version must be set in common.props or with cli command"</VersionPrefix>

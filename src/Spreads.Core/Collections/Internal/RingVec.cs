@@ -54,12 +54,12 @@ namespace Spreads.Collections.Internal
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public T DangerousGetItem(int index)
         {
-            return _vec.DangerousGetRef<T>(RingVecUtil.IndexToOffset(index, _head, _count));
+            return _vec.DangerousGetUnaligned<T>(RingVecUtil.IndexToOffset(index, _head, _count));
         }
 
         public T GetItem(int index)
         {
-            return _vec.GetRef<T>(RingVecUtil.IndexToOffset(index, _head, _count));
+            return _vec.Get<T>(RingVecUtil.IndexToOffset(index, _head, _count));
         }
     }
 }

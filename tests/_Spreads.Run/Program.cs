@@ -41,7 +41,7 @@ namespace Spreads.Run
             Settings.SharedSpinLockNotificationPort = 53412;
 
             var test = new SeriesAppendTests();
-            test.SpinningReadWhileWriteBenchmark();
+            test.CouldAppendSeriesBench();
 
             // Console.WriteLine("Finished, press enter to exit...");
             // Console.ReadLine();

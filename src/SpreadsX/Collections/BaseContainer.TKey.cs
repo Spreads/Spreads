@@ -238,7 +238,7 @@ namespace Spreads.Collections
             if (AdditionalCorrectnessChecks.Enabled)
             {
                 if (kvp.Value.RowCount <= 0 ||
-                    _comparer.Compare(kvp.Key, kvp.Value.DangerousRowKeyRef<TKey>(index: 0)) != 0)
+                    _comparer.Compare(kvp.Key, kvp.Value.DangerousRowKey<TKey>(index: 0)) != 0)
                 { ThrowBadBlockFromSource(); }
             }
 
@@ -291,7 +291,7 @@ namespace Spreads.Collections
             if (AdditionalCorrectnessChecks.Enabled)
             {
                 if (kvp.Value.RowCount <= 0 ||
-                    _comparer.Compare(kvp.Key, kvp.Value.DangerousRowKeyRef<TKey>(index: 0)) != 0)
+                    _comparer.Compare(kvp.Key, kvp.Value.DangerousRowKey<TKey>(index: 0)) != 0)
                 { ThrowBadBlockFromSource(); }
             }
 

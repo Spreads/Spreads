@@ -9,7 +9,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
-using System.Threading.Tasks;
+using Spreads.Buffers;
 
 namespace Spreads.Core.Tests.X.Series
 {
@@ -118,13 +118,13 @@ namespace Spreads.Core.Tests.X.Series
                 Console.WriteLine("AdditionalCorrectnessChecks.Enabled");
             }
 
-            int count = (int)TestUtils.GetBenchCount(10_000_000);
-            int rounds = (int)TestUtils.GetBenchCount(100, 1);
+            int count = (int)TestUtils.GetBenchCount(10_000_000, 100_000);
+            int rounds = (int)TestUtils.GetBenchCount(100, 10);
 
             var sl = new SortedList<int, int>();
-            var sa = new AppendSeries<long, long>();
-            var cursor = sa.GetAsyncCursor();
-            cursor.MoveNextAsync();
+
+            //var cursor = sa.GetAsyncCursor();
+            //cursor.MoveNextAsync();
             var di = new Dictionary<int, int>();
 
             //for (int r = 0; r < rounds; r++)
@@ -161,31 +161,42 @@ namespace Spreads.Core.Tests.X.Series
             //    Console.WriteLine($"Added {((r + 1) * count / 1000000):N}");
             //}
 
-            for (int r = 0; r < rounds; r++)
-            {
-                using (Benchmark.Run("Append", count))
-                {
-                    for (int i = r * count; i < (r + 1) * count; i++)
-                    {
-                        if (i == r * count + 3)
-                        {
-                            continue;
-                        }
+            BufferPool<int>.MemoryPool.PrintStats();
 
-                        if (!sa.DangerousTryAppend(i, i))
+            for (int _ = 0; _ < 2; _++)
+            {
+                var sa = new AppendSeries<int, int>();
+
+                for (int r = 0; r < rounds; r++)
+                {
+                    using (Benchmark.Run("Append", count))
+                    {
+                        for (int i = r * count; i < (r + 1) * count; i++)
                         {
-                            Console.WriteLine("Cannot add " + i);
-                            return;
+                            if (i == r * count + 3)
+                            {
+                                continue;
+                            }
+
+                            if (!sa.DangerousTryAppend(i, i))
+                            {
+                                Console.WriteLine("Cannot add " + i);
+                                return;
+                            }
                         }
                     }
+
+                    Console.WriteLine($"Added {((r + 1) * count / 1_000_000):N}");
                 }
 
-                Console.WriteLine($"Added {((r + 1) * count / 1000000):N}");
+                Benchmark.Dump();
+
+                BufferPool<int>.MemoryPool.PrintStats();
+
+                sa.Dispose();
+
+                BufferPool<int>.MemoryPool.PrintStats();
             }
-
-            Benchmark.Dump();
-
-            sa.Dispose();
         }
 
         [Test
@@ -430,7 +441,7 @@ namespace Spreads.Core.Tests.X.Series
         {
             Console.WriteLine($"Additional checks: {AdditionalCorrectnessChecks.Enabled}");
 
-            var s = new AppendSeries<long, long>();
+            var s = new AppendSeries<long, long>(new MovingWindowOptions<long>(1000));
 
             var monitor = new TestUtils.ReaderWriterCountersMonitor();
 
@@ -449,7 +460,7 @@ namespace Spreads.Core.Tests.X.Series
                 }
                 catch (Exception e)
                 {
-                    Console.WriteLine("Writer:" +e);
+                    Console.WriteLine("Writer:" + e);
                     throw;
                 }
             });
@@ -473,7 +484,7 @@ namespace Spreads.Core.Tests.X.Series
                             sw.SpinOnce();
                             //if (sw.NextSpinWillYield)
                             //{
-                            //    //sw.Reset();
+                            //    sw.Reset();
                             //}
                         }
 

@@ -37,6 +37,7 @@ namespace Spreads
         private static bool TimestampWindowFunc(TimeSpan ts, Timestamp first, Timestamp second, bool inclusive)
         {
             var delta = second - first;
+            
 
             if (delta.TimeSpan < ts)
             {

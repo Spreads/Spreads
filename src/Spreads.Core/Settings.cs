@@ -34,34 +34,25 @@ namespace Spreads
 #else
         public static readonly bool Enabled = Settings._doDetectBufferLeaks;
 #endif
-    }
+    } 
 
     /// <summary>
     /// Global settings.
     /// </summary>
     public static class Settings
     {
-        internal const int LARGE_BUFFER_LIMIT = 64 * 1024;
-        internal const int LARGE_BUFFER_POOL_SCALE = 4;
+        internal const int LARGE_BUFFER_LIMIT = 128 * 1024;
 
         /// <summary>
-        /// Multiply pool buffer count by this scale factor when buffer size is equal to <see cref="LARGE_BUFFER_POOL_SCALE"/>
+        /// Multiply pool buffer count by this scale factor when
+        /// buffer size is equal to <see cref="LARGE_BUFFER_LIMIT"/>,
+        /// so that there are more most frequently used buffers pooled.
         /// </summary>
+        internal const int LARGE_BUFFER_POOL_SCALE = 64;
+
         internal const int MIN_POOLED_BUFFER_LEN = 16;
 
-        // TODO Review: we do not need that big for every worker thread (default thread pool + Spreads' one = a lot)
-        // It's used for temp serialization when we need pinned memory without costs of Rent/Pin/Unpin/Return
-        // If we make it small then buffers are not in LOH and will fragment heap.
-        // Possible option is one large buffer with static incrementing counter and ThreadStatic index
-        // Could be stored as IntPtr+length and could be off-heap, but old APIs often need byte[].
-        // Another option - Retain() like we do for small buffers, but with interlocked add for claim
-        // and CAS for release. If pos = xadd(len) to get our end position, do work and then CAS(pos-len, pos)
-        // if we are unable to decrement position via CAS then just forget about it and rotate the buffer
-        // when no one is using it.
-
-        // NB at least 85k for LOH
-        internal static readonly int ThreadStaticPinnedBufferSize = BitUtil.FindNextPositivePowerOfTwo(LARGE_BUFFER_LIMIT);
-
+        // TODO modes of zipping: replay, ignore
         ///// <summary>
         ///// Throw <see cref="OutOfOrderKeyException{TKey}"/> if Zip input values arrive out of order.
         ///// </summary>

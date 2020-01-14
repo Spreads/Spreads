@@ -125,6 +125,7 @@ namespace Spreads.Threading
 
         // Without accessing this namespace and class it is not created
         private static SpreadsThreadPool _default;
+        private static SpreadsThreadPool _background;
 
         private TaskScheduler _scheduler;
 
@@ -138,6 +139,29 @@ namespace Spreads.Threading
                     InitDefault();
                 }
                 return _default;
+            }
+        }
+
+        /// <summary>
+        /// A thread pool for lower priority tasks. By default
+        /// it is the same pool as <see cref="Default"/>.
+        /// </summary>
+        /// <remarks>
+        /// Could be set to a custom thread pool with lower thread priority,
+        /// which might improve performance of the main thread pool.
+        /// But keep in mind that tasks such as returning unused
+        /// objects/buffers to an object/buffer pool could affect
+        /// main threads performance (empty buffers could cause allocations).
+        /// Instead of using lower thread priority a small number of threads
+        /// in the background pool could be a better option.
+        /// </remarks>
+        public static SpreadsThreadPool Background
+        {
+            get => _background ?? Default;
+            set
+            {
+                if(value != Default)
+                    _background = value;
             }
         }
 

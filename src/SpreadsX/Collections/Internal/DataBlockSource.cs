@@ -218,7 +218,7 @@ namespace Spreads.Collections.Internal
             {
                 nextBlock = First.Present.Value;
             } else if (!_blockSeries.TryFindBlockAtFromSource(out nextBlock, this,
-                currentBlock.DangerousRowKeyRef<TKey>(index: 0), Lookup.GT))
+                currentBlock.DangerousRowKey<TKey>(index: 0), Lookup.GT))
             {
                 if (AdditionalCorrectnessChecks.Enabled)
                     ThrowHelper.Assert(nextBlock == null, "nextBlock == null");
@@ -264,7 +264,7 @@ namespace Spreads.Collections.Internal
                 previousBlock = LastValueOrDefault;
             }
             else if (!_blockSeries.TryFindBlockAtFromSource(out previousBlock, this,
-                currentBlock.DangerousRowKeyRef<TKey>(index: 0), Lookup.LT))
+                currentBlock.DangerousRowKey<TKey>(index: 0), Lookup.LT))
             {
                 if (AdditionalCorrectnessChecks.Enabled)
                     ThrowHelper.Assert(previousBlock == null);

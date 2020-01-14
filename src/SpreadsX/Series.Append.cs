@@ -16,7 +16,10 @@ namespace Spreads
     {
         private static readonly int DefaultMaxBlockRowCount = Math.Max(Settings.MIN_POOLED_BUFFER_LEN, Settings.LARGE_BUFFER_LIMIT / Math.Max(Unsafe.SizeOf<TKey>(), Unsafe.SizeOf<TValue>()));
 
-        internal WindowOptions? Options;
+        /// <summary>
+        /// Window options.
+        /// </summary>
+        internal MovingWindowOptions? WindowOptions;
 
         #region Public ctors
 
@@ -62,8 +65,8 @@ namespace Spreads
             KeyComparer<TKey> comparer = default,
             MovingWindowOptions<TKey>? movingWindowOptions = default) : base(mutability, keySorting, comparer)
         {
-            if (movingWindowOptions != null) 
-                Options = new WindowOptions(movingWindowOptions);
+            if (movingWindowOptions != null)
+                WindowOptions = new MovingWindowOptions(this, movingWindowOptions);
         }
 
         /// <summary>
@@ -82,7 +85,7 @@ namespace Spreads
             if (Mutability == Mutability.ReadOnly)
                 return false;
 
-            if (!IsDataBlock(out var db, out var ds)) 
+            if (!IsDataBlock(out var db, out var ds))
                 db = ds.LastValueOrDefault!;
 
 #if BUILTIN_NULLABLE
@@ -91,7 +94,7 @@ namespace Spreads
             var dbRowCount = db.RowCount;
             if (dbRowCount > 0)
             {
-                var lastKey = db.DangerousRowKeyRef<TKey>(dbRowCount - 1);
+                var lastKey = db.DangerousRowKey<TKey>(dbRowCount - 1);
 
                 var c = _comparer.Compare(key, lastKey);
                 if (c <= 0 // faster path is c > 0
@@ -112,14 +115,13 @@ namespace Spreads
                 {
                     return false;
                 }
-                // increased capacity
+                // increased capacity and added values
             }
             else
             {
-                Options?.OnBeforeAppend();
-                db.SeriesAppend(db.RowCount, key, value);
+                // WindowOptions?.OnBeforeAppend();
+                db.SeriesAppend(key, value);
             }
-            
 
             // Switch Data only after adding values to a data block.
             // Otherwise DS could have an empty block for a short
@@ -139,12 +141,12 @@ namespace Spreads
         {
             get
             {
-                if (Options?.MovingWindowOptions != null
-                    && Options.MovingWindowOptions is MovingWindowOptions<TKey, TValue> typedMvo
-                    && typedMvo.WindowBlockSize > 0)
-                {
-                    return typedMvo.WindowBlockSize;
-                }
+                //if (WindowOptions?.Options != null
+                //    && WindowOptions.Options is MovingWindowOptions<TKey, TValue> typedMvo
+                //    && typedMvo.WindowBlockSize > 0)
+                //{
+                //    return typedMvo.WindowBlockSize;
+                //}
                 return DefaultMaxBlockRowCount;
             }
         }
@@ -177,8 +179,8 @@ namespace Spreads
                         block = null;
                         return false;
                     }
-                    Options?.OnBeforeAppend();
-                    block.SeriesAppend(block.RowCount, key, value);
+                    // WindowOptions?.OnBeforeAppend();
+                    block.SeriesAppend(key, value);
                 }
                 else
                 {
@@ -188,9 +190,14 @@ namespace Spreads
                         Debug.Assert(ReferenceEquals(block, db));
 
                         ds = new DataBlockSource<TKey>();
-                        ds.AddLast(block.DangerousRowKeyRef<TKey>(0), block);
+                        ds.AddLast(block.DangerousRowKey<TKey>(0), block);
                         data = ds;
                     }
+
+                    // before creating a new block try to remove first blocks that
+                    // are not used and satisfy MovingWindowOptions
+                    //if (!IsDataBlock(out _, out _)) 
+                    //    WindowOptions?.OnBeforeNewBlock();
 
                     var minCapacity = block.RowCapacity;
                     var newBlock = DataBlock.SeriesCreate(rowLength: 0);
@@ -200,15 +207,8 @@ namespace Spreads
                         return false;
                     }
 
-                    if (Options?.MovingWindowOptions != null)
-                    {
-                        // before adding new block try to remove first blocks that
-                        // are not used and satisfy MovingWindowOptions
-                        TryTrimWindowBlocks();
-                    }
-
-                    Options?.OnBeforeAppend();
-                    newBlock.SeriesAppend(newBlock.RowCount, key, value);
+                    // WindowOptions?.OnBeforeAppend();
+                    newBlock.SeriesAppend(key, value);
 
                     ds.AddLast(key, newBlock);
                     block = newBlock;
@@ -323,71 +323,91 @@ namespace Spreads
             Flags.MarkReadOnly();
         }
 
-        internal class WindowOptions : ISpreadsThreadPoolWorkItem
+        internal class MovingWindowOptions : ISpreadsThreadPoolWorkItem
         {
-            public readonly MovingWindowOptions<TKey> MovingWindowOptions;
+            private readonly AppendSeries<TKey, TValue> _series;
+            public readonly MovingWindowOptions<TKey> Options;
             public DataBlock? LingeringDataBlock;
-            private long _counter;
 
-            public WindowOptions(MovingWindowOptions<TKey> movingWindowOptions)
+            public MovingWindowOptions(AppendSeries<TKey, TValue> series, MovingWindowOptions<TKey> movingWindowOptions)
             {
-                MovingWindowOptions = movingWindowOptions ?? throw new ArgumentNullException(nameof(movingWindowOptions));
+                _series = series;
+                Options = movingWindowOptions ?? throw new ArgumentNullException(nameof(movingWindowOptions));
             }
 
             public void OnBeforeAppend()
             {
-                _counter++;
-                if (MovingWindowOptions is MovingWindowOptions<TKey, TValue> typedOpts
-                    && typedOpts.OnRemovedHandler != null)
+                if (LingeringDataBlock != null
+                    //&& Options is MovingWindowOptions<TKey, TValue> typedOpts
+                    //&& typedOpts.OnRemovedHandler != null
+                    )
                 {
-                    SpreadsThreadPool.Default.UnsafeQueueCompletableItem(this, true);
+                    ThrowHelper.DebugAssert(Options is MovingWindowOptions<TKey, TValue> typedOpts
+                                            && typedOpts.OnRemovedHandler != null);
+                    SpreadsThreadPool.Background.UnsafeQueueCompletableItem(this, true);
                 }
             }
 
             public void OnBeforeNewBlock()
             {
-                if (LingeringDataBlock != null)
+                if (_series.IsDataBlock(out _, out var ds))
                 {
-                    // TODO handle remaining block items and the block itself
-                    // before
+                    ThrowHelper.DebugAssert(false, "This method should not be called for data block case.");
+                    return;
                 }
-                if (MovingWindowOptions != null
-                    )
+
+                var blockSeries = ds._blockSeries;
+                var level = 1;
+                // find deepest DS level
+                DataBlock? bsDb;
+                while (!blockSeries.IsDataBlock(out bsDb, out var bsDs))
                 {
-                    _counter++;
+                    if (bsDs._blockSeries.IsEmpty)
+                    {
+                        throw new NotImplementedException("TODO");
+                    }
+                    blockSeries = bsDs._blockSeries;
+                    level++;
                 }
+
+                // bsDb is from where we should delete the first data block
+                bsDb.SeriesTrimFirstValue<TKey, DataBlock>(out _, out _);
+
+                var firstBlock = ds._blockSeries.First;
+
+                if (AdditionalCorrectnessChecks.Enabled) { ThrowHelper.Assert(firstBlock.IsPresent); }
+
+                var rc = firstBlock.Present.Value.ReferenceCount;
+
+                Console.WriteLine($"RefCount: {rc}, level: {level}");
+                //Console.WriteLine($"RefCountLast: {ds._blockSeries.Last.Present.Value.ReferenceCount}");
             }
+
+            //public void OnBeforeNewBlock()
+            //{
+            //    if (LingeringDataBlock != null)
+            //    {
+            //        // TODO handle remaining block items and the block itself
+            //        // before
+            //    }
+            //    if (Options != null
+            //        )
+            //    {
+            //        _counter++;
+            //    }
+            //}
 
             public void Execute()
             {
                 // we cannot trust delegates to call them from inside lock
                 // also cleaning up items after removal is background job semantically
 
-                ;
+                var lingeringBlock = LingeringDataBlock;
+                if (lingeringBlock != null)
+                {
+                    // TODO Array[2], not a single item. Not 3+, we should accelerate disposal
+                }
             }
-        }
-
-        private void TryTrimWindowBlocks()
-        {
-            var options = Options?.MovingWindowOptions!;
-            if (IsDataBlock(out _, out var ds) || options == null)
-            {
-                throw new InvalidOperationException();
-            }
-
-            var bs = ds._blockSeries;
-
-            // find deepest DS level
-            DataBlock? bsDb;
-            while (!bs.IsDataBlock(out bsDb, out var bsDs))
-            {
-                bs = bsDs._blockSeries;
-            }
-
-            // bsDb is from where we should delete the first data block
-            bsDb.SeriesTrimFirstValue<TKey, DataBlock>(out _, out _);
-
-            var firstBlock = ds._blockSeries.First;
         }
     }
 }

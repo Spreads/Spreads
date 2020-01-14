@@ -60,12 +60,12 @@ namespace Spreads.Collections.Internal
                 if (TypeHelper<T>.IsIDelta)
                 {
                     // one boxing TODO this is wrong direction, we need i - first, maybe add reverse delta or for binary it's OK?
-                    var first = (IDelta<T>)value.Storage.Vec.DangerousGetRef<T>(0);
+                    var first = (IDelta<T>)value.Storage.Vec.DangerousGetUnaligned<T>(0);
                     var arr = BufferPool<T>.Rent(value.Storage.Vec.Length);
-                    arr[0] = value.Storage.Vec.DangerousGetRef<T>(0);
+                    arr[0] = value.Storage.Vec.DangerousGetUnaligned<T>(0);
                     for (int i = 1; i < value.Storage.Vec.Length; i++)
                     {
-                        arr[i] = first.GetDelta(value.Storage.Vec.DangerousGetRef<T>(i));
+                        arr[i] = first.GetDelta(value.Storage.Vec.DangerousGetUnaligned<T>(i));
                     }
 
                     fixed (byte* sPtr = &Unsafe.As<T, byte>(ref arr[0]))

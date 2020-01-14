@@ -323,18 +323,18 @@ namespace Spreads.Collections.Internal
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public ref T DangerousRowKeyRef<T>(int index)
+        public T DangerousRowKey<T>(int index)
         {
             int offset = RingVecUtil.IndexToOffset(index, _head, _rowCount);
-            return ref _rowKeys.Vec.DangerousGetRef<T>(offset);
+            return _rowKeys.Vec.DangerousGetUnaligned<T>(offset);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public ref T DangerousValueRef<T>(int index)
+        public T DangerousValue<T>(int index)
         {
             // TODO review if we will use ring buffer structure for something other than Series.DataSource
             int offset = GetSeriesOffset<T>(index);
-            return ref _values.Vec.DangerousGetRef<T>(offset);
+            return _values.Vec.DangerousGetUnaligned<T>(offset);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining
@@ -344,6 +344,9 @@ namespace Spreads.Collections.Internal
         )]
         public int LookupKey<T>(ref T key, Lookup lookup, KeyComparer<T> comparer = default)
         {
+            if (lookup == Lookup.EQ)
+                return SearchKey(key, comparer);
+            
             if (_head + _rowCount <= _rowKeys.Vec.Length)
             {
                 return _head + VectorSearch.SortedLookup(ref _rowKeys.Vec.DangerousGetRef<T>(_head),

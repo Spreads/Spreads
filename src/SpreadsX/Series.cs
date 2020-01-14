@@ -99,8 +99,8 @@ namespace Spreads
 
                 if (db != null && db.RowCount > 0)
                 {
-                    var k = db.DangerousRowKeyRef<TKey>(0);
-                    var v = db.DangerousValueRef<TValue>(0);
+                    var k = db.DangerousRowKey<TKey>(0);
+                    var v = db.DangerousValue<TValue>(0);
                     return Opt.Present(new KeyValuePair<TKey, TValue>(k, v));
                 }
                 return Opt<KeyValuePair<TKey, TValue>>.Missing;
@@ -123,8 +123,8 @@ namespace Spreads
                 int idx;
                 if (db != null && (idx = db.RowCount - 1) >= 0)
                 {
-                    var k = db.DangerousRowKeyRef<TKey>(idx);
-                    var v = db.DangerousValueRef<TValue>(idx);
+                    var k = db.DangerousRowKey<TKey>(idx);
+                    var v = db.DangerousValue<TValue>(idx);
                     return new Opt<KeyValuePair<TKey, TValue>>(new KeyValuePair<TKey, TValue>(k, v));
                 }
                 return Opt<KeyValuePair<TKey, TValue>>.Missing;
@@ -146,7 +146,7 @@ namespace Spreads
                 int idx;
                 if (db != null && (idx = db.RowCount - 1) >= 0)
                 {
-                    return db.DangerousValueRef<TValue>(idx);
+                    return db.DangerousValue<TValue>(idx);
                 }
                 return default!;
             }
@@ -221,8 +221,8 @@ namespace Spreads
             {
                 if (TryGetBlockAt(index, out var block, out var blockIndex))
                 {
-                    var k = block.DangerousRowKeyRef<TKey>(blockIndex);
-                    var v = block.DangerousValueRef<TValue>(blockIndex);
+                    var k = block.DangerousRowKey<TKey>(blockIndex);
+                    var v = block.DangerousValue<TValue>(blockIndex);
                     kvp = new KeyValuePair<TKey, TValue>(k, v);
                     result = true;
                 }
@@ -300,7 +300,7 @@ namespace Spreads
             if (TryFindBlockAt(ref key, direction, out var block, out var blockIndex))
             {
                 // key is updated if not EQ according to direction
-                var v = block.DangerousValueRef<TValue>(blockIndex);
+                var v = block.DangerousValue<TValue>(blockIndex);
                 kvp = new KeyValuePair<TKey, TValue>(key, v);
                 return true;
             }
@@ -318,7 +318,7 @@ namespace Spreads
         {
             if (TryGetBlock(key, out var block, out var blockIndex))
             {
-                value = block.DangerousValueRef<TValue>(blockIndex);
+                value = block.DangerousValue<TValue>(blockIndex);
                 return true;
             }
 

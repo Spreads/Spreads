@@ -29,8 +29,6 @@ namespace Spreads.Buffers
 #endif
         }
 
-
-        
         // [p*<-len---------------->] we must only check capacity at construction and then work from pointer
         // [p*<-len-[<--lenPow2-->]>] buffer could be larger, pooling always by max pow2 we could store
 

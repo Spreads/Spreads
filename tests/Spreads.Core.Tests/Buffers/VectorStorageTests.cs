@@ -59,12 +59,12 @@ namespace Spreads.Core.Tests.Buffers
             long sum = 0L;
             for (int i = 0; i < arr.Length; i++)
             {
-                var vi = vs.Vec.DangerousGet<int>(i);
+                var vi = vs.Vec.DangerousGetUnaligned<int>(i);
                 if (vi != i)
                 {
                     Assert.Fail("vi != i");
                 }
-                sum += vs.Vec.DangerousGet<int>(i);
+                sum += vs.Vec.DangerousGetUnaligned<int>(i);
             }
 
             Console.WriteLine(sum);
@@ -125,7 +125,7 @@ namespace Spreads.Core.Tests.Buffers
                 {
                     SmallDecimal left;
                     SmallDecimal right;
-                    if ((left = vs.Vec.DangerousGetRef<SmallDecimal>(i)) != (right = value.Storage.Vec.DangerousGetRef<SmallDecimal>(i)))
+                    if ((left = vs.Vec.DangerousGetUnaligned<SmallDecimal>(i)) != (right = value.Storage.Vec.DangerousGetUnaligned<SmallDecimal>(i)))
                     {
                         Console.WriteLine("Not equals");
                     }
@@ -175,7 +175,7 @@ namespace Spreads.Core.Tests.Buffers
                     {
                         for (int i = 0; i < vs.Vec.Length; i++)
                         {
-                            var vi = vs.Vec.DangerousGet<int>(i);
+                            var vi = vs.Vec.DangerousGetUnaligned<int>(i);
                             //if (vi != i)
                             //{
                             //    Assert.Fail("vi != i");

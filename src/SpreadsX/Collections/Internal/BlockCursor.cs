@@ -164,7 +164,7 @@ namespace Spreads.Collections.Internal
         {
             if (typeof(TContainer) == typeof(Series<TKey, TValue>))
             {
-                return CurrentBlock.DangerousValueRef<TValue>(currentBlockIndex);
+                return CurrentBlock.DangerousValue<TValue>(currentBlockIndex);
             }
             if (typeof(TContainer) == typeof(BaseContainer<TKey>))
             {
@@ -274,13 +274,13 @@ namespace Spreads.Collections.Internal
         {
             if (typeof(TContainer) == typeof(Series<TKey, TValue>))
             {
-                dataBlock.DangerousGetRowKeyValueRef(currentBlockIndex, out key, out value);
+                dataBlock.DangerousGetRowKeyValue(currentBlockIndex, out key, out value);
                 return;
             }
             if (typeof(TContainer) == typeof(BaseContainer<TKey>))
             {
-                key = dataBlock.DangerousRowKeyRef<TKey>(currentBlockIndex);
-                value = default;
+                key = dataBlock.DangerousRowKey<TKey>(currentBlockIndex);
+                value = default!;
                 return;
             }
             ThrowHelper.ThrowNotImplementedException();
@@ -321,6 +321,9 @@ namespace Spreads.Collections.Internal
             }
             else
             {
+                if (rowCount < CurrentBlock.RowCapacity & stride > 0)
+                    return 0;
+
                 moveCount = MoveRare(stride, allowPartial, out newBlock, out newBlockIndex);
 
                 if (AdditionalCorrectnessChecks.Enabled && moveCount != 0 && newBlockIndex >= (ulong)(newBlock ?? CurrentBlock).RowCount)

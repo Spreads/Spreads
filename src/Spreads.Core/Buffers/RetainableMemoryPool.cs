@@ -15,6 +15,7 @@ using System.Buffers;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.Tracing;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using static Spreads.Buffers.BuffersThrowHelper;
@@ -331,6 +332,17 @@ namespace Spreads.Buffers
             return memory.IsPooled;
         }
 
+        internal void PrintStats()
+        {
+            Console.WriteLine("----------------------------------------------");
+            Console.WriteLine($"{this.GetType().Namespace} stats:");
+            foreach (var bucket in _buckets)
+            {
+                Console.WriteLine($"{bucket._bufferLength}: capacity {bucket._buffers.Length} index {bucket._index} pooled {bucket._buffers.Count(x => x != null)}");
+            }
+            Console.WriteLine("----------------------------------------------");
+        }
+
         protected override void Dispose(bool disposing)
         {
             _disposed = true;
@@ -379,7 +391,7 @@ namespace Spreads.Buffers
             internal readonly RetainableMemory<T>[] _buffers;
             private readonly int _poolId;
 
-            private int _index;
+            internal int _index;
             private int _locker;
 
             /// <summary>
@@ -403,7 +415,7 @@ namespace Spreads.Buffers
 
                 _bufferLength = bufferLength;
 
-                if (bufferLength == Settings.LARGE_BUFFER_LIMIT && CouldSlice)
+                if (bufferLength * Unsafe.SizeOf<T>() == Settings.LARGE_BUFFER_LIMIT && CouldSlice)
                 {
                     numberOfBuffers *= Settings.LARGE_BUFFER_POOL_SCALE;
                 }

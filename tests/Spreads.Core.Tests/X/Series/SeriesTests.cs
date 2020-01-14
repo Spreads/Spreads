@@ -6,6 +6,7 @@ using NUnit.Framework;
 using ObjectLayoutInspector;
 using System;
 using System.Diagnostics.CodeAnalysis;
+using System.Threading;
 
 namespace Spreads.Core.Tests.Series
 {
@@ -15,10 +16,34 @@ namespace Spreads.Core.Tests.Series
     [SuppressMessage("ReSharper", "HeapView.DelegateAllocation")]
     public unsafe class SeriesTests
     {
+        /// <summary>
+        /// m_currentCount is at offset 32 with 12 bytes after in <see cref="SemaphoreSlim"/>. We cannot pad before, but at least 
+        /// </summary>
+        private class PaddedSemaphoreSlim : SemaphoreSlim
+        {
+#pragma warning disable 169
+            private long _padding0;
+            private long _padding1;
+            private long _padding2;
+            private long _padding3;
+            private long _padding4;
+            private long _padding5;
+            private long _padding6;
+            private long _padding7;
+#pragma warning restore 169
+            public PaddedSemaphoreSlim(int initialCount) : base(initialCount)
+            {
+            }
+
+            public PaddedSemaphoreSlim(int initialCount, int maxCount) : base(initialCount, maxCount)
+            {
+            }
+        }
         [Test, Explicit("output")]
         public void SeriesObjectSize()
         {
             TypeLayout.PrintLayout<Series<DateTime, double>>();
+            TypeLayout.PrintLayout<PaddedSemaphoreSlim>();
         }
 
         [Test]

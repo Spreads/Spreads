@@ -73,7 +73,7 @@ namespace Spreads.Collections
 
         public T DangerousGet<T>(int index)
         {
-            return VecStorage.Vec.DangerousGet<T>(index);
+            return VecStorage.Vec.DangerousGetUnaligned<T>(index);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -158,32 +158,14 @@ namespace Spreads.Collections
             {
                 VecThrowHelper.ThrowIndexOutOfRangeException();
             }
-            return VecStorage.Vec.DangerousGet<T>(index);
+            return VecStorage.Vec.DangerousGetUnaligned<T>(index);
         }
 
         [EditorBrowsable(EditorBrowsableState.Never)]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public T DangerousGetItem(int index)
         {
-            return VecStorage!.Vec.DangerousGet<T>(index);
-        }
-
-        [EditorBrowsable(EditorBrowsableState.Never)]
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public ref readonly T DangerousGetRef(int index)
-        {
-            return ref VecStorage!.Vec.DangerousGetRef<T>(index);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public ref readonly T GetRef(int index)
-        {
-            // type is checked in ctor, only BC
-            if (unchecked((uint)index) >= unchecked((uint)VecStorage.Vec.Length))
-            {
-                VecThrowHelper.ThrowIndexOutOfRangeException();
-            }
-            return ref VecStorage.Vec.DangerousGetRef<T>(index);
+            return VecStorage!.Vec.DangerousGetUnaligned<T>(index);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

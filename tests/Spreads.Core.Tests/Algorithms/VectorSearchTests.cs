@@ -1479,7 +1479,7 @@ namespace Spreads.Core.Tests.Algorithms
                         {
                             for (long i = 0; i < count; i++)
                             {
-                                var idx = VectorSearch.IndexOf(ref vec.GetRef(0), (Timestamp)i, count);
+                                var idx = vec.Span.Slice(0, count).IndexOf((Timestamp) i);
                                 if (idx < 0)
                                 {
                                     Console.WriteLine($"val {i} -> idx {idx}");
