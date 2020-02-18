@@ -77,7 +77,7 @@ namespace Spreads.Buffers
                 minLength = 16;
             }
 
-            _minBufferLengthPow2 = 32 - IntUtil.NumberOfLeadingZeros(minLength - 1);
+            _minBufferLengthPow2 = 32 - BitUtil.NumberOfLeadingZeros(minLength - 1);
             MinBufferLength = 1 << _minBufferLengthPow2;
 
             if (maxBucketsToTry < 0)
@@ -678,7 +678,7 @@ namespace Spreads.Buffers
         {
             Debug.Assert(bufferSize >= 0);
 
-            var intUtil = Math.Max(0, (32 - IntUtil.NumberOfLeadingZeros(bufferSize - 1)) - _minBufferLengthPow2);
+            var intUtil = Math.Max(0, (32 - BitUtil.NumberOfLeadingZeros(bufferSize - 1)) - _minBufferLengthPow2);
 
 #if DEBUG
             // TODO remove this check after some usage, see if this is not the same on some edge case

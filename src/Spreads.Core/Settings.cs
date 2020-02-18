@@ -41,6 +41,17 @@ namespace Spreads
     /// </summary>
     public static class Settings
     {
+        internal const int PAGE_SIZE = 4096;
+        
+        /// <summary>
+        /// 128 bytes cache line already exists in some CPUs.
+        /// </summary>
+        /// <remarks>
+        /// Also "the spatial prefetcher strives to keep pairs of cache lines in the L2 cache."
+        /// https://stackoverflow.com/questions/29199779/false-sharing-and-128-byte-alignment-padding
+        /// </remarks>
+        internal const int SAFE_CACHE_LINE = 128;
+        
         internal const int LARGE_BUFFER_LIMIT = 128 * 1024;
 
         /// <summary>
@@ -273,7 +284,7 @@ namespace Spreads
         /// </summary>
         public static bool UseStructLayoutSizeAsBlittableSize = false;
 
-        internal const int PinnedSlabLength = 128 * 1024;
+        internal const int PinnedSlabLength = 2 * 128 * 1024;
 
         /// <summary>
         /// This only affects known types for which interpolation search works correctly

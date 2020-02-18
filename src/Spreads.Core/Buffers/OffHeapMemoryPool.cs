@@ -14,7 +14,7 @@ namespace Spreads.Buffers
         { }
 
         public OffHeapMemoryPool(int minLength, int maxLength, int maxBuffersPerBucket, int maxBucketsToTry = 2, bool rentAlwaysClean = false)
-            : base((p, l) => new OffHeapMemory<T>(p, l), minLength, maxLength, maxBuffersPerBucket, maxBucketsToTry, rentAlwaysClean:rentAlwaysClean)
+            : base((pool, length) => new OffHeapMemory<T>(pool, length), minLength, maxLength, maxBuffersPerBucket, maxBucketsToTry, rentAlwaysClean:rentAlwaysClean)
         { }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

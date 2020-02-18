@@ -79,13 +79,13 @@ namespace Spreads
             _cursor = new BlockCursor<TKey, TValue, Series<TKey, TValue>>(source);
         }
 
-        public CursorState State
+        public readonly CursorState State
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => _cursor.State;
         }
 
-        public KeyComparer<TKey> Comparer
+        public readonly KeyComparer<TKey> Comparer
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => _cursor.Comparer;
@@ -127,7 +127,7 @@ namespace Spreads
             return _cursor.MoveAt(key, direction);
         }
 
-        public TKey CurrentKey
+        public readonly TKey CurrentKey
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => _cursor._currentKey;
@@ -135,7 +135,7 @@ namespace Spreads
 
         // TODO ref readonly for pattern-based foreach
 
-        public TValue CurrentValue
+        public readonly TValue CurrentValue
         {
             // TODO (201912) review this long comment, it may be irrelevant after all changes
             // Note: alternative to storing CV is accessing it by index, but then we need to check
@@ -152,50 +152,50 @@ namespace Spreads
             get => _cursor._currentValue;
         }
 
-        Series<TKey, TValue, SCursor<TKey, TValue>> ICursor<TKey, TValue, SCursor<TKey, TValue>>.Source
+        readonly Series<TKey, TValue, SCursor<TKey, TValue>> ICursor<TKey, TValue, SCursor<TKey, TValue>>.Source
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => new Series<TKey, TValue, SCursor<TKey, TValue>>(this);
         }
 
-        public IAsyncCompleter AsyncCompleter
+        public readonly IAsyncCompleter AsyncCompleter
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => _cursor._source;
         }
 
-        ISeries<TKey, TValue> ICursor<TKey, TValue>.Source
+        readonly ISeries<TKey, TValue> ICursor<TKey, TValue>.Source
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => _cursor._source;
         }
 
-        public bool IsContinuous
+        public readonly bool IsContinuous
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => false;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public SCursor<TKey, TValue> Initialize()
+        public readonly SCursor<TKey, TValue> Initialize()
         {
             return new SCursor<TKey, TValue>(_cursor._source);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public SCursor<TKey, TValue> Clone()
+        public readonly SCursor<TKey, TValue> Clone()
         {
             var c = this;
             return c;
         }
 
-        ICursor<TKey, TValue> ICursor<TKey, TValue>.Clone()
+        readonly ICursor<TKey, TValue> ICursor<TKey, TValue>.Clone()
         {
             return Clone();
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool TryGetValue(TKey key, out TValue value)
+        public readonly bool TryGetValue(TKey key, out TValue value)
         {
             return _cursor._source.TryGetValue(key, out value);
         }
@@ -205,13 +205,13 @@ namespace Spreads
             _cursor.Reset();
         }
 
-        public KeyValuePair<TKey, TValue> Current
+        public readonly KeyValuePair<TKey, TValue> Current
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => new KeyValuePair<TKey, TValue>(_cursor._currentKey, CurrentValue);
         }
 
-        object IEnumerator.Current => ((IEnumerator)_cursor).Current;
+        readonly object IEnumerator.Current => ((IEnumerator)_cursor).Current;
 
         public void Dispose()
         {
@@ -220,8 +220,8 @@ namespace Spreads
 
         ///////////////////////////////////////////////
 
-        public bool IsIndexed => throw new NotImplementedException();
+        public readonly bool IsIndexed => throw new NotImplementedException();
 
-        public bool IsCompleted => _cursor.IsCompleted;
+        public readonly bool IsCompleted => _cursor.IsCompleted;
     }
 }

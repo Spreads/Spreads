@@ -37,7 +37,7 @@ namespace Spreads
     /// </summary>
     [StructLayout(LayoutKind.Auto)]
     [DebuggerDisplay("{" + nameof(ToString) + "()}")]
-    public readonly struct Opt<T>
+    public struct Opt<T>
     {
         /// <summary>
         /// Missing value.
@@ -68,7 +68,7 @@ namespace Spreads
         /// <summary>
         /// True if a value is present.
         /// </summary>
-        public bool IsPresent
+        public readonly bool IsPresent
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => _presence != 0;
@@ -77,7 +77,7 @@ namespace Spreads
         /// <summary>
         /// True if a value is missing.
         /// </summary>
-        public bool IsMissing
+        public readonly bool IsMissing
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => _presence == 0;
@@ -86,7 +86,7 @@ namespace Spreads
         /// <summary>
         /// Present value.
         /// </summary>
-        public T Present
+        public readonly T Present
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
@@ -99,7 +99,7 @@ namespace Spreads
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public T PresentOrDefault(T defaultValue = default)
+        public readonly T PresentOrDefault(T defaultValue = default)
         {
             return IsMissing ? defaultValue : _present;
         }
@@ -162,7 +162,7 @@ namespace Spreads
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         [EditorBrowsable(EditorBrowsableState.Never)]
-        internal bool TryGet(out T value)
+        internal readonly bool TryGet(out T value)
         {
             if (_presence != 0)
             {
@@ -175,7 +175,7 @@ namespace Spreads
         }
 
         [EditorBrowsable(EditorBrowsableState.Never)]
-        public void Deconstruct(out bool isPresent, out T value)
+        public readonly void Deconstruct(out bool isPresent, out T value)
         {
             isPresent = IsPresent;
             value = Present;

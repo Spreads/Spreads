@@ -50,28 +50,24 @@ namespace Spreads.Buffers
             EnsureCapacity(DefaultMinLength);
         }
 
-        /// <inheritdoc />
         public int Length
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => _itemLength;
         }
 
-        /// <inheritdoc />
         public bool IsEmpty
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => _itemLength == 0;
         }
 
-        /// <inheritdoc />
         public DirectBuffer DirectBuffer
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => new DirectBuffer(_itemLength * Unsafe.SizeOf<T>(), (byte*)_pointer);
         }
-
-        /// <inheritdoc />
+        
         public ref T this[int index]
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]

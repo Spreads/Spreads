@@ -14,8 +14,8 @@ namespace Spreads.Core.Tests.Utils
         [Test]
         public void LzcntNegative()
         {
-            Assert.AreEqual(0, IntUtil.NumberOfLeadingZeros(-1));
-            Console.WriteLine(IntUtil.NumberOfLeadingZeros(-1));
+            Assert.AreEqual(0, BitUtil.NumberOfLeadingZeros(-1));
+            Console.WriteLine(BitUtil.NumberOfLeadingZeros(-1));
         }
     }
 }

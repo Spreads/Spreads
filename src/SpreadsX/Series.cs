@@ -28,7 +28,6 @@ namespace Spreads
                 throw new NotImplementedException();
             }
             Flags = new Flags(ContainerLayout.Series, keySorting, mutability);
-
             _comparer = comparer;
         }
 

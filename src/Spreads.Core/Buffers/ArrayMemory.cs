@@ -34,7 +34,6 @@ namespace Spreads.Buffers
             {
                 ThrowHelper.ThrowArgumentException("bufferLength must be a power of two max 64MB");
             }
-
             _bufferLength = bufferLength;
             // NOTE: allocateOnEmpty = true
             _pool = new LockedObjectPool<ArrayMemorySlice<T>>(maxBufferCount, Factory, allocateOnEmpty: true);

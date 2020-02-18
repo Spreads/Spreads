@@ -63,7 +63,7 @@ namespace Spreads.Core.Tests
             public override byte KnownTypeId => 0;
 
             public override short FixedSize => -1;
-            
+
             public override int SizeOf(in MyPocoWithConvertor value, BufferWriter bufferWriter)
             {
                 throw new NotImplementedException();
@@ -79,13 +79,13 @@ namespace Spreads.Core.Tests
                 throw new NotImplementedException();
             }
 
-            public int SizeOf(MyPocoWithConvertor map, out MemoryStream temporaryStream, 
+            public int SizeOf(MyPocoWithConvertor map, out MemoryStream temporaryStream,
                 SerializationFormat format = SerializationFormat.Binary, Timestamp timestamp = default)
             {
                 throw new NotImplementedException();
             }
 
-            public int Write(MyPocoWithConvertor value, IntPtr destination, MemoryStream temporaryStream = null, 
+            public int Write(MyPocoWithConvertor value, IntPtr destination, MemoryStream temporaryStream = null,
                 SerializationFormat format = SerializationFormat.Binary, Timestamp timestamp = default)
             {
                 throw new NotImplementedException();
@@ -104,7 +104,7 @@ namespace Spreads.Core.Tests
             var dt = new KeyValuePair<DateTime, decimal>[2];
             dt[0] = new KeyValuePair<DateTime, decimal>(DateTime.UtcNow.Date, 123.456M);
             dt[1] = new KeyValuePair<DateTime, decimal>(DateTime.UtcNow.Date.AddDays(1), 789.101M);
-            var obj = (object)dt;
+            var obj = (object) dt;
             byte[] asBytes = Unsafe.As<byte[]>(obj);
 
             //Console.WriteLine(asBytes.Length); // prints 2
@@ -120,23 +120,24 @@ namespace Spreads.Core.Tests
                 {
                     Console.WriteLine(*(ptr + i));
                 }
-                var firstDate = *(DateTime*)ptr;
+
+                var firstDate = *(DateTime*) ptr;
                 Assert.AreEqual(DateTime.UtcNow.Date, firstDate);
                 Console.WriteLine(firstDate);
-                var firstDecimal = *(decimal*)(ptr + 8);
+                var firstDecimal = *(decimal*) (ptr + 8);
                 Assert.AreEqual(123.456M, firstDecimal);
                 Console.WriteLine(firstDecimal);
-                var secondDate = *(DateTime*)(ptr + 8 + 16);
+                var secondDate = *(DateTime*) (ptr + 8 + 16);
                 Assert.AreEqual(DateTime.UtcNow.Date.AddDays(1), secondDate);
                 Console.WriteLine(secondDate);
-                var secondDecimal = *(decimal*)(ptr + 8 + 16 + 8);
+                var secondDecimal = *(decimal*) (ptr + 8 + 16 + 8);
                 Assert.AreEqual(789.101M, secondDecimal);
                 Console.WriteLine(secondDecimal);
             }
 
             var ptr2 = Marshal.AllocHGlobal(1000);
             var myPoco = new MyPoco();
-            Unsafe.Write((void*)ptr2, myPoco);
+            Unsafe.Write((void*) ptr2, myPoco);
         }
 
         [Test]
@@ -268,6 +269,47 @@ namespace Spreads.Core.Tests
             // TODO that must throw
             // this will cause Environment.FailFast
             // Assert.AreEqual(4, TypeHelper<BlittableStructWrong>.FixedSize);
+        }
+
+        [Test]
+        public unsafe void PrimitiveTuple()
+        {
+            Assert.IsTrue(CouldWriteToUnmanagedMemory<(int, int)>());
+            Assert.IsFalse(CouldWriteToUnmanagedMemory<(int, string)>());
+
+            Console.WriteLine(Unsafe.SizeOf<(int, decimal)>());
+            
+            var ptr = Marshal.AllocHGlobal(Unsafe.SizeOf<(int, decimal)>());
+            Unsafe.WriteUnaligned<(int, decimal)>((void*) ptr, (42, 43M));
+            var value = Unsafe.ReadUnaligned<(int, decimal)>((void*) ptr);
+            Assert.AreEqual((42, 43M), value);
+            Marshal.FreeHGlobal(ptr);
+
+            Assert.Throws<ArgumentException>(() =>
+            {
+                var arr = new (int, int)[2];
+                var handle = GCHandle.Alloc(arr, GCHandleType.Pinned);
+            });
+        }
+
+        private unsafe bool CouldWriteToUnmanagedMemory<T>()
+        {
+            if (!RuntimeHelpers.IsReferenceOrContainsReferences<T>())
+            {
+                try
+                {
+                    var ptr = Marshal.AllocHGlobal(Unsafe.SizeOf<T>());
+                    Unsafe.WriteUnaligned<T>((void*) ptr, default);
+                    Marshal.FreeHGlobal(ptr);
+                    return true;
+                }
+                catch
+                {
+                    return false;
+                }
+            }
+
+            return false;
         }
     }
 }

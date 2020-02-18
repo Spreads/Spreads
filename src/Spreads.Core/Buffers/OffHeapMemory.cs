@@ -39,7 +39,7 @@ namespace Spreads.Buffers
 
         protected override void Dispose(bool disposing)
         {
-            // disposing == false when finilizing and detected that non pooled
+            // disposing == false when finalizing and detected that non pooled
             if (disposing)
             {
 
