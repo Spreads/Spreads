@@ -22,7 +22,6 @@ namespace Spreads.Core.Tests
         {
         }
 
-
         [Test]
         [Explicit("output")]
         public void CorePoolsLayout()
@@ -46,8 +45,8 @@ namespace Spreads.Core.Tests
             var perCoreLockedObjectPool = new LockedObjectPool<DummyPoolable>(dummyFactory, perCoreCapacity);
             for (int round = 0; round < 50; round++)
             {
-                PoolBenchmark(objectPool, "objectPool");
-                PoolBenchmark(lockedObjectPool, "lockedObjectPool");
+                // PoolBenchmark(objectPool, "objectPool");
+                // PoolBenchmark(lockedObjectPool, "lockedObjectPool");
                 PoolBenchmark(perCoreObjectPool, "perCoreObjectPool");
                 PoolBenchmark(perCoreLockedObjectPool, "perCoreLockedObjectPool");
             }
@@ -58,7 +57,7 @@ namespace Spreads.Core.Tests
         [MethodImpl(MethodImplOptions.NoInlining | MethodImplOptions.AggressiveOptimization)]
         internal void PoolBenchmark<T>(T pool, string testCase) where T : IObjectPool<DummyPoolable>
         {
-            var count = 5_000_000;
+            var count = 2_000_000;
             var threads = Environment.ProcessorCount;
             using (Benchmark.Run(testCase, count * 2 * threads))
             {
@@ -73,6 +72,71 @@ namespace Spreads.Core.Tests
                     }
                 }, TaskCreationOptions.LongRunning)).ToArray());
             }
+        }
+
+        [Test]
+        [Explicit("bench")]
+        public void PoolUnbalancedRentReturn()
+        {
+            const int perCoreCapacity = 50;
+            Func<DummyPoolable> dummyFactory = () => new DummyPoolable();
+            var perCoreLockedObjectPool =
+                new LockedObjectPool<DummyPoolable>(dummyFactory, perCoreCapacity, allocateOnEmpty: false);
+
+            var queues = Enumerable.Range(0, 1)
+                .Select(x => new SingleProducerSingleConsumerQueue<DummyPoolable>()).ToArray();
+
+            var cts = new CancellationTokenSource();
+            var totalCount = 0L;
+
+            Task[] producers = new Task[queues.Length];
+            Task[] consumers = new Task[queues.Length];
+
+            var sw = Stopwatch.StartNew();
+            for (int i = 0; i < queues.Length; i++)
+            {
+                var queue = queues[i];
+                producers[i] = Task.Factory.StartNew(() =>
+                {
+                    var count = 0L;
+
+                    while (!cts.IsCancellationRequested)
+                    {
+                        var item = perCoreLockedObjectPool.Rent(0);
+                        if (item != null)
+                        {
+                            queue.Enqueue(item);
+                            count++;
+                        }
+                    }
+
+                    Interlocked.Add(ref totalCount, count);
+                });
+
+                consumers[i] = Task.Factory.StartNew(() =>
+                {
+                    var count = 0L;
+                    while (!cts.IsCancellationRequested)
+                    {
+                        if (queue.TryDequeue(out var item))
+                        {
+                            perCoreLockedObjectPool.Return(item, 6);
+                            count++;
+                        }
+                    }
+
+                    Interlocked.Add(ref totalCount, count);
+                });
+            }
+
+            Thread.Sleep(5_000);
+            cts.Cancel();
+            Task.WaitAll(producers);
+            Task.WaitAll(consumers);
+            sw.Stop();
+
+            Console.WriteLine(
+                $"MOPS: {(totalCount / 1000000.0) / (sw.ElapsedMilliseconds / 1000.0):N2}, Total count: {totalCount:N0}, elapsed: {sw.ElapsedMilliseconds:N0}");
         }
     }
 }
