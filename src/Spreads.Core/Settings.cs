@@ -52,6 +52,8 @@ namespace Spreads
         /// </remarks>
         internal const int SAFE_CACHE_LINE = 128;
         
+        internal const int AVX512_ALIGNMENT = 64;
+        
         internal const int LARGE_BUFFER_LIMIT = 128 * 1024;
 
         /// <summary>

@@ -31,7 +31,7 @@ namespace Spreads.Buffers
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static BufferWriter Create(int capacityHint = 0)
         {
-            var buffer = ObjectPool.Allocate();
+            var buffer = ObjectPool.Rent();
             buffer._offset = 0;
             if (capacityHint > buffer.FreeCapacity)
             {
@@ -307,7 +307,7 @@ namespace Spreads.Buffers
             _offset = -1;
             var buffer = _buffer;
             _buffer = default;
-            ObjectPool.Free(this);
+            ObjectPool.Return(this);
             return buffer;
         }
 
@@ -322,7 +322,7 @@ namespace Spreads.Buffers
                     _buffer.Dispose();
                     _buffer = default;
                 }
-                ObjectPool.Free(this);
+                ObjectPool.Return(this);
             }
             else
             {

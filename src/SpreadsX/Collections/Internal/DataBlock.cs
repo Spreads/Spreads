@@ -111,7 +111,7 @@ namespace Spreads.Collections.Internal
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static DataBlock Create(VecStorage rowIndex = default, VecStorage values = default, VecStorage[]? columns = null, int rowLength = -1)
         {
-            var block = ObjectPool.Allocate();
+            var block = ObjectPool.Rent();
             block.EnsureDisposed();
 
             var rowCapacity = -1;
@@ -250,7 +250,7 @@ namespace Spreads.Collections.Internal
                 _values = default;
             }
 
-            ObjectPool.Free(this);
+            ObjectPool.Return(this);
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]

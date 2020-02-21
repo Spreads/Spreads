@@ -23,7 +23,7 @@ using System.Runtime.CompilerServices;
 using System.Runtime.CompilerServices;
 #endif
 using System.Threading;
-
+using Spreads.Buffers;
 #if DETECT_LEAKS
 using System.Runtime.CompilerServices;
 
@@ -31,6 +31,37 @@ using System.Runtime.CompilerServices;
 
 namespace Spreads.Collections.Concurrent
 {
+    
+    public class ObjectPool<T> : PerCoreObjectPool<T, ObjectPoolCore<T>> where T : class
+    {
+        public ObjectPool(Func<T> factory, int perCoreSize) 
+            : base(() => new RightPaddedObjectPoolCore(factory, perCoreSize), factory, false)
+        {
+        }
+        
+        internal sealed class RightPaddedObjectPoolCore : ObjectPoolCore<T>
+        {
+            private long _padding0;
+            private long _padding1;
+            private long _padding2;
+            private long _padding3;
+            private long _padding4;
+            
+            private long _padding5;
+            private long _padding6;
+            private long _padding7;
+            private long _padding8;
+            private long _padding9;
+            private long _padding10;
+            private long _padding11;
+            private long _padding12;
+
+            public RightPaddedObjectPoolCore(Func<T> factory, int size) : base(factory, size)
+            {
+            }
+        } 
+    }
+    
     /// <summary>
     /// Generic implementation of object pooling pattern with predefined pool size limit. The main
     /// purpose is that limited number of frequently used objects can be kept in the pool for
@@ -48,7 +79,7 @@ namespace Spreads.Collections.Concurrent
     /// Rationale:
     ///    If there is no intent for reusing the object, do not use pool - just use "new".
     /// </summary>
-    public class ObjectPool<T> where T : class
+    public class ObjectPoolCore<T> : LeftPad112, IObjectPool<T> where T : class
     {
         [DebuggerDisplay("{Value,nq}")]
         private struct Element
@@ -66,9 +97,9 @@ namespace Spreads.Collections.Concurrent
         private T _firstItem;
 
         private readonly Element[] _items;
-
         
-
+        private volatile bool _disposed;
+        
 #if DETECT_LEAKS
         private static readonly ConditionalWeakTable<T, LeakTracker> leakTrackers = new ConditionalWeakTable<T, LeakTracker>();
 
@@ -110,11 +141,11 @@ namespace Spreads.Collections.Concurrent
         }
 #endif
 
-        public ObjectPool(Func<T> factory)
+        public ObjectPoolCore(Func<T> factory)
             : this(factory, Environment.ProcessorCount * 2)
         { }
 
-        public ObjectPool(Func<T> factory, int size)
+        public ObjectPoolCore(Func<T> factory, int size)
         {
             Debug.Assert(size >= 1);
             Factory = factory;
@@ -136,8 +167,13 @@ namespace Spreads.Collections.Concurrent
         /// reducing how far we will typically search.
         /// </remarks>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public T Allocate()
+        public T Rent()
         {
+            if (_disposed)
+            {
+                BuffersThrowHelper.ThrowDisposed<LockedObjectPool<T>>();
+            }
+            
             // PERF: Examine the first element. If that fails, AllocateSlow will look at the remaining elements.
             // Note that the initial read is optimistically not synchronized. That is intentional.
             // We will interlock only when we have a candidate. in a worst case we may miss some
@@ -145,7 +181,7 @@ namespace Spreads.Collections.Concurrent
             T inst = _firstItem;
             if (inst == null || inst != Interlocked.CompareExchange(ref _firstItem, null, inst))
             {
-                inst = AllocateSlow();
+                inst = RentSlow();
             }
 
 #if DETECT_LEAKS
@@ -160,7 +196,7 @@ namespace Spreads.Collections.Concurrent
             return inst;
         }
 
-        private T AllocateSlow()
+        private T RentSlow()
         {
             var items = _items;
 
@@ -191,8 +227,13 @@ namespace Spreads.Collections.Concurrent
         /// reducing how far we will typically search in Allocate.
         /// </remarks>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Free(T obj)
+        public bool Return(T obj)
         {
+            if (_disposed)
+            {
+                return false;
+            }
+            
             Validate(obj);
             ForgetTrackedObject(obj);
 
@@ -202,14 +243,13 @@ namespace Spreads.Collections.Concurrent
                 // In a worst case scenario two objects may be stored into same slot.
                 // It is very unlikely to happen and will only mean that one of the objects will get collected.
                 _firstItem = obj;
+                return true;
             }
-            else
-            {
-                FreeSlow(obj);
-            }
+
+            return ReturnSlow(obj);
         }
 
-        private void FreeSlow(T obj)
+        private bool ReturnSlow(T obj)
         {
             var items = _items;
             for (int i = 0; i < items.Length; i++)
@@ -220,9 +260,11 @@ namespace Spreads.Collections.Concurrent
                     // In a worst case scenario two objects may be stored into same slot.
                     // It is very unlikely to happen and will only mean that one of the objects will get collected.
                     items[i].Value = obj;
-                    break;
+                    return true;
                 }
             }
+            
+            return false;
         }
 
         /// <summary>
@@ -284,6 +326,10 @@ namespace Spreads.Collections.Concurrent
 
                 Debug.Assert(value != obj, "freeing twice?");
             }
+        }
+
+        public void Dispose()
+        {
         }
     }
 }

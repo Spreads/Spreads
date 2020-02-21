@@ -197,7 +197,7 @@ namespace Spreads.Buffers
             RecyclableMemoryStreamManager memoryManager = null)
         {
             memoryManager = memoryManager ?? RecyclableMemoryStreamManager.Default;
-            var rms = Pool.Allocate();
+            var rms = Pool.Rent();
             rms._refCount = 1;
             rms._memoryManager = memoryManager;
 #if DEBUG
@@ -397,7 +397,7 @@ namespace Spreads.Buffers
             base.Dispose(disposing);
 
             // last operation, prevent race condition (had it with _memoryManager = null when buffer was reused before Dispose finished)
-            Pool.Free(this);
+            Pool.Return(this);
         }
 
         /// <summary>

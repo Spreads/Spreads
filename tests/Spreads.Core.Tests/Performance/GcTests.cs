@@ -47,7 +47,7 @@ namespace Spreads.Core.Tests.Performance
                 {
                     for (int i = 0; i < count; i++)
                     {
-                        ptrs[i] = (IntPtr) Spreads.Native.Mem.Malloc((uint) size);
+                        ptrs[i] = (IntPtr) Spreads.Native.Mem.Malloc((UIntPtr) size);
                         // if (!BitUtil.IsAligned((long) (ptrs[i]), 4096))
                         // {
                         //     Console.WriteLine((long) (ptrs[i]) % 4096);

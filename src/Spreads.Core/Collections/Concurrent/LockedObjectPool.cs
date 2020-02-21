@@ -10,43 +10,86 @@ using System.Threading;
 
 namespace Spreads.Collections.Concurrent
 {
+    public sealed class LockedObjectPool<T> : PerCoreObjectPool<T, LockedObjectPoolCore<T>> where T : class
+    {
+        public LockedObjectPool(Func<T> factory, int perCoreSize, bool allocateOnEmpty = true, bool unbounded = false) 
+            : base(() => new RightPaddedLockedObjectPoolCore(factory, perCoreSize, allocateOnEmpty), factory, unbounded)
+        {
+        }
+        
+        internal sealed class RightPaddedLockedObjectPoolCore : LockedObjectPoolCore<T>
+        {
+            private long _padding0;
+            private long _padding1;
+            private long _padding2;
+            private long _padding3;
+            
+            private long _padding4;
+            private long _padding5;
+            private long _padding6;
+            private long _padding7;
+            private long _padding8;
+            private long _padding9;
+            private long _padding10;
+            private long _padding11;
+
+            public RightPaddedLockedObjectPoolCore(Func<T> factory, int size, bool allocateOnEmpty = true) : base(factory, size, allocateOnEmpty)
+            {
+            }
+        } 
+    }
+
     /// <summary>
     /// Thread-safe simple object pool.
     /// This pool is intended for storage and should not drop objects if there is space available.
     /// Good for native resources as opposed to <see cref="ObjectPool{T}"/>, which is only good for reducing managed objects allocations.
     /// </summary>
-    public sealed class LockedObjectPool<T> : IDisposable
-        where T : class
+    public class LockedObjectPoolCore<T> : LeftPad112, IObjectPool<T> where T : class
     {
+        [DebuggerDisplay("{Value,nq}")]
+        private struct Element
+        {
+            internal T Value;
+        }
+        
         internal bool AllocateOnEmpty;
 
         private Func<T> _factory;
-        internal readonly T[] _objects;
+        private readonly Element[] _items;
         private int _index;
         private int _locker;
         internal bool TraceLowCapacityAllocation;
-        private bool _disposed;
+        private volatile bool _disposed;
+        
+        // TODO TypeLayout
+        // In PerCoreObjectPool these objects are allocated sequentially
+        // and the _locker field could be on the same cache line for 
+        // multiple objects without padding. Perf difference almost 2x!
+        // private long _padding0;
+        // private long _padding1;
 
-        public LockedObjectPool(int numberOfObjects, Func<T> factory, bool allocateOnEmpty = true)
+
+        public LockedObjectPoolCore(Func<T> factory, int size, bool allocateOnEmpty = true)
         {
             _factory = factory;
             AllocateOnEmpty = allocateOnEmpty;
-            _objects = new T[numberOfObjects];
+            _items = new Element[size];
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public T Rent()
+        public T? Rent()
         {
             if (_disposed)
             {
                 BuffersThrowHelper.ThrowDisposed<LockedObjectPool<T>>();
             }
 
-            var objects = _objects;
+            var objects = _items;
             T obj = null;
 
             var allocate = false;
 #if !NETCOREAPP
+            RuntimeHelpers.PrepareConstrainedRegions();
             try
 #endif
             {
@@ -58,8 +101,8 @@ namespace Spreads.Collections.Concurrent
 
                 if (_index < objects.Length)
                 {
-                    obj = objects[_index];
-                    objects[_index++] = null;
+                    obj = objects[_index].Value;
+                    objects[_index++] = default;
                     allocate = obj == null;
                 }
             }
@@ -101,8 +144,10 @@ namespace Spreads.Collections.Concurrent
             {
                 return false;
             }
+            
             bool pooled;
 #if !NETCOREAPP
+            RuntimeHelpers.PrepareConstrainedRegions();
             try
 #endif
             {
@@ -115,7 +160,7 @@ namespace Spreads.Collections.Concurrent
                 pooled = _index != 0;
                 if (pooled)
                 {
-                    _objects[--_index] = obj;
+                    _items[--_index].Value = obj;
                 }
             }
 #if !NETCOREAPP
@@ -132,9 +177,9 @@ namespace Spreads.Collections.Concurrent
         {
             _disposed = true;
             _factory = null;
-            foreach (var o in _objects)
+            foreach (var o in _items)
             {
-                if (o != null && o is IDisposable idisp)
+                if (o.Value != null && o is IDisposable idisp)
                 {
                     idisp.Dispose();
                 }

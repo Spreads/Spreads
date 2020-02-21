@@ -2,14 +2,16 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-
 using System;
 using System.Diagnostics;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using ObjectLayoutInspector;
 using Spreads.Collections.Concurrent;
+using Spreads.Utils;
 
 namespace Spreads.Core.Tests
 {
@@ -18,52 +20,59 @@ namespace Spreads.Core.Tests
     {
         public class DummyPoolable
         {
-            public int I { get; set; }
-
-            public void Init()
-            {
-            }
-
-            public void Release()
-            {
-            }
         }
 
-        // https://github.com/dotnet/corefx/pull/14126
+
         [Test]
-        [Explicit("long running")]
+        [Explicit("output")]
+        public void CorePoolsLayout()
+        {
+            TypeLayout.PrintLayout<ObjectPoolCore<DummyPoolable>>();
+            TypeLayout.PrintLayout<LockedObjectPoolCore<DummyPoolable>>();
+            TypeLayout.PrintLayout<ObjectPool<DummyPoolable>.RightPaddedObjectPoolCore>();
+            TypeLayout.PrintLayout<LockedObjectPool<DummyPoolable>.RightPaddedLockedObjectPoolCore>();
+        }
+
+        [Test]
+        [Explicit("bench")]
         public void PoolPerformance()
         {
-            int capacity = Environment.ProcessorCount * 2;
-            var arrayPool = new ObjectPool<DummyPoolable>(() => new DummyPoolable(), capacity);
-            for (int round = 0; round < 10; round++)
+            const int perCoreCapacity = 20;
+            int capacity = Environment.ProcessorCount * perCoreCapacity;
+            Func<DummyPoolable> dummyFactory = () => new DummyPoolable();
+            var objectPool = new ObjectPoolCore<DummyPoolable>(dummyFactory, capacity);
+            var lockedObjectPool = new LockedObjectPoolCore<DummyPoolable>(dummyFactory, capacity);
+            var perCoreObjectPool = new ObjectPool<DummyPoolable>(dummyFactory, perCoreCapacity);
+            var perCoreLockedObjectPool = new LockedObjectPool<DummyPoolable>(dummyFactory, perCoreCapacity);
+            for (int round = 0; round < 50; round++)
             {
-                TestPool(arrayPool);
-                Console.WriteLine("----------");
+                PoolBenchmark(objectPool, "objectPool");
+                PoolBenchmark(lockedObjectPool, "lockedObjectPool");
+                PoolBenchmark(perCoreObjectPool, "perCoreObjectPool");
+                PoolBenchmark(perCoreLockedObjectPool, "perCoreLockedObjectPool");
             }
+
+            Benchmark.Dump();
         }
 
-        internal void TestPool(ObjectPool<DummyPoolable> pool)
+        [MethodImpl(MethodImplOptions.NoInlining | MethodImplOptions.AggressiveOptimization)]
+        internal void PoolBenchmark<T>(T pool, string testCase) where T : IObjectPool<DummyPoolable>
         {
-            var sw = new Stopwatch();
-            //while (true) {
-            int gen0 = GC.CollectionCount(0);
-            sw.Restart();
-            Task.WaitAll(Enumerable.Range(0, Environment.ProcessorCount * 2).Select(_ => Task.Run(() =>
+            var count = 5_000_000;
+            var threads = Environment.ProcessorCount;
+            using (Benchmark.Run(testCase, count * 2 * threads))
             {
-                for (int i = 0; i < 1000000; i++)
+                Task.WaitAll(Enumerable.Range(0, threads).Select(_ => Task.Factory.StartNew(() =>
                 {
-                    var x1 = pool.Allocate();
-                    var x2 = pool.Allocate();
-                    Interlocked.MemoryBarrier();
-                    //Thread.SpinWait(500);
-                    pool.Free(x1);
-                    pool.Free(x2);
-                }
-            })).ToArray());
-            sw.Stop();
-            Console.WriteLine(pool.GetType().Name + ": " + sw.Elapsed + " GC: " + (GC.CollectionCount(0) - gen0));
-            //}
+                    for (int i = 0; i < count; i++)
+                    {
+                        var x1 = pool.Rent();
+                        var x2 = pool.Rent();
+                        pool.Return(x1);
+                        pool.Return(x2);
+                    }
+                }, TaskCreationOptions.LongRunning)).ToArray());
+            }
         }
     }
 }

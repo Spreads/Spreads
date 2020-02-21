@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Runtime;
 using System.Threading;
 using System.Threading.Tasks;
+using Spreads.Core.Tests;
 using Spreads.Core.Tests.Algorithms;
 using Spreads.Core.Tests.Buffers;
 using Spreads.Core.Tests.Collections.Concurrent;
@@ -29,19 +30,20 @@ namespace Spreads.Run
     {
         private static async Task Main(string[] args)
         {
-            System.Runtime.GCSettings.LatencyMode = GCLatencyMode.SustainedLowLatency;
+            GCSettings.LatencyMode = GCLatencyMode.SustainedLowLatency;
             Trace.Listeners.Clear();
             Trace.Listeners.Add(new ConsoleListener());
 
             Settings.DoAdditionalCorrectnessChecks = false;
 
+            Process.GetCurrentProcess().PriorityClass = ProcessPriorityClass.High;
             // Process.GetCurrentProcess().ProcessorAffinity = (IntPtr) 0b_0000_1111;
             // EquiJoinBench();
             ExecutionContext.SuppressFlow();
             Settings.SharedSpinLockNotificationPort = 53412;
 
-            var test = new SeriesAppendTests();
-            test.CouldAppendSeriesBench();
+            var test = new ObjectPoolTests();
+            test.PoolPerformance();
 
             // Console.WriteLine("Finished, press enter to exit...");
             // Console.ReadLine();

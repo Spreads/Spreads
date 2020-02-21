@@ -95,7 +95,7 @@ namespace Spreads.Buffers
         // virtual method and just follow the rule that app data buffers are not
         // poolable in this context. When app finishes working with the buffer
         // it could set this field back to original value.
-        internal RetainableMemoryPool<T> Pool
+        internal RetainableMemoryPool<T>? Pool
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => PoolIndex >= 2 ? RetainableMemoryPool<T>.KnownPools[PoolIndex] : null;

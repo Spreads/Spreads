@@ -36,7 +36,7 @@ namespace Spreads.Buffers
             }
             _bufferLength = bufferLength;
             // NOTE: allocateOnEmpty = true
-            _pool = new LockedObjectPool<ArrayMemorySlice<T>>(maxBufferCount, Factory, allocateOnEmpty: true);
+            _pool = new LockedObjectPool<ArrayMemorySlice<T>>(Factory, maxBufferCount, allocateOnEmpty: true);
 
             CreateSlab();
         }
@@ -100,7 +100,7 @@ namespace Spreads.Buffers
         public static unsafe ArrayMemorySlice<T> Create(ArrayMemory<T> slab, int offset, int length,
             LockedObjectPool<ArrayMemorySlice<T>>? slicesPool = null)
         {
-            var slice = ObjectPool.Allocate();
+            var slice = ObjectPool.Rent();
 
 #pragma warning disable 618
             slice._slab = slab;
@@ -164,7 +164,7 @@ namespace Spreads.Buffers
             Debug.Assert(!_handle.IsAllocated);
 
             // see AM comment on the same line
-            ObjectPool.Free(this);
+            ObjectPool.Return(this);
         }
     }
 
@@ -216,7 +216,7 @@ namespace Spreads.Buffers
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static unsafe ArrayMemory<T> Create(T[] array, int offset, int length, bool externallyOwned, bool pin, RetainableMemoryPool<T> pool = null)
         {
-            var arrayMemory = ObjectPool.Allocate();
+            var arrayMemory = ObjectPool.Rent();
             arrayMemory._array = array;
 
             if (pin)
@@ -371,7 +371,7 @@ namespace Spreads.Buffers
             // then we called GC.SuppressFinalize(this)
             // and finalizer won't be called if the object is dropped from ObjectPool.
             // We have done buffer clean-up job and this object could die normally.
-            ObjectPool.Free(this);
+            ObjectPool.Return(this);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

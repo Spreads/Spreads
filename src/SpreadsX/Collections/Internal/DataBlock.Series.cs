@@ -74,7 +74,7 @@ namespace Spreads.Collections.Internal
                 ThrowHelper.ThrowArgumentException($"rowIndex.Length [{rowIndex.Vec.Length}] <= 0 || values.Length [{values.Vec.Length}]  <= 0 || rowIndex.Length != values.Length");
             }
 
-            var block = ObjectPool.Allocate();
+            var block = ObjectPool.Rent();
             block.EnsureDisposed();
 
             var rowCapacity = rowIndex.Vec.Length;

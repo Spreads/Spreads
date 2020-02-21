@@ -198,7 +198,7 @@ namespace Spreads.Threading
         private void ProcessSend(SocketAsyncEventArgs e)
         {
             Interlocked.Increment(ref SendCounter);
-            _sendArgsPool.Free(e);
+            _sendArgsPool.Return(e);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
