@@ -24,6 +24,8 @@ using System.Runtime.CompilerServices;
 #endif
 using System.Threading;
 using Spreads.Buffers;
+using Spreads.Threading;
+
 #if DETECT_LEAKS
 using System.Runtime.CompilerServices;
 
@@ -41,21 +43,9 @@ namespace Spreads.Collections.Concurrent
         
         internal sealed class RightPaddedObjectPoolCore : ObjectPoolCore<T>
         {
-            private long _padding0;
-            private long _padding1;
-            private long _padding2;
-            private long _padding3;
-            private long _padding4;
+            private Padding64 _padding64;
+            private Padding40 _padding40;
             
-            private long _padding5;
-            private long _padding6;
-            private long _padding7;
-            private long _padding8;
-            private long _padding9;
-            private long _padding10;
-            private long _padding11;
-            private long _padding12;
-
             public RightPaddedObjectPoolCore(Func<T> factory, int size) : base(factory, size)
             {
             }

@@ -7,36 +7,27 @@ using System;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Threading;
+using Spreads.Threading;
 
 namespace Spreads.Collections.Concurrent
 {
     public sealed class LockedObjectPool<T> : PerCoreObjectPool<T, LockedObjectPoolCore<T>> where T : class
     {
-        public LockedObjectPool(Func<T> factory, int perCoreSize, bool allocateOnEmpty = true, bool unbounded = false) 
+        public LockedObjectPool(Func<T> factory, int perCoreSize, bool allocateOnEmpty = true, bool unbounded = false)
             : base(() => new RightPaddedLockedObjectPoolCore(factory, perCoreSize, allocateOnEmpty), factory, unbounded)
         {
         }
-        
+
         internal sealed class RightPaddedLockedObjectPoolCore : LockedObjectPoolCore<T>
         {
-            private long _padding0;
-            private long _padding1;
-            private long _padding2;
-            private long _padding3;
-            
-            private long _padding4;
-            private long _padding5;
-            private long _padding6;
-            private long _padding7;
-            private long _padding8;
-            private long _padding9;
-            private long _padding10;
-            private long _padding11;
+            private Padding64 _padding64;
+            private Padding32 _padding32;
 
-            public RightPaddedLockedObjectPoolCore(Func<T> factory, int size, bool allocateOnEmpty = true) : base(factory, size, allocateOnEmpty)
+            public RightPaddedLockedObjectPoolCore(Func<T> factory, int size, bool allocateOnEmpty = true) : base(
+                factory, size, allocateOnEmpty)
             {
             }
-        } 
+        }
     }
 
     /// <summary>
@@ -51,7 +42,7 @@ namespace Spreads.Collections.Concurrent
         {
             internal T Value;
         }
-        
+
         internal bool AllocateOnEmpty;
 
         private Func<T> _factory;
@@ -60,14 +51,13 @@ namespace Spreads.Collections.Concurrent
         private int _locker;
         internal bool TraceLowCapacityAllocation;
         private volatile bool _disposed;
-        
+
         // TODO TypeLayout
         // In PerCoreObjectPool these objects are allocated sequentially
         // and the _locker field could be on the same cache line for 
         // multiple objects without padding. Perf difference almost 2x!
         // private long _padding0;
         // private long _padding1;
-
 
         public LockedObjectPoolCore(Func<T> factory, int size, bool allocateOnEmpty = true)
         {
@@ -119,6 +109,7 @@ namespace Spreads.Collections.Concurrent
                 {
                     DoTrace();
                 }
+
                 obj = CreateNewObject();
             }
 
@@ -144,7 +135,7 @@ namespace Spreads.Collections.Concurrent
             {
                 return false;
             }
-            
+
             bool pooled;
 #if !NETCOREAPP
             RuntimeHelpers.PrepareConstrainedRegions();
