@@ -10,7 +10,6 @@ using Spreads.Utils;
 using System;
 using System.Buffers;
 using System.Runtime.CompilerServices;
-using System.Threading;
 using static Spreads.Buffers.BuffersThrowHelper;
 
 namespace Spreads.Buffers
@@ -98,7 +97,7 @@ namespace Spreads.Buffers
             }
             else
             {
-                privateMemory.AllocateBlittable((uint) (length * alignedSize), alignedSize);
+                privateMemory.AllocateBlittable((uint) (length * alignedSize), alignedSize, cpuId);
                 ThrowHelper.DebugAssert(privateMemory._array == null);
             }
 
@@ -110,7 +109,7 @@ namespace Spreads.Buffers
             return privateMemory;
         }
 
-        private unsafe void AllocateBlittable(uint bytesLength, uint alignment)
+        private unsafe void AllocateBlittable(uint bytesLength, uint alignment, int cpuId)
         {
             if (!NativeAllocatorSettings.Initialized) ThrowHelper.ThrowInvalidOperationException();
 
@@ -123,12 +122,13 @@ namespace Spreads.Buffers
             // Three 64, 128 or 256
             alignment = Math.Min(Math.Max(Settings.AVX512_ALIGNMENT, alignment), Settings.SAFE_CACHE_LINE * 2);
 
-            _pointer = Mem.MallocAligned((UIntPtr) bytesLength,
-                (UIntPtr) alignment); // (void*) Marshal.AllocHGlobal((int) bytesLength); // 
+            // TODO bytesLength = (uint) Mem.GoodSize((UIntPtr) bytesLength); but check/change return type 
+            
+            _pointer = Mem.MallocAligned((UIntPtr) bytesLength, (UIntPtr) alignment); 
             _offset = 0;
             _length = (int) bytesLength / Unsafe.SizeOf<T>();
 
-            Interlocked.Add(ref BuffersStatistics.AllocatedNativeBytes, bytesLength);
+            BuffersStatistics.AllocatedNativeMemory.InterlockedAdd(bytesLength, cpuId);
         }
 
         /// <summary>
@@ -139,6 +139,7 @@ namespace Spreads.Buffers
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
+                // TODO use static readonly for blittables + debug assert that for them pointer is always != null
                 // var tid = VecTypeHelper<T>.RuntimeVecInfo.RuntimeTypeId;
                 var vec = _pointer == null ? new Vec<T>(_array, _offset, _length) : new Vec<T>(_pointer, _length);
 #if SPREADS
@@ -218,9 +219,8 @@ namespace Spreads.Buffers
             }
             else
             {
-                // Marshal.FreeHGlobal((IntPtr)_pointer);
                 Mem.Free((byte*) _pointer);
-                Interlocked.Decrement(ref BuffersStatistics.AllocatedNativeBytes);
+                BuffersStatistics.AllocatedNativeMemory.InterlockedAdd(-_length);
                 _pointer = null;
             }
 

@@ -14,6 +14,7 @@ using static Spreads.Buffers.BuffersThrowHelper;
 
 namespace Spreads.Buffers
 {
+    [Obsolete("TODO Comment this out, remove usages when pooled PM should be used, then keep it only as a wrapper for external CLR arrays")]
     public class ArrayMemory<T> : RetainableMemory<T>
     {
         private static readonly ObjectPool<ArrayMemory<T>> ObjectPool = new ObjectPool<ArrayMemory<T>>(() => new ArrayMemory<T>(), Environment.ProcessorCount * 16);

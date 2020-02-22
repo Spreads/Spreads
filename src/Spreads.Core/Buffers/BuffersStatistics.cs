@@ -1,7 +1,9 @@
-﻿namespace Spreads.Buffers
+﻿using Spreads.Threading;
+
+namespace Spreads.Buffers
 {
     internal static class BuffersStatistics
     {
-        internal static long AllocatedNativeBytes;
+        internal static PerCoreCounter AllocatedNativeMemory;
     }
 }
