@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using Spreads.Buffers;
 using Spreads.Native;
@@ -11,7 +12,7 @@ namespace Spreads.Collections.Concurrent
         private readonly Func<T> _objFactory;
         private const int MaxPools = 128;
 
-        private readonly PoolEntry[] _perCorePoolEntries;
+        protected readonly PoolEntry[] _perCorePoolEntries;
 
         private readonly ConcurrentQueue<T> _unboundedPool;
         private volatile bool _disposed;
@@ -45,12 +46,10 @@ namespace Spreads.Collections.Concurrent
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal T Rent(int cpuId)
+        internal T? Rent(int cpuId)
         {
             if (_disposed)
-            {
                 BuffersThrowHelper.ThrowDisposed<LockedObjectPool<T>>();
-            }
 
             var poolEntries = _perCorePoolEntries;
             var index = cpuId % poolEntries.Length;
@@ -129,13 +128,32 @@ namespace Spreads.Collections.Concurrent
             }
         }
 
-        private struct PoolEntry
+        protected struct PoolEntry
         {
             public TPoolImpl Pool;
 
             public PoolEntry(TPoolImpl pool)
             {
                 Pool = pool;
+            }
+        }
+        
+        /// <summary>
+        /// For diagnostics only.
+        /// </summary>
+        internal IEnumerable<T> EnumerateItems()
+        {
+            foreach (var poolEntry in _perCorePoolEntries)
+            {
+                if (poolEntry.Pool is ObjectPoolCoreBase<T> pool)
+                {
+                    // ReSharper disable once HeapView.ObjectAllocation.Possible
+                    // ReSharper disable once HeapView.ObjectAllocation
+                    foreach (var enumerateItem in pool.EnumerateItems())
+                    {
+                        yield return enumerateItem;
+                    }
+                }
             }
         }
     }

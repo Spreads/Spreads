@@ -14,7 +14,7 @@ namespace Spreads.Collections.Concurrent
     public sealed class LockedObjectPool<T> : PerCoreObjectPool<T, LockedObjectPoolCore<T>> where T : class
     {
         public LockedObjectPool(Func<T> factory, int perCoreSize, bool allocateOnEmpty = true, bool unbounded = false)
-            : base(() => new RightPaddedLockedObjectPoolCore(factory, perCoreSize, allocateOnEmpty), factory, unbounded)
+            : base(() => new RightPaddedLockedObjectPoolCore(factory, perCoreSize, allocateOnEmpty: false), allocateOnEmpty ? factory : () => null, unbounded)
         {
         }
 
@@ -61,13 +61,16 @@ namespace Spreads.Collections.Concurrent
             _items = new Element[size];
         }
 
+        
+        public int Index => _index;
+        
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public T? Rent()
         {
             if (_disposed)
                 BuffersThrowHelper.ThrowDisposed<LockedObjectPool<T>>();
 
-            var objects = _items;
+            var items = _items;
             T obj = null;
 
             var allocate = false;
@@ -78,12 +81,14 @@ namespace Spreads.Collections.Concurrent
             {
                 var spinner = new SpinWait();
                 while (0 != Interlocked.CompareExchange(ref _locker, 1, 0))
-                    spinner.SpinOnce();
-
-                if (_index < objects.Length)
                 {
-                    obj = objects[_index].Value;
-                    objects[_index++] = default;
+                    spinner.SpinOnce();
+                }
+
+                if (_index < items.Length)
+                {
+                    obj = items[_index].Value;
+                    items[_index++] = default;
                     allocate = obj == null;
                 }
             }
@@ -131,7 +136,9 @@ namespace Spreads.Collections.Concurrent
             {
                 var spinner = new SpinWait();
                 while (0 != Interlocked.CompareExchange(ref _locker, 1, 0))
+                {
                     spinner.SpinOnce();
+                }
 
                 pooled = _index != 0;
                 if (pooled)

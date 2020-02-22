@@ -36,23 +36,22 @@ namespace Spreads.Buffers
                 factory: null,
                 minLength: Settings.MIN_POOLED_BUFFER_LEN,
                 maxLength: Math.Max(Settings.MIN_POOLED_BUFFER_LEN, Settings.LARGE_BUFFER_LIMIT / Unsafe.SizeOf<T>()),
-                maxBuffersPerBucket: (4 + Environment.ProcessorCount) * 16,
-                maxBucketsToTry: 2,
-                pinned: false);
+                maxBuffersPerBucketPerCore: 16,
+                maxBucketsToTry: 2);
     }
 
     public class BufferPool
     {
         private static readonly BufferPool Shared = new BufferPool();
 
+        [Obsolete("Main RMP is already pinned for all blittables")]
         internal static RetainableMemoryPool<byte> PinnedArrayMemoryPool =
             new RetainableMemoryPool<byte>(
                 factory: null,
                 minLength: 2048,
                 maxLength: 8 * 1024 * 1024,
-                maxBuffersPerBucket: (4 + Environment.ProcessorCount) * 4,
-                maxBucketsToTry: 2,
-                pinned: true);
+                maxBuffersPerBucketPerCore: (4 + Environment.ProcessorCount) * 4,
+                maxBucketsToTry: 2);
 
         /// <summary>
         /// Default OffHeap pool has capacity of 4 + Environment.ProcessorCount. This static field could be changed to a new instance.

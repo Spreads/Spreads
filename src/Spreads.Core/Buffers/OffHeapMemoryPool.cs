@@ -13,8 +13,8 @@ namespace Spreads.Buffers
             : this(Settings.LARGE_BUFFER_LIMIT, maxLength, maxBuffersCount, maxBucketsToTry: 0, rentAlwaysClean)
         { }
 
-        public OffHeapMemoryPool(int minLength, int maxLength, int maxBuffersPerBucket, int maxBucketsToTry = 2, bool rentAlwaysClean = false)
-            : base((pool, length) => new OffHeapMemory<T>(pool, length), minLength, maxLength, maxBuffersPerBucket, maxBucketsToTry, rentAlwaysClean:rentAlwaysClean)
+        public OffHeapMemoryPool(int minLength, int maxLength, int maxBuffersPerBucketPerCore, int maxBucketsToTry = 2, bool rentAlwaysClean = false)
+            : base((pool, length) => new OffHeapMemory<T>(pool, length), minLength, maxLength, maxBuffersPerBucketPerCore, maxBucketsToTry, rentAlwaysClean:rentAlwaysClean)
         { }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

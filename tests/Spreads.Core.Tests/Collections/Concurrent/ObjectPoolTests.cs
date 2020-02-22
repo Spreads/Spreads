@@ -13,7 +13,7 @@ using ObjectLayoutInspector;
 using Spreads.Collections.Concurrent;
 using Spreads.Utils;
 
-namespace Spreads.Core.Tests
+namespace Spreads.Core.Tests.Collections.Concurrent
 {
     [TestFixture]
     public class ObjectPoolTests
@@ -43,7 +43,7 @@ namespace Spreads.Core.Tests
             var lockedObjectPool = new LockedObjectPoolCore<DummyPoolable>(dummyFactory, capacity);
             var perCoreObjectPool = new ObjectPool<DummyPoolable>(dummyFactory, perCoreCapacity);
             var perCoreLockedObjectPool = new LockedObjectPool<DummyPoolable>(dummyFactory, perCoreCapacity);
-            for (int round = 0; round < 50; round++)
+            for (int round = 0; round < 20; round++)
             {
                 // PoolBenchmark(objectPool, "objectPool");
                 // PoolBenchmark(lockedObjectPool, "lockedObjectPool");

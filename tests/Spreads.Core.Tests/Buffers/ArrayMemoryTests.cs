@@ -156,7 +156,7 @@ namespace Spreads.Core.Tests.Buffers
         public void PoolReturnsSameSizeUsingSlices(int maxBucketsToTry)
         {
             var pool = new RetainableMemoryPool<byte>(null, 16,
-                8 * 1024 * 1024, maxBuffersPerBucket: 8, maxBucketsToTry);
+                8 * 1024 * 1024, maxBuffersPerBucketPerCore: 8, maxBucketsToTry);
 
             var cw = new ConditionalWeakTable<byte[], object>();
 

@@ -139,7 +139,7 @@ namespace Spreads.Collections.Concurrent
         public bool TryGetValue(TKey key, out TValue value)
         {
             EnterLock();
-            bool found;
+            bool found = false;
 #if DEBUG
             value = default;
             try

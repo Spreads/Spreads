@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using Spreads.Threading;
 
@@ -16,6 +17,8 @@ namespace Spreads.Collections.Concurrent
         protected Element[] _items;
         protected volatile bool _disposed;
 
+        public int Capacity => _items.Length;
+        
         public virtual void Dispose()
         {
             lock (_items)
@@ -31,6 +34,19 @@ namespace Spreads.Collections.Concurrent
                         idisp.Dispose();
                     }
                 }
+            }
+        }
+
+        /// <summary>
+        /// For diagnostics only.
+        /// </summary>
+        internal IEnumerable<T> EnumerateItems()
+        {
+            foreach (var element in _items)
+            {
+                var value = element.Value;
+                if (value != null)
+                    yield return value;
             }
         }
     }
