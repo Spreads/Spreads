@@ -72,7 +72,7 @@ namespace Spreads.Collections.Concurrent
         public bool TryGetValue(TKey key, out object value)
         {
             EnterLock();
-            var found = false;
+            bool found;
 #if DEBUG
             value = default;
             try

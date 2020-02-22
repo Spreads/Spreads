@@ -4,12 +4,8 @@ using System.Runtime;
 using System.Threading;
 using System.Threading.Tasks;
 using Spreads.Core.Tests;
-using Spreads.Core.Tests.Algorithms;
-using Spreads.Core.Tests.Buffers;
 using Spreads.Core.Tests.Collections.Concurrent;
-using Spreads.Core.Tests.Cursors;
 using Spreads.Core.Tests.Serialization;
-using Spreads.Core.Tests.X.Series;
 
 namespace Spreads.Run
 {

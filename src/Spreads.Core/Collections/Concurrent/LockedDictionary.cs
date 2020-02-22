@@ -131,6 +131,7 @@ namespace Spreads.Collections.Concurrent
         [MethodImpl(MethodImplOptions.NoInlining)]
         private static void FailCanontRemoveExisting()
         {
+            // TODO review & remove
             ThrowHelper.FailFast("Cannot remove a value that we have just read from inside lock.");
         }
 
@@ -138,7 +139,7 @@ namespace Spreads.Collections.Concurrent
         public bool TryGetValue(TKey key, out TValue value)
         {
             EnterLock();
-            bool found = default;
+            bool found;
 #if DEBUG
             value = default;
             try

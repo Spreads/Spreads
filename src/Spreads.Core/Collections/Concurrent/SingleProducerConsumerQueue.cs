@@ -61,7 +61,7 @@ namespace Spreads.Collections.Concurrent
         private const int MaxSegmentSize = 0x1000000; // this could be made as large as Int32.MaxValue / 2
 
         /// <summary>The head of the linked list of segments.</summary>
-        private Segment _head;
+        private Segment? _head;
 
         /// <summary>The tail of the linked list of segments.</summary>
         private Segment _tail;
@@ -255,7 +255,7 @@ namespace Spreads.Collections.Concurrent
         private sealed class Segment
         {
             /// <summary>The next segment in the linked list of segments.</summary>
-            internal Segment _next;
+            internal Segment? _next;
 
             /// <summary>The data stored in this segment.</summary>
             internal readonly T[] _array;
@@ -299,6 +299,7 @@ namespace Spreads.Collections.Concurrent
         }
 
         /// <summary>Debugger type proxy for a SingleProducerSingleConsumerQueue of T.</summary>
+        // ReSharper disable once InconsistentNaming
         private sealed class SingleProducerSingleConsumerQueue_DebugView
         {
             /// <summary>The queue being visualized.</summary>
@@ -314,6 +315,7 @@ namespace Spreads.Collections.Concurrent
 
             /// <summary>Gets the contents of the list.</summary>
             [DebuggerBrowsable(DebuggerBrowsableState.RootHidden)]
+            // ReSharper disable once UnusedMember.Local
             public T[] Items => new List<T>(_queue).ToArray();
         }
     }
