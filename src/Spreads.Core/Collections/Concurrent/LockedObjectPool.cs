@@ -20,8 +20,10 @@ namespace Spreads.Collections.Concurrent
 
         internal sealed class RightPaddedLockedObjectPoolCore : LockedObjectPoolCore<T>
         {
-            private Padding64 _padding64;
-            private Padding32 _padding32;
+#pragma warning disable 169
+            private readonly Padding64 _padding64;
+            private readonly Padding32 _padding32;
+#pragma warning restore 169
 
             public RightPaddedLockedObjectPoolCore(Func<T> factory, int size, bool allocateOnEmpty = true) : base(
                 factory, size, allocateOnEmpty)
@@ -35,22 +37,15 @@ namespace Spreads.Collections.Concurrent
     /// This pool is intended for storage and should not drop objects if there is space available.
     /// Good for native resources as opposed to <see cref="ObjectPool{T}"/>, which is only good for reducing managed objects allocations.
     /// </summary>
-    public class LockedObjectPoolCore<T> : LeftPad112, IObjectPool<T> where T : class
+    public class LockedObjectPoolCore<T> : ObjectPoolCoreBase<T>, IObjectPool<T> where T : class
     {
-        [DebuggerDisplay("{Value,nq}")]
-        private struct Element
-        {
-            internal T Value;
-        }
-
         internal bool AllocateOnEmpty;
 
-        private Func<T> _factory;
-        private readonly Element[] _items;
         private int _index;
         private int _locker;
+#pragma warning disable 649
         internal bool TraceLowCapacityAllocation;
-        private volatile bool _disposed;
+#pragma warning restore 649
 
         // TODO TypeLayout
         // In PerCoreObjectPool these objects are allocated sequentially
@@ -61,7 +56,7 @@ namespace Spreads.Collections.Concurrent
 
         public LockedObjectPoolCore(Func<T> factory, int size, bool allocateOnEmpty = true)
         {
-            _factory = factory;
+            Factory = factory ?? throw new ArgumentNullException(nameof(factory));
             AllocateOnEmpty = allocateOnEmpty;
             _items = new Element[size];
         }
@@ -70,9 +65,7 @@ namespace Spreads.Collections.Concurrent
         public T? Rent()
         {
             if (_disposed)
-            {
                 BuffersThrowHelper.ThrowDisposed<LockedObjectPool<T>>();
-            }
 
             var objects = _items;
             T obj = null;
@@ -85,9 +78,7 @@ namespace Spreads.Collections.Concurrent
             {
                 var spinner = new SpinWait();
                 while (0 != Interlocked.CompareExchange(ref _locker, 1, 0))
-                {
                     spinner.SpinOnce();
-                }
 
                 if (_index < objects.Length)
                 {
@@ -106,9 +97,7 @@ namespace Spreads.Collections.Concurrent
             if (allocate || (obj == null && AllocateOnEmpty))
             {
                 if (TraceLowCapacityAllocation && !allocate)
-                {
                     DoTrace();
-                }
 
                 obj = CreateNewObject();
             }
@@ -119,7 +108,7 @@ namespace Spreads.Collections.Concurrent
         [MethodImpl(MethodImplOptions.NoInlining)]
         private T CreateNewObject()
         {
-            return _factory?.Invoke();
+            return Factory();
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
@@ -132,9 +121,7 @@ namespace Spreads.Collections.Concurrent
         public bool Return(T obj)
         {
             if (_disposed)
-            {
                 return false;
-            }
 
             bool pooled;
 #if !NETCOREAPP
@@ -144,15 +131,11 @@ namespace Spreads.Collections.Concurrent
             {
                 var spinner = new SpinWait();
                 while (0 != Interlocked.CompareExchange(ref _locker, 1, 0))
-                {
                     spinner.SpinOnce();
-                }
 
                 pooled = _index != 0;
                 if (pooled)
-                {
                     _items[--_index].Value = obj;
-                }
             }
 #if !NETCOREAPP
             finally
@@ -162,19 +145,6 @@ namespace Spreads.Collections.Concurrent
             }
 
             return pooled;
-        }
-
-        public void Dispose()
-        {
-            _disposed = true;
-            _factory = null;
-            foreach (var o in _items)
-            {
-                if (o.Value != null && o is IDisposable idisp)
-                {
-                    idisp.Dispose();
-                }
-            }
         }
     }
 }

@@ -33,25 +33,26 @@ using System.Runtime.CompilerServices;
 
 namespace Spreads.Collections.Concurrent
 {
-    
     public class ObjectPool<T> : PerCoreObjectPool<T, ObjectPoolCore<T>> where T : class
     {
-        public ObjectPool(Func<T> factory, int perCoreSize) 
+        public ObjectPool(Func<T> factory, int perCoreSize)
             : base(() => new RightPaddedObjectPoolCore(factory, perCoreSize), factory, false)
         {
         }
-        
+
         internal sealed class RightPaddedObjectPoolCore : ObjectPoolCore<T>
         {
+#pragma warning disable 169
             private Padding64 _padding64;
             private Padding40 _padding40;
-            
+#pragma warning restore 169
+
             public RightPaddedObjectPoolCore(Func<T> factory, int size) : base(factory, size)
             {
             }
-        } 
+        }
     }
-    
+
     /// <summary>
     /// Generic implementation of object pooling pattern with predefined pool size limit. The main
     /// purpose is that limited number of frequently used objects can be kept in the pool for
@@ -69,29 +70,19 @@ namespace Spreads.Collections.Concurrent
     /// Rationale:
     ///    If there is no intent for reusing the object, do not use pool - just use "new".
     /// </summary>
-    public class ObjectPoolCore<T> : LeftPad112, IObjectPool<T> where T : class
+    public class ObjectPoolCore<T> : ObjectPoolCoreBase<T>, IObjectPool<T> where T : class
     {
-        [DebuggerDisplay("{Value,nq}")]
-        private struct Element
-        {
-            internal T Value;
-        }
-
         // factory is stored for the lifetime of the pool. We will call this only when pool needs to
         // expand. compared to "new T()", Func gives more flexibility to implementers and faster
         // than "new T()".
-        internal Func<T> Factory;
 
         // Storage for the pool objects. The first item is stored in a dedicated field because we
         // expect to be able to satisfy most requests from it.
         private T _firstItem;
 
-        private readonly Element[] _items;
-        
-        private volatile bool _disposed;
-        
 #if DETECT_LEAKS
-        private static readonly ConditionalWeakTable<T, LeakTracker> leakTrackers = new ConditionalWeakTable<T, LeakTracker>();
+        private static readonly ConditionalWeakTable<T, LeakTracker> leakTrackers =
+ new ConditionalWeakTable<T, LeakTracker>();
 
         private class LeakTracker : IDisposable
         {
@@ -133,7 +124,8 @@ namespace Spreads.Collections.Concurrent
 
         public ObjectPoolCore(Func<T> factory)
             : this(factory, Environment.ProcessorCount * 2)
-        { }
+        {
+        }
 
         public ObjectPoolCore(Func<T> factory, int size)
         {
@@ -160,19 +152,15 @@ namespace Spreads.Collections.Concurrent
         public T Rent()
         {
             if (_disposed)
-            {
                 BuffersThrowHelper.ThrowDisposed<LockedObjectPool<T>>();
-            }
-            
+
             // PERF: Examine the first element. If that fails, AllocateSlow will look at the remaining elements.
             // Note that the initial read is optimistically not synchronized. That is intentional.
             // We will interlock only when we have a candidate. in a worst case we may miss some
             // recently returned objects. Not a big deal.
             T inst = _firstItem;
             if (inst == null || inst != Interlocked.CompareExchange(ref _firstItem, null, inst))
-            {
                 inst = RentSlow();
-            }
 
 #if DETECT_LEAKS
             var tracker = new LeakTracker();
@@ -196,13 +184,8 @@ namespace Spreads.Collections.Concurrent
                 // We will interlock only when we have a candidate. in a worst case we may miss some
                 // recently returned objects. Not a big deal.
                 T inst = items[i].Value;
-                if (inst != null)
-                {
-                    if (inst == Interlocked.CompareExchange(ref items[i].Value, null, inst))
-                    {
-                        return inst;
-                    }
-                }
+                if (inst != null && inst == Interlocked.CompareExchange(ref items[i].Value, null, inst))
+                    return inst;
             }
 
             return CreateInstance();
@@ -220,10 +203,8 @@ namespace Spreads.Collections.Concurrent
         public bool Return(T obj)
         {
             if (_disposed)
-            {
                 return false;
-            }
-            
+
             Validate(obj);
             ForgetTrackedObject(obj);
 
@@ -253,7 +234,7 @@ namespace Spreads.Collections.Concurrent
                     return true;
                 }
             }
-            
+
             return false;
         }
 
@@ -318,8 +299,14 @@ namespace Spreads.Collections.Concurrent
             }
         }
 
-        public void Dispose()
+        public override void Dispose()
         {
+            lock (_items)
+            {
+                base.Dispose();
+                if (_firstItem != null && _firstItem is IDisposable disposable)
+                    disposable.Dispose();
+            }
         }
     }
 }
