@@ -59,7 +59,7 @@ namespace Spreads.Buffers
         /// and even new[]-ing has to zero memory, this is why it is slow.
         /// Please know what you are doing.
         /// </summary>
-        public static OffHeapMemoryPool<byte> OffHeapMemoryPool = new OffHeapMemoryPool<byte>((4 + Environment.ProcessorCount) * 1);
+        // public static OffHeapMemoryPool<byte> OffHeapMemoryPool = new OffHeapMemoryPool<byte>((4 + Environment.ProcessorCount) * 1);
 
         internal BufferPool()
         { }
@@ -90,17 +90,19 @@ namespace Spreads.Buffers
         /// </summary>
         internal static RetainedMemory<byte> RetainTemp(int length)
         {
+            
             if (length > Settings.LARGE_BUFFER_LIMIT)
             {
-                if (OffHeapMemoryPool != null)
-                {
-                    var mem = OffHeapMemoryPool.RentMemory(length);
-                    if (mem.IsDisposed)
-                    {
-                        BuffersThrowHelper.ThrowDisposed<OffHeapMemory<byte>>();
-                    }
-                    return mem.Retain(0, mem.Length, borrow: false);
-                }
+                // TODO Adjust per-core count in the main pool to 1 when size >  Settings.LARGE_BUFFER_LIMIT)
+                // if (OffHeapMemoryPool != null)
+                // {
+                //     var mem = OffHeapMemoryPool.RentMemory(length);
+                //     if (mem.IsDisposed)
+                //     {
+                //         BuffersThrowHelper.ThrowDisposed<OffHeapMemory<byte>>();
+                //     }
+                //     return mem.Retain(0, mem.Length, borrow: false);
+                // }
             }
             var rm = Shared.RetainMemory(length, false, false);
             Debug.Assert(rm.IsPinned);

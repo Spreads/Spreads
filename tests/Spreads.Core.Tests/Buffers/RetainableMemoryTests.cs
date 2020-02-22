@@ -17,9 +17,9 @@ namespace Spreads.Core.Tests.Buffers
         // TODO DS SM
         public static object[] NonPooledFactories = new object[]
         {
-            new object[] { (Func<int,RetainableMemory<byte>>)((len) => ArrayMemory<byte>.Create(new byte[BitUtil.FindNextPositivePowerOfTwo(len)], externallyOwned:true, pin:true))},
+            new object[] { (Func<int,RetainableMemory<byte>>)((len) => ArrayMemory<byte>.Create(new byte[BitUtil.FindNextPositivePowerOfTwo(len)], externallyOwned: true, pin:true))},
             new object[] { (Func<int,RetainableMemory<byte>>)((len) => ArrayMemory<byte>.Create(new byte[BitUtil.FindNextPositivePowerOfTwo(len)], externallyOwned: true, pin: true))},
-            new object[] { (Func<int,RetainableMemory<byte>>)((len) => new OffHeapMemory<byte>(len))}
+            new object[] { (Func<int,RetainableMemory<byte>>)((len) => PrivateMemory<byte>.Create(BitUtil.FindNextPositivePowerOfTwo(len)))}
         };
 
         // ReSharper disable once ClassNeverInstantiated.Local
@@ -46,7 +46,7 @@ namespace Spreads.Core.Tests.Buffers
         [Test, Explicit("")]
         public void OffHeapMemoryLayout()
         {
-            TypeLayout.PrintLayout<OffHeapMemory<byte>>();
+            TypeLayout.PrintLayout<PrivateMemory<byte>>();
         }
 
 

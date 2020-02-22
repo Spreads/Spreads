@@ -172,7 +172,7 @@ namespace Spreads.Buffers
         {
             if (IsPooled)
             {
-                ThrowDisposed<ArrayMemory<T>>();
+                ThrowDisposed<PrivateMemory<T>>();
             }
 
             // if disposed Pointer & _len are null/0, no way to corrupt data, will just throw
@@ -243,7 +243,7 @@ namespace Spreads.Buffers
         {
             if (IsDisposed)
             {
-                ThrowDisposed<ArrayMemory<T>>();
+                ThrowDisposed<PrivateMemory<T>>();
             }
 
             if (_array == null)

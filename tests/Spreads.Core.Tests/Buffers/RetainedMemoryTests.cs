@@ -111,7 +111,7 @@ namespace Spreads.Core.Tests.Buffers
             rm1.Dispose();
             rm.Dispose();
 
-            rm = BufferPool.OffHeapMemoryPool.RentMemory(1000).Retain();
+            rm = BufferPool.Retain(1000);
 
             initialPtr = (IntPtr)rm.Pointer;
 
