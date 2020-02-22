@@ -9,7 +9,7 @@ namespace Spreads.Collections.Concurrent
     public class PerCoreObjectPool<T, TPoolImpl> : IObjectPool<T> where TPoolImpl : IObjectPool<T> where T : class
     {
         private readonly Func<T> _objFactory;
-        private const int MaxPools = 64;
+        private const int MaxPools = 128;
 
         private readonly PoolEntry[] _perCorePoolEntries;
 

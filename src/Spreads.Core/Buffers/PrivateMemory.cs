@@ -22,34 +22,19 @@ namespace Spreads.Buffers
     /// The memory for blittable types is allocated off-heap, for other types the memory is backed by simple GC-owned arrays.  
     /// </remarks>
     /// <typeparam name="T"></typeparam>
-    public sealed unsafe class PrivateMemory<T> : RetainableMemory<T>
+    public sealed class PrivateMemory<T> : RetainableMemory<T>
     {
         /// <summary>
         /// Size of PrivateMemory object with header and method table pointer on x64.
         /// </summary>
         internal const int ObjectSize = 48;
 
-        private static readonly bool _inited = Init();
-
-        private static bool Init()
-        {
-            Mem.OptionSetEnabled(Mem.Option.EagerCommit, true);
-            Mem.OptionSetEnabled(Mem.Option.LargeOsPages, true);
-            Mem.OptionSetEnabled(Mem.Option.ResetDecommits, true);
-            Mem.OptionSetEnabled(Mem.Option.PageReset, true);
-            Mem.OptionSetEnabled(Mem.Option.SegmentReset, true);
-            Mem.OptionSetEnabled(Mem.Option.AbandonedPageReset, true);
-            Mem.OptionSetEnabled(Mem.Option.EagerRegionCommit, true);
-            return true;
-        }
-
         // Size of PrivateMemory object is 48 bytes. It's the main building block
-        // for data containers and is often non short-lived, so pool aggressively.
+        // for data containers and is often not short-lived, so pool aggressively.
         // Round up to pow2 = 64 bytes, use 16 kb per core per type, which gives 256 items.
 
         private static readonly ObjectPool<PrivateMemory<T>> ObjectPool =
-            new ObjectPool<PrivateMemory<T>>(() => new PrivateMemory<T>(),
-                Environment.ProcessorCount * ((16 * 1024) / BitUtil.FindNextPositivePowerOfTwo(ObjectSize)));
+            new ObjectPool<PrivateMemory<T>>(() => new PrivateMemory<T>(), 16 * 1024 / BitUtil.FindNextPositivePowerOfTwo(ObjectSize));
 
         // In this implementation all blittable (pinnable) types are backed by 
         // native memory (from Marshal.AllocHGlobal/VirtualAlloc/similar)
@@ -59,7 +44,6 @@ namespace Spreads.Buffers
 
         internal T[] _array;
         internal int _offset;
-
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private PrivateMemory()
@@ -78,7 +62,16 @@ namespace Spreads.Buffers
         /// Create a <see cref="PrivateMemory{T}"/> from a <see cref="RetainableMemoryPool{T}"/>.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static unsafe PrivateMemory<T> Create(int length, RetainableMemoryPool<T> pool)
+        internal static PrivateMemory<T> Create(int length, RetainableMemoryPool<T> pool)
+        {
+            return Create(length, pool, CpuIdCache.GetCurrentCpuId());
+        }
+
+        /// <summary>
+        /// Create a <see cref="PrivateMemory{T}"/> from a <see cref="RetainableMemoryPool{T}"/>.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static unsafe PrivateMemory<T> Create(int length, RetainableMemoryPool<T> pool, int cpuId)
         {
             var alignedSize = (uint) BitUtil.FindNextPositivePowerOfTwo(Unsafe.SizeOf<T>());
 
@@ -87,7 +80,7 @@ namespace Spreads.Buffers
 
             length = Math.Max(length, Settings.MIN_POOLED_BUFFER_LEN);
 
-            var privateMemory = ObjectPool.Rent();
+            var privateMemory = ObjectPool.Rent(cpuId);
 
             // Clear counter (with flags, PM does not have any flags).
             // We cannot tell if ObjectPool allocated a new one or took from pool
@@ -119,7 +112,7 @@ namespace Spreads.Buffers
 
         private unsafe void AllocateBlittable(uint bytesLength, uint alignment)
         {
-            if (!_inited) ThrowHelper.FailFast();
+            if (!NativeAllocatorSettings.Initialized) ThrowHelper.ThrowInvalidOperationException();
 
             ThrowHelper.DebugAssert(!VecTypeHelper<T>.RuntimeVecInfo.IsReferenceOrContainsReferences);
 
@@ -235,7 +228,6 @@ namespace Spreads.Buffers
 
             _offset = -1; // make it unusable if not re-initialized
             PoolIndex = default; // after ExternallyOwned check!
-
 
             // We cannot tell if this object is pooled, so we rely on finalizer
             // that will be called only if the object is not in the pool.

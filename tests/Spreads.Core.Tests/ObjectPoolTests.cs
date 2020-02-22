@@ -83,7 +83,7 @@ namespace Spreads.Core.Tests
             var perCoreLockedObjectPool =
                 new LockedObjectPool<DummyPoolable>(dummyFactory, perCoreCapacity, allocateOnEmpty: false);
 
-            var queues = Enumerable.Range(0, 1)
+            var queues = Enumerable.Range(0, 4)
                 .Select(x => new SingleProducerSingleConsumerQueue<DummyPoolable>()).ToArray();
 
             var cts = new CancellationTokenSource();
@@ -102,7 +102,7 @@ namespace Spreads.Core.Tests
 
                     while (!cts.IsCancellationRequested)
                     {
-                        var item = perCoreLockedObjectPool.Rent(0);
+                        var item = perCoreLockedObjectPool.Rent();
                         if (item != null)
                         {
                             queue.Enqueue(item);
@@ -120,7 +120,7 @@ namespace Spreads.Core.Tests
                     {
                         if (queue.TryDequeue(out var item))
                         {
-                            perCoreLockedObjectPool.Return(item, 6);
+                            perCoreLockedObjectPool.Return(item);
                             count++;
                         }
                     }

@@ -4,10 +4,11 @@ using System;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using Spreads.Native;
 
 namespace Spreads
 {
-    internal class AdditionalCorrectnessChecks
+    internal static class AdditionalCorrectnessChecks
     {
         /// <summary>
         /// A JIT-time constant that could be enabled via <see cref="Settings.DoAdditionalCorrectnessChecks"/>
@@ -27,14 +28,31 @@ namespace Spreads
 #endif
     }
 
-    internal class LeaksDetection
+    internal static class LeaksDetection
     {
 #if DEBUG
         public static readonly bool Enabled = true;
 #else
         public static readonly bool Enabled = Settings._doDetectBufferLeaks;
 #endif
-    } 
+    }
+
+    internal static class NativeAllocatorSettings
+    {
+        internal static readonly bool Initialized = Init();
+
+        private static bool Init()
+        {
+            Mem.OptionSetEnabled(Mem.Option.EagerCommit, true);
+            Mem.OptionSetEnabled(Mem.Option.LargeOsPages, true);
+            Mem.OptionSetEnabled(Mem.Option.ResetDecommits, true);
+            Mem.OptionSetEnabled(Mem.Option.PageReset, true);
+            Mem.OptionSetEnabled(Mem.Option.SegmentReset, true);
+            Mem.OptionSetEnabled(Mem.Option.AbandonedPageReset, true);
+            Mem.OptionSetEnabled(Mem.Option.EagerRegionCommit, true);
+            return true;
+        }
+    }
 
     /// <summary>
     /// Global settings.
@@ -42,7 +60,7 @@ namespace Spreads
     public static class Settings
     {
         internal const int PAGE_SIZE = 4096;
-        
+
         /// <summary>
         /// 128 bytes cache line already exists in some CPUs.
         /// </summary>
@@ -51,9 +69,9 @@ namespace Spreads
         /// https://stackoverflow.com/questions/29199779/false-sharing-and-128-byte-alignment-padding
         /// </remarks>
         internal const int SAFE_CACHE_LINE = 128;
-        
+
         internal const int AVX512_ALIGNMENT = 64;
-        
+
         internal const int LARGE_BUFFER_LIMIT = 128 * 1024;
 
         /// <summary>
@@ -156,6 +174,7 @@ namespace Spreads
                 {
                     ThrowHelper.ThrowArgumentOutOfRangeException();
                 }
+
                 _lz4CompressionLevel = value;
                 BinarySerializer.UpdateLevels();
             }
@@ -181,6 +200,7 @@ namespace Spreads
                 {
                     ThrowHelper.ThrowArgumentOutOfRangeException();
                 }
+
                 _zstdCompressionLevel = value;
                 BinarySerializer.UpdateLevels();
             }
@@ -199,6 +219,7 @@ namespace Spreads
                 {
                     ThrowHelper.ThrowArgumentOutOfRangeException();
                 }
+
                 _zlibCompressionLevel = value;
                 BinarySerializer.UpdateLevels();
             }
@@ -256,6 +277,7 @@ namespace Spreads
                 {
                     value = 500;
                 }
+
                 _compressionStartFrom = value;
             }
         }
