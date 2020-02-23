@@ -63,7 +63,7 @@ namespace Spreads.Buffers
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static PrivateMemory<T> Create(int length, RetainableMemoryPool<T> pool)
         {
-            return Create(length, pool, CpuIdCache.GetCurrentCpuId());
+            return Create(length, pool, Cpu.GetCurrentCoreId());
         }
 
         /// <summary>
@@ -220,7 +220,7 @@ namespace Spreads.Buffers
             else
             {
                 Mem.Free((byte*) _pointer);
-                BuffersStatistics.AllocatedNativeMemory.InterlockedAdd(-_length);
+                BuffersStatistics.ReleasedNativeMemory.InterlockedAdd(_length);
                 _pointer = null;
             }
 

@@ -2,7 +2,6 @@
 using System.Runtime.CompilerServices;
 using System.Threading;
 using Spreads.Native;
-using Spreads.Utils;
 
 namespace Spreads.Threading
 {
@@ -13,18 +12,11 @@ namespace Spreads.Threading
     /// </summary>
     public class PerCoreCounter
     {
-        private const int MaxCounters = 64;
         private readonly RightPaddedCounterCore[] _perCoreCounters;
-        private readonly int _indexMask;
-
+        
         public PerCoreCounter()
         {
-            // Here unused counters is not a problem (vs object pool with round-robin)
-            // so we could use power of two and avoid expensive int division.
-            var length = BitUtil.FindNextPositivePowerOfTwo(Math.Min(Environment.ProcessorCount, MaxCounters));
-            _indexMask = length - 1;
-
-            var perCoreCounters = new RightPaddedCounterCore[length];
+            var perCoreCounters = new RightPaddedCounterCore[Cpu.CoreCount];
             for (int i = 0; i < perCoreCounters.Length; i++)
             {
                 perCoreCounters[i] = new RightPaddedCounterCore();
@@ -53,7 +45,7 @@ namespace Spreads.Threading
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Add(long value)
         {
-            Add(value, CpuIdCache.GetCurrentCpuId());
+            Add(value, Cpu.GetCurrentCoreId());
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -66,7 +58,7 @@ namespace Spreads.Threading
             else
             {
                 var perCoreCounters = _perCoreCounters;
-                var index = cpuId & _indexMask;
+                var index = cpuId;
                 perCoreCounters[index].Value += value;
             }
         }
@@ -74,21 +66,21 @@ namespace Spreads.Threading
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void InterlockedAdd(long value)
         {
-            InterlockedAdd(value, CpuIdCache.GetCurrentCpuId());
+            InterlockedAdd(value, Cpu.GetCurrentCoreId());
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal void InterlockedAdd(long value, int cpuId)
         {
             var perCoreCounters = _perCoreCounters;
-            var index = cpuId & _indexMask;
+            var index = cpuId;
             Interlocked.Add(ref perCoreCounters[index].Value, value);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Increment()
         {
-            Increment(CpuIdCache.GetCurrentCpuId());
+            Increment(Cpu.GetCurrentCoreId());
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -101,7 +93,7 @@ namespace Spreads.Threading
             else
             {
                 var perCoreCounters = _perCoreCounters;
-                var index = cpuId & _indexMask;
+                var index = cpuId;
                 perCoreCounters[index].Value++;
             }
         }
@@ -109,21 +101,21 @@ namespace Spreads.Threading
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void InterlockedIncrement()
         {
-            InterlockedIncrement(CpuIdCache.GetCurrentCpuId());
+            InterlockedIncrement(Cpu.GetCurrentCoreId());
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal void InterlockedIncrement(int cpuId)
         {
             var perCoreCounters = _perCoreCounters;
-            var index = cpuId & _indexMask;
+            var index = cpuId;
             Interlocked.Increment(ref perCoreCounters[index].Value);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Decrement()
         {
-            Decrement(CpuIdCache.GetCurrentCpuId());
+            Decrement(Cpu.GetCurrentCoreId());
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -136,7 +128,7 @@ namespace Spreads.Threading
             else
             {
                 var perCoreCounters = _perCoreCounters;
-                var index = cpuId & _indexMask;
+                var index = cpuId;
                 perCoreCounters[index].Value--;
             }
         }
@@ -144,14 +136,14 @@ namespace Spreads.Threading
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void InterlockedDecrement()
         {
-            InterlockedDecrement(CpuIdCache.GetCurrentCpuId());
+            InterlockedDecrement(Cpu.GetCurrentCoreId());
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal void InterlockedDecrement(int cpuId)
         {
             var perCoreCounters = _perCoreCounters;
-            var index = cpuId & _indexMask;
+            var index = cpuId;
             Interlocked.Decrement(ref perCoreCounters[index].Value);
         }
 

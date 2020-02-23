@@ -10,6 +10,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using ObjectLayoutInspector;
+using Spreads.Buffers;
 using Spreads.Collections.Concurrent;
 using Spreads.Utils;
 
@@ -57,8 +58,8 @@ namespace Spreads.Core.Tests.Collections.Concurrent
         [MethodImpl(MethodImplOptions.NoInlining | MethodImplOptions.AggressiveOptimization)]
         internal void PoolBenchmark<T>(T pool, string testCase) where T : IObjectPool<DummyPoolable>
         {
-            var count = 2_000_000;
-            var threads = Environment.ProcessorCount;
+            var count =1_000_000;
+            var threads = Environment.ProcessorCount * 4;
             using (Benchmark.Run(testCase, count * 2 * threads))
             {
                 Task.WaitAll(Enumerable.Range(0, threads).Select(_ => Task.Factory.StartNew(() =>

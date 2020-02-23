@@ -4,14 +4,14 @@ using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using Spreads.Buffers;
 using Spreads.Native;
+using Spreads.Utils;
 
 namespace Spreads.Collections.Concurrent
 {
     public class PerCoreObjectPool<T, TPoolImpl> : IObjectPool<T> where TPoolImpl : IObjectPool<T> where T : class
     {
         private readonly Func<T> _objFactory;
-        private const int MaxPools = 128;
-
+        
         protected readonly PoolEntry[] _perCorePoolEntries;
 
         private readonly ConcurrentQueue<T> _unboundedPool;
@@ -19,7 +19,7 @@ namespace Spreads.Collections.Concurrent
 
         protected PerCoreObjectPool(Func<TPoolImpl> perCorePoolFactory, Func<T> objFactory, bool unbounded)
         {
-            var perCorePools = new PoolEntry[Math.Min(Environment.ProcessorCount, MaxPools)];
+            var perCorePools = new PoolEntry[Cpu.CoreCount];
             for (int i = 0; i < perCorePools.Length; i++)
             {
                 perCorePools[i] = new PoolEntry(perCorePoolFactory());
@@ -37,12 +37,12 @@ namespace Spreads.Collections.Concurrent
 
         public T Rent()
         {
-            return Rent(CpuIdCache.GetCurrentCpuId());
+            return Rent(Cpu.GetCurrentCoreId());
         }
 
         public bool Return(T obj)
         {
-            return Return(obj, CpuIdCache.GetCurrentCpuId());
+            return Return(obj, Cpu.GetCurrentCoreId());
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -52,7 +52,7 @@ namespace Spreads.Collections.Concurrent
                 BuffersThrowHelper.ThrowDisposed<LockedObjectPool<T>>();
 
             var poolEntries = _perCorePoolEntries;
-            var index = cpuId % poolEntries.Length;
+            var index = cpuId;
             T? obj;
             
             for (int i = 0; i <= poolEntries.Length; i++)
@@ -67,9 +67,7 @@ namespace Spreads.Collections.Concurrent
             }
 
             if (_unboundedPool != null && _unboundedPool.TryDequeue(out obj))
-            {
                 return obj;
-            }
 
             return _objFactory();
         }
@@ -78,12 +76,10 @@ namespace Spreads.Collections.Concurrent
         internal bool Return(T obj, int cpuId)
         {
             if (_disposed)
-            {
                 return false;
-            }
 
             var poolEntries = _perCorePoolEntries;
-            int index = cpuId % poolEntries.Length;
+            int index = cpuId;
             
             for (int i = 0; i <= poolEntries.Length; i++)
             {

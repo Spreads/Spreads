@@ -4,6 +4,7 @@ using System.Runtime;
 using System.Threading;
 using System.Threading.Tasks;
 using Spreads.Core.Tests;
+using Spreads.Core.Tests.Buffers;
 using Spreads.Core.Tests.Collections.Concurrent;
 using Spreads.Core.Tests.Serialization;
 
@@ -38,7 +39,7 @@ namespace Spreads.Run
             ExecutionContext.SuppressFlow();
             Settings.SharedSpinLockNotificationPort = 53412;
 
-            var test = new ObjectPoolTests();
+            var test = new RetainableMemoryPoolTests();
             test.PoolPerformance();
 
             // Console.WriteLine("Finished, press enter to exit...");

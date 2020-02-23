@@ -160,7 +160,7 @@ namespace Spreads.Buffers
         {
             var maxBucketsToTry = MaxBucketsToTry; // TODO per call
 
-            var cpuId = CpuIdCache.GetCurrentCpuId();
+            var cpuId = Cpu.GetCurrentCoreId();
 
             minBufferSize = Math.Max(MinBufferLength, minBufferSize);
 
@@ -411,7 +411,7 @@ namespace Spreads.Buffers
             internal readonly int BufferLength;
 
             public MemoryBucket(RetainableMemoryPool<T> pool, int bufferLength, int perCoreSize)
-                : base(() => new RightPaddedPerCoreMemoryBucket(() => pool.Factory(bufferLength, CpuIdCache.GetCurrentCpuId()), perCoreSize),
+                : base(() => new RightPaddedPerCoreMemoryBucket(() => pool.Factory(bufferLength, Cpu.GetCurrentCoreId()), perCoreSize),
                     () => null, // RMP could look inside larger-size buckets and then allocates explicitly
                     unbounded: false)
             {
