@@ -3,7 +3,6 @@ using System.Diagnostics;
 using System.Runtime;
 using System.Threading;
 using System.Threading.Tasks;
-using Spreads.Core.Tests;
 using Spreads.Core.Tests.Buffers;
 using Spreads.Core.Tests.Collections.Concurrent;
 using Spreads.Core.Tests.Serialization;
@@ -42,8 +41,8 @@ namespace Spreads.Run
             var test = new RetainableMemoryPoolTests();
             test.PoolPerformance();
 
-            // Console.WriteLine("Finished, press enter to exit...");
-            // Console.ReadLine();
+            Console.WriteLine("Finished, press enter to exit...");
+            Console.ReadLine();
         }
 
         private static void IlwdBenchmark()

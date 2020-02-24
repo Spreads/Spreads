@@ -47,13 +47,6 @@ namespace Spreads.Collections.Concurrent
         internal bool TraceLowCapacityAllocation;
 #pragma warning restore 649
 
-        // TODO TypeLayout
-        // In PerCoreObjectPool these objects are allocated sequentially
-        // and the _locker field could be on the same cache line for 
-        // multiple objects without padding. Perf difference almost 2x!
-        // private long _padding0;
-        // private long _padding1;
-
         public LockedObjectPoolCore(Func<T> factory, int size, bool allocateOnEmpty = true)
         {
             Factory = factory ?? throw new ArgumentNullException(nameof(factory));
@@ -61,17 +54,13 @@ namespace Spreads.Collections.Concurrent
             _items = new Element[size];
         }
 
-        
         public int Index => _index;
         
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public T? Rent()
         {
-            if (_disposed)
-                BuffersThrowHelper.ThrowDisposed<LockedObjectPool<T>>();
-
             var items = _items;
-            T obj = null;
+            T? obj = null;
 
             var allocate = false;
 #if !NETCOREAPP
@@ -87,8 +76,10 @@ namespace Spreads.Collections.Concurrent
 
                 if (_index < items.Length)
                 {
-                    obj = items[_index].Value;
-                    items[_index++] = default;
+                    ref var item = ref items[_index];
+                    obj = item.Value;
+                    item = default;
+                    _index++;
                     allocate = obj == null;
                 }
             }
@@ -125,9 +116,6 @@ namespace Spreads.Collections.Concurrent
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool Return(T obj)
         {
-            if (_disposed)
-                return false;
-
             bool pooled;
 #if !NETCOREAPP
             RuntimeHelpers.PrepareConstrainedRegions();

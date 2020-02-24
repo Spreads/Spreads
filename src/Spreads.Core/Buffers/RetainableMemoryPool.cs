@@ -187,16 +187,12 @@ namespace Spreads.Buffers
                     ThrowHelper.DebugAssert(!buffer.IsDisposed && buffer.ReferenceCount == 0, "!buffer.IsDisposed");
 
                     if (log.IsEnabled())
-                    {
                         log.BufferRented(buffer.GetHashCode(), buffer.Length, Id, _buckets[i].GetHashCode());
-                    }
 
                     buffer.IsPooled = false;
 
                     if (AddStackTraceOnRent)
-                    {
                         buffer.Tag = Environment.StackTrace;
-                    }
 
                     return buffer;
                 }
@@ -240,26 +236,18 @@ namespace Spreads.Buffers
         internal bool ReturnInternal(RetainableMemory<T> memory, bool clearMemory = true)
         {
             if (_disposed)
-            {
                 return false;
-            }
 
             if (memory.PoolIndex != PoolIdx)
             {
                 if (memory.IsDisposed)
-                {
                     ThrowDisposed<RetainableMemory<T>>();
-                }
                 else
-                {
                     ThrowNotFromPool<RetainableMemory<T>>();
-                }
             }
 
             if (memory.IsPooled)
-            {
                 ThrowAlreadyPooled<RetainableMemory<T>>();
-            }
 
             // Determine with what bucket this buffer length is associated
             int bucket = SelectBucketIndex(memory.LengthPow2);
@@ -273,26 +261,28 @@ namespace Spreads.Buffers
                 if (clearMemory || IsRentAlwaysClean || _typeHasReferences)
                 {
                     if (!memory.SkipCleaning)
-                    {
-                        var span = memory.GetSpan();
-                        span.Clear();
-                    }
+                        memory.GetSpan().Clear();
                 }
-
+                
                 memory.SkipCleaning = false;
-                // this sets memory.IsPooled to true on success
-                if (!_buckets[bucket].Return(memory))
+
                 {
-                    throw new NotImplementedException(); // TODO
+                    // Here we own memory and try to return it. If return is unsuccessful
+                    // then we still do own the instance and could unset the property 
+                    // to false. But if we set the property to the return value of
+                    // bucket.Return then in the true case the memory could be already 
+                    // rented by the time the field is set, so don't do that: `memory.IsPooled = _buckets[bucket].Return(memory)`
+                    memory.IsPooled = true;
+                    var reallyPooled = _buckets[bucket].Return(memory);
+                    if (!reallyPooled)
+                        memory.IsPooled = false;
                 }
             }
 
             // Log that the buffer was returned
             var log = RetainableMemoryPoolEventSource.Log;
             if (log.IsEnabled())
-            {
                 log.BufferReturned(memory.GetHashCode(), memory.Length, Id);
-            }
 
             return memory.IsPooled;
         }
@@ -411,7 +401,7 @@ namespace Spreads.Buffers
             internal readonly int BufferLength;
 
             public MemoryBucket(RetainableMemoryPool<T> pool, int bufferLength, int perCoreSize)
-                : base(() => new RightPaddedPerCoreMemoryBucket(() => pool.Factory(bufferLength, Cpu.GetCurrentCoreId()), perCoreSize),
+                : base(() => new PerCoreMemoryBucket(() => pool.Factory(bufferLength, Cpu.GetCurrentCoreId()), perCoreSize),
                     () => null, // RMP could look inside larger-size buckets and then allocates explicitly
                     unbounded: false)
             {
@@ -423,23 +413,15 @@ namespace Spreads.Buffers
             {
                 return _pool.Factory(BufferLength, cpuId);
             }
-
-            private sealed class RightPaddedPerCoreMemoryBucket : PerCoreMemoryBucket
-            {
-#pragma warning disable 169
-                private readonly Padding64 _padding64;
-                private readonly Padding32 _padding32;
-#pragma warning restore 169
-
-                public RightPaddedPerCoreMemoryBucket(Func<RetainableMemory<T>> factory, int size) : base(
-                    factory, size)
-                {
-                }
-            }
         }
 
-        private class PerCoreMemoryBucket : LockedObjectPoolCore<RetainableMemory<T>>
+        private sealed class PerCoreMemoryBucket : LockedObjectPoolCore<RetainableMemory<T>>
         {
+#pragma warning disable 169
+            private readonly Padding64 _padding64;
+            private readonly Padding64 _padding32;
+#pragma warning restore 169
+
             public PerCoreMemoryBucket(Func<RetainableMemory<T>> factory, int perCoreSize) : base(factory, perCoreSize, allocateOnEmpty: false)
             {
             }

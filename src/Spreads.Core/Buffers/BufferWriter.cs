@@ -17,7 +17,7 @@ namespace Spreads.Buffers
     /// </summary>
     public unsafe class BufferWriter : IBufferWriter<byte>, IDisposable
     {
-        private static readonly ObjectPool<BufferWriter> ObjectPool = new ObjectPool<BufferWriter>(() => new BufferWriter(), Environment.ProcessorCount * 4);
+        private static readonly ObjectPool<BufferWriter> ObjectPool = new ObjectPool<BufferWriter>(() => new BufferWriter(), perCoreSize: 4);
 
         internal const int MinLen = 16 * 1024;
         internal const int MaxLen = 1024 * 1024 * 1024;

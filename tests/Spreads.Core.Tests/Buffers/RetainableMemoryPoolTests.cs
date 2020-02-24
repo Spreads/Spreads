@@ -38,17 +38,24 @@ namespace Spreads.Core.Tests.Buffers
         internal void RmpBenchmark<T>(RetainableMemoryPool<T> pool, string testCase)
         {
             var count = 10_000_000;
-            var threads = Environment.ProcessorCount;
+            var threads = Environment.ProcessorCount / 3;
             using (Benchmark.Run(testCase, count * 2 * threads))
             {
                 Task.WaitAll(Enumerable.Range(0, threads).Select(_ => Task.Factory.StartNew(() =>
                 {
-                    for (int i = 0; i < count; i++)
+                    try
                     {
-                        var x1 = pool.RentMemory(64 * 1024);
-                        var x2 = pool.RentMemory(64 * 1024);
-                        x1.Dispose();
-                        x2.Dispose();
+                        for (int i = 0; i < count; i++)
+                        {
+                            var x1 = pool.RentMemory(64 * 1024);
+                            var x2 = pool.RentMemory(64 * 1024);
+                            x1.Dispose();
+                            x2.Dispose();
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"EXCEPTION: {ex}");
                     }
                 }, TaskCreationOptions.LongRunning)).ToArray());
             }
@@ -59,7 +66,7 @@ namespace Spreads.Core.Tests.Buffers
         {
             var pool = ArrayPool<T>.Shared;
             var count = 10_000_000;
-            var threads = Environment.ProcessorCount;
+            var threads = Environment.ProcessorCount / 3;
             using (Benchmark.Run("array_pool", count * 2 * threads))
             {
                 Task.WaitAll(Enumerable.Range(0, threads).Select(_ => Task.Factory.StartNew(() =>

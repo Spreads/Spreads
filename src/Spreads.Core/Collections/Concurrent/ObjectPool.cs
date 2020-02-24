@@ -151,9 +151,6 @@ namespace Spreads.Collections.Concurrent
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public T Rent()
         {
-            if (_disposed)
-                BuffersThrowHelper.ThrowDisposed<LockedObjectPool<T>>();
-
             // PERF: Examine the first element. If that fails, AllocateSlow will look at the remaining elements.
             // Note that the initial read is optimistically not synchronized. That is intentional.
             // We will interlock only when we have a candidate. in a worst case we may miss some
@@ -202,9 +199,6 @@ namespace Spreads.Collections.Concurrent
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool Return(T obj)
         {
-            if (_disposed)
-                return false;
-
             Validate(obj);
             ForgetTrackedObject(obj);
 

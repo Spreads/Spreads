@@ -1,38 +1,38 @@
-﻿using System;
+﻿// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using Spreads.Buffers;
 using Spreads.Native;
-using Spreads.Utils;
 
 namespace Spreads.Collections.Concurrent
 {
     public class PerCoreObjectPool<T, TPoolImpl> : IObjectPool<T> where TPoolImpl : IObjectPool<T> where T : class
     {
         private readonly Func<T> _objFactory;
-        
-        protected readonly PoolEntry[] _perCorePoolEntries;
+
+        protected readonly TPoolImpl[] _perCorePools;
 
         private readonly ConcurrentQueue<T> _unboundedPool;
+
         private volatile bool _disposed;
 
         protected PerCoreObjectPool(Func<TPoolImpl> perCorePoolFactory, Func<T> objFactory, bool unbounded)
         {
-            var perCorePools = new PoolEntry[Cpu.CoreCount];
-            for (int i = 0; i < perCorePools.Length; i++)
+            _perCorePools = new TPoolImpl[Cpu.CoreCount];
+            for (int i = 0; i < _perCorePools.Length; i++)
             {
-                perCorePools[i] = new PoolEntry(perCorePoolFactory());
+                _perCorePools[i] = perCorePoolFactory();
             }
-
-            _perCorePoolEntries = perCorePools;
-
+            
             _objFactory = objFactory;
 
             if (unbounded)
-            {
                 _unboundedPool = new ConcurrentQueue<T>();
-            }
         }
 
         public T Rent()
@@ -50,23 +50,25 @@ namespace Spreads.Collections.Concurrent
         {
             if (_disposed)
                 BuffersThrowHelper.ThrowDisposed<LockedObjectPool<T>>();
-
-            var poolEntries = _perCorePoolEntries;
-            var index = cpuId;
-            T? obj;
             
-            for (int i = 0; i <= poolEntries.Length; i++)
+            T? obj;
+
+            for (int i = 0; i <= Cpu.CoreCount; i++)
             {
-                ref var entry = ref poolEntries[index];
-                if ((obj = entry.Pool.Rent()) != null)
-                {
+                if ((obj = _perCorePools[cpuId].Rent()) != null)
                     return obj;
-                }
-                
-                if (++index == poolEntries.Length) index = 0;
+
+                if (++cpuId == Cpu.CoreCount)
+                    cpuId = 0;
             }
 
-            if (_unboundedPool != null && _unboundedPool.TryDequeue(out obj))
+            return RentSlow();
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private T? RentSlow()
+        {
+            if (_unboundedPool != null && _unboundedPool.TryDequeue(out var obj))
                 return obj;
 
             return _objFactory();
@@ -78,20 +80,21 @@ namespace Spreads.Collections.Concurrent
             if (_disposed)
                 return false;
 
-            var poolEntries = _perCorePoolEntries;
-            int index = cpuId;
-            
-            for (int i = 0; i <= poolEntries.Length; i++)
+            for (int i = 0; i <= Cpu.CoreCount; i++)
             {
-                ref var entry = ref poolEntries[index];
-                if (entry.Pool.Return(obj))
-                {
+                if (_perCorePools[cpuId].Return(obj))
                     return true;
-                }
 
-                if (++index == poolEntries.Length) index = 0;
+                if (++cpuId == Cpu.CoreCount)
+                    cpuId = 0;
             }
 
+            return ReturnSlow(obj);
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private bool ReturnSlow(T obj)
+        {
             if (_unboundedPool != null)
             {
                 _unboundedPool.Enqueue(obj);
@@ -103,15 +106,15 @@ namespace Spreads.Collections.Concurrent
 
         public void Dispose()
         {
-            lock (_perCorePoolEntries)
+            lock (_perCorePools)
             {
                 if (_disposed)
                     return;
                 _disposed = true;
 
-                foreach (var entry in _perCorePoolEntries)
+                foreach (var pool in _perCorePools)
                 {
-                    entry.Pool.Dispose();
+                    pool.Dispose();
                 }
 
                 if (_unboundedPool != null)
@@ -124,24 +127,14 @@ namespace Spreads.Collections.Concurrent
             }
         }
 
-        protected struct PoolEntry
-        {
-            public TPoolImpl Pool;
-
-            public PoolEntry(TPoolImpl pool)
-            {
-                Pool = pool;
-            }
-        }
-        
         /// <summary>
         /// For diagnostics only.
         /// </summary>
         internal IEnumerable<T> EnumerateItems()
         {
-            foreach (var poolEntry in _perCorePoolEntries)
+            foreach (var poolImpl in _perCorePools)
             {
-                if (poolEntry.Pool is ObjectPoolCoreBase<T> pool)
+                if (poolImpl is ObjectPoolCoreBase<T> pool)
                 {
                     // ReSharper disable once HeapView.ObjectAllocation.Possible
                     // ReSharper disable once HeapView.ObjectAllocation

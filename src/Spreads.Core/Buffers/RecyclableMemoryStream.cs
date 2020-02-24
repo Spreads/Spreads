@@ -70,7 +70,7 @@ namespace Spreads.Buffers
     /// </remarks>
     public sealed class RecyclableMemoryStream : MemoryStream
     {
-        private static readonly ObjectPool<RecyclableMemoryStream> Pool = new ObjectPool<RecyclableMemoryStream>(() => new RecyclableMemoryStream(), Environment.ProcessorCount * 16);
+        private static readonly ObjectPool<RecyclableMemoryStream> Pool = new ObjectPool<RecyclableMemoryStream>(() => new RecyclableMemoryStream(), 16);
 
         private const long MaxStreamLength = int.MaxValue;
 

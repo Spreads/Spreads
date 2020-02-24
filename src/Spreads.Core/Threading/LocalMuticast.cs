@@ -58,7 +58,7 @@ namespace Spreads.Threading
 
             _bufferLength = msgSize;
 
-            _sendArgsPool = new ObjectPool<SocketAsyncEventArgs>(SendArgsFactory, Environment.ProcessorCount * 4);
+            _sendArgsPool = new ObjectPool<SocketAsyncEventArgs>(SendArgsFactory, 4);
 
             var multicastAddress = IPAddress.Parse("239.199.99.9");
             _mcEndPoint = new CachedEndPoint(new IPEndPoint(multicastAddress, port));
