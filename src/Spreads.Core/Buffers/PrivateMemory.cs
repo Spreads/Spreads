@@ -123,8 +123,8 @@ namespace Spreads.Buffers
             alignment = Math.Min(Math.Max(Settings.AVX512_ALIGNMENT, alignment), Settings.SAFE_CACHE_LINE * 2);
 
             // TODO bytesLength = (uint) Mem.GoodSize((UIntPtr) bytesLength); but check/change return type 
-            
-            _pointer = Mem.MallocAligned((UIntPtr) bytesLength, (UIntPtr) alignment); 
+
+            _pointer = Mem.MallocAligned((UIntPtr) bytesLength, (UIntPtr) alignment);
             _offset = 0;
             _length = (int) bytesLength / Unsafe.SizeOf<T>();
 
@@ -194,8 +194,8 @@ namespace Spreads.Buffers
                 if (pool != null)
                 {
                     // throws if ref count is not zero
+                    // calls DisposeFinalize() if a bucket is full
                     pool.ReturnInternal(this, clearMemory: TypeHelper<T>.IsReferenceOrContainsReferences);
-                    // pool calls Dispose(false) if a bucket is full
                     return;
                 }
 

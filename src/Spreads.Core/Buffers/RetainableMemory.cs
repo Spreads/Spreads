@@ -17,7 +17,7 @@ namespace Spreads.Buffers
     /// <summary>
     /// Base class for retainable memory from a pool of arrays or from native memory.
     /// </summary>
-    public abstract unsafe class RetainableMemory<T> : MemoryManager<T>, IRefCounted
+    public abstract unsafe class RetainableMemory<T> : MemoryManager<T>, IDisposable, IRefCounted
     {
         protected RetainableMemory()
         {
@@ -323,7 +323,11 @@ namespace Spreads.Buffers
         public void Dispose()
         {
             Dispose(disposing: true);
-            GC.SuppressFinalize(this);
+        }
+        
+        void IDisposable.Dispose()
+        {
+            Dispose(disposing: true);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

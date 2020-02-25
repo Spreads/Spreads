@@ -191,12 +191,21 @@ namespace Spreads.Buffers
 
                 if (buffer != null)
                 {
+                    if (!buffer.IsPooled)
+                        ThrowNotPooled<RetainableMemory<T>>();
+
+                    ThrowHelper.DebugAssert(buffer.IsDisposed);
+                    
+                    // Set counter to zero, keep other flags
+                    // Do not need atomic CAS here because we own the buffer here
+                    buffer.CounterRef &= ~AtomicCounter.CountMask;
+
+                    buffer.IsPooled = false;
+
                     ThrowHelper.DebugAssert(!buffer.IsDisposed && buffer.ReferenceCount == 0, "!buffer.IsDisposed");
 
                     if (log.IsEnabled())
                         log.BufferRented(buffer.GetHashCode(), buffer.Length, Id, _buckets[i].GetHashCode());
-
-                    buffer.IsPooled = false;
 
                     if (AddStackTraceOnRent)
                         buffer.Tag = Environment.StackTrace;
@@ -263,11 +272,21 @@ namespace Spreads.Buffers
                 ThrowAlreadyPooled<RetainableMemory<T>>();
 
             // Determine with what bucket this buffer length is associated
-            int bucket = SelectBucketIndex(memory.LengthPow2);
+            int bucketIndex = SelectBucketIndex(memory.LengthPow2);
 
             // If we can tell that the buffer was allocated, drop it. Otherwise, check if we have space in the pool
-            if (bucket < _buckets.Length)
+            if (bucketIndex < _buckets.Length)
             {
+                var bucket = _buckets[bucketIndex];
+                if (memory.LengthPow2 != bucket.BufferLength)
+                    ThrowNotFromPool<RetainableMemory<T>>();
+
+                var disposed = AtomicCounter.TryDispose(ref memory.CounterRef);
+                if (disposed == 0)
+                    ThrowHelper.DebugAssert(AtomicCounter.GetIsDisposed(ref memory.CounterRef));
+                else
+                    AtomicCounter.ThrowNonZeroTryDispose(disposed);
+
                 // Clear the memory if the user requests regardless of pooling result.
                 // If not pooled then it should be RM.DisposeFinalize-d and destruction
                 // is not always GC.
@@ -286,9 +305,12 @@ namespace Spreads.Buffers
                     // bucket.Return then in the true case the memory could be already 
                     // rented by the time the field is set, so don't do that: `memory.IsPooled = _buckets[bucket].Return(memory)`
                     memory.IsPooled = true;
-                    var reallyPooled = _buckets[bucket].Return(memory);
+                    var reallyPooled = bucket.Return(memory);
                     if (!reallyPooled)
+                    {
                         memory.IsPooled = false;
+                        memory.DisposeFinalize();
+                    }
                 }
             }
 
@@ -442,7 +464,13 @@ namespace Spreads.Buffers
             internal int Pooled => _perCorePools.Sum(p => p.Pool.EnumerateItems().Count(x => x != null));
 
             public MemoryBucket(RetainableMemoryPool<T> pool, int bufferLength, int perCoreSize)
-                : base(() => new PerCoreMemoryBucket(() => pool.Factory(bufferLength, Cpu.GetCurrentCoreId()), perCoreSize),
+                : base(() => new PerCoreMemoryBucket(() =>
+                    {
+                        var memory = pool.Factory(bufferLength, Cpu.GetCurrentCoreId());
+                        memory.IsPooled = true;
+                        AtomicCounter.Dispose(ref memory.CounterRef);
+                        return memory;
+                    }, perCoreSize),
                     () => null, // RMP could look inside larger-size buckets and then allocates explicitly
                     unbounded: false)
             {

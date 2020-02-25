@@ -72,7 +72,7 @@ namespace Spreads.Buffers
         [MethodImpl(MethodImplOptions.NoInlining)]
         internal static void ThrowAlreadyPooled<T>()
         {
-            ThrowHelper.ThrowObjectDisposedException("Cannot return to a pool an already pooled " + typeof(T).FullName);
+            ThrowHelper.ThrowObjectDisposedException("Cannot return to a pool an already pooled: " + typeof(T).FullName);
         }
 
         [ContractAnnotation("=> halt")]
@@ -80,7 +80,15 @@ namespace Spreads.Buffers
         [MethodImpl(MethodImplOptions.NoInlining)]
         internal static void ThrowNotFromPool<T>()
         {
-            ThrowHelper.ThrowInvalidOperationException("Memory not from pool " + typeof(T).FullName);
+            ThrowHelper.ThrowInvalidOperationException("Memory not from pool: " + typeof(T).FullName);
+        }
+        
+        [ContractAnnotation("=> halt")]
+        [DoesNotReturn]
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        internal static void ThrowNotPooled<T>()
+        {
+            ThrowHelper.ThrowInvalidOperationException("Memory returned from pool bucket has IsPooled = false: " + typeof(T).FullName);
         }
     }
 }
