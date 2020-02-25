@@ -152,13 +152,19 @@ namespace Spreads.Buffers
 
         public override IMemoryOwner<T> Rent(int minBufferSize = -1)
         {
-            return RentMemory(minBufferSize);
+            return RentMemory(minBufferSize, false);
         }
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="minBufferSize"></param>
+        /// <param name="exactBucket">If true then <see cref="MaxBucketsToTry"/> value from ctor is ignored and only a single bucket is tried before allocating a new buffer.</param>
+        /// <returns></returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public RetainableMemory<T> RentMemory(int minBufferSize = -1)
+        public RetainableMemory<T> RentMemory(int minBufferSize, bool exactBucket = false)
         {
-            var maxBucketsToTry = MaxBucketsToTry; // TODO per call
+            var maxBucketsToTry = exactBucket ? 0 : MaxBucketsToTry;
 
             var cpuId = Cpu.GetCurrentCoreId();
 

@@ -30,14 +30,7 @@ namespace Spreads.Collections.Internal
 
     internal class DataBlockCountersPadding : DataBlockCounters
     {
-        private long _padding0;
-        private long _padding1;
-        private long _padding2;
-        private long _padding3;
-        private long _padding4;
-        private long _padding5;
-        private long _padding6;
-        private long _padding7;
+        // private Padding40 _padding;
     }
 
     internal class DataBlockVectors : DataBlockCountersPadding
@@ -60,9 +53,12 @@ namespace Spreads.Collections.Internal
         /// <summary>
         /// We need this as a sentinel with RowLength == 0 in cursor to not penalize fast path of single-block containers.
         /// </summary>
-        internal static readonly DataBlock Empty = new DataBlock { _rowCount = 0 };
+        internal static readonly DataBlock Empty = new DataBlock {_rowCount = 0};
 
-        private static readonly ObjectPool<DataBlock> ObjectPool = new ObjectPool<DataBlock>(() => new DataBlock(), Environment.ProcessorCount * 16);
+        // For series each DataBlock has 2x PrivateMemory instances, for which we have 256 pooled per core.
+        // TODO Review pools sizes, move them to settings
+
+        private static readonly ObjectPool<DataBlock> ObjectPool = new ObjectPool<DataBlock>(() => new DataBlock(), 256 / 2);
 
         [Obsolete("Use only in tests")]
         internal VecStorage RowKeys => _rowKeys;
@@ -99,6 +95,7 @@ namespace Spreads.Collections.Internal
         private volatile int _head = -1;
 
         private volatile bool _isFull = false;
+
         private DataBlock()
         {
             AtomicCounter.Dispose(ref _refCount);
@@ -133,6 +130,7 @@ namespace Spreads.Collections.Internal
                 {
                     rowCapacity = values.Vec.Length;
                 }
+
                 rowCapacity = Math.Min(rowCapacity, values.Vec.Length);
             }
 
@@ -142,6 +140,7 @@ namespace Spreads.Collections.Internal
                 {
                     ThrowHelper.ThrowArgumentException("Empty columns array. Pass null instead.");
                 }
+
                 block._columns = columns;
                 foreach (var column in columns)
                 {
@@ -155,7 +154,7 @@ namespace Spreads.Collections.Internal
             }
             else
             {
-                if ((uint)rowLength > rowCapacity)
+                if ((uint) rowLength > rowCapacity)
                 {
                     ThrowHelper.ThrowArgumentOutOfRangeException("rowLength");
                 }
@@ -235,6 +234,7 @@ namespace Spreads.Collections.Internal
                     // shared columns just do not have proper handle to unpin and their call is void
                     vectorStorage.Dispose();
                 }
+
                 _columns = null;
             }
 
@@ -346,12 +346,13 @@ namespace Spreads.Collections.Internal
         {
             if (lookup == Lookup.EQ)
                 return SearchKey(key, comparer);
-            
+
             if (_head + _rowCount <= _rowKeys.Vec.Length)
             {
                 return _head + VectorSearch.SortedLookup(ref _rowKeys.Vec.DangerousGetRef<T>(_head),
                     _rowCount, ref key, lookup, comparer);
             }
+
             return LookupKeySlower(ref key, lookup, comparer);
         }
 
@@ -375,7 +376,7 @@ namespace Spreads.Collections.Internal
             if (_head + _rowCount <= _rowKeys.Vec.Length)
             {
                 return _head + VectorSearch.SortedSearch(ref _rowKeys.Vec.DangerousGetRef<T>(_head),
-                           _rowCount, key, comparer);
+                    _rowCount, key, comparer);
             }
 
             // TODO for EQ search we do not need a wrapper, we just need to
@@ -405,6 +406,7 @@ namespace Spreads.Collections.Internal
                 {
                     DoThrow();
                 }
+
                 void DoThrow()
                 {
                     ThrowHelper.ThrowInvalidOperationException("DataBlock.Empty must only be used as sentinel in DataBlock cursor");
@@ -492,6 +494,7 @@ namespace Spreads.Collections.Internal
                         // should not have empty columns array
                         return false;
                     }
+
                     if (_columns.Length > 1)
                     {
                         for (int i = 1; i < _columns.Length; i++)
@@ -538,6 +541,7 @@ namespace Spreads.Collections.Internal
                 {
                     return false;
                 }
+
                 if (!(_columns != null && _columns.Length > 0))
                 {
                     return false;

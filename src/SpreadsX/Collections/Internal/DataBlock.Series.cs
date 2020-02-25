@@ -220,7 +220,7 @@ namespace Spreads.Collections.Internal
 
             try
             {
-                newRiBuffer = BufferPool<TKey>.MemoryPool.RentMemory(newLen);
+                newRiBuffer = BufferPool<TKey>.MemoryPool.RentMemory(newLen, exactBucket: true);
 
                 newRi = VecStorage.Create(newRiBuffer, 0, newRiBuffer.Length); // new buffer could be larger
                 if (ri.Vec.Length > 0)
@@ -228,7 +228,7 @@ namespace Spreads.Collections.Internal
                     ri.Vec.AsSpan<TKey>().CopyTo(newRi.Vec.AsSpan<TKey>());
                 }
 
-                newValsBuffer = BufferPool<TValue>.MemoryPool.RentMemory(newLen);
+                newValsBuffer = BufferPool<TValue>.MemoryPool.RentMemory(newLen, exactBucket: true);
 
                 newVals = VecStorage.Create(newValsBuffer, 0, newValsBuffer.Length);
                 if (vals.Vec.Length > 0)

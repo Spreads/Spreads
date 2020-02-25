@@ -12,12 +12,15 @@ namespace Spreads.Buffers
 {
     public static class BufferPool<T>
     {
-        private static readonly ArrayPool<T> ArrayPoolImpl = ArrayPool<T>.Shared;
-
+        /// <summary>
+        /// Retrieves an array that is at least the requested length.
+        /// </summary>
+        /// <param name="minLength"></param>
+        /// <returns></returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static T[] Rent(int minLength)
         {
-            return ArrayPoolImpl.Rent(minLength);
+            return ArrayPool<T>.Shared.Rent(minLength);
         }
 
         /// <summary>
@@ -28,7 +31,7 @@ namespace Spreads.Buffers
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void Return(T[] array, bool clearArray = false)
         {
-            ArrayPoolImpl.Return(array, clearArray);
+            ArrayPool<T>.Shared.Return(array, clearArray);
         }
 
         // This is entry/exit point for data buffers. All in-memory data containers use this pool.
@@ -53,21 +56,13 @@ namespace Spreads.Buffers
                 maxBuffersPerBucketPerCore: (4 + Environment.ProcessorCount) * 4,
                 maxBucketsToTry: 2);
 
-        /// <summary>
-        /// Default OffHeap pool has capacity of 4 + Environment.ProcessorCount. This static field could be changed to a new instance.
-        /// Buffers are never cleared automatically and user must clear them when needed. Zeroing is a big cost
-        /// and even new[]-ing has to zero memory, this is why it is slow.
-        /// Please know what you are doing.
-        /// </summary>
-        // public static OffHeapMemoryPool<byte> OffHeapMemoryPool = new OffHeapMemoryPool<byte>((4 + Environment.ProcessorCount) * 1);
-
         internal BufferPool()
         { }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private RetainedMemory<byte> RetainMemory(int length, bool requireExact = true, bool borrow = true)
         {
-            var arrayMemory = PinnedArrayMemoryPool.RentMemory(length);
+            var arrayMemory = PinnedArrayMemoryPool.RentMemory(length, requireExact);
             if (arrayMemory.IsDisposed)
             {
                 BuffersThrowHelper.ThrowDisposed<ArrayMemory<byte>>();

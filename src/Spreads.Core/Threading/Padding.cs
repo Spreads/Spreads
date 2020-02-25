@@ -22,54 +22,38 @@ namespace Spreads.Threading
         private Padding112 _padding;
     }
 
-    // We could have used only the Size attribute
-    
-    [StructLayout(LayoutKind.Sequential, Pack = 8, Size = 16)]
+    [StructLayout(LayoutKind.Sequential, Size = 16)]
     internal readonly struct Padding16
     {
-        private readonly long _padding0;
-        private readonly long _padding1;
     }
-    
-    [StructLayout(LayoutKind.Sequential, Pack = 8, Size = 32)]
+
+    [StructLayout(LayoutKind.Sequential, Size = 32)]
     internal readonly struct Padding32
     {
-        private readonly Padding16 _padding0;
-        private readonly Padding16 _padding1;
     }
-    
-    [StructLayout(LayoutKind.Sequential, Pack = 8, Size = 40)]
+
+    [StructLayout(LayoutKind.Sequential, Size = 40)]
     internal readonly struct Padding40
     {
-        private readonly Padding32 _padding32;
-        private readonly long _padding8;
     }
-    
-    [StructLayout(LayoutKind.Sequential, Pack = 8, Size = 48)]
+
+    [StructLayout(LayoutKind.Sequential, Size = 48)]
     internal readonly struct Padding48
     {
-        private readonly Padding32 _padding32;
-        private readonly Padding16 _padding16;
     }
 
-    [StructLayout(LayoutKind.Sequential, Pack = 8, Size = 56)]
+    [StructLayout(LayoutKind.Sequential, Size = 56)]
     internal readonly struct Padding56
     {
-        private readonly Padding40 _padding40;
-        private readonly Padding16 _padding16;
     }
 
-    [StructLayout(LayoutKind.Sequential, Pack = 8, Size = 64)]
+    [StructLayout(LayoutKind.Sequential, Size = 64)]
     internal readonly struct Padding64
     {
-        private readonly Padding32 _padding0;
-        private readonly Padding32 _padding1;
     }
 
     [StructLayout(LayoutKind.Sequential, Pack = 8, Size = 112)]
     internal readonly struct Padding112
     {
-        private readonly Padding64 _padding0;
-        private readonly Padding48 _padding1;
     }
 }
