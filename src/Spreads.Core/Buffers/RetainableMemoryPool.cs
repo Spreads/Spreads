@@ -10,6 +10,7 @@ using System.Buffers;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.Tracing;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using Spreads.Collections.Concurrent;
 using Spreads.Native;
@@ -212,7 +213,7 @@ namespace Spreads.Buffers
             {
                 // The request was for a size too large for the pool. Allocate a buffer of exactly the requested length.
                 // When it's returned to the pool, we'll simply throw it away.
-                buffer = Factory(minBufferSize, cpuId);
+                buffer = CreateNew(minBufferSize, cpuId);
                 ThrowHelper.DebugAssert(!buffer.IsDisposed, "Factory returned disposed buffer");
             }
 
@@ -232,6 +233,12 @@ namespace Spreads.Buffers
             }
 #endif
             return buffer;
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private RetainableMemory<T> CreateNew(int minBufferSize, int cpuId)
+        {
+            return Factory(minBufferSize, cpuId);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining
@@ -269,7 +276,7 @@ namespace Spreads.Buffers
                     if (!memory.SkipCleaning)
                         memory.GetSpan().Clear();
                 }
-                
+
                 memory.SkipCleaning = false;
 
                 {
@@ -299,9 +306,7 @@ namespace Spreads.Buffers
             Console.WriteLine($"{this.GetType().Namespace} stats:");
             foreach (var bucket in _buckets)
             {
-                Console.WriteLine($"{bucket.BufferLength}"); // TODO aggregate per-core values
-                throw new NotImplementedException();
-                // Console.WriteLine($"{bucket.BufferLength}: capacity {bucket._buffers.Length} index {bucket._index} pooled {bucket._buffers.Count(x => x != null)}");
+                Console.WriteLine($"{bucket.BufferLength}: capacity {bucket.Capacity} index {bucket.Index} pooled {bucket.Pooled}");
             }
 
             Console.WriteLine("----------------------------------------------");
@@ -401,10 +406,40 @@ namespace Spreads.Buffers
             return maxSize;
         }
 
-        private sealed class MemoryBucket : PerCoreObjectPool<RetainableMemory<T>, PerCoreMemoryBucket>
+        private struct MemoryBucketWrapper : IObjectPoolWrapper<RetainableMemory<T>, PerCoreMemoryBucket>
+        {
+            public PerCoreMemoryBucket Pool
+            {
+                [MethodImpl(MethodImplOptions.AggressiveInlining)]
+                get;
+                set;
+            }
+
+            public void Dispose()
+            {
+                ((IDisposable) Pool).Dispose();
+            }
+
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public RetainableMemory<T>? Rent()
+            {
+                return Pool.Rent();
+            }
+
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public bool Return(RetainableMemory<T> obj)
+            {
+                return Pool.Return(obj);
+            }
+        }
+
+        private sealed class MemoryBucket : PerCoreObjectPool<RetainableMemory<T>, PerCoreMemoryBucket, MemoryBucketWrapper>
         {
             private readonly RetainableMemoryPool<T> _pool;
             internal readonly int BufferLength;
+            internal int Capacity => _perCorePools.Sum(p => p.Pool.Capacity);
+            internal int Index => _perCorePools.Sum(p => p.Pool.Index);
+            internal int Pooled => _perCorePools.Sum(p => p.Pool.EnumerateItems().Count(x => x != null));
 
             public MemoryBucket(RetainableMemoryPool<T> pool, int bufferLength, int perCoreSize)
                 : base(() => new PerCoreMemoryBucket(() => pool.Factory(bufferLength, Cpu.GetCurrentCoreId()), perCoreSize),
@@ -415,6 +450,7 @@ namespace Spreads.Buffers
                 BufferLength = bufferLength;
             }
 
+            [MethodImpl(MethodImplOptions.NoInlining)]
             public RetainableMemory<T> CreateNew(int cpuId)
             {
                 return _pool.Factory(BufferLength, cpuId);

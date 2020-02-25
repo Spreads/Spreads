@@ -33,7 +33,7 @@ using System.Runtime.CompilerServices;
 
 namespace Spreads.Collections.Concurrent
 {
-    public class ObjectPool<T> : PerCoreObjectPool<T, ObjectPoolCore<T>> where T : class
+    public class ObjectPool<T> : PerCoreObjectPool<T, ObjectPoolCore<T>, ObjetPoolWrapper<T>> where T : class
     {
         public ObjectPool(Func<T> factory, int perCoreSize)
             : base(() => new RightPaddedObjectPoolCore(factory, perCoreSize), factory, false)
@@ -50,6 +50,33 @@ namespace Spreads.Collections.Concurrent
             public RightPaddedObjectPoolCore(Func<T> factory, int size) : base(factory, size)
             {
             }
+        }
+    }
+
+    public struct ObjetPoolWrapper<T> : IObjectPoolWrapper<T, ObjectPoolCore<T>> where T : class
+    {
+        public ObjectPoolCore<T> Pool
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get;
+            set;
+        }
+        
+        public void Dispose()
+        {
+            Pool.Dispose();
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public T? Rent()
+        {
+            return Pool.Rent();
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public bool Return(T obj)
+        {
+            return Pool.Return(obj);
         }
     }
 

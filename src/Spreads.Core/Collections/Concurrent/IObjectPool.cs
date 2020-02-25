@@ -23,4 +23,12 @@ namespace Spreads.Collections.Concurrent
         /// </summary>
         bool Return(T obj);
     }
+
+    /// <summary>
+    /// Allows to specialize generic Rent and Return on TImpl, which is a reference type.
+    /// </summary>
+    public interface IObjectPoolWrapper<T, TImpl> : IObjectPool<T> where TImpl : IObjectPool<T> where T : class
+    {
+        TImpl Pool { get; set; }
+    }
 }

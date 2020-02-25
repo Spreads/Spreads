@@ -11,11 +11,14 @@ using Spreads.Native;
 
 namespace Spreads.Collections.Concurrent
 {
-    public class PerCoreObjectPool<T, TPoolImpl> : IObjectPool<T> where TPoolImpl : IObjectPool<T> where T : class
+    public class PerCoreObjectPool<T, TPoolImpl, TWrapper> : IObjectPool<T>
+        where T : class
+        where TPoolImpl : IObjectPool<T>
+        where TWrapper : struct, IObjectPoolWrapper<T, TPoolImpl>
     {
         private readonly Func<T> _objFactory;
 
-        protected readonly TPoolImpl[] _perCorePools;
+        protected readonly TWrapper[] _perCorePools;
 
         private readonly ConcurrentQueue<T> _unboundedPool;
 
@@ -23,12 +26,12 @@ namespace Spreads.Collections.Concurrent
 
         protected PerCoreObjectPool(Func<TPoolImpl> perCorePoolFactory, Func<T> objFactory, bool unbounded)
         {
-            _perCorePools = new TPoolImpl[Cpu.CoreCount];
+            _perCorePools = new TWrapper[Cpu.CoreCount];
             for (int i = 0; i < _perCorePools.Length; i++)
             {
-                _perCorePools[i] = perCorePoolFactory();
+                _perCorePools[i] = new TWrapper {Pool = perCorePoolFactory()};
             }
-            
+
             _objFactory = objFactory;
 
             if (unbounded)
@@ -50,7 +53,7 @@ namespace Spreads.Collections.Concurrent
         {
             if (_disposed)
                 BuffersThrowHelper.ThrowDisposed<LockedObjectPool<T>>();
-            
+
             T? obj;
 
             for (int i = 0; i <= Cpu.CoreCount; i++)
@@ -134,7 +137,7 @@ namespace Spreads.Collections.Concurrent
         {
             foreach (var poolImpl in _perCorePools)
             {
-                if (poolImpl is ObjectPoolCoreBase<T> pool)
+                if (poolImpl.Pool is ObjectPoolCoreBase<T> pool)
                 {
                     // ReSharper disable once HeapView.ObjectAllocation.Possible
                     // ReSharper disable once HeapView.ObjectAllocation

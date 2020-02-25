@@ -38,7 +38,7 @@ namespace Spreads.Core.Tests.Buffers
         internal void RmpBenchmark<T>(RetainableMemoryPool<T> pool, string testCase)
         {
             var count = 10_000_000;
-            var threads = Environment.ProcessorCount / 3;
+            var threads = 1; // Environment.ProcessorCount;
             using (Benchmark.Run(testCase, count * 2 * threads))
             {
                 Task.WaitAll(Enumerable.Range(0, threads).Select(_ => Task.Factory.StartNew(() =>
@@ -66,7 +66,7 @@ namespace Spreads.Core.Tests.Buffers
         {
             var pool = ArrayPool<T>.Shared;
             var count = 10_000_000;
-            var threads = Environment.ProcessorCount / 3;
+            var threads = 1; // Environment.ProcessorCount;
             using (Benchmark.Run("array_pool", count * 2 * threads))
             {
                 Task.WaitAll(Enumerable.Range(0, threads).Select(_ => Task.Factory.StartNew(() =>

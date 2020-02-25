@@ -11,7 +11,7 @@ using Spreads.Threading;
 
 namespace Spreads.Collections.Concurrent
 {
-    public sealed class LockedObjectPool<T> : PerCoreObjectPool<T, LockedObjectPoolCore<T>> where T : class
+    public sealed class LockedObjectPool<T> : PerCoreObjectPool<T, LockedObjectPoolCore<T>, LockedObjetPoolWrapper<T>> where T : class
     {
         public LockedObjectPool(Func<T> factory, int perCoreSize, bool allocateOnEmpty = true, bool unbounded = false)
             : base(() => new RightPaddedLockedObjectPoolCore(factory, perCoreSize, allocateOnEmpty: false), allocateOnEmpty ? factory : () => null, unbounded)
@@ -29,6 +29,33 @@ namespace Spreads.Collections.Concurrent
                 factory, size, allocateOnEmpty)
             {
             }
+        }
+    }
+
+    public struct LockedObjetPoolWrapper<T> : IObjectPoolWrapper<T, LockedObjectPoolCore<T>> where T : class
+    {
+        public LockedObjectPoolCore<T> Pool
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get;
+            set;
+        }
+        
+        public void Dispose()
+        {
+            ((IDisposable) Pool).Dispose();
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public T? Rent()
+        {
+            return Pool.Rent();
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public bool Return(T obj)
+        {
+            return Pool.Return(obj);
         }
     }
 
@@ -55,7 +82,7 @@ namespace Spreads.Collections.Concurrent
         }
 
         public int Index => _index;
-        
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public T? Rent()
         {
