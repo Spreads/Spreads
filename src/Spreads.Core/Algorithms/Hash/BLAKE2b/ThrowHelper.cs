@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Runtime.CompilerServices;
+using Spreads.Serialization;
 
 namespace Spreads.Algorithms.Hash.BLAKE2b
 {
@@ -11,7 +12,7 @@ namespace Spreads.Algorithms.Hash.BLAKE2b
 #if BUILTIN_SPAN
 				RuntimeHelpers.IsReferenceOrContainsReferences<T>()
 #else
-                Native.VecTypeHelper<T>.RuntimeVecInfo.IsReferenceOrContainsReferences
+                TypeHelper<T>.IsReferenceOrContainsReferences
 #endif
             )
 

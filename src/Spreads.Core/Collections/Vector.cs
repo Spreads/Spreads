@@ -104,7 +104,7 @@ namespace Spreads.Collections
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal Vector(VecStorage vecStorage)
         {
-            var vtidx = VecTypeHelper<T>.RuntimeVecInfo.RuntimeTypeId;
+            var vtidx = VecTypeHelper<T>.RuntimeTypeId;
             if (vtidx != vecStorage.Vec._runtimeTypeId)
             {
                 VecThrowHelper.ThrowVecTypeMismatchException();

@@ -177,7 +177,7 @@ namespace Spreads.Buffers
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public VecStorage(VecStorage storage)
         {
-            if (VecTypeHelper<T>.RuntimeVecInfo.RuntimeTypeId != storage.Vec.RuntimeTypeId)
+            if (VecTypeHelper<T>.RuntimeTypeId != storage.Vec.RuntimeTypeId)
             {
                 VecThrowHelper.ThrowVecTypeMismatchException();
             }

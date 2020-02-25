@@ -113,7 +113,7 @@ namespace Spreads.Buffers
         {
             if (!NativeAllocatorSettings.Initialized) ThrowHelper.ThrowInvalidOperationException();
 
-            ThrowHelper.DebugAssert(!VecTypeHelper<T>.RuntimeVecInfo.IsReferenceOrContainsReferences);
+            ThrowHelper.DebugAssert(!TypeHelper<T>.IsReferenceOrContainsReferences);
 
             ThrowHelper.DebugAssert(BitUtil.IsPowerOfTwo((int) alignment));
 
