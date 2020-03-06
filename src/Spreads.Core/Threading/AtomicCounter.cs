@@ -27,7 +27,10 @@ namespace Spreads.Threading
 
         public const int CountMask = 0b_00000000_11111111_11111111_11111111;
         public const int Disposed = CountMask;
-        public const int CountLimit = CountMask >> 1;
+        /// <summary>
+        /// Inclusive
+        /// </summary>
+        public const int MaxCount = CountMask >> 1; // TODO review inclusive/exclusive usage
 
         /// <summary>
         /// Value in pointer:
@@ -47,7 +50,7 @@ namespace Spreads.Threading
             }
 
             // prevent disposed and just bad values.
-            if ((uint)(*pointer & CountMask) >= CountLimit)
+            if ((uint) (*pointer & CountMask) > MaxCount)
             {
                 ThrowBadCounter(*pointer & CountMask);
             }
@@ -77,7 +80,7 @@ namespace Spreads.Threading
             {
                 var currentValue = Volatile.Read(ref counter);
 
-                if (unchecked((uint)(currentValue & CountMask)) >= CountLimit)
+                if (unchecked((uint) (currentValue & CountMask)) > MaxCount)
                 {
                     // Counter was negative before increment or there is a counter leak
                     // and we reached 8M values. For any conceivable use case
@@ -100,6 +103,7 @@ namespace Spreads.Threading
                     ThrowCounterChanged();
                 }
             }
+
             return newValue & CountMask;
         }
 
@@ -119,7 +123,7 @@ namespace Spreads.Threading
                 var currentValue = Volatile.Read(ref counter);
 
                 // after decrement the value must remain in the range
-                if (unchecked((uint)((currentValue & CountMask) - 1)) >= CountLimit)
+                if (unchecked((uint) ((currentValue & CountMask) - 1)) > MaxCount)
                 {
                     ThrowBadCounter(currentValue & CountMask);
                 }
@@ -136,6 +140,7 @@ namespace Spreads.Threading
                     ThrowCounterChanged();
                 }
             }
+
             return newValue & CountMask;
         }
 
@@ -154,7 +159,7 @@ namespace Spreads.Threading
             {
                 var currentValue = Volatile.Read(ref counter);
                 var currentCount = currentValue & CountMask;
-                if (unchecked((uint)(currentCount)) >= CountLimit)
+                if (unchecked((uint) (currentCount)) > MaxCount)
                 {
                     ThrowBadCounter(currentValue & CountMask);
                 }
@@ -179,6 +184,7 @@ namespace Spreads.Threading
                     break;
                 }
             }
+
             return newValue & CountMask;
         }
 
@@ -207,7 +213,7 @@ namespace Spreads.Threading
             {
                 var currentValue = Volatile.Read(ref counter);
                 var currentCount = currentValue & CountMask;
-                if (unchecked((uint)(currentCount - 1)) >= CountLimit)
+                if (unchecked((uint) (currentCount - 1)) > MaxCount)
                 {
                     ThrowBadCounter(currentValue & CountMask);
                 }
@@ -232,6 +238,7 @@ namespace Spreads.Threading
                     break;
                 }
             }
+
             return newValue & CountMask;
         }
 
@@ -278,13 +285,13 @@ namespace Spreads.Threading
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool GetIsRetained(ref int counter)
         {
-            return unchecked((uint)((Volatile.Read(ref counter) & CountMask) - 1)) <= CountLimit;
+            return unchecked((uint) ((Volatile.Read(ref counter) & CountMask) - 1)) < MaxCount;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool GetIsDisposed(ref int counter)
         {
-            return (Volatile.Read(ref counter) & CountMask) == CountMask;
+            return (Volatile.Read(ref counter) & CountMask) == Disposed;
         }
 
         public bool IsRetained
@@ -315,7 +322,7 @@ namespace Spreads.Threading
             var currentValue = Volatile.Read(ref counter);
             var currentCount = currentValue & CountMask;
 
-            if ((uint)(currentValue & CountMask) >= CountLimit)
+            if ((uint) (currentValue & CountMask) > MaxCount)
             {
                 ThrowBadCounter(currentValue & CountMask);
             }
@@ -334,46 +341,45 @@ namespace Spreads.Threading
             }
         }
 
+        /// <summary>
+        /// Returns zero if counter was zero and transitioned to the disposed state.
+        /// Returns current count if it is positive.
+        /// Returns minus one if the counter was already in disposed state.
+        /// Keeps flags unchanged.
+        /// </summary>
+        /// <param name="counter"></param>
+        /// <returns></returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static int TryDispose(ref int counter)
         {
             var currentValue = Volatile.Read(ref counter);
-            var currentCount = currentValue & CountMask;
             
-            if (currentCount != 0)
-            {
-                return currentCount;
-            }
 
-            var newValue = currentValue | CountMask;
-
-            var existing = currentValue; Interlocked.CompareExchange(ref counter, newValue, currentValue);
-            if (existing != currentValue)
+            while (true)
             {
-                return -1;
+                var currentCount = currentValue & CountMask;
+                if (currentCount != 0)
+                {
+                    if (currentCount == Disposed)
+                        return -1;
+                    if (currentCount > MaxCount)
+                        ThrowBadCounter(currentCount);
+                    return currentCount;
+                }
+
+                var newValue = currentValue | CountMask;
+
+                var existing = Interlocked.CompareExchange(ref counter, newValue, currentValue);
+
+                if (existing != currentValue)
+                {
+                    currentValue = existing;
+                    continue;
+                }
+                break;
             }
 
             return 0;
-        }
-
-        [MethodImpl(MethodImplOptions.NoInlining)]
-        internal static void ThrowNonZeroTryDispose(int count)
-        {
-            if ((uint)(count & CountMask) >= CountLimit)
-            {
-                ThrowBadCounter(count & CountMask);
-            }
-
-            if (count > 0)
-            {
-                ThrowPositiveRefCount(count);
-            }
-
-            if (count == -1)
-            {
-                ThrowCounterChanged();
-            }
-            ThrowHelper.FailFast("Wrong value from TryDispose");
         }
 
         [System.Diagnostics.Contracts.Pure]
@@ -444,15 +450,16 @@ namespace Spreads.Threading
             {
                 ThrowHelper.ThrowArgumentOutOfRangeException(nameof(pinnedSpan));
             }
+
             _pinnedSpan = pinnedSpan;
-            _pointer = (int*)pinnedSpan.Data;
+            _pointer = (int*) pinnedSpan.Data;
             Init();
         }
 
         internal void Init()
         {
             // we cannot acquire _poolUsersCounter via TryAcquireCounter because that method uses _poolUsersCounter
-            var poolCounterPtr = (int*)_pinnedSpan.Data + 1;
+            var poolCounterPtr = (int*) _pinnedSpan.Data + 1;
             *poolCounterPtr = 0;
             _poolUsersCounter = new AtomicCounter(poolCounterPtr);
             var _ = _poolUsersCounter.Increment();
@@ -503,7 +510,7 @@ namespace Spreads.Threading
             var spinner = new SpinWait();
             while (true)
             {
-                var currentFreeLink = *(int*)_pinnedSpan.Data;
+                var currentFreeLink = *(int*) _pinnedSpan.Data;
                 var currentFreeIdx = ~currentFreeLink;
                 if (currentFreeIdx == 0)
                 {
@@ -516,18 +523,19 @@ namespace Spreads.Threading
                 {
                     TryAcquireCounterFailWrongImpl();
                 }
+
                 Debug.Assert(currentFreeIdx > 1);
 
                 // R# is stupid, without outer parenths the value will be completely different
                 // ReSharper disable once ArrangeRedundantParentheses
-                var currentFreePointer = (int*)_pinnedSpan.Data + currentFreeIdx;
+                var currentFreePointer = (int*) _pinnedSpan.Data + currentFreeIdx;
 
                 var nextFreeLink = *currentFreePointer;
 
                 // ensure that the next free link is free
 
                 // ReSharper disable once ArrangeRedundantParentheses
-                if (*((int*)_pinnedSpan.Data + ~nextFreeLink) >= 0)
+                if (*((int*) _pinnedSpan.Data + ~nextFreeLink) >= 0)
                 {
                     // The thing we want to put to the free list top is not free.
                     // This is only possible if Increment() was called on released AC,
@@ -537,7 +545,7 @@ namespace Spreads.Threading
                     TryAcquireCounterFreeListIsBroken();
                 }
 
-                var existing = Interlocked.CompareExchange(ref *(int*)_pinnedSpan.Data, nextFreeLink, currentFreeLink);
+                var existing = Interlocked.CompareExchange(ref *(int*) _pinnedSpan.Data, nextFreeLink, currentFreeLink);
 
                 if (existing == currentFreeLink)
                 {
@@ -554,6 +562,7 @@ namespace Spreads.Threading
                         return true;
                     }
                 }
+
                 spinner.SpinOnce();
             }
         }
@@ -577,24 +586,27 @@ namespace Spreads.Threading
             {
                 ReleaseCounterFailNotDisposed();
             }
-            var p = (void*)counter.Pointer;
-            var idx = checked((int)(((byte*)p - (byte*)_pinnedSpan.Data) >> 2)); // divide by 4
+
+            var p = (void*) counter.Pointer;
+            var idx = checked((int) (((byte*) p - (byte*) _pinnedSpan.Data) >> 2)); // divide by 4
             if (idx < 1 || idx >= _pinnedSpan.Length)
             {
                 ReleaseCounterFailNotFromPool();
             }
+
             var spinner = new SpinWait();
             while (true)
             {
-                var currentFreeLink = *(int*)_pinnedSpan.Data;
-                var thisFreePointer = (int*)_pinnedSpan.Data + idx;
+                var currentFreeLink = *(int*) _pinnedSpan.Data;
+                var thisFreePointer = (int*) _pinnedSpan.Data + idx;
                 *thisFreePointer = currentFreeLink;
-                var existing = Interlocked.CompareExchange(ref *(int*)_pinnedSpan.Data, ~idx, currentFreeLink);
+                var existing = Interlocked.CompareExchange(ref *(int*) _pinnedSpan.Data, ~idx, currentFreeLink);
                 if (existing == currentFreeLink)
                 {
                     var _ = _poolUsersCounter.Decrement();
                     return;
                 }
+
                 spinner.SpinOnce();
             }
         }
@@ -635,6 +647,7 @@ namespace Spreads.Threading
             {
                 ThrowHelper.ThrowObjectDisposedException("AtomicCounterPool");
             }
+
             GC.SuppressFinalize(this);
         }
 
@@ -659,7 +672,7 @@ namespace Spreads.Threading
             new AtomicCounterPool<OffHeapBuffer<int>>(new OffHeapBuffer<int>(BucketSize));
 
         // Array object is Pow2 and less than 64 bytes with header.
-        internal static AtomicCounterPool<OffHeapBuffer<int>>[] Buckets = { FirstBucket, null, null, null };
+        internal static AtomicCounterPool<OffHeapBuffer<int>>[] Buckets = {FirstBucket, null, null, null};
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static AtomicCounter AcquireCounter()
@@ -668,6 +681,7 @@ namespace Spreads.Threading
             {
                 return counter;
             }
+
             return AcquireCounterSlow();
         }
 
@@ -691,6 +705,7 @@ namespace Spreads.Threading
                         {
                             return counter;
                         }
+
                         ThrowHelper.FailFast("WTF, we just allocated new ACP bucket.");
                     }
                 }
@@ -737,7 +752,7 @@ namespace Spreads.Threading
                 // linear search
                 var p = counter.Pointer;
                 var idx = p - bucket.Pointer;
-                if (unchecked((ulong)idx) < (ulong)BucketSize)
+                if (unchecked((ulong) idx) < (ulong) BucketSize)
                 {
                     bucket.ReleaseCounter(counter);
                     return;

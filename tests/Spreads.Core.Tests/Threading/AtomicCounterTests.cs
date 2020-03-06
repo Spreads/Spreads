@@ -20,6 +20,64 @@ namespace Spreads.Core.Tests.Threading
     public class AtomicCounterTests
     {
         [Test]
+        public void CouldDispose()
+        {
+            var counter = 0;
+            Assert.IsFalse(AtomicCounter.GetIsDisposed(ref counter));
+            Assert.AreEqual(1, AtomicCounter.Increment(ref counter));
+            Assert.AreEqual(2, AtomicCounter.Increment(ref counter));
+
+            Assert.Throws<InvalidOperationException>(() => { AtomicCounter.Dispose(ref counter); });
+
+            Assert.AreEqual(1, AtomicCounter.Decrement(ref counter));
+            Assert.AreEqual(0, AtomicCounter.DecrementIfOne(ref counter));
+
+            Assert.IsFalse(AtomicCounter.GetIsDisposed(ref counter));
+
+            AtomicCounter.Dispose(ref counter);
+
+            Assert.IsTrue(AtomicCounter.GetIsDisposed(ref counter));
+        }
+
+        [Test]
+        public void CouldTryDispose()
+        {
+            var counter = 0;
+            Assert.IsFalse(AtomicCounter.GetIsDisposed(ref counter));
+            Assert.AreEqual(1, AtomicCounter.Increment(ref counter));
+            Assert.AreEqual(2, AtomicCounter.Increment(ref counter));
+
+            Assert.AreEqual(2, AtomicCounter.TryDispose(ref counter));
+
+            Assert.AreEqual(1, AtomicCounter.Decrement(ref counter));
+            Assert.AreEqual(0, AtomicCounter.DecrementIfOne(ref counter));
+
+            Assert.IsFalse(AtomicCounter.GetIsDisposed(ref counter));
+
+            Assert.AreEqual(0, AtomicCounter.TryDispose(ref counter));
+
+            Assert.IsTrue(AtomicCounter.GetIsDisposed(ref counter));
+
+            Assert.AreEqual(-1, AtomicCounter.TryDispose(ref counter));
+
+            counter = AtomicCounter.Disposed - 1;
+
+            Assert.Throws<InvalidOperationException>(() => { AtomicCounter.TryDispose(ref counter); });
+
+            counter = AtomicCounter.Disposed | (123 << 24);
+
+            Assert.AreEqual(-1, AtomicCounter.TryDispose(ref counter));
+
+            Assert.AreEqual(AtomicCounter.Disposed | (123 << 24), counter);
+
+            counter = (123 << 24);
+
+            Assert.AreEqual(0, AtomicCounter.TryDispose(ref counter));
+
+            Assert.AreEqual((123 << 24), counter & ~AtomicCounter.Disposed);
+        }
+
+        [Test]
         // ReSharper disable once InconsistentNaming
         public void CouldCreateACPoolAndAcquireRelease()
         {
@@ -153,9 +211,9 @@ namespace Spreads.Core.Tests.Threading
 
         private int _field;
 
-        #if NETCOREAPP3_0
+#if NETCOREAPP3_0
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
-        #endif
+#endif
         [Test, Explicit("long running")]
         public void IncrementDecrementBenchmark()
         {
@@ -193,6 +251,7 @@ namespace Spreads.Core.Tests.Threading
                     Interlocked.Increment(ref _field);
                 }
             }
+
             using (Benchmark.Run("Decrement field", count))
             {
                 for (int i = 0; i < count; i++)
@@ -320,7 +379,7 @@ namespace Spreads.Core.Tests.Threading
 
             var rounds = 5000;
             var counters = new List<AtomicCounter>();
-            using (Benchmark.Run("Service FullCycle", count * (long)rounds))
+            using (Benchmark.Run("Service FullCycle", count * (long) rounds))
             {
                 for (int r = 0; r < rounds; r++)
                 {
@@ -359,7 +418,7 @@ namespace Spreads.Core.Tests.Threading
 
             var rounds = 50;
             var counters = new List<AtomicCounter>();
-            using (Benchmark.Run("Service FullCycle", count * (long)rounds))
+            using (Benchmark.Run("Service FullCycle", count * (long) rounds))
             {
                 for (int r = 0; r < rounds; r++)
                 {
