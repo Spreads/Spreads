@@ -7,11 +7,12 @@ using System;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Threading;
+using Spreads.Native;
 using Spreads.Threading;
 
 namespace Spreads.Collections.Concurrent
 {
-    public sealed class LockedObjectPool<T> : PerCoreObjectPool<T, LockedObjectPoolCore<T>, LockedObjetPoolWrapper<T>> where T : class
+    public sealed class LockedObjectPool<T> : PerCoreObjectPool<T, LockedObjectPoolCore<T>, LockedObjetPoolCoreWrapper<T>> where T : class
     {
         public LockedObjectPool(Func<T> factory, int perCoreSize, bool allocateOnEmpty = true, bool unbounded = false)
             : base(() => new RightPaddedLockedObjectPoolCore(factory, perCoreSize, allocateOnEmpty: false), allocateOnEmpty ? factory : () => null, unbounded)
@@ -32,7 +33,7 @@ namespace Spreads.Collections.Concurrent
         }
     }
 
-    public struct LockedObjetPoolWrapper<T> : IObjectPoolWrapper<T, LockedObjectPoolCore<T>> where T : class
+    public struct LockedObjetPoolCoreWrapper<T> : IObjectPoolWrapper<T, LockedObjectPoolCore<T>> where T : class
     {
         public LockedObjectPoolCore<T> Pool
         {
@@ -40,7 +41,7 @@ namespace Spreads.Collections.Concurrent
             get;
             set;
         }
-        
+
         public void Dispose()
         {
             ((IDisposable) Pool).Dispose();
@@ -99,6 +100,7 @@ namespace Spreads.Collections.Concurrent
                 while (0 != Interlocked.CompareExchange(ref _locker, 1, 0))
                 {
                     spinner.SpinOnce();
+                    Cpu.FlushCurrentCpuId();
                 }
 
                 if (_index < items.Length)
@@ -153,6 +155,7 @@ namespace Spreads.Collections.Concurrent
                 while (0 != Interlocked.CompareExchange(ref _locker, 1, 0))
                 {
                     spinner.SpinOnce();
+                    Cpu.FlushCurrentCpuId();
                 }
 
                 pooled = _index != 0;

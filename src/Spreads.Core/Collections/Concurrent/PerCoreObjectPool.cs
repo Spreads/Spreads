@@ -16,7 +16,7 @@ namespace Spreads.Collections.Concurrent
         where TPoolImpl : IObjectPool<T>
         where TWrapper : struct, IObjectPoolWrapper<T, TPoolImpl>
     {
-        private readonly Func<T> _objFactory;
+        private readonly Func<T>? _objFactory;
 
         protected readonly TWrapper[] _perCorePools;
 
@@ -38,7 +38,7 @@ namespace Spreads.Collections.Concurrent
                 _unboundedPool = new ConcurrentQueue<T>();
         }
 
-        public T Rent()
+        public T? Rent()
         {
             return Rent(Cpu.GetCurrentCoreId());
         }
@@ -74,7 +74,7 @@ namespace Spreads.Collections.Concurrent
             if (_unboundedPool != null && _unboundedPool.TryDequeue(out var obj))
                 return obj;
 
-            return _objFactory();
+            return _objFactory?.Invoke();
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

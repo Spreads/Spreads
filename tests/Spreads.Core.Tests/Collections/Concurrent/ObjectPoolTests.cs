@@ -27,6 +27,7 @@ namespace Spreads.Core.Tests.Collections.Concurrent
         [Explicit("output")]
         public void CorePoolsLayout()
         {
+            TypeLayout.PrintLayout<MPMCPoolCore<DummyPoolable>>();
             TypeLayout.PrintLayout<ObjectPoolCore<DummyPoolable>>();
             TypeLayout.PrintLayout<LockedObjectPoolCore<DummyPoolable>>();
             TypeLayout.PrintLayout<ObjectPool<DummyPoolable>.RightPaddedObjectPoolCore>();
@@ -40,14 +41,18 @@ namespace Spreads.Core.Tests.Collections.Concurrent
             const int perCoreCapacity = 20;
             int capacity = Environment.ProcessorCount * perCoreCapacity;
             Func<DummyPoolable> dummyFactory = () => new DummyPoolable();
+            var mpmcPool = new MPMCPoolCore<DummyPoolable>(dummyFactory, capacity);
             var objectPool = new ObjectPoolCore<DummyPoolable>(dummyFactory, capacity);
             var lockedObjectPool = new LockedObjectPoolCore<DummyPoolable>(dummyFactory, capacity);
+            var perCoreMPMCPool = new MPMCPool<DummyPoolable>(dummyFactory, perCoreCapacity);
             var perCoreObjectPool = new ObjectPool<DummyPoolable>(dummyFactory, perCoreCapacity);
             var perCoreLockedObjectPool = new LockedObjectPool<DummyPoolable>(dummyFactory, perCoreCapacity);
             for (int round = 0; round < 20; round++)
             {
-                // PoolBenchmark(objectPool, "objectPool");
-                // PoolBenchmark(lockedObjectPool, "lockedObjectPool");
+                PoolBenchmark(mpmcPool, "mpmcQueue");
+                PoolBenchmark(objectPool, "objectPool");
+                PoolBenchmark(lockedObjectPool, "lockedObjectPool");
+                PoolBenchmark(perCoreMPMCPool, "perCoreMPMCPool");
                 PoolBenchmark(perCoreObjectPool, "perCoreObjectPool");
                 PoolBenchmark(perCoreLockedObjectPool, "perCoreLockedObjectPool");
             }
@@ -58,8 +63,8 @@ namespace Spreads.Core.Tests.Collections.Concurrent
         [MethodImpl(MethodImplOptions.NoInlining | MethodImplOptions.AggressiveOptimization)]
         internal void PoolBenchmark<T>(T pool, string testCase) where T : IObjectPool<DummyPoolable>
         {
-            var count =1_000_000;
-            var threads = Environment.ProcessorCount * 4;
+            var count = 2_000_000;
+            var threads = 12;
             using (Benchmark.Run(testCase, count * 2 * threads))
             {
                 Task.WaitAll(Enumerable.Range(0, threads).Select(_ => Task.Factory.StartNew(() =>

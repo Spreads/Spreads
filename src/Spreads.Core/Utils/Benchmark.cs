@@ -100,7 +100,7 @@ namespace Spreads.Utils
                     : 0;
                 var values = kvp.Value.Skip(skip).ToList();
 
-                var elapsed =  MovingMedian.NaiveMedian(new ArraySegment<double>(values.Select(l => (double)l._statSnapshot.Elapsed).ToArray()));
+                var elapsed = values.Select(l => (double)l._statSnapshot.Elapsed).Average();
                 var gc0 = values.Select(l => l._statSnapshot.Gc0).Average();
                 var gc1 = values.Select(l => l._statSnapshot.Gc1).Average();
                 var gc2 = values.Select(l => l._statSnapshot.Gc2).Average();
