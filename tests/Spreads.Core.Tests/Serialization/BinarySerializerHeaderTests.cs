@@ -81,7 +81,7 @@ namespace Spreads.Core.Tests.Serialization
 #pragma warning restore 618
 
             var rm = BufferPool.Retain(10_000);
-            var db = new DirectBuffer(rm.Span);
+            var db = new DirectBuffer(rm);
 
             var val = new SampleStruct(42);
 
@@ -107,7 +107,7 @@ namespace Spreads.Core.Tests.Serialization
 #pragma warning restore 618
 
             var rm = BufferPool.Retain(10_000);
-            var db = new DirectBuffer(rm.Span);
+            var db = new DirectBuffer(rm);
 
             var val = new SampleStruct(42);
 
@@ -133,7 +133,7 @@ namespace Spreads.Core.Tests.Serialization
 #pragma warning restore 618
 
             var rm = BufferPool.Retain(10_000);
-            var db = new DirectBuffer(rm.Span);
+            var db = new DirectBuffer(rm);
 
             DataTypeHeader header = default;
 

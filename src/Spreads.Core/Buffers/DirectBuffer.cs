@@ -78,9 +78,7 @@ namespace Spreads.Buffers
         public DirectBuffer(RetainedMemory<byte> retainedMemory)
         {
             if (!retainedMemory.IsPinned)
-            {
                 ThrowRetainedMemoryNotPinned();
-            }
             _length = (IntPtr)retainedMemory.Length;
             _pointer = (byte*)retainedMemory.Pointer;
         }

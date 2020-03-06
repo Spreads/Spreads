@@ -163,7 +163,7 @@ namespace Spreads.Buffers
             var appendLength = buffer.Length;
             EnsureCapacity(appendLength);
 
-            buffer.Span.CopyTo(_buffer.Span.Slice(_offset));
+            buffer.Span.CopyTo(_buffer.GetSpan().Slice(_offset));
             _offset += appendLength;
             return appendLength;
         }
@@ -178,7 +178,7 @@ namespace Spreads.Buffers
             var appendLength = span.Length;
             EnsureCapacity(appendLength);
 
-            span.CopyTo(_buffer.Span.Slice(_offset));
+            span.CopyTo(_buffer.GetSpan().Slice(_offset));
             _offset += appendLength;
             return appendLength;
         }
@@ -242,7 +242,7 @@ namespace Spreads.Buffers
         public Span<byte> GetSpan(int sizeHint = 0)
         {
             EnsureCapacity(sizeHint);
-            return _buffer.Span.Slice(_offset);
+            return _buffer.GetSpan().Slice(_offset);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -288,7 +288,7 @@ namespace Spreads.Buffers
             Debug.Assert(newBuffer.IsPinned);
             if (!_buffer.IsEmpty && _offset > 0)
             {
-                _buffer.Span.Slice(0, _offset).CopyTo(newBuffer.Span);
+                _buffer.GetSpan().Slice(0, _offset).CopyTo(newBuffer.GetSpan());
             }
 
             var oldBuffer = _buffer;

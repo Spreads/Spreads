@@ -10,22 +10,23 @@ using System;
 using System.Buffers;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Threading;
 using static Spreads.Buffers.BuffersThrowHelper;
 
 namespace Spreads.Buffers
 {
     [Obsolete("TODO Comment this out, remove usages when pooled PM should be used, then keep it only as a wrapper for external CLR arrays")]
-    public class ArrayMemory<T> : RetainableMemory<T>
+    public sealed class ArrayMemory<T> : RetainableMemory<T>
     {
         private static readonly ObjectPool<ArrayMemory<T>> ObjectPool = new ObjectPool<ArrayMemory<T>>(() => new ArrayMemory<T>(), 16);
 
-        protected GCHandle _handle;
-        internal T[] _array;
-        internal int _arrayOffset;
+        private GCHandle _handle;
+        internal T[]? _array;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        protected ArrayMemory()
-        { }
+        private ArrayMemory()
+        {
+        }
 
         internal T[] Array
         {
@@ -36,7 +37,7 @@ namespace Spreads.Buffers
         public ArraySegment<T> ArraySegment
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => new ArraySegment<T>(_array, _arrayOffset, _length);
+            get => new ArraySegment<T>(_array, _offset, _length);
         }
 
         /// <summary>
@@ -74,19 +75,19 @@ namespace Spreads.Buffers
                 }
 
                 arrayMemory._handle = GCHandle.Alloc(arrayMemory._array, GCHandleType.Pinned);
-                arrayMemory._pointer = Unsafe.AsPointer(ref arrayMemory._array[offset]);
+                arrayMemory._pointer = (IntPtr)Unsafe.AsPointer(ref arrayMemory._array[offset]);
             }
             else
             {
-                arrayMemory._pointer = null;
+                arrayMemory._pointer = IntPtr.Zero;
             }
 
-            arrayMemory._arrayOffset = offset;
+            arrayMemory._offset = offset;
             arrayMemory._length = length;
             arrayMemory.PoolIndex =
                 pool is null
-                ? externallyOwned ? (byte)0 : (byte)1
-                : pool.PoolIdx;
+                    ? externallyOwned ? (byte) 0 : (byte) 1
+                    : pool.PoolIdx;
 
             // Clear counter (with flags, AM does not have any flags).
             // We cannot tell if ObjectPool allocated a new one or took from pool
@@ -101,19 +102,28 @@ namespace Spreads.Buffers
         /// <summary>
         /// Returns <see cref="Vec{T}"/> backed by this instance memory.
         /// </summary>
-        public sealed override unsafe Vec<T> Vec
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public override unsafe Vec<T> GetVec()
         {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get
-            {
-                // var tid = VecTypeHelper<T>.RuntimeVecInfo.RuntimeTypeId;
-                var vec = _pointer == null ? new Vec<T>(_array, _arrayOffset, _length) : new Vec<T>(_pointer, _length);
+            if (IsDisposed)
+                ThrowDisposed<ArrayMemory<T>>();
+            var vec = _pointer == null ? new Vec<T>(_array, _offset, _length) : new Vec<T>((void*)_pointer, _length);
 #if SPREADS
-                ThrowHelper.DebugAssert(vec.AsVec().ItemType == typeof(T));
+            ThrowHelper.DebugAssert(vec.AsVec().ItemType == typeof(T));
 #endif
-                return vec;
-            }
+            return vec;
         }
+        
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public override unsafe Span<T> GetSpan()
+        {
+            if (IsDisposed)
+                ThrowDisposed<ArrayMemory<T>>();
+
+            // if disposed Pointer & _len are null/0, no way to corrupt data, will just throw
+            return _pointer == null ? new Span<T>(_array, _offset, _length) : new Span<T>((void*)_pointer, _length);
+        }
+        
 
         [Obsolete("Prefer fixed statements on a pinnable reference for short-lived pinning")]
 #pragma warning disable CS0809 // Obsolete member overrides non-obsolete member
@@ -129,28 +139,16 @@ namespace Spreads.Buffers
 
                 Increment();
                 var handle = GCHandle.Alloc(_array, GCHandleType.Pinned);
-                var pointer = Unsafe.AsPointer(ref _array[_arrayOffset + elementIndex]);
+                var pointer = Unsafe.AsPointer(ref _array[_offset + elementIndex]);
                 return new MemoryHandle(pointer, handle, this);
             }
 
             return base.Pin(elementIndex);
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public override unsafe Span<T> GetSpan()
+        internal override void Free(bool finalizing)
         {
-            if (IsPooled)
-            {
-                ThrowDisposed<ArrayMemory<T>>();
-            }
-
-            // if disposed Pointer & _len are null/0, no way to corrupt data, will just throw
-            if (_pointer == null)
-            {
-                return new Span<T>(_array, _arrayOffset, _length);
-            }
-
-            return new Span<T>(_pointer, _length);
+            throw new NotImplementedException();
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
@@ -183,11 +181,10 @@ namespace Spreads.Buffers
 
             ThrowHelper.DebugAssert(!IsPooled);
 
-            var array = _array;
-            _array = null;
+            var array = Interlocked.Exchange(ref _array, null);
             if (array != null)
             {
-                ClearAfterDispose();
+                ClearFields();
                 if (!ExternallyOwned)
                 {
                     BufferPool<T>.Return(array, clearArray: TypeHelper<T>.IsReferenceOrContainsReferences);
@@ -201,7 +198,7 @@ namespace Spreads.Buffers
                 }
 
                 _handle = default;
-                _arrayOffset = -1; // make it unusable if not re-initialized
+                _offset = -1; // make it unusable if not re-initialized
                 PoolIndex = default; // after ExternallyOwned check!
             }
             else if (disposing)
@@ -224,8 +221,12 @@ namespace Spreads.Buffers
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         protected override bool TryGetArray(out ArraySegment<T> buffer)
         {
-            if (IsDisposed) { ThrowDisposed<ArrayMemory<T>>(); }
-            buffer = new ArraySegment<T>(_array, _arrayOffset, _length);
+            if (IsDisposed)
+            {
+                ThrowDisposed<ArrayMemory<T>>();
+            }
+
+            buffer = new ArraySegment<T>(_array, _offset, _length);
             return true;
         }
     }

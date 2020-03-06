@@ -38,9 +38,13 @@ namespace Spreads.Run
             ExecutionContext.SuppressFlow();
             Settings.SharedSpinLockNotificationPort = 53412;
 
-            var test = new RetainableMemoryPoolTests();
+            var test = new ObjectPoolTests();
             test.PoolPerformance();
 
+            GC.Collect(2, GCCollectionMode.Forced, true, true);
+            
+            Native.Mem.StatsPrint();
+            
             Console.WriteLine("Finished, press enter to exit...");
             Console.ReadLine();
         }

@@ -5,6 +5,7 @@ using System;
 using System.Buffers;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
+using Spreads.Serialization;
 using static Spreads.Buffers.BuffersThrowHelper;
 
 namespace Spreads.Buffers
@@ -23,20 +24,24 @@ namespace Spreads.Buffers
         {
 #if SPREADS
             if (LeaksDetection.Enabled)
-            {
                 Tag = Environment.StackTrace;
-            }
 #endif
         }
 
         // [p*<-len---------------->] we must only check capacity at construction and then work from pointer
         // [p*<-len-[<--lenPow2-->]>] buffer could be larger, pooling always by max pow2 we could store
 
-        protected void* _pointer;
+        protected IntPtr _pointer;
         protected int _length;
 
-        [Obsolete("Must be used only from CounterRef or for custom storage when _isNativeWithHeader == true")]
-        internal int _counterOrReserved;
+        [Obsolete("Must be used only from CounterRef or reserved for custom storage when CounterRef is overrided.")]
+        internal int _counter;
+
+        internal int _offset;
+
+#pragma warning disable 649
+        internal short Reserved;
+#pragma warning restore 649
 
         /// <summary>
         /// 0 - externally owned;
@@ -46,59 +51,34 @@ namespace Spreads.Buffers
         internal byte PoolIndex;
 
         /// <summary>
-        /// A pool sets this value atomically from inside a lock.
-        /// </summary>
-        internal volatile bool IsPooled;
-
-        /// <summary>
         /// True if the memory is already clean (all zeros) on return. Useful for the case when
         /// the pool has <see cref="RetainableMemoryPool{T}.IsRentAlwaysClean"/> set to true
         /// but we know that the buffer is already clean. Use with caution only when cleanliness
         /// is obvious and when cost of cleaning could be high (larger buffers).
         /// </summary>
+        [Obsolete("Don't use unless 100% sure.")] // Keep this hook for now, but if it's never used remove the field later. 
         internal bool SkipCleaning;
 
         /// <summary>
-        /// True if there is a header at <see cref="NativeHeaderSize"/> before the <see cref="Pointer"/>.
-        /// Special case for DataSpreads SM.
+        /// A pool sets this value atomically from inside a lock.
         /// </summary>
-        internal bool IsNativeWithHeader;
-
-        // One byte slot is padded anyway, so _isNativeWithHeader takes no space.
-        // Storing offset as int will increase object size by 4 bytes.
-        // (actually in this class 4 bytes are padded as well to 24, but ArrayMemory
-        //  uses that and adding a new field will increase AM size by 8 bytes)
-        /// <summary>
-        /// DataSpreads shared memory header before <see cref="Pointer"/>.
-        /// </summary>
-        internal const int NativeHeaderSize = 8;
+        internal bool IsPooled => AtomicCounter.GetIsDisposed(ref CounterRef) && PoolIndex > 1;
 
         internal ref int CounterRef
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
-                if (IsNativeWithHeader)
-                {
-                    return ref Unsafe.AsRef<int>((byte*)_pointer - NativeHeaderSize);
-                }
-
 #pragma warning disable 618
-                return ref _counterOrReserved;
+                return ref _counter;
 #pragma warning restore 618
             }
         }
 
-        // Whenever a memory becomes a storage of app data and not a temp buffer
-        // this must be cleared. Decrement to zero causes pooling before checks
-        // and we need to somehow refactor logic without introducing another
-        // virtual method and just follow the rule that app data buffers are not
-        // poolable in this context. When app finishes working with the buffer
-        // it could set this field back to original value.
         internal RetainableMemoryPool<T>? Pool
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => PoolIndex >= 2 ? RetainableMemoryPool<T>.KnownPools[PoolIndex] : null;
+            get => RetainableMemoryPool<T>.KnownPools[PoolIndex];
         }
 
         /// <summary>
@@ -127,9 +107,8 @@ namespace Spreads.Buffers
         {
             var newRefCount = AtomicCounter.Decrement(ref CounterRef);
             if (newRefCount == 0)
-            {
                 Dispose(true);
-            }
+
             return newRefCount;
         }
 
@@ -139,16 +118,15 @@ namespace Spreads.Buffers
         {
             var newRefCount = AtomicCounter.DecrementIfOne(ref CounterRef);
             if (newRefCount == 0)
-            {
                 Dispose(true);
-            }
+
             return newRefCount;
         }
 
         internal void* Pointer
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => _pointer;
+            get => (void*) _pointer;
         }
 
         /// <summary>
@@ -157,7 +135,7 @@ namespace Spreads.Buffers
         internal void* PointerPow2
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => Unsafe.Add<T>(_pointer, _length - LengthPow2);
+            get => Unsafe.Add<T>((void*) _pointer, _length - LengthPow2);
         }
 
         /// <summary>
@@ -166,7 +144,7 @@ namespace Spreads.Buffers
         public bool IsPinned
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => _pointer != null;
+            get => _pointer != IntPtr.Zero;
         }
 
         /// <summary>
@@ -216,36 +194,7 @@ namespace Spreads.Buffers
         /// <summary>
         /// Returns <see cref="Vec{T}"/> backed by the memory of this instance.
         /// </summary>
-        public virtual Vec<T> Vec
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get
-            {
-                if (IsPooled)
-                {
-                    ThrowDisposed<RetainableMemory<T>>();
-                }
-
-                var vec = new Vec<T>(_pointer, _length);
-#if SPREADS
-                ThrowHelper.DebugAssert(vec.AsVec().ItemType == typeof(T));
-#endif
-                return vec;
-            }
-        }
-
-        public override Span<T> GetSpan()
-        {
-            if (IsPooled)
-            {
-                ThrowDisposed<RetainableMemory<T>>();
-            }
-
-            ThrowHelper.DebugAssert(_pointer != null && _length > 0, "Pointer != null && _length > 0");
-
-            // if disposed Pointer & _len are null/0, no way to corrupt data, will just throw
-            return new Span<T>(_pointer, _length);
-        }
+        public abstract Vec<T> GetVec();
 
         internal DirectBuffer DirectBuffer
         {
@@ -259,7 +208,7 @@ namespace Spreads.Buffers
 
                 ThrowHelper.DebugAssert(_pointer != null && _length > 0, "Pointer != null && _length > 0");
 
-                return new DirectBuffer(_length * Unsafe.SizeOf<T>(), (byte*)_pointer);
+                return new DirectBuffer(_length * Unsafe.SizeOf<T>(), (byte*) _pointer);
             }
         }
 
@@ -268,25 +217,25 @@ namespace Spreads.Buffers
         public override MemoryHandle Pin(int elementIndex = 0)
 #pragma warning restore CS0809 // Obsolete member overrides non-obsolete member
         {
-            Increment();
-            if (unchecked((uint)elementIndex) >= _length)
+            if (unchecked((uint) elementIndex) >= _length)
             {
                 ThrowIndexOutOfRange();
             }
 
-            if (_pointer == null)
+            if (TypeHelper<T>.IsReferenceOrContainsReferences)
             {
+                ThrowHelper.DebugAssert(_pointer == null, "_pointer == null");
                 ThrowHelper.ThrowInvalidOperationException("RetainableMemory that is not pinned must have it's own implementation (override) of Pin method.");
             }
 
-            return new MemoryHandle(Unsafe.Add<T>(_pointer, elementIndex), handle: default, this);
+            Increment();
+            return new MemoryHandle(Unsafe.Add<T>((void*) _pointer, elementIndex), handle: default, this);
         }
 
         [Obsolete("Unpin should never be called directly, it is called during disposal of MemoryHandle returned by Pin.")]
 #pragma warning disable CS0809 // Obsolete member overrides non-obsolete member
         public override void Unpin()
 #pragma warning restore CS0809 // Obsolete member overrides non-obsolete member
-
         {
             Decrement();
         }
@@ -313,10 +262,11 @@ namespace Spreads.Buffers
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public RetainedMemory<T> Retain(int start, int length, bool borrow = true) // TODO remove borrow param, Retain == borrow
         {
-            if ((uint)start + (uint)length > (uint)_length)
+            if ((uint) start + (uint) length > (uint) _length)
             {
                 ThrowBadLength();
             }
+
             return new RetainedMemory<T>(this, start, length, borrow: borrow);
         }
 
@@ -324,33 +274,32 @@ namespace Spreads.Buffers
         {
             Dispose(disposing: true);
         }
-        
+
         void IDisposable.Dispose()
         {
             Dispose(disposing: true);
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal void DisposeFinalize()
-        {
-            Dispose(false);
-            GC.SuppressFinalize(this);
-        }
+        /// <summary>
+        /// Free all resources when the object is no longer pooled or used (as in finalization).
+        /// </summary>
+        internal abstract void Free(bool finalizing);
 
+        /// <summary>
+        /// Clear remaining object fields during <see cref="Free"/> and before object pooling.
+        /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal void ClearAfterDispose()
+        internal virtual void ClearFields()
         {
-            // Do not clear counter, it is in disposed state in the pool or it will be GCed.
             ThrowHelper.DebugAssert(AtomicCounter.GetIsDisposed(ref CounterRef));
             ThrowHelper.DebugAssert(!IsPooled);
-            _pointer = null;
+            _pointer = IntPtr.Zero;
             _length = default; // not -1, we have uint cast. Also len = 0 should not corrupt existing data
         }
 
         internal string Tag
         {
             get => RetainableMemoryTracker.Tags.TryGetValue(this, out var tag) ? tag : null;
-
             set
             {
                 RetainableMemoryTracker.Tags.Remove(this);
@@ -366,28 +315,30 @@ namespace Spreads.Buffers
         /// </summary>
         ~RetainableMemory()
         {
-            if (Tag != null)
-            {
-                // in general we do not know that Dispose(false) will throw/fail, so just print it here
-                Console.WriteLine("Finalizing RetainableMemory: " + Tag);
-            }
+            if (Environment.HasShutdownStarted || AppDomain.CurrentDomain.IsFinalizingForUnload())
+                return;
 
-            // always dies in Debug
             if (IsRetained)
             {
-                Trace.TraceWarning("Finalizing retained RM");
+                var msg = $"Finalizing retained RetainableMemory (ReferenceCount={ReferenceCount})" + (Tag != null ? Environment.NewLine + "Tag: " + Tag : "");
+#if DEBUG
+                    ThrowHelper.ThrowInvalidOperationException(msg);
+#else
+                Trace.TraceError(msg);
+#endif
             }
 
-            // TODO review current logic, we throw when finalizing dropped retained object
-            // If it is safe enough to tell that when finalized it always dropped then we
-            // could ignore IsRetained when finalizing. Before that failing is better.
-            // https://docs.microsoft.com/en-us/dotnet/api/system.object.finalize?redirectedfrom=MSDN&view=netframework-4.7.2#System_Object_Finalize
-            // If Finalize or an override of Finalize throws an exception, and
-            // the runtime is not hosted by an application that overrides the
-            // default policy, the runtime terminates the process and no active
-            // try/finally blocks or finalizers are executed. This behavior
-            // ensures process integrity if the finalizer cannot free or destroy resources.
-            Dispose(false);
+            // There are no more references to this object, so regardless 
+            // or the CounterRef value we must free resources. Counter
+            // could have left positive due to wrong usage or process
+            // termination - we do not care, we should not make things
+            // worse by throwing in the finalizer. We must release
+            // native memory and pooled arrays, without trying to 
+            // pool this object to RMP.
+            // So just set the counter to disposed.
+            CounterRef |= AtomicCounter.Disposed;
+
+            Free(finalizing: true);
         }
     }
 }

@@ -20,7 +20,7 @@ namespace Spreads.Core.Tests.Algorithms.Hash
             var len = 10;
             var mem = BufferPool.Retain(len);
             var ptr = (byte*)mem.Pointer;
-            rng.NextBytes(mem.Span);
+            rng.NextBytes(mem.GetSpan());
             var count = 50_000_000;
             uint hash = 0;
             using (Benchmark.Run("xxHash", count))
@@ -41,7 +41,7 @@ namespace Spreads.Core.Tests.Algorithms.Hash
             var len = 10;
             var mem = BufferPool.Retain(len);
             var ptr = (byte*)mem.Pointer;
-            rng.NextBytes(mem.Span);
+            rng.NextBytes(mem.GetSpan());
             var count = 50_000_000;
             var sum = 0UL;
 
@@ -65,7 +65,7 @@ namespace Spreads.Core.Tests.Algorithms.Hash
             var len = 8;
             var mem = BufferPool.Retain(len);
             var ptr = (byte*)mem.Pointer;
-            rng.NextBytes(mem.Span);
+            rng.NextBytes(mem.GetSpan());
             var count = 100_000_000;
             var sum = 0UL;
 
@@ -89,7 +89,7 @@ namespace Spreads.Core.Tests.Algorithms.Hash
             var offset = 0;
             var mem = BufferPool.Retain(len + offset);
             var ptr = (byte*)mem.Pointer + offset;
-            rng.NextBytes(mem.Span.Slice(offset));
+            rng.NextBytes(mem.GetSpan().Slice(offset));
             var count = 100_000_000;
             var sum = 0UL;
 
@@ -114,7 +114,7 @@ namespace Spreads.Core.Tests.Algorithms.Hash
             var len = 15;
             var mem = BufferPool.Retain(len);
             var ptr = (byte*)mem.Pointer;
-            rng.NextBytes(mem.Span);
+            rng.NextBytes(mem.GetSpan());
             var count = 1_000_000;
             var sum = 0UL;
 

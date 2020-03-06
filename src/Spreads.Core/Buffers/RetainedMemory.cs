@@ -1,6 +1,7 @@
 ﻿// This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
 #if DEBUG
 #define DETECT_LEAKS
 #endif
@@ -27,7 +28,7 @@ namespace Spreads.Buffers
     /// <para/>
     /// Access to this struct is not thread-safe, only one thread could call its methods at a time.
     /// </remarks>
-    [DebuggerDisplay("{ToString()}")]
+    [DebuggerDisplay("{" + nameof(ToString) + "()}")]
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     public readonly struct RetainedMemory<T> : IDisposable
     {
@@ -40,7 +41,7 @@ namespace Spreads.Buffers
         /// </summary>
         /// <param name="memory"></param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public RetainedMemory(Memory<T> memory)
+        internal RetainedMemory(Memory<T> memory)
         {
             if (MemoryMarshal.TryGetMemoryManager<T, RetainableMemory<T>>(memory, out var manager))
             {
@@ -82,7 +83,8 @@ namespace Spreads.Buffers
             {
                 BuffersThrowHelper.ThrowDisposed<RetainableMemory<T>>();
             }
-            Debug.Assert(unchecked((uint)start + (uint)length <= memory.Length));
+
+            Debug.Assert(unchecked((uint) start + (uint) length <= memory.Length));
 
             if (borrow)
             {
@@ -119,7 +121,7 @@ namespace Spreads.Buffers
         public unsafe void* Pointer
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => IsPinned ? Unsafe.Add<T>(_manager.Pointer, _start) : (void*)IntPtr.Zero;
+            get => IsPinned ? Unsafe.Add<T>(_manager.Pointer, _start) : (void*) IntPtr.Zero;
         }
 
         public Memory<T> Memory
@@ -128,16 +130,16 @@ namespace Spreads.Buffers
             get => _manager.Memory.Slice(_start, _length);
         }
 
-        public Span<T> Span
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public Span<T> GetSpan()
         {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => _manager.GetSpan().Slice(_start, _length); // new Span<T>(Pointer, _length);
+            return _manager.GetSpan().Slice(_start, _length);
         }
 
-        public Vec<T> Vec
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public Vec<T> GetVec()
         {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => _manager.Vec.Slice(_start, _length);
+            return _manager.GetVec().Slice(_start, _length);
         }
 
         /// <summary>
@@ -173,10 +175,11 @@ namespace Spreads.Buffers
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public RetainedMemory<T> Clone(int start, int length)
         {
-            if (unchecked((uint)start + (uint)length <= _length))
+            if (unchecked((uint) start + (uint) length <= _length))
             {
                 return DangerousClone(start, length);
             }
+
             BuffersThrowHelper.ThrowBadLength();
             return default;
         }
@@ -222,7 +225,7 @@ namespace Spreads.Buffers
                 // Also RC 1 -> 0 disposes RM. This is used internally for
                 // getting temporary buffers as RetainedMemory and avoid
                 // interlocked
-                ((IDisposable)_manager).Dispose();
+                _manager.Dispose();
             }
             else
             {
@@ -242,7 +245,6 @@ namespace Spreads.Buffers
         }
 
 #if DETECT_LEAKS
-
         internal class PanicOnFinalize : IDisposable
         {
             public bool Disposed;
@@ -304,6 +306,7 @@ namespace Spreads.Buffers
             {
                 ThrowHelper.ThrowInvalidOperationException("Cannot create DirectBuffer from RetainedMemory because it is not pinned.");
             }
+
             return new DirectBuffer(rm);
         }
     }

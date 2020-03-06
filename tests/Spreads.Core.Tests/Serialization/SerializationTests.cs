@@ -115,7 +115,7 @@ namespace Spreads.Core.Tests.Serialization
 
             var rm = BufferPool.Retain(size);
 
-            var written = BinarySerializer.Write(ob, rm.Span, segment, SerializationFormat.Json);
+            var written = BinarySerializer.Write(ob, rm.GetSpan(), segment, SerializationFormat.Json);
 
             Assert.AreEqual(size, written);
 

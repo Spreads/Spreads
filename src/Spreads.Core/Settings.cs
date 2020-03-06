@@ -43,13 +43,14 @@ namespace Spreads
 
         private static bool Init()
         {
-            Mem.OptionSetEnabled(Mem.Option.EagerCommit, true);
-            Mem.OptionSetEnabled(Mem.Option.LargeOsPages, true);
-            Mem.OptionSetEnabled(Mem.Option.ResetDecommits, true);
-            Mem.OptionSetEnabled(Mem.Option.PageReset, true);
-            Mem.OptionSetEnabled(Mem.Option.SegmentReset, true);
-            Mem.OptionSetEnabled(Mem.Option.AbandonedPageReset, true);
-            Mem.OptionSetEnabled(Mem.Option.EagerRegionCommit, true);
+Mem.OptionSetEnabled(Mem.Option.EagerCommit, true);
+Mem.OptionSetEnabled(Mem.Option.LargeOsPages, true);
+Mem.OptionSetEnabled(Mem.Option.ResetDecommits, true);
+Mem.OptionSetEnabled(Mem.Option.PageReset, true);
+Mem.OptionSetEnabled(Mem.Option.SegmentReset, true);
+Mem.OptionSetEnabled(Mem.Option.AbandonedPageReset, true);
+Mem.OptionSetEnabled(Mem.Option.EagerRegionCommit, false); // TODO see mimalloc comment on this. Should be true on servers
+Mem.OptionSetEnabled(Mem.Option.ReserveHugeOsPages, true);
             return true;
         }
     }

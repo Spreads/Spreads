@@ -20,9 +20,7 @@ namespace Spreads.Core.Tests.Buffers
         [Explicit("bench")]
         public void PoolPerformance()
         {
-            const int perCoreCapacity = 20;
-
-            var rmp = new RetainableMemoryPool<byte>(maxBuffersPerBucketPerCore: perCoreCapacity);
+            var rmp = RetainableMemoryPool<byte>.Default;
 
             for (int round = 0; round < 20; round++)
             {
@@ -37,18 +35,31 @@ namespace Spreads.Core.Tests.Buffers
         [MethodImpl(MethodImplOptions.NoInlining | MethodImplOptions.AggressiveOptimization)]
         internal void RmpBenchmark<T>(RetainableMemoryPool<T> pool, string testCase)
         {
-            var count = TestUtils.GetBenchCount(10_000_000, 100_000);
-            var threads = 1; // Environment.ProcessorCount;
-            using (Benchmark.Run(testCase, count * 2 * threads))
+            var prevRent = BuffersStatistics.RentReturnedBeforeYield.Value;
+            var prevReturn = BuffersStatistics.ReturnReturnedBeforeYield.Value;
+            var prevSCRent = BuffersStatistics.SameCoreRentContention.Value;
+            var prevSCReturn = BuffersStatistics.SameCoreReturnContention.Value;
+            var prevRentLoop = BuffersStatistics.RentLoop.Value;
+            var prevReturnLoop = BuffersStatistics.ReturnLoop.Value;
+
+            var count = TestUtils.GetBenchCount(10_000_000, 1000_000);
+            var threadCount = Environment.ProcessorCount;
+            using (Benchmark.Run(testCase, count * 2 * threadCount))
             {
-                Task.WaitAll(Enumerable.Range(0, threads).Select(_ => Task.Factory.StartNew(() =>
+                Task.WaitAll(Enumerable.Range(0, threadCount).Select(_ => Task.Factory.StartNew(() =>
                 {
+                    var size = 8 * 1024;
+                    
+                    var x0 = pool.RentMemory(size);
                     try
                     {
                         for (int i = 0; i < count; i++)
                         {
-                            var x1 = pool.RentMemory(64 * 1024);
-                            var x2 = pool.RentMemory(64 * 1024);
+                            var x1 = pool.RentMemory(size);
+
+                            var x2 = pool.RentMemory(size);
+                            // if(x1 == x2)
+                            //     ThrowHelper.FailFast("WTF!");
                             x1.Dispose();
                             x2.Dispose();
                         }
@@ -57,8 +68,17 @@ namespace Spreads.Core.Tests.Buffers
                     {
                         Console.WriteLine($"EXCEPTION: {ex}");
                     }
+
+                    x0.Dispose();
                 }, TaskCreationOptions.LongRunning)).ToArray());
             }
+
+            // Console.WriteLine(
+            //     $"Rent: {BuffersStatistics.RentReturnedBeforeYield.Value - prevRent:N0} Return: {BuffersStatistics.ReturnReturnedBeforeYield.Value - prevReturn:N0} " +
+            //     $"SCRent: {BuffersStatistics.SameCoreRentContention.Value - prevSCRent:N0} SCReturn: {BuffersStatistics.SameCoreReturnContention.Value - prevSCReturn:N0}" +
+            //     $"RentLoop: {BuffersStatistics.RentLoop.Value - prevRentLoop:N0} ReturnLoop: {BuffersStatistics.ReturnLoop.Value - prevReturnLoop:N0}");
+
+            // Console.WriteLine(pool.InspectObjects().Count());
         }
 
         [MethodImpl(MethodImplOptions.NoInlining | MethodImplOptions.AggressiveOptimization)]
@@ -66,7 +86,7 @@ namespace Spreads.Core.Tests.Buffers
         {
             var pool = ArrayPool<T>.Shared;
             var count = TestUtils.GetBenchCount(10_000_000, 100_000);
-            var threads = 1; //Environment.ProcessorCount;
+            var threads = Environment.ProcessorCount;
             using (Benchmark.Run("array_pool", count * 2 * threads))
             {
                 Task.WaitAll(Enumerable.Range(0, threads).Select(_ => Task.Factory.StartNew(() =>

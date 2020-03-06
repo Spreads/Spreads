@@ -44,13 +44,13 @@ namespace Spreads.Core.Tests.Serialization
         public void CouldCompressWithHeader(int seed, bool silent = false)
         {
             var rm = BufferPool.Retain(1000000);
-            var db = new DirectBuffer(rm.Span);
+            var db = new DirectBuffer(rm);
 
             var rm1 = BufferPool.Retain(1000000);
-            var db1 = new DirectBuffer(rm1.Span);
+            var db1 = new DirectBuffer(rm1);
 
             var rm2 = BufferPool.Retain(1000000);
-            var db2 = new DirectBuffer(rm2.Span);
+            var db2 = new DirectBuffer(rm2);
 
             var count = 1000;
 
@@ -131,7 +131,7 @@ namespace Spreads.Core.Tests.Serialization
             var silent = true;
 
             var rm = BufferPool.Retain(100_000_000);
-            var db = new DirectBuffer(rm.Span);
+            var db = new DirectBuffer(rm);
 #if !DEBUG
             var count = 200_000;
 #else

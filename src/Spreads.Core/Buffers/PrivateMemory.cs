@@ -10,6 +10,7 @@ using Spreads.Utils;
 using System;
 using System.Buffers;
 using System.Runtime.CompilerServices;
+using System.Threading;
 using static Spreads.Buffers.BuffersThrowHelper;
 
 namespace Spreads.Buffers
@@ -23,14 +24,18 @@ namespace Spreads.Buffers
     /// <typeparam name="T"></typeparam>
     public sealed class PrivateMemory<T> : RetainableMemory<T>
     {
+#pragma warning disable 169
+        private readonly Padding32 _padding;
+#pragma warning restore 169
+
         /// <summary>
         /// Size of PrivateMemory object with header and method table pointer on x64.
         /// </summary>
-        internal const int ObjectSize = 48;
+        internal const int ObjectSize = 80;
 
         // Size of PrivateMemory object is 48 bytes. It's the main building block
         // for data containers and is often not short-lived, so pool aggressively.
-        // Round up to pow2 = 64 bytes, use 16 kb per core per type, which gives 256 items.
+        // Round up to pow2 = 64 bytes, use 16 kb per core per type, which gives 128 items.
 
         private static readonly ObjectPool<PrivateMemory<T>> ObjectPool =
             new ObjectPool<PrivateMemory<T>>(() => new PrivateMemory<T>(), 16 * 1024 / BitUtil.FindNextPositivePowerOfTwo(ObjectSize));
@@ -41,8 +46,7 @@ namespace Spreads.Buffers
         // pinning logic - memory is already pinned when it is possible.
         // We keep track of total number of bytes allocated off-heap in BuffersStatistics.
 
-        internal T[] _array;
-        internal int _offset;
+        internal T[]? _array;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private PrivateMemory()
@@ -61,17 +65,9 @@ namespace Spreads.Buffers
         /// Create a <see cref="PrivateMemory{T}"/> from a <see cref="RetainableMemoryPool{T}"/>.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static PrivateMemory<T> Create(int length, RetainableMemoryPool<T> pool)
+        internal static unsafe PrivateMemory<T> Create(int length, RetainableMemoryPool<T> pool)
         {
-            return Create(length, pool, Cpu.GetCurrentCoreId());
-        }
-
-        /// <summary>
-        /// Create a <see cref="PrivateMemory{T}"/> from a <see cref="RetainableMemoryPool{T}"/>.
-        /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static unsafe PrivateMemory<T> Create(int length, RetainableMemoryPool<T> pool, int cpuId)
-        {
+            var cpuId = Cpu.GetCurrentCoreId();
             var alignedSize = (uint) BitUtil.FindNextPositivePowerOfTwo(Unsafe.SizeOf<T>());
 
             if ((ulong) length * alignedSize > int.MaxValue)
@@ -92,7 +88,6 @@ namespace Spreads.Buffers
             {
                 privateMemory._array = BufferPool<T>.Rent(length);
                 privateMemory._offset = 0;
-                ThrowHelper.DebugAssert(privateMemory._offset == 0);
                 ThrowHelper.DebugAssert(privateMemory._pointer == null);
             }
             else
@@ -103,7 +98,7 @@ namespace Spreads.Buffers
 
             privateMemory.PoolIndex =
                 pool is null
-                    ? privateMemory._array == null ? (byte) 0 : (byte) 1
+                    ? (byte) 1
                     : pool.PoolIdx;
 
             return privateMemory;
@@ -124,7 +119,7 @@ namespace Spreads.Buffers
 
             // TODO bytesLength = (uint) Mem.GoodSize((UIntPtr) bytesLength); but check/change return type 
 
-            _pointer = Mem.MallocAligned((UIntPtr) bytesLength, (UIntPtr) alignment);
+            _pointer = (IntPtr)Mem.MallocAligned((UIntPtr) bytesLength, (UIntPtr) alignment);
             _offset = 0;
             _length = (int) bytesLength / Unsafe.SizeOf<T>();
 
@@ -134,19 +129,47 @@ namespace Spreads.Buffers
         /// <summary>
         /// Returns <see cref="Vec{T}"/> backed by this instance memory.
         /// </summary>
-        public override unsafe Vec<T> Vec
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public override unsafe Vec<T> GetVec()
         {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get
-            {
-                // TODO use static readonly for blittables + debug assert that for them pointer is always != null
-                // var tid = VecTypeHelper<T>.RuntimeVecInfo.RuntimeTypeId;
-                var vec = _pointer == null ? new Vec<T>(_array, _offset, _length) : new Vec<T>(_pointer, _length);
+            if (IsDisposed)
+                ThrowDisposed<PrivateMemory<T>>();
+
+            var vec = TypeHelper<T>.IsReferenceOrContainsReferences
+                ? new Vec<T>(_array, _offset, _length)
+                : new Vec<T>((void*)_pointer, _length);
+
 #if SPREADS
-                ThrowHelper.DebugAssert(vec.AsVec().ItemType == typeof(T));
+            ThrowHelper.DebugAssert(vec.AsVec().ItemType == typeof(T));
 #endif
-                return vec;
-            }
+            return vec;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public override unsafe Span<T> GetSpan()
+        {
+            // Do not use IsDisposed, we use Span.Clear in RMP.RI
+            if (TypeHelper<T>.IsReferenceOrContainsReferences ? _array == null : _pointer == null)
+                ThrowDisposed<PrivateMemory<T>>();
+            
+            return TypeHelper<T>.IsReferenceOrContainsReferences
+                ? new Span<T>(_array, _offset, _length)
+                : new Span<T>((void*)_pointer, _length);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        protected override bool TryGetArray(out ArraySegment<T> buffer)
+        {
+            if (IsDisposed)
+                ThrowDisposed<PrivateMemory<T>>();
+
+            // With pooling it's quite problematic to expose the internal
+            // array that could be used somewhere while being returned to 
+            // a pool. It's safe to not even try. Pooled arrays are 
+            // more like native memory which is managed manually, so do
+            // not return true even when backed by arrays.
+            buffer = default;
+            return false;
         }
 
         [Obsolete("Prefer fixed statements on a pinnable reference for short-lived pinning")]
@@ -154,10 +177,8 @@ namespace Spreads.Buffers
         public override unsafe MemoryHandle Pin(int elementIndex = 0)
 #pragma warning restore CS0809 // Obsolete member overrides non-obsolete member
         {
-            if (_pointer == null)
-            {
+            if (TypeHelper<T>.IsReferenceOrContainsReferences)
                 ThrowNotPinnable();
-            }
 
             return base.Pin(elementIndex);
         }
@@ -168,66 +189,61 @@ namespace Spreads.Buffers
             ThrowHelper.ThrowInvalidOperationException($"Type {typeof(T).Name} is not pinnable.");
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public override unsafe Span<T> GetSpan()
+        protected override void Dispose(bool disposing)
         {
-            if (IsPooled)
-            {
+            // This overload if from MemoryManager<T> and is called from it's IDisposable
+            // implementation, so we have to keep it. But MM doesn't have a finalizer 
+            // and we call Free instead of Dispose(false) for destroying this object,
+            // while Dispose(true) is for returning a memory object to a pool.
+            if(!disposing)
+                ThrowHelper.ThrowInvalidOperationException("Should not call PrivateMemory.Dispose(false)");
+
+            var zeroIfDisposedNow = AtomicCounter.TryDispose(ref CounterRef);
+
+            if (zeroIfDisposedNow > 0)
+                ThrowDisposingRetained<PrivateMemory<T>>();
+
+            if (zeroIfDisposedNow == -1)
                 ThrowDisposed<PrivateMemory<T>>();
-            }
+            
+            var pool = Pool;
+            if (pool != null && pool.ReturnInternal(this, clearMemory: TypeHelper<T>.IsReferenceOrContainsReferences))
+                return;
 
-            // if disposed Pointer & _len are null/0, no way to corrupt data, will just throw
-            if (_pointer == null)
-            {
-                return new Span<T>(_array, _offset, _length);
-            }
-
-            return new Span<T>(_pointer, _length);
+            GC.SuppressFinalize(this);
+            Free(finalizing: false);
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        protected override unsafe void Dispose(bool disposing)
+        internal override unsafe void Free(bool finalizing)
         {
-            if (disposing)
-            {
-                var pool = Pool;
-                if (pool != null)
-                {
-                    // throws if ref count is not zero
-                    // calls DisposeFinalize() if a bucket is full
-                    pool.ReturnInternal(this, clearMemory: TypeHelper<T>.IsReferenceOrContainsReferences);
-                    return;
-                }
+            ThrowHelper.Assert(IsDisposed);
 
-                // not poolable, doing finalization work now
-                GC.SuppressFinalize(this);
-            }
-
-            AtomicCounter.Dispose(ref CounterRef);
-
-            // Finalization
-
-            ThrowHelper.DebugAssert(!IsPooled);
-
-            var array = _array;
-            _array = null;
-
+            var array = Interlocked.Exchange(ref _array, null);
             if (array != null)
             {
                 ThrowHelper.DebugAssert(TypeHelper<T>.IsReferenceOrContainsReferences);
                 BufferPool<T>.Return(array, clearArray: true);
             }
-            else
+            
+            var pointer = Interlocked.Exchange(ref _pointer, IntPtr.Zero);
+            if (pointer != IntPtr.Zero)
             {
-                Mem.Free((byte*) _pointer);
+                Mem.Free((byte*) pointer);
                 BuffersStatistics.ReleasedNativeMemory.InterlockedAdd(_length);
-                _pointer = null;
             }
 
-            ClearAfterDispose();
+            // In PM either pointer or array, never both
+            if (array == null && pointer == IntPtr.Zero)
+            {
+                string msg = "Tried to destroy already destroyed PrivateMemory";
+#if DEBUG
+                ThrowHelper.ThrowInvalidOperationException(msg);
+#endif
+                // Trace.TraceWarning(msg);
+                return;
+            }
 
-            _offset = -1; // make it unusable if not re-initialized
-            PoolIndex = default; // after ExternallyOwned check!
+            ClearFields();
 
             // We cannot tell if this object is pooled, so we rely on finalizer
             // that will be called only if the object is not in the pool.
@@ -235,25 +251,15 @@ namespace Spreads.Buffers
             // then we called GC.SuppressFinalize(this)
             // and finalizer won't be called if the object is dropped from ObjectPool.
             // We have done buffer clean-up job and this object could die normally.
-            ObjectPool.Return(this);
+            if(!finalizing)
+                ObjectPool.Return(this);
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        protected override bool TryGetArray(out ArraySegment<T> buffer)
+        internal override void ClearFields()
         {
-            if (IsDisposed)
-            {
-                ThrowDisposed<PrivateMemory<T>>();
-            }
-
-            if (_array == null)
-            {
-                buffer = default;
-                return false;
-            }
-
-            buffer = new ArraySegment<T>(_array, _offset, _length);
-            return true;
+            _offset = -1; // make it unusable if not re-initialized
+            PoolIndex = default;
+            base.ClearFields();
         }
     }
 }

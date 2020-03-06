@@ -24,6 +24,10 @@ namespace Spreads.Buffers
     public class RetainableMemoryPool<T> : MemoryPool<T>
     {
         internal static readonly RetainableMemoryPool<T>[] KnownPools = new RetainableMemoryPool<T>[64];
+
+        private static Func<RetainableMemoryPool<T>, int, RetainableMemory<T>> DefaultFactory = (pool, length) => PrivateMemory<T>.Create(length, pool);
+        public static RetainableMemoryPool<T> Default = new RetainableMemoryPool<T>(DefaultFactory);
+
         public readonly byte PoolIdx;
 
         /// <summary>
@@ -37,7 +41,7 @@ namespace Spreads.Buffers
 
         private readonly bool _typeHasReferences = TypeHelper<T>.IsReferenceOrContainsReferences;
 
-        internal readonly Func<int, int, RetainableMemory<T>> Factory;
+        internal readonly Func<int, RetainableMemory<T>> Factory;
 
         /// <summary>The default minimum length of each memory buffer in the pool.</summary>
         public const int DefaultMinBufferLength = 2048;
@@ -56,20 +60,44 @@ namespace Spreads.Buffers
         // ReSharper disable once FieldCanBeMadeReadOnly.Global
         internal bool AddStackTraceOnRent = LeaksDetection.Enabled;
 
-        public RetainableMemoryPool(Func<RetainableMemoryPool<T>, int, RetainableMemory<T>>? factory = null,
+        public RetainableMemoryPool(Func<RetainableMemoryPool<T>, int, RetainableMemory<T>> factory,
             int minLength = DefaultMinBufferLength,
             int maxLength = DefaultMaxBufferLength,
             int maxBuffersPerBucketPerCore = DefaultMaxNumberOfBuffersPerBucketPerCore,
             int maxBucketsToTry = 2,
             bool rentAlwaysClean = false)
         {
+            if (factory == null)
+                throw new ArgumentNullException(nameof(factory));
+
+            lock (KnownPools)
+            {
+                // Start from 2, other code depends on the first 2 items being null.
+                // pool idx == 0 is always null which means a buffer is not from pool
+                // pool idx == 1 means a buffer is from default pool, e.g. static array pool
+                for (int i = 2; i < KnownPools.Length; i++)
+                {
+                    if (KnownPools[i] == null)
+                    {
+                        PoolIdx = checked((byte) i);
+                        KnownPools[i] = this;
+                        break;
+                    }
+                }
+
+                if (PoolIdx == 0)
+                    ThrowHelper.ThrowInvalidOperationException("KnownPools slots exhausted. 64 pools ought to be enough for anybody.");
+            }
+
             IsRentAlwaysClean = rentAlwaysClean;
 
-            Factory = (length, cpuId) =>
+            Factory = (length) =>
             {
-                var memory = factory == null ? PrivateMemory<T>.Create(length, this, cpuId) : factory(this, length);
+                var memory = factory(this, length);
                 if (IsRentAlwaysClean)
                     memory.GetSpan().Clear();
+                AtomicCounter.Dispose(ref memory.CounterRef);
+                ThrowHelper.DebugAssert(memory.IsPooled);
                 return memory;
             };
 
@@ -93,7 +121,7 @@ namespace Spreads.Buffers
                 throw new ArgumentOutOfRangeException(nameof(maxLength));
             }
 
-            if (maxBuffersPerBucketPerCore <= 0)
+            if (maxBuffersPerBucketPerCore < 0)
             {
                 throw new ArgumentOutOfRangeException(nameof(maxBuffersPerBucketPerCore));
             }
@@ -123,24 +151,6 @@ namespace Spreads.Buffers
             }
 
             _buckets = buckets;
-
-            lock (KnownPools)
-            {
-                // start from 2,
-                // pool idx == 0 is always null which means a buffer is not from pool
-                // pool idx == 1 means a buffer is from default pool, e.g. static array pool
-                for (int i = 2; i < KnownPools.Length; i++)
-                {
-                    if (KnownPools[i] == null)
-                    {
-                        PoolIdx = checked((byte) i);
-                        KnownPools[i] = this;
-                        return;
-                    }
-                }
-
-                ThrowHelper.ThrowInvalidOperationException("KnownPools slots exhausted. 64 pools ought to be enough for anybody.");
-            }
         }
 
         /// <summary>
@@ -172,7 +182,7 @@ namespace Spreads.Buffers
             minBufferSize = Math.Max(MinBufferLength, minBufferSize);
 
             var log = RetainableMemoryPoolEventSource.Log;
-            RetainableMemory<T> buffer;
+            RetainableMemory<T> memory;
 
             int bucketIndex = SelectBucketIndex(minBufferSize);
 
@@ -184,53 +194,50 @@ namespace Spreads.Buffers
                 // next higher bucket and try that one, but only try at most a few buckets.
                 do
                 {
-                    buffer = _buckets[i].Rent(cpuId);
-                } while (buffer == null
+                    memory = _buckets[i].Rent(cpuId);
+                } while (memory == null
                          && ++i < _buckets.Length
                          && i <= bucketIndex + maxBucketsToTry);
 
-                if (buffer != null)
+                if (memory == null)
                 {
-                    if (!buffer.IsPooled)
-                        ThrowNotPooled<RetainableMemory<T>>();
-
-                    ThrowHelper.DebugAssert(buffer.IsDisposed);
-                    
-                    // Set counter to zero, keep other flags
-                    // Do not need atomic CAS here because we own the buffer here
-                    buffer.CounterRef &= ~AtomicCounter.CountMask;
-
-                    buffer.IsPooled = false;
-
-                    ThrowHelper.DebugAssert(!buffer.IsDisposed && buffer.ReferenceCount == 0, "!buffer.IsDisposed");
-
-                    if (log.IsEnabled())
-                        log.BufferRented(buffer.GetHashCode(), buffer.Length, Id, _buckets[i].GetHashCode());
-
-                    if (AddStackTraceOnRent)
-                        buffer.Tag = Environment.StackTrace;
-
-                    return buffer;
+                    // The pool was exhausted for this buffer size. Allocate a new buffer
+                    // with a size corresponding to the appropriate bucket.
+                    memory = _buckets[bucketIndex].CreateNew();
+                }
+                else if (log.IsEnabled())
+                {
+                    log.BufferRented(memory.GetHashCode(), memory.Length, Id, _buckets[i].GetHashCode());
                 }
 
-                // The pool was exhausted for this buffer size. Allocate a new buffer
-                // with a size corresponding to the appropriate bucket.
-                buffer = _buckets[bucketIndex].CreateNew(cpuId);
-                ThrowHelper.DebugAssert(!buffer.IsDisposed, "_buckets[index].CreateNew(); returned disposed buffer");
+                ThrowHelper.DebugAssert(memory.IsDisposed && memory.PoolIndex == PoolIdx, "buffer.IsDisposed && buffer.PoolIndex == PoolIdx");
+
+                // Set counter to zero, keep other flags
+                // Do not need atomic CAS here because we own the buffer here
+                memory.CounterRef &= ~AtomicCounter.CountMask;
+
+                ThrowHelper.DebugAssert(!memory.IsDisposed && memory.ReferenceCount == 0, "!buffer.IsDisposed");
+
+#if DEBUG
+                if (AddStackTraceOnRent)
+                    memory.Tag = Environment.StackTrace;
+#endif
+
+                ThrowHelper.DebugAssert(!memory.IsDisposed, "_buckets[index].CreateNew(); returned disposed buffer");
             }
             else
             {
                 // The request was for a size too large for the pool. Allocate a buffer of exactly the requested length.
                 // When it's returned to the pool, we'll simply throw it away.
-                buffer = CreateNew(minBufferSize, cpuId);
-                ThrowHelper.DebugAssert(!buffer.IsDisposed, "Factory returned disposed buffer");
+                memory = CreateNew(minBufferSize);
+                ThrowHelper.DebugAssert(!memory.IsDisposed, "Factory returned disposed buffer");
             }
 
             if (log.IsEnabled())
             {
-                int bufferId = buffer.GetHashCode(), bucketId = -1; // no bucket for an on-demand allocated buffer
-                log.BufferRented(bufferId, buffer.Length, Id, bucketId);
-                log.BufferAllocated(bufferId, buffer.Length, Id, bucketId,
+                int bufferId = memory.GetHashCode(), bucketId = -1; // no bucket for an on-demand allocated buffer
+                log.BufferRented(bufferId, memory.Length, Id, bucketId);
+                log.BufferAllocated(bufferId, memory.Length, Id, bucketId,
                     bucketIndex >= _buckets.Length
                         ? RetainableMemoryPoolEventSource.BufferAllocatedReason.OverMaximumSize
                         : RetainableMemoryPoolEventSource.BufferAllocatedReason.PoolExhausted);
@@ -238,16 +245,16 @@ namespace Spreads.Buffers
 #if DEBUG
             if (AddStackTraceOnRent)
             {
-                buffer.Tag = Environment.StackTrace;
+                memory.Tag = Environment.StackTrace;
             }
 #endif
-            return buffer;
+            return memory;
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
-        private RetainableMemory<T> CreateNew(int minBufferSize, int cpuId)
+        private RetainableMemory<T> CreateNew(int minBufferSize)
         {
-            return Factory(minBufferSize, cpuId);
+            return Factory(minBufferSize);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining
@@ -260,19 +267,16 @@ namespace Spreads.Buffers
             if (_disposed)
                 return false;
 
-            if (memory.PoolIndex != PoolIdx)
-            {
-                if (memory.IsDisposed)
-                    ThrowDisposed<RetainableMemory<T>>();
-                else
-                    ThrowNotFromPool<RetainableMemory<T>>();
-            }
+            if (!memory.IsDisposed)
+                ThrowHelper.ThrowInvalidOperationException("Memory must be disposed before returning to RMP.");
 
-            if (memory.IsPooled)
-                ThrowAlreadyPooled<RetainableMemory<T>>();
+            if (memory.PoolIndex != PoolIdx)
+                ThrowNotFromPool<RetainableMemory<T>>();
 
             // Determine with what bucket this buffer length is associated
-            int bucketIndex = SelectBucketIndex(memory.LengthPow2);
+            var bucketIndex = SelectBucketIndex(memory.LengthPow2);
+
+            var pooled = false;
 
             // If we can tell that the buffer was allocated, drop it. Otherwise, check if we have space in the pool
             if (bucketIndex < _buckets.Length)
@@ -281,37 +285,16 @@ namespace Spreads.Buffers
                 if (memory.LengthPow2 != bucket.BufferLength)
                     ThrowNotFromPool<RetainableMemory<T>>();
 
-                var disposed = AtomicCounter.TryDispose(ref memory.CounterRef);
-                if (disposed == 0)
-                    ThrowHelper.DebugAssert(AtomicCounter.GetIsDisposed(ref memory.CounterRef));
-                else
-                    AtomicCounter.ThrowNonZeroTryDispose(disposed);
-
+#pragma warning disable 618
                 // Clear the memory if the user requests regardless of pooling result.
                 // If not pooled then it should be RM.DisposeFinalize-d and destruction
                 // is not always GC.
-                if (clearMemory || IsRentAlwaysClean || _typeHasReferences)
-                {
-                    if (!memory.SkipCleaning)
-                        memory.GetSpan().Clear();
-                }
-
+                if ((clearMemory || IsRentAlwaysClean || _typeHasReferences) && !memory.SkipCleaning)
+                    memory.GetSpan().Clear();
                 memory.SkipCleaning = false;
+#pragma warning restore 618
 
-                {
-                    // Here we own memory and try to return it. If return is unsuccessful
-                    // then we still do own the instance and could unset the property 
-                    // to false. But if we set the property to the return value of
-                    // bucket.Return then in the true case the memory could be already 
-                    // rented by the time the field is set, so don't do that: `memory.IsPooled = _buckets[bucket].Return(memory)`
-                    memory.IsPooled = true;
-                    var reallyPooled = bucket.Return(memory);
-                    if (!reallyPooled)
-                    {
-                        memory.IsPooled = false;
-                        memory.DisposeFinalize();
-                    }
-                }
+                pooled = bucket.Return(memory);
             }
 
             // Log that the buffer was returned
@@ -319,7 +302,7 @@ namespace Spreads.Buffers
             if (log.IsEnabled())
                 log.BufferReturned(memory.GetHashCode(), memory.Length, Id);
 
-            return memory.IsPooled;
+            return pooled;
         }
 
         internal void PrintStats()
@@ -371,53 +354,7 @@ namespace Spreads.Buffers
         internal int SelectBucketIndex(int bufferSize)
         {
             Debug.Assert(bufferSize >= 0);
-
-            var intUtil = Math.Max(0, (32 - BitUtil.NumberOfLeadingZeros(bufferSize - 1)) - _minBufferLengthPow2);
-
-#if DEBUG
-            // TODO remove this check after some usage, see if this is not the same on some edge case
-
-            // bufferSize of 0 will underflow here, causing a huge
-            // index which the caller will discard because it is not
-            // within the bounds of the bucket array.
-            uint bitsRemaining = ((uint) bufferSize - 1) >> _minBufferLengthPow2;
-
-            int poolIndex = 0;
-            if (bitsRemaining > 0xFFFF)
-            {
-                bitsRemaining >>= 16;
-                poolIndex = 16;
-            }
-
-            if (bitsRemaining > 0xFF)
-            {
-                bitsRemaining >>= 8;
-                poolIndex += 8;
-            }
-
-            if (bitsRemaining > 0xF)
-            {
-                bitsRemaining >>= 4;
-                poolIndex += 4;
-            }
-
-            if (bitsRemaining > 0x3)
-            {
-                bitsRemaining >>= 2;
-                poolIndex += 2;
-            }
-
-            if (bitsRemaining > 0x1)
-            {
-                bitsRemaining >>= 1;
-                poolIndex += 1;
-            }
-
-            var manual = poolIndex + (int) bitsRemaining;
-
-            ThrowHelper.DebugAssert(manual == intUtil);
-#endif
-            return intUtil;
+            return Math.Max(0, (32 - BitUtil.NumberOfLeadingZeros(bufferSize - 1)) - _minBufferLengthPow2);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -428,7 +365,37 @@ namespace Spreads.Buffers
             return maxSize;
         }
 
-        private struct MemoryBucketWrapper : IObjectPoolWrapper<RetainableMemory<T>, PerCoreMemoryBucket>
+        private sealed class MemoryBucket : PerCoreObjectPool<RetainableMemory<T>, PerCoreMemoryBucket, PerCoreMemoryBucketWrapper>
+        {
+            private readonly RetainableMemoryPool<T> _pool;
+            internal readonly int BufferLength;
+            internal int Capacity => _perCorePools.Sum(p => p.Pool.Capacity);
+            internal int Index => _perCorePools.Sum(p => p.Pool.Index);
+            internal int Pooled => _perCorePools.Sum(p => p.Pool.EnumerateItems().Count(x => x != null));
+
+            public MemoryBucket(RetainableMemoryPool<T> pool, int bufferLength, int perCoreSize)
+                : base(() => new PerCoreMemoryBucket(() =>
+                    {
+                        var memory = pool.Factory(bufferLength);
+                        // AtomicCounter.Dispose(ref memory.CounterRef);
+                        // ThrowHelper.DebugAssert(memory.IsPooled);
+                        return memory;
+                    }, perCoreSize),
+                    () => null, // RMP could look inside larger-size buckets and then allocates explicitly
+                    unbounded: false)
+            {
+                _pool = pool;
+                BufferLength = bufferLength;
+            }
+
+            [MethodImpl(MethodImplOptions.NoInlining)]
+            public RetainableMemory<T> CreateNew()
+            {
+                return _pool.Factory(BufferLength);
+            }
+        }
+
+        private struct PerCoreMemoryBucketWrapper : IObjectPoolWrapper<RetainableMemory<T>, PerCoreMemoryBucket>
         {
             public PerCoreMemoryBucket Pool
             {
@@ -455,60 +422,33 @@ namespace Spreads.Buffers
             }
         }
 
-        private sealed class MemoryBucket : PerCoreObjectPool<RetainableMemory<T>, PerCoreMemoryBucket, MemoryBucketWrapper>
-        {
-            private readonly RetainableMemoryPool<T> _pool;
-            internal readonly int BufferLength;
-            internal int Capacity => _perCorePools.Sum(p => p.Pool.Capacity);
-            internal int Index => _perCorePools.Sum(p => p.Pool.Index);
-            internal int Pooled => _perCorePools.Sum(p => p.Pool.EnumerateItems().Count(x => x != null));
-
-            public MemoryBucket(RetainableMemoryPool<T> pool, int bufferLength, int perCoreSize)
-                : base(() => new PerCoreMemoryBucket(() =>
-                    {
-                        var memory = pool.Factory(bufferLength, Cpu.GetCurrentCoreId());
-                        memory.IsPooled = true;
-                        AtomicCounter.Dispose(ref memory.CounterRef);
-                        return memory;
-                    }, perCoreSize),
-                    () => null, // RMP could look inside larger-size buckets and then allocates explicitly
-                    unbounded: false)
-            {
-                _pool = pool;
-                BufferLength = bufferLength;
-            }
-
-            [MethodImpl(MethodImplOptions.NoInlining)]
-            public RetainableMemory<T> CreateNew(int cpuId)
-            {
-                return _pool.Factory(BufferLength, cpuId);
-            }
-        }
-
         private sealed class PerCoreMemoryBucket : LockedObjectPoolCore<RetainableMemory<T>>
         {
 #pragma warning disable 169
             private readonly Padding64 _padding64;
-            private readonly Padding64 _padding32;
+            private readonly Padding32 _padding32;
+            private RetainableMemory<T> _init;
 #pragma warning restore 169
 
-            public PerCoreMemoryBucket(Func<RetainableMemory<T>> factory, int perCoreSize) : base(factory, perCoreSize, allocateOnEmpty: false)
+            public PerCoreMemoryBucket(Func<RetainableMemory<T>> factory, int perCoreSize)
+                : base(factory, perCoreSize, allocateOnEmpty: false)
             {
+                _init = factory();
             }
 
             public override void Dispose()
             {
-                foreach (var retainableMemory in _items)
+                foreach (var element in _items)
                 {
-                    var disposable = retainableMemory.Value;
+                    var memory = element.Value;
                     // ReSharper disable once UseNullPropagation : Debug
-                    if (disposable != null)
+                    if (memory != null)
                     {
                         // keep all flags but clear the counter
-                        disposable.CounterRef &= ~AtomicCounter.CountMask;
-                        disposable.IsPooled = false;
+                        memory.CounterRef &= ~AtomicCounter.CountMask;
                         // must keep retainableMemory._poolIdx
-                        disposable.DisposeFinalize();
+                        GC.SuppressFinalize(memory);
+                        memory.Free(false);
                     }
                 }
             }

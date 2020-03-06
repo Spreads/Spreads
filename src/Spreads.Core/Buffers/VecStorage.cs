@@ -65,7 +65,7 @@ namespace Spreads.Buffers
             bool externallyOwned = false)
         {
             var ms = memorySource ?? throw new ArgumentNullException(nameof(memorySource));
-            var vec = ms.Vec.AsVec().Slice(start, length);
+            var vec = ms.GetVec().AsVec().Slice(start, length);
 
             if (!externallyOwned)
             { ms.Increment(); }

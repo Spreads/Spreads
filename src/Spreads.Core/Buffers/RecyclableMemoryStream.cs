@@ -773,7 +773,7 @@ namespace Spreads.Buffers
             }
             else
             {
-                Unsafe.CopyBlockUnaligned(ref _largeBuffer.Span[checked((int)_position)], ref buffer[offset], (uint)count);
+                Unsafe.CopyBlockUnaligned(ref _largeBuffer.GetSpan()[checked((int)_position)], ref buffer[offset], (uint)count);
             }
             _position = (int)end;
             _length = Math.Max(_position, _length);
@@ -827,7 +827,7 @@ namespace Spreads.Buffers
             }
             else
             {
-                Unsafe.CopyBlockUnaligned(ref _largeBuffer.Span[checked((int)_position)], ref buffer.Span[0], (uint)buffer.Length);
+                Unsafe.CopyBlockUnaligned(ref _largeBuffer.GetSpan()[checked((int)_position)], ref buffer.Span[0], (uint)buffer.Length);
             }
             _position = (int)end;
             _length = Math.Max(_position, _length);
@@ -879,7 +879,7 @@ namespace Spreads.Buffers
             }
             else
             {
-                _largeBuffer.Span[checked((int)_position)] = value;
+                _largeBuffer.GetSpan()[checked((int)_position)] = value;
             }
             _position = (int)end;
             _length = Math.Max(_position, _length);
@@ -917,7 +917,7 @@ namespace Spreads.Buffers
             }
             else
             {
-                value = _largeBuffer.Span[checked((int)streamPosition)];
+                value = _largeBuffer.GetSpan()[checked((int)streamPosition)];
             }
             streamPosition++;
             return value;
@@ -1262,7 +1262,7 @@ namespace Spreads.Buffers
             else
             {
                 var amountToCopy = Math.Min(count, _length - fromPosition);
-                Unsafe.CopyBlockUnaligned(ref buffer[offset], ref _largeBuffer.Span[checked((int)fromPosition)], (uint)amountToCopy);
+                Unsafe.CopyBlockUnaligned(ref buffer[offset], ref _largeBuffer.GetSpan()[checked((int)fromPosition)], (uint)amountToCopy);
                 return amountToCopy;
             }
         }

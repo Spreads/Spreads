@@ -73,7 +73,7 @@ namespace Spreads.Core.Tests.Buffers
             GC.Collect(2, GCCollectionMode.Forced, true);
             GC.WaitForPendingFinalizers();
 
-            rmc.Span[1] = 1;
+            rmc.GetSpan()[1] = 1;
 
             Assert.AreEqual(1, array[11]);
         }
@@ -92,7 +92,7 @@ namespace Spreads.Core.Tests.Buffers
             GC.Collect(2, GCCollectionMode.Forced, true);
             GC.WaitForPendingFinalizers();
 
-            rmc.Span[5] = 1;
+            rmc.GetSpan()[5] = 1;
 
             Assert.AreEqual(1, array[90]);
         }
@@ -138,14 +138,14 @@ namespace Spreads.Core.Tests.Buffers
 
             Assert.AreEqual(1, r.ReferenceCount);
 
-            var vec = r.Vec;
+            var vec = r.GetVec();
             Assert.AreEqual(1, vec.Length);
             Assert.AreEqual("a", vec[0]);
             var rm = r.Retain();
 
             Assert.AreEqual(2, r.ReferenceCount);
 
-            Assert.AreEqual("a", rm.Span[0]);
+            Assert.AreEqual("a", rm.GetSpan()[0]);
             rm.Dispose();
             Assert.AreEqual(1, r.ReferenceCount);
 

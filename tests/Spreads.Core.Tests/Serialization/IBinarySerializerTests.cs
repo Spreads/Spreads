@@ -134,7 +134,7 @@ namespace Spreads.Core.Tests.Serialization
 #pragma warning restore 618
 
             var rm = BufferPool.Retain(100_000_000);
-            var db = new DirectBuffer(rm.Span);
+            var db = new DirectBuffer(rm);
 
             var count = 50_000;
             var rounds = 10;
@@ -205,7 +205,7 @@ namespace Spreads.Core.Tests.Serialization
 #pragma warning restore 618
 
             var rm = BufferPool.Retain(100_000_000);
-            var db = new DirectBuffer(rm.Span);
+            var db = new DirectBuffer(rm);
 
             var count = 1_000;
             var rounds = 1;

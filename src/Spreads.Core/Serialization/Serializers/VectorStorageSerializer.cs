@@ -119,7 +119,7 @@ namespace Spreads.Collections.Internal
                 Debug.Assert(rm != null);
 
                 // ReSharper disable once PossibleNullReferenceException
-                fixed (byte* dPtr = &Unsafe.As<T, byte>(ref rm.Vec.DangerousGetRef(0)))
+                fixed (byte* dPtr = &Unsafe.As<T, byte>(ref rm.GetVec().DangerousGetRef(0)))
                 {
                     var srcDb = source.Slice(4).Span;
                     var destDb = new Span<byte>(dPtr, byteLen);

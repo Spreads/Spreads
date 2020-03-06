@@ -27,6 +27,11 @@ namespace Spreads.Threading
     {
     }
 
+    [StructLayout(LayoutKind.Sequential, Size = 24)]
+    internal readonly struct Padding24
+    {
+    }
+    
     [StructLayout(LayoutKind.Sequential, Size = 32)]
     internal readonly struct Padding32
     {
@@ -52,6 +57,11 @@ namespace Spreads.Threading
     {
     }
 
+    [StructLayout(LayoutKind.Sequential, Size = 80)]
+    internal readonly struct Padding80
+    {
+    }
+    
     [StructLayout(LayoutKind.Sequential, Pack = 8, Size = 112)]
     internal readonly struct Padding112
     {

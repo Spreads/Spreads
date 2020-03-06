@@ -7,6 +7,7 @@ using ObjectLayoutInspector;
 using Spreads.Buffers;
 using Spreads.Utils;
 using System;
+using Spreads.Native;
 
 namespace Spreads.Core.Tests.Buffers
 {
@@ -26,6 +27,21 @@ namespace Spreads.Core.Tests.Buffers
         private class DummyRetainableMemory : RetainableMemory<byte>
         {
             protected override void Dispose(bool disposing)
+            {
+                throw new NotImplementedException();
+            }
+
+            public override Span<byte> GetSpan()
+            {
+                throw new NotImplementedException();
+            }
+            
+            public override Vec<byte> GetVec()
+            {
+                throw new NotImplementedException();
+            }
+
+            internal override void Free(bool finalizing)
             {
                 throw new NotImplementedException();
             }
@@ -78,7 +94,7 @@ namespace Spreads.Core.Tests.Buffers
                 Assert.IsFalse(memory.IsRetained);
                 Assert.IsFalse(memory.IsDisposed);
                 Assert.AreEqual(null, memory.Pool);
-                Assert.AreEqual(memory.Vec.Length, memory.Length);
+                Assert.AreEqual(memory.GetVec().Length, memory.Length);
 
                 Assert.AreEqual(0, memory.PoolIndex, "0, memory._poolIdx");
 
