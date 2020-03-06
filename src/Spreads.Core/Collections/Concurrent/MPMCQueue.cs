@@ -6,7 +6,7 @@ using Spreads.Utils;
 
 namespace Spreads.Collections.Concurrent
 {
-    [StructLayout(LayoutKind.Explicit, Size = 256)]
+    [StructLayout(LayoutKind.Explicit, Size = 384)]
     // ReSharper disable once InconsistentNaming
     public class MPMCQueue
     {
@@ -14,7 +14,7 @@ namespace Spreads.Collections.Concurrent
         protected readonly Cell[] _enqueueBuffer;
 
         [FieldOffset(Settings.SAFE_CACHE_LINE + 8)]
-        private volatile int _enqueuePos;
+        private int _enqueuePos;
 
         // Separate access to buffers from enqueue and dequeue.
         // This removes false sharing and accessing a buffer 
@@ -24,7 +24,7 @@ namespace Spreads.Collections.Concurrent
         private readonly Cell[] _dequeueBuffer;
 
         [FieldOffset(Settings.SAFE_CACHE_LINE * 2 + 8)]
-        private volatile int _dequeuePos;
+        private int _dequeuePos;
 
         public MPMCQueue(int bufferSize)
         {
@@ -56,7 +56,7 @@ namespace Spreads.Collections.Concurrent
                 {
                     result = cell.Element;
                     cell.Element = null;
-                    cell.Sequence = pos + buffer.Length;
+                    Volatile.Write(ref cell.Sequence, pos + buffer.Length);
                     break;
                 }
 
@@ -85,7 +85,7 @@ namespace Spreads.Collections.Concurrent
                 if (cell.Sequence == pos && Interlocked.CompareExchange(ref _enqueuePos, pos + 1, pos) == pos)
                 {
                     cell.Element = item;
-                    cell.Sequence = pos + 1;
+                    Volatile.Write(ref cell.Sequence, pos + 1);
                     result = true;
                     break;
                 }
@@ -105,7 +105,7 @@ namespace Spreads.Collections.Concurrent
         protected struct Cell
         {
             [FieldOffset(0)]
-            public volatile int Sequence;
+            public int Sequence;
 
             [FieldOffset(8)]
             public object Element;
