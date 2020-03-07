@@ -33,7 +33,7 @@ namespace Spreads.Run
             Settings.DoAdditionalCorrectnessChecks = false;
 
             Process.GetCurrentProcess().PriorityClass = ProcessPriorityClass.High;
-            // Process.GetCurrentProcess().ProcessorAffinity = (IntPtr) 0b_0000_1111;
+            // Process.GetCurrentProcess().ProcessorAffinity = (IntPtr) 0b_01_0101_0101;
             // EquiJoinBench();
             ExecutionContext.SuppressFlow();
             Settings.SharedSpinLockNotificationPort = 53412;
@@ -43,7 +43,7 @@ namespace Spreads.Run
 
             GC.Collect(2, GCCollectionMode.Forced, true, true);
             
-            Native.Mem.StatsPrint();
+            // Native.Mem.StatsPrint();
             
             Console.WriteLine("Finished, press enter to exit...");
             Console.ReadLine();

@@ -16,10 +16,6 @@ namespace Spreads.Collections.Concurrent
         [FieldOffset(Settings.SAFE_CACHE_LINE + 8)]
         private int _enqueuePos;
 
-        // Separate access to buffers from enqueue and dequeue.
-        // This removes false sharing and accessing a buffer 
-        // reference also prefetches the following Pos with [(64 - (8 + 4 + 4)) = 52]/64 probability.
-
         [FieldOffset(Settings.SAFE_CACHE_LINE * 2)]
         private readonly Cell[] _dequeueBuffer;
 
@@ -61,10 +57,10 @@ namespace Spreads.Collections.Concurrent
                 }
 
                 if (cell.Sequence < pos + 1)
-                {
                     break;
-                }
 
+                // if (spinner.NextSpinWillYield) 
+                //     spinner.Reset();
                 spinner.SpinOnce();
             } while (true);
 
@@ -91,10 +87,10 @@ namespace Spreads.Collections.Concurrent
                 }
 
                 if (cell.Sequence < pos)
-                {
                     break;
-                }
 
+                // if (spinner.NextSpinWillYield)
+                //     spinner.Reset();
                 spinner.SpinOnce();
             } while (true);
 

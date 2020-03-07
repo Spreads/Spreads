@@ -49,12 +49,13 @@ namespace Spreads.Core.Tests.Collections.Concurrent
             var perCoreLockedObjectPool = new LockedObjectPool<DummyPoolable>(dummyFactory, perCoreCapacity);
             for (int round = 0; round < 20; round++)
             {
+                // MPMCBenchmark();
                 PoolBenchmark(mpmcPool, "mpmcQueue");
-                PoolBenchmark(objectPool, "objectPool");
-                PoolBenchmark(lockedObjectPool, "lockedObjectPool");
-                PoolBenchmark(perCoreMPMCPool, "perCoreMPMCPool");
-                PoolBenchmark(perCoreObjectPool, "perCoreObjectPool");
-                PoolBenchmark(perCoreLockedObjectPool, "perCoreLockedObjectPool");
+                // PoolBenchmark(objectPool, "objectPool");
+                // PoolBenchmark(lockedObjectPool, "lockedObjectPool");
+                // PoolBenchmark(perCoreMPMCPool, "perCoreMPMCPool");
+                // PoolBenchmark(perCoreObjectPool, "perCoreObjectPool");
+                // PoolBenchmark(perCoreLockedObjectPool, "perCoreLockedObjectPool");
             }
 
             Benchmark.Dump();
@@ -67,7 +68,7 @@ namespace Spreads.Core.Tests.Collections.Concurrent
             var threads = 12;
             using (Benchmark.Run(testCase, count * 2 * threads))
             {
-                Task.WaitAll(Enumerable.Range(0, threads).Select(_ => Task.Factory.StartNew(() =>
+                Task.WaitAll(Enumerable.Range(0, threads).Select(i => Task.Factory.StartNew(() =>
                 {
                     for (int i = 0; i < count; i++)
                     {
@@ -77,6 +78,63 @@ namespace Spreads.Core.Tests.Collections.Concurrent
                         pool.Return(x2);
                     }
                 }, TaskCreationOptions.LongRunning)).ToArray());
+            }
+        }
+        
+        [MethodImpl(MethodImplOptions.NoInlining | MethodImplOptions.AggressiveOptimization)]
+        internal void MPMCBenchmark() 
+        {
+            var count = 2_000_000;
+            var threads = 4;
+            var oddQueue = new MPMCQueue(128);
+            var evenQueue = new MPMCQueue(128);
+            using (Benchmark.Run("MPMCQueue", count * threads))
+            {
+                Task.WaitAll(Enumerable.Range(0, threads).Select(i =>
+                {
+                    for (int j = 0; j < 4; j++)
+                    {
+                        oddQueue.Enqueue(new object());
+                        evenQueue.Enqueue(new object());    
+                    }
+                    
+                    if (i % 2 == 0)
+                    {
+                        return Task.Factory.StartNew(() =>
+                        {
+                            
+                            for (int i = 0; i < count; i++)
+                            {
+                                object x1;
+                                do
+                                {
+                                    x1 = evenQueue.Dequeue();
+                                } while (x1 == null);
+
+                                while (!oddQueue.Enqueue(x1)){}
+                                
+                            }
+                        }, TaskCreationOptions.LongRunning);
+                    }
+                    else
+                    {
+                        return Task.Factory.StartNew(() =>
+                        {
+                            for (int i = 0; i < count; i++)
+                            {
+                                object x1;
+                                do
+                                {
+                                    x1 = oddQueue.Dequeue();
+                                } while (x1 == null);
+
+                                while (!evenQueue.Enqueue(x1)){}
+                                
+                            }
+                        }, TaskCreationOptions.LongRunning);
+                    }
+                    
+                }).ToArray());
             }
         }
 
