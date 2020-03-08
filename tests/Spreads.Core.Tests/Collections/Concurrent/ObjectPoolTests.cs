@@ -47,25 +47,29 @@ namespace Spreads.Core.Tests.Collections.Concurrent
             var perCoreMPMCPool = new MPMCPool<DummyPoolable>(dummyFactory, perCoreCapacity);
             var perCoreObjectPool = new ObjectPool<DummyPoolable>(dummyFactory, perCoreCapacity);
             var perCoreLockedObjectPool = new LockedObjectPool<DummyPoolable>(dummyFactory, perCoreCapacity);
-            for (int round = 0; round < 20; round++)
+            var threads = new int[] {1, 2, 4, 8, 12, 24};
+            foreach (var t in threads)
             {
-                // MPMCBenchmark();
-                PoolBenchmark(mpmcPool, "mpmcQueue");
-                // PoolBenchmark(objectPool, "objectPool");
-                // PoolBenchmark(lockedObjectPool, "lockedObjectPool");
-                // PoolBenchmark(perCoreMPMCPool, "perCoreMPMCPool");
-                // PoolBenchmark(perCoreObjectPool, "perCoreObjectPool");
-                // PoolBenchmark(perCoreLockedObjectPool, "perCoreLockedObjectPool");
+                for (int round = 0; round < 20; round++)
+                {
+                    // MPMCBenchmark();
+                    // PoolBenchmark(mpmcPool, "MPMC", t);
+                    // PoolBenchmark(objectPool, "OP", t);
+                    // PoolBenchmark(lockedObjectPool, "LOP", t);
+                    PoolBenchmark(perCoreMPMCPool, "pcMPMC", t);
+                    PoolBenchmark(perCoreObjectPool, "pcOP", t);
+                    PoolBenchmark(perCoreLockedObjectPool, "pcLOP", t);
+                }
             }
 
             Benchmark.Dump();
         }
 
         [MethodImpl(MethodImplOptions.NoInlining | MethodImplOptions.AggressiveOptimization)]
-        internal void PoolBenchmark<T>(T pool, string testCase) where T : IObjectPool<DummyPoolable>
+        internal void PoolBenchmark<T>(T pool, string testCase, int threads) where T : IObjectPool<DummyPoolable>
         {
             var count = 2_000_000;
-            var threads = 12;
+            testCase = testCase + "_" + threads;
             using (Benchmark.Run(testCase, count * 2 * threads))
             {
                 Task.WaitAll(Enumerable.Range(0, threads).Select(i => Task.Factory.StartNew(() =>
@@ -80,9 +84,9 @@ namespace Spreads.Core.Tests.Collections.Concurrent
                 }, TaskCreationOptions.LongRunning)).ToArray());
             }
         }
-        
+
         [MethodImpl(MethodImplOptions.NoInlining | MethodImplOptions.AggressiveOptimization)]
-        internal void MPMCBenchmark() 
+        internal void MPMCBenchmark()
         {
             var count = 2_000_000;
             var threads = 4;
@@ -95,14 +99,13 @@ namespace Spreads.Core.Tests.Collections.Concurrent
                     for (int j = 0; j < 4; j++)
                     {
                         oddQueue.Enqueue(new object());
-                        evenQueue.Enqueue(new object());    
+                        evenQueue.Enqueue(new object());
                     }
-                    
+
                     if (i % 2 == 0)
                     {
                         return Task.Factory.StartNew(() =>
                         {
-                            
                             for (int i = 0; i < count; i++)
                             {
                                 object x1;
@@ -111,8 +114,9 @@ namespace Spreads.Core.Tests.Collections.Concurrent
                                     x1 = evenQueue.Dequeue();
                                 } while (x1 == null);
 
-                                while (!oddQueue.Enqueue(x1)){}
-                                
+                                while (!oddQueue.Enqueue(x1))
+                                {
+                                }
                             }
                         }, TaskCreationOptions.LongRunning);
                     }
@@ -128,12 +132,12 @@ namespace Spreads.Core.Tests.Collections.Concurrent
                                     x1 = oddQueue.Dequeue();
                                 } while (x1 == null);
 
-                                while (!evenQueue.Enqueue(x1)){}
-                                
+                                while (!evenQueue.Enqueue(x1))
+                                {
+                                }
                             }
                         }, TaskCreationOptions.LongRunning);
                     }
-                    
                 }).ToArray());
             }
         }

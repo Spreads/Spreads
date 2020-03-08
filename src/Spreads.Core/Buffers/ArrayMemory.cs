@@ -18,7 +18,7 @@ namespace Spreads.Buffers
     [Obsolete("TODO Comment this out, remove usages when pooled PM should be used, then keep it only as a wrapper for external CLR arrays")]
     public sealed class ArrayMemory<T> : RetainableMemory<T>
     {
-        private static readonly ObjectPool<ArrayMemory<T>> ObjectPool = new ObjectPool<ArrayMemory<T>>(() => new ArrayMemory<T>(), 16);
+        private static readonly ObjectPool<ArrayMemory<T>> ObjectPool = new ObjectPool<ArrayMemory<T>>(() => new ArrayMemory<T>(), perCoreSize: 16);
 
         private GCHandle _handle;
         internal T[]? _array;

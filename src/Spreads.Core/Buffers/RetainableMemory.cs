@@ -218,18 +218,25 @@ namespace Spreads.Buffers
 #pragma warning restore CS0809 // Obsolete member overrides non-obsolete member
         {
             if (unchecked((uint) elementIndex) >= _length)
-            {
                 ThrowIndexOutOfRange();
-            }
 
             if (TypeHelper<T>.IsReferenceOrContainsReferences)
             {
-                ThrowHelper.DebugAssert(_pointer == null, "_pointer == null");
-                ThrowHelper.ThrowInvalidOperationException("RetainableMemory that is not pinned must have it's own implementation (override) of Pin method.");
+                ThrowNotPinnable();
+            }
+            else if (_pointer == IntPtr.Zero)
+            {
+                ThrowHelper.ThrowInvalidOperationException("RetainableMemory that is not backed by a pointer must have it's own implementation (override) of Pin method.");
             }
 
             Increment();
             return new MemoryHandle(Unsafe.Add<T>((void*) _pointer, elementIndex), handle: default, this);
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static void ThrowNotPinnable()
+        {
+            ThrowHelper.ThrowInvalidOperationException($"Type {typeof(T).Name} is not pinnable.");
         }
 
         [Obsolete("Unpin should never be called directly, it is called during disposal of MemoryHandle returned by Pin.")]

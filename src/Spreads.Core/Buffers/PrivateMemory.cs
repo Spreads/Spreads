@@ -9,6 +9,7 @@ using Spreads.Threading;
 using Spreads.Utils;
 using System;
 using System.Buffers;
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using static Spreads.Buffers.BuffersThrowHelper;
@@ -33,9 +34,9 @@ namespace Spreads.Buffers
         /// </summary>
         internal const int ObjectSize = 80;
 
-        // Size of PrivateMemory object is 48 bytes. It's the main building block
+        // Size of PrivateMemory object is 48 bytes (without padding). It's the main building block
         // for data containers and is often not short-lived, so pool aggressively.
-        // Round up to pow2 = 64 bytes, use 16 kb per core per type, which gives 128 items.
+        // Round up to pow2, use 16 kb per core per type, which gives 128 items.
 
         private static readonly ObjectPool<PrivateMemory<T>> ObjectPool =
             new ObjectPool<PrivateMemory<T>>(() => new PrivateMemory<T>(), 16 * 1024 / BitUtil.FindNextPositivePowerOfTwo(ObjectSize));
@@ -119,7 +120,7 @@ namespace Spreads.Buffers
 
             // TODO bytesLength = (uint) Mem.GoodSize((UIntPtr) bytesLength); but check/change return type 
 
-            _pointer = (IntPtr)Mem.MallocAligned((UIntPtr) bytesLength, (UIntPtr) alignment);
+            _pointer = (IntPtr) Mem.MallocAligned((UIntPtr) bytesLength, (UIntPtr) alignment);
             _offset = 0;
             _length = (int) bytesLength / Unsafe.SizeOf<T>();
 
@@ -137,7 +138,7 @@ namespace Spreads.Buffers
 
             var vec = TypeHelper<T>.IsReferenceOrContainsReferences
                 ? new Vec<T>(_array, _offset, _length)
-                : new Vec<T>((void*)_pointer, _length);
+                : new Vec<T>((void*) _pointer, _length);
 
 #if SPREADS
             ThrowHelper.DebugAssert(vec.AsVec().ItemType == typeof(T));
@@ -151,10 +152,10 @@ namespace Spreads.Buffers
             // Do not use IsDisposed, we use Span.Clear in RMP.RI
             if (TypeHelper<T>.IsReferenceOrContainsReferences ? _array == null : _pointer == null)
                 ThrowDisposed<PrivateMemory<T>>();
-            
+
             return TypeHelper<T>.IsReferenceOrContainsReferences
                 ? new Span<T>(_array, _offset, _length)
-                : new Span<T>((void*)_pointer, _length);
+                : new Span<T>((void*) _pointer, _length);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -171,31 +172,14 @@ namespace Spreads.Buffers
             buffer = default;
             return false;
         }
-
-        [Obsolete("Prefer fixed statements on a pinnable reference for short-lived pinning")]
-#pragma warning disable CS0809 // Obsolete member overrides non-obsolete member
-        public override unsafe MemoryHandle Pin(int elementIndex = 0)
-#pragma warning restore CS0809 // Obsolete member overrides non-obsolete member
-        {
-            if (TypeHelper<T>.IsReferenceOrContainsReferences)
-                ThrowNotPinnable();
-
-            return base.Pin(elementIndex);
-        }
-
-        [MethodImpl(MethodImplOptions.NoInlining)]
-        private static void ThrowNotPinnable()
-        {
-            ThrowHelper.ThrowInvalidOperationException($"Type {typeof(T).Name} is not pinnable.");
-        }
-
+        
         protected override void Dispose(bool disposing)
         {
             // This overload if from MemoryManager<T> and is called from it's IDisposable
             // implementation, so we have to keep it. But MM doesn't have a finalizer 
             // and we call Free instead of Dispose(false) for destroying this object,
             // while Dispose(true) is for returning a memory object to a pool.
-            if(!disposing)
+            if (!disposing)
                 ThrowHelper.ThrowInvalidOperationException("Should not call PrivateMemory.Dispose(false)");
 
             var zeroIfDisposedNow = AtomicCounter.TryDispose(ref CounterRef);
@@ -205,7 +189,7 @@ namespace Spreads.Buffers
 
             if (zeroIfDisposedNow == -1)
                 ThrowDisposed<PrivateMemory<T>>();
-            
+
             var pool = Pool;
             if (pool != null && pool.ReturnInternal(this, clearMemory: TypeHelper<T>.IsReferenceOrContainsReferences))
                 return;
@@ -224,7 +208,7 @@ namespace Spreads.Buffers
                 ThrowHelper.DebugAssert(TypeHelper<T>.IsReferenceOrContainsReferences);
                 BufferPool<T>.Return(array, clearArray: true);
             }
-            
+
             var pointer = Interlocked.Exchange(ref _pointer, IntPtr.Zero);
             if (pointer != IntPtr.Zero)
             {
@@ -239,7 +223,7 @@ namespace Spreads.Buffers
 #if DEBUG
                 ThrowHelper.ThrowInvalidOperationException(msg);
 #endif
-                // Trace.TraceWarning(msg);
+                Trace.TraceWarning(msg);
                 return;
             }
 
@@ -251,7 +235,7 @@ namespace Spreads.Buffers
             // then we called GC.SuppressFinalize(this)
             // and finalizer won't be called if the object is dropped from ObjectPool.
             // We have done buffer clean-up job and this object could die normally.
-            if(!finalizing)
+            if (!finalizing)
                 ObjectPool.Return(this);
         }
 

@@ -25,7 +25,7 @@ namespace Spreads.Buffers
     {
         internal static readonly RetainableMemoryPool<T>[] KnownPools = new RetainableMemoryPool<T>[64];
 
-        private static Func<RetainableMemoryPool<T>, int, RetainableMemory<T>> DefaultFactory = (pool, length) => PrivateMemory<T>.Create(length, pool);
+        private static readonly Func<RetainableMemoryPool<T>, int, RetainableMemory<T>> DefaultFactory = (pool, length) => PrivateMemory<T>.Create(length, pool);
         public static RetainableMemoryPool<T> Default = new RetainableMemoryPool<T>(DefaultFactory);
 
         public readonly byte PoolIdx;
@@ -427,13 +427,11 @@ namespace Spreads.Buffers
 #pragma warning disable 169
             private readonly Padding64 _padding64;
             private readonly Padding32 _padding32;
-            private RetainableMemory<T> _init;
 #pragma warning restore 169
 
             public PerCoreMemoryBucket(Func<RetainableMemory<T>> factory, int perCoreSize)
                 : base(factory, perCoreSize, allocateOnEmpty: false)
             {
-                _init = factory();
             }
 
             public override void Dispose()
