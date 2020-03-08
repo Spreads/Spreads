@@ -8,7 +8,6 @@ using Spreads.Serialization;
 using Spreads.Threading;
 using Spreads.Utils;
 using System;
-using System.Buffers;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Threading;
@@ -20,23 +19,35 @@ namespace Spreads.Buffers
     /// Memory owned by the current process (as opposed to shared memory).
     /// </summary>
     /// <remarks>
-    /// The memory for blittable types is allocated off-heap, for other types the memory is backed by simple GC-owned arrays.  
+    /// The memory for blittable types is allocated off-heap, for other types the memory is backed by GC-owned arrays.
+    /// Blittable types are defined as types for which <see cref="RuntimeHelpers.IsReferenceOrContainsReferences{T}"/>
+    /// is false.
+    ///
+    /// <para />
+    ///
+    /// It's possible to use <see cref="Vec.UnsafeGetRef{T}"/> and other unsafe-prefixed method of <see cref="Vec"/>
+    /// returned from <see cref="PrivateMemory{T}.GetVec"/>.
     /// </remarks>
     /// <typeparam name="T"></typeparam>
     public sealed class PrivateMemory<T> : RetainableMemory<T>
     {
 #pragma warning disable 169
-        private readonly Padding32 _padding;
+        /// <summary>
+        /// Without padding there is false sharing on <see cref="RefCountedMemory{T}.CounterRef"/>
+        /// that is modified during pool rent/return. We use <see cref="Vec"/> as a padding as
+        /// well, because it is unused during rent/return and when it's used the memory remains rented.
+        /// </summary>
+        private readonly Padding16 _padding;
 #pragma warning restore 169
 
         /// <summary>
         /// Size of PrivateMemory object with header and method table pointer on x64.
         /// </summary>
-        internal const int ObjectSize = 80;
+        internal const int ObjectSize = 88;
 
-        // Size of PrivateMemory object is 48 bytes (without padding). It's the main building block
+        // Size of PrivateMemory object is 48 bytes. It's the main building block
         // for data containers and is often not short-lived, so pool aggressively.
-        // Round up to pow2, use 16 kb per core per type, which gives 128 items.
+        // Round up to pow2, use 16 kb per core per type.
 
         private static readonly ObjectPool<PrivateMemory<T>> ObjectPool =
             new ObjectPool<PrivateMemory<T>>(() => new PrivateMemory<T>(), 16 * 1024 / BitUtil.FindNextPositivePowerOfTwo(ObjectSize));
@@ -46,8 +57,6 @@ namespace Spreads.Buffers
         // and is always pinned. Therefore there is no need for GCHandle or
         // pinning logic - memory is already pinned when it is possible.
         // We keep track of total number of bytes allocated off-heap in BuffersStatistics.
-
-        internal T[]? _array;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private PrivateMemory()
@@ -66,7 +75,7 @@ namespace Spreads.Buffers
         /// Create a <see cref="PrivateMemory{T}"/> from a <see cref="RetainableMemoryPool{T}"/>.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static unsafe PrivateMemory<T> Create(int length, RetainableMemoryPool<T> pool)
+        internal static PrivateMemory<T> Create(int length, RetainableMemoryPool<T> pool)
         {
             var cpuId = Cpu.GetCurrentCoreId();
             var alignedSize = (uint) BitUtil.FindNextPositivePowerOfTwo(Unsafe.SizeOf<T>());
@@ -102,6 +111,8 @@ namespace Spreads.Buffers
                     ? (byte) 1
                     : pool.PoolIdx;
 
+
+            privateMemory.Vec = privateMemory.GetVec().AsVec();
             return privateMemory;
         }
 
@@ -115,7 +126,7 @@ namespace Spreads.Buffers
 
             // It doesn't make a lot of sense to have it above a cache line (or 64 bytes for AVX512).
             // But cache line could be 128 (already exists) and CUDA could have 256 bytes alignment.
-            // Three 64, 128 or 256
+            // Three possible values: 64, 128 or 256
             alignment = Math.Min(Math.Max(Settings.AVX512_ALIGNMENT, alignment), Settings.SAFE_CACHE_LINE * 2);
 
             // TODO bytesLength = (uint) Mem.GoodSize((UIntPtr) bytesLength); but check/change return type 
@@ -137,7 +148,7 @@ namespace Spreads.Buffers
                 ThrowDisposed<PrivateMemory<T>>();
 
             var vec = TypeHelper<T>.IsReferenceOrContainsReferences
-                ? new Vec<T>(_array, _offset, _length)
+                ? new Vec<T>(Unsafe.As<T[]>(_array), _offset, _length)
                 : new Vec<T>((void*) _pointer, _length);
 
 #if SPREADS
@@ -150,11 +161,11 @@ namespace Spreads.Buffers
         public override unsafe Span<T> GetSpan()
         {
             // Do not use IsDisposed, we use Span.Clear in RMP.RI
-            if (TypeHelper<T>.IsReferenceOrContainsReferences ? _array == null : _pointer == null)
+            if (TypeHelper<T>.IsReferenceOrContainsReferences ? _array == null : _pointer == IntPtr.Zero)
                 ThrowDisposed<PrivateMemory<T>>();
 
             return TypeHelper<T>.IsReferenceOrContainsReferences
-                ? new Span<T>(_array, _offset, _length)
+                ? new Span<T>(Unsafe.As<T[]>(_array), _offset, _length)
                 : new Span<T>((void*) _pointer, _length);
         }
 
@@ -172,31 +183,6 @@ namespace Spreads.Buffers
             buffer = default;
             return false;
         }
-        
-        protected override void Dispose(bool disposing)
-        {
-            // This overload if from MemoryManager<T> and is called from it's IDisposable
-            // implementation, so we have to keep it. But MM doesn't have a finalizer 
-            // and we call Free instead of Dispose(false) for destroying this object,
-            // while Dispose(true) is for returning a memory object to a pool.
-            if (!disposing)
-                ThrowHelper.ThrowInvalidOperationException("Should not call PrivateMemory.Dispose(false)");
-
-            var zeroIfDisposedNow = AtomicCounter.TryDispose(ref CounterRef);
-
-            if (zeroIfDisposedNow > 0)
-                ThrowDisposingRetained<PrivateMemory<T>>();
-
-            if (zeroIfDisposedNow == -1)
-                ThrowDisposed<PrivateMemory<T>>();
-
-            var pool = Pool;
-            if (pool != null && pool.ReturnInternal(this, clearMemory: TypeHelper<T>.IsReferenceOrContainsReferences))
-                return;
-
-            GC.SuppressFinalize(this);
-            Free(finalizing: false);
-        }
 
         internal override unsafe void Free(bool finalizing)
         {
@@ -206,7 +192,7 @@ namespace Spreads.Buffers
             if (array != null)
             {
                 ThrowHelper.DebugAssert(TypeHelper<T>.IsReferenceOrContainsReferences);
-                BufferPool<T>.Return(array, clearArray: true);
+                BufferPool<T>.Return(Unsafe.As<T[]>(_array), clearArray: true);
             }
 
             var pointer = Interlocked.Exchange(ref _pointer, IntPtr.Zero);
@@ -237,13 +223,6 @@ namespace Spreads.Buffers
             // We have done buffer clean-up job and this object could die normally.
             if (!finalizing)
                 ObjectPool.Return(this);
-        }
-
-        internal override void ClearFields()
-        {
-            _offset = -1; // make it unusable if not re-initialized
-            PoolIndex = default;
-            base.ClearFields();
         }
     }
 }

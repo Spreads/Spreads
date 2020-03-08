@@ -5,7 +5,6 @@
 using NUnit.Framework;
 using Spreads.Buffers;
 using Spreads.Utils;
-using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -20,13 +19,14 @@ namespace Spreads.Core.Tests.Buffers
     [TestFixture]
     public class PrivateMemoryTests
     {
-        [Test, Explicit("")]
+        [Test, Explicit("output")]
         public void PrivateMemoryLayout()
         {
-            TypeLayout.PrintLayout<PrivateMemory<long>>();
+            TypeLayout.PrintLayout<PrivateMemory<long>>(recursively: false);
+            TypeLayout.PrintLayout<PrivateMemory<byte>>(recursively: false);
+            TypeLayout.PrintLayout<PrivateMemory<object>>(recursively: false);
             var layout = TypeLayout.GetLayout<PrivateMemory<long>>();
         }
-
 
         [Test
 #if !DEBUG
@@ -38,11 +38,7 @@ namespace Spreads.Core.Tests.Buffers
 #endif
         public void CouldCreateDisposePrivateMemory()
         {
-#if !DEBUG
-            var count = 1_000_000;
-#else
-            var count = 1_000;
-#endif
+            var count = TestUtils.GetBenchCount();
 
             var init = PrivateMemory<byte>.Create(64 * 1024);
             PrivateMemory<byte>[] items = new PrivateMemory<byte>[count];
@@ -72,5 +68,6 @@ namespace Spreads.Core.Tests.Buffers
             // Mem.Collect(true);
             Mem.StatsPrint();
         }
+
     }
 }

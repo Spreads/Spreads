@@ -25,7 +25,7 @@ namespace Spreads.Core.Tests.Buffers
             for (int round = 0; round < 20; round++)
             {
                 RmpBenchmark(rmp, "rmp");
-                ArrayPoolBenchmark<byte>();
+                // ArrayPoolBenchmark<byte>();
             }
 
             Benchmark.Dump();

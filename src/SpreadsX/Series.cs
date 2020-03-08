@@ -65,10 +65,10 @@ namespace Spreads
                 return;
             }
 
-            var keyMemory = ArrayMemory<TKey>.Create(keys, externallyOwned: true);
+            var keyMemory = ArrayMemory<TKey>.Create(keys);
             var keyVs = VecStorage.Create(keyMemory, 0, keyMemory.Length);
 
-            var valMemory = ArrayMemory<TValue>.Create(values, externallyOwned: true);
+            var valMemory = ArrayMemory<TValue>.Create(values);
             var valVs = VecStorage.Create(valMemory, 0, valMemory.Length);
 
             var block = DataBlock.SeriesCreate(rowIndex: keyVs, values: valVs, rowLength: keys.Length);

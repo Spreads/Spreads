@@ -5,9 +5,9 @@
 using Spreads.Collections.Concurrent;
 using Spreads.Native;
 using Spreads.Serialization;
-using Spreads.Threading;
 using System;
 using System.Buffers;
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Threading;
@@ -15,13 +15,13 @@ using static Spreads.Buffers.BuffersThrowHelper;
 
 namespace Spreads.Buffers
 {
+    /// <summary>
+    /// <see cref="RetainableMemory{T}"/> backed by an array.
+    /// </summary>
     [Obsolete("TODO Comment this out, remove usages when pooled PM should be used, then keep it only as a wrapper for external CLR arrays")]
     public sealed class ArrayMemory<T> : RetainableMemory<T>
     {
         private static readonly ObjectPool<ArrayMemory<T>> ObjectPool = new ObjectPool<ArrayMemory<T>>(() => new ArrayMemory<T>(), perCoreSize: 16);
-
-        private GCHandle _handle;
-        internal T[]? _array;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private ArrayMemory()
@@ -31,57 +31,50 @@ namespace Spreads.Buffers
         internal T[] Array
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => _array;
+            get => Unsafe.As<T[]>(_array);
         }
 
         public ArraySegment<T> ArraySegment
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => new ArraySegment<T>(_array, _offset, _length);
+            get => new ArraySegment<T>(Unsafe.As<T[]>(_array), _offset, _length);
         }
 
         /// <summary>
         /// Create <see cref="ArrayMemory{T}"/> backed by an array from shared array pool.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static ArrayMemory<T> Create(int minLength, bool pin = false)
+        public static ArrayMemory<T> Create(int minLength)
         {
-            return Create(BufferPool<T>.Rent(minLength), externallyOwned: false, pin);
+            var array = BufferPool<T>.Rent(minLength);
+            return Create(array, offset: 0, array.Length, externallyOwned: false);
+        }
+        
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static ArrayMemory<T> Create(RetainableMemoryPool<T> pool, int minLength)
+        {
+            var array = BufferPool<T>.Rent(minLength);
+            return Create(array, offset: 0, array.Length, externallyOwned: false, pool);
         }
 
         /// <summary>
         /// Create <see cref="ArrayMemory{T}"/> backed by the provided array.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static ArrayMemory<T> Create(T[] array, bool externallyOwned, bool pin = false)
+        public static ArrayMemory<T> Create(T[] array)
         {
-            return Create(array, 0, array.Length, externallyOwned, pin);
+            return Create(array, offset: 0, array.Length, externallyOwned: true);
         }
 
         /// <summary>
         /// Create <see cref="ArrayMemory{T}"/> backed by the provided array.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static unsafe ArrayMemory<T> Create(T[] array, int offset, int length, bool externallyOwned, bool pin, RetainableMemoryPool<T> pool = null)
+        internal static ArrayMemory<T> Create(T[] array, int offset, int length, bool externallyOwned, RetainableMemoryPool<T> pool = null)
         {
             var arrayMemory = ObjectPool.Rent();
             arrayMemory._array = array;
-
-            if (pin)
-            {
-                if (!TypeHelper<T>.IsPinnable)
-                {
-                    ThrowNotPinnable();
-                }
-
-                arrayMemory._handle = GCHandle.Alloc(arrayMemory._array, GCHandleType.Pinned);
-                arrayMemory._pointer = (IntPtr)Unsafe.AsPointer(ref arrayMemory._array[offset]);
-            }
-            else
-            {
-                arrayMemory._pointer = IntPtr.Zero;
-            }
-
+            arrayMemory._pointer = IntPtr.Zero;
             arrayMemory._offset = offset;
             arrayMemory._length = length;
             arrayMemory.PoolIndex =
@@ -103,130 +96,77 @@ namespace Spreads.Buffers
         /// Returns <see cref="Vec{T}"/> backed by this instance memory.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public override unsafe Vec<T> GetVec()
+        public override Vec<T> GetVec()
         {
             if (IsDisposed)
                 ThrowDisposed<ArrayMemory<T>>();
-            var vec = _pointer == null ? new Vec<T>(_array, _offset, _length) : new Vec<T>((void*)_pointer, _length);
+            var vec = new Vec<T>(Unsafe.As<T[]>(_array), _offset, _length);
 #if SPREADS
             ThrowHelper.DebugAssert(vec.AsVec().ItemType == typeof(T));
 #endif
             return vec;
         }
-        
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public override unsafe Span<T> GetSpan()
+        public override Span<T> GetSpan()
         {
             if (IsDisposed)
                 ThrowDisposed<ArrayMemory<T>>();
 
-            // if disposed Pointer & _len are null/0, no way to corrupt data, will just throw
-            return _pointer == null ? new Span<T>(_array, _offset, _length) : new Span<T>((void*)_pointer, _length);
+            return new Span<T>(Unsafe.As<T[]>(_array), _offset, _length);
         }
-        
 
         [Obsolete("Prefer fixed statements on a pinnable reference for short-lived pinning")]
 #pragma warning disable CS0809 // Obsolete member overrides non-obsolete member
         public override unsafe MemoryHandle Pin(int elementIndex = 0)
 #pragma warning restore CS0809 // Obsolete member overrides non-obsolete member
         {
-            if (_pointer == null)
-            {
-                if (!TypeHelper<T>.IsPinnable)
-                {
-                    ThrowNotPinnable();
-                }
+            if (!TypeHelper<T>.IsPinnable)
+                ThrowNotPinnable();
 
-                Increment();
-                var handle = GCHandle.Alloc(_array, GCHandleType.Pinned);
-                var pointer = Unsafe.AsPointer(ref _array[_offset + elementIndex]);
-                return new MemoryHandle(pointer, handle, this);
-            }
+            var handle = GCHandle.Alloc(_array, GCHandleType.Pinned);
+            var pointer = Unsafe.AsPointer(ref Unsafe.As<T[]>(_array)[_offset + elementIndex]);
+            Increment();
 
-            return base.Pin(elementIndex);
+            return new MemoryHandle(pointer, handle, this);
         }
 
         internal override void Free(bool finalizing)
         {
-            throw new NotImplementedException();
-        }
-
-        [MethodImpl(MethodImplOptions.NoInlining)]
-        private static void ThrowNotPinnable()
-        {
-            ThrowHelper.ThrowInvalidOperationException($"Type {typeof(T).Name} is not pinnable.");
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        protected override unsafe void Dispose(bool disposing)
-        {
-            if (disposing)
-            {
-                var pool = Pool;
-                if (pool != null)
-                {
-                    // throws if ref count is not zero
-                    pool.ReturnInternal(this, clearMemory: TypeHelper<T>.IsReferenceOrContainsReferences);
-                    // pool calls Dispose(false) if a bucket is full
-                    return;
-                }
-
-                // not poolable, doing finalization work now
-                GC.SuppressFinalize(this);
-            }
-
-            AtomicCounter.Dispose(ref CounterRef);
-
-            // Finalization
-
-            ThrowHelper.DebugAssert(!IsPooled);
+            ThrowHelper.Assert(IsDisposed);
+            ThrowHelper.Assert(_pointer == IntPtr.Zero);
 
             var array = Interlocked.Exchange(ref _array, null);
             if (array != null)
             {
-                ClearFields();
-                if (!ExternallyOwned)
-                {
-                    BufferPool<T>.Return(array, clearArray: TypeHelper<T>.IsReferenceOrContainsReferences);
-                }
-
-                ThrowHelper.DebugAssert(_pointer == null || _handle.IsAllocated);
-                if (_handle.IsAllocated)
-                {
-                    _handle.Free();
-                    _handle = default;
-                }
-
-                _handle = default;
-                _offset = -1; // make it unusable if not re-initialized
-                PoolIndex = default; // after ExternallyOwned check!
+                ThrowHelper.DebugAssert(TypeHelper<T>.IsReferenceOrContainsReferences);
+                BufferPool<T>.Return(Unsafe.As<T[]>(_array), clearArray: true);
             }
-            else if (disposing)
+
+            if (array == null)
             {
-                // when no pinned we do not create a memory handle
-                ThrowDisposed<ArrayMemory<T>>();
+                string msg = "Tried to destroy already destroyed PrivateMemory";
+#if DEBUG
+                ThrowHelper.ThrowInvalidOperationException(msg);
+#endif
+                Trace.TraceWarning(msg);
+                return;
             }
 
-            ThrowHelper.DebugAssert(!_handle.IsAllocated);
+            ClearFields();
 
-            // We cannot tell if this object is pooled, so we rely on finalizer
-            // that will be called only if the object is not in the pool.
-            // But if we tried to pool the buffer to RMP but failed above
-            // then we called GC.SuppressFinalize(this)
-            // and finalizer won't be called if the object is dropped from ObjectPool.
-            // We have done buffer clean-up job and this object could die normally.
-            ObjectPool.Return(this);
+            // See PrivateMemory comment in the same place
+            if (!finalizing)
+                ObjectPool.Return(this);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         protected override bool TryGetArray(out ArraySegment<T> buffer)
         {
             if (IsDisposed)
-            {
                 ThrowDisposed<ArrayMemory<T>>();
-            }
 
-            buffer = new ArraySegment<T>(_array, _offset, _length);
+            buffer = new ArraySegment<T>(Unsafe.As<T[]>(_array), _offset, _length);
             return true;
         }
     }

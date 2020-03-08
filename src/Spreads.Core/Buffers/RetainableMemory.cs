@@ -1,9 +1,12 @@
-﻿using Spreads.Native;
+﻿// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
+using Spreads.Native;
 using Spreads.Threading;
 using Spreads.Utils;
 using System;
 using System.Buffers;
-using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using Spreads.Serialization;
 using static Spreads.Buffers.BuffersThrowHelper;
@@ -15,30 +18,49 @@ namespace Spreads.Buffers
         internal static ConditionalWeakTable<object, string> Tags = new ConditionalWeakTable<object, string>();
     }
 
-    /// <summary>
-    /// Base class for retainable memory from a pool of arrays or from native memory.
-    /// </summary>
-    public abstract unsafe class RetainableMemory<T> : MemoryManager<T>, IDisposable, IRefCounted
+    internal class RetainableMemoryHelper
     {
-        protected RetainableMemory()
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static ref Vec GetVecRef(object pm)
         {
-#if SPREADS
-            if (LeaksDetection.Enabled)
-                Tag = Environment.StackTrace;
-#endif
+            // RM is generic only on array T[], which is a reference type
+            // and could be stored as object and then casted via Unsafe.As.
+            // So effectively the physical layout is identical for all Ts.
+            // We also store T[] as object to be explicit and use Unsafe.As<T[]>(_array). 
+            // TODO verify that it's safe, Benchmark access vs VecStorage in DB 
+            return ref Unsafe.As<PrivateMemory<byte>>(pm).Vec;
         }
+        
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static T UnsafeGet<T>(object pm, IntPtr index)
+        {
+            // RM is generic only on array T[], which is a reference type
+            // and could be stored as object and then casted via Unsafe.As.
+            // So effectively the physical layout is identical for all Ts.
+            // We also store T[] as object to be explicit and use Unsafe.As<T[]>(_array). 
+            // TODO verify that it's safe, Benchmark access vs VecStorage in DB 
+            return Unsafe.As<PrivateMemory<byte>>(pm).Vec.UnsafeGetUnaligned<T>(index);
+        }
+    }
 
+    
+    /// <summary>
+    /// Base class for reference counted memory from a pool of arrays or from native memory.
+    /// </summary>
+    public abstract unsafe class RetainableMemory<T> : RefCountedMemory<T>
+    {
+        protected int _length;
+        
         // [p*<-len---------------->] we must only check capacity at construction and then work from pointer
         // [p*<-len-[<--lenPow2-->]>] buffer could be larger, pooling always by max pow2 we could store
-
         protected IntPtr _pointer;
-        protected int _length;
-
-        [Obsolete("Must be used only from CounterRef or reserved for custom storage when CounterRef is overrided.")]
-        internal int _counter;
-
+        
+        // Even when unused it is a part of padding, which needed to avoid false sharing on _counter
+        // Without this field we would need to make padding bigger in SharedMemory. Both PM and AM use it.
+        internal object? _array;
+        
         internal int _offset;
-
+        
 #pragma warning disable 649
         internal short Reserved;
 #pragma warning restore 649
@@ -59,21 +81,12 @@ namespace Spreads.Buffers
         [Obsolete("Don't use unless 100% sure.")] // Keep this hook for now, but if it's never used remove the field later. 
         internal bool SkipCleaning;
 
+        internal Vec Vec;
+        
         /// <summary>
         /// A pool sets this value atomically from inside a lock.
         /// </summary>
-        internal bool IsPooled => AtomicCounter.GetIsDisposed(ref CounterRef) && PoolIndex > 1;
-
-        internal ref int CounterRef
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get
-            {
-#pragma warning disable 618
-                return ref _counter;
-#pragma warning restore 618
-            }
-        }
+        internal bool IsPooled => IsDisposed && PoolIndex > 1;
 
         internal RetainableMemoryPool<T>? Pool
         {
@@ -88,39 +101,6 @@ namespace Spreads.Buffers
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => PoolIndex == 0;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public int Increment()
-        {
-            return AtomicCounter.Increment(ref CounterRef);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal int IncrementIfRetained()
-        {
-            return AtomicCounter.IncrementIfRetained(ref CounterRef);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public int Decrement()
-        {
-            var newRefCount = AtomicCounter.Decrement(ref CounterRef);
-            if (newRefCount == 0)
-                Dispose(true);
-
-            return newRefCount;
-        }
-
-        // TODO check usages, they must use the return value
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal int DecrementIfOne()
-        {
-            var newRefCount = AtomicCounter.DecrementIfOne(ref CounterRef);
-            if (newRefCount == 0)
-                Dispose(true);
-
-            return newRefCount;
         }
 
         internal void* Pointer
@@ -147,31 +127,10 @@ namespace Spreads.Buffers
             get => _pointer != IntPtr.Zero;
         }
 
-        /// <summary>
-        /// <see cref="ReferenceCount"/> is positive, i.e. the memory is retained (borrowed).
-        /// </summary>
-        public bool IsRetained
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => AtomicCounter.GetIsRetained(ref CounterRef);
-        }
-
         internal bool IsPoolable
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => PoolIndex > 1;
-        }
-
-        public int ReferenceCount
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => AtomicCounter.GetCount(ref CounterRef);
-        }
-
-        public bool IsDisposed
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => AtomicCounter.GetIsDisposed(ref CounterRef);
         }
 
         public int Length
@@ -234,7 +193,7 @@ namespace Spreads.Buffers
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
-        private static void ThrowNotPinnable()
+        protected static void ThrowNotPinnable()
         {
             ThrowHelper.ThrowInvalidOperationException($"Type {typeof(T).Name} is not pinnable.");
         }
@@ -277,23 +236,8 @@ namespace Spreads.Buffers
             return new RetainedMemory<T>(this, start, length, borrow: borrow);
         }
 
-        public void Dispose()
-        {
-            Dispose(disposing: true);
-        }
-
-        void IDisposable.Dispose()
-        {
-            Dispose(disposing: true);
-        }
-
         /// <summary>
-        /// Free all resources when the object is no longer pooled or used (as in finalization).
-        /// </summary>
-        internal abstract void Free(bool finalizing);
-
-        /// <summary>
-        /// Clear remaining object fields during <see cref="Free"/> and before object pooling.
+        /// Clear remaining object fields during <see cref="RefCountedMemory{T}.Free"/> and before object pooling.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal virtual void ClearFields()
@@ -301,51 +245,35 @@ namespace Spreads.Buffers
             ThrowHelper.DebugAssert(AtomicCounter.GetIsDisposed(ref CounterRef));
             ThrowHelper.DebugAssert(!IsPooled);
             _pointer = IntPtr.Zero;
+            _offset = -1; // make it unusable if not re-initialized
             _length = default; // not -1, we have uint cast. Also len = 0 should not corrupt existing data
+            PoolIndex = default;
+            Vec = default;
         }
-
-        internal string Tag
+        
+        protected sealed override void Dispose(bool disposing)
         {
-            get => RetainableMemoryTracker.Tags.TryGetValue(this, out var tag) ? tag : null;
-            set
-            {
-                RetainableMemoryTracker.Tags.Remove(this);
-                RetainableMemoryTracker.Tags.Add(this, value);
-            }
-        }
+            // This overload if from MemoryManager<T> and is called from it's IDisposable
+            // implementation, so we have to keep it. But MM doesn't have a finalizer 
+            // and we call Free instead of Dispose(false) for destroying this object,
+            // while Dispose(true) is for returning a memory object to a pool.
+            if (!disposing)
+                ThrowHelper.ThrowInvalidOperationException("Should not call PrivateMemory.Dispose(false)");
 
-        /// <summary>
-        /// We need a finalizer because reference count and backing memory could be a native resource.
-        /// If object dies without releasing a reference then it is an error.
-        /// Current code kills application by throwing in finalizer and this is what we want
-        /// for DS - ensure correct memory management.
-        /// </summary>
-        ~RetainableMemory()
-        {
-            if (Environment.HasShutdownStarted || AppDomain.CurrentDomain.IsFinalizingForUnload())
+            var zeroIfDisposedNow = AtomicCounter.TryDispose(ref CounterRef);
+
+            if (zeroIfDisposedNow > 0)
+                ThrowDisposingRetained<PrivateMemory<T>>();
+
+            if (zeroIfDisposedNow == -1)
+                ThrowDisposed<PrivateMemory<T>>();
+
+            var pool = Pool;
+            if (pool != null && pool.ReturnInternal(this, clearMemory: TypeHelper<T>.IsReferenceOrContainsReferences))
                 return;
 
-            if (IsRetained)
-            {
-                var msg = $"Finalizing retained RetainableMemory (ReferenceCount={ReferenceCount})" + (Tag != null ? Environment.NewLine + "Tag: " + Tag : "");
-#if DEBUG
-                    ThrowHelper.ThrowInvalidOperationException(msg);
-#else
-                Trace.TraceError(msg);
-#endif
-            }
-
-            // There are no more references to this object, so regardless 
-            // or the CounterRef value we must free resources. Counter
-            // could have left positive due to wrong usage or process
-            // termination - we do not care, we should not make things
-            // worse by throwing in the finalizer. We must release
-            // native memory and pooled arrays, without trying to 
-            // pool this object to RMP.
-            // So just set the counter to disposed.
-            CounterRef |= AtomicCounter.Disposed;
-
-            Free(finalizing: true);
+            GC.SuppressFinalize(this);
+            Free(finalizing: false);
         }
     }
 }

@@ -23,7 +23,7 @@ namespace Spreads.Core.Tests.Collections.Internal
         {
             var bc = new BaseContainer<int>();
             
-            var rm = ArrayMemory<int>.Create(Enumerable.Range(0, capacity).ToArray(), externallyOwned: true);
+            var rm = ArrayMemory<int>.Create(Enumerable.Range(0, capacity).ToArray());
             var vs = VecStorage.Create(rm, 0, rm.Length);
 
             var block = DataBlock.Create(rowIndex:vs, rowLength: length);

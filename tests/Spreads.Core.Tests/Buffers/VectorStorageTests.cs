@@ -33,7 +33,7 @@ namespace Spreads.Core.Tests.Buffers
 
             var count = 1000;
             var arr = Enumerable.Range(0, count).ToArray();
-            var r = ArrayMemory<int>.Create(arr, 0, arr.Length, externallyOwned: true, pin: true);
+            var r = ArrayMemory<int>.Create(arr);
             var vs = VecStorage.Create(r, 0, r.Length);
 
             Assert.AreNotEqual(vs1, vs);
@@ -52,7 +52,7 @@ namespace Spreads.Core.Tests.Buffers
         {
             var count = 1000;
             var arr = Enumerable.Range(0, count).ToArray();
-            var r = ArrayMemory<int>.Create(arr, 0, arr.Length, externallyOwned: true, pin: true);
+            var r = ArrayMemory<int>.Create(arr);
             var vs = VecStorage.Create(r, 0, r.Length);
 
             Assert.AreEqual(arr.Length, vs.Vec.Length);
@@ -88,7 +88,7 @@ namespace Spreads.Core.Tests.Buffers
             }
             // arr = Enumerable.Range(0, count).Select(x => new SmallDecimal(1000 + (double)x + (double)Math.Round(0.1 * rng.NextDouble(), 5), precision:3)).ToArray();
 
-            var r = ArrayMemory<SmallDecimal>.Create(arr, 0, arr.Length, externallyOwned: true, pin: true);
+            var r = ArrayMemory<SmallDecimal>.Create(arr);
             var vs = VecStorage.Create(r, 0, r.Length);
 
             var vsT = new VecStorage<SmallDecimal>(vs);
@@ -160,7 +160,7 @@ namespace Spreads.Core.Tests.Buffers
             var mult = 500;
             var arr = Enumerable.Range(0, count).ToArray();
 
-            var mem = ArrayMemory<int>.Create(arr, 0, arr.Length, externallyOwned: true, pin: true);
+            var mem = ArrayMemory<int>.Create(arr);
 
             var vs = VecStorage.Create(mem, 0, mem.Length);
 
@@ -202,7 +202,7 @@ namespace Spreads.Core.Tests.Buffers
             var rounds = 10;
             var arrSize = 1000;
             var arr = Enumerable.Range(0, arrSize).ToArray();
-            var mem = ArrayMemory<int>.Create(arr, 0, arr.Length, externallyOwned: true, pin: true);
+            var mem = ArrayMemory<int>.Create(arr);
             var vs = VecStorage.Create(mem, 0, mem.Length);
 
             Assert.AreEqual(arr.Length, vs.Vec.Length);

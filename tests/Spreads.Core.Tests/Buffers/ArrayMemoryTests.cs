@@ -21,26 +21,35 @@ namespace Spreads.Core.Tests.Buffers
         [Test]
         public void CannotDisposeRetained()
         {
-            var memory = ArrayMemory<byte>.Create(32 * 1024, pin: true);
+            var memory = ArrayMemory<byte>.Create(32 * 1024);
+            Assert.IsFalse(memory.IsPoolable);
+            Assert.IsFalse(memory.IsPooled);
+            Assert.IsFalse(memory.IsDisposed);
             var rm = memory.Retain();
-            Assert.Throws<InvalidOperationException>(() => { ((IDisposable)memory).Dispose(); });
+            Assert.Throws<InvalidOperationException>(() => { memory.Dispose(); });
             rm.Dispose();
+            Assert.IsTrue(memory.IsDisposed);
         }
 
         [Test]
         public void CannotDoubleDispose()
         {
-            var memory = ArrayMemory<byte>.Create(32 * 1024, pin: true);
-            ((IDisposable)memory).Dispose();
-            Assert.Throws<ObjectDisposedException>(() => { ((IDisposable)memory).Dispose(); });
+            var memory = ArrayMemory<byte>.Create(32 * 1024);
+            Assert.IsFalse(memory.IsPoolable);
+            Assert.IsFalse(memory.IsPooled);
+            Assert.IsFalse(memory.IsDisposed);
+            memory.Dispose();
+            Assert.IsTrue(memory.IsDisposed);
+            Assert.Throws<ObjectDisposedException>(() => { memory.Dispose(); });
         }
 
         [Test]
         public void CannotDisposeFromPoolRetained()
         {
             var memory = BufferPool<byte>.MemoryPool.RentMemory(1024);
+            Assert.Fail("RMP returns PM, move to other file");
             var rm = memory.Retain();
-            Assert.Throws<InvalidOperationException>(() => { ((IDisposable)memory).Dispose(); });
+            Assert.Throws<InvalidOperationException>(() => { memory.Dispose(); });
 
             Assert.IsFalse(memory.IsPooled, "Memory should not be pooled after failed Dispose()");
 
@@ -98,7 +107,7 @@ namespace Spreads.Core.Tests.Buffers
 #if NETCOREAPP3_0
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
 #endif
-        public void RentReturnBenchmark()
+        public void CreateDisposeBenchmark()
         {
 #if !DEBUG
             var count = 100_000_000;
@@ -110,8 +119,8 @@ namespace Spreads.Core.Tests.Buffers
             {
                 for (int i = 0; i < count; i++)
                 {
-                    var memory = ArrayMemory<byte>.Create(32, pin: false);
-                    ((IDisposable)memory).Dispose();
+                    var memory = ArrayMemory<byte>.Create(32);
+                    (memory).Dispose();
                 }
             }
         }
@@ -196,7 +205,7 @@ namespace Spreads.Core.Tests.Buffers
 
                 foreach (var buf in list)
                 {
-                    ((IDisposable)buf).Dispose();
+                    buf.Dispose();
                     //pool.Return(buf);
                 }
 
@@ -226,7 +235,7 @@ namespace Spreads.Core.Tests.Buffers
                 var memory = pool.RentMemory(32 * 1024);
                 memory.Increment();
                 memory.Decrement();
-                // ((IDisposable)memory).Dispose();
+                // memory.Dispose();
                 //(memory.Pin(0)).Dispose();
                 //if (memory.IsDisposed || memory.IsRetained)
                 //{
@@ -367,13 +376,7 @@ namespace Spreads.Core.Tests.Buffers
 #endif
             var capacity = 25;
             var batch = capacity * 2;
-            var pool = new RetainableMemoryPool<byte>((p, l) =>
-                {
-                    var am = ArrayMemory<byte>.Create(l, pin: true);
-                    // Attach pool
-                    am.PoolIndex = p.PoolIdx;
-                    return am;
-                }, 16,
+            var pool = new RetainableMemoryPool<byte>(ArrayMemory<byte>.Create, 16,
                 1024 * 1024, capacity, 0);
 
             var list = new List<RetainableMemory<byte>>(batch);
@@ -418,7 +421,7 @@ namespace Spreads.Core.Tests.Buffers
             {
                 for (int i = 0; i < count; i++)
                 {
-                    var memory = ArrayMemory<byte>.Create(32 * 1024, pin: true);
+                    var memory = ArrayMemory<byte>.Create(32 * 1024);
                     if (memory.Array.Length != 32 * 1024)
                     {
                         Assert.Fail("Length");
@@ -451,7 +454,7 @@ namespace Spreads.Core.Tests.Buffers
 
                 for (int i = 0; i < maxBuffers; i++)
                 {
-                    ((IDisposable)list[i]).Dispose();
+                    list[i].Dispose();
                 }
 
                 for (int i = 2; i < maxBuffers * 2; i++)
@@ -505,7 +508,7 @@ namespace Spreads.Core.Tests.Buffers
 
                 for (int i = 0; i < buffersToTake; i++)
                 {
-                    ((IDisposable)list[i]).Dispose();
+                    list[i].Dispose();
                 }
             }
 

@@ -1,4 +1,8 @@
-﻿using System;
+﻿// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
+using System;
 using System.Runtime.CompilerServices;
 using NUnit.Framework;
 using Spreads.Buffers;
@@ -11,7 +15,6 @@ namespace Spreads.Core.Tests.Buffers
     [TestFixture]
     public class RetainableMemoryMemoryAccessBench
     {
-
         [Test
 #if !DEBUG
          , Explicit("bench")
@@ -22,14 +25,14 @@ namespace Spreads.Core.Tests.Buffers
 #endif
         public void MemoryAccessBench()
         {
-            var count = (int)TestUtils.GetBenchCount(500_000_000);
+            var count = (int) TestUtils.GetBenchCount(500_000_000);
             var rm = PrivateMemory<int>.Create(count);
             for (int i = 0; i < count; i++)
             {
                 rm.Vec.DangerousGetRef<int>(i) = i;
             }
 
-            for (int r = 0; r < 10 ; r++)
+            for (int r = 0; r < 10; r++)
             {
                 MemoryAccessViaPointer(rm);
                 MemoryAccessVecViaFieldDangerous(rm);
@@ -77,9 +80,9 @@ namespace Spreads.Core.Tests.Buffers
             long sum = 0;
             using (Benchmark.Run("FieldUnsafe", rm.Length))
             {
-                for (int i = 0; i < rm.Length; i++)
+                for (long i = 0; i < rm.Length; i++)
                 {
-                    sum += rm.Vec.UnsafeGetUnaligned<int>(i);
+                    sum += rm.Vec.UnsafeGetUnaligned<int>((IntPtr)i);
                 }
             }
 
@@ -115,9 +118,9 @@ namespace Spreads.Core.Tests.Buffers
             using (Benchmark.Run("LocalUnsafe", rm.Length))
             {
                 var vec = rm.Vec;
-                for (int i = 0; i < rm.Length; i++)
+                for (long i = 0; i < rm.Length; i++)
                 {
-                    sum += vec.UnsafeGetUnaligned<int>(i);
+                    sum += vec.UnsafeGetUnaligned<int>((IntPtr)i);
                 }
             }
 
@@ -134,9 +137,9 @@ namespace Spreads.Core.Tests.Buffers
             using (Benchmark.Run("HelperUnsafe", rm.Length))
             {
                 object obj = rm;
-                for (int i = 0; i < rm.Length; i++)
+                for (long i = 0; i < rm.Length; i++)
                 {
-                    sum += RetainableMemoryHelper.GetVecRef(obj).UnsafeGetUnaligned<int>(i);
+                    sum += RetainableMemoryHelper.GetVecRef(obj).UnsafeGetUnaligned<int>((IntPtr)i);
                 }
             }
 
@@ -152,17 +155,17 @@ namespace Spreads.Core.Tests.Buffers
             long sum = 0;
             using (Benchmark.Run("DbHelperUnsafe (^)", rm.Length))
             {
-                DataBlockLike db = new DataBlockLike {RM = rm};
-                for (int i = 0; i < rm.Length; i++)
+                DataBlockLike db = new DataBlockLike {Rm = rm};
+                for (long i = 0; i < rm.Length; i++)
                 {
-                    sum += RetainableMemoryHelper.GetVecRef(db.RM).UnsafeGetUnaligned<int>(i);
+                    sum += RetainableMemoryHelper.GetVecRef(db.Rm).UnsafeGetUnaligned<int>((IntPtr)i);
                 }
             }
 
             if (sum < 1000)
                 throw new InvalidOperationException();
         }
-        
+
 #if NETCOREAPP3_0
         [MethodImpl(MethodImplOptions.AggressiveOptimization | MethodImplOptions.NoInlining)]
 #endif
@@ -171,36 +174,36 @@ namespace Spreads.Core.Tests.Buffers
             long sum = 0;
             using (Benchmark.Run("DbHelperDangerous (^)", rm.Length))
             {
-                DataBlockLike db = new DataBlockLike {RM = rm};
+                DataBlockLike db = new DataBlockLike {Rm = rm};
                 for (int i = 0; i < rm.Length; i++)
                 {
-                    sum += RetainableMemoryHelper.GetVecRef(db.RM).DangerousGetUnaligned<int>(i);
+                    sum += RetainableMemoryHelper.GetVecRef(db.Rm).DangerousGetUnaligned<int>(i);
                 }
             }
 
             if (sum < 1000)
                 throw new InvalidOperationException();
         }
-        
+
 #if NETCOREAPP3_0
         [MethodImpl(MethodImplOptions.AggressiveOptimization | MethodImplOptions.NoInlining)]
 #endif
         public void MemoryAccessVecViaDbHelperUnsafeGetRef(RetainableMemory<int> rm)
         {
             long sum = 0;
+            DataBlockLike db = new DataBlockLike {Rm = rm, Vec = rm.Vec};
             using (Benchmark.Run("DbHelperUnsafeGet (^)", rm.Length))
             {
-                DataBlockLike db = new DataBlockLike {RM = rm};
-                for (int i = 0; i < rm.Length; i++)
+                for (long i = 0; i < rm.Length; i++)
                 {
-                    sum += RetainableMemoryHelper.UnsafeGet<int>(rm, i);
+                    sum += Unsafe.As<PrivateMemory<byte>>(db.Rm).Vec.UnsafeGetUnaligned<int>((IntPtr)i);
                 }
             }
 
             if (sum < 1000)
                 throw new InvalidOperationException();
         }
-        
+
 #if NETCOREAPP3_0
         [MethodImpl(MethodImplOptions.AggressiveOptimization | MethodImplOptions.NoInlining)]
 #endif
@@ -209,7 +212,7 @@ namespace Spreads.Core.Tests.Buffers
             long sum = 0;
             using (Benchmark.Run("DbVecDangerous (+)", rm.Length))
             {
-                DataBlockLike db = new DataBlockLike {RM = rm, Vec = rm.Vec};
+                DataBlockLike db = new DataBlockLike {Rm = rm, Vec = rm.Vec};
                 for (int i = 0; i < rm.Length; i++)
                 {
                     sum += db.Vec.DangerousGetUnaligned<int>(i);
@@ -219,7 +222,7 @@ namespace Spreads.Core.Tests.Buffers
             if (sum < 1000)
                 throw new InvalidOperationException();
         }
-        
+
 #if NETCOREAPP3_0
         [MethodImpl(MethodImplOptions.AggressiveOptimization | MethodImplOptions.NoInlining)]
 #endif
@@ -228,36 +231,36 @@ namespace Spreads.Core.Tests.Buffers
             long sum = 0;
             using (Benchmark.Run("DbVecUnsafe (+)", rm.Length))
             {
-                DataBlockLike db = new DataBlockLike {RM = rm, Vec = rm.Vec};
-                for (int i = 0; i < rm.Length; i++)
+                DataBlockLike db = new DataBlockLike {Rm = rm, Vec = rm.Vec};
+                for (long i = 0; i < rm.Length; i++)
                 {
-                    sum += db.Vec.UnsafeGetUnaligned<int>(i);
+                    sum += db.Vec.UnsafeGetUnaligned<int>((IntPtr)i);
                 }
             }
 
             if (sum < 1000)
                 throw new InvalidOperationException();
         }
-        
+
 #if NETCOREAPP3_0
         [MethodImpl(MethodImplOptions.AggressiveOptimization | MethodImplOptions.NoInlining)]
 #endif
         public unsafe void MemoryAccessVecViaDbVecPointer(RetainableMemory<int> rm)
         {
             long sum = 0;
-            using (Benchmark.Run("DbVecPointer", rm.Length))
+            using (Benchmark.Run("DbVecPointer (*)", rm.Length))
             {
-                DataBlockLike db = new DataBlockLike {RM = rm, Vec = rm.Vec, Ptr = (int*)rm.Pointer};
+                DataBlockLike db = new DataBlockLike {Rm = rm, Vec = rm.Vec, Ptr = (int*) rm.Pointer};
                 for (int i = 0; i < rm.Length; i++)
                 {
-                    sum += db.Ptr[i];
+                    sum += Unsafe.ReadUnaligned<int>(ref Unsafe.As<int, byte>(ref Unsafe.Add<int>(ref Unsafe.AsRef<int>((void*) db.Vec._byteOffset), i)));
                 }
             }
 
             if (sum < 1000)
                 throw new InvalidOperationException();
         }
-        
+
 #if NETCOREAPP3_0
         [MethodImpl(MethodImplOptions.AggressiveOptimization | MethodImplOptions.NoInlining)]
 #endif
@@ -266,17 +269,17 @@ namespace Spreads.Core.Tests.Buffers
             long sum = 0;
             using (Benchmark.Run("DbVecStorageUnsafe (_)", rm.Length))
             {
-                DataBlockLike db = new DataBlockLike {RM = rm, Vec = rm.Vec, VecStorage = VecStorage.Create(rm, 0, rm.Length, true)};
-                for (int i = 0; i < rm.Length; i++)
+                DataBlockLike db = new DataBlockLike {Rm = rm, Vec = rm.Vec, VecStorage = VecStorage.Create(rm, 0, rm.Length, true)};
+                for (long i = 0; i < rm.Length; i++)
                 {
-                    sum += db.VecStorage.Vec.UnsafeGetUnaligned<int>(i);
+                    sum += db.VecStorage.Vec.UnsafeGetUnaligned<int>((IntPtr)i);
                 }
             }
 
             if (sum < 1000)
                 throw new InvalidOperationException();
         }
-        
+
 #if NETCOREAPP3_0
         [MethodImpl(MethodImplOptions.AggressiveOptimization | MethodImplOptions.NoInlining)]
 #endif
@@ -285,7 +288,7 @@ namespace Spreads.Core.Tests.Buffers
             long sum = 0;
             using (Benchmark.Run("DbVecStorageDangerous (_)", rm.Length))
             {
-                DataBlockLike db = new DataBlockLike {RM = rm, Vec = rm.Vec, VecStorage = VecStorage.Create(rm, 0, rm.Length, true)};
+                DataBlockLike db = new DataBlockLike {Rm = rm, Vec = rm.Vec, VecStorage = VecStorage.Create(rm, 0, rm.Length, true)};
                 for (int i = 0; i < rm.Length; i++)
                 {
                     sum += db.VecStorage.Vec.DangerousGetUnaligned<int>(i);
@@ -298,7 +301,7 @@ namespace Spreads.Core.Tests.Buffers
 
         internal unsafe class DataBlockLike
         {
-            public object RM;
+            public object Rm;
             public VecStorage VecStorage;
             public Vec Vec;
             public int* Ptr;

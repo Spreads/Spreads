@@ -47,7 +47,7 @@ namespace Spreads.Core.Tests.Collections.Concurrent
             var perCoreMPMCPool = new MPMCPool<DummyPoolable>(dummyFactory, perCoreCapacity);
             var perCoreObjectPool = new ObjectPool<DummyPoolable>(dummyFactory, perCoreCapacity);
             var perCoreLockedObjectPool = new LockedObjectPool<DummyPoolable>(dummyFactory, perCoreCapacity);
-            var threads = new int[] {1, 2, 4, 8, 12, 24};
+            var threads = new int[] {1, 2, 4, 6, 8, 12, 24};
             foreach (var t in threads)
             {
                 for (int round = 0; round < 20; round++)
@@ -56,8 +56,8 @@ namespace Spreads.Core.Tests.Collections.Concurrent
                     // PoolBenchmark(mpmcPool, "MPMC", t);
                     // PoolBenchmark(objectPool, "OP", t);
                     // PoolBenchmark(lockedObjectPool, "LOP", t);
-                    PoolBenchmark(perCoreMPMCPool, "pcMPMC", t);
-                    PoolBenchmark(perCoreObjectPool, "pcOP", t);
+                    // PoolBenchmark(perCoreMPMCPool, "pcMPMC", t);
+                    // PoolBenchmark(perCoreObjectPool, "pcOP", t);
                     PoolBenchmark(perCoreLockedObjectPool, "pcLOP", t);
                 }
             }
@@ -68,7 +68,7 @@ namespace Spreads.Core.Tests.Collections.Concurrent
         [MethodImpl(MethodImplOptions.NoInlining | MethodImplOptions.AggressiveOptimization)]
         internal void PoolBenchmark<T>(T pool, string testCase, int threads) where T : IObjectPool<DummyPoolable>
         {
-            var count = 2_000_000;
+            var count = 1_000_000;
             testCase = testCase + "_" + threads;
             using (Benchmark.Run(testCase, count * 2 * threads))
             {

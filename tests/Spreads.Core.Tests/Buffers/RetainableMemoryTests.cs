@@ -18,19 +18,13 @@ namespace Spreads.Core.Tests.Buffers
         // TODO DS SM
         public static object[] NonPooledFactories = new object[]
         {
-            new object[] { (Func<int,RetainableMemory<byte>>)((len) => ArrayMemory<byte>.Create(new byte[BitUtil.FindNextPositivePowerOfTwo(len)], externallyOwned: true, pin:true))},
-            new object[] { (Func<int,RetainableMemory<byte>>)((len) => ArrayMemory<byte>.Create(new byte[BitUtil.FindNextPositivePowerOfTwo(len)], externallyOwned: true, pin: true))},
+            new object[] { (Func<int,RetainableMemory<byte>>)((len) => ArrayMemory<byte>.Create(new byte[BitUtil.FindNextPositivePowerOfTwo(len)]))},
             new object[] { (Func<int,RetainableMemory<byte>>)((len) => PrivateMemory<byte>.Create(BitUtil.FindNextPositivePowerOfTwo(len)))}
         };
 
         // ReSharper disable once ClassNeverInstantiated.Local
         private class DummyRetainableMemory : RetainableMemory<byte>
         {
-            protected override void Dispose(bool disposing)
-            {
-                throw new NotImplementedException();
-            }
-
             public override Span<byte> GetSpan()
             {
                 throw new NotImplementedException();

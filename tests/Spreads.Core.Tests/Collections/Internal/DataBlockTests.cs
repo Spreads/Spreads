@@ -20,7 +20,7 @@ namespace Spreads.Core.Tests.Collections.Internal
         [Test, Explicit("output")]
         public void SizeOf()
         {
-            // ObjectLayoutInspector.TypeLayout.PrintLayout<Vec>();
+            ObjectLayoutInspector.TypeLayout.PrintLayout<Vec>();
             ObjectLayoutInspector.TypeLayout.PrintLayout<DataBlock>(false);
         }
 
@@ -31,7 +31,7 @@ namespace Spreads.Core.Tests.Collections.Internal
             var arr = Enumerable.Range(0, count).Select(x => (long)x).ToArray();
             
             var r = ArrayMemory<long>.Create(arr, 
-                0, arr.Length, externallyOwned: true, pin: true);
+                0, arr.Length, externallyOwned: true);
             var keys = VecStorage.Create(r, 0, r.Length);
             var values = keys.Slice(0, count, true);
 
