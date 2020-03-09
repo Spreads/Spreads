@@ -15,6 +15,77 @@ namespace Spreads.Core.Tests.Buffers
     [TestFixture]
     public class RetainableMemoryMemoryAccessBench
     {
+
+        [Test
+#if !DEBUG
+         , Explicit("bench")
+#endif
+        ]
+#if NETCOREAPP3_0
+        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
+        public void MemoryFieldBench()
+        {
+            var count = (int) 4 * 1024; // TestUtils.GetBenchCount(1_000_000);
+            var rm = PrivateMemory<int>.Create(count);
+            var arr = new int[count];
+            DataBlockLike db = new DataBlockLike {Rm = rm, Vec = rm.GetVec().AsVec(), VecStorage = VecStorage.Create(rm, 0, rm.Length, true), Length = rm.Length};
+
+            for (int i = 0; i < count; i++)
+            {
+                db.VecStorage.Write((IntPtr) i, i);
+                arr[i] = i;
+            }
+
+            for (int r = 0; r < 10; r++)
+            {
+                MemoryFieldBench_Field(rm);
+                MemoryFieldBench_CreateMem(rm);
+            }
+
+            Benchmark.Dump();
+            rm.Dispose();
+        }
+        
+        
+#if NETCOREAPP3_0
+        [MethodImpl(MethodImplOptions.NoInlining)]
+#endif
+        public void MemoryFieldBench_Field(RetainableMemory<int> rm)
+        {
+            var rounds = 100_000_000;
+            long sum = 0;
+            using (Benchmark.Run("Field", rounds))
+            {
+                for (int r = 0; r < rounds; r++)
+                {
+                    sum += rm.Memory.Length;
+                }
+            }
+
+            if (sum < 1000)
+                throw new InvalidOperationException();
+        }
+        
+#if NETCOREAPP3_0
+        [MethodImpl(MethodImplOptions.NoInlining)]
+#endif
+        public void MemoryFieldBench_CreateMem(RetainableMemory<int> rm)
+        {
+            var rounds = 100_000_000;
+            long sum = 0;
+            using (Benchmark.Run("CreateMem", rounds))
+            {
+                for (int r = 0; r < rounds; r++)
+                {
+                    sum += rm.CreateMemory().Length;
+                }
+            }
+
+            if (sum < 1000)
+                throw new InvalidOperationException();
+        }
+
         [Test
 #if !DEBUG
          , Explicit("bench")

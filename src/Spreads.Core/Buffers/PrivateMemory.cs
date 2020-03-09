@@ -37,7 +37,7 @@ namespace Spreads.Buffers
         /// that is modified during pool rent/return. We use <see cref="Vec"/> as a padding as
         /// well, because it is unused during rent/return and when it's used the memory remains rented.
         /// </summary>
-        private readonly Padding16 _padding;
+        private readonly Padding24 _padding;
 #pragma warning restore 169
 
         /// <summary>
@@ -111,8 +111,8 @@ namespace Spreads.Buffers
                     ? (byte) 1
                     : pool.PoolIdx;
 
-
-            privateMemory.Vec = privateMemory.GetVec().AsVec();
+            privateMemory._length = length;
+            privateMemory._memory = privateMemory.CreateMemory();
             return privateMemory;
         }
 

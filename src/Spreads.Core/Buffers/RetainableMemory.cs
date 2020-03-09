@@ -81,7 +81,7 @@ namespace Spreads.Buffers
         [Obsolete("Don't use unless 100% sure.")] // Keep this hook for now, but if it's never used remove the field later. 
         internal bool SkipCleaning;
 
-        internal Vec Vec;
+        internal Memory<T> _memory;
         
         /// <summary>
         /// A pool sets this value atomically from inside a lock.
@@ -171,6 +171,11 @@ namespace Spreads.Buffers
             }
         }
 
+        internal Memory<T> CreateMemory() => CreateMemory(_length);
+        
+        // Sealed makes it 5+x faster
+        public sealed override Memory<T> Memory => _memory;
+
         [Obsolete("Prefer fixed statements on a pinnable reference for short-lived pinning")]
 #pragma warning disable CS0809 // Obsolete member overrides non-obsolete member
         public override MemoryHandle Pin(int elementIndex = 0)
@@ -248,7 +253,7 @@ namespace Spreads.Buffers
             _offset = -1; // make it unusable if not re-initialized
             _length = default; // not -1, we have uint cast. Also len = 0 should not corrupt existing data
             PoolIndex = default;
-            Vec = default;
+            _memory = default;
         }
         
         protected sealed override void Dispose(bool disposing)
