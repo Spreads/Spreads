@@ -80,16 +80,12 @@ namespace Spreads.Buffers
         internal RetainedMemory(RetainableMemory<T> memory, int start, int length, bool borrow)
         {
             if (memory.IsDisposed)
-            {
                 BuffersThrowHelper.ThrowDisposed<RetainableMemory<T>>();
-            }
 
             Debug.Assert(unchecked((uint) start + (uint) length <= memory.Length));
 
             if (borrow)
-            {
                 memory.Increment();
-            }
 
             _manager = memory;
             _start = start;

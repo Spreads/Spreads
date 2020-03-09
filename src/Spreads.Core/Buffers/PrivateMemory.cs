@@ -58,7 +58,6 @@ namespace Spreads.Buffers
         // pinning logic - memory is already pinned when it is possible.
         // We keep track of total number of bytes allocated off-heap in BuffersStatistics.
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private PrivateMemory()
         {
         }
@@ -74,7 +73,6 @@ namespace Spreads.Buffers
         /// <summary>
         /// Create a <see cref="PrivateMemory{T}"/> from a <see cref="RetainableMemoryPool{T}"/>.
         /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static PrivateMemory<T> Create(int length, RetainableMemoryPool<T> pool)
         {
             var cpuId = Cpu.GetCurrentCoreId();
@@ -96,7 +94,9 @@ namespace Spreads.Buffers
 
             if (TypeHelper<T>.IsReferenceOrContainsReferences)
             {
-                privateMemory._array = BufferPool<T>.Rent(length);
+                var arr = BufferPool<T>.Rent(length);
+                privateMemory._array = arr;
+                privateMemory._length = arr.Length;
                 privateMemory._offset = 0;
                 ThrowHelper.DebugAssert(privateMemory._pointer == null);
             }

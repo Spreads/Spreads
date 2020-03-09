@@ -60,14 +60,14 @@ namespace Spreads.Buffers
         { }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private RetainedMemory<byte> RetainMemory(int length, bool requireExact = true, bool borrow = true)
+        private RetainedMemory<byte> RetainMemory(int length, bool requireExact = true)
         {
             var arrayMemory = PinnedArrayMemoryPool.RentMemory(length, requireExact);
             if (arrayMemory.IsDisposed)
             {
                 BuffersThrowHelper.ThrowDisposed<ArrayMemory<byte>>();
             }
-            return requireExact ? arrayMemory.Retain(0, length, borrow) : arrayMemory.Retain(0, arrayMemory.Length, borrow);
+            return requireExact ? arrayMemory.Retain(0, length) : arrayMemory.Retain(0, arrayMemory.Length);
         }
 
         /// <summary>
@@ -85,7 +85,7 @@ namespace Spreads.Buffers
         /// </summary>
         internal static RetainedMemory<byte> RetainTemp(int length)
         {
-            
+            throw new NotSupportedException("TODO remove this method");
             if (length > Settings.LARGE_BUFFER_LIMIT)
             {
                 // TODO Adjust per-core count in the main pool to 1 when size >  Settings.LARGE_BUFFER_LIMIT)
@@ -99,7 +99,7 @@ namespace Spreads.Buffers
                 //     return mem.Retain(0, mem.Length, borrow: false);
                 // }
             }
-            var rm = Shared.RetainMemory(length, false, false);
+            var rm = Shared.RetainMemory(length, false);
             Debug.Assert(rm.IsPinned);
             return rm;
         }
