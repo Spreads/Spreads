@@ -11,6 +11,7 @@ using System.Runtime.InteropServices;
 
 namespace Spreads.Buffers
 {
+    // TODO review readme, where do we borrow inside VS?
     /// <summary>
     /// VecStorage is a grouping of data as <see cref="Vec"/> and its source as <see cref="IRefCounted"/>, of which VecStorage borrows a counted reference.
     /// </summary>
@@ -21,7 +22,7 @@ namespace Spreads.Buffers
     /// method on this struct in its <see cref="IDisposable.Dispose"/>
     /// method. See <see cref="DataBlock"/> implementation as an example.
     /// </remarks>
-    [StructLayout(LayoutKind.Sequential)]
+    [StructLayout(LayoutKind.Explicit, Size = 32)]
     public readonly struct VecStorage : IDisposable, IEquatable<VecStorage>
     {
         /// <summary>
@@ -30,14 +31,58 @@ namespace Spreads.Buffers
         /// <remarks>
         /// This is intended to be <see cref="RetainableMemory{T}"/>, but we do not have T here and only care about ref counting.
         /// </remarks>
-        internal readonly IRefCounted? _memorySource;
-
+        [FieldOffset(0)]
         public readonly Vec Vec;
 
-        private VecStorage(IRefCounted? memorySource, Vec vec)
+        [FieldOffset(0)]
+        internal readonly Array _pinnable;
+
+        [FieldOffset(8)]
+        internal readonly IntPtr _byteOffset;
+
+        [FieldOffset(16)]
+        internal readonly int _length;
+
+        [FieldOffset(20)]
+        internal readonly int _runtimeTypeId;
+
+        [FieldOffset(24)]
+        internal readonly IRefCounted? _memorySource;
+
+        private VecStorage(IRefCounted? memorySource, Vec vec) : this()
         {
             _memorySource = memorySource;
             Vec = vec;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal unsafe ref T UnsafeGetRef<T>(IntPtr index)
+        {
+            if (TypeHelper<T>.IsReferenceOrContainsReferences)
+                return ref Unsafe.Add(
+                    ref Unsafe.AddByteOffset(ref Unsafe.As<Pinnable<T>>(_pinnable).Data, _byteOffset),
+                    index);
+            return ref Unsafe.Add<T>(ref Unsafe.AsRef<T>((void*) _byteOffset), index);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal unsafe T UnsafeReadUnaligned<T>(IntPtr index)
+        {
+            if (TypeHelper<T>.IsReferenceOrContainsReferences)
+                return Unsafe.ReadUnaligned<T>(ref Unsafe.As<T, byte>(ref Unsafe.Add(
+                    ref Unsafe.AddByteOffset(ref Unsafe.As<Pinnable<T>>(_pinnable).Data, _byteOffset),
+                    index)));
+            return Unsafe.ReadUnaligned<T>(ref Unsafe.As<T, byte>(ref Unsafe.Add<T>(ref Unsafe.AsRef<T>((void*) _byteOffset), index)));
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal unsafe void UnsafeWriteUnaligned<T>(IntPtr index, T value)
+        {
+            if (TypeHelper<T>.IsReferenceOrContainsReferences)
+                Unsafe.WriteUnaligned<T>(ref Unsafe.As<T, byte>(ref Unsafe.Add(
+                    ref Unsafe.AddByteOffset(ref Unsafe.As<Pinnable<T>>(_pinnable).Data, _byteOffset),
+                    index)), value);
+            Unsafe.WriteUnaligned<T>(ref Unsafe.As<T, byte>(ref Unsafe.Add<T>(ref Unsafe.AsRef<T>((void*) _byteOffset), index)), value);
         }
 
         /// <summary>
@@ -52,7 +97,9 @@ namespace Spreads.Buffers
             var vec = Vec.Slice(start, length);
 
             if (!externallyOwned)
-            { ms?.Increment(); }
+            {
+                ms?.Increment();
+            }
 
             var vs = new VecStorage(externallyOwned ? null : ms, vec);
 
@@ -68,7 +115,9 @@ namespace Spreads.Buffers
             var vec = ms.GetVec().AsVec().Slice(start, length);
 
             if (!externallyOwned)
-            { ms.Increment(); }
+            {
+                ms.Increment();
+            }
 
             var vs = new VecStorage(externallyOwned ? null : ms, vec);
 
@@ -181,6 +230,7 @@ namespace Spreads.Buffers
             {
                 VecThrowHelper.ThrowVecTypeMismatchException();
             }
+
             Storage = storage;
         }
 

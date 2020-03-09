@@ -7,6 +7,8 @@
     <!--<RuntimeFrameworkVersion>3.0.0-preview-27324-5</RuntimeFrameworkVersion>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>-->
     <TieredCompilation>False</TieredCompilation>
+<!--    <TieredCompilationQuickJit>True</TieredCompilationQuickJit>-->
+<!--    <TieredCompilationQuickJitForLoops>False</TieredCompilationQuickJitForLoops>-->
     <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
     <DockerTargetOS>Linux</DockerTargetOS>
     <DockerComposeProjectPath>..\..\docker-compose.dcproj</DockerComposeProjectPath>
