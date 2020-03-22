@@ -24,7 +24,7 @@ namespace Spreads.Core.Tests.Collections
             var bc = new BaseContainer<int>();
 
             var rm = ArrayMemory<int>.Create(Enumerable.Range(0, capacity).ToArray());
-            var vs = VecStorage.Create(rm, 0, rm.Length);
+            var vs = RetainedVec.Create(rm, 0, rm.Length);
 
             var block = DataBlock.Create(rowIndex: vs, rowLength: vs.Vec.Length / 2);
 
@@ -46,7 +46,7 @@ namespace Spreads.Core.Tests.Collections
             var bc = new BaseContainer<long>();
 
             var rm = ArrayMemory<long>.Create(Enumerable.Range(0, capacity).Select(x => (long)x).ToArray());
-            var vs = VecStorage.Create(rm, 0, rm.Length);
+            var vs = RetainedVec.Create(rm, 0, rm.Length);
 
             var block = DataBlock.Create(rowIndex: vs, rowLength: vs.Vec.Length / 2);
 
@@ -73,7 +73,7 @@ namespace Spreads.Core.Tests.Collections
             var capacity = count / 100;
             var bc = new BaseContainer<int>();
             var rm = ArrayMemory<int>.Create(Enumerable.Range(0, capacity).ToArray());
-            var vs = VecStorage.Create(rm, 0, rm.Length);
+            var vs = RetainedVec.Create(rm, 0, rm.Length);
 
             var block = DataBlock.Create(rowIndex: vs, rowLength: vs.Vec.Length);
 
@@ -113,7 +113,7 @@ namespace Spreads.Core.Tests.Collections
             var capacity = 100;
             var bc = new BaseContainer<long>();
             var rm = ArrayMemory<long>.Create(Enumerable.Range(0, capacity).Select(x => (long)x).ToArray());
-            var vs = VecStorage.Create(rm, 0, rm.Length);
+            var vs = RetainedVec.Create(rm, 0, rm.Length);
 
             var block = DataBlock.Create(rowIndex: vs, rowLength: vs.Vec.Length / 2);
 
@@ -140,7 +140,7 @@ namespace Spreads.Core.Tests.Collections
             var bc = new BaseContainer<int>();
 
             var rm = ArrayMemory<int>.Create(Enumerable.Range(0, capacity).ToArray());
-            var vs = VecStorage.Create(rm, 0, rm.Length);
+            var vs = RetainedVec.Create(rm, 0, rm.Length);
 
             var block = DataBlock.Create(rowIndex: vs, rowLength: vs.Vec.Length);
 

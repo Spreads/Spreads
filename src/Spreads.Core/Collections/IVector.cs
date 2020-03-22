@@ -9,12 +9,8 @@ namespace Spreads.Collections
         /// <summary>
         /// Get the total number of items in IVector.
         /// </summary>
-        int Length
-        {
-            get;
-        }
+        int Length { get; }
 
-        // TODO rename to GetItem(index)
         /// <summary>
         /// Returns an item at the specified index.
         /// </summary>
@@ -31,19 +27,16 @@ namespace Spreads.Collections
         /// <summary>
         /// Get the total number of elements in Vec.
         /// </summary>
-        int Length
-        {
-            get;
-        }
+        int Length { get; }
 
         /// <summary>
         /// Returns the element at the specified index.
         /// </summary>
-        T Get<T>(int index);
+        T GetItem<T>(int index);
 
         /// <summary>
         /// Returns the element at the specified index without bound and type checks.
         /// </summary>
-        T DangerousGet<T>(int index);
+        T DangerousGetItem<T>(int index);
     }
 }

@@ -3,13 +3,19 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 using NUnit.Framework;
-using Spreads.Algorithms;
 using Spreads.Collections;
 using Spreads.DataTypes;
 using Spreads.Native;
 using Spreads.Utils;
 using System;
 using System.Linq;
+using System.Runtime.CompilerServices;
+using System.Runtime.Intrinsics;
+using System.Runtime.Intrinsics.X86;
+using Spreads.Algorithms;
+using Spreads.Buffers;
+
+// ReSharper disable HeapView.BoxingAllocation
 
 namespace Spreads.Core.Tests.Algorithms
 {
@@ -54,6 +60,195 @@ namespace Spreads.Core.Tests.Algorithms
     public class VecSearchTests
     {
         [Test]
+        public unsafe void VectorMask()
+        {
+            var value = 401L;
+            var valVec = Vector256.Create(value);
+
+            using var pm = PrivateMemory<long>.Create(4 * 1024);
+            var v = pm.GetVec();
+            for (int i = 0; i < pm.Length; i++)
+            {
+                v.DangerousSetUnaligned(i, i + 1);
+            }
+
+            // we could scale indices vector by 1, 2, 4, 8
+            // we start from 8
+
+            var step = (pm.Length) / 5; // 
+
+            Console.WriteLine(step);
+            var idx = Vector256.Create((long) step * 8, (long) step * 2 * 8, (long) step * 3 * 8, (long) step * 4 * 8);
+
+            var count = 100_000_000;
+            Vector256<long> gather = default;
+            Vector256<long> load = default;
+
+            for (int r = 0; r < 10; r++)
+            {
+                using (Benchmark.Run("Gather", count))
+                {
+                    var sum = 0L;
+                    for (int i = 0; i < count; i++)
+                    {
+                        gather = Avx2.GatherVector256((long*) pm.Pointer, idx, 1);
+                        sum += gather.GetElement(1);
+                    }
+
+                    Console.WriteLine(sum);
+                }
+
+                using (Benchmark.Run("Load", count))
+                {
+                    var sum = 0L;
+                    var ptr = (long*) pm.Pointer;
+                    var idx0 = step;
+                    var idx1 = step * 2;
+                    var idx2 = step * 3;
+                    var idx3 = step * 4;
+                    for (int i = 0; i < count; i++)
+                    {
+                        load = Vector256.Create(ptr[idx0], ptr[idx1], ptr[idx2], ptr[(long) idx3]);
+                        sum += load.GetElement(1);
+                    }
+
+                    Console.WriteLine(sum);
+                }
+            }
+
+            Benchmark.Dump();
+
+            var gt = Avx2.CompareGreaterThan(valVec, gather);
+            var gt1 = Avx2.CompareGreaterThan(valVec, load);
+
+            System.Numerics.Vector<long> vec = System.Numerics.Vector<long>.One;
+
+            //
+            // var count = Vector.Dot(System.Numerics.Vector<long>.One, vec);
+            // Unsafe.AsPointer()
+            // Vector.Dot() vec
+            Console.WriteLine(System.Numerics.Vector<long>.Count);
+
+            // Vector256.Create()
+            // Console.WriteLine(Avx2.GatherVector256());
+            Console.WriteLine(System.Runtime.Intrinsics.X86.Aes.IsSupported);
+            Console.WriteLine(Vector256<int>.Count);
+        }
+
+        [Test, Explicit("Bench")]
+        public unsafe void VectorGatherVsManualLoad()
+        {
+            var itemCount = 16 * 1024;
+            using var pm = PrivateMemory<long>.Create(itemCount);
+            var v = pm.GetVec();
+            for (int i = 0; i < pm.Length; i++)
+            {
+                v.DangerousSetUnaligned(i, i + 1);
+            }
+
+            // try to load vector from new cache lines
+            // in the most efficient way
+
+            var segment = pm.Length / 4;
+            const int cacheline = 8;
+            var cacheLinesCount = segment / cacheline;
+            var rng = new Random();
+            var cacheLines = new int[cacheLinesCount];
+            for (int i = 0; i < cacheLinesCount; i++)
+            {
+                cacheLines[i] = rng.Next(0, cacheLinesCount);
+            }
+
+            var count = 100_000_000;
+            Vector256<long> gather = default;
+            Vector256<long> load = default;
+
+            for (int r = 0; r < 50; r++)
+            {
+                VectorGatherVsManualLoad_Gather(cacheLines, pm, cacheline, segment);
+
+                VectorGatherVsManualLoad_Load(cacheLines, pm, cacheline, segment);
+            }
+
+            Benchmark.Dump();
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining | MethodImplOptions.AggressiveOptimization)]
+        private static unsafe void VectorGatherVsManualLoad_Gather(int[] cacheLines, PrivateMemory<long> pm, int cacheline, int segment)
+        {
+            Vector256<long> gather;
+            using (Benchmark.Run("Gather", cacheLines.Length * 1000))
+            {
+                for (int _ = 0; _ < 1000; _++)
+                {
+                    var sum = 0L;
+                    var ptr = (long*) pm.Pointer;
+                    for (int ii = 0; ii < cacheLines.Length; ii++)
+                    {
+                        var i = cacheLines[ii];
+                        var idx = Vector256.Create(
+                            (i * cacheline),
+                            ((long) segment + i * cacheline),
+                            ((long) segment * 2 + i * cacheline),
+                            ((long) segment * 3 + i * cacheline)
+                        );
+                        gather = Avx2.GatherVector256(ptr, idx, 8);
+                        sum += gather.GetElement(1);
+                    }
+
+                    if (sum < 1000)
+                        throw new InvalidOperationException();
+                }
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining | MethodImplOptions.AggressiveOptimization)]
+        private static unsafe void VectorGatherVsManualLoad_Load(int[] cacheLines, PrivateMemory<long> pm, int cacheline, int segment)
+        {
+            Vector256<long> load;
+            using (Benchmark.Run("Load", cacheLines.Length * 1000))
+            {
+                for (int _ = 0; _ < 1000; _++)
+                {
+                    var sum = 0L;
+                    var ptr = (long*) pm.Pointer;
+                    for (int ii = 0; ii < cacheLines.Length; ii++)
+                    {
+                        var i = cacheLines[ii];
+                        load = Vector256.Create(
+                            ptr[i * cacheline],
+                            ptr[segment + i * cacheline],
+                            ptr[segment * 2 + i * cacheline],
+                            ptr[segment * 3 + i * cacheline]);
+                        sum += load.GetElement(1);
+                    }
+
+                    if (sum < 1000)
+                        throw new InvalidOperationException();
+                }
+            }
+        }
+
+
+        [Test, Explicit("Bench")]
+        public unsafe void VectorizedLongSearch()
+        {
+            var itemCount = 1024;
+            using var pm = PrivateMemory<long>.Create(itemCount);
+            var v = pm.GetVec();
+            for (int i = 0; i < pm.Length; i++)
+            {
+                v.DangerousSetUnaligned(i, i + 1);
+            }
+
+            var x = 999;
+            var idx = VectorSearch.BinarySearchLong((long*) pm.Pointer, pm.Length, x);
+            
+            Assert.AreEqual(x-1, idx);
+
+        }
+
+        [Test]
         public void WorksOnEmpty()
         {
             var intArr = new int[0];
@@ -72,7 +267,7 @@ namespace Spreads.Core.Tests.Algorithms
             WorksOnEmptyVec(customArr, customValue);
 
             var tsArr = new Timestamp[0];
-            Timestamp tsValue = (Timestamp)1;
+            Timestamp tsValue = (Timestamp) 1;
             WorksOnEmpty(tsArr, tsValue);
             WorksOnEmptyVec(tsArr, tsValue);
         }
@@ -158,23 +353,23 @@ namespace Spreads.Core.Tests.Algorithms
         [Test]
         public void WorksOnSingle()
         {
-            var intArr = new[] { 1 };
+            var intArr = new[] {1};
             var intValue = 1;
             WorksOnSingle(intArr, intValue);
             WorksOnSingleVec(intArr, intValue);
 
-            var shortArr = new short[] { 1 };
+            var shortArr = new short[] {1};
             short shortValue = 1;
             WorksOnSingle(shortArr, shortValue);
             WorksOnSingleVec(shortArr, shortValue);
 
-            var customArr = new TestStruct[] { 1 };
+            var customArr = new TestStruct[] {1};
             TestStruct customValue = 1;
             WorksOnSingle(customArr, customValue);
             WorksOnSingleVec(customArr, customValue);
 
-            var tsArr = new Timestamp[] { (Timestamp)1 };
-            Timestamp tsValue = (Timestamp)1;
+            var tsArr = new Timestamp[] {(Timestamp) 1};
+            Timestamp tsValue = (Timestamp) 1;
             WorksOnSingle(tsArr, tsValue);
             WorksOnSingleVec(tsArr, tsValue);
         }
@@ -260,23 +455,23 @@ namespace Spreads.Core.Tests.Algorithms
         [Test]
         public void WorksOnFirst()
         {
-            var intArr = new[] { 1, 2 };
+            var intArr = new[] {1, 2};
             var intValue = 1;
             WorksOnFirst(intArr, intValue);
             WorksOnFirstVec(intArr, intValue);
 
-            var shortArr = new short[] { 1, 2 };
+            var shortArr = new short[] {1, 2};
             short shortValue = 1;
             WorksOnFirst(shortArr, shortValue);
             WorksOnFirstVec(shortArr, shortValue);
 
-            var customArr = new TestStruct[] { 1, 2 };
+            var customArr = new TestStruct[] {1, 2};
             TestStruct customValue = 1;
             WorksOnFirst(customArr, customValue);
             WorksOnFirstVec(customArr, customValue);
 
-            var tsArr = new Timestamp[] { (Timestamp)1, (Timestamp)2 };
-            Timestamp tsValue = (Timestamp)1;
+            var tsArr = new Timestamp[] {(Timestamp) 1, (Timestamp) 2};
+            Timestamp tsValue = (Timestamp) 1;
             WorksOnFirst(tsArr, tsValue);
             WorksOnFirstVec(tsArr, tsValue);
         }
@@ -386,23 +581,23 @@ namespace Spreads.Core.Tests.Algorithms
         [Test]
         public void WorksOnLast()
         {
-            var intArr = new[] { 1, 2 };
+            var intArr = new[] {1, 2};
             var intValue = 2;
             WorksOnLast(intArr, intValue);
             WorksOnLastVec(intArr, intValue);
 
-            var shortArr = new short[] { 1, 2 };
+            var shortArr = new short[] {1, 2};
             short shortValue = 2;
             WorksOnLast(shortArr, shortValue);
             WorksOnLastVec(shortArr, shortValue);
 
-            var customArr = new TestStruct[] { 1, 2 };
+            var customArr = new TestStruct[] {1, 2};
             TestStruct customValue = 2;
             WorksOnLast(customArr, customValue);
             WorksOnLastVec(customArr, customValue);
 
-            var tsArr = new Timestamp[] { (Timestamp)1, (Timestamp)2 };
-            Timestamp tsValue = (Timestamp)2;
+            var tsArr = new Timestamp[] {(Timestamp) 1, (Timestamp) 2};
+            Timestamp tsValue = (Timestamp) 2;
             WorksOnLast(tsArr, tsValue);
             WorksOnLastVec(tsArr, tsValue);
         }
@@ -512,23 +707,23 @@ namespace Spreads.Core.Tests.Algorithms
         [Test]
         public void WorksOnExistingMiddle()
         {
-            var intArr = new[] { 1, 2, 4 };
+            var intArr = new[] {1, 2, 4};
             var intValue = 2;
             WorksOnExistingMiddle(intArr, intValue);
             WorksOnExistingMiddleVec(intArr, intValue);
 
-            var shortArr = new short[] { 1, 2, 4 };
+            var shortArr = new short[] {1, 2, 4};
             short shortValue = 2;
             WorksOnExistingMiddle(shortArr, shortValue);
             WorksOnExistingMiddleVec(shortArr, shortValue);
 
-            var customArr = new TestStruct[] { 1, 2, 4 };
+            var customArr = new TestStruct[] {1, 2, 4};
             TestStruct customValue = 2;
             WorksOnExistingMiddle(customArr, customValue);
             WorksOnExistingMiddleVec(customArr, customValue);
 
-            var tsArr = new Timestamp[] { (Timestamp)1, (Timestamp)2, (Timestamp)4 };
-            Timestamp tsValue = (Timestamp)2;
+            var tsArr = new Timestamp[] {(Timestamp) 1, (Timestamp) 2, (Timestamp) 4};
+            Timestamp tsValue = (Timestamp) 2;
             WorksOnExistingMiddle(tsArr, tsValue);
             WorksOnExistingMiddleVec(tsArr, tsValue);
         }
@@ -638,23 +833,23 @@ namespace Spreads.Core.Tests.Algorithms
         [Test]
         public void WorksOnNonExistingMiddle()
         {
-            var intArr = new[] { 1, 4 };
+            var intArr = new[] {1, 4};
             var intValue = 2;
             WorksOnNonExistingMiddle(intArr, intValue);
             WorksOnNonExistingMiddleVec(intArr, intValue);
 
-            var shortArr = new short[] { 1, 4 };
+            var shortArr = new short[] {1, 4};
             short shortValue = 2;
             WorksOnNonExistingMiddle(shortArr, shortValue);
             WorksOnNonExistingMiddleVec(shortArr, shortValue);
 
-            var customArr = new TestStruct[] { 1, 4 };
+            var customArr = new TestStruct[] {1, 4};
             TestStruct customValue = 2;
             WorksOnNonExistingMiddle(customArr, customValue);
             WorksOnNonExistingMiddleVec(customArr, customValue);
 
-            var tsArr = new Timestamp[] { (Timestamp)1, (Timestamp)4 };
-            Timestamp tsValue = (Timestamp)2;
+            var tsArr = new Timestamp[] {(Timestamp) 1, (Timestamp) 4};
+            Timestamp tsValue = (Timestamp) 2;
             WorksOnNonExistingMiddle(tsArr, tsValue);
             WorksOnNonExistingMiddleVec(tsArr, tsValue);
         }
@@ -764,23 +959,23 @@ namespace Spreads.Core.Tests.Algorithms
         [Test]
         public void WorksAfterEnd()
         {
-            var intArr = new[] { 0, 1 };
+            var intArr = new[] {0, 1};
             var intValue = 2;
             WorksAfterEnd(intArr, intValue);
             WorksAfterEndVec(intArr, intValue);
 
-            var shortArr = new short[] { 0, 1 };
+            var shortArr = new short[] {0, 1};
             short shortValue = 2;
             WorksAfterEnd(shortArr, shortValue);
             WorksAfterEndVec(shortArr, shortValue);
 
-            var customArr = new TestStruct[] { 0, 1 };
+            var customArr = new TestStruct[] {0, 1};
             TestStruct customValue = 2;
             WorksAfterEnd(customArr, customValue);
             WorksAfterEndVec(customArr, customValue);
 
-            var tsArr = new Timestamp[] { (Timestamp)0, (Timestamp)1 };
-            Timestamp tsValue = (Timestamp)2;
+            var tsArr = new Timestamp[] {(Timestamp) 0, (Timestamp) 1};
+            Timestamp tsValue = (Timestamp) 2;
             WorksAfterEnd(tsArr, tsValue);
             WorksAfterEndVec(tsArr, tsValue);
         }
@@ -889,23 +1084,23 @@ namespace Spreads.Core.Tests.Algorithms
         [Test]
         public void WorksBeforeStart()
         {
-            var intArr = new[] { 0, 1, 2, 3 };
+            var intArr = new[] {0, 1, 2, 3};
             var intValue = -1;
             WorksBeforeStart(intArr, intValue);
             WorksBeforeStartVec(intArr, intValue);
 
-            var shortArr = new short[] { 0, 1, 2, 3 };
+            var shortArr = new short[] {0, 1, 2, 3};
             short shortValue = -1;
             WorksBeforeStart(shortArr, shortValue);
             WorksBeforeStartVec(shortArr, shortValue);
 
-            var customArr = new TestStruct[] { 0, 1, 2, 3 };
+            var customArr = new TestStruct[] {0, 1, 2, 3};
             TestStruct customValue = -1;
             WorksBeforeStart(customArr, customValue);
             WorksBeforeStartVec(customArr, customValue);
 
-            var tsArr = new Timestamp[] { (Timestamp)0, (Timestamp)1, (Timestamp)2, (Timestamp)3 };
-            Timestamp tsValue = (Timestamp)(long)-1;
+            var tsArr = new Timestamp[] {(Timestamp) 0, (Timestamp) 1, (Timestamp) 2, (Timestamp) 3};
+            Timestamp tsValue = (Timestamp) (long) -1;
             WorksBeforeStart(tsArr, tsValue);
             WorksBeforeStartVec(tsArr, tsValue);
         }
@@ -1015,16 +1210,16 @@ namespace Spreads.Core.Tests.Algorithms
         [Test]
         public void WorksWithStartLength()
         {
-            var intArr = new int[] { 1, 2, 3, 4, 5 };
+            var intArr = new int[] {1, 2, 3, 4, 5};
             WorksWithStartLength<int>(intArr);
 
-            var shortArr = new short[] { 1, 2, 3, 4, 5 };
+            var shortArr = new short[] {1, 2, 3, 4, 5};
             WorksWithStartLength<short>(shortArr);
 
-            var customArr = new TestStruct[] { 1, 2, 3, 4, 5 };
+            var customArr = new TestStruct[] {1, 2, 3, 4, 5};
             WorksWithStartLength<TestStruct>(customArr);
 
-            var tsArr = new Timestamp[] { (Timestamp)1, (Timestamp)2, (Timestamp)3, (Timestamp)4, (Timestamp)5 };
+            var tsArr = new Timestamp[] {(Timestamp) 1, (Timestamp) 2, (Timestamp) 3, (Timestamp) 4, (Timestamp) 5};
             WorksWithStartLength<Timestamp>(tsArr);
         }
 
@@ -1037,7 +1232,7 @@ namespace Spreads.Core.Tests.Algorithms
                 //Assert.AreEqual(i, idxI);
                 //Assert.AreEqual(i, idxB);
 
-                var lookups = new[] { Lookup.LT, Lookup.LE, Lookup.EQ, Lookup.GE, Lookup.GT };
+                var lookups = new[] {Lookup.LT, Lookup.LE, Lookup.EQ, Lookup.GE, Lookup.GT};
 
                 // search at the start of range
                 foreach (var lookup in lookups)
@@ -1102,75 +1297,204 @@ namespace Spreads.Core.Tests.Algorithms
          , Explicit("long running")
 #endif
         ]
+        [MethodImpl(MethodImplOptions.NoInlining)]
         public void SearchBench()
         {
-#if  DEBUG
-            var count = 1024;
+#if DEBUG
+            var count = 16 * 1024;
             var rounds = 1;
             // must be power of 2
-            var lens = new[] { 16, 128, 512, 1024 };
+            var lens = new[] {16, 128, 512, 1024, count};
 
 #else
-            var count = 10L * 1024 * 1024;
-            var rounds = 1;
+            var count = 20L * 1024 * 1024;
+            var rounds = 10;
             // must be power of 2
-            var lens = new[] { 16, 128, 512, 1024, 16 * 1024, 128 * 1024, 512 * 1024, 1024 * 1024, 8 * 1024 * 1024 };
+            var lens = new[] { 16, 64, 128, 256, 512, 1024, 4 * 1024}; // , 8 * 1024, 16 * 1024, 64 * 1024,, 128 * 1024, 512 * 1024 , 1024 * 1024, 8 * 1024 * 1024
 
 #endif
-            var vec = (Enumerable.Range(0, (int)count).Select(x => (Timestamp)(long)x).ToArray());
+            var vec = (Enumerable.Range(0, (int) count).Select(x => (long) (x * 2)).ToArray());
 
+            var sum = 0L;
+            for (int i = 0; i < 1000; i++)
+            {
+                sum += VectorSearch.BinarySearch(ref vec[0], 1000, i, default);    
+            }
+
+            Console.WriteLine(sum);
+            
             for (int r = 0; r < rounds; r++)
             {
                 foreach (var len in lens)
                 {
-                    var mask = len - 1;
+                    BS_Default(len, count, vec, r);
+                    // BS_Classic(len, count, vec, r);
+                    
+                    BS_Avx(len, count, vec, r);
+                    
+                    //
+                    // BS_Vectorized(len, count, mask, vec);
+                    //
+                    
+                    
+                    // BS_Branchless(len, count, mask, vec);
 
-                    using (Benchmark.Run("Binary" + len, count))
-                    {
-                        for (int i = 0; i < count; i++)
-                        {
-                            var value = i & mask;
-#pragma warning disable 618
-                            var idx = vec.DangerousBinarySearch(0, len, (Timestamp)value,
-                                KeyComparer<Timestamp>.Default);
-#pragma warning restore 618
-                            if (idx != value)
-                            {
-                                Assert.Fail("idx != value");
-                            }
-                        }
-                    }
+                    // BS_Interpolation(len, count, vec);
+                    
+#if DEBUG
+                    BS_HybridCorrectness(len, count, vec, r);
+#endif
+                    
+                }
+            }
 
-                    using (Benchmark.Run($"Interpolation{len}", count))
-                    {
-                        for (int i = 0; i < count; i++)
-                        {
-                            var value = i & mask;
+            Benchmark.Dump();
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining | MethodImplOptions.AggressiveOptimization)]
+        private static void BS_Classic(int len, long count, long[] vec, int r)
+        {
+            var mask = len - 1;
+            using (Benchmark.Run("BS_Classic" + len, count * 2))
+            {
+                for (int i = 0; i < count * 2; i++)
+                {
+                    var value = i & mask;
 #pragma warning disable 618
-                            var idx = vec.DangerousInterpolationSearch(0, len, (Timestamp)value,
-                                KeyComparer<Timestamp>.Default);
+                    var idx = VectorSearch.BinarySearchClassic(ref vec[r], len, value, default);// vec.DangerousBinarySearch(0, len, value, KeyComparer<long>.Default);
 #pragma warning restore 618
-                            if (idx != value)
-                            {
-                                Assert.Fail("idx != value");
-                            }
+                }
+            }
+        }
+        
+        
+        [MethodImpl(MethodImplOptions.NoInlining | MethodImplOptions.AggressiveOptimization)]
+        private static unsafe void BS_Vectorized(int len, long count, int mask, long[] vec)
+        {
+            using (Benchmark.Run("BS_Vectorized" + len, count * 2))
+            {
+                fixed (long* ptr = &vec[0])
+                {
+                    for (int i = 0; i < count * 2; i++)
+                    {
+                        var value = i & mask;
+#pragma warning disable 618
+                        var idx = VectorSearch.BinarySearchLong(ptr, len, (long) value);
+#pragma warning restore 618
+                        if (idx > 0 && idx != value >> 1)
+                        {
+                            Assert.Fail($"idx {idx} != value {value}");
                         }
                     }
                 }
             }
-            Benchmark.Dump();
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining | MethodImplOptions.AggressiveOptimization)]
+        private static void BS_Default(int len, long count, long[] vec, int r)
+        {
+            var mask = len - 1;
+            using (Benchmark.Run("BS_Default_" + len, count * 2))
+            {
+                for (int i = 0; i < count * 2; i++)
+                {
+                    var value = i & mask;
+#pragma warning disable 618
+                    var idx = VectorSearch.BinarySearch(ref vec[r], len, value);
+#pragma warning restore 618
+                }
+            }
+        }
+        
+        /// <summary>
+        /// For comparison with default to see if JIT does the right thing with Avx2.IsSupported etc.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.NoInlining | MethodImplOptions.AggressiveOptimization)]
+        private static void BS_Avx(int len, long count, long[] vec, int r)
+        {
+            var mask = len - 1;
+            using (Benchmark.Run("BS_Avx_" + len, count * 2))
+            {
+                for (int i = 0; i < count * 2; i++)
+                {
+                    var value = i & mask;
+#pragma warning disable 618
+                    var idx = VectorSearch.BinarySearchAvx(ref vec[r], len, value);
+#pragma warning restore 618
+                }
+            }
+        }
+        
+        [MethodImpl(MethodImplOptions.NoInlining | MethodImplOptions.AggressiveOptimization)]
+        private static void BS_HybridCorrectness(int len, long count, long[] vec, int r)
+        {
+            var mask = len - 1;
+            using (Benchmark.Run("BS_Hybrid_check" + len, len + 20))
+            {
+                for (int i = -10; i < len + 10; i++)
+                {
+                    var value = i;
+                    var idx = VectorSearch.BinarySearch(ref vec[r], len, value);
+                    var idx2 = VectorSearch.BinarySearchClassic(ref vec[r], len, value, default);
+                    if (idx != idx2)
+                    {
+                        Assert.Fail($"idx {idx} != correct idx2 {idx2}");
+                    }
+                }
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining | MethodImplOptions.AggressiveOptimization)]
+        private static void BS_Branchless(int len, long count, int mask, Timestamp[] vec)
+        {
+            using (Benchmark.Run("BS_Branchless" + len, count * 2))
+            {
+                for (int i = 0; i < count * 2; i++)
+                {
+                    var value = i & mask;
+#pragma warning disable 618
+                    var idx = vec.DangerousBinarySearch3(0, len, (Timestamp) value,
+                        KeyComparer<Timestamp>.Default);
+#pragma warning restore 618
+                    if (idx > 0 && idx != value / 2)
+                    {
+                        Assert.Fail($"idx {idx} != value {value}");
+                    }
+                }
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining | MethodImplOptions.AggressiveOptimization)]
+        private static void BS_Interpolation(int len, long count, long[] vec)
+        {
+            var mask = len - 1;
+            using (Benchmark.Run($"Interpolation{len}", count * 2))
+            {
+                for (int i = 0; i < count * 2; i++)
+                {
+                    var value = i & mask;
+#pragma warning disable 618
+                    var idx = vec.DangerousInterpolationSearch(0, len, (long) value,
+                        KeyComparer<long>.Default);
+#pragma warning restore 618
+                    if (idx > 0 && idx != value / 2)
+                    {
+                        Assert.Fail($"idx {idx} != value {value}");
+                    }
+                }
+            }
         }
 
         [Test, Explicit("long running")]
         public void LookupBench()
         {
-            var counts = new[] { 1, 10, 100, 1000, 10_000, 100_000, 1_000_000 };
-            var lookups = new[] { Lookup.GT, Lookup.GE, Lookup.EQ, Lookup.LE, Lookup.LT };
+            var counts = new[] {1, 10, 100, 1000, 10_000, 100_000, 1_000_000};
+            var lookups = new[] {Lookup.GT, Lookup.GE, Lookup.EQ, Lookup.LE, Lookup.LT};
             foreach (var lookup in lookups)
             {
                 foreach (var count in counts)
                 {
-                    var vec = new Vec<Timestamp>(Enumerable.Range(0, count).Select(x => (Timestamp)x).ToArray());
+                    var vec = new Vec<Timestamp>(Enumerable.Range(0, count).Select(x => (Timestamp) x).ToArray());
 
                     var mult = 10_000_000 / count;
 
@@ -1181,15 +1505,15 @@ namespace Spreads.Core.Tests.Algorithms
                             for (int i = 0; i < count; i++)
                             {
 #pragma warning disable CS0618 // Type or member is obsolete
-                                var val = (Timestamp)i;
+                                var val = (Timestamp) i;
                                 var idx = vec.DangerousBinaryLookup(0, count, ref val, lookup);
 #pragma warning restore CS0618 // Type or member is obsolete
                                 if (idx < 0
                                     && !(i == 0 && lookup == Lookup.LT
                                          ||
                                          i == count - 1 && lookup == Lookup.GT
-                                         )
-                                    )
+                                        )
+                                )
                                 {
                                     throw new InvalidOperationException($"LU={lookup}, i={i}, idx={idx}");
                                 }
@@ -1200,7 +1524,7 @@ namespace Spreads.Core.Tests.Algorithms
                                         lookup == Lookup.LT && idx != i - 1
                                         ||
                                         lookup == Lookup.GT && idx != i + 1
-                                        )
+                                    )
                                     {
                                         throw new InvalidOperationException($"LU={lookup}, i={i}, idx={idx}");
                                     }
@@ -1216,7 +1540,7 @@ namespace Spreads.Core.Tests.Algorithms
                             for (int i = 0; i < count; i++)
                             {
 #pragma warning disable CS0618 // Type or member is obsolete
-                                var val = (Timestamp)i;
+                                var val = (Timestamp) i;
                                 var idx = vec.DangerousInterpolationLookup(0, count, ref val,
                                     lookup);
 #pragma warning restore CS0618 // Type or member is obsolete
@@ -1246,6 +1570,7 @@ namespace Spreads.Core.Tests.Algorithms
                     }
                 }
             }
+
             Benchmark.Dump();
         }
 
@@ -1260,10 +1585,10 @@ namespace Spreads.Core.Tests.Algorithms
 
 #if DEBUG
             var rounds = 2;
-            var counts = new[] { 50, 100, 256, 512, 1000, 2048, 4096, 10_000 };
+            var counts = new[] {50, 100, 256, 512, 1000, 2048, 4096, 10_000};
 #else
-            var rounds = 10;
-            var counts = new[] { 50, 100, 256, 512, 1000, 2048, 4096, 10_000, 100_000, 1_000_000 };
+            var rounds = 4;
+            var counts = new[] {50, 100, 256, 512, 1000, 2048, 4096, 10_000, 100_000, 1_000_000};
 #endif
             for (int r = 0; r < rounds; r++)
             {
@@ -1275,11 +1600,11 @@ namespace Spreads.Core.Tests.Algorithms
                     var dev = step / rng.Next(2, 10);
 
                     var vec = new Vec<Timestamp>(Enumerable.Range(0, count)
-                        .Select(i => (Timestamp)i).ToArray());
+                        .Select(i => (Timestamp) i).ToArray());
 
                     for (int i = 1; i < vec.Length; i++)
                     {
-                        vec[i] = vec[i - 1] + (Timestamp)step + (Timestamp)rng.Next(-dev, dev); //  (Timestamp)(vec[i].Nanos * 1000 - 2 + rng.Next(0, 4)); //
+                        vec[i] = vec[i - 1] + (Timestamp) step + (Timestamp) rng.Next(-dev, dev); //  (Timestamp)(vec[i].Nanos * 1000 - 2 + rng.Next(0, 4)); //
                     }
 
                     int[] binRes = new int[vec.Length];
@@ -1288,12 +1613,12 @@ namespace Spreads.Core.Tests.Algorithms
                     for (int i = 0; i < count; i++)
                     {
 #pragma warning disable CS0618 // Type or member is obsolete
-                        var br = vec.DangerousBinarySearch(0, count, (Timestamp)(i * step));
-                        var ir = vec.DangerousInterpolationSearch(0, count, (Timestamp)(i * step));
+                        var br = vec.DangerousBinarySearch(0, count, (Timestamp) (i * step));
+                        var ir = vec.DangerousInterpolationSearch(0, count, (Timestamp) (i * step));
                         if (br != ir)
                         {
                             Console.WriteLine($"[{count}] binRes {br} != interRes {ir} at {i}");
-                            ir = vec.DangerousInterpolationSearch(0, count, (Timestamp)(i * step));
+                            ir = vec.DangerousInterpolationSearch(0, count, (Timestamp) (i * step));
                             Assert.Fail();
                         }
 
@@ -1316,7 +1641,7 @@ namespace Spreads.Core.Tests.Algorithms
                             for (int i = 0; i < count; i++)
                             {
 #pragma warning disable CS0618 // Type or member is obsolete
-                                binRes[i] = vec.DangerousBinarySearch(0, count, (Timestamp)(i * step));
+                                binRes[i] = vec.DangerousBinarySearch(0, count, (Timestamp) (i * step));
 #pragma warning restore CS0618 // Type or member is obsolete
                             }
                         }
@@ -1334,7 +1659,7 @@ namespace Spreads.Core.Tests.Algorithms
                                 //}
 
 #pragma warning disable CS0618 // Type or member is obsolete
-                                interRes[i] = vec.DangerousInterpolationSearch(0, count, (Timestamp)(i * step));
+                                interRes[i] = vec.DangerousInterpolationSearch(0, count, (Timestamp) (i * step));
 #pragma warning restore CS0618 // Type or member is obsolete
                             }
                         }
@@ -1350,6 +1675,7 @@ namespace Spreads.Core.Tests.Algorithms
                     }
                 }
             }
+
             Benchmark.Dump();
         }
 
@@ -1364,10 +1690,10 @@ namespace Spreads.Core.Tests.Algorithms
 
 #if DEBUG
             var rounds = 10;
-            var counts = new[] { 50, 100, 256, 512, 1000, 2048, 4096, 10_000 };
+            var counts = new[] {50, 100, 256, 512, 1000, 2048, 4096, 10_000};
 #else
             var rounds = 10;
-            var counts = new[] { 50, 100, 256, 512, 1000, 2048, 4096, 10_000, 100_000, 1_000_000 };
+            var counts = new[] {50, 100, 256, 512, 1000, 2048, 4096, 10_000, 100_000, 1_000_000};
 #endif
             for (int r = 0; r < rounds; r++)
             {
@@ -1379,11 +1705,11 @@ namespace Spreads.Core.Tests.Algorithms
                     var dev = step / rng.Next(2, 10);
 
                     var vec = new Vec<Timestamp>(Enumerable.Range(0, count)
-                        .Select(i => (Timestamp)i).ToArray());
+                        .Select(i => (Timestamp) i).ToArray());
 
                     for (int i = 1; i < vec.Length; i++)
                     {
-                        vec[i] = vec[i - 1] + (Timestamp)step + (Timestamp)rng.Next(-dev, dev); //  (Timestamp)(vec[i].Nanos * 1000 - 2 + rng.Next(0, 4)); //
+                        vec[i] = vec[i - 1] + (Timestamp) step + (Timestamp) rng.Next(-dev, dev); //  (Timestamp)(vec[i].Nanos * 1000 - 2 + rng.Next(0, 4)); //
                     }
 
                     int[] binRes = new int[vec.Length];
@@ -1392,13 +1718,13 @@ namespace Spreads.Core.Tests.Algorithms
                     for (int i = 1; i < count; i++)
                     {
 #pragma warning disable CS0618 // Type or member is obsolete
-                        var value = (Timestamp)(i * step);
+                        var value = (Timestamp) (i * step);
                         var br = vec.DangerousBinaryLookup(0, count, ref value, Lookup.LE);
                         var ir = vec.DangerousInterpolationLookup(0, count, ref value, Lookup.LE);
                         if (br != ir)
                         {
                             Console.WriteLine($"[{count}] binRes {br} != interRes {ir} at {i}");
-                            ir = vec.DangerousInterpolationSearch(0, count, (Timestamp)(i * step));
+                            ir = vec.DangerousInterpolationSearch(0, count, (Timestamp) (i * step));
                             Assert.Fail();
                         }
 
@@ -1421,7 +1747,7 @@ namespace Spreads.Core.Tests.Algorithms
                             for (int i = 0; i < count; i++)
                             {
 #pragma warning disable CS0618 // Type or member is obsolete
-                                var value = (Timestamp)(i * step);
+                                var value = (Timestamp) (i * step);
                                 binRes[i] = vec.DangerousBinaryLookup(0, count, ref value, Lookup.LE);
 #pragma warning restore CS0618 // Type or member is obsolete
                             }
@@ -1440,7 +1766,7 @@ namespace Spreads.Core.Tests.Algorithms
                                 //}
 
 #pragma warning disable CS0618 // Type or member is obsolete
-                                var value = (Timestamp)(i * step);
+                                var value = (Timestamp) (i * step);
                                 interRes[i] = vec.DangerousInterpolationLookup(0, count, ref value, Lookup.LE);
 #pragma warning restore CS0618 // Type or member is obsolete
                             }
@@ -1457,6 +1783,7 @@ namespace Spreads.Core.Tests.Algorithms
                     }
                 }
             }
+
             Benchmark.Dump();
         }
 
@@ -1464,12 +1791,12 @@ namespace Spreads.Core.Tests.Algorithms
         public void IndexOfBench()
         {
             var rounds = 20;
-            var counts = new[] { 10 };
+            var counts = new[] {10};
             for (int r = 0; r < rounds; r++)
             {
                 foreach (var count in counts)
                 {
-                    var vec = new Vec<Timestamp>(Enumerable.Range(0, count).Select(x => (Timestamp)x).ToArray());
+                    var vec = new Vec<Timestamp>(Enumerable.Range(0, count).Select(x => (Timestamp) x).ToArray());
 
                     var mult = 5_000_000 / count;
 
@@ -1490,17 +1817,18 @@ namespace Spreads.Core.Tests.Algorithms
                     }
                 }
             }
+
             Benchmark.Dump();
         }
 
         [Test, Explicit("long running")]
         public void LeLookupBench()
         {
-            var counts = new[] { 10, 100, 1000, 10000, 100000, 1000000 };
+            var counts = new[] {10, 100, 1000, 10000, 100000, 1000000};
 
             foreach (var count in counts)
             {
-                var vec = new Vec<long>(Enumerable.Range(0, count).Select(x => (long)x).ToArray());
+                var vec = new Vec<long>(Enumerable.Range(0, count).Select(x => (long) x).ToArray());
 
                 var mult = 50_000_000 / count;
 
@@ -1511,7 +1839,7 @@ namespace Spreads.Core.Tests.Algorithms
                         for (int i = 0; i < count; i++)
                         {
 #pragma warning disable 618
-                            var val = (long)i;
+                            var val = (long) i;
                             var idx = vec.DangerousInterpolationLookup(0, count, ref val, Lookup.LE);
 #pragma warning restore 618
                             if (idx != i)

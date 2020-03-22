@@ -47,18 +47,18 @@ namespace Spreads.Core.Tests.Collections.Concurrent
             var perCoreMPMCPool = new MPMCPool<DummyPoolable>(dummyFactory, perCoreCapacity);
             var perCoreObjectPool = new ObjectPool<DummyPoolable>(dummyFactory, perCoreCapacity);
             var perCoreLockedObjectPool = new LockedObjectPool<DummyPoolable>(dummyFactory, perCoreCapacity);
-            var threads = new int[] {1, 2, 4, 6, 8, 12, 24};
+            var threads = new int[] {4}; //{1, 2, 4, 6, 8, 12, 24};
             foreach (var t in threads)
             {
                 for (int round = 0; round < 20; round++)
                 {
-                    // MPMCBenchmark();
+                    MPMCBenchmark();
                     // PoolBenchmark(mpmcPool, "MPMC", t);
                     // PoolBenchmark(objectPool, "OP", t);
                     // PoolBenchmark(lockedObjectPool, "LOP", t);
                     // PoolBenchmark(perCoreMPMCPool, "pcMPMC", t);
                     // PoolBenchmark(perCoreObjectPool, "pcOP", t);
-                    PoolBenchmark(perCoreLockedObjectPool, "pcLOP", t);
+                    // PoolBenchmark(perCoreLockedObjectPool, "pcLOP", t);
                 }
             }
 

@@ -20,21 +20,21 @@ namespace Spreads.Core.Tests.Buffers
         [Test, Explicit("output")]
         public void SizeOfVectorStorage()
         {
-            ObjectLayoutInspector.TypeLayout.PrintLayout<VecStorage>();
+            ObjectLayoutInspector.TypeLayout.PrintLayout<RetainedVec>();
         }
 
         [Test]
         public void Equality()
         {
-            VecStorage vs1 = default;
-            VecStorage vs2 = default;
+            RetainedVec vs1 = default;
+            RetainedVec vs2 = default;
             Assert.AreEqual(vs1, vs2);
             Assert.AreEqual(vs1.Vec.Length, 0);
 
             var count = 1000;
             var arr = Enumerable.Range(0, count).ToArray();
             var r = ArrayMemory<int>.Create(arr);
-            var vs = VecStorage.Create(r, 0, r.Length);
+            var vs = RetainedVec.Create(r, 0, r.Length);
 
             Assert.AreNotEqual(vs1, vs);
 
@@ -53,7 +53,7 @@ namespace Spreads.Core.Tests.Buffers
             var count = 1000;
             var arr = Enumerable.Range(0, count).ToArray();
             var r = ArrayMemory<int>.Create(arr);
-            var vs = VecStorage.Create(r, 0, r.Length);
+            var vs = RetainedVec.Create(r, 0, r.Length);
 
             Assert.AreEqual(arr.Length, vs.Vec.Length);
             long sum = 0L;
@@ -89,9 +89,9 @@ namespace Spreads.Core.Tests.Buffers
             // arr = Enumerable.Range(0, count).Select(x => new SmallDecimal(1000 + (double)x + (double)Math.Round(0.1 * rng.NextDouble(), 5), precision:3)).ToArray();
 
             var r = ArrayMemory<SmallDecimal>.Create(arr);
-            var vs = VecStorage.Create(r, 0, r.Length);
+            var vs = RetainedVec.Create(r, 0, r.Length);
 
-            var vsT = new VecStorage<SmallDecimal>(vs);
+            var vsT = new RetainedVec<SmallDecimal>(vs);
 
             var payload = count * Unsafe.SizeOf<double>() + 4;
 
@@ -114,7 +114,7 @@ namespace Spreads.Core.Tests.Buffers
                 Assert.AreEqual(TypeEnum.SmallDecimal, header.TEOFS1.TypeEnum);
                 Assert.AreEqual(Unsafe.SizeOf<SmallDecimal>(), header.TEOFS1.Size);
 
-                var len2 = BinarySerializer.Read(destinationDb, out VecStorage<SmallDecimal> value);
+                var len2 = BinarySerializer.Read(destinationDb, out RetainedVec<SmallDecimal> value);
                 Assert.AreEqual(destination.Length, destinationDb.Length);
 
                 Assert.AreEqual(len, len2);
@@ -162,7 +162,7 @@ namespace Spreads.Core.Tests.Buffers
 
             var mem = ArrayMemory<int>.Create(arr);
 
-            var vs = VecStorage.Create(mem, 0, mem.Length);
+            var vs = RetainedVec.Create(mem, 0, mem.Length);
 
             Assert.AreEqual(arr.Length, vs.Vec.Length);
 
@@ -203,7 +203,7 @@ namespace Spreads.Core.Tests.Buffers
             var arrSize = 1000;
             var arr = Enumerable.Range(0, arrSize).ToArray();
             var mem = ArrayMemory<int>.Create(arr);
-            var vs = VecStorage.Create(mem, 0, mem.Length);
+            var vs = RetainedVec.Create(mem, 0, mem.Length);
 
             Assert.AreEqual(arr.Length, vs.Vec.Length);
             for (int r = 0; r < rounds; r++)

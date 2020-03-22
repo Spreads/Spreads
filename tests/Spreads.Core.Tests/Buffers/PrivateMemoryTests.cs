@@ -2,6 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+using System;
 using NUnit.Framework;
 using Spreads.Buffers;
 using Spreads.Utils;
@@ -19,13 +20,44 @@ namespace Spreads.Core.Tests.Buffers
     [TestFixture]
     public class PrivateMemoryTests
     {
-        [Test, Explicit("output")]
+        [Test]
         public void PrivateMemoryLayout()
         {
             TypeLayout.PrintLayout<PrivateMemory<long>>(recursively: false);
             TypeLayout.PrintLayout<PrivateMemory<byte>>(recursively: false);
             TypeLayout.PrintLayout<PrivateMemory<object>>(recursively: false);
             var layout = TypeLayout.GetLayout<PrivateMemory<long>>();
+        }
+
+        [StructLayout(LayoutKind.Sequential, Size = 5, Pack = 1)]
+        private struct Size5
+        {
+            public int Int;
+            public byte Byte;
+        }
+
+        [Test]
+        public void CtorLengthEqualsToGoodSize()
+        {
+            // using var pm1 = PrivateMemory<byte>.Create(160);
+
+            for (int length = 16; length < 1024 * 1024; length += 128)
+            {
+                using var pm = PrivateMemory<Size5>.Create(length);
+                // Assert.AreEqual(Mem.GoodSize((UIntPtr) BitUtil.Align(length, 64)), pm.Length);
+                Console.WriteLine($"{length:N0} -> {Mem.GoodSize((UIntPtr) length)} -> {pm.Length:N0} -> {pm.Length * Unsafe.SizeOf<Size5>():N0}");
+            }
+        }
+
+        [Test, Explicit("output")]
+        public void CtorDoesntThrowsOnBadLength()
+        {
+            var length = -1;
+
+            using var pm = PrivateMemory<byte>.Create(-1);
+            Assert.AreEqual(Mem.GoodSize((UIntPtr) Settings.MIN_POOLED_BUFFER_LEN), pm.Length);
+
+            Console.WriteLine(pm.Length);
         }
 
         [Test
@@ -68,6 +100,5 @@ namespace Spreads.Core.Tests.Buffers
             // Mem.Collect(true);
             Mem.StatsPrint();
         }
-
     }
 }

@@ -2,6 +2,7 @@
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Threading;
+using Spreads.Native;
 using Spreads.Utils;
 
 namespace Spreads.Collections.Concurrent
@@ -10,17 +11,23 @@ namespace Spreads.Collections.Concurrent
     // ReSharper disable once InconsistentNaming
     public class MPMCQueue
     {
-        [FieldOffset(Settings.SAFE_CACHE_LINE)]
+        [FieldOffset(Settings.SAFE_CACHE_LINE + 8)]
         protected readonly Cell[] _enqueueBuffer;
 
-        [FieldOffset(Settings.SAFE_CACHE_LINE + 8)]
+        [FieldOffset(Settings.SAFE_CACHE_LINE + 16)]
         private int _enqueuePos;
 
-        [FieldOffset(Settings.SAFE_CACHE_LINE * 2)]
-        private readonly Cell[] _dequeueBuffer;
+        [FieldOffset(0)]
+        protected readonly int _enqueueMask;
 
         [FieldOffset(Settings.SAFE_CACHE_LINE * 2 + 8)]
+        private readonly Cell[] _dequeueBuffer;
+        
+        [FieldOffset(Settings.SAFE_CACHE_LINE * 2 + 16)]
         private int _dequeuePos;
+
+        [FieldOffset(0)]
+        protected readonly int _dequeueMask;
 
         public MPMCQueue(int bufferSize)
         {
@@ -35,6 +42,8 @@ namespace Spreads.Collections.Concurrent
 
             _enqueueBuffer = _dequeueBuffer = buffer;
             _enqueuePos = _dequeuePos = 0;
+
+            _enqueueMask = _dequeueMask = bufferSize - 1;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -46,20 +55,22 @@ namespace Spreads.Collections.Concurrent
             {
                 var buffer = _dequeueBuffer;
                 var pos = _dequeuePos;
-                var index = pos & (buffer.Length - 1);
+                var mask = _dequeueMask;
+                
+                var index = pos & mask;
                 ref var cell = ref buffer[index];
                 if (cell.Sequence == pos + 1 && Interlocked.CompareExchange(ref _dequeuePos, pos + 1, pos) == pos)
                 {
                     result = cell.Element;
                     cell.Element = null;
-                    Volatile.Write(ref cell.Sequence, pos + buffer.Length);
+                    Volatile.Write(ref cell.Sequence, pos + 1 + mask);
                     break;
                 }
 
                 if (cell.Sequence < pos + 1)
                     break;
-
-                // if (spinner.NextSpinWillYield) 
+                
+                // if (spinner.NextSpinWillYield)
                 //     spinner.Reset();
                 spinner.SpinOnce();
             } while (true);
@@ -76,8 +87,10 @@ namespace Spreads.Collections.Concurrent
             {
                 var buffer = _enqueueBuffer;
                 var pos = _enqueuePos;
-                var index = pos & (buffer.Length - 1);
+                var mask = _enqueueMask;
+                var index = pos & mask;
                 ref var cell = ref buffer[index];
+
                 if (cell.Sequence == pos && Interlocked.CompareExchange(ref _enqueuePos, pos + 1, pos) == pos)
                 {
                     cell.Element = item;

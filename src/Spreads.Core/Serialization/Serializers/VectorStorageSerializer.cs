@@ -10,7 +10,7 @@ namespace Spreads.Collections.Internal
 {
     internal static class VectorStorageSerializerFactory
     {
-        public static BinarySerializer<VecStorage<TElement>> GenericCreate<TElement>()
+        public static BinarySerializer<RetainedVec<TElement>> GenericCreate<TElement>()
         {
             return new VectorStorageSerializer<TElement>();
         }
@@ -26,13 +26,13 @@ namespace Spreads.Collections.Internal
     // TODO fallback to ArrayWrapperSerializer with params
     // TODO do not throw not supported, just do not register a binary serializer
     // and add Json formatter.
-    internal class VectorStorageSerializer<T> : InternalSerializer<VecStorage<T>>
+    internal class VectorStorageSerializer<T> : InternalSerializer<RetainedVec<T>>
     {
         public override byte KnownTypeId => 0;
 
         public override short FixedSize => 0;
 
-        public override int SizeOf(in VecStorage<T> value, BufferWriter payload)
+        public override int SizeOf(in RetainedVec<T> value, BufferWriter payload)
         {
             if (!TypeHelper<T>.IsFixedSize)
             {
@@ -41,7 +41,7 @@ namespace Spreads.Collections.Internal
             return 4 + value.Storage.Vec.Length * Unsafe.SizeOf<T>();
         }
 
-        public override unsafe int Write(in VecStorage<T> value, DirectBuffer destination)
+        public override unsafe int Write(in RetainedVec<T> value, DirectBuffer destination)
         {
             if (!TypeHelper<T>.IsFixedSize)
             {
@@ -94,7 +94,7 @@ namespace Spreads.Collections.Internal
             return 4;
         }
 
-        public override unsafe int Read(DirectBuffer source, out VecStorage<T> value)
+        public override unsafe int Read(DirectBuffer source, out RetainedVec<T> value)
         {
             var arraySize = source.Read<int>(0);
             if (arraySize > 0)
@@ -137,13 +137,13 @@ namespace Spreads.Collections.Internal
                     }
                 }
 
-                var vs = VecStorage.Create<T>(rm, 0, arraySize);
+                var vs = RetainedVec.Create<T>(rm, 0, arraySize);
 
-                value = new VecStorage<T>(vs);
+                value = new RetainedVec<T>(vs);
             }
             else
             {
-                value = new VecStorage<T>(default);
+                value = new RetainedVec<T>(default);
             }
 
             return 4 + payloadSize;

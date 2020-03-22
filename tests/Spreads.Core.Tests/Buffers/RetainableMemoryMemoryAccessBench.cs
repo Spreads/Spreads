@@ -13,11 +13,10 @@ using Spreads.Utils;
 
 namespace Spreads.Core.Tests.Buffers
 {
-    [Category("CI")]
+    [Category("Bench")]
     [TestFixture]
     public class RetainableMemoryMemoryAccessBench
     {
-
         [Test
 #if !DEBUG
          , Explicit("bench")
@@ -31,11 +30,11 @@ namespace Spreads.Core.Tests.Buffers
             var count = (int) 4 * 1024; // TestUtils.GetBenchCount(1_000_000);
             var rm = PrivateMemory<int>.Create(count);
             var arr = new int[count];
-            DataBlockLike db = new DataBlockLike {Rm = rm, Vec = rm.GetVec().AsVec(), VecStorage = VecStorage.Create(rm, 0, rm.Length, true), Length = rm.Length};
+            DataBlockLike db = new DataBlockLike {Rm = rm, Vec = rm.GetVec().AsVec(), RetainedVec = RetainedVec.Create(rm, 0, rm.Length, true), Length = rm.Length};
 
             for (int i = 0; i < count; i++)
             {
-                db.VecStorage.UnsafeWriteUnaligned((IntPtr) i, i);
+                db.RetainedVec.UnsafeWriteUnaligned((IntPtr) i, i);
                 arr[i] = i;
             }
 
@@ -48,14 +47,11 @@ namespace Spreads.Core.Tests.Buffers
             Benchmark.Dump();
             rm.Dispose();
         }
-        
-        
-#if NETCOREAPP3_0
+
         [MethodImpl(MethodImplOptions.NoInlining)]
-#endif
         public void MemoryFieldBench_Field(RetainableMemory<int> rm)
         {
-            var rounds = 100_000_000;
+            var rounds = TestUtils.GetBenchCount(100_000_000, 1000);
             long sum = 0;
             using (Benchmark.Run("Field", rounds))
             {
@@ -68,13 +64,12 @@ namespace Spreads.Core.Tests.Buffers
             if (sum < 1000)
                 throw new InvalidOperationException();
         }
-        
-#if NETCOREAPP3_0
+
         [MethodImpl(MethodImplOptions.NoInlining)]
-#endif
         public void MemoryFieldBench_CreateMem(RetainableMemory<int> rm)
         {
-            var rounds = 100_000_000;
+            var rounds = TestUtils.GetBenchCount(100_000_000, 1000);
+            ;
             long sum = 0;
             using (Benchmark.Run("CreateMem", rounds))
             {
@@ -88,6 +83,7 @@ namespace Spreads.Core.Tests.Buffers
                 throw new InvalidOperationException();
         }
 
+        
         [Test
 #if !DEBUG
          , Explicit("bench")
@@ -101,11 +97,11 @@ namespace Spreads.Core.Tests.Buffers
             var count = (int) 4 * 1024; // TestUtils.GetBenchCount(1_000_000);
             var rm = PrivateMemory<int>.Create(count);
             var arr = new int[count];
-            DataBlockLike db = new DataBlockLike {Rm = rm, Vec = rm.GetVec().AsVec(), VecStorage = VecStorage.Create(rm, 0, rm.Length, true), Length = rm.Length};
+            DataBlockLike db = new DataBlockLike {Rm = rm, Vec = rm.GetVec().AsVec(), RetainedVec = RetainedVec.Create(rm, 0, rm.Length, true), Length = rm.Length};
 
             for (int i = 0; i < count; i++)
             {
-                db.VecStorage.UnsafeWriteUnaligned((IntPtr) i, i);
+                db.RetainedVec.UnsafeWriteUnaligned((IntPtr) i, i);
                 arr[i] = i;
             }
 
@@ -132,12 +128,11 @@ namespace Spreads.Core.Tests.Buffers
             rm.Dispose();
         }
 
-#if NETCOREAPP3_0
         [MethodImpl(MethodImplOptions.NoInlining)]
-#endif
         public void Sum(RetainableMemory<int> rm)
         {
-            var rounds = 100_000;
+            var rounds = TestUtils.GetBenchCount(100_000, 1000);
+            
             long sum = 0;
             using (Benchmark.Run("Sum (CPU Hz)", rm.Length * rounds))
             {
@@ -150,16 +145,14 @@ namespace Spreads.Core.Tests.Buffers
                 }
             }
 
-            // if (sum < 1000)
-            //     throw new InvalidOperationException();
+            if (sum < 1000)
+                throw new InvalidOperationException();
         }
 
-#if NETCOREAPP3_0
         [MethodImpl(MethodImplOptions.NoInlining)]
-#endif
         public unsafe void MemoryAccessViaPointer(RetainableMemory<int> rm)
         {
-            var rounds = 100_000;
+            var rounds = TestUtils.GetBenchCount(100_000, 1000);
             long sum = 0;
             using (Benchmark.Run("Pointer", rm.Length * rounds))
             {
@@ -177,12 +170,10 @@ namespace Spreads.Core.Tests.Buffers
             //     throw new InvalidOperationException();
         }
 
-#if NETCOREAPP3_0
-        [MethodImpl(MethodImplOptions.AggressiveOptimization | MethodImplOptions.NoInlining)]
-#endif
+        [MethodImpl(MethodImplOptions.NoInlining)]
         public unsafe void MemoryAccessViaArray(RetainableMemory<int> rm, int[] arr)
         {
-            var rounds = 100_000;
+            var rounds = TestUtils.GetBenchCount(100_000, 1000);
             DataBlockLike db = new DataBlockLike {Rm = rm, arr = arr};
             long sum = 0;
             using (Benchmark.Run("Array", rm.Length * rounds))
@@ -200,12 +191,10 @@ namespace Spreads.Core.Tests.Buffers
                 throw new InvalidOperationException();
         }
 
-#if NETCOREAPP3_0
-        [MethodImpl(MethodImplOptions.AggressiveOptimization | MethodImplOptions.NoInlining)]
-#endif
+        [MethodImpl(MethodImplOptions.NoInlining)]
         public void MemoryAccessVecViaMemSpan(RetainableMemory<int> rm)
         {
-            var rounds = 10_000;
+            var rounds = TestUtils.GetBenchCount(10_000, 1000);
             long sum = 0;
             using (Benchmark.Run("MemSpan", rm.Length * rounds))
             {
@@ -222,12 +211,10 @@ namespace Spreads.Core.Tests.Buffers
                 throw new InvalidOperationException();
         }
 
-#if NETCOREAPP3_0
-        [MethodImpl(MethodImplOptions.AggressiveOptimization | MethodImplOptions.NoInlining)]
-#endif
+        [MethodImpl(MethodImplOptions.NoInlining)]
         public void MemoryAccessVecViaLocalDangerous(RetainableMemory<int> rm)
         {
-            var rounds = 100_00;
+            var rounds = TestUtils.GetBenchCount(10_000, 1000);
             long sum = 0;
             using (Benchmark.Run("LocalDangerous", rm.Length * rounds))
             {
@@ -245,12 +232,10 @@ namespace Spreads.Core.Tests.Buffers
                 throw new InvalidOperationException();
         }
 
-#if NETCOREAPP3_0
-        [MethodImpl(MethodImplOptions.AggressiveOptimization | MethodImplOptions.NoInlining)]
-#endif
+        [MethodImpl(MethodImplOptions.NoInlining)]
         public void MemoryAccessVecViaLocalUnsafe(RetainableMemory<int> rm)
         {
-            var rounds = 10_000;
+            var rounds = TestUtils.GetBenchCount(10_000, 1000);
             long sum = 0;
             using (Benchmark.Run("LocalUnsafe", rm.Length * rounds))
             {
@@ -268,13 +253,11 @@ namespace Spreads.Core.Tests.Buffers
                 throw new InvalidOperationException();
         }
 
-#if NETCOREAPP3_0
-        [MethodImpl(MethodImplOptions.AggressiveOptimization | MethodImplOptions.NoInlining)]
-#endif
+        [MethodImpl(MethodImplOptions.NoInlining)]
         public void MemoryAccessVecViaDbVecDangerous(RetainableMemory<int> rm)
         {
             long sum = 0;
-            var rounds = 10_000;
+            var rounds = TestUtils.GetBenchCount(10_000, 1000);
             using (Benchmark.Run("DbVecDangerous (+)", rm.Length * rounds))
             {
                 DataBlockLike db = new DataBlockLike {Rm = rm, Vec = rm.GetVec().AsVec()};
@@ -291,21 +274,19 @@ namespace Spreads.Core.Tests.Buffers
                 throw new InvalidOperationException();
         }
 
-#if NETCOREAPP3_0
         [MethodImpl(MethodImplOptions.NoInlining)]
-#endif
         public void MemoryAccessVecViaDbVecUnsafeX(RetainableMemory<int> rm)
         {
-            var rounds = 100_000;
+            var rounds = TestUtils.GetBenchCount(100_000, 1000);
             long sum = 0;
             using (Benchmark.Run("DbVecUnsafeX", rm.Length * rounds))
             {
-                DataBlockLike db = new DataBlockLike {Rm = rm, Vec = rm.GetVec().AsVec(), VecStorage = VecStorage.Create(rm, 0, rm.Length, true)};
+                DataBlockLike db = new DataBlockLike {Rm = rm, Vec = rm.GetVec().AsVec(), RetainedVec = RetainedVec.Create(rm, 0, rm.Length, true)};
                 for (int r = 0; r < rounds; r++)
                 {
                     for (long i = 0; i < rm.Length; i++)
                     {
-                        sum += db.VecStorage.Vec.UnsafeGetUnalignedX<int>((IntPtr) i);
+                        sum += db.RetainedVec.Vec.UnsafeGetUnalignedX<int>((IntPtr) i);
                     }
                 }
             }
@@ -314,16 +295,14 @@ namespace Spreads.Core.Tests.Buffers
                 throw new InvalidOperationException();
         }
 
-#if NETCOREAPP3_0
-        [MethodImpl(MethodImplOptions.AggressiveOptimization | MethodImplOptions.NoInlining)]
-#endif
+        [MethodImpl(MethodImplOptions.NoInlining)]
         public void MemoryAccessVecViaDbVecUnsafe(RetainableMemory<int> rm)
         {
-            var rounds = 100_000;
+            var rounds = TestUtils.GetBenchCount(100_000, 1000);
             long sum = 0;
             using (Benchmark.Run("DbVecUnsafe", rm.Length * rounds))
             {
-                DataBlockLike db = new DataBlockLike {Rm = rm, Vec = rm.GetVec().AsVec(), VecStorage = VecStorage.Create(rm, 0, rm.Length, true)};
+                DataBlockLike db = new DataBlockLike {Rm = rm, Vec = rm.GetVec().AsVec(), RetainedVec = RetainedVec.Create(rm, 0, rm.Length, true)};
                 for (int r = 0; r < rounds; r++)
                 {
                     for (long i = 0; i < rm.Length; i++)
@@ -337,21 +316,19 @@ namespace Spreads.Core.Tests.Buffers
                 throw new InvalidOperationException();
         }
 
-#if NETCOREAPP3_0
         [MethodImpl(MethodImplOptions.NoInlining)]
-#endif
         public void MemoryAccessVecViaDbVecStorageRead(RetainableMemory<int> rm)
         {
-            var rounds = 100_000;
+            var rounds = TestUtils.GetBenchCount(100_000, 1000);
             long sum = 0;
             using (Benchmark.Run("DbVecStorageRead (^)", rm.Length * rounds))
             {
-                DataBlockLike db = new DataBlockLike {Rm = rm, Vec = rm.GetVec().AsVec(), VecStorage = VecStorage.Create(rm, 0, rm.Length, true), Length = rm.Length};
+                DataBlockLike db = new DataBlockLike {Rm = rm, Vec = rm.GetVec().AsVec(), RetainedVec = RetainedVec.Create(rm, 0, rm.Length, true), Length = rm.Length};
                 for (long r = 0; r < rounds; r++)
                 {
                     for (long i = 0; i < db.Length; i++)
                     {
-                        sum += db.VecStorage.UnsafeReadUnaligned<int>((IntPtr) i);
+                        sum += db.RetainedVec.UnsafeReadUnaligned<int>((IntPtr) i);
                     }
                 }
             }
@@ -360,12 +337,10 @@ namespace Spreads.Core.Tests.Buffers
                 throw new InvalidOperationException();
         }
 
-#if NETCOREAPP3_0
-        [MethodImpl(MethodImplOptions.AggressiveOptimization | MethodImplOptions.NoInlining)]
-#endif
+        [MethodImpl(MethodImplOptions.NoInlining)]
         public unsafe void MemoryAccessVecViaDbVecPointer(RetainableMemory<int> rm)
         {
-            var rounds = 100_000;
+            var rounds = TestUtils.GetBenchCount(100_000, 1000);
             long sum = 0;
             using (Benchmark.Run("DbVecPointer (*)", rm.Length * rounds))
             {
@@ -383,22 +358,20 @@ namespace Spreads.Core.Tests.Buffers
                 throw new InvalidOperationException();
         }
 
-#if NETCOREAPP3_0
-        [MethodImpl(MethodImplOptions.AggressiveOptimization | MethodImplOptions.NoInlining)]
-#endif
+        [MethodImpl(MethodImplOptions.NoInlining)]
         public void MemoryAccessVecViaDbVecStorageUnsafe(RetainableMemory<int> rm)
         {
-            var rounds = 100_000;
+            var rounds = TestUtils.GetBenchCount(100_000, 1000);
             long sum = 0;
             using (Benchmark.Run("DbVecStorageUnsafe (+)", rm.Length * rounds))
             {
-                DataBlockLike db = new DataBlockLike {Rm = rm, Vec = rm.GetVec().AsVec(), VecStorage = VecStorage.Create(rm, 0, rm.Length, true)};
+                DataBlockLike db = new DataBlockLike {Rm = rm, Vec = rm.GetVec().AsVec(), RetainedVec = RetainedVec.Create(rm, 0, rm.Length, true)};
 
                 for (int r = 0; r < rounds; r++)
                 {
                     for (long i = 0; i < rm.Length; i++)
                     {
-                        sum += db.VecStorage.Vec.UnsafeGetUnaligned<int>((IntPtr) i);
+                        sum += db.RetainedVec.Vec.UnsafeGetUnaligned<int>((IntPtr) i);
                     }
                 }
             }
@@ -407,21 +380,19 @@ namespace Spreads.Core.Tests.Buffers
                 throw new InvalidOperationException();
         }
 
-#if NETCOREAPP3_0
-        [MethodImpl(MethodImplOptions.AggressiveOptimization | MethodImplOptions.NoInlining)]
-#endif
+        [MethodImpl(MethodImplOptions.NoInlining)]
         public void MemoryAccessVecViaDbVecStorageDangerous(RetainableMemory<int> rm)
         {
-            var rounds = 100_000;
+            var rounds = TestUtils.GetBenchCount(100_000, 1000);
             long sum = 0;
             using (Benchmark.Run("DbVecStorageDangerous (_)", rm.Length * rounds))
             {
-                DataBlockLike db = new DataBlockLike {Rm = rm, Vec = rm.GetVec().AsVec(), VecStorage = VecStorage.Create(rm, 0, rm.Length, true)};
+                DataBlockLike db = new DataBlockLike {Rm = rm, Vec = rm.GetVec().AsVec(), RetainedVec = RetainedVec.Create(rm, 0, rm.Length, true)};
                 for (int r = 0; r < rounds; r++)
                 {
                     for (int i = 0; i < rm.Length; i++)
                     {
-                        sum += db.VecStorage.Vec.DangerousGetUnaligned<int>(i);
+                        sum += db.RetainedVec.Vec.DangerousGetUnaligned<int>(i);
                     }
                 }
             }
@@ -435,7 +406,7 @@ namespace Spreads.Core.Tests.Buffers
     {
         public object Rm;
         public int[] arr;
-        public VecStorage VecStorage;
+        public RetainedVec RetainedVec;
         public Vec Vec;
         public int* Ptr;
         public int Length;
@@ -446,9 +417,9 @@ namespace Spreads.Core.Tests.Buffers
             // return Vec.UnsafeGetUnalignedX<T>(index);
             if (TypeHelper<T>.IsReferenceOrContainsReferences)
                 return Unsafe.ReadUnaligned<T>(ref Unsafe.As<T, byte>(ref Unsafe.Add(
-                    ref Unsafe.AddByteOffset(ref Unsafe.As<Pinnable<T>>(VecStorage._pinnable).Data, VecStorage._byteOffset),
+                    ref Unsafe.AddByteOffset(ref Unsafe.As<Pinnable<T>>(RetainedVec._pinnable).Data, (IntPtr)RetainedVec._byteOffset),
                     index)));
-            return Unsafe.ReadUnaligned<T>(ref Unsafe.As<T, byte>(ref Unsafe.Add<T>(ref Unsafe.AsRef<T>((void*) VecStorage._byteOffset), index)));
+            return Unsafe.ReadUnaligned<T>(ref Unsafe.As<T, byte>(ref Unsafe.Add<T>(ref Unsafe.AsRef<T>((void*) RetainedVec._byteOffset), index)));
         }
     }
 

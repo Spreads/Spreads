@@ -90,6 +90,15 @@ namespace Spreads.Utils
                 return 1 << (32 - NumberOfLeadingZeros(value - 1));
             }
         }
+        
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static long FindNextPositivePowerOfTwo(long value)
+        {
+            unchecked
+            {
+                return 1L << (64 - NumberOfLeadingZeros(value - 1L));
+            }
+        }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int FindPreviousPositivePowerOfTwo(int value)

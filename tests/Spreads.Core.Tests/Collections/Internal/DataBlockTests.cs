@@ -32,7 +32,7 @@ namespace Spreads.Core.Tests.Collections.Internal
             
             var r = ArrayMemory<long>.Create(arr, 
                 0, arr.Length, externallyOwned: true);
-            var keys = VecStorage.Create(r, 0, r.Length);
+            var keys = RetainedVec.Create(r, 0, r.Length);
             var values = keys.Slice(0, count, true);
 
             var block = DataBlock.SeriesCreate(keys, values, count);
@@ -57,8 +57,8 @@ namespace Spreads.Core.Tests.Collections.Internal
 
             Assert.AreEqual(block.RowCapacity, Settings.MIN_POOLED_BUFFER_LEN);
 
-            var keys = block.RowKeys._memorySource as ArrayMemory<int>;
-            var vals = block.Values._memorySource as ArrayMemory<int>;
+            var keys = block.RowKeys._memoryOwner as ArrayMemory<int>;
+            var vals = block.Values._memoryOwner as ArrayMemory<int>;
 
             var slice = block.Values.Slice(0, 1);
 

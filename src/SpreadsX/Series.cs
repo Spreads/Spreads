@@ -11,6 +11,7 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using System.Threading;
+using Spreads.Serialization;
 
 namespace Spreads
 {
@@ -23,6 +24,17 @@ namespace Spreads
             KeySorting keySorting = KeySorting.Strong,
             KeyComparer<TKey> comparer = default)
         {
+            // Need to touch these fields very early in a common not hot place for JIT static
+            // readonly optimization even if tiered compilation is off.
+            // Note single & to avoid short circuit.
+            if (AdditionalCorrectnessChecks.Enabled
+                & TypeHelper<TKey>.IsReferenceOrContainsReferences
+                & TypeHelper<TValue>.IsReferenceOrContainsReferences)
+            {
+                ThrowHelper.Assert(!PrivateMemory<TKey>.ObjectPool.IsDisposed);
+                ThrowHelper.Assert(!PrivateMemory<TValue>.ObjectPool.IsDisposed);
+            }
+            
             if (keySorting != KeySorting.Strong)
             {
                 throw new NotImplementedException();
@@ -66,10 +78,10 @@ namespace Spreads
             }
 
             var keyMemory = ArrayMemory<TKey>.Create(keys);
-            var keyVs = VecStorage.Create(keyMemory, 0, keyMemory.Length);
+            var keyVs = RetainedVec.Create(keyMemory, 0, keyMemory.Length);
 
             var valMemory = ArrayMemory<TValue>.Create(values);
-            var valVs = VecStorage.Create(valMemory, 0, valMemory.Length);
+            var valVs = RetainedVec.Create(valMemory, 0, valMemory.Length);
 
             var block = DataBlock.SeriesCreate(rowIndex: keyVs, values: valVs, rowLength: keys.Length);
 

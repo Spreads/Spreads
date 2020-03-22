@@ -452,7 +452,7 @@ namespace Spreads.Serialization
             }
 
             if (typeof(T).IsGenericType
-                && typeof(T).GetGenericTypeDefinition() == typeof(VecStorage<>))
+                && typeof(T).GetGenericTypeDefinition() == typeof(RetainedVec<>))
             {
                 // TODO TEH by type
                 var elementType = typeof(T).GenericTypeArguments[0];

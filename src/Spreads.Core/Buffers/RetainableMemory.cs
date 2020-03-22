@@ -36,9 +36,16 @@ namespace Spreads.Buffers
         internal int _offset;
 
 #pragma warning disable 649
-        internal short Reserved;
+        internal bool Reserved;
 #pragma warning restore 649
 
+        /// <summary>
+        /// True if blittable types are stored off-heap in native memory, e.g. in <see cref="PrivateMemory{T}"/>.
+        /// Unsafe operations of <see cref="Vec"/> and <see cref="RetainedVec{T}"/> could be used only when
+        /// this is the case and this field should only be set to true if the implementation guarantees that.
+        /// </summary>
+        internal bool IsBlittableOffheap;
+        
         /// <summary>
         /// 0 - externally owned;
         /// 1 - default array pool (no RM pool);

@@ -35,11 +35,11 @@ namespace Spreads.Collections.Internal
 
     internal class DataBlockVectors : DataBlockCountersPadding
     {
-        protected VecStorage _rowKeys;
+        protected RetainedVec _rowKeys;
 
-        protected VecStorage _values; // TODO (review) could be valuesOrColumnIndex instead of storing ColumnIndex in _columns[0]
+        protected RetainedVec _values; // TODO (review) could be valuesOrColumnIndex instead of storing ColumnIndex in _columns[0]
 
-        protected VecStorage[]? _columns;
+        protected RetainedVec[]? _columns;
     }
 
     /// <summary>
@@ -58,16 +58,16 @@ namespace Spreads.Collections.Internal
         // For series each DataBlock has 2x PrivateMemory instances, for which we have 256 pooled per core.
         // TODO Review pools sizes, move them to settings
 
-        private static readonly ObjectPool<DataBlock> ObjectPool = new ObjectPool<DataBlock>(() => new DataBlock(), 256 / 2);
+        private static readonly ObjectPool<DataBlock> ObjectPool = new ObjectPool<DataBlock>(() => new DataBlock(), 256);
 
         [Obsolete("Use only in tests")]
-        internal VecStorage RowKeys => _rowKeys;
+        internal RetainedVec RowKeys => _rowKeys;
 
         [Obsolete("Use only in tests")]
-        internal VecStorage Values => _values;
+        internal RetainedVec Values => _values;
 
         [Obsolete("Use only in tests")]
-        internal VecStorage[]? Columns => _columns;
+        internal RetainedVec[]? Columns => _columns;
 
         /// <summary>
         /// Fast path to get the next block from the current one.
@@ -106,7 +106,7 @@ namespace Spreads.Collections.Internal
         // TODO delete this method
         [Obsolete("Use container-specific factories, e.g. SeriesCreate")]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static DataBlock Create(VecStorage rowIndex = default, VecStorage values = default, VecStorage[]? columns = null, int rowLength = -1)
+        internal static DataBlock Create(RetainedVec rowIndex = default, RetainedVec values = default, RetainedVec[]? columns = null, int rowLength = -1)
         {
             var block = ObjectPool.Rent();
             block.EnsureDisposed();
@@ -433,7 +433,7 @@ namespace Spreads.Collections.Internal
 
                 foreach (var vectorStorage in _columns)
                 {
-                    if (vectorStorage._memorySource == _values._memorySource)
+                    if (vectorStorage._memoryOwner == _values._memoryOwner)
                     {
                         return true;
                     }
@@ -460,7 +460,7 @@ namespace Spreads.Collections.Internal
 
                 foreach (var vectorStorage in _columns)
                 {
-                    if (vectorStorage._memorySource != _values._memorySource)
+                    if (vectorStorage._memoryOwner != _values._memoryOwner)
                     {
                         return false;
                     }
@@ -509,7 +509,7 @@ namespace Spreads.Collections.Internal
 
                 // shared source by any column
                 // ReSharper disable once AssignNullToNotNullAttribute : colLength >= 0 guarantees _columns != null
-                if (colLength >= 0 && _values != default && _columns.All(c => c._memorySource != _values._memorySource))
+                if (colLength >= 0 && _values != default && _columns.All(c => c._memoryOwner != _values._memoryOwner))
                 {
                     // have _value set without shared source, that is not supported
                     return false;
@@ -550,7 +550,7 @@ namespace Spreads.Collections.Internal
                 // var len = -1;
                 foreach (var vectorStorage in _columns)
                 {
-                    if (vectorStorage._memorySource != _values._memorySource)
+                    if (vectorStorage._memoryOwner != _values._memoryOwner)
                     {
                         return false;
                     }

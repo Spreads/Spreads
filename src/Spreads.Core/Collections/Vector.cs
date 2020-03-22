@@ -25,12 +25,12 @@ namespace Spreads.Collections
         // to a user who uses these methods incorrectly. But these method will not corrupt underlying
         // data e.g. in mmaped storage.
 
-        internal readonly VecStorage VecStorage;
+        internal readonly RetainedVec RetainedVec;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal Vector(VecStorage vecStorage)
+        internal Vector(RetainedVec retainedVec)
         {
-            VecStorage = vecStorage;
+            RetainedVec = retainedVec;
         }
 
         //[MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -44,42 +44,42 @@ namespace Spreads.Collections
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
-                if (unchecked((uint)index) >= unchecked((uint)VecStorage.Vec.Length))
+                if (unchecked((uint)index) >= unchecked((uint)RetainedVec.Vec.Length))
                 {
                     VecThrowHelper.ThrowIndexOutOfRangeException();
                 }
-                return VecStorage.Vec.DangerousGet(index);
+                return RetainedVec.Vec.DangerousGet(index);
             }
         }
 
         public int Length
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => VecStorage.Vec.Length;
+            get => RetainedVec.Vec.Length;
         }
 
         public Type Type
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => VecStorage.Vec.ItemType;
+            get => RetainedVec.Vec.ItemType;
         }
 
         [Obsolete("This is slow if the type T knownly matches the underlying type (the method has type check in addition to bound check). Use typed Vector<T> view over VectorStorage.")]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public T Get<T>(int index)
+        public T GetItem<T>(int index)
         {
-            return VecStorage.Vec.Get<T>(index);
+            return RetainedVec.Vec.Get<T>(index);
         }
 
-        public T DangerousGet<T>(int index)
+        public T DangerousGetItem<T>(int index)
         {
-            return VecStorage.Vec.DangerousGetUnaligned<T>(index);
+            return RetainedVec.Vec.DangerousGetUnaligned<T>(index);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ref readonly T GetRef<T>(int index)
         {
-            return ref VecStorage.Vec.GetRef<T>(index);
+            return ref RetainedVec.Vec.GetRef<T>(index);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -99,17 +99,17 @@ namespace Spreads.Collections
     {
         // Mainly used as a strongly-typed view over VectorStorage
 
-        internal readonly VecStorage VecStorage;
+        internal readonly RetainedVec RetainedVec;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal Vector(VecStorage vecStorage)
+        internal Vector(RetainedVec retainedVec)
         {
             var vtidx = VecTypeHelper<T>.RuntimeTypeId;
-            if (vtidx != vecStorage.Vec._runtimeTypeId)
+            if (vtidx != retainedVec.Vec._runtimeTypeId)
             {
                 VecThrowHelper.ThrowVecTypeMismatchException();
             }
-            VecStorage = vecStorage;
+            RetainedVec = retainedVec;
         }
 
         public T this[int index]
@@ -121,7 +121,7 @@ namespace Spreads.Collections
         public int Length
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => VecStorage.Vec.Length;
+            get => RetainedVec.Vec.Length;
         }
 
         // From IVec
@@ -154,18 +154,18 @@ namespace Spreads.Collections
         public T GetItem(int index)
         {
             // type is checked in ctor, only BC
-            if (unchecked((uint)index) >= unchecked((uint)VecStorage.Vec.Length))
+            if (unchecked((uint)index) >= unchecked((uint)RetainedVec.Vec.Length))
             {
                 VecThrowHelper.ThrowIndexOutOfRangeException();
             }
-            return VecStorage.Vec.DangerousGetUnaligned<T>(index);
+            return RetainedVec.Vec.DangerousGetUnaligned<T>(index);
         }
 
         [EditorBrowsable(EditorBrowsableState.Never)]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public T DangerousGetItem(int index)
         {
-            return VecStorage!.Vec.DangerousGetUnaligned<T>(index);
+            return RetainedVec!.Vec.DangerousGetUnaligned<T>(index);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

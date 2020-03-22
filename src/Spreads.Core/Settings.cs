@@ -1,10 +1,17 @@
-﻿using Spreads.Serialization;
+﻿// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
+#define ADDITIONAL_CHECKS
+
+using Spreads.Serialization;
 using Spreads.Utils;
 using System;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using Spreads.Native;
+
 
 namespace Spreads
 {
@@ -22,9 +29,13 @@ namespace Spreads
         /// completely eliminated by JIT.
         /// </remarks>
 #if DEBUG
-        public static readonly bool Enabled = true;
+        public const bool Enabled = true;
 #else
+#if ADDITIONAL_CHECKS
         public static readonly bool Enabled = Settings._doAdditionalCorrectnessChecks;
+#else
+        public const bool Enabled = false;
+#endif
 #endif
     }
 
@@ -43,14 +54,14 @@ namespace Spreads
 
         private static bool Init()
         {
-Mem.OptionSetEnabled(Mem.Option.EagerCommit, true);
-Mem.OptionSetEnabled(Mem.Option.LargeOsPages, true);
-Mem.OptionSetEnabled(Mem.Option.ResetDecommits, true);
-Mem.OptionSetEnabled(Mem.Option.PageReset, true);
-Mem.OptionSetEnabled(Mem.Option.SegmentReset, true);
-Mem.OptionSetEnabled(Mem.Option.AbandonedPageReset, true);
-Mem.OptionSetEnabled(Mem.Option.EagerRegionCommit, false); // TODO see mimalloc comment on this. Should be true on servers
-Mem.OptionSetEnabled(Mem.Option.ReserveHugeOsPages, true);
+            Mem.OptionSetEnabled(Mem.Option.EagerCommit, true);
+            Mem.OptionSetEnabled(Mem.Option.LargeOsPages, true);
+            Mem.OptionSetEnabled(Mem.Option.ResetDecommits, true);
+            Mem.OptionSetEnabled(Mem.Option.PageReset, true);
+            Mem.OptionSetEnabled(Mem.Option.SegmentReset, true);
+            Mem.OptionSetEnabled(Mem.Option.AbandonedPageReset, true);
+            Mem.OptionSetEnabled(Mem.Option.EagerRegionCommit, false); // TODO see mimalloc comment on this. Should be true on servers
+            Mem.OptionSetEnabled(Mem.Option.ReserveHugeOsPages, true);
             return true;
         }
     }

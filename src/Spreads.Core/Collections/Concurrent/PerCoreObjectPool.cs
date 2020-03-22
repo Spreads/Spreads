@@ -38,6 +38,8 @@ namespace Spreads.Collections.Concurrent
                 _unboundedPool = new ConcurrentQueue<T>();
         }
 
+        public bool IsDisposed => _disposed;
+
         public T? Rent()
         {
             return Rent(Cpu.GetCurrentCoreId());

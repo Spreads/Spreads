@@ -514,5 +514,38 @@ namespace Spreads.Core.Tests.X.Series
 
             s.Dispose();
         }
+        
+        
+        [MethodImpl(MethodImplOptions.NoInlining
+#if NETCOREAPP3_0
+                    | MethodImplOptions.AggressiveOptimization
+#endif
+        )]
+        [Test]
+        public void SortedListReverseInsertBench()
+        {
+            var sl = System.Collections.Immutable.ImmutableSortedDictionary.Create<long,long>();
+            var count = 8192;
+            var mult = 10;
+            for (int i = count; i > 0; i--)
+            {
+                sl = sl.Add(i,i);
+            }
+            sl.Clear();
+            using (Benchmark.Run($"SL {count:N}", count * mult))
+            {
+                long sum = 0;
+                for (int _ = 0; _ < mult; _++)
+                {
+                    for (int i = count; i > 0; i--)
+                    {
+                        sum += sl[i];
+                        // sl = sl.Add(i,i);
+                    }
+                    // sl.Clear();
+                }
+            }
+        }
+
     }
 }

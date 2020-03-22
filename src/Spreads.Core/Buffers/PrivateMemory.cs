@@ -49,8 +49,27 @@ namespace Spreads.Buffers
         // for data containers and is often not short-lived, so pool aggressively.
         // Round up to pow2, use 16 kb per core per type.
 
-        private static readonly ObjectPool<PrivateMemory<T>> ObjectPool =
-            new ObjectPool<PrivateMemory<T>>(() => new PrivateMemory<T>(), 16 * 1024 / BitUtil.FindNextPositivePowerOfTwo(ObjectSize));
+        private const int PerCorePoolSize = 16 * 1024 / 128; // BitUtil.FindNextPositivePowerOfTwo(ObjectSize);
+
+        internal static readonly ObjectPool<PrivateMemory<T>> ObjectPool = CreateObjectPool();
+
+        private static ObjectPool<PrivateMemory<T>> CreateObjectPool()
+        {
+            var op = new ObjectPool<PrivateMemory<T>>(() =>
+            {
+                var pm = new PrivateMemory<T>();
+                AtomicCounter.Dispose(ref pm.CounterRef);
+                return pm;
+            }, PerCorePoolSize);
+
+            // Need to touch these fields very early in a common not hot place for JIT static
+            // readonly optimization even if tiered compilation is off.
+            // Note single & to avoid short circuit.
+            if (AdditionalCorrectnessChecks.Enabled & TypeHelper<T>.IsReferenceOrContainsReferences) 
+                ThrowHelper.Assert(!op.IsDisposed);
+            
+            return op;
+        }
 
         // In this implementation all blittable (pinnable) types are backed by 
         // native memory (from Marshal.AllocHGlobal/VirtualAlloc/similar)
@@ -60,6 +79,7 @@ namespace Spreads.Buffers
 
         private PrivateMemory()
         {
+            IsBlittableOffheap = true;
         }
 
         /// <summary>
@@ -75,15 +95,12 @@ namespace Spreads.Buffers
         /// </summary>
         internal static PrivateMemory<T> Create(int length, RetainableMemoryPool<T> pool)
         {
-            var cpuId = Cpu.GetCurrentCoreId();
-            var alignedSize = (uint) BitUtil.FindNextPositivePowerOfTwo(Unsafe.SizeOf<T>());
-
-            if ((ulong) length * alignedSize > int.MaxValue)
-                ThrowHelper.ThrowArgumentOutOfRangeException(nameof(length));
-
             length = Math.Max(length, Settings.MIN_POOLED_BUFFER_LEN);
 
+            var cpuId = Cpu.GetCurrentCoreId();
+
             var privateMemory = ObjectPool.Rent(cpuId);
+            ThrowHelper.DebugAssert(privateMemory.IsDisposed);
 
             // Clear counter (with flags, PM does not have any flags).
             // We cannot tell if ObjectPool allocated a new one or took from pool
@@ -102,7 +119,7 @@ namespace Spreads.Buffers
             }
             else
             {
-                privateMemory.AllocateBlittable((uint) (length * alignedSize), alignedSize, cpuId);
+                privateMemory.AllocateBlittable(length, cpuId);
                 ThrowHelper.DebugAssert(privateMemory._array == null);
             }
 
@@ -111,25 +128,36 @@ namespace Spreads.Buffers
                     ? (byte) 1
                     : pool.PoolIdx;
 
-            privateMemory._length = length;
             privateMemory._memory = privateMemory.CreateMemory();
+
             return privateMemory;
         }
 
-        private unsafe void AllocateBlittable(uint bytesLength, uint alignment, int cpuId)
+        private unsafe void AllocateBlittable(int length, int cpuId)
         {
-            if (!NativeAllocatorSettings.Initialized) ThrowHelper.ThrowInvalidOperationException();
-
-            ThrowHelper.DebugAssert(!TypeHelper<T>.IsReferenceOrContainsReferences);
-
-            ThrowHelper.DebugAssert(BitUtil.IsPowerOfTwo((int) alignment));
+            if (!NativeAllocatorSettings.Initialized)
+                ThrowHelper.ThrowInvalidOperationException();
 
             // It doesn't make a lot of sense to have it above a cache line (or 64 bytes for AVX512).
             // But cache line could be 128 (already exists) and CUDA could have 256 bytes alignment.
             // Three possible values: 64, 128 or 256
-            alignment = Math.Min(Math.Max(Settings.AVX512_ALIGNMENT, alignment), Settings.SAFE_CACHE_LINE * 2);
+            var alignment = Math.Min(Math.Max(Settings.AVX512_ALIGNMENT, BitUtil.FindNextPositivePowerOfTwo(Unsafe.SizeOf<T>())),
+                Settings.SAFE_CACHE_LINE * 2);
 
-            // TODO bytesLength = (uint) Mem.GoodSize((UIntPtr) bytesLength); but check/change return type 
+            var bytesLength = (long) length * Unsafe.SizeOf<T>();
+
+            // TODO this is somewhat reasonable, but need to come back here after doing work on DataBlock
+            // Do we need Pow2 there? Or we are doing only binary search?
+            // Is RingBuffer implementation benefiting from pow2 or it's marginal?
+            // Ideally we must use the same native buffer size for any T. 
+
+            if (bytesLength < alignment)
+            {
+                // MIN_POOLED_BUFFER_LEN is minimum buffer size in bytes for byte type.
+                alignment = Math.Min(BitUtil.FindNextPositivePowerOfTwo(Unsafe.SizeOf<T>()), Settings.MIN_POOLED_BUFFER_LEN);
+            }
+
+            bytesLength = (long) Mem.GoodSize((UIntPtr) BitUtil.FindNextPositivePowerOfTwo(bytesLength));
 
             _pointer = (IntPtr) Mem.MallocAligned((UIntPtr) bytesLength, (UIntPtr) alignment);
             _offset = 0;

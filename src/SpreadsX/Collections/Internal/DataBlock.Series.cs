@@ -67,7 +67,7 @@ namespace Spreads.Collections.Internal
         /// <summary>
         /// Create a DataBlock for Series.
         /// </summary>
-        public static DataBlock SeriesCreate(VecStorage rowIndex = default, VecStorage values = default, int rowLength = -1)
+        public static DataBlock SeriesCreate(RetainedVec rowIndex = default, RetainedVec values = default, int rowLength = -1)
         {
             if (rowIndex.Vec.Length < 0 || values.Vec.Length < 0 || rowIndex.Vec.Length != values.Vec.Length)
             {
@@ -214,15 +214,15 @@ namespace Spreads.Collections.Internal
             var newLen = Math.Max(minCapacity, BitUtil.FindNextPositivePowerOfTwo(ri.Vec.Length + 1));
 
             RetainableMemory<TKey>? newRiBuffer = null;
-            VecStorage newRi = default;
+            RetainedVec newRi = default;
             RetainableMemory<TValue>? newValsBuffer = null;
-            VecStorage newVals = default;
+            RetainedVec newVals = default;
 
             try
             {
                 newRiBuffer = BufferPool<TKey>.MemoryPool.RentMemory(newLen, exactBucket: true);
 
-                newRi = VecStorage.Create(newRiBuffer, 0, newRiBuffer.Length); // new buffer could be larger
+                newRi = RetainedVec.Create(newRiBuffer, 0, newRiBuffer.Length); // new buffer could be larger
                 if (ri.Vec.Length > 0)
                 {
                     ri.Vec.AsSpan<TKey>().CopyTo(newRi.Vec.AsSpan<TKey>());
@@ -230,7 +230,7 @@ namespace Spreads.Collections.Internal
 
                 newValsBuffer = BufferPool<TValue>.MemoryPool.RentMemory(newLen, exactBucket: true);
 
-                newVals = VecStorage.Create(newValsBuffer, 0, newValsBuffer.Length);
+                newVals = RetainedVec.Create(newValsBuffer, 0, newValsBuffer.Length);
                 if (vals.Vec.Length > 0)
                 {
                     vals.Vec.AsSpan<TValue>().CopyTo(newVals.Vec.AsSpan<TValue>());
