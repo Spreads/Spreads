@@ -42,7 +42,7 @@ namespace Spreads.Algorithms {
                     if (mask == 0) // val is smaller than all in vec
                     {
                         // but could be equal to the first element
-                        c = value.CompareTo(UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref vecStart, i)));
+                        c = value.CompareTo(vec.GetElement(0));
                         if (c == 0)
                         {
                             lo = i;
@@ -60,7 +60,7 @@ namespace Spreads.Algorithms {
                         var clz = BitUtil.NumberOfLeadingZeros(mask);
                         var index = (32 - clz) / Unsafe.SizeOf<sbyte>();
                         lo = i + index;
-                        c = value.CompareTo(UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref vecStart, lo)));
+                        c = value.CompareTo(vec.GetElement(index));
                         goto RETURN;
                     }
                 }
@@ -106,7 +106,7 @@ namespace Spreads.Algorithms {
                     if (mask == 0) // val is smaller than all in vec
                     {
                         // but could be equal to the first element
-                        c = value.CompareTo(UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref vecStart, i)));
+                        c = value.CompareTo(vec.GetElement(0));
                         if (c == 0)
                         {
                             lo = i;
@@ -124,7 +124,7 @@ namespace Spreads.Algorithms {
                         var clz = BitUtil.NumberOfLeadingZeros(mask);
                         var index = (32 - clz) / Unsafe.SizeOf<short>();
                         lo = i + index;
-                        c = value.CompareTo(UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref vecStart, lo)));
+                        c = value.CompareTo(vec.GetElement(index));
                         goto RETURN;
                     }
                 }
@@ -170,7 +170,7 @@ namespace Spreads.Algorithms {
                     if (mask == 0) // val is smaller than all in vec
                     {
                         // but could be equal to the first element
-                        c = value.CompareTo(UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref vecStart, i)));
+                        c = value.CompareTo(vec.GetElement(0));
                         if (c == 0)
                         {
                             lo = i;
@@ -188,7 +188,7 @@ namespace Spreads.Algorithms {
                         var clz = BitUtil.NumberOfLeadingZeros(mask);
                         var index = (32 - clz) / Unsafe.SizeOf<int>();
                         lo = i + index;
-                        c = value.CompareTo(UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref vecStart, lo)));
+                        c = value.CompareTo(vec.GetElement(index));
                         goto RETURN;
                     }
                 }
@@ -234,7 +234,7 @@ namespace Spreads.Algorithms {
                     if (mask == 0) // val is smaller than all in vec
                     {
                         // but could be equal to the first element
-                        c = value.CompareTo(UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref vecStart, i)));
+                        c = value.CompareTo(vec.GetElement(0));
                         if (c == 0)
                         {
                             lo = i;
@@ -252,7 +252,7 @@ namespace Spreads.Algorithms {
                         var clz = BitUtil.NumberOfLeadingZeros(mask);
                         var index = (32 - clz) / Unsafe.SizeOf<long>();
                         lo = i + index;
-                        c = value.CompareTo(UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref vecStart, lo)));
+                        c = value.CompareTo(vec.GetElement(index));
                         goto RETURN;
                     }
                 }

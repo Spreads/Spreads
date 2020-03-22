@@ -1288,7 +1288,7 @@ namespace Spreads.Core.Tests.Algorithms
             var lens = new[] {16, 128, 512, 1024, count};
 
 #else
-            var count = 4L * 1024 * 1024;
+            var count = 10L * 1024 * 1024;
             var rounds = 10;
             // must be power of 2
             var lens = new[] {1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 4 * 1024, 16 * 1024}; // , 64 * 1024,, 128 * 1024, 512 * 1024 , 1024 * 1024, 8 * 1024 * 1024
@@ -1308,9 +1308,9 @@ namespace Spreads.Core.Tests.Algorithms
             {
                 foreach (var len in lens)
                 {
-                    BS_Default(len, count, vec, r);
+                    // BS_Default(len, count, vec, r);
                     BS_Classic(len, count, vec, r);
-
+                    //
                     BS_Avx(len, count, vec, r);
 
                     // BS_Interpolation(len, count, vec);
