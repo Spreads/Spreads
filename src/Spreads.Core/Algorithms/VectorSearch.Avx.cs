@@ -30,7 +30,7 @@ namespace Spreads.Algorithms {
                 var valVec = Vector256.Create(value);
                 while (hi - lo > Vector256<sbyte>.Count - 1)
                 {
-                    i = (int) (((uint) hi + (uint) lo) >> 1) - (Vector256<long>.Count >> 1);
+                    i = (int) (((uint) hi + (uint) lo) >> 1) - (Vector256<sbyte>.Count >> 1);
 
                     var vec = Unsafe.ReadUnaligned<Vector256<sbyte>>(ref Unsafe.As<sbyte, byte>(ref Unsafe.Add(ref vecStart, i)));
 
@@ -53,12 +53,12 @@ namespace Spreads.Algorithms {
                     }
                     else if (mask == -1) // val is larger than all in vec
                     {
-                        lo = i + Vector256<long>.Count;
+                        lo = i + Vector256<sbyte>.Count;
                     }
                     else
                     {
                         var clz = BitUtil.NumberOfLeadingZeros(mask);
-                        var index = (32 - clz) / Unsafe.SizeOf<long>();
+                        var index = (32 - clz) / Unsafe.SizeOf<sbyte>();
                         lo = i + index;
                         c = value.CompareTo(UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref vecStart, lo)));
                         goto RETURN;
@@ -94,7 +94,7 @@ namespace Spreads.Algorithms {
                 var valVec = Vector256.Create(value);
                 while (hi - lo > Vector256<short>.Count - 1)
                 {
-                    i = (int) (((uint) hi + (uint) lo) >> 1) - (Vector256<long>.Count >> 1);
+                    i = (int) (((uint) hi + (uint) lo) >> 1) - (Vector256<short>.Count >> 1);
 
                     var vec = Unsafe.ReadUnaligned<Vector256<short>>(ref Unsafe.As<short, byte>(ref Unsafe.Add(ref vecStart, i)));
 
@@ -117,12 +117,12 @@ namespace Spreads.Algorithms {
                     }
                     else if (mask == -1) // val is larger than all in vec
                     {
-                        lo = i + Vector256<long>.Count;
+                        lo = i + Vector256<short>.Count;
                     }
                     else
                     {
                         var clz = BitUtil.NumberOfLeadingZeros(mask);
-                        var index = (32 - clz) / Unsafe.SizeOf<long>();
+                        var index = (32 - clz) / Unsafe.SizeOf<short>();
                         lo = i + index;
                         c = value.CompareTo(UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref vecStart, lo)));
                         goto RETURN;
@@ -158,7 +158,7 @@ namespace Spreads.Algorithms {
                 var valVec = Vector256.Create(value);
                 while (hi - lo > Vector256<int>.Count - 1)
                 {
-                    i = (int) (((uint) hi + (uint) lo) >> 1) - (Vector256<long>.Count >> 1);
+                    i = (int) (((uint) hi + (uint) lo) >> 1) - (Vector256<int>.Count >> 1);
 
                     var vec = Unsafe.ReadUnaligned<Vector256<int>>(ref Unsafe.As<int, byte>(ref Unsafe.Add(ref vecStart, i)));
 
@@ -181,12 +181,12 @@ namespace Spreads.Algorithms {
                     }
                     else if (mask == -1) // val is larger than all in vec
                     {
-                        lo = i + Vector256<long>.Count;
+                        lo = i + Vector256<int>.Count;
                     }
                     else
                     {
                         var clz = BitUtil.NumberOfLeadingZeros(mask);
-                        var index = (32 - clz) / Unsafe.SizeOf<long>();
+                        var index = (32 - clz) / Unsafe.SizeOf<int>();
                         lo = i + index;
                         c = value.CompareTo(UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref vecStart, lo)));
                         goto RETURN;
