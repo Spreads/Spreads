@@ -34,7 +34,7 @@ namespace Spreads.Algorithms {
                     | MethodImplOptions.AggressiveOptimization
 #endif
         )]
-        public static int BinarySearchAvx(ref <#=type#> vecStart, int length, <#=type#> value)
+        internal static int BinarySearchAvx(ref <#=type#> vecStart, int length, <#=type#> value)
         {
             unchecked
             {

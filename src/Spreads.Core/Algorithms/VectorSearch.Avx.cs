@@ -10,16 +10,16 @@ using Spreads.Utils;
 using System.Runtime.Intrinsics;
 using System.Runtime.Intrinsics.X86;
 
-namespace Spreads.Algorithms
-{
+namespace Spreads.Algorithms {
+
     public static partial class VectorSearch
     {
-        [MethodImpl(MethodImplOptions.AggressiveInlining
+	    [MethodImpl(MethodImplOptions.AggressiveInlining
 #if HAS_AGGR_OPT
                     | MethodImplOptions.AggressiveOptimization
 #endif
         )]
-        public static int BinarySearchAvx(ref sbyte vecStart, int length, sbyte value)
+        internal static int BinarySearchAvx(ref sbyte vecStart, int length, sbyte value)
         {
             unchecked
             {
@@ -78,12 +78,12 @@ namespace Spreads.Algorithms
             }
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining
+	    [MethodImpl(MethodImplOptions.AggressiveInlining
 #if HAS_AGGR_OPT
                     | MethodImplOptions.AggressiveOptimization
 #endif
         )]
-        public static int BinarySearchAvx(ref short vecStart, int length, short value)
+        internal static int BinarySearchAvx(ref short vecStart, int length, short value)
         {
             unchecked
             {
@@ -142,12 +142,12 @@ namespace Spreads.Algorithms
             }
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining
+	    [MethodImpl(MethodImplOptions.AggressiveInlining
 #if HAS_AGGR_OPT
                     | MethodImplOptions.AggressiveOptimization
 #endif
         )]
-        public static int BinarySearchAvx(ref int vecStart, int length, int value)
+        internal static int BinarySearchAvx(ref int vecStart, int length, int value)
         {
             unchecked
             {
@@ -206,12 +206,12 @@ namespace Spreads.Algorithms
             }
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining
+	    [MethodImpl(MethodImplOptions.AggressiveInlining
 #if HAS_AGGR_OPT
                     | MethodImplOptions.AggressiveOptimization
 #endif
         )]
-        public static int BinarySearchAvx(ref long vecStart, int length, long value)
+        internal static int BinarySearchAvx(ref long vecStart, int length, long value)
         {
             unchecked
             {
@@ -269,7 +269,8 @@ namespace Spreads.Algorithms
                 return (ceq1 & lo) | (~ceq1 & ~lo);
             }
         }
-    }
+
+	}
 }
 
 #endif

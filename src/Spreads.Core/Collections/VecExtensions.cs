@@ -113,7 +113,7 @@ namespace Spreads.Collections
         }
 
         /// <summary>
-        /// Performs standard binary search and returns index of the value or its negative binary complement.
+        /// Performs binary search and returns index of the value or its negative binary complement.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int BinarySearch<T>(this T[] array, int start, int length, T value, KeyComparer<T> comparer = default)
@@ -130,7 +130,6 @@ namespace Spreads.Collections
         /// <summary>
         /// <see cref="InterpolationSearch{T}(T[],int,int,T,KeyComparer{T})"/> without bound checks.
         /// </summary>
-        [Obsolete("Dangerous, justify usage in mute warning comment")]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int DangerousBinarySearch<T>(this T[] array, int start, int length, T value, KeyComparer<T> comparer = default)
         {
@@ -141,26 +140,6 @@ namespace Spreads.Collections
             return VectorSearch.BinarySearch(ref array[start], length, value, comparer);
         }
         
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int DangerousBinarySearchHybrid<T>(this T[] array, int start, int length, T value, KeyComparer<T> comparer = default)
-        {
-            if (length == 0)
-            {
-                return -1;
-            }
-            return VectorSearch.BinarySearch(ref array[start], length, value, comparer);
-        }
-        
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int DangerousBinarySearch3<T>(this T[] array, int start, int length, T value, KeyComparer<T> comparer = default)
-        {
-            if (length == 0)
-            {
-                return -1;
-            }
-            return VectorSearch.BinarySearch3(ref array[start], length, value, comparer);
-        }
-
         #endregion T[] BinarySearch
 
         #region TVector : IVector<T> BinarySearch

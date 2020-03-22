@@ -229,25 +229,6 @@ namespace Spreads.Core.Tests.Algorithms
             }
         }
 
-
-        [Test, Explicit("Bench")]
-        public unsafe void VectorizedLongSearch()
-        {
-            var itemCount = 1024;
-            using var pm = PrivateMemory<long>.Create(itemCount);
-            var v = pm.GetVec();
-            for (int i = 0; i < pm.Length; i++)
-            {
-                v.DangerousSetUnaligned(i, i + 1);
-            }
-
-            var x = 999;
-            var idx = VectorSearch.BinarySearchLong((long*) pm.Pointer, pm.Length, x);
-            
-            Assert.AreEqual(x-1, idx);
-
-        }
-
         [Test]
         public void WorksOnEmpty()
         {
@@ -1318,33 +1299,25 @@ namespace Spreads.Core.Tests.Algorithms
             var sum = 0L;
             for (int i = 0; i < 1000; i++)
             {
-                sum += VectorSearch.BinarySearch(ref vec[0], 1000, i, default);    
+                sum += VectorSearch.BinarySearch(ref vec[0], 1000, i, default);
             }
 
             Console.WriteLine(sum);
-            
+
             for (int r = 0; r < rounds; r++)
             {
                 foreach (var len in lens)
                 {
-                    // BS_Default(len, count, vec, r);
+                    BS_Default(len, count, vec, r);
                     BS_Classic(len, count, vec, r);
-                    
+
                     BS_Avx(len, count, vec, r);
-                    
-                    //
-                    // BS_Vectorized(len, count, mask, vec);
-                    //
-                    
-                    
-                    // BS_Branchless(len, count, mask, vec);
 
                     // BS_Interpolation(len, count, vec);
-                    
+
 #if DEBUG
                     BS_HybridCorrectness(len, count, vec, r);
 #endif
-                    
                 }
             }
 
@@ -1361,31 +1334,8 @@ namespace Spreads.Core.Tests.Algorithms
                 {
                     var value = i & mask;
 #pragma warning disable 618
-                    var idx = VectorSearch.BinarySearchClassic(ref vec[r], len, value, default);// vec.DangerousBinarySearch(0, len, value, KeyComparer<long>.Default);
+                    var idx = VectorSearch.BinarySearchClassic(ref vec[r], len, value, default); // vec.DangerousBinarySearch(0, len, value, KeyComparer<long>.Default);
 #pragma warning restore 618
-                }
-            }
-        }
-        
-        
-        [MethodImpl(MethodImplOptions.NoInlining | MethodImplOptions.AggressiveOptimization)]
-        private static unsafe void BS_Vectorized(int len, long count, int mask, long[] vec)
-        {
-            using (Benchmark.Run("BS_Vectorized" + len, count * 2))
-            {
-                fixed (long* ptr = &vec[0])
-                {
-                    for (int i = 0; i < count * 2; i++)
-                    {
-                        var value = i & mask;
-#pragma warning disable 618
-                        var idx = VectorSearch.BinarySearchLong(ptr, len, (long) value);
-#pragma warning restore 618
-                        if (idx > 0 && idx != value >> 1)
-                        {
-                            Assert.Fail($"idx {idx} != value {value}");
-                        }
-                    }
                 }
             }
         }
@@ -1405,7 +1355,7 @@ namespace Spreads.Core.Tests.Algorithms
                 }
             }
         }
-        
+
         /// <summary>
         /// For comparison with default to see if JIT does the right thing with Avx2.IsSupported etc.
         /// </summary>
@@ -1424,7 +1374,7 @@ namespace Spreads.Core.Tests.Algorithms
                 }
             }
         }
-        
+
         [MethodImpl(MethodImplOptions.NoInlining | MethodImplOptions.AggressiveOptimization)]
         private static void BS_HybridCorrectness(int len, long count, long[] vec, int r)
         {
@@ -1439,26 +1389,6 @@ namespace Spreads.Core.Tests.Algorithms
                     if (idx != idx2)
                     {
                         Assert.Fail($"idx {idx} != correct idx2 {idx2}");
-                    }
-                }
-            }
-        }
-
-        [MethodImpl(MethodImplOptions.NoInlining | MethodImplOptions.AggressiveOptimization)]
-        private static void BS_Branchless(int len, long count, int mask, Timestamp[] vec)
-        {
-            using (Benchmark.Run("BS_Branchless" + len, count * 2))
-            {
-                for (int i = 0; i < count * 2; i++)
-                {
-                    var value = i & mask;
-#pragma warning disable 618
-                    var idx = vec.DangerousBinarySearch3(0, len, (Timestamp) value,
-                        KeyComparer<Timestamp>.Default);
-#pragma warning restore 618
-                    if (idx > 0 && idx != value / 2)
-                    {
-                        Assert.Fail($"idx {idx} != value {value}");
                     }
                 }
             }
