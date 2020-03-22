@@ -9,8 +9,15 @@ using Spreads.DataTypes;
 using Spreads.Native;
 using System;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
+using Spreads.Utils;
 using Vector = System.Numerics.Vector;
+#if HAS_INTRINSICS
+using System.Runtime.Intrinsics;
+using System.Runtime.Intrinsics.X86;
+
+#endif
 
 namespace Spreads.Algorithms
 {
@@ -20,13 +27,17 @@ namespace Spreads.Algorithms
     /// as building blocks in other parts that calculate bounds correctly and
     /// do performs required checks on external input.
     /// </summary>
-    public static class VectorSearch
+    public static partial class VectorSearch
     {
         /// <summary>
-        /// Performs standard binary search and returns index of the value or its negative binary complement.
+        /// Performs classic binary search and returns index of the value or its negative binary complement.
         /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int BinarySearch<T>(ref T vecStart, int length, T value, KeyComparer<T> comparer = default)
+        [MethodImpl(MethodImplOptions.AggressiveInlining
+#if HAS_AGGR_OPT
+                    | MethodImplOptions.AggressiveOptimization
+#endif
+        )]
+        internal static int BinarySearchClassic<T>(ref T vecStart, int length, T value, KeyComparer<T> comparer = default)
         {
             unchecked
             {
@@ -41,7 +52,7 @@ namespace Spreads.Algorithms
                     //       and thus cannot overflow an uint.
                     //       Saves one subtraction per loop compared to
                     //       `int i = lo + ((hi - lo) >> 1);`
-                    int i = (int)(((uint)hi + (uint)lo) >> 1);
+                    int i = (int) (((uint) hi + (uint) lo) >> 1);
 
                     int c = comparer.Compare(value, UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref vecStart, i)));
 
@@ -49,7 +60,8 @@ namespace Spreads.Algorithms
                     {
                         return i;
                     }
-                    else if (c > 0)
+
+                    if (c > 0)
                     {
                         lo = i + 1;
                     }
@@ -68,20 +80,481 @@ namespace Spreads.Algorithms
         }
 
         /// <summary>
+        /// Performs classic binary search and returns index of the value or its negative binary complement.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining
+#if HAS_AGGR_OPT
+                    | MethodImplOptions.AggressiveOptimization
+#endif
+        )]
+        [SuppressMessage("ReSharper", "HeapView.BoxingAllocation")] // false warnings for (type)(object)value pattern
+        public static int BinarySearch<T>(ref T vecStart, int length, T value, KeyComparer<T> comparer = default)
+        {
+#if HAS_INTRINSICS
+            if (Avx2.IsSupported)
+            {
+                if (typeof(T) == typeof(sbyte))
+                    return BinarySearchAvx(ref Unsafe.As<T, sbyte>(ref vecStart), length, (sbyte) (object) value);
+
+                if (typeof(T) == typeof(short))
+                    return BinarySearchAvx(ref Unsafe.As<T, short>(ref vecStart), length, (short) (object) value);
+
+                if (typeof(T) == typeof(int))
+                    return BinarySearchAvx(ref Unsafe.As<T, int>(ref vecStart), length, (int) (object) value);
+
+                if (typeof(T) == typeof(long)
+                    || typeof(T) == typeof(Timestamp)
+                    || typeof(T) == typeof(DateTime)
+                )
+                    return BinarySearchAvx(ref Unsafe.As<T, long>(ref vecStart), length, (long) (object) value);
+            }
+#endif
+
+            // This one is actually very hard to beat in general case
+            // because of memory access (cache miss) costs. In the classic
+            // algorithm every memory access is useful, i.e. it halves the
+            // search space. K-ary search has K-2 useless memory accesses.
+            // E.g. for SIMD-ized search with K = 4 we do 4 memory accesses
+            // but reduce the search space to the same size as 2 accesses
+            // in the classic algorithm. SIMD doesn't speedup memory access,
+            // which is the main cost for high number of items.
+            return BinarySearchClassic(ref vecStart, length, value, comparer);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining
+#if HAS_AGGR_OPT
+                    | MethodImplOptions.AggressiveOptimization
+#endif
+        )]
+        public static int BinarySearchLong(ref long vecStart, int length, long value)
+        {
+            unchecked
+            {
+                int lo = 0;
+                int hi = length - 1;
+                // If length == 0, hi == -1, and loop will not be entered
+                while (lo <= hi)
+                {
+                    // PERF: `lo` or `hi` will never be negative inside the loop,
+                    //       so computing median using uints is safe since we know
+                    //       `length <= int.MaxValue`, and indices are >= 0
+                    //       and thus cannot overflow an uint.
+                    //       Saves one subtraction per loop compared to
+                    //       `int i = lo + ((hi - lo) >> 1);`
+                    int i = (int) (((uint) hi + (uint) lo) >> 1);
+
+                    int c = value.CompareTo(UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref vecStart, i)));
+
+                    if (c == 0)
+                    {
+                        return i;
+                    }
+
+                    if (c > 0)
+                    {
+                        lo = i + 1;
+                    }
+                    else
+                    {
+                        hi = i - 1;
+                    }
+                }
+
+                // If none found, then a negative number that is the bitwise complement
+                // of the index of the next element that is larger than or, if there is
+                // no larger element, the bitwise complement of `length`, which
+                // is `lo` at this point.
+                return ~lo;
+            }
+        }
+
+        /// <summary>
+        /// Performs standard binary search and returns index of the value or its negative binary complement.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining
+#if HAS_AGGR_OPT
+                    | MethodImplOptions.AggressiveOptimization
+#endif
+        )]
+        public static int BinarySearchHybrid<T>(ref T vecStart, int length, T value, KeyComparer<T> comparer = default)
+        {
+            unchecked
+            {
+                int i = 0;
+                int c = 0;
+                int ceq1 = 0;
+                int lo = 0;
+                int hi = length - 1;
+                // If length == 0, hi == -1, and loop will not be entered
+                while (hi - lo > 7)
+                {
+                    // PERF: `lo` or `hi` will never be negative inside the loop,
+                    //       so computing median using uints is safe since we know
+                    //       `length <= int.MaxValue`, and indices are >= 0
+                    //       and thus cannot overflow an uint.
+                    //       Saves one subtraction per loop compared to
+                    //       `int i = lo + ((hi - lo) >> 1);`
+                    i = (int) (((uint) hi + (uint) lo) >> 1);
+                    c = comparer.Compare(value, UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref vecStart, i)));
+
+                    if (c == 0)
+                        return i;
+
+                    // var negClt = -UnsafeEx.Clt(c, 0);
+                    // var notNegClt = ~negClt;
+                    // lo = (notNegClt & (i + 1)) | (negClt & lo);
+                    // hi = (negClt & (i - 1)) | (notNegClt & hi);
+                    if (c > 0)
+                    {
+                        lo = i + 1;
+                    }
+                    else
+                    {
+                        hi = i - 1;
+                    }
+                }
+
+                // do
+                //     // for (; lo <= hi; lo++)
+                // {
+                //     c = comparer.Compare(value, UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref vecStart, lo)));
+                //     // if (c == 0)
+                //     //     return lo;
+                //     // if (c > 0)
+                //     //     continue;
+                //     // break;
+                //     // lo++;
+                // } 
+                while ((c = comparer.Compare(value, UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref vecStart, lo)))) > 0
+                       & ++lo <= hi) ;
+                lo--;
+
+                // If none found, then a negative number that is the bitwise complement
+                // of the index of the next element that is larger than or, if there is
+                // no larger element, the bitwise complement of `length`, which
+                // is `lo` at this point.
+
+                // same as `c == 0 ? lo : ~lo` but branchless
+
+                ceq1 = UnsafeEx.Ceq(c, 0) - 1;
+                return (~ceq1 & (lo)) | (ceq1 & ~(lo)); // TODO check negative values
+                // return c == 0 ? lo : ~lo;
+            }
+        }
+
+#if HAS_INTRINSICS
+        [MethodImpl(MethodImplOptions.AggressiveInlining
+#if HAS_AGGR_OPT
+                    | MethodImplOptions.AggressiveOptimization
+#endif
+        )]
+        public static int BinarySearchAvxX(ref long vecStart, int length, long value)
+        {
+            unchecked
+            {
+                int i;
+                int c;
+                int lo = 0;
+                int hi = length - 1;
+                var valVec = Vector256.Create(value);
+                while (hi - lo > Vector256<long>.Count - 1)
+                {
+                    i = (int) (((uint) hi + (uint) lo) >> 1) - (Vector256<long>.Count >> 1);
+
+                    var vec = Unsafe.ReadUnaligned<Vector256<long>>(ref Unsafe.As<long, byte>(ref Unsafe.Add(ref vecStart, i)));
+
+                    // AVX512 has _mm256_cmpge_epi64_mask that should allow to combine the two operations
+                    // and avoid edge-case check in `mask == 0` case below
+                    var gt = Avx2.CompareGreaterThan(valVec, vec); // _mm256_cmpgt_epi64
+                    var mask = Avx2.MoveMask(gt.AsByte());
+
+                    if (mask == 0) // val is smaller than all in vec
+                    {
+                        // but could be equal to the first element
+                        c = value.CompareTo(UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref vecStart, i)));
+                        if (c == 0)
+                        {
+                            lo = i;
+                            goto RETURN;
+                        }
+
+                        hi = i - 1;
+                    }
+                    else if (mask == -1) // val is larger than all in vec
+                    {
+                        lo = i + Vector256<long>.Count;
+                    }
+                    else
+                    {
+                        var clz = BitUtil.NumberOfLeadingZeros(mask);
+                        var index = (32 - clz) / Unsafe.SizeOf<long>();
+                        lo = i + index;
+                        c = value.CompareTo(UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref vecStart, lo)));
+                        goto RETURN;
+                    }
+                }
+
+                while ((c = value.CompareTo(UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref vecStart, lo)))) > 0
+                       & ++lo <= hi) // if using branchless & then need to correct lo below
+                {
+                }
+
+                lo -= UnsafeEx.Clt(c, 1); // correct back non-short-circuit & evaluation
+
+                RETURN:
+                var ceq1 = -UnsafeEx.Ceq(c, 0);
+                return (ceq1 & lo) | (~ceq1 & ~lo);
+            }
+        }
+
+#endif
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining
+#if HAS_AGGR_OPT
+                    | MethodImplOptions.AggressiveOptimization
+#endif
+        )]
+        public static int BinarySearch2<T>(ref T vecStart, int length, T value, KeyComparer<T> comparer = default)
+        {
+            int c;
+            int lo = 0;
+            int hi = length - 1;
+
+            unchecked
+            {
+                while (hi - lo >= 8)
+                {
+                    var i = (int) (((uint) hi + (uint) lo) >> 1);
+                    c = comparer.Compare(value, UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref vecStart, i)));
+                    if (c == 0)
+                        return i;
+
+                    var negClt = c >> 31; // -UnsafeEx.Clt(c, 0); 
+                    var notNegClt = ~negClt;
+                    lo = (notNegClt & (i + 1)) + (negClt & lo);
+                    hi = (negClt & (i - 1)) + (notNegClt & hi);
+                    // if (c > 0)
+                    //     lo = i + 1;
+                    // else
+                    //     hi = i - 1;
+                }
+
+                while ((c = comparer.Compare(value, UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref vecStart, lo)))) > 0
+                       & ++lo <= hi)
+                {
+                }
+
+                var ceq = -UnsafeEx.Ceq(c, 0);
+                return (ceq & (lo - 1)) + (~ceq & ~lo); // TODO check negative values
+                // return c == 0 ? lo : ~lo;
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining
+#if HAS_AGGR_OPT
+                    | MethodImplOptions.AggressiveOptimization
+#endif
+        )]
+        public static int BinarySearch3<T>(ref T vecStart, int length, T value, KeyComparer<T> comparer = default)
+        {
+            int c;
+            IntPtr lo = IntPtr.Zero;
+            IntPtr hi = (IntPtr) (length - 1);
+
+            unchecked
+            {
+                while (UnsafeEx.CgtB(UnsafeEx.Sub(hi, lo), (IntPtr) (7)))
+                {
+                    IntPtr i = UnsafeEx.Shr(UnsafeEx.Add(hi, lo), 1);
+
+                    c = comparer.Compare(value, UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref vecStart, i)));
+
+                    if (c == 0)
+                        return (int) i;
+
+                    var negClt = (IntPtr) (c >> 31);
+                    var notNegClt = UnsafeEx.Not(negClt);
+                    lo = UnsafeEx.Add(UnsafeEx.And(i + 1, notNegClt), UnsafeEx.And(lo, negClt));
+                    hi = UnsafeEx.Add(UnsafeEx.And(i - 1, negClt), UnsafeEx.And(hi, notNegClt));
+                    // if (c > 0)
+                    //     lo = i + 1;
+                    // else
+                    //     hi = i - 1;
+                }
+
+                while ((c = comparer.Compare(value, UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref vecStart, lo)))) > 0
+                       & UnsafeEx.CgtB(hi + 1, lo = lo + 1))
+                {
+                }
+
+                var ceq1 = -UnsafeEx.Ceq(c, 0);
+                return (int) UnsafeEx.Add(UnsafeEx.And(lo - 1, ceq1), UnsafeEx.And(UnsafeEx.Not(lo), ~ceq1)); // TODO check negative values
+                // return c == 0 ? lo : ~lo;
+            }
+        }
+
+#if HAS_INTRINSICS
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining
+#if HAS_AGGR_OPT
+                    | MethodImplOptions.AggressiveOptimization
+#endif
+        )]
+        public static unsafe int BinarySearchLong(long* vecStart, int length, long value)
+        {
+            // We want to check the last value at the first step for LE searches
+            // so we need to divide the search space into 3 segments and test the last value.
+            // We also want to 
+
+            // approximately 1.5/8 ~= 1/5 (0.1875) for 4 pivot points
+            // then divide by 8 more to use gather scale param
+
+            int c;
+            int lo = 0;
+            int hi = (length - 1);
+
+            const int vectorizeLimit = 20;
+            int diff;
+            while ((diff = hi - lo) >= vectorizeLimit)
+            {
+                var valVec = Vector256.Create(value);
+                var segment2 = (diff + (diff >> 1)) >> 2; // (3 + 3); Gather requires indices in bytes, not longs
+                var segment = segment2 >> 1;
+                var idx = Vector256.Create(lo + segment, lo + segment2, hi - segment2, hi - segment);
+                var pivots = Avx2.GatherVector256(vecStart, idx, 8);
+
+                // -1, -1, 0, 0 - we need first 0
+                var gt = Avx2.CompareGreaterThan(valVec, pivots);
+                var mask = Avx2.MoveMask(gt.AsByte());
+
+                if (mask == 0)
+                {
+                    hi = lo + segment; // ~UnsafeEx.Ceq(mask, 0) & (int) idx.GetElement(0);
+                }
+                else if (mask == -1)
+                {
+                    lo = hi - segment; // (int) idx.GetElement(3);
+                }
+                else
+                {
+                    var lzc = 32 - BitUtil.NumberOfLeadingZeros(mask);
+                    var index = lzc >> 3;
+                    lo = (int) idx.GetElement(index - 1);
+                    hi = (int) idx.GetElement(index);
+                }
+            }
+
+            while ((c = value.CompareTo(vecStart[lo])) > 0
+                   & ++lo <= hi)
+            {
+            }
+
+            var ceq1 = -UnsafeEx.Ceq(c, 0);
+            return ceq1 & (lo - 1) | (~ceq1 & ~lo);
+        }
+
+#endif
+
+        /// <summary>
+        /// Performs standard binary search and returns index of the value or its negative binary complement.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int BinarySearchExperimental<T>(ref T vecStart, int length, T value, KeyComparer<T> comparer = default)
+        {
+            unchecked
+            {
+                int i = 0;
+                int c = 0;
+                int ceq1 = 0;
+                int lo = 0;
+                int diff;
+                int hi = diff = length - 1;
+                // If length == 0, hi == -1, and loop will not be entered
+                while ((diff = (hi - lo)) > 0)
+                {
+                    // PERF: `lo` or `hi` will never be negative inside the loop,
+                    //       so computing median using uints is safe since we know
+                    //       `length <= int.MaxValue`, and indices are >= 0
+                    //       and thus cannot overflow an uint.
+                    //       Saves one subtraction per loop compared to
+                    //       `int i = lo + ((hi - lo) >> 1);`
+
+                    // var x = UnsafeEx.Ceq(diff & ~7, 0) - 1; // if 1
+
+                    i = lo + (diff >= 8 ? (diff >> 1) : 1);
+
+                    c = comparer.Compare(value, UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref vecStart, i)));
+                    ceq1 = UnsafeEx.Ceq(c, 0) - 1;
+
+                    // if (c == 0)
+                    //     return i;
+                    //
+                    //
+                    var cgt1 = -UnsafeEx.Clt(c, 0);
+                    var notCgt1 = ~cgt1;
+                    // lo =  ((notCgt1 & (i + 1)) | (cgt1 & lo));
+                    // hi =  ((cgt1 & (i - 1)) | (notCgt1 & hi));
+                    lo = ceq1 & ((notCgt1 & (i + 1)) | (cgt1 & lo));
+                    hi = ceq1 & ((cgt1 & (i - 1)) | (notCgt1 & hi));
+                    // if (c > 0)
+                    // {
+                    //     lo = i + 1;
+                    // }
+                    // else
+                    // {
+                    //     hi = i - 1;
+                    // }
+                }
+
+                // while (lo < hi)
+                // {
+                //     c = comparer.Compare(value, UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref vecStart, lo)));
+                //     
+                //     lo++;
+                // }
+
+                // do
+                //     // for (; lo <= hi; lo++)
+                // {
+                //     c = comparer.Compare(value, UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref vecStart, lo)));
+                //     // if (c == 0)
+                //     //     return lo;
+                //     // if (c > 0)
+                //     //     continue;
+                //     // break;
+                //     // lo++;
+                // } 
+                // while ((c = comparer.Compare(value, UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref vecStart, lo)))) > 0 
+                //        && ++lo <= hi);
+
+                // If none found, then a negative number that is the bitwise complement
+                // of the index of the next element that is larger than or, if there is
+                // no larger element, the bitwise complement of `length`, which
+                // is `lo` at this point.
+
+                // same as `c == 0 ? lo : ~lo` but branchless
+
+                // ceq1 = UnsafeEx.Ceq(c, 0) - 1;
+                return (~ceq1 & i) | (ceq1 & ~lo);
+                // return c == 0 ? lo : ~lo;
+            }
+        }
+
+        /// <summary>
         /// Performs standard binary search and returns index of the value from the beginning of <paramref name="vec"/> (not from <paramref name="start"/>) or its negative binary complement.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int BinarySearch<T, TVec>(ref TVec vec, int start, int length, T value, KeyComparer<T> comparer = default)
             where TVec : IVector<T>
         {
-            Debug.Assert(unchecked((uint)start + (uint)length) <= vec.Length);
+            Debug.Assert(unchecked((uint) start + (uint) length) <= vec.Length);
             unchecked
             {
                 int lo = start;
                 int hi = start + length - 1;
                 while (lo <= hi)
                 {
-                    int i = (int)(((uint)hi + (uint)lo) >> 1);
+                    int i = (int) (((uint) hi + (uint) lo) >> 1);
 
                     int c = comparer.Compare(value, vec.DangerousGetItem(i));
                     if (c == 0)
@@ -145,7 +618,7 @@ namespace Spreads.Algorithms
                 i = ~i;
 
                 // LT or LE
-                if (((uint)lookup & (uint)Lookup.LT) != 0)
+                if (((uint) lookup & (uint) Lookup.LT) != 0)
                 {
                     // i is idx of element that is larger, nothing here for LE/LT
                     if (i == start)
@@ -157,7 +630,7 @@ namespace Spreads.Algorithms
                 }
                 else
                 {
-                    Debug.Assert(((uint)lookup & (uint)Lookup.GT) != 0);
+                    Debug.Assert(((uint) lookup & (uint) Lookup.GT) != 0);
                     Debug.Assert(i <= start + length);
                     // if was negative, if it was ~length then there are no more elements for GE/GT
                     if (i == start + length)
@@ -169,7 +642,7 @@ namespace Spreads.Algorithms
                 }
             }
 
-            Debug.Assert(unchecked((uint)i) - start < unchecked((uint)length));
+            Debug.Assert(unchecked((uint) i) - start < unchecked((uint) length));
             return i;
         }
 
@@ -200,7 +673,7 @@ namespace Spreads.Algorithms
         public static int BinaryLookup<T, TVec>(ref TVec vec, int start, int length, ref T value, Lookup lookup, KeyComparer<T> comparer = default)
             where TVec : IVector<T>
         {
-            Debug.Assert(unchecked((uint)start + (uint)length) <= vec.Length);
+            Debug.Assert(unchecked((uint) start + (uint) length) <= vec.Length);
 
             int i = BinarySearch(ref vec, start, length, value, comparer);
 
@@ -236,6 +709,7 @@ namespace Spreads.Algorithms
             {
                 ThrowNonDiffable<T>();
             }
+
             return InterpolationSearchGeneric(ref vecStart, length, value, comparer);
         }
 
@@ -269,6 +743,7 @@ namespace Spreads.Algorithms
             {
                 ThrowNonDiffable<T>();
             }
+
             return InterpolationSearchGeneric(ref vec, start, length, value, comparer);
         }
 
@@ -305,11 +780,11 @@ namespace Spreads.Algorithms
                     // vlo could be zero while value could easily be close to int64.MaxValue (nanos in unix time, we are now between 60 and 61 bit at 60.4)
                     // convert to double here to avoid overflow and for much faster calculations
                     // (only 4 cycles vs 25 cycles https://lemire.me/blog/2017/11/16/fast-exact-integer-divisions-using-floating-point-operations/)
-                    double nominator = (hi - lo) * (double)(value - vlo);
+                    double nominator = (hi - lo) * (double) (value - vlo);
 
-                    i = (int)(nominator / vRange);
+                    i = (int) (nominator / vRange);
 
-                    if ((uint)i > hi)
+                    if ((uint) i > hi)
                     {
                         i = i > hi ? hi : lo;
                     }
@@ -389,7 +864,138 @@ namespace Spreads.Algorithms
                     }
                 }
 
-            BIN_SEARCH:
+                BIN_SEARCH:
+
+                // This returns index from lo to hi, so we need to adjust for the narrowed range
+#if HAS_INTRINSICS
+                var iBs = BinarySearch(ref Unsafe.Add(ref vecStart, lo), 1 + hi - lo, value, default);
+                // var iBs = BinarySearchHybrid3(ref Unsafe.Add(ref vecStart, lo), 1 + hi - lo, value);
+#else
+                var iBs = BinarySearch(ref Unsafe.Add(ref vecStart, lo), 1 + hi - lo, value, default);
+#endif
+                if (iBs >= 0)
+                {
+                    return lo + iBs;
+                }
+                else
+                {
+                    return ~(lo + ~iBs);
+                }
+
+                FOUND:
+                return i;
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int InterpolationSearch2(ref long vecStart, int length, long value)
+        {
+            const int start = 0;
+
+            unchecked
+            {
+                // this is definitive version, all other overloads must do exactly the same operations
+
+                int i;
+                int lo = start;
+                int hi = start + length - 1;
+                if (lo < hi)
+                {
+                    long vlo = UnsafeEx.ReadUnaligned(ref vecStart);
+                    long vhi = UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref vecStart, hi));
+                    long vRange = vhi - vlo;
+
+                    Debug.Assert(vRange > 0);
+
+                    // (hi - lo) <= int32.MaxValue
+                    // vlo could be zero while value could easily be close to int64.MaxValue (nanos in unix time, we are now between 60 and 61 bit at 60.4)
+                    // convert to double here to avoid overflow and for much faster calculations
+                    // (only 4 cycles vs 25 cycles https://lemire.me/blog/2017/11/16/fast-exact-integer-divisions-using-floating-point-operations/)
+                    double nominator = (hi - lo) * (double) (value - vlo);
+
+                    i = (int) (nominator / vRange);
+
+                    if ((uint) i > hi)
+                    {
+                        i = i > hi ? hi : lo;
+                    }
+
+                    var vi = UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref vecStart, i));
+
+                    if (value == vi)
+                    {
+                        goto FOUND;
+                    }
+
+                    var offset = 1;
+
+                    if (value < vi)
+                    {
+                        // lo = i - 1, but could be < hi
+                        while ((i = i - offset) >= start)
+                        {
+                            vi = UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref vecStart, i));
+
+                            if (value == vi)
+                            {
+                                goto FOUND;
+                            }
+
+                            if (value > vi)
+                            {
+                                lo = i + 1;
+                                // vi(i + offset) was > value, so we could exclude this position for hi
+                                hi = i + offset - 1;
+                                goto BIN_SEARCH;
+                            }
+
+                            // x2
+                            offset <<= 1;
+                        }
+
+                        Debug.Assert(i < start);
+
+                        // i was decremented by offset and became < start, restore it and search from zero
+                        hi = i + offset;
+
+                        Debug.Assert(lo == start);
+                        Debug.Assert(hi >= lo);
+                    }
+                    else // value > vi
+                    {
+                        // lo = i + 1, but could be > hi
+
+                        while ((i = i + offset) <= hi)
+                        {
+                            vi = UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref vecStart, i));
+
+                            if (value == vi)
+                            {
+                                goto FOUND;
+                            }
+
+                            if (value < vi)
+                            {
+                                hi = i - 1;
+                                // vi(i - offset) was > value, so we could exclude this position for hi
+                                lo = i - offset + 1;
+                                goto BIN_SEARCH;
+                            }
+
+                            offset <<= 1;
+                        }
+
+                        Debug.Assert(i > hi);
+
+                        // i was incremented by offset and became > hi, restore it and search to hi
+                        lo = i - offset;
+
+                        Debug.Assert(hi == start + length - 1);
+                        Debug.Assert(hi >= lo);
+                    }
+                }
+
+                BIN_SEARCH:
 
                 // This returns index from lo to hi, so we need to adjust for the narrowed range
                 var iBs = BinarySearch(ref Unsafe.Add(ref vecStart, lo), 1 + hi - lo, value, default);
@@ -403,7 +1009,7 @@ namespace Spreads.Algorithms
                     return ~(lo + ~iBs);
                 }
 
-            FOUND:
+                FOUND:
                 return i;
             }
         }
@@ -438,11 +1044,11 @@ namespace Spreads.Algorithms
                     // vlo could be zero while value could easily be close to int64.MaxValue (nanos in unix time, we are now between 60 and 61 bit at 60.4)
                     // convert to double here to avoid overflow and for much faster calculations
                     // (only 4 cycles vs 25 cycles https://lemire.me/blog/2017/11/16/fast-exact-integer-divisions-using-floating-point-operations/)
-                    double nominator = (hi - lo) * (double)(value - vlo);
+                    double nominator = (hi - lo) * (double) (value - vlo);
 
-                    i = (int)(nominator / vRange);
+                    i = (int) (nominator / vRange);
 
-                    if ((uint)i > hi)
+                    if ((uint) i > hi)
                     {
                         i = i > hi ? hi : lo;
                     }
@@ -522,10 +1128,10 @@ namespace Spreads.Algorithms
                     }
                 }
 
-            BIN_SEARCH:
+                BIN_SEARCH:
                 return BinarySearch(ref vec, lo, 1 + hi - lo, value, default);
 
-            FOUND:
+                FOUND:
                 return i;
             }
         }
@@ -553,11 +1159,11 @@ namespace Spreads.Algorithms
                     // vlo could be zero while value could easily be close to int64.MaxValue (nanos in unix time, we are now between 60 and 61 bit at 60.4)
                     // convert to double here to avoid overflow and for much faster calculations
                     // (only 4 cycles vs 25 cycles https://lemire.me/blog/2017/11/16/fast-exact-integer-divisions-using-floating-point-operations/)
-                    double nominator = (hi - lo) * (double)(value - vlo);
+                    double nominator = (hi - lo) * (double) (value - vlo);
 
-                    i = (int)(nominator / vRange);
+                    i = (int) (nominator / vRange);
 
-                    if ((uint)i > hi)
+                    if ((uint) i > hi)
                     {
                         i = i > hi ? hi : lo;
                     }
@@ -637,7 +1243,7 @@ namespace Spreads.Algorithms
                     }
                 }
 
-            BIN_SEARCH:
+                BIN_SEARCH:
 
                 var iBs = BinarySearch(ref Unsafe.Add(ref vecStart, lo), 1 + hi - lo, value, default);
 
@@ -650,7 +1256,7 @@ namespace Spreads.Algorithms
                     return ~(lo + ~iBs);
                 }
 
-            FOUND:
+                FOUND:
                 return i;
             }
         }
@@ -685,11 +1291,11 @@ namespace Spreads.Algorithms
                     // vlo could be zero while value could easily be close to int64.MaxValue (nanos in unix time, we are now between 60 and 61 bit at 60.4)
                     // convert to double here to avoid overflow and for much faster calculations
                     // (only 4 cycles vs 25 cycles https://lemire.me/blog/2017/11/16/fast-exact-integer-divisions-using-floating-point-operations/)
-                    double nominator = (hi - lo) * (double)(value - vlo);
+                    double nominator = (hi - lo) * (double) (value - vlo);
 
-                    i = (int)(nominator / vRange);
+                    i = (int) (nominator / vRange);
 
-                    if ((uint)i > hi)
+                    if ((uint) i > hi)
                     {
                         i = i > hi ? hi : lo;
                     }
@@ -769,10 +1375,10 @@ namespace Spreads.Algorithms
                     }
                 }
 
-            BIN_SEARCH:
+                BIN_SEARCH:
                 return BinarySearch(ref vec, lo, 1 + hi - lo, value, default);
 
-            FOUND:
+                FOUND:
                 return i;
             }
         }
@@ -800,21 +1406,17 @@ namespace Spreads.Algorithms
                     // vlo could be zero while value could easily be close to int64.MaxValue (nanos in unix time, we are now between 60 and 61 bit at 60.4)
                     // convert to double here to avoid overflow and for much faster calculations
                     // (only 4 cycles vs 25 cycles https://lemire.me/blog/2017/11/16/fast-exact-integer-divisions-using-floating-point-operations/)
-                    double nominator = (hi - lo) * (double)comparer.Diff(value, vlo);
+                    double nominator = (hi - lo) * (double) comparer.Diff(value, vlo);
 
-                    i = (int)(nominator / vRange);
+                    i = (int) (nominator / vRange);
 
-                    if ((uint)i > hi)
-                    {
+                    if ((uint) i > hi) // likely false, edge cases with float division
                         i = i > hi ? hi : lo;
-                    }
 
                     int c = comparer.Compare(value, UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref vecStart, i)));
 
                     if (c == 0)
-                    {
                         goto FOUND;
-                    }
 
                     var offset = 1;
 
@@ -884,20 +1486,22 @@ namespace Spreads.Algorithms
                     }
                 }
 
-            BIN_SEARCH:
-
+                BIN_SEARCH:
                 var iBs = BinarySearch(ref Unsafe.Add(ref vecStart, lo), 1 + hi - lo, value, default);
 
-                if (iBs >= 0)
-                {
-                    return lo + iBs;
-                }
-                else
-                {
-                    return ~(lo + ~iBs);
-                }
+                var clt = iBs >> 31;
+                return (clt & (~(lo + ~iBs))) | (~clt & (lo + iBs));
 
-            FOUND:
+                // if (iBs >= 0)
+                // {
+                //     return lo + iBs;
+                // }
+                // else
+                // {
+                //     return ~(lo + ~iBs);
+                // }
+
+                FOUND:
                 return i;
             }
         }
@@ -912,7 +1516,7 @@ namespace Spreads.Algorithms
         /// <param name="comparer"></param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static int InterpolationSearchGeneric<T, TVec>(ref TVec vec, int start, int length, T value, KeyComparer<T> comparer = default)
-             where TVec : IVector<T>
+            where TVec : IVector<T>
         {
             unchecked
             {
@@ -933,11 +1537,11 @@ namespace Spreads.Algorithms
                     // vlo could be zero while value could easily be close to int64.MaxValue (nanos in unix time, we are now between 60 and 61 bit at 60.4)
                     // convert to double here to avoid overflow and for much faster calculations
                     // (only 4 cycles vs 25 cycles https://lemire.me/blog/2017/11/16/fast-exact-integer-divisions-using-floating-point-operations/)
-                    double nominator = (hi - lo) * (double)comparer.Diff(value, vlo);
+                    double nominator = (hi - lo) * (double) comparer.Diff(value, vlo);
 
-                    i = (int)(nominator / vRange);
+                    i = (int) (nominator / vRange);
 
-                    if ((uint)i > hi)
+                    if ((uint) i > hi)
                     {
                         i = i > hi ? hi : lo;
                     }
@@ -1017,10 +1621,10 @@ namespace Spreads.Algorithms
                     }
                 }
 
-            BIN_SEARCH:
+                BIN_SEARCH:
                 return BinarySearch(ref vec, lo, 1 + hi - lo, value, default);
 
-            FOUND:
+                FOUND:
                 return i;
             }
         }
@@ -1042,6 +1646,7 @@ namespace Spreads.Algorithms
             {
                 value = UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref vecStart, li));
             }
+
             return li;
         }
 
@@ -1058,7 +1663,7 @@ namespace Spreads.Algorithms
         public static int InterpolationLookup<T, TVec>(ref TVec vec, int start, int length, ref T value, Lookup lookup, KeyComparer<T> comparer = default)
             where TVec : IVector<T>
         {
-            Debug.Assert(unchecked((uint)start + (uint)length) <= vec.Length);
+            Debug.Assert(unchecked((uint) start + (uint) length) <= vec.Length);
 
             var i = InterpolationSearch(ref vec, start, length, value, comparer);
 
@@ -1083,6 +1688,7 @@ namespace Spreads.Algorithms
             {
                 return InterpolationSearch(ref vecStart, length, value, comparer);
             }
+
             return BinarySearch(ref vecStart, length, value, comparer);
         }
 
@@ -1098,6 +1704,7 @@ namespace Spreads.Algorithms
             {
                 return InterpolationSearch(ref vec, start, length, value, comparer);
             }
+
             return BinarySearch(ref vec, start, length, value, comparer);
         }
 
@@ -1112,6 +1719,7 @@ namespace Spreads.Algorithms
             {
                 return InterpolationLookup(ref vecStart, length, ref value, lookup, comparer);
             }
+
             return BinaryLookup(ref vecStart, length, ref value, lookup, comparer);
         }
 
@@ -1127,6 +1735,7 @@ namespace Spreads.Algorithms
             {
                 return InterpolationLookup(ref vec, start, length, ref value, lookup, comparer);
             }
+
             return BinaryLookup(ref vec, start, length, ref value, lookup, comparer);
         }
 
@@ -1471,45 +2080,45 @@ namespace Spreads.Algorithms
         //    }
         //}
 
-        //// Vector sub-search adapted from https://github.com/aspnet/KestrelHttpServer/pull/1138
-        //[MethodImpl(MethodImplOptions.AggressiveInlining)]
-        //private static int LocateFirstFoundByte(System.Numerics.Vector<byte> match)
-        //{
-        //    var vector64 = Vector.AsVectorUInt64(match);
-        //    ulong candidate = 0;
-        //    int i = 0;
-        //    // Pattern unrolled by jit https://github.com/dotnet/coreclr/pull/8001
-        //    for (; i < System.Numerics.Vector<ulong>.Count; i++)
-        //    {
-        //        candidate = vector64[i];
-        //        if (candidate != 0)
-        //        {
-        //            break;
-        //        }
-        //    }
+        // Vector sub-search adapted from https://github.com/aspnet/KestrelHttpServer/pull/1138
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static int LocateFirstFoundByte(System.Numerics.Vector<byte> match)
+        {
+            var vector64 = Vector.AsVectorUInt64(match);
+            ulong candidate = 0;
+            int i = 0;
+            // Pattern unrolled by jit https://github.com/dotnet/coreclr/pull/8001
+            for (; i < System.Numerics.Vector<ulong>.Count; i++)
+            {
+                candidate = vector64[i];
+                if (candidate != 0)
+                {
+                    break;
+                }
+            }
 
-        //    // Single LEA instruction with jitted const (using function result)
-        //    return i * 8 + LocateFirstFoundByte(candidate);
-        //}
+            // Single LEA instruction with jitted const (using function result)
+            return i * 8 + LocateFirstFoundByte(candidate);
+        }
 
-        //[MethodImpl(MethodImplOptions.AggressiveInlining)]
-        //private static int LocateFirstFoundByte(ulong match)
-        //{
-        //    unchecked
-        //    {
-        //        // Flag least significant power of two bit
-        //        var powerOfTwoFlag = match ^ (match - 1);
-        //        // Shift all powers of two into the high byte and extract
-        //        return (int)((powerOfTwoFlag * XorPowerOfTwoToHighByte) >> 57);
-        //    }
-        //}
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static int LocateFirstFoundByte(ulong match)
+        {
+            unchecked
+            {
+                // Flag least significant power of two bit
+                var powerOfTwoFlag = match ^ (match - 1);
+                // Shift all powers of two into the high byte and extract
+                return (int) ((powerOfTwoFlag * XorPowerOfTwoToHighByte) >> 57);
+            }
+        }
 
-        //private const ulong XorPowerOfTwoToHighByte = (0x07ul |
-        //                                       0x06ul << 8 |
-        //                                       0x05ul << 16 |
-        //                                       0x04ul << 24 |
-        //                                       0x03ul << 32 |
-        //                                       0x02ul << 40 |
-        //                                       0x01ul << 48) + 1;
+        private const ulong XorPowerOfTwoToHighByte = (0x07ul |
+                                                       0x06ul << 8 |
+                                                       0x05ul << 16 |
+                                                       0x04ul << 24 |
+                                                       0x03ul << 32 |
+                                                       0x02ul << 40 |
+                                                       0x01ul << 48) + 1;
     }
 }

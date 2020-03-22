@@ -4,6 +4,8 @@ using System.Runtime;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
+using Spreads.Core.Tests;
+using Spreads.Core.Tests.Algorithms;
 using Spreads.Core.Tests.Buffers;
 using Spreads.Core.Tests.Collections.Concurrent;
 using Spreads.Core.Tests.Serialization;
@@ -35,14 +37,14 @@ namespace Spreads.Run
 
             Settings.DoAdditionalCorrectnessChecks = false;
 
-            // Process.GetCurrentProcess().PriorityClass = ProcessPriorityClass.RealTime;
+            Process.GetCurrentProcess().PriorityClass = ProcessPriorityClass.RealTime;
             // Process.GetCurrentProcess().ProcessorAffinity = (IntPtr) 0b_00_0010_0000;
             // EquiJoinBench();
             ExecutionContext.SuppressFlow();
             Settings.SharedSpinLockNotificationPort = 53412;
-
-            var test = new RetainableMemoryMemoryAccessBench();
-            test.MemoryAccessBench();
+            
+            var test = new VecSearchTests();
+            test.SearchBench();
             
             GC.Collect(2, GCCollectionMode.Forced, true, true);
 

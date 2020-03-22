@@ -1307,10 +1307,10 @@ namespace Spreads.Core.Tests.Algorithms
             var lens = new[] {16, 128, 512, 1024, count};
 
 #else
-            var count = 20L * 1024 * 1024;
+            var count = 4L * 1024 * 1024;
             var rounds = 10;
             // must be power of 2
-            var lens = new[] { 16, 64, 128, 256, 512, 1024, 4 * 1024}; // , 8 * 1024, 16 * 1024, 64 * 1024,, 128 * 1024, 512 * 1024 , 1024 * 1024, 8 * 1024 * 1024
+            var lens = new[] {1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 4 * 1024, 16 * 1024}; // , 64 * 1024,, 128 * 1024, 512 * 1024 , 1024 * 1024, 8 * 1024 * 1024
 
 #endif
             var vec = (Enumerable.Range(0, (int) count).Select(x => (long) (x * 2)).ToArray());
@@ -1327,8 +1327,8 @@ namespace Spreads.Core.Tests.Algorithms
             {
                 foreach (var len in lens)
                 {
-                    BS_Default(len, count, vec, r);
-                    // BS_Classic(len, count, vec, r);
+                    // BS_Default(len, count, vec, r);
+                    BS_Classic(len, count, vec, r);
                     
                     BS_Avx(len, count, vec, r);
                     
@@ -1355,7 +1355,7 @@ namespace Spreads.Core.Tests.Algorithms
         private static void BS_Classic(int len, long count, long[] vec, int r)
         {
             var mask = len - 1;
-            using (Benchmark.Run("BS_Classic" + len, count * 2))
+            using (Benchmark.Run("BS_Classic_" + len, count * 2))
             {
                 for (int i = 0; i < count * 2; i++)
                 {
@@ -1429,7 +1429,7 @@ namespace Spreads.Core.Tests.Algorithms
         private static void BS_HybridCorrectness(int len, long count, long[] vec, int r)
         {
             var mask = len - 1;
-            using (Benchmark.Run("BS_Hybrid_check" + len, len + 20))
+            using (Benchmark.Run("BS_Hybrid_check_" + len, len + 20))
             {
                 for (int i = -10; i < len + 10; i++)
                 {
