@@ -11,9 +11,10 @@ using System;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
+using Spreads.Utils;
 #if HAS_INTRINSICS
 using System.Runtime.Intrinsics.X86;
-
+using System.Runtime.Intrinsics;
 #endif
 
 namespace Spreads.Algorithms
@@ -118,6 +119,76 @@ namespace Spreads.Algorithms
             return BinarySearchClassic(ref vecStart, length, value, comparer);
         }
 
+#if HAS_INTRINSICS
+        [MethodImpl(MethodImplOptions.AggressiveInlining
+#if HAS_AGGR_OPT
+                    | MethodImplOptions.AggressiveOptimization
+#endif
+        )]
+        internal static int BinarySearchAvx2(ref long vecStart, int length, long value)
+        {
+            unchecked
+            {
+                int i;
+                int c;
+                int lo = 0;
+                int hi = length - 1;
+                var valVec = Vector256.Create(value);
+                while (hi - lo > Vector256<long>.Count*2 - 1)
+                {
+                    i = (int) (((uint) hi + (uint) lo) >> 1) - (Vector256<long>.Count);
+
+                    var vec1 = Unsafe.ReadUnaligned<Vector256<long>>(ref Unsafe.As<long, byte>(ref Unsafe.Add(ref vecStart, i)));
+                    var vec2 = Unsafe.ReadUnaligned<Vector256<long>>(ref Unsafe.As<long, byte>(ref Unsafe.Add(ref vecStart, i + Vector256<long>.Count)));
+
+                    // AVX512 has _mm256_cmpge_epi64_mask that should allow to combine the two operations
+                    // and avoid edge-case check in `mask == 0` case below
+                    var gt1 = Avx2.CompareGreaterThan(valVec, vec1); // _mm256_cmpgt_epi64
+                    var gt2 = Avx2.CompareGreaterThan(valVec, vec2); // _mm256_cmpgt_epi64
+                    var mask1 = Avx2.MoveMask(gt1.AsByte());
+                    var mask2 = Avx2.MoveMask(gt2.AsByte());
+
+                    long maskX = (long)((((ulong)(uint)mask2) << 32) | (uint)mask1);
+                    
+                    if (maskX == 0) // val is smaller than all in vec
+                    {
+                        // but could be equal to the first element
+                        c = value.CompareTo(UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref vecStart, i)));
+                        if (c == 0)
+                        {
+                            lo = i;
+                            goto RETURN;
+                        }
+                        
+                        hi = i - 1;
+                    }
+                    else if (maskX == -1) // val is larger than all in vec
+                    {
+                        lo = i + Vector256<long>.Count * 2;
+                    }
+                    else
+                    {
+                        var clz = BitUtil.NumberOfLeadingZeros(maskX);
+                        var index = (64 - clz) / Unsafe.SizeOf<long>();
+                        lo = i + index;
+                        c = value.CompareTo(UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref vecStart, lo)));
+                        goto RETURN;
+                    }
+                }
+
+                while ((c = value.CompareTo(UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref vecStart, lo)))) > 0
+                       & ++lo <= hi) // if using branchless & then need to correct lo below
+                {
+                }
+
+                lo -= UnsafeEx.Clt(c, 1); // correct back non-short-circuit & evaluation
+
+                RETURN:
+                var ceq1 = -UnsafeEx.Ceq(c, 0);
+                return (ceq1 & lo) | (~ceq1 & ~lo);
+            }
+        }
+#endif
         /// <summary>
         /// Performs standard binary search and returns index of the value from the beginning of <paramref name="vec"/> (not from <paramref name="start"/>) or its negative binary complement.
         /// </summary>
