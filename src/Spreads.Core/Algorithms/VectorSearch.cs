@@ -15,6 +15,7 @@ using Spreads.Utils;
 #if HAS_INTRINSICS
 using System.Runtime.Intrinsics.X86;
 using System.Runtime.Intrinsics;
+
 #endif
 
 namespace Spreads.Algorithms
@@ -119,13 +120,16 @@ namespace Spreads.Algorithms
             return BinarySearchClassic(ref vecStart, length, value, comparer);
         }
 
+        public static int LastIfHitCount;
+        public static int TotalCount;
+
 #if HAS_INTRINSICS
         [MethodImpl(MethodImplOptions.AggressiveInlining
 #if HAS_AGGR_OPT
                     | MethodImplOptions.AggressiveOptimization
 #endif
         )]
-        internal static int BinarySearchAvx2(ref long vecStart, int length, long value)
+        internal static int BinarySearchAvxX(ref long vecStart, int length, long value)
         {
             unchecked
             {
@@ -133,50 +137,290 @@ namespace Spreads.Algorithms
                 int c;
                 int lo = 0;
                 int hi = length - 1;
+                int mask;
                 var valVec = Vector256.Create(value);
-                while (hi - lo > Vector256<long>.Count*2 - 1)
+                while (hi - lo >= Vector256<long>.Count * 2)
+                {
+                    i = (int) (((uint) hi + (uint) lo - Vector256<long>.Count) >> 1);
+
+                    var vec1 = Unsafe.ReadUnaligned<Vector256<long>>(ref Unsafe.As<long, byte>(ref Unsafe.Add(ref vecStart, i)));
+                    var gt1 = Avx2.CompareGreaterThan(valVec, vec1);
+                    mask = Avx2.MoveMask(gt1.AsByte());
+
+                    if (mask != -1)
+                    {
+                        if (mask != 0)
+                        {
+                            int clz = (int) Lzcnt.LeadingZeroCount((uint) mask);
+                            int index = (32 - clz) / Unsafe.SizeOf<long>();
+                            lo = i + index;
+                            c = value.CompareTo(UnsafeEx.ReadUnaligned<long>(ref Unsafe.Add<long>(ref vecStart, lo)));
+                            goto RETURN;
+                        }
+
+                        // val is not greater than all in vec
+                        // not i-1, i could equal;
+                        hi = i;
+                    }
+                    else
+                    {
+                        // val is larger than all in vec
+                        lo = i + Vector256<long>.Count;
+                    }
+
+                    // if (mask == 0) // val is not greater than all in vec
+                    // {
+                    //     hi = i; // not i-1, i could equal;
+                    // }
+                    // else if (mask == -1) // val is larger than all in vec
+                    // {
+                    //     lo = i + Vector256<long>.Count;
+                    // }
+                    // else
+                    // {
+                    //     var clz = (int) Lzcnt.LeadingZeroCount((uint) mask);
+                    //     var index = (32 - clz) / Unsafe.SizeOf<long>();
+                    //     lo = i + index;
+                    //     c = value.CompareTo(UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref vecStart, lo)));
+                    //     goto RETURN;
+                    // }
+                }
+
+                ThrowHelper.DebugAssert(hi - lo >= Vector256<long>.Count);
+                do
+                {
+                    var vec = Unsafe.ReadUnaligned<Vector256<long>>(ref Unsafe.As<long, byte>(ref Unsafe.Add(ref vecStart, lo)));
+                    var gt = Avx2.CompareGreaterThan(valVec, vec); // _mm256_cmpgt_epi64
+                    mask = Avx2.MoveMask(gt.AsByte());
+
+                    var clz = (int) Lzcnt.LeadingZeroCount((uint) mask);
+                    var index = (32 - clz) / Unsafe.SizeOf<long>();
+                    lo += index;
+
+                    // lo and hi are indices
+                    // 0 1 2 3 4 5
+                    // we could load vector from [0, 1, 2, 3] when hi-lo == 3
+                    // so when we check hi-lo>=4 => hi >= lo + 4, so index 4 is valid
+                    // c = value.CompareTo(UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref vecStart, lo)));
+                    // if (c == 0)
+                    // {
+                    //     goto RETURN;
+                    // }
+                } while (mask == -1 & hi - lo >= Vector256<long>.Count);
+
+                ThrowHelper.DebugAssert(lo < length);
+
+                while ((c = value.CompareTo(UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref vecStart, lo)))) > 0
+                       && ++lo <= hi) // if using branchless & then need to correct lo below
+                {
+                    ThrowHelper.DebugAssert(lo < length);
+                }
+
+                RETURN:
+                var ceq1 = -UnsafeEx.Ceq(c, 0);
+                return (ceq1 & lo) | (~ceq1 & ~lo);
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining
+#if HAS_AGGR_OPT
+                    | MethodImplOptions.AggressiveOptimization
+#endif
+        )]
+        internal static int BinarySearchAvxX2(ref long vecStart, int length, long value)
+        {
+            unchecked
+            {
+                int i;
+                int c;
+                int lo = 0;
+                int hi = length - 1;
+                long mask;
+                var valVec = Vector256.Create(value);
+                while (hi - lo >= Vector256<long>.Count * 4)
                 {
                     i = (int) (((uint) hi + (uint) lo) >> 1) - (Vector256<long>.Count);
 
                     var vec1 = Unsafe.ReadUnaligned<Vector256<long>>(ref Unsafe.As<long, byte>(ref Unsafe.Add(ref vecStart, i)));
                     var vec2 = Unsafe.ReadUnaligned<Vector256<long>>(ref Unsafe.As<long, byte>(ref Unsafe.Add(ref vecStart, i + Vector256<long>.Count)));
-
-                    // AVX512 has _mm256_cmpge_epi64_mask that should allow to combine the two operations
-                    // and avoid edge-case check in `mask == 0` case below
                     var gt1 = Avx2.CompareGreaterThan(valVec, vec1); // _mm256_cmpgt_epi64
                     var gt2 = Avx2.CompareGreaterThan(valVec, vec2); // _mm256_cmpgt_epi64
                     var mask1 = Avx2.MoveMask(gt1.AsByte());
                     var mask2 = Avx2.MoveMask(gt2.AsByte());
 
-                    long maskX = (long)((((ulong)(uint)mask2) << 32) | (uint)mask1);
-                    
-                    if (maskX == 0) // val is smaller than all in vec
+                    mask = (long) ((((ulong) (uint) mask2) << 32) | (uint) mask1);
+                    //
+                    // var vec = Unsafe.ReadUnaligned<Vector256<long>>(ref Unsafe.As<long, byte>(ref Unsafe.Add(ref vecStart, i)));
+                    // // var vec = Unsafe.ReadUnaligned<long>(ref Unsafe.As<long, byte>(ref Unsafe.Add(ref vecStart, i)));
+                    //
+                    // var gt = Avx2.CompareGreaterThan(valVec, vec); // _mm256_cmpgt_epi64
+                    // var mask = Avx2.MoveMask(gt.AsByte());
+
+                    // var mask = -UnsafeEx.Cgt(value, vec);
+                    //
+                    // var valIsNotGreater = -UnsafeEx.Ceq(maskX, 0);
+                    // hi = (valIsNotGreater & i) | (~valIsNotGreater & hi);
+                    // //
+                    // // var clz = (int)Lzcnt.LeadingZeroCount((uint)(mask));
+                    // // var index = (32 - clz) / Unsafe.SizeOf<long>();
+                    // var clz = (int)Lzcnt.X64.LeadingZeroCount((ulong)maskX);
+                    // var index = (64 - clz) / Unsafe.SizeOf<long>();
+                    // lo = (~valIsNotGreater & (i + index)) | (valIsNotGreater & lo);
+
+                    if (mask == 0) // val is not greater than all in vec
                     {
                         // but could be equal to the first element
-                        c = value.CompareTo(UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref vecStart, i)));
-                        if (c == 0)
-                        {
-                            lo = i;
-                            goto RETURN;
-                        }
-                        
-                        hi = i - 1;
+                        // c = value.CompareTo(UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref vecStart, i)));
+                        // if (c == 0)
+                        // {
+                        //     lo = i;
+                        //     goto RETURN;
+                        // }
+
+                        hi = i; // - 1;
                     }
-                    else if (maskX == -1) // val is larger than all in vec
+                    else if (mask == -1) // val is larger than all in vec
                     {
                         lo = i + Vector256<long>.Count * 2;
                     }
                     else
                     {
-                        var clz = BitUtil.NumberOfLeadingZeros(maskX);
-                        var index = (64 - clz) / Unsafe.SizeOf<long>();
+                        // lo = i;
+                        // hi = i + Vector256<long>.Count * 2;
+                        var clz = (int) Lzcnt.LeadingZeroCount((uint) mask);
+                        // var clz = (int)Lzcnt.X64.LeadingZeroCount((ulong)mask);
+                        var index = (32 - clz) / Unsafe.SizeOf<long>();
+                        // // var clz = BitUtil.NumberOfLeadingZeros(mask);
+                        // // var index = (32 - clz) / Unsafe.SizeOf<long>();
                         lo = i + index;
+
                         c = value.CompareTo(UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref vecStart, lo)));
                         goto RETURN;
+                        // hi = i + Vector256<long>.Count * 2;
+                        // c = value.CompareTo(UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref vecStart, lo)));
+                        // if(c==0)
+                        //     goto RETURN;
                     }
                 }
 
+                ThrowHelper.DebugAssert(hi - lo >= Vector256<long>.Count);
+                // mask = -1;
+                do
+                {
+                    var vec = Unsafe.ReadUnaligned<Vector256<long>>(ref Unsafe.As<long, byte>(ref Unsafe.Add(ref vecStart, lo)));
+                    var gt = Avx2.CompareGreaterThan(valVec, vec); // _mm256_cmpgt_epi64
+                    mask = Avx2.MoveMask(gt.AsByte());
+
+                    var clz = (int) Lzcnt.X64.LeadingZeroCount((ulong) mask);
+                    var index = (64 - clz) / Unsafe.SizeOf<long>();
+                    lo += index;
+
+                    // lo and hi are indices
+                    // 0 1 2 3 4 5
+                    // we could load vector from [0, 1, 2, 3] when hi-lo == 3
+                    // so when we check hi-lo>=4 => hi >= lo + 4, so index 4 is valid
+                    // c = value.CompareTo(UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref vecStart, lo)));
+                    // if (c == 0)
+                    //     goto RETURN;
+                    // if (mask == -1)
+                    // {
+                    //     // lo += Vector256<long>.Count;
+                    //     continue;
+                    // }
+                    //
+                    // break;
+                } while (mask == -1 & hi - lo >= Vector256<long>.Count);
+
+                ThrowHelper.DebugAssert(lo < length);
+
                 while ((c = value.CompareTo(UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref vecStart, lo)))) > 0
+                       && ++lo <= hi) // if using branchless & then need to correct lo below
+                {
+                    ThrowHelper.DebugAssert(lo < length);
+                }
+                // lo -= UnsafeEx.Clt(c, 1); // correct back non-short-circuit & evaluation
+
+                RETURN:
+                var ceq1 = -UnsafeEx.Ceq(c, 0);
+                return (ceq1 & lo) | (~ceq1 & ~lo);
+            }
+        }
+#endif
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining
+#if HAS_AGGR_OPT
+                    | MethodImplOptions.AggressiveOptimization
+#endif
+        )]
+        internal static unsafe int BinarySearchNoWaste(long* vecStart, int length, long value)
+        {
+            const long CACHE_LINE_MASK = 64;
+            unchecked
+            {
+                long* i;
+                int c;
+                long* lo = vecStart;
+                long* hi = vecStart + length - 1;
+                while (hi - lo > CACHE_LINE_MASK * 3)
+                {
+                    i = (long*) (((long) hi + (long) lo) >> 1);
+                    var iLeft = (long*) (((long) i) & ~(CACHE_LINE_MASK));
+                    var iRight = iLeft + CACHE_LINE_MASK;
+
+                    var mask1 = (sbyte) (-UnsafeEx.Cgt(value, *iLeft));
+                    var mask2 = (sbyte) (-UnsafeEx.Cgt(value, *iRight));
+
+                    short mask = (short) ((((ushort) (byte) mask2) << 8) | (byte) mask1);
+
+                    if (mask == 0) // val is not greater than all in vec
+                    {
+                        // but could be equal to the first element
+                        // c = value.CompareTo(UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref vecStart, i)));
+                        // if (c == 0)
+                        // {
+                        //     lo = i;
+                        //     goto RETURN;
+                        // }
+
+                        hi = iLeft; // - 1;
+                    }
+                    else if (mask == -1) // val is larger than all in vec
+                    {
+                        lo = iRight + 1;
+                    }
+                    else
+                    {
+                        lo = iLeft;
+                        hi = iRight;
+                        break;
+                        // var clz = (int)Lzcnt.X64.LeadingZeroCount((ulong)mask);
+                        // var index = (64 - clz) / Unsafe.SizeOf<long>();
+                        // // var clz = BitUtil.NumberOfLeadingZeros(mask);
+                        // // var index = (32 - clz) / Unsafe.SizeOf<long>();
+                        // lo = i + index;
+                        // break;
+                        // hi = i + Vector256<long>.Count;
+                        // c = value.CompareTo(UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref vecStart, lo)));
+                        // if(c==0)
+                        //     goto RETURN;
+                    }
+                }
+
+                // while (hi - lo > Vector256<long>.Count)
+                // {
+                //     
+                //     var vec = Unsafe.ReadUnaligned<Vector256<long>>(ref Unsafe.As<long, byte>(ref Unsafe.Add(ref vecStart, lo)));
+                //     var gt = Avx2.CompareGreaterThan(valVec, vec); // _mm256_cmpgt_epi64
+                //     var mask = Avx2.MoveMask(gt.AsByte());
+                //     var maskIsZero = -UnsafeEx.Ceq(mask, 0);
+                //     hi = (maskIsZero & lo) | (~maskIsZero & hi);
+                //     
+                //     var clz = (int)Lzcnt.LeadingZeroCount((uint)(mask));
+                //     var index = (32 - clz) / Unsafe.SizeOf<long>();
+                //     lo = (~maskIsZero & (lo + index)) | (maskIsZero & lo);
+                // }
+
+                while ((c = value.CompareTo(*lo)) > 0
                        & ++lo <= hi) // if using branchless & then need to correct lo below
                 {
                 }
@@ -185,10 +429,11 @@ namespace Spreads.Algorithms
 
                 RETURN:
                 var ceq1 = -UnsafeEx.Ceq(c, 0);
-                return (ceq1 & lo) | (~ceq1 & ~lo);
+                var idx = (int) (lo - vecStart);
+                return (ceq1 & idx) | (~ceq1 & ~idx);
             }
         }
-#endif
+
         /// <summary>
         /// Performs standard binary search and returns index of the value from the beginning of <paramref name="vec"/> (not from <paramref name="start"/>) or its negative binary complement.
         /// </summary>
@@ -417,7 +662,7 @@ namespace Spreads.Algorithms
                 int i;
                 int lo = start;
                 int hi = start + length - 1;
-                if (lo < hi)
+                if (lo < hi) // TODO review the limit when BS is faster
                 {
                     long vlo = UnsafeEx.ReadUnaligned(ref vecStart);
                     long vhi = UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref vecStart, hi));
@@ -433,10 +678,8 @@ namespace Spreads.Algorithms
 
                     i = (int) (nominator / vRange);
 
-                    if ((uint) i > hi)
-                    {
+                    if ((uint) i > hi) // edge case, should be predicted as false
                         i = i > hi ? hi : lo;
-                    }
 
                     var vi = UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref vecStart, i));
 
@@ -535,6 +778,143 @@ namespace Spreads.Algorithms
                 return i;
             }
         }
+
+#if HAS_INTRINSICS
+        /// <summary>
+        /// Exponential
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int InterpolationSearchAvx(ref long vecStart, int length, long value)
+        {
+            unchecked
+            {
+                // this is definitive version, all other overloads must do exactly the same operations
+
+                int i;
+                int lo = 0;
+                int hi = length - 1;
+                if (hi - lo > (Vector256<long>.Count - 1)) // TODO review the limit when BS is faster
+                {
+                    long vlo = UnsafeEx.ReadUnaligned(ref vecStart);
+                    long vhi = UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref vecStart, hi));
+                    long vRange = vhi - vlo;
+
+                    Debug.Assert(vRange > 0);
+
+                    // (hi - lo) <= int32.MaxValue
+                    // vlo could be zero while value could easily be close to int64.MaxValue (nanos in unix time, we are now between 60 and 61 bit at 60.4)
+                    // convert to double here to avoid overflow and for much faster calculations
+                    // (only 4 cycles vs 25 cycles https://lemire.me/blog/2017/11/16/fast-exact-integer-divisions-using-floating-point-operations/)
+                    double nominator = (hi - lo) * (double) (value - vlo);
+
+                    i = (int) (nominator / vRange) - (Vector256<long>.Count >> 1);
+
+                    var iIsNegative = i >> 31; // -1 if negative, 0 if >= 0
+                    var iIsTooBig = -UnsafeEx.Cgt(i, hi);
+
+                    var iIsTooBig1 = (hi - i) >> 31;
+
+                    var iInRangeLeft = UnsafeEx.Clt(i, 0) - 1;
+                    var iInRangeRight = UnsafeEx.Cgt(i + (Vector256<long>.Count - 1), hi) - 1;
+
+                    if ((uint) i > hi) // edge case, should be predicted as false
+                        i = i > hi ? hi : lo;
+
+                    var vi = UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref vecStart, i));
+
+                    if (value == vi)
+                    {
+                        goto FOUND;
+                    }
+
+                    var offset = 1;
+
+                    if (value < vi)
+                    {
+                        // lo = i - 1, but could be < hi
+                        while ((i = i - offset) >= 0)
+                        {
+                            vi = UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref vecStart, i));
+
+                            if (value == vi)
+                            {
+                                goto FOUND;
+                            }
+
+                            if (value > vi)
+                            {
+                                lo = i + 1;
+                                // vi(i + offset) was > value, so we could exclude this position for hi
+                                hi = i + offset - 1;
+                                goto BIN_SEARCH;
+                            }
+
+                            // x2
+                            offset <<= 1;
+                        }
+
+                        Debug.Assert(i < 0);
+
+                        // i was decremented by offset and became < start, restore it and search from zero
+                        hi = i + offset;
+
+                        Debug.Assert(lo == 0);
+                        Debug.Assert(hi >= lo);
+                    }
+                    else // value > vi
+                    {
+                        // lo = i + 1, but could be > hi
+
+                        while ((i = i + offset) <= hi)
+                        {
+                            vi = UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref vecStart, i));
+
+                            if (value == vi)
+                            {
+                                goto FOUND;
+                            }
+
+                            if (value < vi)
+                            {
+                                hi = i - 1;
+                                // vi(i - offset) was > value, so we could exclude this position for hi
+                                lo = i - offset + 1;
+                                goto BIN_SEARCH;
+                            }
+
+                            offset <<= 1;
+                        }
+
+                        Debug.Assert(i > hi);
+
+                        // i was incremented by offset and became > hi, restore it and search to hi
+                        lo = i - offset;
+
+                        Debug.Assert(hi == length - 1);
+                        Debug.Assert(hi >= lo);
+                    }
+                }
+
+                BIN_SEARCH:
+
+                // This returns index from lo to hi, so we need to adjust for the narrowed range
+                var iBs = BinarySearchClassic(ref Unsafe.Add(ref vecStart, lo), 1 + hi - lo, value, default);
+
+                if (iBs >= 0)
+                {
+                    return lo + iBs;
+                }
+                else
+                {
+                    return ~(lo + ~iBs);
+                }
+
+                FOUND:
+                return i;
+            }
+        }
+
+#endif
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int InterpolationSearch2(ref long vecStart, int length, long value)

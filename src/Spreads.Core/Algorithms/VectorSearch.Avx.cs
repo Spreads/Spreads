@@ -231,7 +231,7 @@ namespace Spreads.Algorithms {
                     var gt = Avx2.CompareGreaterThan(valVec, vec); // _mm256_cmpgt_epi64
                     var mask = Avx2.MoveMask(gt.AsByte());
 
-                    if (mask == 0) // val is smaller than all in vec
+                    if (mask == 0) // val is not greater than all in vec
                     {
                         // but could be equal to the first element
                         c = value.CompareTo(vec.GetElement(0));

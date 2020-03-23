@@ -1288,10 +1288,10 @@ namespace Spreads.Core.Tests.Algorithms
             var lens = new[] {16, 128, 512, 1024, count};
 
 #else
-            var count = 4L * 1024 * 1024;
-            var rounds = 64;
+            var count = 10L * 1024 * 1024;
+            var rounds = 20;
             // must be power of 2
-            var lens = new[] {8, 16, 32, 64, 128, 256, 512, 1024, 4 * 1024, 16 * 1024}; // , 64 * 1024,, 128 * 1024, 512 * 1024 , 1024 * 1024, 8 * 1024 * 1024
+            var lens = new[] {8, 16, 32, 64, 128, 256, 512, 1024, 4 * 1024, 16 * 1024, 64 * 1024}; // , 64 * 1024,, 128 * 1024, 512 * 1024 , 1024 * 1024, 8 * 1024 * 1024
 
 #endif
             var vec = (Enumerable.Range(0, (int) count).Select(x => (long) (x * 2)).ToArray());
@@ -1311,14 +1311,15 @@ namespace Spreads.Core.Tests.Algorithms
                     // BS_Default(len, count, vec, r);
                     // BS_Classic(len, count, vec, r);
                     // //
-                    BS_Avx(len, count, vec, r);
-                    BS_Avx2x(len, count, vec, r);
+                    // BS_Avx(len, count, vec, 0);
+                    BS_AvxX(len, count, vec, r);
+                    // BS_AvxX2(len, count, vec, r);
+                    
+                    // BS_NoWaste(len, count, vec, r);
 
                     // BS_Interpolation(len, count, vec);
-
-#if DEBUG
-                    BS_HybridCorrectness(len, count, vec, r);
-#endif
+                    
+                    // BS_HybridCorrectness(len, count, vec, r);
                 }
             }
 
@@ -1357,55 +1358,76 @@ namespace Spreads.Core.Tests.Algorithms
             }
         }
 
-        /// <summary>
-        /// For comparison with default to see if JIT does the right thing with Avx2.IsSupported etc.
-        /// </summary>
+        
         [MethodImpl(MethodImplOptions.NoInlining | MethodImplOptions.AggressiveOptimization)]
-        private static void BS_Avx(int len, long count, long[] vec, int r)
+        private static void BS_AvxX(int len, long count, long[] vec, int r)
         {
             var mask = len - 1;
-            using (Benchmark.Run("BS_Avx_" + len, count * 2))
+            using (Benchmark.Run("BS_Avx+_" + len, count * 2))
             {
                 for (int i = 0; i < count * 2; i++)
                 {
                     var value = i & mask;
 #pragma warning disable 618
-                    var idx = VectorSearch.BinarySearchAvx(ref vec[r], len, value);
+                    var idx = VectorSearch.BinarySearchAvxX(ref vec[r], len, value);
 #pragma warning restore 618
                 }
             }
         }
         
         [MethodImpl(MethodImplOptions.NoInlining | MethodImplOptions.AggressiveOptimization)]
-        private static void BS_Avx2x(int len, long count, long[] vec, int r)
+        private static void BS_AvxX2(int len, long count, long[] vec, int r)
         {
             var mask = len - 1;
-            using (Benchmark.Run("BS_Avx2x_" + len, count * 2))
+            using (Benchmark.Run("BS_AvxX2_" + len, count * 2))
             {
                 for (int i = 0; i < count * 2; i++)
                 {
                     var value = i & mask;
 #pragma warning disable 618
-                    var idx = VectorSearch.BinarySearchAvx2(ref vec[r], len, value);
+                    var idx = VectorSearch.BinarySearchAvxX2(ref vec[r], len, value);
 #pragma warning restore 618
                 }
             }
         }
 
         [MethodImpl(MethodImplOptions.NoInlining | MethodImplOptions.AggressiveOptimization)]
-        private static void BS_HybridCorrectness(int len, long count, long[] vec, int r)
+        private static unsafe void BS_NoWaste(int len, long count, long[] vec, int r)
         {
             var mask = len - 1;
-            using (Benchmark.Run("BS_Hybrid_check_" + len, len + 20))
+            fixed (long* ptr = &vec[r])
             {
-                for (int i = 13; i < len + 10; i++)
+                using (Benchmark.Run("BS_NoWaste_" + len, count * 2))
                 {
-                    var value = i;
-                    var idx = VectorSearch.BinarySearchAvx2(ref vec[r], len, value);
-                    var idx2 = VectorSearch.BinarySearchClassic(ref vec[r], len, value, default);
-                    if (idx != idx2)
+                    for (int i = 0; i < count * 2; i++)
                     {
-                        Assert.Fail($"idx {idx} != correct idx2 {idx2}");
+                        var value = i & mask;
+#pragma warning disable 618
+                        var idx = VectorSearch.BinarySearchNoWaste(ptr, len, value);
+#pragma warning restore 618
+                    }
+                }
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining | MethodImplOptions.AggressiveOptimization)]
+        private static unsafe void BS_HybridCorrectness(int len, long count, long[] vec, int r)
+        {
+            len = 512;
+            var mask = len - 1;
+            fixed (long* ptr = &vec[r])
+            {
+                using (Benchmark.Run("BS_Hybrid_check_" + len, len + 20))
+                {
+                    for (int i = -10; i < len + 10; i++)
+                    {
+                        var value = i;
+                        var idx = VectorSearch.BinarySearchAvxX(ref vec[r], len, value);
+                        var idx2 = VectorSearch.BinarySearchClassic(ref vec[r], len, value, default);
+                        if (idx != idx2)
+                        {
+                            Assert.Fail($"len={len}, i={i}, idx {idx} != correct idx2 {idx2}");
+                        }
                     }
                 }
             }
