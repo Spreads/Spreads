@@ -1283,15 +1283,15 @@ namespace Spreads.Core.Tests.Algorithms
         {
 #if DEBUG
             var count = 16 * 1024;
-            var rounds = 1;
+            var rounds = 2;
             // must be power of 2
             var lens = new[] {16, 128, 512, 1024, count};
 
 #else
-            var count = 10L * 1024 * 1024;
-            var rounds = 20;
+            var count = 4L * 1024 * 1024;
+            var rounds = 5;
             // must be power of 2
-            var lens = new[] {8, 16, 32, 64, 128, 256, 512, 1024, 4 * 1024, 16 * 1024, 64 * 1024}; // , 64 * 1024,, 128 * 1024, 512 * 1024 , 1024 * 1024, 8 * 1024 * 1024
+            var lens = new[] {1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 4 * 1024, 16 * 1024, 64 * 1024, 128 * 1024}; // , 512 * 1024 , 1024 * 1024, 8 * 1024 * 1024
 
 #endif
             var vec = (Enumerable.Range(0, (int) count).Select(x => (long) (x * 2)).ToArray());
@@ -1310,15 +1310,15 @@ namespace Spreads.Core.Tests.Algorithms
                 {
                     // BS_Default(len, count, vec, r);
                     // BS_Classic(len, count, vec, r);
-                    // //
-                    // BS_Avx(len, count, vec, 0);
+                    // // // //
+                    BS_Avx(len, count, vec, r);
                     BS_AvxX(len, count, vec, r);
-                    // BS_AvxX2(len, count, vec, r);
-                    
+
                     // BS_NoWaste(len, count, vec, r);
 
-                    // BS_Interpolation(len, count, vec);
-                    
+                    // BS_Interpolation(len, count, vec, r);
+                    // BS_InterpolationAvx(len, count, vec, r);
+
                     // BS_HybridCorrectness(len, count, vec, r);
                 }
             }
@@ -1336,7 +1336,7 @@ namespace Spreads.Core.Tests.Algorithms
                 {
                     var value = i & mask;
 #pragma warning disable 618
-                    var idx = VectorSearch.BinarySearchClassic(ref vec[r], len, value, default); // vec.DangerousBinarySearch(0, len, value, KeyComparer<long>.Default);
+                    var idx = VectorSearch.BinarySearchClassic(ref vec[0], r, len, value); // vec.DangerousBinarySearch(0, len, value, KeyComparer<long>.Default);
 #pragma warning restore 618
                 }
             }
@@ -1358,7 +1358,6 @@ namespace Spreads.Core.Tests.Algorithms
             }
         }
 
-        
         [MethodImpl(MethodImplOptions.NoInlining | MethodImplOptions.AggressiveOptimization)]
         private static void BS_AvxX(int len, long count, long[] vec, int r)
         {
@@ -1369,43 +1368,24 @@ namespace Spreads.Core.Tests.Algorithms
                 {
                     var value = i & mask;
 #pragma warning disable 618
-                    var idx = VectorSearch.BinarySearchAvxX(ref vec[r], len, value);
-#pragma warning restore 618
-                }
-            }
-        }
-        
-        [MethodImpl(MethodImplOptions.NoInlining | MethodImplOptions.AggressiveOptimization)]
-        private static void BS_AvxX2(int len, long count, long[] vec, int r)
-        {
-            var mask = len - 1;
-            using (Benchmark.Run("BS_AvxX2_" + len, count * 2))
-            {
-                for (int i = 0; i < count * 2; i++)
-                {
-                    var value = i & mask;
-#pragma warning disable 618
-                    var idx = VectorSearch.BinarySearchAvxX2(ref vec[r], len, value);
+                    var idx = VectorSearch.BinarySearchAvx2(ref vec[0], r, len, value);
 #pragma warning restore 618
                 }
             }
         }
 
         [MethodImpl(MethodImplOptions.NoInlining | MethodImplOptions.AggressiveOptimization)]
-        private static unsafe void BS_NoWaste(int len, long count, long[] vec, int r)
+        private static void BS_Avx(int len, long count, long[] vec, int r)
         {
             var mask = len - 1;
-            fixed (long* ptr = &vec[r])
+            using (Benchmark.Run("BS_Avx_" + len, count * 2))
             {
-                using (Benchmark.Run("BS_NoWaste_" + len, count * 2))
+                for (int i = 0; i < count * 2; i++)
                 {
-                    for (int i = 0; i < count * 2; i++)
-                    {
-                        var value = i & mask;
+                    var value = i & mask;
 #pragma warning disable 618
-                        var idx = VectorSearch.BinarySearchNoWaste(ptr, len, value);
+                    var idx = VectorSearch.BinarySearchAvx(ref vec[r], len, value);
 #pragma warning restore 618
-                    }
                 }
             }
         }
@@ -1413,7 +1393,8 @@ namespace Spreads.Core.Tests.Algorithms
         [MethodImpl(MethodImplOptions.NoInlining | MethodImplOptions.AggressiveOptimization)]
         private static unsafe void BS_HybridCorrectness(int len, long count, long[] vec, int r)
         {
-            len = 512;
+            // len = 64;
+            // r = 6;
             var mask = len - 1;
             fixed (long* ptr = &vec[r])
             {
@@ -1422,8 +1403,9 @@ namespace Spreads.Core.Tests.Algorithms
                     for (int i = -10; i < len + 10; i++)
                     {
                         var value = i;
-                        var idx = VectorSearch.BinarySearchAvxX(ref vec[r], len, value);
-                        var idx2 = VectorSearch.BinarySearchClassic(ref vec[r], len, value, default);
+                        var idx = VectorSearch.InterpolationSearchAvx3(ref vec[0], r, len - r, value);
+                        var idx2 = VectorSearch.BinarySearchClassic(ref vec[0], r, len - r, value);
+                        
                         if (idx != idx2)
                         {
                             Assert.Fail($"len={len}, i={i}, idx {idx} != correct idx2 {idx2}");
@@ -1434,22 +1416,41 @@ namespace Spreads.Core.Tests.Algorithms
         }
 
         [MethodImpl(MethodImplOptions.NoInlining | MethodImplOptions.AggressiveOptimization)]
-        private static void BS_Interpolation(int len, long count, long[] vec)
+        private static void BS_InterpolationAvx(int len, long count, long[] vec, int r)
         {
             var mask = len - 1;
-            using (Benchmark.Run($"Interpolation{len}", count * 2))
+            using (Benchmark.Run($"IP_Avx {len}", count * 2))
             {
                 for (int i = 0; i < count * 2; i++)
                 {
                     var value = i & mask;
 #pragma warning disable 618
-                    var idx = vec.DangerousInterpolationSearch(0, len, (long) value,
-                        KeyComparer<long>.Default);
+                    var idx = VectorSearch.InterpolationSearchAvx3(ref vec[0], r, len - r, (long) value);
 #pragma warning restore 618
-                    if (idx > 0 && idx != value / 2)
-                    {
-                        Assert.Fail($"idx {idx} != value {value}");
-                    }
+                    // if (idx > 0 && idx != value / 2)
+                    // {
+                    //     Assert.Fail($"idx {idx} != value {value}");
+                    // }
+                }
+            }
+        }
+        
+        [MethodImpl(MethodImplOptions.NoInlining | MethodImplOptions.AggressiveOptimization)]
+        private static void BS_Interpolation(int len, long count, long[] vec, int r)
+        {
+            var mask = len - 1;
+            using (Benchmark.Run($"IP_Class {len}", count * 2))
+            {
+                for (int i = 0; i < count * 2; i++)
+                {
+                    var value = i & mask;
+#pragma warning disable 618
+                    var idx = VectorSearch.InterpolationSearch(ref vec[0], r, len, (long) value);
+#pragma warning restore 618
+                    // if (idx > 0 && idx != value / 2)
+                    // {
+                    //     Assert.Fail($"idx {idx} != value {value}");
+                    // }
                 }
             }
         }
@@ -1553,94 +1554,140 @@ namespace Spreads.Core.Tests.Algorithms
             Random rng;
 
 #if DEBUG
-            var rounds = 2;
+            var rounds = 10;
             var counts = new[] {50, 100, 256, 512, 1000, 2048, 4096, 10_000};
 #else
-            var rounds = 4;
-            var counts = new[] {50, 100, 256, 512, 1000, 2048, 4096, 10_000, 100_000, 1_000_000};
+            var rounds = 1;
+            var counts = new[] {50, 100, 256, 512, 1000, 2048, 4096, 10_000}; // , 100_000, 1_000_000
 #endif
             for (int r = 0; r < rounds; r++)
             {
                 foreach (var count in counts)
                 {
-                    rng = new Random(r + 1);
+                    rng = new Random(r + 100);
 
-                    var step = rng.Next(10, 1000);
-                    var dev = step / rng.Next(2, 10);
+                    var step = rng.Next(10, 20);
+                    var dev = step / rng.Next(2, 4);
 
-                    var vec = new Vec<Timestamp>(Enumerable.Range(0, count)
-                        .Select(i => (Timestamp) i).ToArray());
-
+                    var vec = (Enumerable.Range(0, (int) count).Select(x => (long) (x)).ToArray());
+                    
                     for (int i = 1; i < vec.Length; i++)
                     {
-                        vec[i] = vec[i - 1] + (Timestamp) step + (Timestamp) rng.Next(-dev, dev); //  (Timestamp)(vec[i].Nanos * 1000 - 2 + rng.Next(0, 4)); //
+                        vec[i] = vec[i - 1] + step + rng.Next(-dev, dev); 
                     }
 
-                    int[] binRes = new int[vec.Length];
-                    int[] interRes = new int[vec.Length];
+                    int[] binRes = new int[vec.Length + 20];
+                    int[] binAvxRes = new int[vec.Length + 20];
+                    int[] interRes = new int[vec.Length + 20];
+                    int[] interAvxRes = new int[vec.Length + 20];
 
-                    for (int i = 0; i < count; i++)
+                    for (int i = -10; i < count + 10; i++)
                     {
-#pragma warning disable CS0618 // Type or member is obsolete
-                        var br = vec.DangerousBinarySearch(0, count, (Timestamp) (i * step));
-                        var ir = vec.DangerousInterpolationSearch(0, count, (Timestamp) (i * step));
-                        if (br != ir)
+                        var bs = VectorSearch.BinarySearchClassic(ref vec[0], r, count - r, (i * step));
+                        var bsavx = VectorSearch.BinarySearchAvx2(ref vec[0], r, count - r, (i * step));
+                        var ints = VectorSearch.InterpolationSearch(ref vec[0], r, count - r, (i * step));
+                        var intsAvx = VectorSearch.InterpolationSearchAvx3(ref vec[0], r, count - r, (i * step));
+                        if (bs != ints)
                         {
-                            Console.WriteLine($"[{count}] binRes {br} != interRes {ir} at {i}");
-                            ir = vec.DangerousInterpolationSearch(0, count, (Timestamp) (i * step));
+                            Console.WriteLine($"IS_AVX: [{count}] binRes {bs} != interRes {ints} at {i}");
+                            ints = VectorSearch.InterpolationSearch(ref vec[0], r, count- r, (i * step));
                             Assert.Fail();
                         }
-
-                        if (br >= 0)
+                        
+                        if (bs != intsAvx)
+                        {
+                            Console.WriteLine($"IS_AVX: [{count}] binRes {bs} != intsAvx {intsAvx} at {i}");
+                            ints = VectorSearch.InterpolationSearchAvx3(ref vec[0], r, count- r, (i * step));
+                            Assert.Fail();
+                        }
+                        
+                        if (bs != bsavx)
+                        {
+                            Console.WriteLine($"BS_AVX: [{count}] binRes {bs} != bsavx {bsavx} at {i}");
+                            bsavx = VectorSearch.BinarySearchAvx2(ref vec[0], r, count- r, (i * step));
+                            Assert.Fail();
+                        }
+                    
+                        if (bs >= 0)
                         {
                             // Console.WriteLine("found");
                         }
-#pragma warning restore CS0618 // Type or member is obsolete
                     }
 #if DEBUG
                     var mult = 1;
 #else
-                    var mult = 5_000_000 / count;
+                    var mult = 5_000 / count;
 #endif
 
-                    using (Benchmark.Run($"Bin      {count}", count * mult))
+                    // using (Benchmark.Run($"BS_Class {count}", count * mult))
+                    // {
+                    //     for (int m = 0; m < mult; m++)
+                    //     {
+                    //         for (int i = -10; i < count + 10; i++)
+                    //         {
+                    //             binRes[i+10] = VectorSearch.BinarySearchClassic(ref vec[0], r, count - r, (i * step)); // vec.DangerousBinarySearch(0, count, (i * step));
+                    //         }
+                    //     }
+                    // }
+                    //
+                    // using (Benchmark.Run($"BS_Avx   {count}", count * mult))
+                    // {
+                    //     for (int m = 0; m < mult; m++)
+                    //     {
+                    //         for (int i = -10; i < count + 10; i++)
+                    //         {
+                    //             binAvxRes[i+10] = VectorSearch.BinarySearchAvx2(ref vec[0], r, count - r, (i * step)); // vec.DangerousBinarySearch(0, count, (i * step));
+                    //         }
+                    //     }
+                    // }
+                    
+                    using (Benchmark.Run($"IS_Avx   {count}", (count + 20) * mult))
                     {
                         for (int m = 0; m < mult; m++)
                         {
-                            for (int i = 0; i < count; i++)
+                            for (int i = -10; i < count + 10; i++)
                             {
-#pragma warning disable CS0618 // Type or member is obsolete
-                                binRes[i] = vec.DangerousBinarySearch(0, count, (Timestamp) (i * step));
-#pragma warning restore CS0618 // Type or member is obsolete
+                                interAvxRes[i + 10] = VectorSearch.InterpolationSearchAvx3(ref vec[0], r, count - r, (i * step));
+                            }
+                        }
+                    }
+                    
+                    using (Benchmark.Run($"IS_Class {count}", (count + 20) * mult))
+                    {
+                        for (int m = 0; m < mult; m++)
+                        {
+                            for (int i = -10; i < count + 10; i++)
+                            {
+                                interRes[i + 10] = VectorSearch.InterpolationSearch(ref vec[0], r, count - r, (i * step));
                             }
                         }
                     }
 
-                    using (Benchmark.Run($"Interpol {count}", count * mult))
+                    for (int i = 0; i < count + 20; i++)
                     {
-                        for (int m = 0; m < mult; m++)
+                        // if (binRes[i] != interAvxRes[i])
+                        // {
+                        //     Console.WriteLine($"IS_AVX: [{count}] binRes[i] {binRes[i]} != interRes[i] {interAvxRes[i]} at {i} and count {count}");
+                        //     Assert.Fail();
+                        // }
+                        //
+                        // if (binRes[i] != interRes[i])
+                        // {
+                        //     Console.WriteLine($"IS_Class: [{count}] binRes[i] {binRes[i]} != interRes[i] {interRes[i]} at {i} and count {count}");
+                        //     Assert.Fail();
+                        // }
+                        
+                        if (interAvxRes[i] != interRes[i])
                         {
-                            for (int i = 0; i < count; i++)
-                            {
-                                //if (count == 10)
-                                //{
-                                //    Console.WriteLine("Catch me");
-                                //}
-
-#pragma warning disable CS0618 // Type or member is obsolete
-                                interRes[i] = vec.DangerousInterpolationSearch(0, count, (Timestamp) (i * step));
-#pragma warning restore CS0618 // Type or member is obsolete
-                            }
-                        }
-                    }
-
-                    for (int i = 0; i < count; i++)
-                    {
-                        if (binRes[i] != interRes[i])
-                        {
-                            Console.WriteLine($"[{count}] binRes[i] {binRes[i]} != interRes[i] {interRes[i]} at {i}");
+                            Console.WriteLine($"IS_Avx_Class: [{count}] interAvxRes[i] {interAvxRes[i]} != interRes[i] {interRes[i]} at {i} and count {count}");
                             Assert.Fail();
                         }
+                        
+                        // if (binRes[i] != binAvxRes[i])
+                        // {
+                        //     Console.WriteLine($"BS_AVX: [{count}] binRes[i] {binRes[i]} != binAvxRes[i] {binAvxRes[i]} at {i} and count {count}");
+                        //     Assert.Fail();
+                        // }
                     }
                 }
             }
