@@ -7,6 +7,7 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using NUnit.Framework;
 using Spreads.Buffers;
+using Spreads.Core.Tests.Collections;
 using Spreads.DataTypes;
 using Spreads.Serialization;
 using Spreads.Utils;
@@ -32,9 +33,8 @@ namespace Spreads.Core.Tests.Buffers
             Assert.AreEqual(vs1.Vec.Length, 0);
 
             var count = 1000;
-            var arr = Enumerable.Range(0, count).ToArray();
-            var r = ArrayMemory<int>.Create(arr);
-            var vs = RetainedVec.Create(r, 0, r.Length);
+            var rm = BuffersTestHelper.CreateFilledRM(count);
+            var vs = RetainedVec.Create(rm, 0, rm.Length);
 
             Assert.AreNotEqual(vs1, vs);
 
@@ -51,26 +51,25 @@ namespace Spreads.Core.Tests.Buffers
         public void CouldCreateVsAndReadElements()
         {
             var count = 1000;
-            var arr = Enumerable.Range(0, count).ToArray();
-            var r = ArrayMemory<int>.Create(arr);
-            var vs = RetainedVec.Create(r, 0, r.Length);
+            var rm = BuffersTestHelper.CreateFilledRM(count);
+            var vs = RetainedVec.Create(rm, 0, rm.Length);
 
-            Assert.AreEqual(arr.Length, vs.Vec.Length);
+            Assert.AreEqual(rm.Length, vs.Vec.Length);
             long sum = 0L;
-            for (int i = 0; i < arr.Length; i++)
+            for (int i = 0; i < rm.Length; i++)
             {
-                var vi = vs.Vec.DangerousGetUnaligned<int>(i);
+                var vi = vs.Vec.DangerousGetUnaligned<long>(i);
                 if (vi != i)
                 {
                     Assert.Fail("vi != i");
                 }
+
                 sum += vs.Vec.DangerousGetUnaligned<int>(i);
             }
 
             Console.WriteLine(sum);
 
             vs.Dispose();
-
         }
 
         [Test]
@@ -80,22 +79,21 @@ namespace Spreads.Core.Tests.Buffers
             var count = 100_000;
             var arr = new SmallDecimal[count];
 
-            arr[0] = new SmallDecimal(1000 * 1.0, 4);
-
+            var r = PrivateMemory<SmallDecimal>.Create(count);
+            var vec = r.GetVec();
+            vec[0] = new SmallDecimal(1000 * 1.0, 4);
             for (int i = 1; i < count; i++)
             {
-                arr[i] = arr[i - 1] + new SmallDecimal((double)arr[i - 1] * (0.02 + -0.04 * rng.NextDouble()), 4);
+                vec[i] = vec[i - 1] + new SmallDecimal((double) vec[i - 1] * (0.02 + -0.04 * rng.NextDouble()), 4);
             }
-            // arr = Enumerable.Range(0, count).Select(x => new SmallDecimal(1000 + (double)x + (double)Math.Round(0.1 * rng.NextDouble(), 5), precision:3)).ToArray();
 
-            var r = ArrayMemory<SmallDecimal>.Create(arr);
             var vs = RetainedVec.Create(r, 0, r.Length);
 
             var vsT = new RetainedVec<SmallDecimal>(vs);
 
             var payload = count * Unsafe.SizeOf<double>() + 4;
 
-            foreach (SerializationFormat format in ((SerializationFormat[])Enum.GetValues(typeof(SerializationFormat))).OrderBy(e => e.ToString()))
+            foreach (SerializationFormat format in ((SerializationFormat[]) Enum.GetValues(typeof(SerializationFormat))).OrderBy(e => e.ToString()))
             {
                 var len = BinarySerializer.SizeOf(in vsT, out var rm, format);
 
@@ -120,7 +118,6 @@ namespace Spreads.Core.Tests.Buffers
                 Assert.AreEqual(len, len2);
                 Assert.AreEqual(vs.Vec.Length, value.Storage.Vec.Length);
 
-
                 for (int i = 0; i < count; i++)
                 {
                     SmallDecimal left;
@@ -133,7 +130,7 @@ namespace Spreads.Core.Tests.Buffers
 
                 Assert.IsTrue(vs.Vec.Slice(0, vs.Vec.Length).AsSpan<SmallDecimal>().SequenceEqual(value.Storage.Vec.Slice(0, value.Storage.Vec.Length).AsSpan<SmallDecimal>()));
 
-                Console.WriteLine($"{format} len: {len:N0} x{Math.Round((double)payload/len, 2)}");
+                Console.WriteLine($"{format} len: {len:N0} x{Math.Round((double) payload / len, 2)}");
 
                 destination.Dispose();
                 value.Storage.Dispose();
@@ -148,23 +145,24 @@ namespace Spreads.Core.Tests.Buffers
         //    VectorStorage.Empty.Dispose();
         //}
 
-        
 #if NETCOREAPP3_0
-        [MethodImpl(MethodImplOptions.AggressiveOptimization| MethodImplOptions.NoInlining)]
+        [MethodImpl(MethodImplOptions.AggressiveOptimization | MethodImplOptions.NoInlining)]
 #endif
-        [Test, Explicit("long running")]
+        [Test
+#if !DEBUG
+         , Explicit("long running")
+#endif
+        ]
         public void VectorStorageReadBench()
         {
-            var count = 1_000_000;
+            var count = (int) TestUtils.GetBenchCount(1_000_000, 100);
             var rounds = 10;
             var mult = 500;
-            var arr = Enumerable.Range(0, count).ToArray();
+            var rm = BuffersTestHelper.CreateFilledRM(count);
 
-            var mem = ArrayMemory<int>.Create(arr);
+            var vs = RetainedVec.Create(rm, 0, rm.Length);
 
-            var vs = RetainedVec.Create(mem, 0, mem.Length);
-
-            Assert.AreEqual(arr.Length, vs.Vec.Length);
+            Assert.AreEqual(rm.Length, vs.Vec.Length);
 
             int sum = 0;
             for (int r = 0; r < rounds; r++)
@@ -194,18 +192,21 @@ namespace Spreads.Core.Tests.Buffers
             Console.WriteLine(sum);
         }
 
-        [Test, Explicit("long running")]
+        [Test
+#if !DEBUG
+         , Explicit("long running")
+#endif
+        ]
         public void SliceDisposeBenchmark()
         {
             // 6.3 MOPS
-            var count = 1_000_000;
+            var count = (int) TestUtils.GetBenchCount(1_000_000, 100);
             var rounds = 10;
-            var arrSize = 1000;
-            var arr = Enumerable.Range(0, arrSize).ToArray();
-            var mem = ArrayMemory<int>.Create(arr);
-            var vs = RetainedVec.Create(mem, 0, mem.Length);
+            var bufferSize = 1000;
+            var rm = BuffersTestHelper.CreateFilledRM(bufferSize);
+            var vs = RetainedVec.Create(rm, 0, rm.Length);
 
-            Assert.AreEqual(arr.Length, vs.Vec.Length);
+            Assert.AreEqual(rm.Length, vs.Vec.Length);
             for (int r = 0; r < rounds; r++)
             {
                 using (Benchmark.Run("Slice/Dispose", count))
@@ -221,7 +222,6 @@ namespace Spreads.Core.Tests.Buffers
             Benchmark.Dump();
 
             vs.Dispose();
-
         }
     }
 }

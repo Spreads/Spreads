@@ -141,7 +141,7 @@ namespace Spreads.Core.Tests.Buffers
                     sum = 0L;
                     for (var i = 0; i < count; i++)
                     {
-                        using (var wrapper = BufferPool.PinnedArrayMemoryPool.RentMemory(Settings.LARGE_BUFFER_LIMIT))
+                        using (var wrapper = BufferPool<Byte>.MemoryPool.RentMemory(Settings.LARGE_BUFFER_LIMIT))
                         {
                             var s = wrapper.Memory.Span;
                             s[0] = 123;

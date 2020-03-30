@@ -59,82 +59,6 @@ namespace Spreads.Core.Tests.Algorithms
     [TestFixture]
     public class VecSearchTests
     {
-        [Test]
-        public unsafe void VectorMask()
-        {
-            var value = 401L;
-            var valVec = Vector256.Create(value);
-
-            using var pm = PrivateMemory<long>.Create(4 * 1024);
-            var v = pm.GetVec();
-            for (int i = 0; i < pm.Length; i++)
-            {
-                v.DangerousSetUnaligned(i, i + 1);
-            }
-
-            // we could scale indices vector by 1, 2, 4, 8
-            // we start from 8
-
-            var step = (pm.Length) / 5; // 
-
-            Console.WriteLine(step);
-            var idx = Vector256.Create((long) step * 8, (long) step * 2 * 8, (long) step * 3 * 8, (long) step * 4 * 8);
-
-            var count = 100_000_000;
-            Vector256<long> gather = default;
-            Vector256<long> load = default;
-
-            for (int r = 0; r < 10; r++)
-            {
-                using (Benchmark.Run("Gather", count))
-                {
-                    var sum = 0L;
-                    for (int i = 0; i < count; i++)
-                    {
-                        gather = Avx2.GatherVector256((long*) pm.Pointer, idx, 1);
-                        sum += gather.GetElement(1);
-                    }
-
-                    Console.WriteLine(sum);
-                }
-
-                using (Benchmark.Run("Load", count))
-                {
-                    var sum = 0L;
-                    var ptr = (long*) pm.Pointer;
-                    var idx0 = step;
-                    var idx1 = step * 2;
-                    var idx2 = step * 3;
-                    var idx3 = step * 4;
-                    for (int i = 0; i < count; i++)
-                    {
-                        load = Vector256.Create(ptr[idx0], ptr[idx1], ptr[idx2], ptr[(long) idx3]);
-                        sum += load.GetElement(1);
-                    }
-
-                    Console.WriteLine(sum);
-                }
-            }
-
-            Benchmark.Dump();
-
-            var gt = Avx2.CompareGreaterThan(valVec, gather);
-            var gt1 = Avx2.CompareGreaterThan(valVec, load);
-
-            System.Numerics.Vector<long> vec = System.Numerics.Vector<long>.One;
-
-            //
-            // var count = Vector.Dot(System.Numerics.Vector<long>.One, vec);
-            // Unsafe.AsPointer()
-            // Vector.Dot() vec
-            Console.WriteLine(System.Numerics.Vector<long>.Count);
-
-            // Vector256.Create()
-            // Console.WriteLine(Avx2.GatherVector256());
-            Console.WriteLine(System.Runtime.Intrinsics.X86.Aes.IsSupported);
-            Console.WriteLine(Vector256<int>.Count);
-        }
-
         [Test, Explicit("Bench")]
         public unsafe void VectorGatherVsManualLoad()
         {
@@ -292,7 +216,7 @@ namespace Spreads.Core.Tests.Algorithms
             Assert.AreEqual(-1, idxBGt);
         }
 
-        private static void WorksOnEmptyVec<T>(ArrayVector<T> arr, T value)
+        private static void WorksOnEmptyVec<T>(T[] arr, T value)
         {
             var idxI = arr.InterpolationSearch(value);
             Assert.AreEqual(-1, idxI);
@@ -394,7 +318,7 @@ namespace Spreads.Core.Tests.Algorithms
             Assert.AreEqual(-2, idxBGt);
         }
 
-        private static void WorksOnSingleVec<T>(ArrayVector<T> arr, T value)
+        private static void WorksOnSingleVec<T>(T[] arr, T value)
         {
             var idxI = arr.InterpolationSearch(value);
             Assert.AreEqual(0, idxI);
@@ -508,7 +432,7 @@ namespace Spreads.Core.Tests.Algorithms
             Assert.AreEqual(1, idxBGt);
         }
 
-        private static void WorksOnFirstVec<T>(ArrayVector<T> arr, T valueIn)
+        private static void WorksOnFirstVec<T>(T[] arr, T valueIn)
         {
             var value = valueIn;
             var idxI = arr.InterpolationSearch(value);
@@ -634,7 +558,7 @@ namespace Spreads.Core.Tests.Algorithms
             Assert.AreEqual(-3, idxBGt);
         }
 
-        private static void WorksOnLastVec<T>(ArrayVector<T> arr, T valueIn)
+        private static void WorksOnLastVec<T>(T[] arr, T valueIn)
         {
             var value = valueIn;
             var idxI = arr.InterpolationSearch(value);
@@ -760,7 +684,7 @@ namespace Spreads.Core.Tests.Algorithms
             Assert.AreEqual(2, idxBGt);
         }
 
-        private static void WorksOnExistingMiddleVec<T>(ArrayVector<T> arr, T valueIn)
+        private static void WorksOnExistingMiddleVec<T>(T[] arr, T valueIn)
         {
             var value = valueIn;
             var idxI = arr.InterpolationSearch(value);
@@ -886,7 +810,7 @@ namespace Spreads.Core.Tests.Algorithms
             Assert.AreEqual(1, idxBGt);
         }
 
-        private static void WorksOnNonExistingMiddleVec<T>(ArrayVector<T> arr, T valueIn)
+        private static void WorksOnNonExistingMiddleVec<T>(T[] arr, T valueIn)
         {
             var value = valueIn;
             var idxI = arr.InterpolationSearch(value);
@@ -1011,7 +935,7 @@ namespace Spreads.Core.Tests.Algorithms
             Assert.AreEqual(-3, idxBGt);
         }
 
-        private static void WorksAfterEndVec<T>(ArrayVector<T> arr, T valueIn)
+        private static void WorksAfterEndVec<T>(T[] arr, T valueIn)
         {
             var value = valueIn;
             var idxI = arr.InterpolationSearch(value);
@@ -1137,7 +1061,7 @@ namespace Spreads.Core.Tests.Algorithms
             Assert.AreEqual(-0, idxBGt);
         }
 
-        private static void WorksBeforeStartVec<T>(ArrayVector<T> arr, T valueIn)
+        private static void WorksBeforeStartVec<T>(T[] arr, T valueIn)
         {
             var value = valueIn;
             var idxI = arr.InterpolationSearch(value);
@@ -1204,23 +1128,23 @@ namespace Spreads.Core.Tests.Algorithms
             WorksWithStartLength<Timestamp>(tsArr);
         }
 
-        private static void WorksWithStartLength<T>(ArrayVector<T> arr)
+        private static void WorksWithStartLength<T>(T[] arr)
         {
             for (int i = 0; i < arr.Length; i++)
             {
-                //var idxI = arr.InterpolationSearch(i, arr.Length - i, arr.Get(i));
-                //var idxB = arr.BinarySearch(i, arr.Length - i, arr.Get(i));
-                //Assert.AreEqual(i, idxI);
-                //Assert.AreEqual(i, idxB);
+                var idxI = arr.InterpolationSearch(i, arr.Length - i, arr[i]);
+                var idxB = arr.BinarySearch(i, arr.Length - i, arr[i]);
+                Assert.AreEqual(i, idxI);
+                Assert.AreEqual(i, idxB);
 
                 var lookups = new[] {Lookup.LT, Lookup.LE, Lookup.EQ, Lookup.GE, Lookup.GT};
 
                 // search at the start of range
                 foreach (var lookup in lookups)
                 {
-                    var val = arr.GetItem(i);
+                    var val = arr[i];
                     var idxILt = arr.InterpolationLookup(i, arr.Length - i, ref val, lookup);
-                    val = arr.GetItem(i);
+                    val = arr[i];
                     var idxBLt = arr.BinaryLookup(i, arr.Length - i, ref val, lookup);
                     Assert.AreEqual(idxILt, idxBLt);
 
@@ -1246,9 +1170,9 @@ namespace Spreads.Core.Tests.Algorithms
                 // search at the end of range
                 foreach (var lookup in lookups)
                 {
-                    var val = arr.GetItem(i);
+                    var val = arr[i];
                     var idxILt = arr.InterpolationLookup(0, i + 1, ref val, lookup);
-                    val = arr.GetItem(i);
+                    val = arr[i];
                     var idxBLt = arr.BinaryLookup(0, i + 1, ref val, lookup);
                     Assert.AreEqual(idxILt, idxBLt);
 
@@ -1289,7 +1213,7 @@ namespace Spreads.Core.Tests.Algorithms
 
 #else
             var count = 4L * 1024 * 1024;
-            var rounds = 5;
+            var rounds = 2;
             // must be power of 2
             var lens = new[] {1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 4 * 1024, 16 * 1024, 64 * 1024, 128 * 1024}; // , 512 * 1024 , 1024 * 1024, 8 * 1024 * 1024
 
@@ -1309,17 +1233,20 @@ namespace Spreads.Core.Tests.Algorithms
                 foreach (var len in lens)
                 {
                     // BS_Default(len, count, vec, r);
-                    // BS_Classic(len, count, vec, r);
+                    BS_Classic(len, count, vec, r);
+                    BS_Classic2(len, count, vec, r);
                     // // // //
-                    BS_Avx(len, count, vec, r);
-                    BS_AvxX(len, count, vec, r);
+                    // BS_Avx(len, count, vec, r);
+                    // BS_AvxX(len, count, vec, r);
+                    
+                    // BS_Sse(len, count, vec, r);
 
                     // BS_NoWaste(len, count, vec, r);
 
                     // BS_Interpolation(len, count, vec, r);
                     // BS_InterpolationAvx(len, count, vec, r);
 
-                    // BS_HybridCorrectness(len, count, vec, r);
+                    // BS_Correctness(len, count, vec, r);
                 }
             }
 
@@ -1336,7 +1263,23 @@ namespace Spreads.Core.Tests.Algorithms
                 {
                     var value = i & mask;
 #pragma warning disable 618
-                    var idx = VectorSearch.BinarySearchClassic(ref vec[0], r, len, value); // vec.DangerousBinarySearch(0, len, value, KeyComparer<long>.Default);
+                    var idx = VectorSearch.BinarySearchClassic(ref vec[0], r, len, value);
+#pragma warning restore 618
+                }
+            }
+        }
+        
+        [MethodImpl(MethodImplOptions.NoInlining | MethodImplOptions.AggressiveOptimization)]
+        private static void BS_Classic2(int len, long count, long[] vec, int r)
+        {
+            var mask = len - 1;
+            using (Benchmark.Run("BS_Classic2_" + len, count * 2))
+            {
+                for (int i = 0; i < count * 2; i++)
+                {
+                    var value = i & mask;
+#pragma warning disable 618
+                    var idx = VectorSearch.BinarySearchHybrid(ref vec[0], r, len, value);
 #pragma warning restore 618
                 }
             }
@@ -1373,37 +1316,38 @@ namespace Spreads.Core.Tests.Algorithms
                 }
             }
         }
-
+        
         [MethodImpl(MethodImplOptions.NoInlining | MethodImplOptions.AggressiveOptimization)]
-        private static void BS_Avx(int len, long count, long[] vec, int r)
+        private static void BS_Sse(int len, long count, long[] vec, int r)
         {
             var mask = len - 1;
-            using (Benchmark.Run("BS_Avx_" + len, count * 2))
+            using (Benchmark.Run("BS_Sse_" + len, count * 2))
             {
                 for (int i = 0; i < count * 2; i++)
                 {
                     var value = i & mask;
 #pragma warning disable 618
-                    var idx = VectorSearch.BinarySearchAvx(ref vec[r], len, value);
+                    var idx = VectorSearch.BinarySearchSse42(ref vec[0], r, len, value);
 #pragma warning restore 618
                 }
             }
         }
 
+       
         [MethodImpl(MethodImplOptions.NoInlining | MethodImplOptions.AggressiveOptimization)]
-        private static unsafe void BS_HybridCorrectness(int len, long count, long[] vec, int r)
+        private static unsafe void BS_Correctness(int len, long count, long[] vec, int r)
         {
-            // len = 64;
+            // len = 16;
             // r = 6;
             var mask = len - 1;
             fixed (long* ptr = &vec[r])
             {
                 using (Benchmark.Run("BS_Hybrid_check_" + len, len + 20))
                 {
-                    for (int i = -10; i < len + 10; i++)
+                    for (int i = 19; i < len + 10; i++)
                     {
                         var value = i;
-                        var idx = VectorSearch.InterpolationSearchAvx3(ref vec[0], r, len - r, value);
+                        var idx = VectorSearch.BinarySearchSse42(ref vec[0], r, len - r, value);
                         var idx2 = VectorSearch.BinarySearchClassic(ref vec[0], r, len - r, value);
                         
                         if (idx != idx2)
@@ -1415,25 +1359,25 @@ namespace Spreads.Core.Tests.Algorithms
             }
         }
 
-        [MethodImpl(MethodImplOptions.NoInlining | MethodImplOptions.AggressiveOptimization)]
-        private static void BS_InterpolationAvx(int len, long count, long[] vec, int r)
-        {
-            var mask = len - 1;
-            using (Benchmark.Run($"IP_Avx {len}", count * 2))
-            {
-                for (int i = 0; i < count * 2; i++)
-                {
-                    var value = i & mask;
-#pragma warning disable 618
-                    var idx = VectorSearch.InterpolationSearchAvx3(ref vec[0], r, len - r, (long) value);
-#pragma warning restore 618
-                    // if (idx > 0 && idx != value / 2)
-                    // {
-                    //     Assert.Fail($"idx {idx} != value {value}");
-                    // }
-                }
-            }
-        }
+//         [MethodImpl(MethodImplOptions.NoInlining | MethodImplOptions.AggressiveOptimization)]
+//         private static void BS_InterpolationAvx(int len, long count, long[] vec, int r)
+//         {
+//             var mask = len - 1;
+//             using (Benchmark.Run($"IP_Avx {len}", count * 2))
+//             {
+//                 for (int i = 0; i < count * 2; i++)
+//                 {
+//                     var value = i & mask;
+// #pragma warning disable 618
+//                     var idx = VectorSearch.InterpolationSearchAvx3(ref vec[0], r, len - r, (long) value);
+// #pragma warning restore 618
+//                     // if (idx > 0 && idx != value / 2)
+//                     // {
+//                     //     Assert.Fail($"idx {idx} != value {value}");
+//                     // }
+//                 }
+//             }
+//         }
         
         [MethodImpl(MethodImplOptions.NoInlining | MethodImplOptions.AggressiveOptimization)]
         private static void BS_Interpolation(int len, long count, long[] vec, int r)
@@ -1557,7 +1501,7 @@ namespace Spreads.Core.Tests.Algorithms
             var rounds = 10;
             var counts = new[] {50, 100, 256, 512, 1000, 2048, 4096, 10_000};
 #else
-            var rounds = 1;
+            var rounds = 10;
             var counts = new[] {50, 100, 256, 512, 1000, 2048, 4096, 10_000}; // , 100_000, 1_000_000
 #endif
             for (int r = 0; r < rounds; r++)
@@ -1579,14 +1523,14 @@ namespace Spreads.Core.Tests.Algorithms
                     int[] binRes = new int[vec.Length + 20];
                     int[] binAvxRes = new int[vec.Length + 20];
                     int[] interRes = new int[vec.Length + 20];
-                    int[] interAvxRes = new int[vec.Length + 20];
+                    // int[] interAvxRes = new int[vec.Length + 20];
 
                     for (int i = -10; i < count + 10; i++)
                     {
                         var bs = VectorSearch.BinarySearchClassic(ref vec[0], r, count - r, (i * step));
                         var bsavx = VectorSearch.BinarySearchAvx2(ref vec[0], r, count - r, (i * step));
                         var ints = VectorSearch.InterpolationSearch(ref vec[0], r, count - r, (i * step));
-                        var intsAvx = VectorSearch.InterpolationSearchAvx3(ref vec[0], r, count - r, (i * step));
+                        // var intsAvx = VectorSearch.InterpolationSearchAvx3(ref vec[0], r, count - r, (i * step));
                         if (bs != ints)
                         {
                             Console.WriteLine($"IS_AVX: [{count}] binRes {bs} != interRes {ints} at {i}");
@@ -1594,12 +1538,12 @@ namespace Spreads.Core.Tests.Algorithms
                             Assert.Fail();
                         }
                         
-                        if (bs != intsAvx)
-                        {
-                            Console.WriteLine($"IS_AVX: [{count}] binRes {bs} != intsAvx {intsAvx} at {i}");
-                            ints = VectorSearch.InterpolationSearchAvx3(ref vec[0], r, count- r, (i * step));
-                            Assert.Fail();
-                        }
+                        // if (bs != intsAvx)
+                        // {
+                        //     Console.WriteLine($"IS_AVX: [{count}] binRes {bs} != intsAvx {intsAvx} at {i}");
+                        //     ints = VectorSearch.InterpolationSearchAvx3(ref vec[0], r, count- r, (i * step));
+                        //     Assert.Fail();
+                        // }
                         
                         if (bs != bsavx)
                         {
@@ -1616,7 +1560,7 @@ namespace Spreads.Core.Tests.Algorithms
 #if DEBUG
                     var mult = 1;
 #else
-                    var mult = 5_000 / count;
+                    var mult = 5_000_000 / count;
 #endif
 
                     // using (Benchmark.Run($"BS_Class {count}", count * mult))
@@ -1641,16 +1585,16 @@ namespace Spreads.Core.Tests.Algorithms
                     //     }
                     // }
                     
-                    using (Benchmark.Run($"IS_Avx   {count}", (count + 20) * mult))
-                    {
-                        for (int m = 0; m < mult; m++)
-                        {
-                            for (int i = -10; i < count + 10; i++)
-                            {
-                                interAvxRes[i + 10] = VectorSearch.InterpolationSearchAvx3(ref vec[0], r, count - r, (i * step));
-                            }
-                        }
-                    }
+                    // using (Benchmark.Run($"IS_Avx   {count}", (count + 20) * mult))
+                    // {
+                    //     for (int m = 0; m < mult; m++)
+                    //     {
+                    //         for (int i = -10; i < count + 10; i++)
+                    //         {
+                    //             interAvxRes[i + 10] = VectorSearch.InterpolationSearchAvx3(ref vec[0], r, count - r, (i * step));
+                    //         }
+                    //     }
+                    // }
                     
                     using (Benchmark.Run($"IS_Class {count}", (count + 20) * mult))
                     {
@@ -1677,11 +1621,11 @@ namespace Spreads.Core.Tests.Algorithms
                         //     Assert.Fail();
                         // }
                         
-                        if (interAvxRes[i] != interRes[i])
-                        {
-                            Console.WriteLine($"IS_Avx_Class: [{count}] interAvxRes[i] {interAvxRes[i]} != interRes[i] {interRes[i]} at {i} and count {count}");
-                            Assert.Fail();
-                        }
+                        // if (interAvxRes[i] != interRes[i])
+                        // {
+                        //     Console.WriteLine($"IS_Avx_Class: [{count}] interAvxRes[i] {interAvxRes[i]} != interRes[i] {interRes[i]} at {i} and count {count}");
+                        //     Assert.Fail();
+                        // }
                         
                         // if (binRes[i] != binAvxRes[i])
                         // {

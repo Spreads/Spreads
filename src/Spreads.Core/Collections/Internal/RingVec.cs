@@ -44,32 +44,32 @@ namespace Spreads.Collections.Internal
         }
     }
 
-    internal struct RingVec<T> : IVector<T>
-    {
-        private readonly Vec _vec;
-        private readonly int _head;
-        private readonly int _count;
-
-        public RingVec(Vec vec, int head, int count)
-        {
-            Debug.Assert(count <= vec.Length);
-            Debug.Assert(head < vec.Length);
-            _vec = vec;
-            _head = head;
-            _count = count;
-        }
-
-        public int Length => _count;
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public T DangerousGetItem(int index)
-        {
-            return _vec.DangerousGetUnaligned<T>(RingVecUtil.IndexToOffset(index, _head, _count));
-        }
-
-        public T GetItem(int index)
-        {
-            return _vec.Get<T>(RingVecUtil.IndexToOffset(index, _head, _count));
-        }
-    }
+    // internal struct RingVec<T> : IVector<T>
+    // {
+    //     private readonly Vec _vec;
+    //     private readonly int _head;
+    //     private readonly int _count;
+    //
+    //     public RingVec(Vec vec, int head, int count)
+    //     {
+    //         Debug.Assert(count <= vec.Length);
+    //         Debug.Assert(head < vec.Length);
+    //         _vec = vec;
+    //         _head = head;
+    //         _count = count;
+    //     }
+    //
+    //     public int Length => _count;
+    //
+    //     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    //     public T DangerousGetItem(int index)
+    //     {
+    //         return _vec.DangerousGetUnaligned<T>(RingVecUtil.IndexToOffset(index, _head, _count));
+    //     }
+    //
+    //     public T GetItem(int index)
+    //     {
+    //         return _vec.Get<T>(RingVecUtil.IndexToOffset(index, _head, _count));
+    //     }
+    // }
 }

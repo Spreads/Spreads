@@ -49,14 +49,12 @@ namespace Spreads.Core.Tests.Buffers
             }
         }
 
-        [Test, Explicit("output")]
+        [Test]
         public void CtorDoesntThrowsOnBadLength()
         {
             var length = -1;
-
             using var pm = PrivateMemory<byte>.Create(-1);
-            Assert.AreEqual(Mem.GoodSize((UIntPtr) Settings.MIN_POOLED_BUFFER_LEN), pm.Length);
-
+            Assert.AreEqual((int)Mem.GoodSize((UIntPtr) Settings.MIN_POOLED_BUFFER_LEN), pm.Length);
             Console.WriteLine(pm.Length);
         }
 

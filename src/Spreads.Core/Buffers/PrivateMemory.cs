@@ -220,7 +220,8 @@ namespace Spreads.Buffers
             if (array != null)
             {
                 ThrowHelper.DebugAssert(TypeHelper<T>.IsReferenceOrContainsReferences);
-                BufferPool<T>.Return(Unsafe.As<T[]>(_array), clearArray: true);
+                if(!finalizing && !ExternallyOwned)
+                    BufferPool<T>.Return(Unsafe.As<T[]>(array), clearArray: true);
             }
 
             var pointer = Interlocked.Exchange(ref _pointer, IntPtr.Zero);
@@ -233,7 +234,7 @@ namespace Spreads.Buffers
             // In PM either pointer or array, never both
             if (array == null && pointer == IntPtr.Zero)
             {
-                string msg = "Tried to destroy already destroyed PrivateMemory";
+                string msg = "Tried to free already freed PrivateMemory";
 #if DEBUG
                 ThrowHelper.ThrowInvalidOperationException(msg);
 #endif

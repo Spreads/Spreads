@@ -18,7 +18,7 @@ namespace Spreads.Core.Tests.Buffers
         // TODO DS SM
         public static object[] NonPooledFactories = new object[]
         {
-            new object[] { (Func<int,RetainableMemory<byte>>)((len) => ArrayMemory<byte>.Create(new byte[BitUtil.FindNextPositivePowerOfTwo(len)]))},
+            new object[] { (Func<int,RetainableMemory<byte>>)((len) => ArrayMemory<byte>.Create(BitUtil.FindNextPositivePowerOfTwo(len)))},
             new object[] { (Func<int,RetainableMemory<byte>>)((len) => PrivateMemory<byte>.Create(BitUtil.FindNextPositivePowerOfTwo(len)))}
         };
 
@@ -60,16 +60,6 @@ namespace Spreads.Core.Tests.Buffers
         }
 
 
-        [Test]
-        public void PrevPow2Calc()
-        {
-            for (int i = 0; i < 100; i++)
-            {
-                Console.WriteLine($"{i} - {BitUtil.FindPreviousPositivePowerOfTwo(i)}");    
-            }
-            
-        }
-
         [Test, TestCaseSource(nameof(NonPooledFactories))]
         public void CouldRetain(Func<int, RetainableMemory<byte>> factory)
         {
@@ -90,7 +80,7 @@ namespace Spreads.Core.Tests.Buffers
                 Assert.AreEqual(null, memory.Pool);
                 Assert.AreEqual(memory.GetVec().Length, memory.Length);
 
-                Assert.AreEqual(0, memory.PoolIndex, "0, memory._poolIdx");
+                Assert.AreEqual(1, memory.PoolIndex, "0, memory._poolIdx");
 
                 Assert.GreaterOrEqual(memory.Length, len, "memory.Length, len");
                 var pow2Len = BitUtil.IsPowerOfTwo(memory.Length) ? memory.Length : (BitUtil.FindNextPositivePowerOfTwo(memory.Length) / 2);

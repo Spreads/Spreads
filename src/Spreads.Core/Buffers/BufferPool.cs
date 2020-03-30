@@ -36,7 +36,7 @@ namespace Spreads.Buffers
 
         // This is entry/exit point for data buffers. All in-memory data containers use this pool.
         public static RetainableMemoryPool<T> MemoryPool = new RetainableMemoryPool<T>(
-                factory: null,
+                factory: RetainableMemoryPool<T>.DefaultFactory,
                 minLength: Settings.MIN_POOLED_BUFFER_LEN,
                 maxLength: Math.Max(Settings.MIN_POOLED_BUFFER_LEN, Settings.LARGE_BUFFER_LIMIT / Unsafe.SizeOf<T>()),
                 maxBuffersPerBucketPerCore: 16,
@@ -47,14 +47,8 @@ namespace Spreads.Buffers
     {
         private static readonly BufferPool Shared = new BufferPool();
 
-        [Obsolete("Main RMP is already pinned for all blittables")]
-        internal static RetainableMemoryPool<byte> PinnedArrayMemoryPool =
-            new RetainableMemoryPool<byte>(
-                factory: null,
-                minLength: 2048,
-                maxLength: 8 * 1024 * 1024,
-                maxBuffersPerBucketPerCore: (4 + Environment.ProcessorCount) * 4,
-                maxBucketsToTry: 2);
+        // [Obsolete("Main RMP is already pinned for all blittables")]
+        // internal static RetainableMemoryPool<byte> PinnedArrayMemoryPool = RetainableMemoryPool<byte>.Default;
 
         internal BufferPool()
         { }
@@ -62,11 +56,9 @@ namespace Spreads.Buffers
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private RetainedMemory<byte> RetainMemory(int length, bool requireExact = true)
         {
-            var arrayMemory = PinnedArrayMemoryPool.RentMemory(length, requireExact);
-            if (arrayMemory.IsDisposed)
-            {
+            var arrayMemory = RetainableMemoryPool<byte>.Default.RentMemory(length, requireExact);
+            if (AdditionalCorrectnessChecks.Enabled && arrayMemory.IsDisposed)
                 BuffersThrowHelper.ThrowDisposed<ArrayMemory<byte>>();
-            }
             return requireExact ? arrayMemory.Retain(0, length) : arrayMemory.Retain(0, arrayMemory.Length);
         }
 
@@ -85,22 +77,8 @@ namespace Spreads.Buffers
         /// </summary>
         internal static RetainedMemory<byte> RetainTemp(int length)
         {
-            throw new NotSupportedException("TODO remove this method");
-            if (length > Settings.LARGE_BUFFER_LIMIT)
-            {
-                // TODO Adjust per-core count in the main pool to 1 when size >  Settings.LARGE_BUFFER_LIMIT)
-                // if (OffHeapMemoryPool != null)
-                // {
-                //     var mem = OffHeapMemoryPool.RentMemory(length);
-                //     if (mem.IsDisposed)
-                //     {
-                //         BuffersThrowHelper.ThrowDisposed<OffHeapMemory<byte>>();
-                //     }
-                //     return mem.Retain(0, mem.Length, borrow: false);
-                // }
-            }
             var rm = Shared.RetainMemory(length, false);
-            Debug.Assert(rm.IsPinned);
+            ThrowHelper.DebugAssert(rm.IsPinned);
             return rm;
         }
     }

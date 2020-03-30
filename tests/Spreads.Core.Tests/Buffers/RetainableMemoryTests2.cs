@@ -16,7 +16,7 @@ namespace Spreads.Core.Tests.Buffers
 {
     [Category("CI")]
     [TestFixture]
-    public class ArrayMemoryTests
+    public class RetainableMemoryTests2
     {
         [Test]
         public void CannotDisposeRetained()
@@ -47,12 +47,9 @@ namespace Spreads.Core.Tests.Buffers
         public void CannotDisposeFromPoolRetained()
         {
             var memory = BufferPool<byte>.MemoryPool.RentMemory(1024);
-            Assert.Fail("RMP returns PM, move to other file");
             var rm = memory.Retain();
             Assert.Throws<InvalidOperationException>(() => { memory.Dispose(); });
-
             Assert.IsFalse(memory.IsPooled, "Memory should not be pooled after failed Dispose()");
-
             rm.Dispose();
             Assert.IsTrue(memory.IsPooled);
         }
@@ -128,17 +125,16 @@ namespace Spreads.Core.Tests.Buffers
         [Test]
         public void RefCountOfPooled()
         {
-            var pool = new RetainableMemoryPool<byte>(null, 16,
-                1024 * 1024, 50, 2);
+            var pool = new RetainableMemoryPool<Byte>(RetainableMemoryPool<Byte>.DefaultFactory);
 
-            var buf = (ArrayMemory<byte>)pool.Rent(100);
+            var buf = (PrivateMemory<byte>)pool.Rent(100);
 
             Assert.IsTrue(buf.IsPoolable);
 
             Console.WriteLine($"rented: {buf.ReferenceCount}");
 
-            pool.ReturnInternal(buf);
-
+            buf.Dispose();
+            
             Assert.IsTrue(buf.IsDisposed);
             Assert.IsTrue(buf.IsPooled);
 
@@ -153,68 +149,6 @@ namespace Spreads.Core.Tests.Buffers
             pool.Dispose();
         }
 
-        [TestCase(0)]
-        [TestCase(2)]
-        [TestCase(5)]
-        [TestCase(10)]
-        [Test
-#if !DEBUG
-         , Explicit("long running")
-#endif
-        ]
-        public void PoolReturnsSameSizeUsingSlices(int maxBucketsToTry)
-        {
-            var pool = new RetainableMemoryPool<byte>(null, 16,
-                8 * 1024 * 1024, maxBuffersPerBucketPerCore: 8, maxBucketsToTry);
-
-            var cw = new ConditionalWeakTable<byte[], object>();
-
-            var list = new List<ArrayMemory<byte>>();
-
-            ArraySegment<byte> prev = default;
-            for (int r = 0; r < TestUtils.GetBenchCount(50, 5); r++)
-            {
-                for (int i = 0; i < TestUtils.GetBenchCount(10240, 1024); i++)
-                {
-                    const int sizeKb = 1;
-                    var buf = (ArrayMemory<byte>)pool.Rent(sizeKb * 1024);
-                    list.Add(buf);
-                    if (!cw.TryGetValue(buf.Array, out var id))
-                    {
-                        id = (object)i;
-                        cw.Add(buf.Array, id);
-                    }
-
-                    Assert.IsFalse(buf.ArraySegment.Array == prev.Array && buf.ArraySegment.Offset == prev.Offset,
-                        $"different segments at {i}");
-                    prev = buf.ArraySegment;
-
-                    Assert.AreEqual(sizeKb * 1024, buf.Length, $"at {i}");
-
-                    //Console.Write(
-                    //    $"{i}: {(int) id} - {buf.Array.Length} - {buf.ArraySegment.Offset} - {buf.ArraySegment.Count}");
-
-                    //Console.WriteLine();
-
-                    //if (i > 8 && i <= 23)
-                    //{
-                    //    Assert.AreEqual(sizeKb * 2 * 1024, buf.Array.Length, $"at {i}");
-                    //    Assert.AreEqual((i & 1) * sizeKb * 1024, buf.ArraySegment.Offset, $"at {i}");
-                    //}
-                }
-
-                foreach (var buf in list)
-                {
-                    buf.Dispose();
-                    //pool.Return(buf);
-                }
-
-                list.Clear();
-            }
-
-            pool.Dispose();
-        }
-
         [Test
 #if !DEBUG
          , Explicit("bench")
@@ -225,10 +159,9 @@ namespace Spreads.Core.Tests.Buffers
 #endif
         public void RentReturnDefaultRetainablePoolBench()
         {
-            var count = TestUtils.GetBenchCount(1_000_000, 1_000);
+            var count = TestUtils.GetBenchCount(1_000_000, 1_0);
 
-            var pool = new RetainableMemoryPool<byte>(null, 16,
-                1024 * 1024, 50, 2);
+            var pool = new RetainableMemoryPool<Byte>(RetainableMemoryPool<Byte>.DefaultFactory);
 
             for (int i = 0; i < 1000; i++)
             {
@@ -309,8 +242,7 @@ namespace Spreads.Core.Tests.Buffers
 #else
             var count = 1_000;
 #endif
-            var pool = new RetainableMemoryPool<byte>(null, 16,
-                1024 * 1024, 50, 2);
+            var pool = new RetainableMemoryPool<Byte>(RetainableMemoryPool<Byte>.DefaultFactory);
 
             var tasks = new List<Task>();
             var taskCount = 1; // 6x2 cores
@@ -332,8 +264,8 @@ namespace Spreads.Core.Tests.Buffers
                     //}
 
                     // ReSharper disable once AccessToDisposedClosure
-                    pool.ReturnInternal(memory);
-
+                    memory.Dispose();
+                    
                     //if (i % 1000000 == 0)
                     //{
                     //    Console.WriteLine(i);
@@ -372,12 +304,11 @@ namespace Spreads.Core.Tests.Buffers
 #if !DEBUG
             var count = 10_000;
 #else
-            var count = 1_000;
+            var count = 1_0;
 #endif
             var capacity = 25;
             var batch = capacity * 2;
-            var pool = new RetainableMemoryPool<byte>(ArrayMemory<byte>.Create, 16,
-                1024 * 1024, capacity, 0);
+            var pool = new RetainableMemoryPool<Byte>(RetainableMemoryPool<Byte>.DefaultFactory);
 
             var list = new List<RetainableMemory<byte>>(batch);
 
@@ -392,7 +323,7 @@ namespace Spreads.Core.Tests.Buffers
 
                     foreach (var arrayMemory in list)
                     {
-                        pool.ReturnInternal(arrayMemory);
+                        arrayMemory.Dispose();
                     }
                     list.Clear();
                 }
@@ -436,50 +367,19 @@ namespace Spreads.Core.Tests.Buffers
         }
 
         [Test]
-        public void RentReturnPinnedSlicesRetainablePool()
-        {
-            var maxBuffers = 128 / 64; // 2
-
-            var pool = new RetainableMemoryPool<byte>(null, 32 * 1024,
-                1024 * 1024, maxBuffers, 0);
-
-            var list = new List<RetainableMemory<byte>>();
-
-            using (Benchmark.Run("FullCycle"))
-            {
-                for (int i = 0; i < maxBuffers * 2; i++)
-                {
-                    list.Add(pool.RentMemory(64 * 1024));
-                }
-
-                for (int i = 0; i < maxBuffers; i++)
-                {
-                    list[i].Dispose();
-                }
-
-                for (int i = 2; i < maxBuffers * 2; i++)
-                {
-                    pool.ReturnInternal(list[i]);
-                }
-            }
-
-            pool.Dispose();
-        }
-
-        [Test]
         public void CouldDisposePoolWithFreeSpace()
         {
             var maxBuffers = 10;
 
-            var pool = new RetainableMemoryPool<byte>(null, 32 * 1024,
-                1024 * 1024, maxBuffers, 0);
+            var pool =  new RetainableMemoryPool<Byte>(RetainableMemoryPool<Byte>.DefaultFactory);
 
             using (Benchmark.Run("FullCycle"))
             {
                 for (int i = 0; i < maxBuffers / 2; i++)
                 {
                     var memory = pool.RentMemory(64 * 1024);
-                    pool.ReturnInternal(memory);
+                    memory.Dispose();
+                    // pool.ReturnInternal(memory);
                 }
             }
 
@@ -494,8 +394,7 @@ namespace Spreads.Core.Tests.Buffers
             var maxBuffers = 32; // 2
             var buffersToTake = 128;
 
-            var pool = new RetainableMemoryPool<byte>(null, 32 * 1024,
-                1024 * 1024, maxBuffers, 0);
+            var pool = new RetainableMemoryPool<Byte>(RetainableMemoryPool<Byte>.DefaultFactory);
 
             var list = new List<RetainableMemory<byte>>();
 
@@ -533,8 +432,7 @@ namespace Spreads.Core.Tests.Buffers
             var buffersToTake = 1_000;
 #endif
 
-            var pool = new RetainableMemoryPool<byte>(null, 32 * 1024,
-                1024 * 1024, maxBuffers, 0);
+            var pool = new RetainableMemoryPool<Byte>(RetainableMemoryPool<Byte>.DefaultFactory);
 
             using (Benchmark.Run("FullCycle", buffersToTake))
             {

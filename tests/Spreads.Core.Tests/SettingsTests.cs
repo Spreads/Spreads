@@ -13,7 +13,11 @@ namespace Spreads.Core.Tests
         public void CouldSetDoAdditionalCorrectnessChecksToTrue()
         {
             Settings.DoAdditionalCorrectnessChecks = false;
+            #if DEBUG
+            Assert.IsTrue(Settings.DoAdditionalCorrectnessChecks);
+            #else
             Assert.IsFalse(Settings.DoAdditionalCorrectnessChecks);
+            #endif
         }
 
         [Test, Explicit("Affects and is affected by other tests")]

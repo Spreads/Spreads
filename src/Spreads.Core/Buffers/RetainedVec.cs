@@ -90,6 +90,14 @@ namespace Spreads.Buffers
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal unsafe ref T UnsafeGetRef<T>()
+        {
+            if (TypeHelper<T>.IsReferenceOrContainsReferences)
+                return ref Unsafe.AddByteOffset(ref Unsafe.As<Pinnable<T>>(_pinnable).Data, _byteOffset);
+            return ref Unsafe.AsRef<T>((void*) _byteOffset);
+        }
+        
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal unsafe ref T UnsafeGetRef<T>(IntPtr index)
         {
             if (TypeHelper<T>.IsReferenceOrContainsReferences)
@@ -132,8 +140,11 @@ namespace Spreads.Buffers
 
         public bool Equals(RetainedVec other)
         {
-            if (ReferenceEquals(_memoryOwner, other._memoryOwner)
-                && Vec.Length == other.Vec.Length)
+            if (
+                // TODO review how we use this equality, a test assumed we compare only content 
+                // ReferenceEquals(_memoryOwner, other._memoryOwner)
+                // && 
+                Vec.Length == other.Vec.Length)
             {
                 if (_memoryOwner != null)
                     return Vec.Length == 0 || Unsafe.AreSame(ref Vec.DangerousGetRef<byte>(0), ref other.Vec.DangerousGetRef<byte>(0));

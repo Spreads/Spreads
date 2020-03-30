@@ -2,12 +2,14 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+using System;
 using NUnit.Framework;
 using Spreads.Buffers;
 using Spreads.Collections;
 using Spreads.Collections.Internal;
 using Spreads.Utils;
 using System.Linq;
+using System.Runtime.CompilerServices;
 
 #pragma warning disable 618
 
@@ -23,7 +25,7 @@ namespace Spreads.Core.Tests.Collections
             var capacity = 100;
             var bc = new BaseContainer<int>();
 
-            var rm = ArrayMemory<int>.Create(Enumerable.Range(0, capacity).ToArray());
+            var rm = BuffersTestHelper.CreateFilledRM(capacity);
             var vs = RetainedVec.Create(rm, 0, rm.Length);
 
             var block = DataBlock.Create(rowIndex: vs, rowLength: vs.Vec.Length / 2);
@@ -39,13 +41,15 @@ namespace Spreads.Core.Tests.Collections
             bc.Dispose();
         }
 
+       
+
         [Test]
         public void CouldTryFindBlockAtSingleChunk()
         {
             var capacity = 100;
             var bc = new BaseContainer<long>();
 
-            var rm = ArrayMemory<long>.Create(Enumerable.Range(0, capacity).Select(x => (long)x).ToArray());
+            var rm = BuffersTestHelper.CreateFilledRM(capacity);
             var vs = RetainedVec.Create(rm, 0, rm.Length);
 
             var block = DataBlock.Create(rowIndex: vs, rowLength: vs.Vec.Length / 2);
@@ -63,19 +67,23 @@ namespace Spreads.Core.Tests.Collections
             bc.Dispose();
         }
 
-        [Test, Explicit("long running")]
+        [Test
+#if !DEBUG
+         , Explicit("long running")
+#endif
+        ]
         public void CouldTryFindBlockAtSingleChunkBench()
         {
-            var count = 50_000_000;
-            var rounds = 20;
+            var count = (int) TestUtils.GetBenchCount(50_000_000, 50_000);
+            var rounds = TestUtils.GetBenchCount(20, 2);
 
             // for this test capacity is irrelevant - interpolation search hits exact position on first try
             var capacity = count / 100;
-            var bc = new BaseContainer<int>();
-            var rm = ArrayMemory<int>.Create(Enumerable.Range(0, capacity).ToArray());
+            var bc = new BaseContainer<long>();
+            var rm = BuffersTestHelper.CreateFilledRM(capacity);
             var vs = RetainedVec.Create(rm, 0, rm.Length);
 
-            var block = DataBlock.Create(rowIndex: vs, rowLength: vs.Vec.Length);
+            var block = DataBlock.Create(rowIndex: vs, rowLength: capacity);
 
             bc.Data = block;
 
@@ -86,7 +94,7 @@ namespace Spreads.Core.Tests.Collections
                     var m = count / capacity;
                     for (int _ = 0; _ < m; _++)
                     {
-                        for (int i = 1; i < capacity; i++)
+                        for (long i = 1; i < capacity; i++)
                         {
                             var searchIndexRef = i;
                             var found = bc.TryFindBlockAt(ref searchIndexRef, Lookup.LE, out var c, out var ci);
@@ -112,7 +120,7 @@ namespace Spreads.Core.Tests.Collections
         {
             var capacity = 100;
             var bc = new BaseContainer<long>();
-            var rm = ArrayMemory<long>.Create(Enumerable.Range(0, capacity).Select(x => (long)x).ToArray());
+            var rm = BuffersTestHelper.CreateFilledRM(capacity);
             var vs = RetainedVec.Create(rm, 0, rm.Length);
 
             var block = DataBlock.Create(rowIndex: vs, rowLength: vs.Vec.Length / 2);
@@ -129,20 +137,24 @@ namespace Spreads.Core.Tests.Collections
             bc.Dispose();
         }
 
-        [Test, Explicit("long running")]
+        [Test
+#if !DEBUG
+         , Explicit("long running")
+#endif
+        ]
         public void CouldTryGetBlockSingleChunkBench()
         {
-            var count = 50_000_000;
-            var rounds = 20;
+            var count = (int) TestUtils.GetBenchCount(50_000_000, 50_000);
+            var rounds = TestUtils.GetBenchCount(20, 2);
 
             // for this test capacity is irrelevant - interpolation search hits exact position on first try
             var capacity = count / 100;
-            var bc = new BaseContainer<int>();
+            var bc = new BaseContainer<long>();
 
-            var rm = ArrayMemory<int>.Create(Enumerable.Range(0, capacity).ToArray());
+            var rm = BuffersTestHelper.CreateFilledRM(capacity);
             var vs = RetainedVec.Create(rm, 0, rm.Length);
 
-            var block = DataBlock.Create(rowIndex: vs, rowLength: vs.Vec.Length);
+            var block = DataBlock.Create(rowIndex: vs, rowLength: capacity);
 
             bc.Data = block;
 
@@ -153,8 +165,12 @@ namespace Spreads.Core.Tests.Collections
                     var m = count / capacity;
                     for (int _ = 0; _ < m; _++)
                     {
-                        for (int i = 1; i < capacity; i++)
+                        for (long i = 0; i < capacity; i++)
                         {
+                            var ival = vs.UnsafeReadUnaligned<long>((IntPtr) i);
+                            var ival2 = vs.UnsafeReadUnaligned<long>((IntPtr) capacity - 1);
+                            var ival3 = Unsafe.Add<long>(ref vs.UnsafeGetRef<long>(), capacity - 1);
+                            var ival4 = Unsafe.Add<long>(ref (bc.Data as DataBlock).RowKeys.UnsafeGetRef<long>(), capacity - 1);
                             var found = bc.TryGetBlock(i, out var c, out var ci);
                             if (!found
                                 || !ReferenceEquals(block, c)

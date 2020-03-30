@@ -47,8 +47,6 @@ namespace Spreads.Core.Tests.Algorithms
             var rmb = BufferPool.Retain(size);
             var bytes = new DirectBuffer(rmb);
 
-            rmb.TryGetArray(out var segment);
-
             var hash0 = new byte[hashLength];
             var hash1 = new byte[hashLength];
 
@@ -71,7 +69,7 @@ namespace Spreads.Core.Tests.Algorithms
 
             for (int r = 0; r < rounds; r++)
             {
-                rng.NextBytes(segment.Array);
+                rng.NextBytes(rmb.GetSpan());
 
                 using (Benchmark.Run("Spreads (MBsec)", count * size, false))
                 {
@@ -113,8 +111,8 @@ namespace Spreads.Core.Tests.Algorithms
 
             var rmb = BufferPool.Retain((int)byteLength);
             var bytes = new DirectBuffer(rmb);
-            rmb.TryGetArray(out var segment);
-            rng.NextBytes(segment.Array);
+
+            rng.NextBytes(rmb.GetSpan());
 
             var hashLength = 32;
 
@@ -198,8 +196,8 @@ namespace Spreads.Core.Tests.Algorithms
 
             var rmb = BufferPool.Retain((int)byteLength);
             var bytes = new DirectBuffer(rmb);
-            rmb.TryGetArray(out var segment);
-            rng.NextBytes(segment.Array);
+            
+            rng.NextBytes(rmb.GetSpan());
 
             var hashLength = 32;
 
@@ -224,7 +222,7 @@ namespace Spreads.Core.Tests.Algorithms
                         }
                     }
                 }
-            }
+            } 
 
             Benchmark.Dump($"Chained hashing by {incrSize} bytes {steps} times");
             rmb.Dispose();
@@ -246,8 +244,8 @@ namespace Spreads.Core.Tests.Algorithms
 
             var rmb = BufferPool.Retain((int)byteLength);
             var bytes = new DirectBuffer(rmb);
-            rmb.TryGetArray(out var segment);
-            rng.NextBytes(segment.Array);
+            
+            rng.NextBytes(rmb.GetSpan());
 
             Console.WriteLine("Filled bytes");
             var hashLength = 32;

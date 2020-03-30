@@ -131,7 +131,7 @@ namespace Spreads.Core.Tests.Buffers
         [MethodImpl(MethodImplOptions.NoInlining)]
         public void Sum(RetainableMemory<int> rm)
         {
-            var rounds = TestUtils.GetBenchCount(100_000, 1000);
+            var rounds = TestUtils.GetBenchCount(100_000, 100);
             
             long sum = 0;
             using (Benchmark.Run("Sum (CPU Hz)", rm.Length * rounds))
@@ -152,7 +152,7 @@ namespace Spreads.Core.Tests.Buffers
         [MethodImpl(MethodImplOptions.NoInlining)]
         public unsafe void MemoryAccessViaPointer(RetainableMemory<int> rm)
         {
-            var rounds = TestUtils.GetBenchCount(100_000, 1000);
+            var rounds = TestUtils.GetBenchCount(100_000, 100);
             long sum = 0;
             using (Benchmark.Run("Pointer", rm.Length * rounds))
             {
@@ -173,7 +173,7 @@ namespace Spreads.Core.Tests.Buffers
         [MethodImpl(MethodImplOptions.NoInlining)]
         public unsafe void MemoryAccessViaArray(RetainableMemory<int> rm, int[] arr)
         {
-            var rounds = TestUtils.GetBenchCount(100_000, 1000);
+            var rounds = TestUtils.GetBenchCount(100_000, 100);
             DataBlockLike db = new DataBlockLike {Rm = rm, arr = arr};
             long sum = 0;
             using (Benchmark.Run("Array", rm.Length * rounds))
@@ -194,7 +194,7 @@ namespace Spreads.Core.Tests.Buffers
         [MethodImpl(MethodImplOptions.NoInlining)]
         public void MemoryAccessVecViaMemSpan(RetainableMemory<int> rm)
         {
-            var rounds = TestUtils.GetBenchCount(10_000, 1000);
+            var rounds = TestUtils.GetBenchCount(10_000, 100);
             long sum = 0;
             using (Benchmark.Run("MemSpan", rm.Length * rounds))
             {
@@ -214,7 +214,7 @@ namespace Spreads.Core.Tests.Buffers
         [MethodImpl(MethodImplOptions.NoInlining)]
         public void MemoryAccessVecViaLocalDangerous(RetainableMemory<int> rm)
         {
-            var rounds = TestUtils.GetBenchCount(10_000, 1000);
+            var rounds = TestUtils.GetBenchCount(10_000, 100);
             long sum = 0;
             using (Benchmark.Run("LocalDangerous", rm.Length * rounds))
             {
@@ -235,7 +235,7 @@ namespace Spreads.Core.Tests.Buffers
         [MethodImpl(MethodImplOptions.NoInlining)]
         public void MemoryAccessVecViaLocalUnsafe(RetainableMemory<int> rm)
         {
-            var rounds = TestUtils.GetBenchCount(10_000, 1000);
+            var rounds = TestUtils.GetBenchCount(10_000, 100);
             long sum = 0;
             using (Benchmark.Run("LocalUnsafe", rm.Length * rounds))
             {
@@ -257,7 +257,7 @@ namespace Spreads.Core.Tests.Buffers
         public void MemoryAccessVecViaDbVecDangerous(RetainableMemory<int> rm)
         {
             long sum = 0;
-            var rounds = TestUtils.GetBenchCount(10_000, 1000);
+            var rounds = TestUtils.GetBenchCount(10_000, 100);
             using (Benchmark.Run("DbVecDangerous (+)", rm.Length * rounds))
             {
                 DataBlockLike db = new DataBlockLike {Rm = rm, Vec = rm.GetVec().AsVec()};
@@ -277,7 +277,7 @@ namespace Spreads.Core.Tests.Buffers
         [MethodImpl(MethodImplOptions.NoInlining)]
         public void MemoryAccessVecViaDbVecUnsafeX(RetainableMemory<int> rm)
         {
-            var rounds = TestUtils.GetBenchCount(100_000, 1000);
+            var rounds = TestUtils.GetBenchCount(100_000, 100);
             long sum = 0;
             using (Benchmark.Run("DbVecUnsafeX", rm.Length * rounds))
             {
@@ -298,7 +298,7 @@ namespace Spreads.Core.Tests.Buffers
         [MethodImpl(MethodImplOptions.NoInlining)]
         public void MemoryAccessVecViaDbVecUnsafe(RetainableMemory<int> rm)
         {
-            var rounds = TestUtils.GetBenchCount(100_000, 1000);
+            var rounds = TestUtils.GetBenchCount(100_000, 100);
             long sum = 0;
             using (Benchmark.Run("DbVecUnsafe", rm.Length * rounds))
             {
@@ -319,7 +319,7 @@ namespace Spreads.Core.Tests.Buffers
         [MethodImpl(MethodImplOptions.NoInlining)]
         public void MemoryAccessVecViaDbVecStorageRead(RetainableMemory<int> rm)
         {
-            var rounds = TestUtils.GetBenchCount(100_000, 1000);
+            var rounds = TestUtils.GetBenchCount(100_000, 100);
             long sum = 0;
             using (Benchmark.Run("DbVecStorageRead (^)", rm.Length * rounds))
             {
@@ -340,7 +340,7 @@ namespace Spreads.Core.Tests.Buffers
         [MethodImpl(MethodImplOptions.NoInlining)]
         public unsafe void MemoryAccessVecViaDbVecPointer(RetainableMemory<int> rm)
         {
-            var rounds = TestUtils.GetBenchCount(100_000, 1000);
+            var rounds = TestUtils.GetBenchCount(100_000, 100);
             long sum = 0;
             using (Benchmark.Run("DbVecPointer (*)", rm.Length * rounds))
             {
@@ -361,7 +361,7 @@ namespace Spreads.Core.Tests.Buffers
         [MethodImpl(MethodImplOptions.NoInlining)]
         public void MemoryAccessVecViaDbVecStorageUnsafe(RetainableMemory<int> rm)
         {
-            var rounds = TestUtils.GetBenchCount(100_000, 1000);
+            var rounds = TestUtils.GetBenchCount(100_000, 100);
             long sum = 0;
             using (Benchmark.Run("DbVecStorageUnsafe (+)", rm.Length * rounds))
             {
@@ -383,7 +383,7 @@ namespace Spreads.Core.Tests.Buffers
         [MethodImpl(MethodImplOptions.NoInlining)]
         public void MemoryAccessVecViaDbVecStorageDangerous(RetainableMemory<int> rm)
         {
-            var rounds = TestUtils.GetBenchCount(100_000, 1000);
+            var rounds = TestUtils.GetBenchCount(100_000, 100);
             long sum = 0;
             using (Benchmark.Run("DbVecStorageDangerous (_)", rm.Length * rounds))
             {

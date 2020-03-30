@@ -16,8 +16,8 @@
   
   <ItemGroup>
     <Compile Remove="Utils\FastMember\ObjectReader.cs" />
-    <Compile Update="Algorithms\VectorSearch.Avx.cs">
-      <DependentUpon>VectorSearch.Avx.tt</DependentUpon>
+    <Compile Update="Algorithms\VectorSearch.Specialized.cs">
+      <DependentUpon>VectorSearch.Specialized.tt</DependentUpon>
     </Compile>
   </ItemGroup>
   
@@ -94,9 +94,9 @@
       <Generator>TextTemplatingFileGenerator</Generator>
       <LastGenOutput>Blake2bSse4.cs</LastGenOutput>
     </None>
-    <None Update="Algorithms\VectorSearch.Avx.tt">
+    <None Update="Algorithms\VectorSearch.Specialized.tt">
       <Generator>TextTemplatingFileGenerator</Generator>
-      <LastGenOutput>VectorSearch.Avx.cs</LastGenOutput>
+      <LastGenOutput>VectorSearch.Specialized.cs</LastGenOutput>
     </None>
   </ItemGroup>
   <ItemGroup>

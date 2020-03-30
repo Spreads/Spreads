@@ -139,13 +139,13 @@ namespace Spreads.Buffers
             var array = Interlocked.Exchange(ref _array, null);
             if (array != null)
             {
-                ThrowHelper.DebugAssert(TypeHelper<T>.IsReferenceOrContainsReferences);
-                BufferPool<T>.Return(Unsafe.As<T[]>(_array), clearArray: true);
+                if(!finalizing && !ExternallyOwned)
+                    BufferPool<T>.Return(Unsafe.As<T[]>(array), clearArray: true);
             }
 
             if (array == null)
             {
-                string msg = "Tried to destroy already destroyed PrivateMemory";
+                string msg = "Tried to free already freed ArrayMemory";
 #if DEBUG
                 ThrowHelper.ThrowInvalidOperationException(msg);
 #endif

@@ -115,11 +115,12 @@ namespace Spreads.Collections.Internal
             if (arraySize > 0)
             {
                 var byteLen = Unsafe.SizeOf<T>() * arraySize;
-                var rm = BufferPool<T>.MemoryPool.RentMemory(arraySize) as ArrayMemory<T>;
-                Debug.Assert(rm != null);
+                var rm = BufferPool<T>.MemoryPool.RentMemory(arraySize);
 
+                // TODO review, use unsafe methods (?)
+                var vec = rm.GetVec();
                 // ReSharper disable once PossibleNullReferenceException
-                fixed (byte* dPtr = &Unsafe.As<T, byte>(ref rm.GetVec().DangerousGetRef(0)))
+                fixed (byte* dPtr = &Unsafe.As<T, byte>(ref vec.DangerousGetRef(0)))
                 {
                     var srcDb = source.Slice(4).Span;
                     var destDb = new Span<byte>(dPtr, byteLen);
@@ -130,10 +131,10 @@ namespace Spreads.Collections.Internal
 
                 if (TypeHelper<T>.IsIDelta)
                 {
-                    var first = (IDelta<T>)rm.Array[0];
+                    var first = (IDelta<T>)vec.DangerousGetUnaligned(0);
                     for (int i = 1; i < arraySize; i++)
                     {
-                        rm.Array[i] = first.AddDelta(rm.Array[i]);
+                        vec.DangerousSetUnaligned(i, first.AddDelta(vec.DangerousGetUnaligned(i)));
                     }
                 }
 

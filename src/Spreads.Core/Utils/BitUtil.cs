@@ -33,9 +33,9 @@ namespace Spreads.Utils
             08, 12, 20, 28, 15, 17, 24, 07,
             19, 27, 23, 06, 26, 05, 04, 31
         };
-        
-        
-        private static ReadOnlySpan<byte> HexDigitTable => new byte[] {
+
+        private static ReadOnlySpan<byte> HexDigitTable => new byte[]
+        {
             (byte) '0', (byte) '1', (byte) '2', (byte) '3', (byte) '4', (byte) '5', (byte) '6', (byte) '7',
             (byte) '8', (byte) '9', (byte) 'a', (byte) 'b', (byte) 'c', (byte) 'd', (byte) 'e', (byte) 'f'
         };
@@ -90,7 +90,7 @@ namespace Spreads.Utils
                 return 1 << (32 - NumberOfLeadingZeros(value - 1));
             }
         }
-        
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static long FindNextPositivePowerOfTwo(long value)
         {
@@ -108,7 +108,6 @@ namespace Spreads.Utils
                 return 1 << (31 - NumberOfLeadingZeros(value));
             }
         }
-
 
         /// <summary>
         /// Align a value to the next multiple up of alignment.
@@ -128,7 +127,6 @@ namespace Spreads.Utils
             return (value + (alignment - 1)) & ~(alignment - 1);
         }
 
-        
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static long Align(long value, long alignment)
         {
@@ -147,7 +145,7 @@ namespace Spreads.Utils
 
             for (int i = 0; i < buffer.Length; i += 2)
             {
-                outputBuffer[i >> 1] = (byte)((FromHexDigitTable[buffer[i]] << 4) | FromHexDigitTable[buffer[i + 1]]);
+                outputBuffer[i >> 1] = (byte) ((FromHexDigitTable[buffer[i]] << 4) | FromHexDigitTable[buffer[i + 1]]);
             }
 
             return outputBuffer;
@@ -321,6 +319,7 @@ namespace Spreads.Utils
             {
                 return 32;
             }
+
             int n = 31;
             y = i << 16;
             if (y != 0)
@@ -328,25 +327,29 @@ namespace Spreads.Utils
                 n = n - 16;
                 i = y;
             }
+
             y = i << 8;
             if (y != 0)
             {
                 n = n - 8;
                 i = y;
             }
+
             y = i << 4;
             if (y != 0)
             {
                 n = n - 4;
                 i = y;
             }
+
             y = i << 2;
             if (y != 0)
             {
                 n = n - 2;
                 i = y;
             }
-            return n - ((int)((uint)(i << 1) >> 31));
+
+            return n - ((int) ((uint) (i << 1) >> 31));
         }
 
         /// <summary>
@@ -376,102 +379,108 @@ namespace Spreads.Utils
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int NumberOfLeadingZeros(int i)
         {
-#if NETCOREAPP3_0
-            if (System.Runtime.Intrinsics.X86.Lzcnt.IsSupported)
-            {
-                return (int)System.Runtime.Intrinsics.X86.Lzcnt.LeadingZeroCount((uint)i);
-            }
-#endif
-
             unchecked
             {
-                // HD, Figure 5-6
-                if (i == 0)
+#if NETCOREAPP3_0
+                if (System.Runtime.Intrinsics.X86.Lzcnt.IsSupported)
                 {
-                    return 32;
+                    return (int) System.Runtime.Intrinsics.X86.Lzcnt.LeadingZeroCount((uint) i);
                 }
+#endif
 
-                int n = 1;
-                if ((int)((uint)i >> 16) == 0)
+                unchecked
                 {
-                    n += 16;
-                    i <<= 16;
-                }
+                    // HD, Figure 5-6
+                    if (i == 0)
+                    {
+                        return 32;
+                    }
 
-                if ((int)((uint)i >> 24) == 0)
-                {
-                    n += 8;
-                    i <<= 8;
-                }
+                    int n = 1;
+                    if ((int) ((uint) i >> 16) == 0)
+                    {
+                        n += 16;
+                        i <<= 16;
+                    }
 
-                if ((int)((uint)i >> 28) == 0)
-                {
-                    n += 4;
-                    i <<= 4;
-                }
+                    if ((int) ((uint) i >> 24) == 0)
+                    {
+                        n += 8;
+                        i <<= 8;
+                    }
 
-                if ((int)((uint)i >> 30) == 0)
-                {
-                    n += 2;
-                    i <<= 2;
-                }
+                    if ((int) ((uint) i >> 28) == 0)
+                    {
+                        n += 4;
+                        i <<= 4;
+                    }
 
-                n -= (int)((uint)i >> 31);
-                return n;
+                    if ((int) ((uint) i >> 30) == 0)
+                    {
+                        n += 2;
+                        i <<= 2;
+                    }
+
+                    n -= (int) ((uint) i >> 31);
+                    return n;
+                }
             }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int NumberOfLeadingZeros(long i)
         {
-#if NETCOREAPP3_0
-            if (System.Runtime.Intrinsics.X86.Lzcnt.X64.IsSupported)
-            {
-                return (int)System.Runtime.Intrinsics.X86.Lzcnt.X64.LeadingZeroCount((ulong)i);
-            }
-#endif
-
             unchecked
             {
-                // HD, Figure 5-6
-                if (i == 0L)
+#if NETCOREAPP3_0
+                if (System.Runtime.Intrinsics.X86.Lzcnt.X64.IsSupported)
                 {
-                    return 64;
+                    return (int) System.Runtime.Intrinsics.X86.Lzcnt.X64.LeadingZeroCount((ulong) i);
                 }
+#endif
 
-                int n = 1;
-                if ((long)((ulong)i >> 32) == 0)
+                unchecked
                 {
-                    n += 32;
-                    i <<= 32;
-                }
+                    // HD, Figure 5-6
+                    if (i == 0L)
+                    {
+                        return 64;
+                    }
 
-                if ((long)((ulong)i >> 48) == 0)
-                {
-                    n += 16;
-                    i <<= 16;
-                }
+                    int n = 1;
+                    if ((long) ((ulong) i >> 32) == 0)
+                    {
+                        n += 32;
+                        i <<= 32;
+                    }
 
-                if ((long)((ulong)i >> 56) == 0)
-                {
-                    n += 8;
-                    i <<= 8;
-                }
+                    if ((long) ((ulong) i >> 48) == 0)
+                    {
+                        n += 16;
+                        i <<= 16;
+                    }
 
-                if ((long)((ulong)i >> 60) == 0)
-                {
-                    n += 4;
-                    i <<= 4;
-                }
+                    if ((long) ((ulong) i >> 56) == 0)
+                    {
+                        n += 8;
+                        i <<= 8;
+                    }
 
-                if ((long)((ulong)i >> 62) == 0)
-                {
-                    n += 2;
-                    i <<= 2;
-                }
+                    if ((long) ((ulong) i >> 60) == 0)
+                    {
+                        n += 4;
+                        i <<= 4;
+                    }
 
-                n -= (int)((ulong)i >> 63);
-                return n;
+                    if ((long) ((ulong) i >> 62) == 0)
+                    {
+                        n += 2;
+                        i <<= 2;
+                    }
+
+                    n -= (int) ((ulong) i >> 63);
+                    return n;
+                }
             }
         }
     }

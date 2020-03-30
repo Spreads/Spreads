@@ -5,65 +5,10 @@
 using Spreads.Algorithms;
 using Spreads.Native;
 using System;
-using System.Collections;
-using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 
 namespace Spreads.Collections
 {
-    public readonly struct ArrayVector<T> : IVector<T>
-    {
-        private readonly T[] _array;
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public ArrayVector(T[] array)
-        {
-            _array = array;
-        }
-
-        public IEnumerator<T> GetEnumerator()
-        {
-            return (_array as IEnumerable<T>).GetEnumerator();
-        }
-
-        public int Count
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => _array.Length;
-        }
-
-        public T this[int index]
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => _array[index];
-        }
-
-        public int Length
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => _array.Length;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public T GetItem(int index)
-        {
-            return _array[index];
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public T DangerousGetItem(int index)
-        {
-            // TODO without BC
-            return _array[index];
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static implicit operator ArrayVector<T>(T[] array)
-        {
-            return new ArrayVector<T>(array);
-        }
-    }
-
     public static class VectorExtensions
     {
         #region Vec<T> BinarySearch
@@ -72,14 +17,14 @@ namespace Spreads.Collections
         /// Performs standard binary search and returns index of the value or its negative binary complement.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int BinarySearch<T>(this ref Vec<T> vec, int start, int length, T value, KeyComparer<T> comparer = default)
+        public static int BinarySearch<T>(this ref Vec<T> vec, int offset, int length, T value, KeyComparer<T> comparer = default)
         {
-            if ((uint)start > (uint)vec._length || (uint)length > (uint)(vec._length - start))
+            if ((uint)offset > (uint)vec._length || (uint)length > (uint)(vec._length - offset))
 
             { VecThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.start); }
 
 #pragma warning disable 618
-            return DangerousBinarySearch(ref vec, start, length, value, comparer);
+            return DangerousBinarySearch(ref vec, offset, length, value, comparer);
 #pragma warning restore 618
         }
 
@@ -88,13 +33,13 @@ namespace Spreads.Collections
         /// </summary>
         [Obsolete("Dangerous, justify usage in mute warning comment")]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int DangerousBinarySearch<T>(this ref Vec<T> vec, int start, int length, T value, KeyComparer<T> comparer = default)
+        public static int DangerousBinarySearch<T>(this ref Vec<T> vec, int offset, int length, T value, KeyComparer<T> comparer = default)
         {
             //if (length == 0)
             //{
             //    return -1;
             //}
-            return VectorSearch.BinarySearch(ref Unsafe.Add(ref vec.DangerousGetPinnableReference(), start), vec.Length, value, comparer);
+            return VectorSearch.BinarySearch(ref Unsafe.Add(ref vec.DangerousGetPinnableReference(), offset), vec.Length, value, comparer);
         }
 
         #endregion Vec<T> BinarySearch
@@ -116,14 +61,14 @@ namespace Spreads.Collections
         /// Performs binary search and returns index of the value or its negative binary complement.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int BinarySearch<T>(this T[] array, int start, int length, T value, KeyComparer<T> comparer = default)
+        public static int BinarySearch<T>(this T[] array, int offset, int length, T value, KeyComparer<T> comparer = default)
         {
-            if ((uint)start > (uint)array.Length || (uint)length > (uint)(array.Length - start))
+            if ((uint)offset > (uint)array.Length || (uint)length > (uint)(array.Length - offset))
 
             { VecThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.start); }
 
 #pragma warning disable 618
-            return DangerousBinarySearch(array, start, length, value, comparer);
+            return DangerousBinarySearch(array, offset, length, value, comparer);
 #pragma warning restore 618
         }
 
@@ -131,56 +76,16 @@ namespace Spreads.Collections
         /// <see cref="InterpolationSearch{T}(T[],int,int,T,KeyComparer{T})"/> without bound checks.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int DangerousBinarySearch<T>(this T[] array, int start, int length, T value, KeyComparer<T> comparer = default)
+        public static int DangerousBinarySearch<T>(this T[] array, int offset, int length, T value, KeyComparer<T> comparer = default)
         {
             if (length == 0)
             {
                 return -1;
             }
-            return VectorSearch.BinarySearch(ref array[start], length, value, comparer);
+            return VectorSearch.BinarySearch(ref array[0], offset, length, value, comparer);
         }
         
         #endregion T[] BinarySearch
-
-        #region TVector : IVector<T> BinarySearch
-
-        /// <summary>
-        /// Performs standard binary search and returns index of the value or its negative binary complement.
-        /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int BinarySearch<T>(this ArrayVector<T> vec, T value, KeyComparer<T> comparer = default)
-        {
-            return VectorSearch.BinarySearch(ref vec, 0, vec.Length, value, comparer);
-        }
-
-        /// <summary>
-        /// Performs standard binary search and returns index of the value or its negative binary complement.
-        /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int BinarySearch<T>(this ArrayVector<T> vec, int start, int length, T value, KeyComparer<T> comparer = default)
-        {
-            BoundCheck<T, ArrayVector<T>>(vec, start, length);
-#pragma warning disable 618
-            return DangerousBinarySearch(vec, start, length, value, comparer);
-#pragma warning restore 618
-        }
-
-        /// <summary>
-        /// <see cref="BinarySearch{T}(ArrayVector{T} ,int,int,T,KeyComparer{T})"/> without bound checks.
-        /// </summary>
-        [Obsolete("Dangerous, justify usage in mute warning comment")]
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int DangerousBinarySearch<T>(this ArrayVector<T> vec, int start, int length, T value, KeyComparer<T> comparer = default)
-        {
-            // not needed
-            //if (length == 0)
-            //{
-            //    return -1;
-            //}
-            return VectorSearch.BinarySearch(ref vec, start, length, value, comparer);
-        }
-
-        #endregion TVector : IVector<T> BinarySearch
 
         #region Vec<T> BinaryLookup
 
@@ -188,14 +93,14 @@ namespace Spreads.Collections
         /// Find value using binary search according to the lookup direction.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int BinaryLookup<T>(this ref Vec<T> vec, int start, int length, ref T value, Lookup lookup, KeyComparer<T> comparer = default)
+        public static int BinaryLookup<T>(this ref Vec<T> vec, int offset, int length, ref T value, Lookup lookup, KeyComparer<T> comparer = default)
         {
-            if ((uint)start > (uint)vec._length || (uint)length > (uint)(vec._length - start))
+            if ((uint)offset > (uint)vec._length || (uint)length > (uint)(vec._length - offset))
 
             { VecThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.start); }
 
 #pragma warning disable 618
-            return DangerousBinaryLookup(ref vec, start, length, ref value, lookup, comparer);
+            return DangerousBinaryLookup(ref vec, offset, length, ref value, lookup, comparer);
 #pragma warning restore 618
         }
 
@@ -203,7 +108,7 @@ namespace Spreads.Collections
         /// <see cref="BinaryLookup{T}(ref Vec{T},int,int,ref T,Lookup,KeyComparer{T})"/> without bound checks.
         /// </summary>
         [Obsolete("Dangerous, justify usage in mute warning comment")]
-        public static int DangerousBinaryLookup<T>(this ref Vec<T> vec, int start, int length,
+        public static int DangerousBinaryLookup<T>(this ref Vec<T> vec, int offset, int length,
             ref T value, Lookup lookup, KeyComparer<T> comparer = default)
         {
             // not needed
@@ -211,7 +116,7 @@ namespace Spreads.Collections
             //{
             //    return -1;
             //}
-            return VectorSearch.BinaryLookup(ref Unsafe.Add(ref vec.DangerousGetPinnableReference(), start), vec.Length, ref value, lookup, comparer);
+            return VectorSearch.BinaryLookup(ref Unsafe.Add(ref vec.DangerousGetPinnableReference(), offset), vec.Length, ref value, lookup, comparer);
         }
 
         #endregion Vec<T> BinaryLookup
@@ -233,14 +138,14 @@ namespace Spreads.Collections
         /// Find value using binary search according to the lookup direction.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int BinaryLookup<T>(this T[] array, int start, int length, ref T value, Lookup lookup, KeyComparer<T> comparer = default)
+        public static int BinaryLookup<T>(this T[] array, int offset, int length, ref T value, Lookup lookup, KeyComparer<T> comparer = default)
         {
-            if ((uint)start > (uint)array.Length || (uint)length > (uint)(array.Length - start))
+            if ((uint)offset > (uint)array.Length || (uint)length > (uint)(array.Length - offset))
 
             { VecThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.start); }
 
 #pragma warning disable 618
-            return DangerousBinaryLookup(array, start, length, ref value, lookup, comparer);
+            return DangerousBinaryLookup(array, offset, length, ref value, lookup, comparer);
 #pragma warning restore 618
         }
 
@@ -248,55 +153,17 @@ namespace Spreads.Collections
         /// <see cref="BinaryLookup{T}(T[],int,int,ref T,Lookup,KeyComparer{T})"/> without bound checks.
         /// </summary>
         [Obsolete("Dangerous, justify usage in mute warning comment")]
-        public static int DangerousBinaryLookup<T>(this T[] array, int start, int length,
+        public static int DangerousBinaryLookup<T>(this T[] array, int offset, int length,
             ref T value, Lookup lookup, KeyComparer<T> comparer = default)
         {
             if (length == 0)
             {
                 return -1;
             }
-            return VectorSearch.BinaryLookup(ref array[start], length, ref value, lookup, comparer);
+            return VectorSearch.BinaryLookup(ref array[0], offset, length, ref value, lookup, comparer);
         }
 
         #endregion T[] BinaryLookup
-
-        #region TVector : IVector<T> BinaryLookup
-
-        /// <summary>
-        /// Find value using binary search according to the lookup direction.
-        /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int BinaryLookup<T>(this ArrayVector<T> vec, ref T value, Lookup lookup, KeyComparer<T> comparer = default)
-        {
-            return VectorSearch.BinaryLookup(ref vec, 0, vec.Length, ref value, lookup, comparer);
-        }
-
-        /// <summary>
-        /// Find value using binary search according to the lookup direction.
-        /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int BinaryLookup<T>(this ArrayVector<T> vec, int start, int length, ref T value, Lookup lookup, KeyComparer<T> comparer = default)
-        {
-            BoundCheck<T, ArrayVector<T>>(vec, start, length);
-            return VectorSearch.BinaryLookup(ref vec, start, length, ref value, lookup, comparer);
-        }
-
-        /// <summary>
-        /// <see cref="BinaryLookup{T}(ArrayVector{T} ,int,int,ref T,Lookup,KeyComparer{T})"/> without bound checks.
-        /// </summary>
-        [Obsolete("Dangerous, justify usage in mute warning comment")]
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int DangerousBinaryLookup<T>(this ArrayVector<T> vec, int start, int length, ref T value, Lookup lookup, KeyComparer<T> comparer = default)
-        {
-            // not needed
-            //if (length == 0)
-            //{
-            //    return -1;
-            //}
-            return VectorSearch.BinaryLookup(ref vec, start, length, ref value, lookup, comparer);
-        }
-
-        #endregion TVector : IVector<T> BinaryLookup
 
         #region Vec<T> InterpolationSearch
 
@@ -304,14 +171,14 @@ namespace Spreads.Collections
         /// Performs interpolation search and returns index of the value or its negative binary complement.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int InterpolationSearch<T>(this ref Vec<T> vec, int start, int length, T value, KeyComparer<T> comparer = default)
+        public static int InterpolationSearch<T>(this ref Vec<T> vec, int offset, int length, T value, KeyComparer<T> comparer = default)
         {
-            if ((uint)start > (uint)vec._length || (uint)length > (uint)(vec._length - start))
+            if ((uint)offset > (uint)vec._length || (uint)length > (uint)(vec._length - offset))
 
             { VecThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.start); }
 
 #pragma warning disable 618
-            return DangerousInterpolationSearch(ref vec, start, length, value, comparer);
+            return DangerousInterpolationSearch(ref vec, offset, length, value, comparer);
 #pragma warning restore 618
         }
 
@@ -320,13 +187,13 @@ namespace Spreads.Collections
         /// </summary>
         [Obsolete("Dangerous, justify usage in mute warning comment")]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int DangerousInterpolationSearch<T>(this ref Vec<T> vec, int start, int length, T value, KeyComparer<T> comparer = default)
+        public static int DangerousInterpolationSearch<T>(this ref Vec<T> vec, int offset, int length, T value, KeyComparer<T> comparer = default)
         {
             if (length == 0)
             {
                 return -1;
             }
-            return VectorSearch.InterpolationSearch(ref Unsafe.Add(ref vec.DangerousGetPinnableReference(), start), vec.Length, value, comparer);
+            return VectorSearch.InterpolationSearch(ref Unsafe.Add(ref vec.DangerousGetPinnableReference(), offset), vec.Length, value, comparer);
         }
 
         #endregion Vec<T> InterpolationSearch
@@ -348,14 +215,14 @@ namespace Spreads.Collections
         /// Performs interpolation search and returns index of the value or its negative binary complement.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int InterpolationSearch<T>(this T[] array, int start, int length, T value, KeyComparer<T> comparer = default)
+        public static int InterpolationSearch<T>(this T[] array, int offset, int length, T value, KeyComparer<T> comparer = default)
         {
-            if ((uint)start > (uint)array.Length || (uint)length > (uint)(array.Length - start))
+            if ((uint)offset > (uint)array.Length || (uint)length > (uint)(array.Length - offset))
 
             { VecThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.start); }
 
 #pragma warning disable 618
-            return DangerousInterpolationSearch(array, start, length, value, comparer);
+            return DangerousInterpolationSearch(array, offset, length, value, comparer);
 #pragma warning restore 618
         }
 
@@ -364,49 +231,16 @@ namespace Spreads.Collections
         /// </summary>
         [Obsolete("Dangerous, justify usage in mute warning comment")]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int DangerousInterpolationSearch<T>(this T[] array, int start, int length, T value, KeyComparer<T> comparer = default)
+        public static int DangerousInterpolationSearch<T>(this T[] array, int offset, int length, T value, KeyComparer<T> comparer = default)
         {
             if (length == 0)
             {
                 return -1;
             }
-            return VectorSearch.InterpolationSearch(ref array[start], length, value, comparer);
+            return VectorSearch.InterpolationSearch(ref array[0], offset, length, value, comparer);
         }
 
         #endregion T[] InterpolationSearch
-
-        #region TVector : IVector<T> InterpolationSearch
-
-        /// <summary>
-        /// Performs interpolation search and returns index of the value or its negative binary complement.
-        /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int InterpolationSearch<T>(this ArrayVector<T> vec, T value, KeyComparer<T> comparer = default)
-        {
-            return VectorSearch.InterpolationSearch(ref vec, 0, vec.Length, value, comparer);
-        }
-
-        /// <summary>
-        /// Performs interpolation search and returns index of the value or its negative binary complement.
-        /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int InterpolationSearch<T>(this ArrayVector<T> vec, int start, int length, T value, KeyComparer<T> comparer = default)
-        {
-            BoundCheck<T, ArrayVector<T>>(vec, start, length);
-            return VectorSearch.InterpolationSearch(ref vec, start, length, value, comparer);
-        }
-
-        /// <summary>
-        /// <see cref="InterpolationSearch{T}(ArrayVector{T} ,int,int,T,KeyComparer{T})"/> without bound checks.
-        /// </summary>
-        [Obsolete("Dangerous, justify usage in mute warning comment")]
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int DangerousInterpolationSearch<T>(this ArrayVector<T> vec, int start, int length, T value, Lookup lookup, KeyComparer<T> comparer = default)
-        {
-            return VectorSearch.InterpolationSearch(ref vec, start, length, value, comparer);
-        }
-
-        #endregion TVector : IVector<T> InterpolationSearch
 
         #region Vec<T> InterpolationLookup
 
@@ -414,15 +248,15 @@ namespace Spreads.Collections
         /// Find value using interpolation search according to the lookup direction.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int InterpolationLookup<T>(this ref Vec<T> vec, int start, int length, ref T value,
+        public static int InterpolationLookup<T>(this ref Vec<T> vec, int offset, int length, ref T value,
             Lookup lookup, KeyComparer<T> comparer = default)
         {
-            if ((uint)start > (uint)vec._length || (uint)length > (uint)(vec._length - start))
+            if ((uint)offset > (uint)vec._length || (uint)length > (uint)(vec._length - offset))
 
             { VecThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.start); }
 
 #pragma warning disable 618
-            return DangerousInterpolationLookup(ref vec, start, length, ref value, lookup, comparer);
+            return DangerousInterpolationLookup(ref vec, offset, length, ref value, lookup, comparer);
 #pragma warning restore 618
         }
 
@@ -430,10 +264,10 @@ namespace Spreads.Collections
         /// <see cref="InterpolationLookup{T}(ref Spreads.Native.Vec{T},int,int,ref T,Spreads.Lookup,Spreads.KeyComparer{T})"/> without bound checks.
         /// </summary>
         [Obsolete("Dangerous, justify usage in mute warning comment")]
-        public static int DangerousInterpolationLookup<T>(this ref Vec<T> vec, int start, int length,
+        public static int DangerousInterpolationLookup<T>(this ref Vec<T> vec, int offset, int length,
             ref T value, Lookup lookup, KeyComparer<T> comparer = default)
         {
-            return VectorSearch.InterpolationLookup(ref Unsafe.Add(ref vec.DangerousGetPinnableReference(), start), vec.Length, ref value, lookup, comparer);
+            return VectorSearch.InterpolationLookup(ref Unsafe.Add(ref vec.DangerousGetPinnableReference(), offset), length, ref value, lookup, comparer);
         }
 
         #endregion Vec<T> InterpolationLookup
@@ -455,14 +289,14 @@ namespace Spreads.Collections
         /// Find value using binary search according to the lookup direction.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int InterpolationLookup<T>(this T[] array, int start, int length, ref T value, Lookup lookup, KeyComparer<T> comparer = default)
+        public static int InterpolationLookup<T>(this T[] array, int offset, int length, ref T value, Lookup lookup, KeyComparer<T> comparer = default)
         {
-            if ((uint)start > (uint)array.Length || (uint)length > (uint)(array.Length - start))
+            if ((uint)offset > (uint)array.Length || (uint)length > (uint)(array.Length - offset))
 
             { VecThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.start); }
 
 #pragma warning disable 618
-            return DangerousInterpolationLookup(array, start, length, ref value, lookup, comparer);
+            return DangerousInterpolationLookup(array, offset, length, ref value, lookup, comparer);
 #pragma warning restore 618
         }
 
@@ -470,61 +304,16 @@ namespace Spreads.Collections
         /// <see cref="InterpolationLookup{T}(T[],int,int,ref T,Lookup,KeyComparer{T})"/> without bound checks.
         /// </summary>
         [Obsolete("Dangerous, justify usage in mute warning comment")]
-        public static int DangerousInterpolationLookup<T>(this T[] array, int start, int length,
+        public static int DangerousInterpolationLookup<T>(this T[] array, int offset, int length,
             ref T value, Lookup lookup, KeyComparer<T> comparer = default)
         {
             if (length == 0)
             {
                 return -1;
             }
-            return VectorSearch.InterpolationLookup(ref array[start], length, ref value, lookup, comparer);
+            return VectorSearch.InterpolationLookup(ref array[0], offset, length, ref value, lookup, comparer);
         }
 
         #endregion T[] InterpolationLookup
-
-        #region TVector : IVector<T> InterpolationLookup
-
-        /// <summary>
-        /// Find value using interpolation search according to the lookup direction.
-        /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int InterpolationLookup<T>(this ArrayVector<T> vec, ref T value, Lookup lookup, KeyComparer<T> comparer = default)
-        {
-            return VectorSearch.InterpolationLookup(ref vec, 0, vec.Length, ref value, lookup, comparer);
-        }
-
-        /// <summary>
-        /// Find value using interpolation search according to the lookup direction.
-        /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int InterpolationLookup<T>(this ArrayVector<T> vec, int start, int length, ref T value, Lookup lookup, KeyComparer<T> comparer = default)
-        {
-            BoundCheck<T, ArrayVector<T>>(vec, start, length);
-            return VectorSearch.InterpolationLookup(ref vec, start, length, ref value, lookup, comparer);
-        }
-
-        /// <summary>
-        /// <see cref="InterpolationLookup{T}(ArrayVector{T},int,int,ref T,Lookup,KeyComparer{T})"/> without bound checks.
-        /// </summary>
-        [Obsolete("Dangerous, justify usage in mute warning comment")]
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int DangerousInterpolationLookup<T>(this ArrayVector<T> vec, int start, int length, ref T value, Lookup lookup, KeyComparer<T> comparer = default)
-        {
-            return VectorSearch.InterpolationLookup(ref vec, start, length, ref value, lookup, comparer);
-        }
-
-        #endregion TVector : IVector<T> InterpolationLookup
-
-        #region Bound check
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static void BoundCheck<T, TVector>(TVector vec, int start, int length) where TVector : IVector<T>
-        {
-            if ((uint)start > (uint)vec.Length || (uint)length > (uint)(vec.Length - start))
-
-            { VecThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.start); }
-        }
-
-        #endregion Bound check
     }
 }

@@ -25,9 +25,10 @@ namespace Spreads.Buffers
     {
         internal static readonly RetainableMemoryPool<T>[] KnownPools = new RetainableMemoryPool<T>[64];
 
-        private static readonly Func<RetainableMemoryPool<T>, int, RetainableMemory<T>> DefaultFactory = (pool, length) => PrivateMemory<T>.Create(length, pool);
+        internal static readonly Func<RetainableMemoryPool<T>, int, RetainableMemory<T>> DefaultFactory = (pool, length) => PrivateMemory<T>.Create(length, pool);
+        
         public static RetainableMemoryPool<T> Default = new RetainableMemoryPool<T>(DefaultFactory);
-
+        
         public readonly byte PoolIdx;
 
         /// <summary>
@@ -44,13 +45,15 @@ namespace Spreads.Buffers
         internal readonly Func<int, RetainableMemory<T>> Factory;
 
         /// <summary>The default minimum length of each memory buffer in the pool.</summary>
-        public const int DefaultMinBufferLength = 2048;
+        public const int DefaultMinBufferLength = 16;
 
         /// <summary>The default maximum length of each memory buffer in the pool (2^20).</summary>
         public const int DefaultMaxBufferLength = 1024 * 1024;
 
         /// <summary>The default maximum number of memory buffers per bucket per core that are available for rent.</summary>
         public const int DefaultMaxNumberOfBuffersPerBucketPerCore = 8;
+        
+        public const int DefaultMaxBucketsToTry = 2;
 
         private readonly MemoryBucket[] _buckets;
 
@@ -64,7 +67,7 @@ namespace Spreads.Buffers
             int minLength = DefaultMinBufferLength,
             int maxLength = DefaultMaxBufferLength,
             int maxBuffersPerBucketPerCore = DefaultMaxNumberOfBuffersPerBucketPerCore,
-            int maxBucketsToTry = 2,
+            int maxBucketsToTry = DefaultMaxBucketsToTry,
             bool rentAlwaysClean = false)
         {
             if (factory == null)
@@ -209,30 +212,27 @@ namespace Spreads.Buffers
                 {
                     log.BufferRented(memory.GetHashCode(), memory.Length, Id, _buckets[i].GetHashCode());
                 }
-
-                ThrowHelper.DebugAssert(memory.IsDisposed && memory.PoolIndex == PoolIdx, "buffer.IsDisposed && buffer.PoolIndex == PoolIdx");
-
-                // Set counter to zero, keep other flags
-                // Do not need atomic CAS here because we own the buffer here
-                memory.CounterRef &= ~AtomicCounter.CountMask;
-
-                ThrowHelper.DebugAssert(!memory.IsDisposed && memory.ReferenceCount == 0, "!buffer.IsDisposed");
-
+                
 #if DEBUG
                 if (AddStackTraceOnRent)
                     memory.Tag = Environment.StackTrace;
 #endif
-
-                ThrowHelper.DebugAssert(!memory.IsDisposed, "_buckets[index].CreateNew(); returned disposed buffer");
             }
             else
             {
                 // The request was for a size too large for the pool. Allocate a buffer of exactly the requested length.
                 // When it's returned to the pool, we'll simply throw it away.
                 memory = CreateNew(minBufferSize);
-                ThrowHelper.DebugAssert(!memory.IsDisposed, "Factory returned disposed buffer");
             }
 
+            ThrowHelper.DebugAssert(memory.IsDisposed && memory.PoolIndex == PoolIdx, "buffer.IsDisposed && buffer.PoolIndex == PoolIdx");
+
+            // Set counter to zero, keep other flags
+            // Do not need atomic CAS here because we own the buffer here
+            memory.CounterRef &= ~AtomicCounter.CountMask;
+            
+            ThrowHelper.DebugAssert(!memory.IsDisposed && memory.ReferenceCount == 0, "!buffer.IsDisposed");
+            
             if (log.IsEnabled())
             {
                 int bufferId = memory.GetHashCode(), bucketId = -1; // no bucket for an on-demand allocated buffer
@@ -323,6 +323,10 @@ namespace Spreads.Buffers
             {
                 if (_disposed)
                     return;
+                
+                if (this == Default && !(Environment.HasShutdownStarted || AppDomain.CurrentDomain.IsFinalizingForUnload()))
+                    ThrowHelper.ThrowInvalidOperationException("Disposing default retained memory pool is only possible during application shutdown");
+
                 _disposed = true;
                 foreach (var bucket in _buckets)
                 {
@@ -442,9 +446,8 @@ namespace Spreads.Buffers
                     // ReSharper disable once UseNullPropagation : Debug
                     if (memory != null)
                     {
-                        // keep all flags but clear the counter
-                        memory.CounterRef &= ~AtomicCounter.CountMask;
-                        // must keep retainableMemory._poolIdx
+                        ThrowHelper.Assert(memory.IsDisposed);
+                        memory.PoolIndex = 1;
                         GC.SuppressFinalize(memory);
                         memory.Free(false);
                     }

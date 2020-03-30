@@ -15,13 +15,6 @@ namespace Spreads.Core.Tests.Buffers
     {
 
         [Test, Explicit("long running")]
-        public void CouldPassRetainedMameoryToRMS()
-        {
-            var rm = BufferPool.Retain(1000);
-            var rms = RecyclableMemoryStream.Create();
-        }
-
-        [Test, Explicit("long running")]
         public void CouldUseSafeWriteReadByte()
         {
             var doChecks = true;

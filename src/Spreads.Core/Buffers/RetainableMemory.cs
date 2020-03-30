@@ -221,7 +221,8 @@ namespace Spreads.Buffers
         internal virtual void ClearFields()
         {
             ThrowHelper.DebugAssert(AtomicCounter.GetIsDisposed(ref CounterRef));
-            ThrowHelper.DebugAssert(!IsPooled);
+            
+            PoolIndex = 0;
             _pointer = IntPtr.Zero;
             _offset = -1; // make it unusable if not re-initialized
             _length = default; // not -1, we have uint cast. Also len = 0 should not corrupt existing data

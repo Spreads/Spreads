@@ -22,7 +22,8 @@ namespace Spreads.Core.Tests.Buffers
         {
             var rmp = RetainableMemoryPool<byte>.Default;
 
-            for (int round = 0; round < 20; round++)
+            var rounds = TestUtils.GetBenchCount(20, 2);
+            for (int round = 0; round < rounds; round++)
             {
                 RmpBenchmark(rmp, "rmp");
                 // ArrayPoolBenchmark<byte>();
@@ -42,7 +43,7 @@ namespace Spreads.Core.Tests.Buffers
             var prevRentLoop = BuffersStatistics.RentLoop.Value;
             var prevReturnLoop = BuffersStatistics.ReturnLoop.Value;
 
-            var count = TestUtils.GetBenchCount(10_000_000, 1000_000);
+            var count = TestUtils.GetBenchCount(10_000_000, 1_00);
             var threadCount = Environment.ProcessorCount;
             using (Benchmark.Run(testCase, count * 2 * threadCount))
             {
@@ -56,10 +57,7 @@ namespace Spreads.Core.Tests.Buffers
                         for (int i = 0; i < count; i++)
                         {
                             var x1 = pool.RentMemory(size);
-
                             var x2 = pool.RentMemory(size);
-                            // if(x1 == x2)
-                            //     ThrowHelper.FailFast("WTF!");
                             x1.Dispose();
                             x2.Dispose();
                         }

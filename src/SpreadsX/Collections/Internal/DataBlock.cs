@@ -339,7 +339,7 @@ namespace Spreads.Collections.Internal
 
         [MethodImpl(MethodImplOptions.AggressiveInlining
 #if HAS_AGGR_OPT
-            | MethodImplOptions.AggressiveOptimization
+                    | MethodImplOptions.AggressiveOptimization
 #endif
         )]
         public int LookupKey<T>(ref T key, Lookup lookup, KeyComparer<T> comparer = default)
@@ -349,8 +349,8 @@ namespace Spreads.Collections.Internal
 
             if (_head + _rowCount <= _rowKeys.Vec.Length)
             {
-                return _head + VectorSearch.SortedLookup(ref _rowKeys.Vec.DangerousGetRef<T>(_head),
-                    _rowCount, ref key, lookup, comparer);
+                return _head + VectorSearch.SortedLookup(ref _rowKeys.UnsafeGetRef<T>(),
+                    _head, _rowCount, ref key, lookup, comparer);
             }
 
             return LookupKeySlower(ref key, lookup, comparer);
@@ -359,11 +359,12 @@ namespace Spreads.Collections.Internal
         [MethodImpl(MethodImplOptions.NoInlining)]
         private int LookupKeySlower<T>(ref T key, Lookup lookup, KeyComparer<T> comparer)
         {
+            throw new NotImplementedException();
             // This should be pretty fast vs. manually managing edge cases on
             // the wrap boundary. TODO test
-            var wrappedVec = new RingVec<T>(_rowKeys.Vec, _head, _rowCount);
-            return VectorSearch.SortedLookup(ref wrappedVec, 0,
-                _rowCount, ref key, lookup, comparer);
+            // var wrappedVec = new RingVec<T>(_rowKeys.Vec, _head, _rowCount);
+            // return VectorSearch.SortedLookup(ref wrappedVec, 0,
+            //     _rowCount, ref key, lookup, comparer);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining
@@ -374,10 +375,7 @@ namespace Spreads.Collections.Internal
         public int SearchKey<T>(T key, KeyComparer<T> comparer = default)
         {
             if (_head + _rowCount <= _rowKeys.Vec.Length)
-            {
-                return _head + VectorSearch.SortedSearch(ref _rowKeys.Vec.DangerousGetRef<T>(_head),
-                    _rowCount, key, comparer);
-            }
+                return VectorSearch.SortedSearch(ref _rowKeys.UnsafeGetRef<T>(), _head, _rowCount, key, comparer);
 
             // TODO for EQ search we do not need a wrapper, we just need to
             // decide where to search based on comparison with the last offset
@@ -388,11 +386,12 @@ namespace Spreads.Collections.Internal
         [MethodImpl(MethodImplOptions.NoInlining)]
         private int SearchKeySlower<T>(T key, KeyComparer<T> comparer)
         {
+            throw new NotImplementedException();
             // This should be pretty fast vs. manually managing edge cases on
             // the wrap boundary. TODO test
-            var wrappedVec = new RingVec<T>(_rowKeys.Vec, _head, _rowCount);
-            return VectorSearch.SortedSearch(ref wrappedVec, 0,
-                _rowCount, key, comparer);
+            // var wrappedVec = new RingVec<T>(_rowKeys.Vec, _head, _rowCount);
+            // return VectorSearch.SortedSearch(ref wrappedVec, 0,
+            //     _rowCount, key, comparer);
         }
 
         #region Structure check

@@ -67,7 +67,7 @@ namespace Spreads.Core.Tests
         protected virtual IConfig GetStandaloneConfig() => DefaultConfig.Instance.With(Job.ShortRun);
 
         [Test]
-        public void RunAll()
+        public virtual void RunAll()
         {
             BenchmarkSwitcher.FromTypes(new[] {GetType()}).RunAll(IsInTests ? GetTestConfig() : GetStandaloneConfig());
         }

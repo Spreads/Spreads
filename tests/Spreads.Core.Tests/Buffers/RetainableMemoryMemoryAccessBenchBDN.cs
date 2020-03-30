@@ -239,5 +239,9 @@ namespace Spreads.Core.Tests.Buffers
                 throw new InvalidOperationException();
             return sum;
         }
+
+        public override void RunAll()
+        {
+        }
     }
 }
