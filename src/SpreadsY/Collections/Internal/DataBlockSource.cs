@@ -4,10 +4,8 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
 
 namespace Spreads.Collections.Internal
 {
@@ -22,7 +20,7 @@ namespace Spreads.Collections.Internal
         /// DataBlock has Next property to form a linked list. If _root is set then all blocks after it are GC-rooted and won't be collected.
         /// </summary>
         // ReSharper disable once NotAccessedField.Local
-        // private DataBlock? _root;
+        private DataBlock? _root;
 
         /// <summary>
         /// Last block is always rooted and speeds up most frequent operations.
@@ -30,7 +28,7 @@ namespace Spreads.Collections.Internal
         private DataBlock? _last;
 
         // This is used from locked context, do not use locked methods
-        internal AppendSeries<TKey, DataBlock> _blockSeries;
+        internal MutableSeries<TKey, DataBlock> _blockSeries;
 
         public DataBlockSource()
         {
@@ -78,14 +76,13 @@ namespace Spreads.Collections.Internal
 
             if (lastBlock != null)
             {
-                throw new NotImplementedException();
-                // lastBlock.NextBlock = value;
-                // value.PreviousBlock = lastBlock;
+                lastBlock.NextBlock = value;
+                value.PreviousBlock = lastBlock;
             }
             else
             {
                 // Console.WriteLine("SETTING ROOT");
-                // _root = value;
+                _root = value;
             }
             // GC.KeepAlive(value);
             _last = value;
@@ -185,8 +182,8 @@ namespace Spreads.Collections.Internal
                 block.Dispose();
             }
 
-            // _root = null;
-            // TODO this call should dispose each block, shouldn't it? not the above loop
+            _root = null;
+            // TODO this call should dispose each block, shouldn't it?
             _blockSeries.Dispose();
         }
 
@@ -221,8 +218,8 @@ namespace Spreads.Collections.Internal
             if (currentBlock == DataBlock.Empty && First.IsPresent)
             {
                 nextBlock = First.Present.Value;
-            } else if (!DataContainer.TryFindBlockAtFromSource( out nextBlock, this,
-                currentBlock.UnsafeGetRowKey<TKey>(index: 0), Lookup.GT, _blockSeries._comparer))
+            } else if (!_blockSeries.TryFindBlockAtFromSource(out nextBlock, this,
+                currentBlock.DangerousRowKey<TKey>(index: 0), Lookup.GT))
             {
                 if (AdditionalCorrectnessChecks.Enabled)
                     ThrowHelper.Assert(nextBlock == null, "nextBlock == null");
@@ -267,8 +264,8 @@ namespace Spreads.Collections.Internal
             {
                 previousBlock = LastValueOrDefault;
             }
-            else if (!DataContainer.TryFindBlockAtFromSource(out previousBlock, this,
-                currentBlock.UnsafeGetRowKey<TKey>(index: 0), Lookup.LT, _blockSeries._comparer))
+            else if (!_blockSeries.TryFindBlockAtFromSource(out previousBlock, this,
+                currentBlock.DangerousRowKey<TKey>(index: 0), Lookup.LT))
             {
                 if (AdditionalCorrectnessChecks.Enabled)
                     ThrowHelper.Assert(previousBlock == null);
@@ -285,228 +282,4 @@ namespace Spreads.Collections.Internal
             return false;
         }
     }
-    
-    
-    /// <summary>
-    /// Slim abstraction over <see cref="DataBlock"/> with <see cref="DataBlock.Height"/> above zero,
-    /// which means that data block is a node that contains other data blocks.
-    /// </summary>
-    internal ref struct DataBlockSource2<TKey>
-    {
-        /// <summary>
-        /// RowKeys : TKey, Values : DataBlock
-        /// </summary>
-        public DataBlock DataRoot;
-
-        public DataBlockSource2(DataBlock dataRoot)
-        {
-            Debug.Assert(dataRoot.Height > 0);
-            DataRoot = dataRoot;
-        }
-        
-        [MethodImpl(MethodImplOptions.NoInlining
-#if HAS_AGGR_OPT
-            | MethodImplOptions.AggressiveOptimization
-#endif
-        )]
-        public bool AddLast(TKey key, DataBlock value)
-        {
-            throw new NotImplementedException();
-            // var wr = new WeakReference<DataBlock>(value);
-            // DataBlock? lastBlock = null;
-            // var last = DataRoot.Last;
-            // if (last.IsPresent)
-            // {
-            //     lastBlock = last.Present.Value;
-            //     // Console.WriteLine($"LAST: {last.Present.Key} adding: {key}");
-            //     //if (!last.Present.Value.TryGetTarget(out lastBlock))
-            //     //{
-            //     //    // Console.WriteLine("CANNOT GET LAST");
-            //     //    // TODO cleanup
-            //     //    // Assert that all do not have target
-            //     //}
-            // }
-            // else
-            // {
-            //     // Console.WriteLine("Cannot get last: " + key);
-            //     // last = _weakSeries.Last;
-            // }
-            //
-            // var added1 = DataContainer.TryAppend(null, ref DataRoot, Comparer, KeySorting.NotSorted, key, value); // TODO review key sorting, is it really not enforced for blocks and the check done above?
-            // var added = DataRoot.TryAppend(key, value);
-            // if (!added)
-            // {
-            //     // ThrowHelper.ThrowInvalidOperationException("This should always succeed");
-            //     return false;
-            // }
-            //
-            // if (lastBlock != null)
-            // {
-            //     lastBlock.NextBlock = value;
-            //     value.PreviousBlock = lastBlock;
-            // }
-            // else
-            // {
-            //     // Console.WriteLine("SETTING ROOT");
-            //     // _root = value;
-            // }
-            // // GC.KeepAlive(value);
-            // DataRoot.LastBlock = value;
-            // return true;
-        }
-
-        public KeyComparer<TKey> Comparer => throw new NotImplementedException();
-
-        public Opt<KeyValuePair<TKey, DataBlock>> First
-        {
-            get
-            {
-                throw new NotImplementedException();
-                // var wOpt = DataRoot.First;
-                // if (wOpt.IsPresent) // && wOpt.Present.Value.TryGetTarget(out var block))
-                // {
-                //     return Opt.Present(wOpt.Present); //new KeyValuePair<TKey, DataBlock>(wOpt.Present.Key, block));
-                // }
-                // return Opt<KeyValuePair<TKey, DataBlock>>.Missing;
-            }
-        }
-
-        public DataBlock LastValueOrDefault // TODO review if should move to iface
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get
-            {
-                throw new NotImplementedException();
-                // // very important optimization for Series.Append
-                // if (DataRoot.LastBlock != null)
-                // {
-                //     return DataRoot.LastBlock;
-                // }
-                //
-                // return DataRoot.LastValueOrDefault;
-            }
-        }
-
-        public Opt<KeyValuePair<TKey, DataBlock>> Last
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get
-            {
-                throw new NotImplementedException();
-                // var wOpt = DataRoot.Last;
-                // if (wOpt.IsPresent) // && wOpt.Present.Value.TryGetTarget(out var block))
-                // {
-                //     // TODO use _last
-                //     // Debug.Assert(_last == null || block == _last);
-                //     return new Opt<KeyValuePair<TKey, DataBlock>>(wOpt.Present); // new KeyValuePair<TKey, DataBlock>(wOpt.Present.Key, block));
-                // }
-                // return Opt<KeyValuePair<TKey, DataBlock>>.Missing;
-            }
-        }
-
-        public DataBlock this[TKey key] => throw new NotImplementedException();
-
-        public bool TryFindAt(TKey key, Lookup direction, out KeyValuePair<TKey, DataBlock> kvp)
-        {
-            throw new NotImplementedException();
-            // return DataRoot.DoTryFindAt(key, direction, out kvp);
-        }
-        
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool TryGetNextBlock(DataBlock currentBlock, [NotNullWhen(true)] out DataBlock? nextBlock)
-        {
-            nextBlock = currentBlock.NextBlock;
-
-            if (nextBlock != null)
-            {
-                if (AdditionalCorrectnessChecks.Enabled)
-                    ThrowHelper.Assert(nextBlock.RowCount > 0, "nextBlock.RowCount > 0");
-                return nextBlock.RowCount > 0;
-            }
-
-            if (currentBlock == LastValueOrDefault)
-            {
-                nextBlock = null;
-                return false;
-            }
-
-            return TryGetNextBlockSlower(currentBlock, out nextBlock);
-        }
-
-        [MethodImpl(MethodImplOptions.NoInlining)]
-        private bool TryGetNextBlockSlower(DataBlock currentBlock, out DataBlock? nextBlock)
-        {
-            throw new NotImplementedException();
-            
-            // if (currentBlock == DataBlock.Empty && First.IsPresent)
-            // {
-            //     nextBlock = First.Present.Value;
-            // } else if (!DataRoot.TryFindBlockAtFromSource(out nextBlock, this,
-            //     currentBlock.DangerousRowKey<TKey>(index: 0), Lookup.GT))
-            // {
-            //     if (AdditionalCorrectnessChecks.Enabled)
-            //         ThrowHelper.Assert(nextBlock == null, "nextBlock == null");
-            //     nextBlock = null;
-            // }
-            //
-            // if (nextBlock != null)
-            // {
-            //     if (AdditionalCorrectnessChecks.Enabled)
-            //         ThrowHelper.DebugAssert(nextBlock.RowCount > 0, "nextBlock.RowCount > 0 2");
-            //     return nextBlock.RowCount > 0;
-            // }
-            //
-            // return false;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool TryGetPreviousBlock(DataBlock currentBlock, [NotNullWhen(true)] out DataBlock? previousBlock)
-        {
-            previousBlock = currentBlock.PreviousBlock;
-
-            if (previousBlock != null)
-            {
-                if (AdditionalCorrectnessChecks.Enabled)
-                    ThrowHelper.Assert(previousBlock.RowCount > 0);
-                return previousBlock.RowCount > 0;
-            }
-
-            if (currentBlock == First.Present.Value)
-            {
-                previousBlock = null;
-                return false;
-            }
-
-            return TryGetPreviousBlockSlower(currentBlock, out previousBlock);
-        }
-
-        [MethodImpl(MethodImplOptions.NoInlining)]
-        private bool TryGetPreviousBlockSlower(DataBlock currentBlock, out DataBlock? previousBlock)
-        {
-            throw new NotImplementedException();
-            // if (currentBlock == DataBlock.Empty && LastValueOrDefault != null)
-            // {
-            //     previousBlock = LastValueOrDefault;
-            // }
-            // else if (!DataRoot.TryFindBlockAtFromSource(out previousBlock, this,
-            //     currentBlock.DangerousRowKey<TKey>(index: 0), Lookup.LT))
-            // {
-            //     if (AdditionalCorrectnessChecks.Enabled)
-            //         ThrowHelper.Assert(previousBlock == null);
-            //     previousBlock = null;
-            // }
-            //
-            // if (previousBlock != null)
-            // {
-            //     if (AdditionalCorrectnessChecks.Enabled)
-            //         ThrowHelper.DebugAssert(previousBlock.RowCount > 0);
-            //     return previousBlock.RowCount > 0;
-            // }
-            //
-            // return false;
-        }
-    }
-    
-    
 }
-

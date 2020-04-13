@@ -44,7 +44,7 @@ namespace Spreads.Run
             Settings.SharedSpinLockNotificationPort = 53412;
             
             var test = new VecSearchTests();
-            test.SearchBench();
+            test.LookupIrregularBench();
             
             GC.Collect(2, GCCollectionMode.Forced, true, true);
 

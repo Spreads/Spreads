@@ -34,7 +34,7 @@ namespace Spreads.Core.Tests.Buffers
 
             for (int i = 0; i < count; i++)
             {
-                db.RetainedVec.UnsafeWriteUnaligned((IntPtr) i, i);
+                db.RetainedVec.UnsafeWriteUnaligned(i, i);
                 arr[i] = i;
             }
 
@@ -83,7 +83,6 @@ namespace Spreads.Core.Tests.Buffers
                 throw new InvalidOperationException();
         }
 
-        
         [Test
 #if !DEBUG
          , Explicit("bench")
@@ -101,7 +100,7 @@ namespace Spreads.Core.Tests.Buffers
 
             for (int i = 0; i < count; i++)
             {
-                db.RetainedVec.UnsafeWriteUnaligned((IntPtr) i, i);
+                db.RetainedVec.UnsafeWriteUnaligned(i, i);
                 arr[i] = i;
             }
 
@@ -132,7 +131,7 @@ namespace Spreads.Core.Tests.Buffers
         public void Sum(RetainableMemory<int> rm)
         {
             var rounds = TestUtils.GetBenchCount(100_000, 100);
-            
+
             long sum = 0;
             using (Benchmark.Run("Sum (CPU Hz)", rm.Length * rounds))
             {
@@ -275,27 +274,6 @@ namespace Spreads.Core.Tests.Buffers
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
-        public void MemoryAccessVecViaDbVecUnsafeX(RetainableMemory<int> rm)
-        {
-            var rounds = TestUtils.GetBenchCount(100_000, 100);
-            long sum = 0;
-            using (Benchmark.Run("DbVecUnsafeX", rm.Length * rounds))
-            {
-                DataBlockLike db = new DataBlockLike {Rm = rm, Vec = rm.GetVec().AsVec(), RetainedVec = RetainedVec.Create(rm, 0, rm.Length, true)};
-                for (int r = 0; r < rounds; r++)
-                {
-                    for (long i = 0; i < rm.Length; i++)
-                    {
-                        sum += db.RetainedVec.Vec.UnsafeGetUnalignedX<int>((IntPtr) i);
-                    }
-                }
-            }
-
-            if (sum < 1000)
-                throw new InvalidOperationException();
-        }
-
-        [MethodImpl(MethodImplOptions.NoInlining)]
         public void MemoryAccessVecViaDbVecUnsafe(RetainableMemory<int> rm)
         {
             var rounds = TestUtils.GetBenchCount(100_000, 100);
@@ -324,11 +302,11 @@ namespace Spreads.Core.Tests.Buffers
             using (Benchmark.Run("DbVecStorageRead (^)", rm.Length * rounds))
             {
                 DataBlockLike db = new DataBlockLike {Rm = rm, Vec = rm.GetVec().AsVec(), RetainedVec = RetainedVec.Create(rm, 0, rm.Length, true), Length = rm.Length};
-                for (long r = 0; r < rounds; r++)
+                for (int r = 0; r < rounds; r++)
                 {
-                    for (long i = 0; i < db.Length; i++)
+                    for (int i = 0; i < db.Length; i++)
                     {
-                        sum += db.RetainedVec.UnsafeReadUnaligned<int>((IntPtr) i);
+                        sum += db.RetainedVec.UnsafeReadUnaligned<int>(i);
                     }
                 }
             }
@@ -369,9 +347,9 @@ namespace Spreads.Core.Tests.Buffers
 
                 for (int r = 0; r < rounds; r++)
                 {
-                    for (long i = 0; i < rm.Length; i++)
+                    for (int i = 0; i < rm.Length; i++)
                     {
-                        sum += db.RetainedVec.Vec.UnsafeGetUnaligned<int>((IntPtr) i);
+                        sum += db.RetainedVec.UnsafeReadUnaligned<int>(i);
                     }
                 }
             }
@@ -392,7 +370,7 @@ namespace Spreads.Core.Tests.Buffers
                 {
                     for (int i = 0; i < rm.Length; i++)
                     {
-                        sum += db.RetainedVec.Vec.DangerousGetUnaligned<int>(i);
+                        sum += db.RetainedVec.UnsafeReadUnaligned<int>(i);
                     }
                 }
             }
@@ -417,9 +395,9 @@ namespace Spreads.Core.Tests.Buffers
             // return Vec.UnsafeGetUnalignedX<T>(index);
             if (TypeHelper<T>.IsReferenceOrContainsReferences)
                 return Unsafe.ReadUnaligned<T>(ref Unsafe.As<T, byte>(ref Unsafe.Add(
-                    ref Unsafe.AddByteOffset(ref Unsafe.As<Pinnable<T>>(RetainedVec._pinnable).Data, (IntPtr)RetainedVec._byteOffset),
+                    ref Unsafe.AddByteOffset(ref Unsafe.As<Pinnable<T>>(RetainedVec._array).Data, (IntPtr) RetainedVec._pointerOrOffset),
                     index)));
-            return Unsafe.ReadUnaligned<T>(ref Unsafe.As<T, byte>(ref Unsafe.Add<T>(ref Unsafe.AsRef<T>((void*) RetainedVec._byteOffset), index)));
+            return Unsafe.ReadUnaligned<T>(ref Unsafe.As<T, byte>(ref Unsafe.Add<T>(ref Unsafe.AsRef<T>((void*) RetainedVec._pointerOrOffset), index)));
         }
     }
 

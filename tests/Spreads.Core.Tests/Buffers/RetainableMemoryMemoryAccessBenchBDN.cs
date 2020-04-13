@@ -45,7 +45,7 @@ namespace Spreads.Core.Tests.Buffers
 
             for (int i = 0; i < _count; i++)
             {
-                _db.RetainedVec.UnsafeWriteUnaligned((IntPtr) i, i + 1);
+                _db.RetainedVec.UnsafeWriteUnaligned(i, i + 1);
                 _arr[i] = i + 1;
             }
         }
@@ -130,25 +130,18 @@ namespace Spreads.Core.Tests.Buffers
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
         public int MemoryAccessVecViaDbVecDangerous()
         {
-            return _db.Vec.DangerousGetUnaligned<int>(_idx);
+            return _db.RetainedVec.UnsafeReadUnaligned<int>(_idx);
         }
-
-        [Benchmark]
-        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
-        public int MemoryAccessVecViaDbVecUnsafeX()
-        {
-            return _db.RetainedVec.Vec.UnsafeGetUnalignedX<int>((IntPtr) _idx);
-        }
-
+        
         [BenchmarkCategoryAttribute("MemAccess")]
         [Benchmark(OperationsPerInvoke = 10)]
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
         public int MemoryAccessVecViaDbVecUnsafe()
         {
-            return _db.Vec.UnsafeGetUnaligned<int>((IntPtr) _db.Vec.UnsafeGetUnaligned<int>((IntPtr) _db.Vec.UnsafeGetUnaligned<int>(
-                (IntPtr) _db.Vec.UnsafeGetUnaligned<int>((IntPtr) _db.Vec.UnsafeGetUnaligned<int>((IntPtr) _db.Vec.UnsafeGetUnaligned<int>(
-                    (IntPtr) _db.Vec.UnsafeGetUnaligned<int>(
-                        (IntPtr) _db.Vec.UnsafeGetUnaligned<int>((IntPtr) _db.Vec.UnsafeGetUnaligned<int>((IntPtr) _db.Vec.UnsafeGetUnaligned<int>((IntPtr) _idxLong))))))))));
+            return _db.RetainedVec.UnsafeReadUnaligned<int>( _db.RetainedVec.UnsafeReadUnaligned<int>( _db.RetainedVec.UnsafeReadUnaligned<int>(
+                 _db.RetainedVec.UnsafeReadUnaligned<int>( _db.RetainedVec.UnsafeReadUnaligned<int>( _db.RetainedVec.UnsafeReadUnaligned<int>(
+                     _db.RetainedVec.UnsafeReadUnaligned<int>(
+                         _db.RetainedVec.UnsafeReadUnaligned<int>( _db.RetainedVec.UnsafeReadUnaligned<int>( _db.RetainedVec.UnsafeReadUnaligned<int>( _idx))))))))));
         }
 
         [BenchmarkCategoryAttribute("MemAccess")]
@@ -156,11 +149,11 @@ namespace Spreads.Core.Tests.Buffers
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
         public int MemoryAccessVecViaDbVecStorageRead()
         {
-            return _db.RetainedVec.UnsafeReadUnaligned<int>((IntPtr) _db.RetainedVec.UnsafeReadUnaligned<int>((IntPtr) _db.RetainedVec.UnsafeReadUnaligned<int>(
-                (IntPtr) _db.RetainedVec.UnsafeReadUnaligned<int>((IntPtr) _db.RetainedVec.UnsafeReadUnaligned<int>(
-                    (IntPtr) _db.RetainedVec.UnsafeReadUnaligned<int>((IntPtr) _db.RetainedVec.UnsafeReadUnaligned<int>(
-                        (IntPtr) _db.RetainedVec.UnsafeReadUnaligned<int>(
-                            (IntPtr) _db.RetainedVec.UnsafeReadUnaligned<int>((IntPtr) _db.RetainedVec.UnsafeReadUnaligned<int>((IntPtr) _idxLong))))))))));
+            return _db.RetainedVec.UnsafeReadUnaligned<int>(_db.RetainedVec.UnsafeReadUnaligned<int>( _db.RetainedVec.UnsafeReadUnaligned<int>(
+                 _db.RetainedVec.UnsafeReadUnaligned<int>( _db.RetainedVec.UnsafeReadUnaligned<int>(
+                     _db.RetainedVec.UnsafeReadUnaligned<int>( _db.RetainedVec.UnsafeReadUnaligned<int>(
+                         _db.RetainedVec.UnsafeReadUnaligned<int>(
+                             _db.RetainedVec.UnsafeReadUnaligned<int>( _db.RetainedVec.UnsafeReadUnaligned<int>( _idx))))))))));
         }
 
         [Benchmark]
@@ -175,11 +168,11 @@ namespace Spreads.Core.Tests.Buffers
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
         public int MemoryAccessVecViaDbVecStorageUnsafe()
         {
-            return _db.RetainedVec.Vec.UnsafeGetUnaligned<int>((IntPtr) _db.RetainedVec.Vec.UnsafeGetUnaligned<int>((IntPtr) _db.RetainedVec.Vec.UnsafeGetUnaligned<int>(
-                (IntPtr) _db.RetainedVec.Vec.UnsafeGetUnaligned<int>((IntPtr) _db.RetainedVec.Vec.UnsafeGetUnaligned<int>(
-                    (IntPtr) _db.RetainedVec.Vec.UnsafeGetUnaligned<int>((IntPtr) _db.RetainedVec.Vec.UnsafeGetUnaligned<int>(
-                        (IntPtr) _db.RetainedVec.Vec.UnsafeGetUnaligned<int>(
-                            (IntPtr) _db.RetainedVec.Vec.UnsafeGetUnaligned<int>((IntPtr) _db.RetainedVec.Vec.UnsafeGetUnaligned<int>((IntPtr) _idx))))))))));
+            return _db.RetainedVec.UnsafeReadUnaligned<int>( _db.RetainedVec.UnsafeReadUnaligned<int>( _db.RetainedVec.UnsafeReadUnaligned<int>(
+                 _db.RetainedVec.UnsafeReadUnaligned<int>( _db.RetainedVec.UnsafeReadUnaligned<int>(
+                     _db.RetainedVec.UnsafeReadUnaligned<int>( _db.RetainedVec.UnsafeReadUnaligned<int>(
+                         _db.RetainedVec.UnsafeReadUnaligned<int>(
+                             _db.RetainedVec.UnsafeReadUnaligned<int>( _db.RetainedVec.UnsafeReadUnaligned<int>( _idx))))))))));
         }
 
         [BenchmarkCategoryAttribute("MemAccess")]
@@ -187,10 +180,10 @@ namespace Spreads.Core.Tests.Buffers
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
         public int MemoryAccessVecViaDbVecStorageDangerous()
         {
-            return _db.RetainedVec.Vec.DangerousGetUnaligned<int>(_db.RetainedVec.Vec.DangerousGetUnaligned<int>(_db.RetainedVec.Vec.DangerousGetUnaligned<int>(
-                _db.RetainedVec.Vec.DangerousGetUnaligned<int>(_db.RetainedVec.Vec.DangerousGetUnaligned<int>(_db.RetainedVec.Vec.DangerousGetUnaligned<int>(
-                    _db.RetainedVec.Vec.DangerousGetUnaligned<int>(
-                        _db.RetainedVec.Vec.DangerousGetUnaligned<int>(_db.RetainedVec.Vec.DangerousGetUnaligned<int>(_db.RetainedVec.Vec.DangerousGetUnaligned<int>(_idx))))))))));
+            return _db.RetainedVec.UnsafeReadUnaligned<int>(_db.RetainedVec.UnsafeReadUnaligned<int>(_db.RetainedVec.UnsafeReadUnaligned<int>(
+                _db.RetainedVec.UnsafeReadUnaligned<int>(_db.RetainedVec.UnsafeReadUnaligned<int>(_db.RetainedVec.UnsafeReadUnaligned<int>(
+                    _db.RetainedVec.UnsafeReadUnaligned<int>(
+                        _db.RetainedVec.UnsafeReadUnaligned<int>(_db.RetainedVec.UnsafeReadUnaligned<int>(_db.RetainedVec.UnsafeReadUnaligned<int>(_idx))))))))));
         }
 
         [Test

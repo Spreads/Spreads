@@ -83,7 +83,7 @@ namespace Spreads
             var valMemory = ArrayMemory<TValue>.Create(values);
             var valVs = RetainedVec.Create(valMemory, 0, valMemory.Length);
 
-            var block = DataBlock.SeriesCreate(rowIndex: keyVs, values: valVs, rowLength: keys.Length);
+            var block = DataBlock.CreateForPanel(rowKeys: keyVs, values: valVs, rowCount: keys.Length);
 
             Data = block;
         }
@@ -110,8 +110,8 @@ namespace Spreads
 
                 if (db != null && db.RowCount > 0)
                 {
-                    var k = db.DangerousRowKey<TKey>(0);
-                    var v = db.DangerousValue<TValue>(0);
+                    var k = db.UnsafeGetRowKey<TKey>(0);
+                    var v = db.UnsafeGetValue<TValue>(0);
                     return Opt.Present(new KeyValuePair<TKey, TValue>(k, v));
                 }
                 return Opt<KeyValuePair<TKey, TValue>>.Missing;
@@ -134,8 +134,8 @@ namespace Spreads
                 int idx;
                 if (db != null && (idx = db.RowCount - 1) >= 0)
                 {
-                    var k = db.DangerousRowKey<TKey>(idx);
-                    var v = db.DangerousValue<TValue>(idx);
+                    var k = db.UnsafeGetRowKey<TKey>(idx);
+                    var v = db.UnsafeGetValue<TValue>(idx);
                     return new Opt<KeyValuePair<TKey, TValue>>(new KeyValuePair<TKey, TValue>(k, v));
                 }
                 return Opt<KeyValuePair<TKey, TValue>>.Missing;
@@ -157,7 +157,7 @@ namespace Spreads
                 int idx;
                 if (db != null && (idx = db.RowCount - 1) >= 0)
                 {
-                    return db.DangerousValue<TValue>(idx);
+                    return db.UnsafeGetValue<TValue>(idx);
                 }
                 return default!;
             }
@@ -232,8 +232,8 @@ namespace Spreads
             {
                 if (TryGetBlockAt(index, out var block, out var blockIndex))
                 {
-                    var k = block.DangerousRowKey<TKey>(blockIndex);
-                    var v = block.DangerousValue<TValue>(blockIndex);
+                    var k = block.UnsafeGetRowKey<TKey>(blockIndex);
+                    var v = block.UnsafeGetValue<TValue>(blockIndex);
                     kvp = new KeyValuePair<TKey, TValue>(k, v);
                     result = true;
                 }
@@ -308,10 +308,10 @@ namespace Spreads
         )]
         internal bool DoTryFindAt(TKey key, Lookup direction, out KeyValuePair<TKey, TValue> kvp)
         {
-            if (TryFindBlockAt(ref key, direction, out var block, out var blockIndex))
+            if (DataContainer.TryFindBlockAt(Data, ref key, direction, out var block, out var blockIndex, _comparer))
             {
                 // key is updated if not EQ according to direction
-                var v = block.DangerousValue<TValue>(blockIndex);
+                var v = block.UnsafeGetValue<TValue>(blockIndex);
                 kvp = new KeyValuePair<TKey, TValue>(key, v);
                 return true;
             }
@@ -329,7 +329,7 @@ namespace Spreads
         {
             if (TryGetBlock(key, out var block, out var blockIndex))
             {
-                value = block.DangerousValue<TValue>(blockIndex);
+                value = block.UnsafeGetValue<TValue>(blockIndex);
                 return true;
             }
 

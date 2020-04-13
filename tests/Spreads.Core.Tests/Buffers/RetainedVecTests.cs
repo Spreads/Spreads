@@ -16,11 +16,29 @@ namespace Spreads.Core.Tests.Buffers
 {
     // [Category("CI")]
     [TestFixture]
-    public unsafe class VectorStorageTests
+    public unsafe class RetainedVecTests
     {
+        class Test
+        {
+            public object this[Range index]
+            {
+                get => null;
+                
+            }
+            
+            public object this[Index index]
+            {
+                get => null;
+                
+            }
+        }
+        
         [Test, Explicit("output")]
         public void SizeOfVectorStorage()
         {
+            Test x = new Test();
+            var y = x[1..^1];
+            
             ObjectLayoutInspector.TypeLayout.PrintLayout<RetainedVec>();
         }
 
@@ -30,7 +48,7 @@ namespace Spreads.Core.Tests.Buffers
             RetainedVec vs1 = default;
             RetainedVec vs2 = default;
             Assert.AreEqual(vs1, vs2);
-            Assert.AreEqual(vs1.Vec.Length, 0);
+            Assert.AreEqual(vs1.Length, 0);
 
             var count = 1000;
             var rm = BuffersTestHelper.CreateFilledRM(count);
@@ -38,8 +56,8 @@ namespace Spreads.Core.Tests.Buffers
 
             Assert.AreNotEqual(vs1, vs);
 
-            var vsCopy = vs.Slice(0, vs.Vec.Length, true);
-            var vsSlice = vs.Slice(0, vs.Vec.Length - 1, true);
+            var vsCopy = vs.Slice(0, vs.Length, true);
+            var vsSlice = vs.Slice(0, vs.Length - 1, true);
 
             Assert.AreEqual(vs, vsCopy);
             Assert.AreNotEqual(vs, vsSlice);
@@ -54,17 +72,17 @@ namespace Spreads.Core.Tests.Buffers
             var rm = BuffersTestHelper.CreateFilledRM(count);
             var vs = RetainedVec.Create(rm, 0, rm.Length);
 
-            Assert.AreEqual(rm.Length, vs.Vec.Length);
+            Assert.AreEqual(rm.Length, vs.Length);
             long sum = 0L;
             for (int i = 0; i < rm.Length; i++)
             {
-                var vi = vs.Vec.DangerousGetUnaligned<long>(i);
+                var vi = vs.UnsafeReadUnaligned<long>(i);
                 if (vi != i)
                 {
                     Assert.Fail("vi != i");
                 }
 
-                sum += vs.Vec.DangerousGetUnaligned<int>(i);
+                sum += vs.UnsafeReadUnaligned<int>(i);
             }
 
             Console.WriteLine(sum);
@@ -116,19 +134,19 @@ namespace Spreads.Core.Tests.Buffers
                 Assert.AreEqual(destination.Length, destinationDb.Length);
 
                 Assert.AreEqual(len, len2);
-                Assert.AreEqual(vs.Vec.Length, value.Storage.Vec.Length);
+                Assert.AreEqual(vs.Length, value.Storage.Length);
 
                 for (int i = 0; i < count; i++)
                 {
                     SmallDecimal left;
                     SmallDecimal right;
-                    if ((left = vs.Vec.DangerousGetUnaligned<SmallDecimal>(i)) != (right = value.Storage.Vec.DangerousGetUnaligned<SmallDecimal>(i)))
+                    if ((left = vs.UnsafeReadUnaligned<SmallDecimal>(i)) != (right = value.Storage.UnsafeReadUnaligned<SmallDecimal>(i)))
                     {
                         Console.WriteLine("Not equals");
                     }
                 }
 
-                Assert.IsTrue(vs.Vec.Slice(0, vs.Vec.Length).AsSpan<SmallDecimal>().SequenceEqual(value.Storage.Vec.Slice(0, value.Storage.Vec.Length).AsSpan<SmallDecimal>()));
+                Assert.IsTrue(vs.Slice(0, vs.Length).GetSpan<SmallDecimal>().SequenceEqual(value.Storage.Slice(0, value.Storage.Length).GetSpan<SmallDecimal>()));
 
                 Console.WriteLine($"{format} len: {len:N0} x{Math.Round((double) payload / len, 2)}");
 
@@ -162,18 +180,18 @@ namespace Spreads.Core.Tests.Buffers
 
             var vs = RetainedVec.Create(rm, 0, rm.Length);
 
-            Assert.AreEqual(rm.Length, vs.Vec.Length);
+            Assert.AreEqual(rm.Length, vs.Length);
 
             int sum = 0;
             for (int r = 0; r < rounds; r++)
             {
-                using (Benchmark.Run("VS Read", vs.Vec.Length * mult))
+                using (Benchmark.Run("VS Read", vs.Length * mult))
                 {
                     for (int _ = 0; _ < mult; _++)
                     {
-                        for (int i = 0; i < vs.Vec.Length; i++)
+                        for (int i = 0; i < vs.Length; i++)
                         {
-                            var vi = vs.Vec.DangerousGetUnaligned<int>(i);
+                            var vi = vs.UnsafeReadUnaligned<int>(i);
                             //if (vi != i)
                             //{
                             //    Assert.Fail("vi != i");
@@ -206,14 +224,14 @@ namespace Spreads.Core.Tests.Buffers
             var rm = BuffersTestHelper.CreateFilledRM(bufferSize);
             var vs = RetainedVec.Create(rm, 0, rm.Length);
 
-            Assert.AreEqual(rm.Length, vs.Vec.Length);
+            Assert.AreEqual(rm.Length, vs.Length);
             for (int r = 0; r < rounds; r++)
             {
                 using (Benchmark.Run("Slice/Dispose", count))
                 {
                     for (int i = 0; i < count; i++)
                     {
-                        var vs1 = vs.Slice(0, vs.Vec.Length, externallyOwned: true);
+                        var vs1 = vs.Slice(0, vs.Length, externallyOwned: true);
                         vs1.Dispose();
                     }
                 }

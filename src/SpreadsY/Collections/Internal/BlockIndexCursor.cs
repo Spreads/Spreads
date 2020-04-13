@@ -11,6 +11,7 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
+using Index = SpreadsX.Experimental.Index;
 
 namespace Spreads.Collections.Internal
 {
@@ -21,14 +22,26 @@ namespace Spreads.Collections.Internal
     // to be synced. If we compare order version then we throw on CV getter, otherwise
     // we will throw on next move but CV could be stale.
 
-    /// <summary>
-    /// <see cref="Series{TKey,TValue}"/> cursor implementation.
-    /// </summary>
-    [StructLayout(LayoutKind.Sequential, Pack = 4)]
-    internal struct BlockCursor<TKey, TValue, TContainer> : ICursor<TKey, DataBlock, BlockCursor<TKey, TValue, TContainer>>
-        where TContainer : BaseContainer<TKey>
+    // In a simple single-thread or immutable or append-only world we want ICursor<TKey, (Index blockIndex,DataBlock block)>
+    // and then use that cursor as an internal one of a final cursor. e.g. series cursor. We have after every move 
+    // a data block and an index in that data block, so it's trivial to produce value from there.
+    // Mutations add lots of complexity and actually very little usability, so one option is to limit everything to append-only.
+    // The worst mutation is inserting new rows - it invalidates all current consumers (cursor) and they must start over.
+    // In-place updates keep data location but concurrent write-reads could produce garbage.
+
+    // In any case, we need to produce value in synchronized manner and store it in a cursor.
+    // If we produce a view (e.g. row), we should store order version with it.
+
+    internal interface IBlockIndexCursorKeyValueFactory<TKey, TValue>
     {
-        internal TContainer _source;
+        void GetCurrentKeyValue(DataBlock dataBlock, int currentBlockIndex, out TKey key, out TValue value); // could add BaseContainer<TKey> parameter here
+    }
+    
+    [StructLayout(LayoutKind.Sequential, Pack = 4)]
+    internal struct BlockIndexCursor<TKey, TValue, TKVFactory> : ICursor<TKey, TValue, BlockIndexCursor<TKey, TValue, TKVFactory>>
+        where TKVFactory : struct, IBlockIndexCursorKeyValueFactory<TKey, TValue>
+    {
+        internal BaseContainer<TKey> _source;
 
         /// <summary>
         /// Backing storage for <see cref="CurrentBlock"/>. Must never be used directly.
@@ -56,7 +69,7 @@ namespace Spreads.Collections.Internal
 #pragma warning restore 618
         }
 
-        internal int BlockIndex;
+        internal int CurrentBlockIndex;
 
         // TODO review/test order version overflow in AC
 
@@ -75,10 +88,10 @@ namespace Spreads.Collections.Internal
         internal TValue _currentValue;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public BlockCursor(TContainer source)
+        public BlockIndexCursor(BaseContainer<TKey> source)
         {
             _source = source;
-            BlockIndex = -1;
+            CurrentBlockIndex = -1;
 #pragma warning disable 618
             _currentBlockStorage = DataBlock.Empty;
 #pragma warning restore 618
@@ -98,7 +111,7 @@ namespace Spreads.Collections.Internal
                 if (_source == null)
                     return CursorState.None;
 
-                return BlockIndex >= 0 ? CursorState.Moving : CursorState.Initialized;
+                return CurrentBlockIndex >= 0 ? CursorState.Moving : CursorState.Initialized;
             }
         }
 
@@ -120,7 +133,7 @@ namespace Spreads.Collections.Internal
 
             bool found;
             int nextPosition;
-            DataBlock nextBlock;
+            DataBlock? nextBlock;
             TValue v = default!;
             var sw = new SpinWait();
 
@@ -128,10 +141,11 @@ namespace Spreads.Collections.Internal
             // TODO rework sync for order version
             var version = _source.Version;
             {
-                found = DataContainer.TryFindBlockAt(_source.Data, ref key, direction, out nextBlock, out nextPosition, _source._comparer);
+                found = _source.TryFindBlockAt(ref key, direction, out nextBlock, out nextPosition);
                 if (found)
                 {
-                    v = GetCurrentValue(nextPosition);
+                    default(TKVFactory).GetCurrentKeyValue(nextBlock ?? CurrentBlock, nextPosition, out var key1, out v);
+                    Debug.Assert(_source._comparer.Compare(key1, key) == 0);
                 }
             }
 
@@ -146,7 +160,7 @@ namespace Spreads.Collections.Internal
 
             if (found)
             {
-                BlockIndex = nextPosition;
+                CurrentBlockIndex = nextPosition;
                 _currentKey = key;
                 _currentValue = v;
                 if (nextBlock != null)
@@ -156,22 +170,6 @@ namespace Spreads.Collections.Internal
             }
 
             return found;
-        }
-
-        [Obsolete("Use GetCurrentKeyValue")]
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private TValue GetCurrentValue(int currentBlockIndex)
-        {
-            if (typeof(TContainer) == typeof(Series<TKey, TValue>))
-            {
-                return CurrentBlock.UnsafeGetValue<TValue>(currentBlockIndex);
-            }
-            if (typeof(TContainer) == typeof(BaseContainer<TKey>))
-            {
-                return default;
-            }
-            ThrowHelper.ThrowNotImplementedException();
-            return default;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining
@@ -233,7 +231,7 @@ namespace Spreads.Collections.Internal
             {
                 ThrowHelper.DebugAssert(newBlock == null || newBlockIndex <= (ulong)newBlock.RowCount);
                 // Note: do not use _blockPosition, it's 20% slower than second cast to int
-                GetCurrentKeyValue(newBlock ?? CurrentBlock, (int)newBlockIndex, out k, out v);
+                default(TKVFactory).GetCurrentKeyValue(newBlock ?? CurrentBlock, (int)newBlockIndex, out k, out v);
             }
 
             if (_source.NextOrderVersion != _orderVersion)
@@ -250,7 +248,7 @@ namespace Spreads.Collections.Internal
                 if (newBlock != null)
                     CurrentBlock = newBlock;
 
-                BlockIndex = (int)newBlockIndex;
+                CurrentBlockIndex = (int)newBlockIndex;
                 _currentKey = k;
                 _currentValue = v;
             }
@@ -268,26 +266,8 @@ namespace Spreads.Collections.Internal
 
             return true;
         }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static void GetCurrentKeyValue(DataBlock dataBlock, int currentBlockIndex, out TKey key, out TValue value)
-        {
-            if (typeof(TContainer) == typeof(Series<TKey, TValue>))
-            {
-                dataBlock.UnsafeGetRowKeyValue(currentBlockIndex, out key, out value);
-                return;
-            }
-            if (typeof(TContainer) == typeof(BaseContainer<TKey>))
-            {
-                key = dataBlock.UnsafeGetRowKey<TKey>(currentBlockIndex);
-                value = default!;
-                return;
-            }
-            ThrowHelper.ThrowNotImplementedException();
-            key = default;
-            value = default;
-        }
-
+        
+        
         [MethodImpl(MethodImplOptions.NoInlining)]
         private static void ThrowBadReturnValue(long stride, long mc, bool allowPartial)
         {
@@ -308,7 +288,7 @@ namespace Spreads.Collections.Internal
 
             // Note: this does not handle MP from uninitialized state (_blockPosition == -1, stride <= 0). This case is rare.
             // Uninitialized multi-block case goes to rare as well as uninitialized MP
-            newBlockIndex = unchecked((ulong)(BlockIndex + stride)); // int.Max + long.Max < ulong.Max
+            newBlockIndex = unchecked((ulong)(CurrentBlockIndex + stride)); // int.Max + long.Max < ulong.Max
 
             var rowCount = CurrentBlock.RowCount;
 
@@ -367,7 +347,7 @@ namespace Spreads.Collections.Internal
 
                 ThrowHelper.DebugAssert(cb == localBlock, "CurrentBlock == localBlock");
 
-                if (BlockIndex < 0 & stride < 0) // not &&
+                if (CurrentBlockIndex < 0 & stride < 0) // not &&
                 {
                     ThrowHelper.DebugAssert(State == CursorState.Initialized, "State == CursorState.Initialized");
                     var nextPosition = unchecked((localBlock.RowCount + stride));
@@ -386,16 +366,16 @@ namespace Spreads.Collections.Internal
 
                 if (allowPartial)
                 {
-                    if (BlockIndex + stride >= localBlock.RowCount)
+                    if (CurrentBlockIndex + stride >= localBlock.RowCount)
                     {
-                        var mc = (localBlock.RowCount - 1) - BlockIndex;
-                        newBlockIndex = (ulong)(BlockIndex + mc);
+                        var mc = (localBlock.RowCount - 1) - CurrentBlockIndex;
+                        newBlockIndex = (ulong)(CurrentBlockIndex + mc);
                         return mc;
                     }
                     if (stride < 0) // cannot just use else without checks before, e.g. what if BlockIndex == -1 and stride == 0
                     {
                         newBlockIndex = 0;
-                        return -BlockIndex;
+                        return -CurrentBlockIndex;
                     }
                 }
 
@@ -437,7 +417,7 @@ namespace Spreads.Collections.Internal
 
             // virtual state
             var cb = CurrentBlock;
-            var bi = BlockIndex;
+            var bi = CurrentBlockIndex;
 
             long remaining = stride;
 
@@ -604,7 +584,7 @@ namespace Spreads.Collections.Internal
                     ThrowHelper.Assert(db == CurrentBlock);
                 if (CurrentBlock.RowCount > 0)
                 {
-                    BlockIndex = 0;
+                    CurrentBlockIndex = 0;
                     result = true;
                 }
             }
@@ -623,7 +603,7 @@ namespace Spreads.Collections.Internal
             if (result)
             {
                 // Note: do not use _blockPosition, it's 20% slower than second cast to int
-                GetCurrentKeyValue(newBlock ?? CurrentBlock, (int)0, out k, out v);
+                default(TKVFactory).GetCurrentKeyValue(newBlock ?? CurrentBlock, (int)0, out k, out v);
             }
 
             if (_source.NextOrderVersion != _orderVersion)
@@ -639,7 +619,7 @@ namespace Spreads.Collections.Internal
             {
                 if (newBlock != null)
                     CurrentBlock = newBlock;
-                BlockIndex = (int)0;
+                CurrentBlockIndex = (int)0;
                 _currentKey = k;
                 _currentValue = v;
             }
@@ -691,7 +671,7 @@ namespace Spreads.Collections.Internal
             if (result)
             {
                 // Note: do not use _blockPosition, it's 20% slower than second cast to int
-                GetCurrentKeyValue(newBlock ?? CurrentBlock, (int)0, out k, out v); // TODO WTF(!) 0 not newBlockIndex?
+                default(TKVFactory).GetCurrentKeyValue(newBlock ?? CurrentBlock, (int)newBlockIndex, out k, out v); // TODO WTF(!) 0 not newBlockIndex?
             }
 
             if (_source.NextOrderVersion != _orderVersion)
@@ -707,7 +687,7 @@ namespace Spreads.Collections.Internal
             {
                 if (newBlock != null)
                     CurrentBlock = newBlock;
-                BlockIndex = newBlockIndex;
+                CurrentBlockIndex = newBlockIndex;
                 _currentKey = k;
                 _currentValue = v;
             }
@@ -741,10 +721,10 @@ namespace Spreads.Collections.Internal
         // but after getting the value. It helps that DataBlock cannot shrink in size,
         // only RowLength could, so we will not overrun even if order changed.
 
-        public DataBlock CurrentValue
+        public TValue CurrentValue
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => CurrentBlock;
+            get => _currentValue;
         }
 
         //[MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -758,13 +738,13 @@ namespace Spreads.Collections.Internal
         public int CurrentBlockPosition
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => BlockIndex;
+            get => CurrentBlockIndex;
         }
 
-        public Series<TKey, DataBlock, BlockCursor<TKey, TValue, TContainer>> Source
+        public Series<TKey, TValue, BlockIndexCursor<TKey, TValue, TKVFactory>> Source
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => new Series<TKey, DataBlock, BlockCursor<TKey, TValue, TContainer>>(Initialize());
+            get => new Series<TKey, TValue, BlockIndexCursor<TKey, TValue, TKVFactory>>(Initialize());
         }
 
         public ValueTask<bool> MoveNextAsync()
@@ -774,7 +754,7 @@ namespace Spreads.Collections.Internal
 
         public IAsyncCompleter AsyncCompleter => throw new NotSupportedException("This cursor is only used as a building block of other cursors.");
 
-        ISeries<TKey, DataBlock> ICursor<TKey, DataBlock>.Source => Source;
+        ISeries<TKey, TValue> ICursor<TKey, TValue>.Source => Source;
 
         public bool IsContinuous
         {
@@ -783,7 +763,7 @@ namespace Spreads.Collections.Internal
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public BlockCursor<TKey, TValue, TContainer> Initialize()
+        public BlockIndexCursor<TKey, TValue, TKVFactory> Initialize()
         {
             var c = this;
             c.Reset();
@@ -791,19 +771,19 @@ namespace Spreads.Collections.Internal
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public BlockCursor<TKey, TValue, TContainer> Clone()
+        public BlockIndexCursor<TKey, TValue, TKVFactory> Clone()
         {
             var c = this;
             c.CurrentBlock?.Increment();
             return c;
         }
 
-        ICursor<TKey, DataBlock> ICursor<TKey, DataBlock>.Clone()
+        ICursor<TKey, TValue> ICursor<TKey, TValue>.Clone()
         {
             return Clone();
         }
 
-        public bool TryGetValue(TKey key, out DataBlock value)
+        public bool TryGetValue(TKey key, out TValue value)
         {
             ThrowHelper.DebugAssert(!CurrentBlock.IsDisposed || CurrentBlock.IsEmptySentinel, "!CurrentBlock.IsDisposed || ReferenceEquals(CurrentBlock, DataBlock.Empty)");
 
@@ -812,7 +792,7 @@ namespace Spreads.Collections.Internal
 
         public void Reset()
         {
-            BlockIndex = -1;
+            CurrentBlockIndex = -1;
             _currentKey = default;
             _orderVersion = AtomicCounter.GetCount(ref _source.OrderVersion);
 
@@ -822,10 +802,10 @@ namespace Spreads.Collections.Internal
             }
         }
 
-        public KeyValuePair<TKey, DataBlock> Current
+        public KeyValuePair<TKey, TValue> Current
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => new KeyValuePair<TKey, DataBlock>(CurrentKey, CurrentValue);
+            get => new KeyValuePair<TKey, TValue>(CurrentKey, CurrentValue);
         }
 
         object IEnumerator.Current => Current;
@@ -836,7 +816,7 @@ namespace Spreads.Collections.Internal
             {
                 ThrowHelper.ThrowInvalidOperationException("Disposing not initialized cursor.");
             }
-            BlockIndex = -1;
+            CurrentBlockIndex = -1;
             _currentKey = default;
             _orderVersion = AtomicCounter.GetCount(ref _source.OrderVersion);
             CurrentBlock = DataBlock.Empty;

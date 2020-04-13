@@ -6,39 +6,17 @@ using Spreads.Collections.Internal;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using System.Threading;
+using Spreads.Utils;
 
 namespace Spreads.Collections
 {
-    public class BaseContainerData
-    {
-        protected BaseContainerData()
-        {
-        }
-
-        /// <summary>
-        /// Container-specific data. Never null - instead <see cref="DataBlock.Empty"/> is used as a sentinel.
-        /// </summary>
-        [NotNull]
-        internal object Data = DataBlock.Empty;
-
-        private long _padding0;
-        private long _padding1;
-        private long _padding2;
-        private long _padding3;
-        private long _padding4;
-        private long _padding5;
-        private long _padding6;
-        private long _padding7;
-    }
-
     /// <summary>
-    /// Base class for data container implementations.
+    /// Ownership issues for data container.
     /// </summary>
-    [Utils.CannotApplyEqualityOperator]
-    public class BaseContainer : BaseContainerData, IDataSource, IAsyncCompleter, IDisposable
+    [CannotApplyEqualityOperator]
+    public partial class DataContainer : IDataSource, IAsyncCompleter, IDisposable
     {
         /// <summary>
         /// Flags.
@@ -53,9 +31,6 @@ namespace Spreads.Collections
 
         internal volatile int Version;
 
-        internal BaseContainer()
-        { }
-
         public ContainerLayout ContainerLayout => Flags.ContainerLayout;
 
         public Mutability Mutability => Flags.Mutability;
@@ -69,7 +44,7 @@ namespace Spreads.Collections
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
-                if (Data is DataBlock block)
+                if (Data is DataBlock block && block.Height == 0)
                 {
                     return (ulong)block.RowCount;
                 }
@@ -249,10 +224,10 @@ namespace Spreads.Collections
 
         private class ContainerSubscription : IAsyncSubscription
         {
-            private readonly BaseContainer _container;
+            private readonly DataContainer _container;
             public readonly IAsyncCompletable? Subscriber;
 
-            public ContainerSubscription(BaseContainer container, IAsyncCompletable subscriber)
+            public ContainerSubscription(DataContainer container, IAsyncCompletable subscriber)
             {
                 _container = container;
                 Subscriber = subscriber;
@@ -435,47 +410,9 @@ namespace Spreads.Collections
 
         #endregion Subscription & notification
 
-        #region Attributes
+        
 
-        private static readonly ConditionalWeakTable<BaseContainer, Dictionary<string, object>> Attributes =
-            new ConditionalWeakTable<BaseContainer, Dictionary<string, object>>();
-
-        /// <summary>
-        /// Get an attribute that was set using SetAttribute() method.
-        /// </summary>
-        /// <param name="attributeName">Name of an attribute.</param>
-        /// <returns>Return an attribute value or null is the attribute is not found.</returns>
-        public object? GetAttribute(string attributeName)
-        {
-            if (Attributes.TryGetValue(this, out Dictionary<string, object> dic))
-            {
-                lock (dic)
-                {
-                    if (dic.TryGetValue(attributeName, out object res))
-                    {
-                        return res;
-                    }
-                }
-            }
-            return null;
-        }
-
-        /// <summary>
-        /// Set any custom attribute to a series. An attribute is available during lifetime of a series and is available via GetAttribute() method.
-        /// </summary>
-        public void SetAttribute(string attributeName, object attributeValue)
-        {
-            // GetOrCreateValue is thread-safe
-            var dic = Attributes.GetOrCreateValue(this);
-            lock (dic)
-            {
-                dic[attributeName] = attributeValue;
-            }
-        }
-
-        #endregion Attributes
-
-        protected virtual void Dispose(bool disposing)
+        protected virtual void Dispose(object data, bool disposing)
         {
         }
 
@@ -483,12 +420,14 @@ namespace Spreads.Collections
 
         public void Dispose()
         {
-            Dispose(true);
-            Data = null!;
+            var data = Interlocked.Exchange(ref Data, null);
+            if(data == null)
+                ThrowHelper.ThrowObjectDisposedException("baseContainer");
+            Dispose(data, true);
             GC.SuppressFinalize(this);
         }
 
-        ~BaseContainer()
+        ~DataContainer()
         {
             // Containers are root objects that own data and usually are relatively long-lived.
             // Most containers use memory from some kind of a memory pool, including native
@@ -498,7 +437,7 @@ namespace Spreads.Collections
             Trace.TraceWarning("Finalizing BaseContainer. This should not normally happen and containers should be explicitly disposed.");
             try
             {
-                Dispose(false);
+                Dispose(Data, false);
             }
             catch (Exception ex)
             {

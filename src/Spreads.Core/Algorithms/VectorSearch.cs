@@ -2,6 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+using System;
 using Spreads.DataTypes;
 using Spreads.Native;
 using System.Diagnostics;
@@ -10,7 +11,7 @@ using System.Runtime.CompilerServices;
 
 namespace Spreads.Algorithms
 {
-    /// <summary>
+    /// <summary> 
     /// Algorithms to find values in contiguous data (memory region or a data structure with an indexer), e.g. <see cref="Vec{T}"/>.
     /// WARNING: Methods in this static class do not perform bound checks and are intended to be used
     /// as building blocks in other parts that calculate bounds correctly and
@@ -196,16 +197,12 @@ namespace Spreads.Algorithms
             if (i >= offset)
             {
                 if (lookup.IsEqualityOK())
-                {
-                    return i;
-                }
+                    goto RETURN;
 
                 if (lookup == Lookup.LT)
                 {
                     if (i == offset)
-                    {
-                        return ~offset;
-                    }
+                        goto RETURN_O;
 
                     i--;
                 }
@@ -213,9 +210,7 @@ namespace Spreads.Algorithms
                 {
                     Debug.Assert(lookup == Lookup.GT);
                     if (i == offset + length - 1)
-                    {
-                        return ~(offset + length);
-                    }
+                        goto RETURN_OL;
 
                     i++;
                 }
@@ -223,9 +218,7 @@ namespace Spreads.Algorithms
             else
             {
                 if (lookup == Lookup.EQ)
-                {
-                    return i;
-                }
+                    goto RETURN;
 
                 i = ~i;
 
@@ -234,9 +227,7 @@ namespace Spreads.Algorithms
                 {
                     // i is idx of element that is larger, nothing here for LE/LT
                     if (i == offset)
-                    {
-                        return ~offset;
-                    }
+                        goto RETURN_O;
 
                     i--;
                 }
@@ -246,41 +237,42 @@ namespace Spreads.Algorithms
                     Debug.Assert(i <= offset + length);
                     // if was negative, if it was ~length then there are no more elements for GE/GT
                     if (i == offset + length)
-                    {
-                        return ~(offset + length);
-                    }
-
+                        goto RETURN_OL;
                     // i is the same, ~i is idx of element that is GT the value
                 }
             }
 
+            RETURN:
             Debug.Assert(unchecked((uint) i) - offset < unchecked((uint) length));
             return i;
+            
+            RETURN_O:
+            return ~offset;
+            RETURN_OL:
+            return ~(offset + length);
         }
 
         /// <summary>
         /// Converts a result of a sorted search to result of directional search with direction of <paramref name="lookup"/>.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int SearchToLookup(int offset, int length, Lookup lookup, int i)
+        public static unsafe int SearchToLookup(int offset, int length, Lookup lookup, int i)
         {
             // TODO benchmark two implementations and review which branch could be mis-predicted
             // E.g. for LE i >= offset could be problematic
             // Current benchmarks for lookups are very simplistic and are faster with branches.
-            
-            ThrowHelper.DebugAssert(i < 0 || i >= offset, "i < 0 || i >= offset or wrong search result");
 
+            ThrowHelper.DebugAssert(i < 0 || i >= offset, "i < 0 || i >= offset or wrong search result");
+            
             if (lookup == Lookup.EQ)
                 return i;
-
+            
             int iAdj;
-
+            
             if (i >= offset)
             {
                 if (lookup.IsEqualityOK())
-                {
                     return i;
-                }
 
                 // -1 if direction is less, +1 if direction is greater than
                 var directionFoundAdj = (3 - ((int) lookup & 0b_101)) >> 1;
@@ -294,28 +286,35 @@ namespace Spreads.Algorithms
                 var directionNotFoundAdj = (((int) lookup & 0b_100) >> 2);
                 iAdj = ~i - directionNotFoundAdj;
             }
-
+            
             if ((uint) (iAdj - offset) < length)
                 return iAdj;
-
+            
             return iAdj < offset ? ~offset : ~iAdj;
 
-           
             // unchecked
             // {
             //     // -1 if direction is less, +1 if direction is greater than
-            //     var directionFoundAdj = (3 - ((int) lookup & 0b_101)) >> 1;
-            //     // 1 if direction is less, 0 otherwise
-            //     var directionNotFoundAdj = (((int) lookup & 0b_100) >> 2);
-            //     // 1 if equality is not OK
-            //     var noEq = (~((int) lookup) & 0b_010) >> 1;
-            //     var notFound = i >> 31;
+            //     // var directionFoundAdj = (3 - ((int) lookup & 0b_101)) >> 1;
+            //     // // 1 if direction is less, 0 otherwise
+            //     // var directionNotFoundAdj = (((int) lookup & 0b_100) >> 2);
+            //     // // 1 if equality is not OK
+            //     // var noEq = (~((int) lookup) & 0b_010) >> 1;
+            //
+            //     // var storage = (((ulong) (uint) directionNotFoundAdj) << 32) | (uint) directionFoundAdjXnoEq;
+            //
+            //     // var storage = (int*)(LookupHelpers.LookupAdjustments + (int)lookup);
+            //     // var directionNotFoundAdj = (int) (storage >> 32); //  storage[1]; //
+            //     // var directionFoundAdjXnoEq = (int) (storage & ((1ul << 32) - 1)); // storage[0]; //
+            //     // var notFound = i >> 31;
             //     // if not found need to subtract 1 for LT/LE
-            //     
-            //     iAdj = (notFound & (~i - directionNotFoundAdj)) | (~notFound & i + directionFoundAdj * noEq);
+            //
+            //     // iAdj = (notFound & (~i - directionNotFoundAdj)) | (~notFound & (i + directionFoundAdjXnoEq));
+            //     iAdj = i < 0 ?  (~i - LookupHelpers.DirectionNotFoundAdj[(int)lookup]) : (i + (LookupHelpers.DirectionFoundAdjXnoEq[(int)lookup]));
             //
             //     if ((uint) (iAdj - offset) < length)
             //         return iAdj;
+            //
             //     return iAdj < offset ? ~offset : ~iAdj;
             // }
         }
@@ -342,7 +341,10 @@ namespace Spreads.Algorithms
             var li = SearchToLookup2(offset, length, lookup, i);
 
             if (li != i & li >= offset) // not &&
+            {
+                ThrowHelper.DebugAssert(li < offset + length);
                 value = UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref searchSpace, li));
+            }
 
             return li;
         }
@@ -517,8 +519,47 @@ namespace Spreads.Algorithms
 
             var li = SearchToLookup2(offset, length, lookup, i);
 
-            if (li != i & li >= 0) // not &&
+            // TODO benchmark this on realistic data:
+            // if (li > 0)
+            // {
+            //     ThrowHelper.DebugAssert((uint)(li - offset) < length);
+            //     value = UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref searchSpace, li));
+            // }
+
+            if (li != i & li >= offset) // not &&
+            {
+                ThrowHelper.DebugAssert(li < offset + length);
                 value = UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref searchSpace, li));
+            }
+
+            return li;
+        }
+
+        /// <summary>
+        /// Find value using binary search according to the lookup direction.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int InterpolationLookup2<T>(ref T searchSpace, int offset, int length, ref T value, Lookup lookup,
+            KeyComparer<T> comparer = default)
+        {
+            Debug.Assert(length >= 0);
+
+            var i = InterpolationSearch(ref searchSpace, offset, length, value, comparer);
+
+            var li = SearchToLookup(offset, length, lookup, i);
+
+            // TODO benchmark this on realistic data:
+            // if (li > 0)
+            // {
+            //     ThrowHelper.DebugAssert((uint)(li - offset) < length);
+            //     value = UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref searchSpace, li));
+            // }
+
+            if (li != i & li >= offset) // not &&
+            {
+                ThrowHelper.DebugAssert(li < offset + length);
+                value = UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref searchSpace, li));
+            }
 
             return li;
         }

@@ -331,5 +331,8 @@ namespace Spreads
         public static int SharedSpinLockNotificationPort = 0;
 
         internal static Action ZeroValueNotificationCallback = null;
+
+
+        internal static int? PrivateMemoryPerCorePoolSize = 16 * 1024 / 128;
     }
 }

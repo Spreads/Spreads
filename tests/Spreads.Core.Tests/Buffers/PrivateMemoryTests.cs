@@ -7,12 +7,14 @@ using NUnit.Framework;
 using Spreads.Buffers;
 using Spreads.Utils;
 using System.Collections.Generic;
+using System.Runtime;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using ObjectLayoutInspector;
 using Spreads.Native;
+using Spreads.Threading;
 
 namespace Spreads.Core.Tests.Buffers
 {
@@ -97,6 +99,34 @@ namespace Spreads.Core.Tests.Buffers
             Benchmark.Dump();
             // Mem.Collect(true);
             Mem.StatsPrint();
+        }
+        
+        
+        [Test, Explicit]
+        public void CouldAllocateAndDropAboveSystemMemory()
+        {
+            // Test that PM is forcefully finalized
+            Settings.PrivateMemoryPerCorePoolSize = 1024 * 1024;
+            GCSettings.LatencyMode = GCLatencyMode.SustainedLowLatency;
+            
+            for (int i = 0; i < 100; i++)
+            {
+                var pm = PrivateMemory<long>.Create(1 * 1024 * 1024);
+                Task.Run(async () =>
+                {
+                    await Task.Yield();
+                    pm.CounterRef |= AtomicCounter.Disposed;
+                    pm.Free(true);
+                    GC.SuppressFinalize(pm);
+                }).Wait();
+                
+                
+                // GC.AddMemoryPressure(1 * 1024 * 1024);
+                // pm.Dispose();
+                // GC.Collect();
+            }
+
+            Console.WriteLine("Done");
         }
     }
 }

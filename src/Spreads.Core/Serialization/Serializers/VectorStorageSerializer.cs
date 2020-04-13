@@ -38,7 +38,7 @@ namespace Spreads.Collections.Internal
             {
                 ThrowHelper.ThrowNotSupportedException();
             }
-            return 4 + value.Storage.Vec.Length * Unsafe.SizeOf<T>();
+            return 4 + value.Storage.Length * Unsafe.SizeOf<T>();
         }
 
         public override unsafe int Write(in RetainedVec<T> value, DirectBuffer destination)
@@ -51,21 +51,21 @@ namespace Spreads.Collections.Internal
             // TODO we will use negative length as shuffled flag
             // but will need to add support for ArrayConverter for this.
 
-            destination.Write(0, -value.Storage.Vec.Length); // Minus for shuffled
-            if (value.Storage.Vec.Length > 0)
+            destination.Write(0, -value.Storage.Length); // Minus for shuffled
+            if (value.Storage.Length > 0)
             {
-                var byteLen = Unsafe.SizeOf<T>() * value.Storage.Vec.Length;
+                var byteLen = Unsafe.SizeOf<T>() * value.Storage.Length;
                 Debug.Assert(destination.Length >= 4 + byteLen);
 
                 if (TypeHelper<T>.IsIDelta)
                 {
                     // one boxing TODO this is wrong direction, we need i - first, maybe add reverse delta or for binary it's OK?
-                    var first = (IDelta<T>)value.Storage.Vec.DangerousGetUnaligned<T>(0);
-                    var arr = BufferPool<T>.Rent(value.Storage.Vec.Length);
-                    arr[0] = value.Storage.Vec.DangerousGetUnaligned<T>(0);
-                    for (int i = 1; i < value.Storage.Vec.Length; i++)
+                    var first = (IDelta<T>)value.Storage.UnsafeReadUnaligned<T>(0);
+                    var arr = BufferPool<T>.Rent(value.Storage.Length);
+                    arr[0] = value.Storage.UnsafeReadUnaligned<T>(0);
+                    for (int i = 1; i < value.Storage.Length; i++)
                     {
-                        arr[i] = first.GetDelta(value.Storage.Vec.DangerousGetUnaligned<T>(i));
+                        arr[i] = first.GetDelta(value.Storage.UnsafeReadUnaligned<T>(i));
                     }
 
                     fixed (byte* sPtr = &Unsafe.As<T, byte>(ref arr[0]))
@@ -80,7 +80,7 @@ namespace Spreads.Collections.Internal
                 }
                 else
                 {
-                    fixed (byte* sPtr = &Unsafe.As<T, byte>(ref value.Storage.Vec.DangerousGetRef<T>(0)))
+                    fixed (byte* sPtr = &Unsafe.As<T, byte>(ref value.Storage.UnsafeGetRef<T>()))
                     {
                         var source = new Span<byte>(sPtr, byteLen);
                         var destSpan = destination.Slice(4).Span;

@@ -524,12 +524,12 @@ namespace Spreads.Core.Tests.X.Series
         [Test]
         public void SortedListReverseInsertBench()
         {
-            var sl = System.Collections.Immutable.ImmutableSortedDictionary.Create<long,long>();
-            var count = 8192;
-            var mult = 10;
+            var sl = new SortedList<long,long>();
+            var count = 2048;
+            var mult = 100;
             for (int i = count; i > 0; i--)
             {
-                sl = sl.Add(i,i);
+                sl.Add(i,i);
             }
             sl.Clear();
             using (Benchmark.Run($"SL {count:N}", count * mult))
@@ -539,13 +539,22 @@ namespace Spreads.Core.Tests.X.Series
                 {
                     for (int i = count; i > 0; i--)
                     {
-                        sum += sl[i];
-                        // sl = sl.Add(i,i);
+                        // sum += sl[i];
+                        sl.Add(i,i);
                     }
-                    // sl.Clear();
+                    sl.Clear();
                 }
             }
         }
 
+        
+        public class  TestX
+        {
+            public object this[Func<TestX, bool> func]
+            {
+                get => null;
+
+            }
+        }
     }
 }

@@ -14,87 +14,75 @@ using System.Runtime.InteropServices;
 
 namespace Spreads.Collections.Internal
 {
+    [StructLayout((LayoutKind.Sequential))]
     internal class DataBlockCounters
     {
         /// <summary>
         /// Number of data rows.
         /// </summary>
-        private volatile int _rowCount;
-
-        /// <summary>
-        /// Logical column count: 1 for Series, N for Panel (with _columns = null & row-major values) and Frames.
-        /// </summary>
-        private int _columnCount;
+        protected volatile int _rowCount = -1;
+        protected volatile int _columnCount = -1;
 
         /// <summary>
         /// Primarily for cursors and circular implementation.
-        /// We keep blocks used by cursors, which must
+        /// We do not release blocks used by cursors, which must
         /// decrement a block ref count when they no longer need it.
         /// </summary>
         protected int _refCount;
-
-        private int _height;
-
-        public int RowCount
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => _rowCount;
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            protected set => _rowCount = value;
-        }
-
-        public int ColumnCount
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => _columnCount;
-            protected set => _columnCount = value;
-        }
-
-        public int Height
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => _height;
-            protected set => _height = value;
-        }
     }
 
-    internal class DataBlockPadding : DataBlockCounters
+    [StructLayout((LayoutKind.Sequential))]
+    internal class DataBlockCountersPadding : DataBlockCounters
     {
         // private Padding40 _padding;
     }
 
-    internal class DataBlockVectors : DataBlockPadding
+    [StructLayout((LayoutKind.Sequential))]
+    internal class DataBlockVectors : DataBlockCountersPadding
     {
-        // 4x8 references = 32 + _columnKeys.Size = 32 => 64 bytes of padding
-        // before _rowKeys and _values from _rowCount
-        private DataBlock? _previousBlock;
-        private DataBlock? _nextBlock;
-        private DataBlock? _lastBlock;
+        protected RetainedVec _rowKeys;
+#pragma warning disable 649
+        protected RetainedVec _columnKeys;
+#pragma warning restore 649
+
+        protected RetainedVec _values; // TODO (review) could be valuesOrColumnIndex instead of storing ColumnIndex in _columns[0]
 
         protected RetainedVec[]? _columns;
 
-        protected RetainedVec _columnKeys;
-
-        protected RetainedVec _rowKeys;
-        protected RetainedVec _values;
-
-        /// <summary>
-        /// Fast path to get the previous block from the current one.
-        /// </summary>
-        /// <remarks>
-        /// See remarks in <see cref="NextBlock"/>
-        /// </remarks>
-        /// <seealso cref="NextBlock"/>
-        public DataBlock? PreviousBlock
+        protected ref RetainedVec GeyKeys(int isColumn)
         {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => _previousBlock;
-            protected set
-            {
-                ThrowHelper.Assert(value?.Height == Height && value.RowCount > 0);
-                _previousBlock = value;
-            }
+            Debug.Assert(isColumn == 0 || isColumn == 1);
+            return ref Unsafe.Add(ref _rowKeys, isColumn);
         }
+    }
+
+    /// <summary>
+    /// Physycal storage for Series, Matrix and DataFrame blocks.
+    /// </summary>
+    /// <remarks>
+    /// This is thread-unsafe storage. Callers should use some locking mechanism.
+    /// </remarks>
+    [StructLayout((LayoutKind.Sequential))]
+    internal sealed partial class DataBlock : DataBlockVectors, IRefCounted, IDisposable
+    {
+        /// <summary>
+        /// We need this as a sentinel with RowLength == 0 in cursor to not penalize fast path of single-block containers.
+        /// </summary>
+        internal static readonly DataBlock Empty = new DataBlock {_rowCount = 0};
+
+        // For series each DataBlock has 2x PrivateMemory instances, for which we have 256 pooled per core.
+        // TODO Review pools sizes, move them to settings
+
+        private static readonly ObjectPool<DataBlock> ObjectPool = new ObjectPool<DataBlock>(() => new DataBlock(), 256);
+
+        [Obsolete("Use only in tests")]
+        internal RetainedVec RowKeys => _rowKeys;
+
+        [Obsolete("Use only in tests")]
+        internal RetainedVec Values => _values;
+
+        [Obsolete("Use only in tests")]
+        internal RetainedVec[]? Columns => _columns;
 
         /// <summary>
         /// Fast path to get the next block from the current one.
@@ -105,73 +93,26 @@ namespace Spreads.Collections.Internal
         /// this means depends on implementation).
         /// </remarks>
         /// <seealso cref="PreviousBlock"/>
-        public DataBlock? NextBlock
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => _nextBlock;
-            protected set
-            {
-                ThrowHelper.Assert(value?.Height == Height && value.RowCount > 0);
-                _nextBlock = value;
-            }
-        }
+        internal DataBlock? NextBlock;
 
         /// <summary>
-        /// When this block has height > 0, i.e. is a block of blocks, this
-        /// property contains the very last block with height == 0.
-        /// This could go several layers deep, not only last block of this block.
+        /// Fast path to get the previous block from the current one.
         /// </summary>
-        public DataBlock? LastBlock
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => _lastBlock;
-            protected set
-            {
-                ThrowHelper.DebugAssert(value?.Height == 0 && value.RowCount > 0);
-                _lastBlock = value;
-            }
-        }
-    }
-
-    /// <summary>
-    /// Physycal storage for Series, Matrix and DataFrame blocks.
-    /// </summary>
-    /// <remarks>
-    /// This is thread-unsafe storage. Callers should use some locking mechanism.
-    /// </remarks>
-    internal sealed partial class DataBlock : DataBlockVectors, IRefCounted, IDisposable
-    {
-        /// <summary>
-        /// We need this as a sentinel with RowLength == 0 in cursor
-        /// to not penalize fast path of single-block containers.
-        /// </summary>
-        internal static readonly DataBlock Empty = new DataBlock {RowCount = 0};
-
-        // TODO Review pools sizes, move them to settings. For series each DataBlock has 2x PrivateMemory instances, for which we have 256 pooled per core.
-        private static readonly ObjectPool<DataBlock> ObjectPool = new ObjectPool<DataBlock>(() => new DataBlock(), perCoreSize: 256);
-
-        [Obsolete("Use only in tests")]
-        internal RetainedVec RowKeys => _rowKeys;
-
-        [Obsolete("Use only in tests")]
-        internal RetainedVec ColumnKeys => _columnKeys;
-
-        [Obsolete("Use only in tests")]
-        internal RetainedVec Values => _values;
-
-        [Obsolete("Use only in tests")]
-        internal RetainedVec[]? Columns => _columns;
-
-        // TODO this is only for MW, and we should pay the cost only in that case
+        /// <remarks>
+        /// See remarks in <see cref="NextBlock"/>
+        /// </remarks>
+        /// <seealso cref="NextBlock"/>
+        internal DataBlock? PreviousBlock;
 
         /// <summary>
         /// Vec offset where data starts (where index ==0).
         /// </summary>
-        private volatile int _head = 0;
+        private volatile int _head = -1;
+
+        private volatile bool _isFull = false;
 
         private DataBlock()
         {
-            // pool returns disposed data blocks
             AtomicCounter.Dispose(ref _refCount);
         }
 
@@ -180,8 +121,7 @@ namespace Spreads.Collections.Internal
         // TODO delete this method
         [Obsolete("Use container-specific factories, e.g. SeriesCreate")]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static DataBlock Create(RetainedVec rowIndex = default, RetainedVec values = default,
-            RetainedVec[]? columns = null, int rowLength = -1)
+        internal static DataBlock Create(RetainedVec rowIndex = default, RetainedVec values = default, RetainedVec[]? columns = null, int rowLength = -1)
         {
             var block = ObjectPool.Rent();
             block.EnsureDisposed();
@@ -191,22 +131,22 @@ namespace Spreads.Collections.Internal
             if (rowIndex != default)
             {
                 block._rowKeys = rowIndex;
-                rowCapacity = rowIndex.Length;
+                rowCapacity = rowIndex.Vec.Length;
             }
 
             if (values != default)
             {
                 block._values = values;
-                if (rowCapacity >= 0 && values.Length < rowCapacity)
+                if (rowCapacity >= 0 && values.Vec.Length < rowCapacity)
                 {
                     ThrowHelper.ThrowArgumentException("");
                 }
                 else
                 {
-                    rowCapacity = values.Length;
+                    rowCapacity = values.Vec.Length;
                 }
 
-                rowCapacity = Math.Min(rowCapacity, values.Length);
+                rowCapacity = Math.Min(rowCapacity, values.Vec.Length);
             }
 
             if (columns != null)
@@ -219,13 +159,13 @@ namespace Spreads.Collections.Internal
                 block._columns = columns;
                 foreach (var column in columns)
                 {
-                    rowCapacity = Math.Min(rowCapacity, column.Length);
+                    rowCapacity = Math.Min(rowCapacity, column.Vec.Length);
                 }
             }
 
             if (rowLength == -1)
             {
-                block.RowCount = rowCapacity;
+                block._rowCount = rowCapacity;
             }
             else
             {
@@ -235,7 +175,7 @@ namespace Spreads.Collections.Internal
                 }
                 else
                 {
-                    block.RowCount = rowLength;
+                    block._rowCount = rowLength;
                 }
             }
 
@@ -250,22 +190,20 @@ namespace Spreads.Collections.Internal
         public bool IsDisposed
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => AtomicCounter.GetIsDisposed(ref _refCount);
+            get => AtomicCounter.GetIsDisposed(ref _refCount) || RowCount < 0;
         }
 
         [Conditional("DEBUG")]
         private void EnsureDisposed()
         {
-            ThrowHelper.DebugAssert(AtomicCounter.GetIsDisposed(ref _refCount));
-            ThrowHelper.DebugAssert(RowCount == default);
-            ThrowHelper.DebugAssert(ColumnCount == default);
-            ThrowHelper.DebugAssert(_head == default);
-            ThrowHelper.DebugAssert(_rowKeys == default);
-            ThrowHelper.DebugAssert(_values == default);
-            ThrowHelper.DebugAssert(_columns == default);
-            ThrowHelper.DebugAssert(NextBlock == default);
-            ThrowHelper.DebugAssert(PreviousBlock == default);
-            ThrowHelper.DebugAssert(LastBlock == default);
+            Debug.Assert(AtomicCounter.GetIsDisposed(ref _refCount));
+            Debug.Assert(_rowCount == -1);
+            Debug.Assert(_head == -1);
+            Debug.Assert(_rowKeys == default);
+            Debug.Assert(_values == default);
+            Debug.Assert(_columns == null);
+            Debug.Assert(NextBlock == null);
+            Debug.Assert(PreviousBlock == null);
         }
 
         private void Dispose(bool disposing)
@@ -287,9 +225,9 @@ namespace Spreads.Collections.Internal
                 WarnFinalizing();
             }
 
-            RowCount = -1;
-            ColumnCount = -1;
-            _head = 0;
+            _rowCount = -1;
+            _columnCount = -1;
+            _head = -1;
 
             if (NextBlock != null)
             {
@@ -310,7 +248,7 @@ namespace Spreads.Collections.Internal
                 _rowKeys.Dispose();
                 _rowKeys = default;
             }
-
+            
             if (_columnKeys != default)
             {
                 _columnKeys.Dispose();
@@ -331,7 +269,7 @@ namespace Spreads.Collections.Internal
                     _columns = default;
                 }
             }
-
+            
             ObjectPool.Return(this);
         }
 
@@ -363,16 +301,27 @@ namespace Spreads.Collections.Internal
 
         #endregion Lifecycle
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private int IndexToOffset(int index)
+        {
+            return RingVecUtil.IndexToOffset(index, _head, _rowCount);
+        }
+
+        private int OffsetToIndex(int offset)
+        {
+            throw new NotImplementedException();
+        }
+
+        public int RowCount
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => _rowCount;
+        }
+
         public int RowCapacity
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => _rowKeys.Length;
-        }
-
-        public int ColumnCapacity
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => _columnKeys.Length;
+            get => _rowKeys.Vec.Length;
         }
 
         /// <summary>
@@ -381,7 +330,7 @@ namespace Spreads.Collections.Internal
         public bool IsFull
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => RowCount == _rowKeys.Length;
+            get => _rowCount == _rowKeys.Vec.Length;
         }
 
         /// <summary>
@@ -391,6 +340,78 @@ namespace Spreads.Collections.Internal
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => ReferenceEquals(this, Empty);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public T DangerousRowKey<T>(int index)
+        {
+            int offset = RingVecUtil.IndexToOffset(index, _head, _rowCount);
+            return _rowKeys.Vec.DangerousGetUnaligned<T>(offset);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public T DangerousValue<T>(int index)
+        {
+            // TODO review if we will use ring buffer structure for something other than Series.DataSource
+            int offset = GetSeriesOffset<T>(index);
+            return _values.Vec.DangerousGetUnaligned<T>(offset);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining
+#if HAS_AGGR_OPT
+                    | MethodImplOptions.AggressiveOptimization
+#endif
+        )]
+        public int LookupKey<T>(ref T key, Lookup lookup, KeyComparer<T> comparer = default)
+        {
+            if (lookup == Lookup.EQ)
+                return SearchKey(key, comparer);
+
+            if (_head + _rowCount <= _rowKeys.Vec.Length)
+            {
+                return _head + VectorSearch.SortedLookup(ref _rowKeys.UnsafeGetRef<T>(),
+                    _head, _rowCount, ref key, lookup, comparer);
+            }
+
+            return LookupKeySlower(ref key, lookup, comparer);
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private int LookupKeySlower<T>(ref T key, Lookup lookup, KeyComparer<T> comparer)
+        {
+            throw new NotImplementedException();
+            // This should be pretty fast vs. manually managing edge cases on
+            // the wrap boundary. TODO test
+            // var wrappedVec = new RingVec<T>(_rowKeys.Vec, _head, _rowCount);
+            // return VectorSearch.SortedLookup(ref wrappedVec, 0,
+            //     _rowCount, ref key, lookup, comparer);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining
+#if HAS_AGGR_OPT
+                    | MethodImplOptions.AggressiveOptimization
+#endif
+        )]
+        public int SearchKey<T>(T key, KeyComparer<T> comparer = default)
+        {
+            if (_head + _rowCount <= _rowKeys.Vec.Length)
+                return VectorSearch.SortedSearch(ref _rowKeys.UnsafeGetRef<T>(), _head, _rowCount, key, comparer);
+
+            // TODO for EQ search we do not need a wrapper, we just need to
+            // decide where to search based on comparison with the last offset
+
+            return SearchKeySlower(key, comparer);
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private int SearchKeySlower<T>(T key, KeyComparer<T> comparer)
+        {
+            throw new NotImplementedException();
+            // This should be pretty fast vs. manually managing edge cases on
+            // the wrap boundary. TODO test
+            // var wrappedVec = new RingVec<T>(_rowKeys.Vec, _head, _rowCount);
+            // return VectorSearch.SortedSearch(ref wrappedVec, 0,
+            //     _rowCount, key, comparer);
         }
 
         #region Structure check
@@ -485,7 +506,7 @@ namespace Spreads.Collections.Internal
                 {
                     if (_columns.Length > 0)
                     {
-                        colLength = _columns[0].Length;
+                        colLength = _columns[0].Vec.Length;
                     }
                     else
                     {
@@ -497,7 +518,7 @@ namespace Spreads.Collections.Internal
                     {
                         for (int i = 1; i < _columns.Length; i++)
                         {
-                            if (colLength != _columns[0].Length)
+                            if (colLength != _columns[0].Vec.Length)
                             {
                                 return false;
                             }
@@ -515,10 +536,10 @@ namespace Spreads.Collections.Internal
 
                 if (colLength == -1 && _values != default)
                 {
-                    colLength = _values.Length;
+                    colLength = _values.Vec.Length;
                 }
 
-                if (_rowKeys != default && _rowKeys.Length != colLength)
+                if (_rowKeys != default && _rowKeys.Vec.Length != colLength)
                 {
                     return false;
                 }
@@ -554,7 +575,7 @@ namespace Spreads.Collections.Internal
                     }
                     else
                     {
-                        Debug.Assert(vectorStorage.RuntimeTypeId == _values.RuntimeTypeId);
+                        Debug.Assert(vectorStorage.Vec.RuntimeTypeId == _values.Vec.RuntimeTypeId);
                     }
                 }
 

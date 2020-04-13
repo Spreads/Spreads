@@ -128,7 +128,7 @@ namespace Spreads.Collections.Internal
             // TODO rework sync for order version
             var version = _source.Version;
             {
-                found = DataContainer.TryFindBlockAt(_source.Data, ref key, direction, out nextBlock, out nextPosition, _source._comparer);
+                found = _source.TryFindBlockAt(ref key, direction, out nextBlock, out nextPosition);
                 if (found)
                 {
                     v = GetCurrentValue(nextPosition);
@@ -164,7 +164,7 @@ namespace Spreads.Collections.Internal
         {
             if (typeof(TContainer) == typeof(Series<TKey, TValue>))
             {
-                return CurrentBlock.UnsafeGetValue<TValue>(currentBlockIndex);
+                return CurrentBlock.DangerousValue<TValue>(currentBlockIndex);
             }
             if (typeof(TContainer) == typeof(BaseContainer<TKey>))
             {
@@ -274,12 +274,12 @@ namespace Spreads.Collections.Internal
         {
             if (typeof(TContainer) == typeof(Series<TKey, TValue>))
             {
-                dataBlock.UnsafeGetRowKeyValue(currentBlockIndex, out key, out value);
+                dataBlock.DangerousGetRowKeyValue(currentBlockIndex, out key, out value);
                 return;
             }
             if (typeof(TContainer) == typeof(BaseContainer<TKey>))
             {
-                key = dataBlock.UnsafeGetRowKey<TKey>(currentBlockIndex);
+                key = dataBlock.DangerousRowKey<TKey>(currentBlockIndex);
                 value = default!;
                 return;
             }

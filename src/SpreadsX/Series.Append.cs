@@ -69,6 +69,20 @@ namespace Spreads
                 WindowOptions = new MovingWindowOptions(this, movingWindowOptions);
         }
 
+        internal int MaxBlockRowCount
+        {
+            get
+            {
+                //if (WindowOptions?.Options != null
+                //    && WindowOptions.Options is MovingWindowOptions<TKey, TValue> typedMvo
+                //    && typedMvo.WindowBlockSize > 0)
+                //{
+                //    return typedMvo.WindowBlockSize;
+                //}
+                return DefaultMaxBlockRowCount;
+            }
+        }
+        
         /// <summary>
         /// Thread-unsafe equivalent of <see cref="TryAppend"/>.
         /// 2x faster but concurrent access could corrupt data or
@@ -94,7 +108,7 @@ namespace Spreads
             var dbRowCount = db.RowCount;
             if (dbRowCount > 0)
             {
-                var lastKey = db.DangerousRowKey<TKey>(dbRowCount - 1);
+                var lastKey = db.UnsafeGetRowKey<TKey>(dbRowCount - 1);
 
                 var c = _comparer.Compare(key, lastKey);
                 if (c <= 0 // faster path is c > 0
@@ -120,7 +134,7 @@ namespace Spreads
             else
             {
                 // WindowOptions?.OnBeforeAppend();
-                db.SeriesAppend(key, value);
+                db.AppendBlock(key, value);
             }
 
             // Switch Data only after adding values to a data block.
@@ -137,19 +151,7 @@ namespace Spreads
             return true;
         }
 
-        internal int MaxBlockRowCount
-        {
-            get
-            {
-                //if (WindowOptions?.Options != null
-                //    && WindowOptions.Options is MovingWindowOptions<TKey, TValue> typedMvo
-                //    && typedMvo.WindowBlockSize > 0)
-                //{
-                //    return typedMvo.WindowBlockSize;
-                //}
-                return DefaultMaxBlockRowCount;
-            }
-        }
+        
 
         [MethodImpl(MethodImplOptions.NoInlining
 #if HAS_AGGR_OPT
@@ -164,7 +166,7 @@ namespace Spreads
             {
                 if (block == DataBlock.Empty)
                 {
-                    block = DataBlock.SeriesCreate(rowLength: 0);
+                    block = DataBlock.CreateForPanel(rowCount: 0);
                     data = block;
                 }
 
@@ -174,13 +176,13 @@ namespace Spreads
                 // ReSharper disable once PossibleNullReferenceException
                 if (block.RowCapacity < MaxBlockRowCount)
                 {
-                    if (block.SeriesIncreaseCapacity<TKey, TValue>() < 0)
+                    if (block.IncreaseRowsCapacity<TKey, TValue>() < 0)
                     {
                         block = null;
                         return false;
                     }
                     // WindowOptions?.OnBeforeAppend();
-                    block.SeriesAppend(key, value);
+                    block.AppendBlock(key, value);
                 }
                 else
                 {
@@ -190,7 +192,7 @@ namespace Spreads
                         Debug.Assert(ReferenceEquals(block, db));
 
                         ds = new DataBlockSource<TKey>();
-                        ds.AddLast(block.DangerousRowKey<TKey>(0), block);
+                        ds.AddLast(block.UnsafeGetRowKey<TKey>(0), block);
                         data = ds;
                     }
 
@@ -200,15 +202,15 @@ namespace Spreads
                     //    WindowOptions?.OnBeforeNewBlock();
 
                     var minCapacity = block.RowCapacity;
-                    var newBlock = DataBlock.SeriesCreate(rowLength: 0);
-                    if (newBlock.SeriesIncreaseCapacity<TKey, TValue>(minCapacity) < 0)
+                    var newBlock = DataBlock.CreateForPanel(rowCount: 0);
+                    if (newBlock.IncreaseRowsCapacity<TKey, TValue>(minCapacity) < 0)
                     {
                         block = null;
                         return false;
                     }
 
                     // WindowOptions?.OnBeforeAppend();
-                    newBlock.SeriesAppend(key, value);
+                    newBlock.AppendBlock(key, value);
 
                     ds.AddLast(key, newBlock);
                     block = newBlock;
@@ -350,36 +352,37 @@ namespace Spreads
 
             public void OnBeforeNewBlock()
             {
-                if (_series.IsDataBlock(out _, out var ds))
-                {
-                    ThrowHelper.DebugAssert(false, "This method should not be called for data block case.");
-                    return;
-                }
-
-                var blockSeries = ds._blockSeries;
-                var level = 1;
-                // find deepest DS level
-                DataBlock? bsDb;
-                while (!blockSeries.IsDataBlock(out bsDb, out var bsDs))
-                {
-                    if (bsDs._blockSeries.IsEmpty)
-                    {
-                        throw new NotImplementedException("TODO");
-                    }
-                    blockSeries = bsDs._blockSeries;
-                    level++;
-                }
-
-                // bsDb is from where we should delete the first data block
-                bsDb.SeriesTrimFirstValue<TKey, DataBlock>(out _, out _);
-
-                var firstBlock = ds._blockSeries.First;
-
-                if (AdditionalCorrectnessChecks.Enabled) { ThrowHelper.Assert(firstBlock.IsPresent); }
-
-                var rc = firstBlock.Present.Value.ReferenceCount;
-
-                Console.WriteLine($"RefCount: {rc}, level: {level}");
+                throw new NotImplementedException();
+                // if (_series.IsDataBlock(out _, out var ds))
+                // {
+                //     ThrowHelper.DebugAssert(false, "This method should not be called for data block case.");
+                //     return;
+                // }
+                //
+                // var blockSeries = ds._blockSeries;
+                // var level = 1;
+                // // find deepest DS level
+                // DataBlock? bsDb;
+                // while (!blockSeries.IsDataBlock(out bsDb, out var bsDs))
+                // {
+                //     if (bsDs._blockSeries.IsEmpty)
+                //     {
+                //         throw new NotImplementedException("TODO");
+                //     }
+                //     blockSeries = bsDs._blockSeries;
+                //     level++;
+                // }
+                //
+                // // bsDb is from where we should delete the first data block
+                // bsDb.SeriesTrimFirstValue<TKey, DataBlock>(out _, out _);
+                //
+                // var firstBlock = ds._blockSeries.First;
+                //
+                // if (AdditionalCorrectnessChecks.Enabled) { ThrowHelper.Assert(firstBlock.IsPresent); }
+                //
+                // var rc = firstBlock.Present.Value.ReferenceCount;
+                //
+                // Console.WriteLine($"RefCount: {rc}, level: {level}");
                 //Console.WriteLine($"RefCountLast: {ds._blockSeries.Last.Present.Value.ReferenceCount}");
             }
 

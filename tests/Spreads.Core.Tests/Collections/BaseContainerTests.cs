@@ -28,7 +28,7 @@ namespace Spreads.Core.Tests.Collections
             var rm = BuffersTestHelper.CreateFilledRM(capacity);
             var vs = RetainedVec.Create(rm, 0, rm.Length);
 
-            var block = DataBlock.Create(rowIndex: vs, rowLength: vs.Vec.Length / 2);
+            var block = DataBlock.Create(rowIndex: vs, rowLength: vs.Length / 2);
 
             bc.Data = block;
 
@@ -41,8 +41,6 @@ namespace Spreads.Core.Tests.Collections
             bc.Dispose();
         }
 
-       
-
         [Test]
         public void CouldTryFindBlockAtSingleChunk()
         {
@@ -52,13 +50,13 @@ namespace Spreads.Core.Tests.Collections
             var rm = BuffersTestHelper.CreateFilledRM(capacity);
             var vs = RetainedVec.Create(rm, 0, rm.Length);
 
-            var block = DataBlock.Create(rowIndex: vs, rowLength: vs.Vec.Length / 2);
+            var block = DataBlock.Create(rowIndex: vs, rowLength: vs.Length / 2);
 
             bc.Data = block;
 
             var searchIndex = 40L;
             var searchIndexRef = searchIndex;
-            var found = bc.TryFindBlockAt(ref searchIndexRef, Lookup.LT, out var c, out var ci);
+            var found = DataContainer.TryFindBlockAt(bc.Data, ref searchIndexRef, Lookup.LT, out var c, out var ci, bc._comparer);
             Assert.IsTrue(found);
             Assert.AreSame(block, c);
             Assert.AreEqual(searchIndex - 1, ci);
@@ -97,7 +95,7 @@ namespace Spreads.Core.Tests.Collections
                         for (long i = 1; i < capacity; i++)
                         {
                             var searchIndexRef = i;
-                            var found = bc.TryFindBlockAt(ref searchIndexRef, Lookup.LE, out var c, out var ci);
+                            var found = DataContainer.TryFindBlockAt(bc.Data, ref searchIndexRef, Lookup.LE, out var c, out var ci, bc._comparer);
                             if (!found
                                 || !ReferenceEquals(block, c)
                                 || i != ci
@@ -123,7 +121,7 @@ namespace Spreads.Core.Tests.Collections
             var rm = BuffersTestHelper.CreateFilledRM(capacity);
             var vs = RetainedVec.Create(rm, 0, rm.Length);
 
-            var block = DataBlock.Create(rowIndex: vs, rowLength: vs.Vec.Length / 2);
+            var block = DataBlock.Create(rowIndex: vs, rowLength: vs.Length / 2);
 
             bc.Data = block;
 
@@ -167,8 +165,8 @@ namespace Spreads.Core.Tests.Collections
                     {
                         for (long i = 0; i < capacity; i++)
                         {
-                            var ival = vs.UnsafeReadUnaligned<long>((IntPtr) i);
-                            var ival2 = vs.UnsafeReadUnaligned<long>((IntPtr) capacity - 1);
+                            var ival = vs.UnsafeReadUnaligned<long>((int) i);
+                            var ival2 = vs.UnsafeReadUnaligned<long>(capacity - 1);
                             var ival3 = Unsafe.Add<long>(ref vs.UnsafeGetRef<long>(), capacity - 1);
                             var ival4 = Unsafe.Add<long>(ref (bc.Data as DataBlock).RowKeys.UnsafeGetRef<long>(), capacity - 1);
                             var found = bc.TryGetBlock(i, out var c, out var ci);

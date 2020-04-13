@@ -19,7 +19,7 @@ namespace Spreads.Buffers
     }
 
     /// <summary>
-    /// Base class for reference counted memory from a pool of arrays or from native memory.
+    /// Base class for a reference counted owner of memory from a pool of arrays or from native memory.
     /// </summary>
     public abstract unsafe class RetainableMemory<T> : RefCountedMemory<T>
     {
@@ -31,7 +31,7 @@ namespace Spreads.Buffers
 
         // Even when unused it is a part of padding, which needed to avoid false sharing on _counter
         // Without this field we would need to make padding bigger in SharedMemory. Both PM and AM use it.
-        internal object? _array;
+        internal Array? _array;
 
         internal int _offset;
 

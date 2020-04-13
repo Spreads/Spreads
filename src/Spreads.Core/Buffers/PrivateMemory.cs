@@ -10,6 +10,7 @@ using Spreads.Utils;
 using System;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Threading;
 using static Spreads.Buffers.BuffersThrowHelper;
 
@@ -60,7 +61,7 @@ namespace Spreads.Buffers
                 var pm = new PrivateMemory<T>();
                 AtomicCounter.Dispose(ref pm.CounterRef);
                 return pm;
-            }, PerCorePoolSize);
+            }, Settings.PrivateMemoryPerCorePoolSize ?? PerCorePoolSize);
 
             // Need to touch these fields very early in a common not hot place for JIT static
             // readonly optimization even if tiered compilation is off.
@@ -93,7 +94,7 @@ namespace Spreads.Buffers
         /// <summary>
         /// Create a <see cref="PrivateMemory{T}"/> from a <see cref="RetainableMemoryPool{T}"/>.
         /// </summary>
-        internal static PrivateMemory<T> Create(int length, RetainableMemoryPool<T> pool)
+        internal static PrivateMemory<T> Create(int length, RetainableMemoryPool<T>? pool)
         {
             length = Math.Max(length, Settings.MIN_POOLED_BUFFER_LEN);
 
@@ -115,7 +116,7 @@ namespace Spreads.Buffers
                 privateMemory._array = arr;
                 privateMemory._length = arr.Length;
                 privateMemory._offset = 0;
-                ThrowHelper.DebugAssert(privateMemory._pointer == null);
+                ThrowHelper.DebugAssert(privateMemory._pointer == default);
             }
             else
             {
@@ -159,10 +160,35 @@ namespace Spreads.Buffers
 
             bytesLength = (long) Mem.GoodSize((UIntPtr) BitUtil.FindNextPositivePowerOfTwo(bytesLength));
 
-            _pointer = (IntPtr) Mem.MallocAligned((UIntPtr) bytesLength, (UIntPtr) alignment);
+            while (true)
+            {
+                var c = 0;
+                try
+                {
+                    // TODO
+                    //_pointer = (IntPtr) Mem.MallocAligned((UIntPtr) bytesLength, (UIntPtr) alignment);
+                    _pointer = Marshal.AllocHGlobal((IntPtr) bytesLength);
+                    break;
+                }
+                catch (OutOfMemoryException)
+                {
+                    c++;
+                    GC.Collect(Math.Max(c, 2), c <= 2 ? GCCollectionMode.Default : GCCollectionMode.Forced, c >= 4, c >= 5);
+                    if (c > 5)
+                        throw;
+                }
+            }
+
             _offset = 0;
             _length = (int) bytesLength / Unsafe.SizeOf<T>();
 
+            // Note that we do not call GC.AddMemoryPressure(bytesLength)
+            // because the entire point of using native memory is to avoid GC.
+            // When system available memory becomes low GC will become more 
+            // aggressive and will finalize not disposed memory.
+            // But with correct usage there should be no not disposed 
+            // memory, so we should not bother for incorrect usage.
+            // And even in the later case, an app should survive without OOM (TODO test)
             BuffersStatistics.AllocatedNativeMemory.InterlockedAdd(bytesLength, cpuId);
         }
 
@@ -227,7 +253,9 @@ namespace Spreads.Buffers
             var pointer = Interlocked.Exchange(ref _pointer, IntPtr.Zero);
             if (pointer != IntPtr.Zero)
             {
-                Mem.Free((byte*) pointer);
+                // TODO
+                Marshal.FreeHGlobal(pointer);
+                //Mem.Free((byte*) pointer);
                 BuffersStatistics.ReleasedNativeMemory.InterlockedAdd(_length);
             }
 

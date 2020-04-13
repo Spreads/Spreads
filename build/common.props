@@ -37,9 +37,9 @@
 
 
   <PropertyGroup Condition="'$(TargetFramework)'=='netstandard2.1'">
-    <DefineConstants>$(DefineConstants);HAS_ISREF;BUILTIN_SPAN;BUILTIN_NULLABLE</DefineConstants>
+    <DefineConstants>$(DefineConstants);HAS_ISREF;BUILTIN_SPAN;BUILTIN_NULLABLE;HAS_RANGE</DefineConstants>
   </PropertyGroup>
   <PropertyGroup Condition="'$(TargetFramework)'=='netcoreapp3.0' OR '$(TargetFramework)'=='netcoreapp3.1'">
-    <DefineConstants>$(DefineConstants);NETSTANDARD;HAS_ISREF;HAS_AGGR_OPT;HAS_INTRINSICS;BUILTIN_SPAN;BUILTIN_NULLABLE;HAS_TPWORKITEM</DefineConstants>
+    <DefineConstants>$(DefineConstants);NETSTANDARD;HAS_ISREF;HAS_AGGR_OPT;HAS_INTRINSICS;BUILTIN_SPAN;BUILTIN_NULLABLE;HAS_TPWORKITEM;HAS_RANGE</DefineConstants>
   </PropertyGroup>
 </Project>

@@ -38,7 +38,7 @@ namespace Spreads.Core.Tests.Collections.Internal
             var rv = RetainedVec.Create(rm, 0, rm.Length, true);
             for (int i = 0; i < count; i++)
             {
-                rv.UnsafeWriteUnaligned((IntPtr) i, i);
+                rv.UnsafeWriteUnaligned(i, i);
             }
 
             for (int r = 0; r < 10; r++)

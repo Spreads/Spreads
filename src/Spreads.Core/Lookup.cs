@@ -7,6 +7,9 @@
 using System;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
+using Spreads.Buffers;
+using Spreads.Native;
 
 namespace Spreads
 {
@@ -52,8 +55,81 @@ namespace Spreads
         // we could continue: 111 - whatever, 000 - no value, 101 - not equal
     }
 
-    internal static class LookupHelpers
+    internal static unsafe class LookupHelpers
     {
+        // public static readonly ulong* LookupAdjustments = InitAdjustments();
+        // public static readonly int* DirectionNotFoundAdj = InitDirectionNotFoundAdj();
+        // public static readonly int* DirectionFoundAdjXnoEq = InitDirectionFoundAdjXnoEq();
+        //
+        // private static ulong* InitAdjustments()
+        // {
+        //     unchecked
+        //     {
+        //         var lookups = new Lookup[] {0, (Lookup) 1, (Lookup) 2, (Lookup) 3, (Lookup) 4, (Lookup) 5, (Lookup) 6};
+        //
+        //         var ptr = (ulong*) Mem.ZallocAligned((UIntPtr) 64, (UIntPtr) 64);
+        //         for (int i = 0; i < lookups.Length; i++)
+        //         {
+        //             var lookup = lookups[i];
+        //             // -1 if direction is less, +1 if direction is greater than
+        //             var directionFoundAdj = (3 - ((int) lookup & 0b_101)) >> 1;
+        //             // 1 if direction is less, 0 otherwise
+        //             var directionNotFoundAdj = (((int) lookup & 0b_100) >> 2);
+        //             // 1 if equality is not OK
+        //             var noEq = (~((int) lookup) & 0b_010) >> 1;
+        //
+        //             var directionFoundAdjXnoEq = directionFoundAdj * noEq;
+        //
+        //             var storage = (((ulong) (uint) directionNotFoundAdj) << 32) | (uint) directionFoundAdjXnoEq;
+        //             ptr[i] = storage;
+        //         }
+        //
+        //         return ptr;
+        //     }
+        // }
+        //
+        // private static int* InitDirectionNotFoundAdj()
+        // {
+        //     {
+        //         var lookups = new Lookup[] {0, (Lookup) 1, (Lookup) 2, (Lookup) 3, (Lookup) 4, (Lookup) 5, (Lookup) 6};
+        //
+        //         var ptr = (int*) Mem.ZallocAligned((UIntPtr) 64, (UIntPtr) 64);
+        //         for (int i = 0; i < lookups.Length; i++)
+        //         {
+        //             var lookup = lookups[i];
+        //             // 1 if direction is less, 0 otherwise
+        //             var directionNotFoundAdj = (((int) lookup & 0b_100) >> 2);
+        //             ptr[i] = directionNotFoundAdj;
+        //         }
+        //
+        //         return ptr;
+        //     }
+        // }
+        //
+        // private static int* InitDirectionFoundAdjXnoEq()
+        // {
+        //     unchecked
+        //     {
+        //         var lookups = new Lookup[] {0, (Lookup) 1, (Lookup) 2, (Lookup) 3, (Lookup) 4, (Lookup) 5, (Lookup) 6};
+        //
+        //         var ptr = (int*) Mem.ZallocAligned((UIntPtr) 64, (UIntPtr) 64);
+        //         for (int i = 0; i < lookups.Length; i++)
+        //         {
+        //             var lookup = lookups[i];
+        //             // -1 if direction is less, +1 if direction is greater than
+        //             var directionFoundAdj = (3 - ((int) lookup & 0b_101)) >> 1;
+        //             // 1 if equality is not OK
+        //             var noEq = (~((int) lookup) & 0b_010) >> 1;
+        //
+        //             var directionFoundAdjXnoEq = directionFoundAdj * noEq;
+        //
+        //             ptr[i] = directionFoundAdjXnoEq;
+        //         }
+        //
+        //         return ptr;
+        //     }
+        // }
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool IsEqualityOK(this Lookup lookup)
         {
@@ -67,7 +143,7 @@ namespace Spreads
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int ComplementAdjustment(this Lookup lookup)
         {
-            return (int)(((uint)lookup & (uint)Lookup.LT) >> 2);
+            return (int) (((uint) lookup & (uint) Lookup.LT) >> 2);
         }
 
         /// <summary>
@@ -78,12 +154,12 @@ namespace Spreads
         {
             // TODO review if branchless possible
 
-            if (((int)lookup & (int)(Lookup.GT)) != 0)
+            if (((int) lookup & (int) (Lookup.GT)) != 0)
             {
                 return 1;
             }
 
-            Debug.Assert(((int)lookup & (int)(Lookup.LT)) != 0);
+            Debug.Assert(((int) lookup & (int) (Lookup.LT)) != 0);
             return -1;
         }
     }

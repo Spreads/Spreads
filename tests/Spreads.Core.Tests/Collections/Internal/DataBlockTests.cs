@@ -25,6 +25,14 @@ namespace Spreads.Core.Tests.Collections.Internal
         }
 
         [Test]
+        public void SentinelIsEmptyAndDisposed()
+        {
+            Assert.AreEqual(0, DataBlock.Empty.RowCount);
+            Assert.AreEqual(0, DataBlock.Empty.RowCapacity);
+            Assert.AreEqual(true, DataBlock.Empty.IsDisposed);
+        }
+
+        [Test]
         public void WrappedLookup()
         {
             var count = 10_000;
@@ -35,7 +43,7 @@ namespace Spreads.Core.Tests.Collections.Internal
             var keys = RetainedVec.Create(r, 0, r.Length);
             var values = keys.Slice(0, count, true);
 
-            var block = DataBlock.SeriesCreate(keys, values, count);
+            var block = DataBlock.CreateForPanel(keys, values, count);
             for (int i = 0; i < count; i++)
             {
                 var ii = (long)i;
@@ -50,15 +58,15 @@ namespace Spreads.Core.Tests.Collections.Internal
         {
             // Debug this test to see buffer management errors during finalization, normal test run survives them in VS
 
-            var block = DataBlock.SeriesCreate();
+            var block = DataBlock.CreateForPanel();
             Assert.AreEqual(0, block.RowCount);
 
-            block.SeriesIncreaseCapacity<int, int>();
+            block.IncreaseRowsCapacity<int, int>();
 
             Assert.AreEqual(block.RowCapacity, Settings.MIN_POOLED_BUFFER_LEN);
 
-            var keys = block.RowKeys._memoryOwner as ArrayMemory<int>;
-            var vals = block.Values._memoryOwner as ArrayMemory<int>;
+            var keys = block.RowKeys._memoryOwner as PrivateMemory<int>;
+            var vals = block.Values._memoryOwner as PrivateMemory<int>;
 
             var slice = block.Values.Slice(0, 1);
 
@@ -68,7 +76,7 @@ namespace Spreads.Core.Tests.Collections.Internal
             Assert.IsTrue(keys.IsPoolable);
             Assert.IsFalse(keys.IsPooled);
 
-            block.SeriesIncreaseCapacity<int, int>();
+            block.IncreaseRowsCapacity<int, int>();
 
             // keys were returned to the pool after doubling capacity
             Assert.IsTrue(keys.IsPooled);
@@ -84,7 +92,7 @@ namespace Spreads.Core.Tests.Collections.Internal
 
             for (int i = 0; i < 20; i++)
             {
-                block.SeriesIncreaseCapacity<int, int>();
+                block.IncreaseRowsCapacity<int, int>();
                 Console.WriteLine(block.RowCapacity);
             }
 

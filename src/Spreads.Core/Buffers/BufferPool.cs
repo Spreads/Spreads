@@ -4,12 +4,14 @@
 
 using System;
 using System.Buffers;
-using System.Diagnostics;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 
 namespace Spreads.Buffers
 {
+    // TODO review it once again
+    // * why two pools, not RMP.Default? What config is not good for default but good for data? Is it upper size and buckets to try?
+    
     public static class BufferPool<T>
     {
         /// <summary>
@@ -34,13 +36,15 @@ namespace Spreads.Buffers
             ArrayPool<T>.Shared.Return(array, clearArray);
         }
 
-        // This is entry/exit point for data buffers. All in-memory data containers use this pool.
+        /// <summary>
+        /// This is entry/exit point for data buffers. All in-memory data containers use this pool.
+        /// </summary>
         public static RetainableMemoryPool<T> MemoryPool = new RetainableMemoryPool<T>(
                 factory: RetainableMemoryPool<T>.DefaultFactory,
                 minLength: Settings.MIN_POOLED_BUFFER_LEN,
                 maxLength: Math.Max(Settings.MIN_POOLED_BUFFER_LEN, Settings.LARGE_BUFFER_LIMIT / Unsafe.SizeOf<T>()),
                 maxBuffersPerBucketPerCore: 16,
-                maxBucketsToTry: 2);
+                maxBucketsToTry: 2); // TODO review params
     }
 
     public class BufferPool
@@ -58,7 +62,7 @@ namespace Spreads.Buffers
         {
             var arrayMemory = RetainableMemoryPool<byte>.Default.RentMemory(length, requireExact);
             if (AdditionalCorrectnessChecks.Enabled && arrayMemory.IsDisposed)
-                BuffersThrowHelper.ThrowDisposed<ArrayMemory<byte>>();
+                BuffersThrowHelper.ThrowDisposed<RetainedMemory<byte>>();
             return requireExact ? arrayMemory.Retain(0, length) : arrayMemory.Retain(0, arrayMemory.Length);
         }
 

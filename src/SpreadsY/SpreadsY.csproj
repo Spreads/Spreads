@@ -21,7 +21,7 @@
 
   <ItemGroup>
     <PackageReference Include="NodaTime" Version="2.4.7" />
-    <PackageReference Include="MathNet.Numerics.Signed" Version="4.9.1" />
+    <PackageReference Include="MathNet.Numerics.Signed" Version="4.9.0" />
     <PackageReference Include="System.Threading.ThreadPool" Version="4.3.0" />
   </ItemGroup>
 
