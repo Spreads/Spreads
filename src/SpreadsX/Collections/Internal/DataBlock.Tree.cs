@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using Spreads.Algorithms;
 
@@ -13,11 +12,10 @@ namespace Spreads.Collections.Internal
                     | MethodImplOptions.AggressiveOptimization
 #endif
         )]
-        public int LookupKey<T>(T key, Lookup lookup, KeyComparer<T> comparer, out DataBlock? block)
+        public int LookupKey<T>(ref T key, Lookup lookup, KeyComparer<T> comparer, out DataBlock? block)
         {
             block = this;
             int i;
-            int ii;
             int length;
             while (true)
             {
@@ -31,6 +29,7 @@ namespace Spreads.Collections.Internal
                     ThrowHelper.DebugAssert(block.NextBlock == null);
                     ThrowHelper.DebugAssert(block == this || block.LastBlock == null);
                     // adjust for LE operation if needed
+                    int ii;
                     if ((uint) (ii = ~i - 1) < RowCount)
                         i = ii;
 
@@ -53,7 +52,6 @@ namespace Spreads.Collections.Internal
                 }
             }
 
-            // TODO 
             ThrowHelper.DebugAssert(block.Height == 0);
 
             if (i >= _head)
@@ -103,6 +101,8 @@ namespace Spreads.Collections.Internal
 
                     // i is the same, ~i is idx of element that is GT the value
                 }
+
+                key = block.UnsafeGetRowKey<T>(i);
             }
 
             RETURN_I:
@@ -118,10 +118,7 @@ namespace Spreads.Collections.Internal
             return block == null ? -1 : 0;
         }
 
-        
         //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-
 
         [MethodImpl(MethodImplOptions.AggressiveInlining
 #if HAS_AGGR_OPT
@@ -134,9 +131,9 @@ namespace Spreads.Collections.Internal
             {
                 var lastBlock = block.UnsafeGetValue<DataBlock>(block.RowCount - 1);
                 ThrowHelper.DebugAssert(lastBlock.Height == block.Height - 1);
-                
+
                 Append(lastBlock, key, value, out var newBlock);
-                
+
                 if (newBlock != null)
                 {
                     if (block.TryAppendToBlock(key, newBlock))
@@ -167,7 +164,6 @@ namespace Spreads.Collections.Internal
                 }
             }
         }
-
 
         [Obsolete("This should do the whole tree work, not just block. Using VecSearch on RetainedVec is trivial")]
         [MethodImpl(MethodImplOptions.AggressiveInlining

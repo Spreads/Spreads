@@ -24,6 +24,7 @@
         <PackageReference Include="BenchmarkDotNet" Version="0.12.0" />
         <PackageReference Include="CRC32C.Standard" Version="1.0.0" />
         <PackageReference Include="Disruptor" Version="3.6.1" />
+        <PackageReference Include="JetBrains.dotMemoryUnit" Version="3.1.20200127.214830"/>
         <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Scripting" Version="3.3.1" />
         <PackageReference Include="Microsoft.IO.RecyclableMemoryStream" Version="1.3.2" />
         <PackageReference Include="Newtonsoft.Json" Version="12.0.3" />

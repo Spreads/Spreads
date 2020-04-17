@@ -23,22 +23,20 @@ namespace Spreads.Core.Tests.Buffers
             public object this[Range index]
             {
                 get => null;
-                
             }
-            
+
             public object this[Index index]
             {
                 get => null;
-                
             }
         }
-        
+
         [Test, Explicit("output")]
         public void SizeOfVectorStorage()
         {
             Test x = new Test();
             var y = x[1..^1];
-            
+
             ObjectLayoutInspector.TypeLayout.PrintLayout<RetainedVec>();
         }
 

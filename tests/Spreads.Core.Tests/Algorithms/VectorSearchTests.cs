@@ -2,18 +2,18 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-using NUnit.Framework;
-using Spreads.Collections;
-using Spreads.DataTypes;
-using Spreads.Native;
-using Spreads.Utils;
 using System;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Runtime.Intrinsics;
 using System.Runtime.Intrinsics.X86;
+using NUnit.Framework;
 using Spreads.Algorithms;
 using Spreads.Buffers;
+using Spreads.Collections;
+using Spreads.DataTypes;
+using Spreads.Native;
+using Spreads.Utils;
 
 // ReSharper disable HeapView.BoxingAllocation
 
@@ -1714,17 +1714,26 @@ namespace Spreads.Core.Tests.Algorithms
                         }
                     }
 
-                    InterpolLookup2(count, mult, step, interRes2, vec);
-                    
-                    InterpolLookup(count, mult, step, interRes, vec);
+                    using (Benchmark.Run($"Interpol {count}", count * mult))
+                    {
+                        for (int m = 0; m < mult; m++)
+                        {
+                            for (int i = 0; i < count; i++)
+                            {
+#pragma warning disable CS0618 // Type or member is obsolete
+                                var value = (Timestamp) (i * step);
+                                interRes[i] = VectorSearch.InterpolationLookup(ref Unsafe.Add(ref vec.DangerousGetRef(0), 0), 0, count, ref value, Lookup.GE);
+                                // interRes[i] = vec.DangerousInterpolationLookup(0, count, ref value, Lookup.LE);
+#pragma warning restore CS0618 // Type or member is obsolete
+                            }
+                        }
+                    }
 
-                   
-                    
                     for (int i = 0; i < count; i++)
                     {
                         if (binRes[i] != interRes[i] || binRes[i] != interRes2[i])
                         {
-                            Console.WriteLine($"[{count}] binRes[i] {binRes[i]} != interRes[i] {interRes[i]} or interRes2[i] {interRes2[i]}  at {i}");
+                            Console.WriteLine($"[{count}] binRes[i] {binRes[i]} != interRes[i] {interRes[i]} at {i}");
                             Assert.Fail();
                         }
                     }
@@ -1732,43 +1741,6 @@ namespace Spreads.Core.Tests.Algorithms
             }
 
             Benchmark.Dump();
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveOptimization | MethodImplOptions.NoInlining)]
-        private static void InterpolLookup2(int count, int mult, int step, int[] interRes2, Vec<Timestamp> vec)
-        {
-            using (Benchmark.Run($"Interpol2 {count}", count * mult))
-            {
-                for (int m = 0; m < mult; m++)
-                {
-                    for (int i = 0; i < count; i++)
-                    {
-#pragma warning disable CS0618 // Type or member is obsolete
-                        var value = (Timestamp) (i * step);
-                        interRes2[i] = VectorSearch.InterpolationLookup2(ref Unsafe.Add(ref vec.DangerousGetRef(0), 0), 0, count, ref value, Lookup.GE);
-#pragma warning restore CS0618 // Type or member is obsolete
-                    }
-                }
-            }
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveOptimization | MethodImplOptions.NoInlining)]
-        private static void InterpolLookup(int count, int mult, int step, int[] interRes, Vec<Timestamp> vec)
-        {
-            using (Benchmark.Run($"Interpol {count}", count * mult))
-            {
-                for (int m = 0; m < mult; m++)
-                {
-                    for (int i = 0; i < count; i++)
-                    {
-#pragma warning disable CS0618 // Type or member is obsolete
-                        var value = (Timestamp) (i * step);
-                        interRes[i] = VectorSearch.InterpolationLookup(ref Unsafe.Add(ref vec.DangerousGetRef(0), 0), 0, count, ref value, Lookup.GE);
-                        // interRes[i] = vec.DangerousInterpolationLookup(0, count, ref value, Lookup.LE);
-#pragma warning restore CS0618 // Type or member is obsolete
-                    }
-                }
-            }
         }
 
         [Test, Explicit("long running")]
