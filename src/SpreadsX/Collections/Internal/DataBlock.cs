@@ -2,15 +2,13 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-using Spreads.Algorithms;
-using Spreads.Buffers;
-using Spreads.Collections.Concurrent;
-using Spreads.Threading;
 using System;
 using System.Diagnostics;
 using System.Linq;
 using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
+using Spreads.Buffers;
+using Spreads.Collections.Concurrent;
+using Spreads.Threading;
 
 namespace Spreads.Collections.Internal
 {
@@ -164,6 +162,8 @@ namespace Spreads.Collections.Internal
 
         // TODO this is only for MW, and we should pay the cost only in that case
 
+        private int _rowCapacity = 0;
+
         /// <summary>
         /// Vec offset where data starts (where index ==0).
         /// </summary>
@@ -287,9 +287,9 @@ namespace Spreads.Collections.Internal
                 WarnFinalizing();
             }
 
-            RowCount = -1;
-            ColumnCount = -1;
-            _head = 0;
+            RowCount = default;
+            ColumnCount = default;
+            _head = default;
 
             if (NextBlock != null)
             {
@@ -366,7 +366,7 @@ namespace Spreads.Collections.Internal
         public int RowCapacity
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => _rowKeys.Length;
+            get => _rowCapacity;
         }
 
         public int ColumnCapacity

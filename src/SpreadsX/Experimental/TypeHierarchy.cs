@@ -1,39 +1,16 @@
 ﻿// ReSharper disable once CheckNamespace
 
 using System;
-using System.Collections;
-using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using Spreads;
 using Spreads.Collections;
 using Spreads.Collections.Internal;
+using Index = Spreads.Index;
 
 // ReSharper disable InconsistentNaming
 
 namespace SpreadsX.Experimental
 {
-    public struct Index
-    {
-        private long Idx;
-
-        public Index(long idx)
-        {
-            Idx = idx;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static implicit operator Index(System.Index index)
-        {
-            return new Index(index.Value);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static implicit operator Index(long index)
-        {
-            return new Index(index);
-        }
-    }
-
     public struct Any
     {
         private long Idx;
@@ -120,16 +97,16 @@ namespace SpreadsX.Experimental
         public Cursor<K, V> GetCursor() => default;
 
         ICursor<K, V> ISeries<K, V>.GetCursor() => GetCursor();
-        
     }
 
     public struct Cursor<K, V> : ICursor<K, V>
     {
         // Move _inner cursor
         private BlockIndexCursor<K, V, KVFactory> _inner;
+
         // with _source range constraints and fill value
         private Series<K, V> _source;
-        
+
         public bool MoveNext() => _inner.MoveNext();
         public K CurrentKey => _inner._currentKey;
         public V CurrentValue => _inner._currentValue;
@@ -160,15 +137,15 @@ namespace SpreadsX.Experimental
     {
         // Move _inner cursor
         private BlockIndexCursor<R, Series<C, V>, KVFactory> _inner;
+
         // with _source range constraints and fill value
         private Panel<R, C, V> _source;
-        
+
         public bool MoveNext() => _inner.MoveNext();
         public R CurrentKey => _inner._currentKey;
         public Series<C, V> CurrentValue => _inner._currentValue;
         ISeries<C, V> ICursor<R, ISeries<C, V>>.CurrentValue => CurrentValue;
-        
-        
+
         private struct KVFactory : IBlockIndexCursorKeyValueFactory<R, Series<C, V>>
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -176,8 +153,7 @@ namespace SpreadsX.Experimental
             {
                 // Maybe smth like this:
                 // if
-                
-                
+
                 throw new NotImplementedException();
                 // if (typeof(R) == typeof(Index))
                 // {
@@ -284,7 +260,6 @@ namespace SpreadsX.Experimental
 
         public Series<R, V> GetColumn(C column) => throw new NotImplementedException();
         public Series<R, V> GetColumn(Index column) => throw new NotImplementedException();
-        
     }
 
     public readonly struct Panel<R, V> : ISeries<R, Series<Index, V>, Cursor<R, Index, V>>, IPanel<R, Index, V>

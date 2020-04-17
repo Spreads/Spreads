@@ -1,7 +1,9 @@
 ﻿using System;
+using System.Collections;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
+using NUnit.Framework;
 
 namespace Spreads.Core.Tests
 {
@@ -10,12 +12,12 @@ namespace Spreads.Core.Tests
         public static long GetBenchCount(long count = 1_000_000, long debugCount = -1)
         {
 #if DEBUG
-                if (debugCount <= 0)
-                {
-                    return 100;
-                }
+            if (debugCount <= 0)
+            {
+                return 100;
+            }
 
-                return debugCount;
+            return debugCount;
 #else
             return count;
 #endif
@@ -40,7 +42,7 @@ namespace Spreads.Core.Tests
             private Padding64 Padding1;
             private long _prevW;
             private Padding64 Padding2;
-            
+
             public long ReadCount;
             private Padding64 Padding3;
             private long _prevR;
@@ -71,7 +73,8 @@ namespace Spreads.Core.Tests
                     var w = Volatile.Read(ref WriteCount);
                     var r = Volatile.Read(ref ReadCount);
 
-                    Console.WriteLine($"R: {r:N0} - {((r - _prevR) / 1000000.0):N2} Mops \t | W: {w:N0}- {((w - _prevW) / 1000000.0):N2} Mops | GC {GC.CollectionCount(0)}-{GC.CollectionCount(1)}-{GC.CollectionCount(2)}");
+                    Console.WriteLine(
+                        $"R: {r:N0} - {((r - _prevR) / 1000000.0):N2} Mops \t | W: {w:N0}- {((w - _prevW) / 1000000.0):N2} Mops | GC {GC.CollectionCount(0)}-{GC.CollectionCount(1)}-{GC.CollectionCount(2)}");
 
                     _prevW = w;
                     _prevR = r;
@@ -110,6 +113,92 @@ namespace Spreads.Core.Tests
             {
                 return Interlocked.Increment(ref WriteCount);
             }
+        }
+    }
+
+    public static class AssertionExtensions
+    {
+        public static object ShouldEqual(this object actual, object expected, string message = null)
+        {
+            Assert.AreEqual(expected, actual, message);
+            return actual;
+        }
+
+        public static T ShouldEqual<T>(this T actual, T expected, string message = null)
+        {
+            // ReSharper disable HeapView.BoxingAllocation
+            Assert.AreEqual(expected, actual, message);
+            return actual;
+        }
+
+        public static object ShouldNotEqual(this object actual, object expected)
+        {
+            Assert.AreNotEqual(expected, actual);
+            return actual;
+        }
+
+        public static T ShouldNotEqual<T>(this T actual, T expected)
+        {
+            ((object) actual).ShouldNotEqual((object) expected);
+            return actual;
+        }
+
+        public static void ShouldBeTrue(this object actual)
+        {
+            Assert.That(actual, Is.True);
+        }
+
+        public static void ShouldBeTrue(this bool actual)
+        {
+            Assert.IsTrue(actual);
+        }
+
+        public static void ShouldBeFalse(this object actual)
+        {
+            Assert.That(actual, Is.False);
+        }
+
+        public static void ShouldBeFalse(this bool actual)
+        {
+            Assert.IsFalse(actual);
+        }
+
+        public static object ShouldNotBeNull(this object hopefullyNotNull)
+        {
+            Assert.That(hopefullyNotNull, Is.Not.Null);
+            return hopefullyNotNull;
+        }
+
+        public static object ShouldBeNull(this object shouldReallyBeNull)
+        {
+            Assert.That(shouldReallyBeNull, Is.Null);
+            return shouldReallyBeNull;
+        }
+
+        public static T ShouldBeInstanceOfType<T>(this object objectOfAssertion)
+        {
+            Assert.IsInstanceOf<T>(objectOfAssertion);
+            return (T) objectOfAssertion;
+        }
+
+        public static void ShouldContain(this string metaphoricalHaystack, string needle)
+        {
+            Assert.That(metaphoricalHaystack.Contains(needle));
+        }
+
+        public static void ShouldContain(this ICollection metaphoricalHaystack, object needle)
+        {
+            Assert.Contains(needle, metaphoricalHaystack);
+        }
+
+        public static void ShouldBeEmpty(this IEnumerable collection)
+        {
+            Assert.IsEmpty(collection);
+        }
+
+        public static void ShouldNotBeEmpty(this IEnumerable collection)
+        {
+            Assert.IsNotEmpty(collection);
         }
     }
 }

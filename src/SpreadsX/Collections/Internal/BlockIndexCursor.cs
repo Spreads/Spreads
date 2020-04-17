@@ -2,7 +2,6 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-using Spreads.Threading;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -11,8 +10,7 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
-using Spreads.Buffers;
-using Index = SpreadsX.Experimental.Index;
+using Spreads.Threading;
 
 namespace Spreads.Collections.Internal
 {
@@ -38,22 +36,21 @@ namespace Spreads.Collections.Internal
         void GetCurrentKeyValue(DataBlock dataBlock, int currentBlockIndex, ref TKey key, ref TValue value); // could add BaseContainer<TKey> parameter here
         void ReleaseValue(TValue value);
     }
-    
+
     [StructLayout(LayoutKind.Sequential, Pack = 4)]
     internal struct BlockIndexCursor<TKey, TValue, TKVFactory> : ICursor<TKey, TValue, BlockIndexCursor<TKey, TValue, TKVFactory>>
         where TKVFactory : struct, IBlockIndexCursorKeyValueFactory<TKey, TValue>
     {
         internal SpreadsX.Experimental.Series<TKey, TValue> _series;
-        
+
         internal BaseContainer<TKey> _container => _series._container;
 
         private int _columnIndex;
-        
+
         // private int _dimension;
         // private RetainedVec _currentBlockKeys;
         // private int _currentBlockLength;
-        
-        
+
         /// <summary>
         /// Backing storage for <see cref="CurrentBlock"/>. Must never be used directly.
         /// </summary>
@@ -104,7 +101,7 @@ namespace Spreads.Collections.Internal
             _series = series;
             // _container = container;
             _columnIndex = columnIndex;
-            
+
             CurrentBlockIndex = -1;
 #pragma warning disable 618
             _currentBlockStorage = DataBlock.Empty;
@@ -151,7 +148,7 @@ namespace Spreads.Collections.Internal
             TValue v = default!;
             var sw = new SpinWait();
 
-        RETRY:
+            RETRY:
             // TODO rework sync for order version
             var version = _container.Version;
             {
@@ -198,6 +195,7 @@ namespace Spreads.Collections.Internal
             {
                 return mc;
             }
+
             ThrowCannotMove();
             return 0;
         }
@@ -231,10 +229,12 @@ namespace Spreads.Collections.Internal
                     moveCount = 0;
                     return false;
                 }
+
                 _orderVersion = _container.OrderVersion;
             }
 
-            ThrowHelper.DebugAssert(CurrentBlock != null && (!CurrentBlock.IsDisposed || CurrentBlock.IsEmptySentinel), "!CurrentBlock.IsDisposed || ReferenceEquals(CurrentBlock, DataBlock.Empty)");
+            ThrowHelper.DebugAssert(CurrentBlock != null && (!CurrentBlock.IsDisposed || CurrentBlock.IsEmptySentinel),
+                "!CurrentBlock.IsDisposed || ReferenceEquals(CurrentBlock, DataBlock.Empty)");
 
             // TODO check perf if we always return current block, could avoid at least 2-3 null checks
             moveCount = Move(stride, allowPartial, out var newBlock, out var newBlockIndex);
@@ -244,9 +244,9 @@ namespace Spreads.Collections.Internal
 
             if (moveCount != 0)
             {
-                ThrowHelper.DebugAssert(newBlock == null || newBlockIndex <= (ulong)newBlock.RowCount);
+                ThrowHelper.DebugAssert(newBlock == null || newBlockIndex <= (ulong) newBlock.RowCount);
                 // Note: do not use _blockPosition, it's 20% slower than second cast to int
-                default(TKVFactory).GetCurrentKeyValue(newBlock ?? CurrentBlock, (int)newBlockIndex, ref k, ref v);
+                default(TKVFactory).GetCurrentKeyValue(newBlock ?? CurrentBlock, (int) newBlockIndex, ref k, ref v);
             }
 
             if (_container.NextOrderVersion != _orderVersion)
@@ -263,26 +263,30 @@ namespace Spreads.Collections.Internal
                 if (newBlock != null)
                     CurrentBlock = newBlock;
 
-                CurrentBlockIndex = (int)newBlockIndex;
+                CurrentBlockIndex = (int) newBlockIndex;
                 _currentKey = k;
                 _currentValue = v;
             }
 
             if (AdditionalCorrectnessChecks.Enabled)
-            { if (moveCount != 0 
-                  && ((moveCount != stride && !allowPartial) 
-                      || allowPartial && 
+            {
+                if (moveCount != 0
+                    && ((moveCount != stride && !allowPartial)
+                        || allowPartial &&
                         (stride > 0 && moveCount > stride
                          ||
                          stride < 0 && moveCount < stride
-                         )
-                      )
-                  ) { ThrowBadReturnValue(stride, moveCount, allowPartial); } }
+                        )
+                    )
+                )
+                {
+                    ThrowBadReturnValue(stride, moveCount, allowPartial);
+                }
+            }
 
             return true;
         }
-        
-        
+
         [MethodImpl(MethodImplOptions.NoInlining)]
         private static void ThrowBadReturnValue(long stride, long mc, bool allowPartial)
         {
@@ -303,14 +307,14 @@ namespace Spreads.Collections.Internal
 
             // Note: this does not handle MP from uninitialized state (_blockPosition == -1, stride <= 0). This case is rare.
             // Uninitialized multi-block case goes to rare as well as uninitialized MP
-            newBlockIndex = unchecked((ulong)(CurrentBlockIndex + stride)); // int.Max + long.Max < ulong.Max
+            newBlockIndex = unchecked((ulong) (CurrentBlockIndex + stride)); // int.Max + long.Max < ulong.Max
 
             var rowCount = CurrentBlock.RowCount;
 
             if (AdditionalCorrectnessChecks.Enabled)
                 ThrowHelper.Assert(rowCount >= 0, "rowCount >= 0 for all CurrentBlocks, empty sentinel has zero length specifically for this case");
 
-            if (newBlockIndex < (ulong)rowCount)
+            if (newBlockIndex < (ulong) rowCount)
             {
                 moveCount = stride;
             }
@@ -322,7 +326,7 @@ namespace Spreads.Collections.Internal
 
                 moveCount = MoveRare(stride, allowPartial, out newBlock, out newBlockIndex);
 
-                if (AdditionalCorrectnessChecks.Enabled && moveCount != 0 && newBlockIndex >= (ulong)(newBlock ?? CurrentBlock).RowCount)
+                if (AdditionalCorrectnessChecks.Enabled && moveCount != 0 && newBlockIndex >= (ulong) (newBlock ?? CurrentBlock).RowCount)
                     ThrowBadNewBlockIndex(newBlockIndex, moveCount);
             }
 
@@ -333,7 +337,7 @@ namespace Spreads.Collections.Internal
         private void ThrowBadNewBlockIndex(ulong newBlockIndex, long mc)
         {
             ThrowHelper.ThrowInvalidOperationException(
-                $"newBlockIndex [{(long)newBlockIndex}] >= (ulong)CurrentBlock.RowCount [{CurrentBlock.RowCount}], mc={mc}");
+                $"newBlockIndex [{(long) newBlockIndex}] >= (ulong)CurrentBlock.RowCount [{CurrentBlock.RowCount}], mc={mc}");
         }
 
         /// <summary>
@@ -369,7 +373,7 @@ namespace Spreads.Collections.Internal
                     var nextPosition = unchecked((localBlock.RowCount + stride));
                     if (nextPosition >= 0)
                     {
-                        newBlockIndex = (ulong)nextPosition;
+                        newBlockIndex = (ulong) nextPosition;
                         return stride;
                     }
 
@@ -385,9 +389,10 @@ namespace Spreads.Collections.Internal
                     if (CurrentBlockIndex + stride >= localBlock.RowCount)
                     {
                         var mc = (localBlock.RowCount - 1) - CurrentBlockIndex;
-                        newBlockIndex = (ulong)(CurrentBlockIndex + mc);
+                        newBlockIndex = (ulong) (CurrentBlockIndex + mc);
                         return mc;
                     }
+
                     if (stride < 0) // cannot just use else without checks before, e.g. what if BlockIndex == -1 and stride == 0
                     {
                         newBlockIndex = 0;
@@ -456,7 +461,7 @@ namespace Spreads.Collections.Internal
 
                     if (remaining <= availableInCb)
                     {
-                        bi += (int)remaining;
+                        bi += (int) remaining;
                         ThrowHelper.DebugAssert(bi >= 0 && bi < cb.RowCount);
                         remaining = 0;
                         break;
@@ -504,7 +509,7 @@ namespace Spreads.Collections.Internal
 
                     if (remaining >= availableInCb)
                     {
-                        bi += (int)remaining;
+                        bi += (int) remaining;
                         ThrowHelper.DebugAssert(bi >= 0 && bi < cb.RowCount);
                         remaining = 0;
                         break;
@@ -538,14 +543,15 @@ namespace Spreads.Collections.Internal
             if (movedCount != 0)
             {
                 newBlock = cb;
-                newBlockIndex = (ulong)bi;
+                newBlockIndex = (ulong) bi;
             }
             else
             {
                 newBlock = null;
                 newBlockIndex = ulong.MaxValue;
             }
-            if (AdditionalCorrectnessChecks.Enabled && movedCount != 0 && newBlockIndex >= (ulong)(newBlock ?? CurrentBlock).RowCount)
+
+            if (AdditionalCorrectnessChecks.Enabled && movedCount != 0 && newBlockIndex >= (ulong) (newBlock ?? CurrentBlock).RowCount)
                 ThrowBadNewBlockIndex(newBlockIndex, movedCount);
             return movedCount;
         }
@@ -619,7 +625,7 @@ namespace Spreads.Collections.Internal
             if (result)
             {
                 // Note: do not use _blockPosition, it's 20% slower than second cast to int
-                default(TKVFactory).GetCurrentKeyValue(newBlock ?? CurrentBlock, (int)0, ref k, ref v);
+                default(TKVFactory).GetCurrentKeyValue(newBlock ?? CurrentBlock, (int) 0, ref k, ref v);
             }
 
             if (_container.NextOrderVersion != _orderVersion)
@@ -635,7 +641,7 @@ namespace Spreads.Collections.Internal
             {
                 if (newBlock != null)
                     CurrentBlock = newBlock;
-                CurrentBlockIndex = (int)0;
+                CurrentBlockIndex = (int) 0;
                 _currentKey = k;
                 _currentValue = v;
             }
@@ -687,7 +693,7 @@ namespace Spreads.Collections.Internal
             if (result)
             {
                 // Note: do not use _blockPosition, it's 20% slower than second cast to int
-                default(TKVFactory).GetCurrentKeyValue(newBlock ?? CurrentBlock, (int)newBlockIndex, ref k, ref v); // TODO WTF(!) 0 not newBlockIndex?
+                default(TKVFactory).GetCurrentKeyValue(newBlock ?? CurrentBlock, (int) newBlockIndex, ref k, ref v); // TODO WTF(!) 0 not newBlockIndex?
             }
 
             if (_container.NextOrderVersion != _orderVersion)
@@ -832,6 +838,7 @@ namespace Spreads.Collections.Internal
             {
                 ThrowHelper.ThrowInvalidOperationException("Disposing not initialized cursor.");
             }
+
             CurrentBlockIndex = -1;
             _currentKey = default;
             _orderVersion = AtomicCounter.GetCount(ref _container.OrderVersion);

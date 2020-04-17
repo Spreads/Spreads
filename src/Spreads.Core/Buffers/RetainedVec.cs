@@ -2,11 +2,11 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-using Spreads.Native;
-using Spreads.Serialization;
 using System;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using Spreads.Native;
+using Spreads.Serialization;
 
 namespace Spreads.Buffers
 {
@@ -54,22 +54,17 @@ namespace Spreads.Buffers
 
         public static unsafe RetainedVec Create<T>(RetainableMemory<T> memorySource, int start, int length, bool externallyOwned = false)
         {
-            // TODO // start/length
-            // throw new NotImplementedException();
             if (!memorySource.IsBlittableOffheap)
                 ThrowHelper.ThrowInvalidOperationException("Memory source must have IsBlittableOffheap = true to be used in RetainedVec.");
-
-            if (!externallyOwned)
-                memorySource.Increment();
 
             RetainedVec vs;
             if (TypeHelper<T>.IsReferenceOrContainsReferences)
             {
                 ThrowHelper.DebugAssert(memorySource.Pointer == default && memorySource._array != default);
                 // RM's offset goes to _pointerOrOffset
-                vs = new RetainedVec(externallyOwned ? null : memorySource, 
-                    memorySource._array, 
-                    (IntPtr) memorySource._offset, 
+                vs = new RetainedVec(externallyOwned ? null : memorySource,
+                    memorySource._array,
+                    (IntPtr) memorySource._offset,
                     memorySource.Length,
                     VecTypeHelper<T>.RuntimeTypeId);
             }
@@ -81,7 +76,7 @@ namespace Spreads.Buffers
                     VecTypeHelper<T>.RuntimeTypeId);
             }
 
-            return vs;
+            return vs.Slice(start, length, externallyOwned);
         }
 
         public void Dispose()
@@ -162,7 +157,7 @@ namespace Spreads.Buffers
         {
             return GetSpan<T>().Slice(index, length);
         }
-        
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal void UnsafeWriteUnaligned<T>(int index, ReadOnlySpan<T> value)
         {
@@ -188,7 +183,7 @@ namespace Spreads.Buffers
         }
 
         public int Length => _length;
-        
+
         public int RuntimeTypeId => _runtimeTypeId;
 
         public bool Equals(RetainedVec other)

@@ -4,9 +4,7 @@
 
 using System;
 using System.Buffers;
-using System.Diagnostics;
 using System.Runtime.CompilerServices;
-using Spreads.Serialization;
 using Spreads.Threading;
 
 namespace Spreads.Buffers
@@ -14,7 +12,7 @@ namespace Spreads.Buffers
     /// <summary>
     /// Base class for reference counted <see cref="MemoryManager{T}"/>>.
     /// </summary>
-    public abstract class RefCountedMemory<T> : MemoryManager<T>, IDisposable, IRefCounted
+    public abstract class RefCountedMemory<T> : MemoryManager<T>, IRefCounted
     {
         protected RefCountedMemory()
         {
@@ -126,7 +124,7 @@ namespace Spreads.Buffers
             {
                 var msg = $"Finalizing retained RetainableMemory (ReferenceCount={ReferenceCount})" + (Tag != null ? Environment.NewLine + "Tag: " + Tag : "");
 #if DEBUG
-                    ThrowHelper.ThrowInvalidOperationException(msg);
+                ThrowHelper.ThrowInvalidOperationException(msg);
 #else
                 Trace.TraceError(msg);
 #endif

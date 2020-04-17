@@ -2,12 +2,12 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-using Spreads.Buffers;
-using Spreads.Utils;
 using System;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
+using Spreads.Buffers;
 using Spreads.Native;
+using Spreads.Utils;
 
 namespace Spreads.Collections.Internal
 {
@@ -42,7 +42,7 @@ namespace Spreads.Collections.Internal
                 ThrowHelper.ThrowInvalidOperationException("_columns != null in panel layout");
 
             ThrowHelper.DebugAssert((_columnKeys == default && ColumnCount == 1) || ColumnCount == _columnKeys.Length);
-            
+
             var valueCount = _rowKeys.Length * ColumnCount;
 
             ThrowHelper.DebugAssert(valueCount <= _values.Length, "Values vector must have enough capacity for data");
@@ -51,10 +51,11 @@ namespace Spreads.Collections.Internal
         /// <summary>
         /// Create a DataBlock for Series or Panel.
         /// </summary>
-        public static DataBlock CreateForPanel(RetainedVec rowKeys = default, RetainedVec values = default, int rowCount = -1, RetainedVec columnKeys = default, int columnCount = -1)
+        public static DataBlock CreateForPanel(RetainedVec rowKeys = default, RetainedVec values = default, int rowCount = -1, RetainedVec columnKeys = default,
+            int columnCount = -1)
         {
             // this must work with rowLength == 0 and empty vecs, this is how we initialize empty block that is not sentinel
-            
+
             if (columnCount < 1)
             {
                 columnCount = Math.Max(1, columnKeys.Length);
@@ -64,10 +65,10 @@ namespace Spreads.Collections.Internal
                 if ((uint) columnCount > columnKeys.Length)
                     ThrowHelper.ThrowArgumentOutOfRangeException(nameof(columnCount));
             }
-            
+
             // RetainedVec is slice-able, easy to get exact layout 
-            ThrowHelper.Assert(rowKeys.Length != values.Length * columnCount, "rowKeys.Length != values.Length * columnCount");
-            
+            ThrowHelper.Assert(rowKeys.Length == values.Length * columnCount, "rowKeys.Length != values.Length * columnCount");
+
             var block = ObjectPool.Rent()!;
             block.EnsureDisposed();
 
@@ -76,7 +77,7 @@ namespace Spreads.Collections.Internal
             block._rowKeys = rowKeys;
             block._columnKeys = columnKeys;
             block._values = values;
-            
+
             if (rowCount == -1)
             {
                 block.RowCount = rowCapacity;
@@ -90,14 +91,27 @@ namespace Spreads.Collections.Internal
             }
 
             block.ColumnCount = columnCount;
+
+            block._rowCapacity = rowCapacity;
             block._head = 0;
+
             block._refCount = 0;
 
             block.EnsurePanelLayout();
-            
+
             ThrowHelper.DebugAssert(!block.IsDisposed, "!block.IsDisposed");
 
             return block;
+        }
+
+        public static DataBlock CreateForVector<TValue>(int rowCapacity = -1)
+        {
+            return CreateForSeries<Index, TValue>(rowCapacity);
+        }
+
+        public static DataBlock CreateForSeries<TRowKey, TValue>(int rowCapacity = -1)
+        {
+            return CreateForPanel<TRowKey, Index, TValue>(rowCapacity, -1);
         }
 
         public static DataBlock CreateForPanel<TRowKey, TColumnKey, TValue>(int rowCapacity = -1,
@@ -109,8 +123,8 @@ namespace Spreads.Collections.Internal
                 var columnKeysMemory = BufferPool<TRowKey>.MemoryPool.RentMemory(columnCount, exactBucket: true);
                 columnKeys = RetainedVec.Create(columnKeysMemory, start: 0, columnKeysMemory.Length);
                 ThrowHelper.Assert(columnCount >= 1);
-                
             }
+
             var block = CreateForPanel(default, default, -1, columnKeys, columnCount);
             block.IncreaseRowsCapacity<TRowKey, TValue>(rowCapacity);
             return block;
@@ -132,11 +146,36 @@ namespace Spreads.Collections.Internal
             EnsureNotSentinel();
             EnsurePanelLayout();
 
+            if (_rowKeys.RuntimeTypeId != 0)
+            {
+                if (_rowKeys.RuntimeTypeId != VecTypeHelper<TRowKey>.RuntimeTypeId)
+                    throw new ArrayTypeMismatchException(
+                        $"Type of TRowKey {typeof(TRowKey)} doesn't match existing row keys type {VecTypeHelper.GetInfo(_rowKeys.RuntimeTypeId).Type}");
+            }
+            else if (RowCount > 0)
+            {
+#pragma warning disable 618
+                ThrowHelper.FailFast("Runtime type id for non-empty RowKeys was not set.");
+#pragma warning restore 618
+            }
+
+            if (_values.RuntimeTypeId != 0)
+            {
+                if (_values.RuntimeTypeId != VecTypeHelper<TValue>.RuntimeTypeId)
+                    throw new ArrayTypeMismatchException($"Type of TValue {typeof(TValue)} doesn't match existing value type {VecTypeHelper.GetInfo(_values.RuntimeTypeId).Type}");
+            }
+            else if (RowCount > 0)
+            {
+#pragma warning disable 618
+                ThrowHelper.FailFast("Runtime type id for non-empty Values was not set.");
+#pragma warning restore 618
+            }
+
             var rowKeys = _rowKeys;
             var values = _values;
 
             var minCapacity = Math.Max(newCapacity, Settings.MIN_POOLED_BUFFER_LEN);
-            var newRowKeysLength = BitUtil.FindNextPositivePowerOfTwo(Math.Max(minCapacity, rowKeys.Length + 1));
+            var newRowCapacity = BitUtil.FindNextPositivePowerOfTwo(Math.Max(minCapacity, _rowCapacity + 1));
 
             RetainableMemory<TRowKey>? newRowKeysBuffer = null;
             RetainedVec newRowKeys = default;
@@ -145,24 +184,33 @@ namespace Spreads.Collections.Internal
 
             try
             {
-                newRowKeysBuffer = BufferPool<TRowKey>.MemoryPool.RentMemory(newRowKeysLength, exactBucket: true);
-                newValuesBuffer = BufferPool<TValue>.MemoryPool.RentMemory(newRowKeysLength * ColumnCount, exactBucket: true);
+                if (typeof(TRowKey) != typeof(Index))
+                {
+                    newRowKeysBuffer = BufferPool<TRowKey>.MemoryPool.RentMemory(newRowCapacity, exactBucket: true);
+                    ThrowHelper.DebugAssert(newRowKeysBuffer.Length == newRowCapacity);
+                    newRowKeys = RetainedVec.Create(newRowKeysBuffer, start: 0, newRowKeysBuffer.Length); // new buffer could be larger
+                }
 
-                ThrowHelper.DebugAssert(newRowKeysBuffer.Length == newRowKeysLength);
-                ThrowHelper.DebugAssert(newValuesBuffer.Length == newRowKeysLength * ColumnCount);
-                
-                newRowKeys = RetainedVec.Create(newRowKeysBuffer, start: 0, newRowKeysBuffer.Length); // new buffer could be larger
+                newValuesBuffer = BufferPool<TValue>.MemoryPool.RentMemory(newRowCapacity * ColumnCount, exactBucket: true);
+                ThrowHelper.DebugAssert(newValuesBuffer.Length == newRowCapacity * ColumnCount);
                 newValues = RetainedVec.Create(newValuesBuffer, start: 0, newValuesBuffer.Length);
 
-                rowKeys.GetSpan<TRowKey>().Slice(0, RowCount).CopyTo(newRowKeys.GetSpan<TRowKey>());
-                values.GetSpan<TValue>().Slice(0, RowCount * ColumnCount).CopyTo(newValues.GetSpan<TValue>());
+                if (RowCount > 0)
+                {
+                    if (typeof(TRowKey) != typeof(Index))
+                        rowKeys.GetSpan<TRowKey>().Slice(0, RowCount).CopyTo(newRowKeys.GetSpan<TRowKey>());
+                    values.GetSpan<TValue>().Slice(0, RowCount * ColumnCount).CopyTo(newValues.GetSpan<TValue>());
+                }
             }
             catch (OutOfMemoryException)
             {
-                if (newRowKeys != default)
-                    newRowKeys.Dispose();
-                else
-                    newRowKeysBuffer?.DecrementIfOne();
+                if (typeof(TRowKey) != typeof(Index))
+                {
+                    if (newRowKeys != default)
+                        newRowKeys.Dispose();
+                    else
+                        newRowKeysBuffer?.DecrementIfOne();
+                }
 
                 if (newValues != default)
                     newValues.Dispose();
@@ -182,21 +230,26 @@ namespace Spreads.Collections.Internal
                 {
                     // we have all needed buffers, must switch in one operation
 
-                    _rowKeys = newRowKeys;
-                    _values = newValues;
+                    if (typeof(TRowKey) != typeof(Index))
+                    {
+                        _rowKeys = newRowKeys;
+                        rowKeys.Dispose();
+                    }
 
-                    rowKeys.Dispose();
+                    _values = newValues;
                     values.Dispose();
+
+                    _rowCapacity = newRowCapacity;
                 }
 
-                return RowCapacity;
+                return _rowCapacity;
             }
             catch
             {
                 return -1;
             }
         }
-        
+
         [MethodImpl(MethodImplOptions.AggressiveInlining
 #if HAS_AGGR_OPT
                     | MethodImplOptions.AggressiveOptimization
@@ -239,8 +292,8 @@ namespace Spreads.Collections.Internal
                 ThrowHelper.Assert(values.Length == ColumnCount);
             }
 
-            var offset =RowCount;
-            
+            var offset = RowCount;
+
             _rowKeys.UnsafeWriteUnaligned(offset, key);
             _values.UnsafeWriteUnaligned(offset, values);
 
@@ -263,7 +316,5 @@ namespace Spreads.Collections.Internal
         }
 
         // There was trivial insert method, see git history. Nothing special, just copying Spans
-
-        
     }
 }
