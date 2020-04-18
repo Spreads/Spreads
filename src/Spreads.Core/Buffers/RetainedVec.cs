@@ -76,7 +76,7 @@ namespace Spreads.Buffers
                     VecTypeHelper<T>.RuntimeTypeId);
             }
 
-            return vs.Slice(start, length, externallyOwned);
+            return vs.Clone(start, length, externallyOwned);
         }
 
         public void Dispose()
@@ -84,12 +84,18 @@ namespace Spreads.Buffers
             _memoryOwner?.Decrement();
         }
 
+        public RetainedVec Clone()
+        {
+            _memoryOwner?.Increment();
+            return new RetainedVec(_memoryOwner, _array, _pointerOrOffset, _length, _runtimeTypeId);
+        }
+
         // TODO WTF is this externallyOwned on slice? See RdM Clone
         /// <summary>
         /// Returns new VectorStorage instance with the same memory source but (optionally) different memory start and length.
-        /// Increments underlying memory reference count.
+        /// Increments underlying memory reference count unless <paramref name="externallyOwned"/> is true.
         /// </summary>
-        public RetainedVec Slice(int start, int length, bool externallyOwned = false)
+        public RetainedVec Clone(int start, int length, bool externallyOwned = false)
         {
             // see CLR Span.Slice comment
             if (IntPtr.Size == 8)
@@ -149,7 +155,8 @@ namespace Spreads.Buffers
         {
             if (TypeHelper<T>.IsReferenceOrContainsReferences)
                 Unsafe.As<T[]>(_array)[(int) UnsafeEx.Add(_pointerOrOffset, index)] = value;
-            Unsafe.WriteUnaligned<T>(ref Unsafe.As<T, byte>(ref Unsafe.AsRef<T>((void*) (_pointerOrOffset + index * Unsafe.SizeOf<T>()))), value);
+            else
+                Unsafe.WriteUnaligned<T>(ref Unsafe.As<T, byte>(ref Unsafe.AsRef<T>((void*) (_pointerOrOffset + index * Unsafe.SizeOf<T>()))), value);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

@@ -40,7 +40,7 @@ namespace Spreads.Core.Tests.Collections.Internal
 
             var pm = BuffersTestHelper.CreateFilledRM(count);
             var keys = RetainedVec.Create(pm, 0, count);
-            var values = keys.Slice(0, count, true);
+            var values = keys.Clone(0, count, true);
 
             var block = DataBlock.CreateForPanel(keys, values, count);
             for (int i = 0; i < count; i++)
@@ -67,7 +67,7 @@ namespace Spreads.Core.Tests.Collections.Internal
             var keys = block.RowKeys._memoryOwner as PrivateMemory<int>;
             var vals = block.Values._memoryOwner as PrivateMemory<int>;
 
-            var slice = block.Values.Slice(0, 1);
+            var slice = block.Values.Clone(0, 1);
 
             Assert.NotNull(keys);
             Assert.NotNull(vals);

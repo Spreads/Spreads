@@ -188,7 +188,7 @@ namespace Spreads.Buffers
                 ThrowHelper.ThrowInvalidOperationException("Cannot clone not retained memory.");
             }
 
-            return new RetainedMemory<T>(_manager, _start + start, length, true);
+            return new RetainedMemory<T>(_manager, _start + start, length, borrow: true);
         }
 
         public int ReferenceCount

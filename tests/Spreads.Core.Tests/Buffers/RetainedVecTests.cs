@@ -54,8 +54,8 @@ namespace Spreads.Core.Tests.Buffers
 
             Assert.AreNotEqual(vs1, vs);
 
-            var vsCopy = vs.Slice(0, vs.Length, true);
-            var vsSlice = vs.Slice(0, vs.Length - 1, true);
+            var vsCopy = vs.Clone(0, vs.Length, true);
+            var vsSlice = vs.Clone(0, vs.Length - 1, true);
 
             Assert.AreEqual(vs, vsCopy);
             Assert.AreNotEqual(vs, vsSlice);
@@ -144,7 +144,7 @@ namespace Spreads.Core.Tests.Buffers
                     }
                 }
 
-                Assert.IsTrue(vs.Slice(0, vs.Length).GetSpan<SmallDecimal>().SequenceEqual(value.Storage.Slice(0, value.Storage.Length).GetSpan<SmallDecimal>()));
+                Assert.IsTrue(vs.Clone(0, vs.Length).GetSpan<SmallDecimal>().SequenceEqual(value.Storage.Clone(0, value.Storage.Length).GetSpan<SmallDecimal>()));
 
                 Console.WriteLine($"{format} len: {len:N0} x{Math.Round((double) payload / len, 2)}");
 
@@ -229,7 +229,7 @@ namespace Spreads.Core.Tests.Buffers
                 {
                     for (int i = 0; i < count; i++)
                     {
-                        var vs1 = vs.Slice(0, vs.Length, externallyOwned: true);
+                        var vs1 = vs.Clone(0, vs.Length, externallyOwned: true);
                         vs1.Dispose();
                     }
                 }

@@ -54,6 +54,8 @@ namespace Spreads.Collections.Internal
             get => _height;
             protected set => _height = value;
         }
+
+        public bool IsLeaf => _height == 0;
     }
 
     internal class DataBlockPadding : DataBlockCounters
@@ -68,13 +70,37 @@ namespace Spreads.Collections.Internal
         private DataBlock? _previousBlock;
         private DataBlock? _nextBlock;
         private DataBlock? _lastBlock;
+        private RetainedVec[]? _columns;
+        private RetainedVec _columnKeys;
+        private RetainedVec _rowKeys;
+        private RetainedVec _values;
 
-        protected RetainedVec[]? _columns;
+        internal RetainedVec RowKeys
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => _rowKeys;
+            set => _rowKeys = value;
+        }
 
-        protected RetainedVec _columnKeys;
+        internal RetainedVec ColumnKeys
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => _columnKeys;
+            set => _columnKeys = value;
+        }
 
-        protected RetainedVec _rowKeys;
-        protected RetainedVec _values;
+        internal RetainedVec Values
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => _values;
+            set => _values = value;
+        }
+
+        internal RetainedVec[]? Columns
+        {
+            get { return _columns; }
+            set => _columns = value;
+        }
 
         /// <summary>
         /// Fast path to get the previous block from the current one.
@@ -89,7 +115,7 @@ namespace Spreads.Collections.Internal
             get => _previousBlock;
             protected set
             {
-                ThrowHelper.Assert(value?.Height == Height && value.RowCount > 0);
+                ThrowHelper.DebugAssert(value == null || (value.Height == Height && value.RowCount > 0));
                 _previousBlock = value;
             }
         }
@@ -109,7 +135,7 @@ namespace Spreads.Collections.Internal
             get => _nextBlock;
             protected set
             {
-                ThrowHelper.Assert(value?.Height == Height && value.RowCount > 0);
+                ThrowHelper.DebugAssert(value == null || (value?.Height == Height && value.RowCount > 0));
                 _nextBlock = value;
             }
         }
@@ -125,7 +151,7 @@ namespace Spreads.Collections.Internal
             get => _lastBlock;
             protected set
             {
-                ThrowHelper.DebugAssert(value?.Height == 0 && value.RowCount > 0);
+                ThrowHelper.DebugAssert(value == null || value.Height == 0);
                 _lastBlock = value;
             }
         }
@@ -148,20 +174,6 @@ namespace Spreads.Collections.Internal
         // TODO Review pools sizes, move them to settings. For series each DataBlock has 2x PrivateMemory instances, for which we have 256 pooled per core.
         private static readonly ObjectPool<DataBlock> ObjectPool = new ObjectPool<DataBlock>(() => new DataBlock(), perCoreSize: 256);
 
-        [Obsolete("Use only in tests")]
-        internal RetainedVec RowKeys => _rowKeys;
-
-        [Obsolete("Use only in tests")]
-        internal RetainedVec ColumnKeys => _columnKeys;
-
-        [Obsolete("Use only in tests")]
-        internal RetainedVec Values => _values;
-
-        [Obsolete("Use only in tests")]
-        internal RetainedVec[]? Columns => _columns;
-
-        // TODO this is only for MW, and we should pay the cost only in that case
-
         private int _rowCapacity = 0;
 
         /// <summary>
@@ -175,10 +187,87 @@ namespace Spreads.Collections.Internal
             AtomicCounter.Dispose(ref _refCount);
         }
 
+        public int RowCapacity
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => _rowCapacity;
+            private set => _rowCapacity = value;
+        }
+
+        public int ColumnCapacity
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => ColumnKeys.Length;
+        }
+
+        /// <summary>
+        /// True if <see cref="RowCount"/> is equal to <see cref="RowCapacity"/>.
+        /// </summary>
+        public bool IsFull
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => RowCount == RowKeys.Length;
+        }
+
+        /// <summary>
+        /// This data block is <see cref="DataBlock.Empty"/>.
+        /// </summary>
+        public bool IsEmptySentinel
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => ReferenceEquals(this, Empty);
+        }
+
+        /// <summary>
+        /// Move all content into a new block, this block has all default values
+        /// </summary>
+        /// <returns></returns>
+        public DataBlock MoveInto()
+        {
+            DataBlock destination = ObjectPool.Rent()!;
+            MoveInto(destination);
+            return destination;
+        }
+
+        /// <summary>
+        /// Move all content into a block, this block has all default values
+        /// </summary>
+        /// <returns></returns>
+        public void MoveInto(DataBlock destination)
+        {
+            destination.RowCount = RowCount;
+            destination.ColumnCount = ColumnCount;
+            destination._refCount = _refCount;
+            destination.Height = Height;
+            destination.PreviousBlock = PreviousBlock;
+            destination.NextBlock = NextBlock;
+            destination.LastBlock = LastBlock;
+            destination.Columns = Columns;
+            destination.ColumnKeys = ColumnKeys;
+            destination.RowKeys = RowKeys;
+            destination.Values = Values;
+            destination.RowCapacity = RowCapacity;
+            destination._head = _head;
+
+            RowCount = default;
+            ColumnCount = default;
+            _refCount = default;
+            Height = default;
+            PreviousBlock = default;
+            NextBlock = default;
+            LastBlock = default;
+            Columns = default;
+            ColumnKeys = default;
+            RowKeys = default;
+            Values = default;
+            RowCapacity = default;
+            _head = default;
+        }
+
         #region Lifecycle
 
         // TODO delete this method
-        [Obsolete("Use container-specific factories, e.g. SeriesCreate")]
+        [Obsolete("Use container-specific factories, e.g. CreateForSeries")]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static DataBlock Create(RetainedVec rowIndex = default, RetainedVec values = default,
             RetainedVec[]? columns = null, int rowLength = -1)
@@ -190,13 +279,13 @@ namespace Spreads.Collections.Internal
 
             if (rowIndex != default)
             {
-                block._rowKeys = rowIndex;
+                block.RowKeys = rowIndex;
                 rowCapacity = rowIndex.Length;
             }
 
             if (values != default)
             {
-                block._values = values;
+                block.Values = values;
                 if (rowCapacity >= 0 && values.Length < rowCapacity)
                 {
                     ThrowHelper.ThrowArgumentException("");
@@ -216,7 +305,7 @@ namespace Spreads.Collections.Internal
                     ThrowHelper.ThrowArgumentException("Empty columns array. Pass null instead.");
                 }
 
-                block._columns = columns;
+                block.Columns = columns;
                 foreach (var column in columns)
                 {
                     rowCapacity = Math.Min(rowCapacity, column.Length);
@@ -260,9 +349,10 @@ namespace Spreads.Collections.Internal
             ThrowHelper.DebugAssert(RowCount == default);
             ThrowHelper.DebugAssert(ColumnCount == default);
             ThrowHelper.DebugAssert(_head == default);
-            ThrowHelper.DebugAssert(_rowKeys == default);
-            ThrowHelper.DebugAssert(_values == default);
-            ThrowHelper.DebugAssert(_columns == default);
+            ThrowHelper.DebugAssert(RowKeys == default);
+            ThrowHelper.DebugAssert(ColumnKeys == default);
+            ThrowHelper.DebugAssert(Values == default);
+            ThrowHelper.DebugAssert(Columns == default);
             ThrowHelper.DebugAssert(NextBlock == default);
             ThrowHelper.DebugAssert(PreviousBlock == default);
             ThrowHelper.DebugAssert(LastBlock == default);
@@ -305,30 +395,30 @@ namespace Spreads.Collections.Internal
                 PreviousBlock = null;
             }
 
-            if (_rowKeys != default)
+            if (RowKeys != default)
             {
-                _rowKeys.Dispose();
-                _rowKeys = default;
+                RowKeys.Dispose();
+                RowKeys = default;
             }
 
-            if (_columnKeys != default)
+            if (ColumnKeys != default)
             {
-                _columnKeys.Dispose();
-                _columnKeys = default;
+                ColumnKeys.Dispose();
+                ColumnKeys = default;
             }
 
-            if (_values != default)
+            if (Values != default)
             {
-                _values.Dispose();
-                _values = default;
+                Values.Dispose();
+                Values = default;
             }
 
-            if (_columns != null)
+            if (Columns != null)
             {
-                for (int i = 0; i < _columns.Length; i++)
+                for (int i = 0; i < Columns.Length; i++)
                 {
-                    _columns[i].Dispose(); // does _memoryOwner?.Increment => works for default RV
-                    _columns = default;
+                    Columns[i].Dispose(); // does _memoryOwner?.Increment => works for default RV
+                    Columns = default;
                 }
             }
 
@@ -363,35 +453,7 @@ namespace Spreads.Collections.Internal
 
         #endregion Lifecycle
 
-        public int RowCapacity
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => _rowCapacity;
-        }
-
-        public int ColumnCapacity
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => _columnKeys.Length;
-        }
-
-        /// <summary>
-        /// True if <see cref="RowCount"/> is equal to <see cref="RowCapacity"/>.
-        /// </summary>
-        public bool IsFull
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => RowCount == _rowKeys.Length;
-        }
-
-        /// <summary>
-        /// This data block is <see cref="DataBlock.Empty"/>.
-        /// </summary>
-        public bool IsEmptySentinel
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => ReferenceEquals(this, Empty);
-        }
+        // TODO remove/rework these checks
 
         #region Structure check
 
@@ -419,19 +481,19 @@ namespace Spreads.Collections.Internal
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
-                if (_values == default)
+                if (Values == default)
                 {
                     return false;
                 }
 
-                if (_columns == null)
+                if (Columns == null)
                 {
                     return false;
                 }
 
-                foreach (var vectorStorage in _columns)
+                foreach (var vectorStorage in Columns)
                 {
-                    if (vectorStorage._memoryOwner == _values._memoryOwner)
+                    if (vectorStorage._memoryOwner == Values._memoryOwner)
                     {
                         return true;
                     }
@@ -446,19 +508,19 @@ namespace Spreads.Collections.Internal
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
-                if (_values == default)
+                if (Values == default)
                 {
                     return false;
                 }
 
-                if (_columns == null)
+                if (Columns == null)
                 {
                     return false;
                 }
 
-                foreach (var vectorStorage in _columns)
+                foreach (var vectorStorage in Columns)
                 {
-                    if (vectorStorage._memoryOwner != _values._memoryOwner)
+                    if (vectorStorage._memoryOwner != Values._memoryOwner)
                     {
                         return false;
                     }
@@ -481,11 +543,11 @@ namespace Spreads.Collections.Internal
                 }
 
                 var colLength = -1;
-                if (_columns != null)
+                if (Columns != null)
                 {
-                    if (_columns.Length > 0)
+                    if (Columns.Length > 0)
                     {
-                        colLength = _columns[0].Length;
+                        colLength = Columns[0].Length;
                     }
                     else
                     {
@@ -493,11 +555,11 @@ namespace Spreads.Collections.Internal
                         return false;
                     }
 
-                    if (_columns.Length > 1)
+                    if (Columns.Length > 1)
                     {
-                        for (int i = 1; i < _columns.Length; i++)
+                        for (int i = 1; i < Columns.Length; i++)
                         {
-                            if (colLength != _columns[0].Length)
+                            if (colLength != Columns[0].Length)
                             {
                                 return false;
                             }
@@ -507,18 +569,18 @@ namespace Spreads.Collections.Internal
 
                 // shared source by any column
                 // ReSharper disable once AssignNullToNotNullAttribute : colLength >= 0 guarantees _columns != null
-                if (colLength >= 0 && _values != default && _columns.All(c => c._memoryOwner != _values._memoryOwner))
+                if (colLength >= 0 && Values != default && Columns.All(c => c._memoryOwner != Values._memoryOwner))
                 {
                     // have _value set without shared source, that is not supported
                     return false;
                 }
 
-                if (colLength == -1 && _values != default)
+                if (colLength == -1 && Values != default)
                 {
-                    colLength = _values.Length;
+                    colLength = Values.Length;
                 }
 
-                if (_rowKeys != default && _rowKeys.Length != colLength)
+                if (RowKeys != default && RowKeys.Length != colLength)
                 {
                     return false;
                 }
@@ -535,26 +597,26 @@ namespace Spreads.Collections.Internal
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
-                if (_values == default)
+                if (Values == default)
                 {
                     return false;
                 }
 
-                if (!(_columns != null && _columns.Length > 0))
+                if (!(Columns != null && Columns.Length > 0))
                 {
                     return false;
                 }
 
                 // var len = -1;
-                foreach (var vectorStorage in _columns)
+                foreach (var vectorStorage in Columns)
                 {
-                    if (vectorStorage._memoryOwner != _values._memoryOwner)
+                    if (vectorStorage._memoryOwner != Values._memoryOwner)
                     {
                         return false;
                     }
                     else
                     {
-                        Debug.Assert(vectorStorage.RuntimeTypeId == _values.RuntimeTypeId);
+                        Debug.Assert(vectorStorage.RuntimeTypeId == Values.RuntimeTypeId);
                     }
                 }
 

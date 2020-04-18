@@ -57,7 +57,7 @@ namespace Spreads.Collections
             else
             {
                 // WindowOptions?.OnBeforeAppend();
-                db.AppendBlock(key, value);
+                db.AppendToBlock(key, value);
             }
 
             // Switch Data only after adding values to a data block.
@@ -105,7 +105,7 @@ namespace Spreads.Collections
                         return false;
                     }
                     // WindowOptions?.OnBeforeAppend();
-                    block.AppendBlock(key, value);
+                    block.AppendToBlock(key, value);
                 }
                 else
                 {
@@ -135,7 +135,7 @@ namespace Spreads.Collections
                     }
 
                     // WindowOptions?.OnBeforeAppend();
-                    newBlock.AppendBlock(key, value);
+                    newBlock.AppendToBlock(key, value);
 
                     ds.AddLast(key, newBlock);
                     block = newBlock;
@@ -201,7 +201,7 @@ namespace Spreads.Collections
             else
             {
                 // WindowOptions?.OnBeforeAppend();
-                db.AppendBlock(key, value);
+                db.AppendToBlock(key, value);
             }
 
             // Switch Data only after adding values to a data block.
@@ -248,7 +248,7 @@ namespace Spreads.Collections
                         return false;
                     }
                     // WindowOptions?.OnBeforeAppend();
-                    block.AppendBlock(key, value);
+                    block.AppendToBlock(key, value);
                 }
                 else
                 {
@@ -283,7 +283,7 @@ namespace Spreads.Collections
                     }
 
                     // WindowOptions?.OnBeforeAppend();
-                    newBlock.AppendBlock(key, value);
+                    newBlock.AppendToBlock(key, value);
 
                     ds.AddLast(key, newBlock);
                     

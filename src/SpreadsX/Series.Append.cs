@@ -134,7 +134,7 @@ namespace Spreads
             else
             {
                 // WindowOptions?.OnBeforeAppend();
-                db.AppendBlock(key, value);
+                db.AppendToBlock(key, value);
             }
 
             // Switch Data only after adding values to a data block.
@@ -182,7 +182,7 @@ namespace Spreads
                         return false;
                     }
                     // WindowOptions?.OnBeforeAppend();
-                    block.AppendBlock(key, value);
+                    block.AppendToBlock(key, value);
                 }
                 else
                 {
@@ -210,7 +210,7 @@ namespace Spreads
                     }
 
                     // WindowOptions?.OnBeforeAppend();
-                    newBlock.AppendBlock(key, value);
+                    newBlock.AppendToBlock(key, value);
 
                     ds.AddLast(key, newBlock);
                     block = newBlock;

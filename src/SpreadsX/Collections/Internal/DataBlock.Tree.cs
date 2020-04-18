@@ -7,6 +7,9 @@ namespace Spreads.Collections.Internal
 {
     internal sealed partial class DataBlock
     {
+        internal static int MaxLeafSize = 4096;
+        internal static int MaxNodeSize = 1024;
+
         [MethodImpl(MethodImplOptions.AggressiveInlining
 #if HAS_AGGR_OPT
                     | MethodImplOptions.AggressiveOptimization
@@ -22,7 +25,7 @@ namespace Spreads.Collections.Internal
                 length = block.RowCount - _head;
                 ThrowHelper.Assert(length > 0);
 
-                i = VectorSearch.SortedSearch(ref block._rowKeys.UnsafeGetRef<T>(), _head, length, key, comparer);
+                i = VectorSearch.SortedSearch(ref block.RowKeys.UnsafeGetRef<T>(), _head, length, key, comparer);
                 if (block.Height > 0)
                 {
                     ThrowHelper.DebugAssert(block.PreviousBlock == null);
@@ -42,7 +45,7 @@ namespace Spreads.Collections.Internal
                             return -1;
                     }
 
-                    var newBlock = block._values.UnsafeReadUnaligned<DataBlock>(i);
+                    var newBlock = block.Values.UnsafeReadUnaligned<DataBlock>(i);
                     ThrowHelper.DebugAssert(newBlock.Height == block.Height - 1);
                     block = newBlock;
                 }
@@ -125,43 +128,141 @@ namespace Spreads.Collections.Internal
                     | MethodImplOptions.AggressiveOptimization
 #endif
         )]
-        internal static void Append<TKey, TValue>(DataBlock block, TKey key, TValue value, out DataBlock? blockToAdd)
+        internal static void Append<TKey, TValue>(DataBlock block, TKey key, TValue value)
         {
-            if (block.Height > 0)
+            var lastBlock = block.LastBlock;
+            ThrowHelper.DebugAssert(lastBlock != null);
+            ThrowHelper.DebugAssert((block.IsLeaf && block.LastBlock == block) || !block.IsLeaf);
+
+            // TODO KeySorting check
+
+            if (!lastBlock.TryAppendToBlock(key, value, increaseCapacity: true))
             {
+                AppendNode(block, key, value);
+            }
+        }
+
+        internal static void AppendNode<TKey, TValue>(DataBlock root, TKey key, TValue value)
+        {
+            AppendNode(root, key, value, out var blockToAdd);
+            if (blockToAdd != null)
+            {
+                // The root block is full, we need to create a new
+                // root, but must keep the object reference (e.g.
+                // it's read-only field of Panel structs). 
+                // To do so, we need to replace content of the root
+                // with a new block that contains old root + blockToAdd + room for new blocks.
+
+                // content of the root moved to this new block
+                var firstBlock = root.MoveInto();
+                
+                // now `block` is completely empty now
+                // create a temp block using existing methods
+                // and then move it into `block` and dispose 
+                
+                var tempRoot = CreateForSeries<TKey, DataBlock>();
+                
+                tempRoot._refCount = firstBlock._refCount; // copy back
+                firstBlock._refCount = 1; // owned by root
+                tempRoot.Height = firstBlock.Height + 1;
+                
+                if(firstBlock.ColumnKeys != default)
+                    tempRoot.ColumnKeys = firstBlock.ColumnKeys.Clone();
+                tempRoot.ColumnCount = firstBlock.ColumnCount;
+                // TODO review .Columns
+
+                // Avoid multiple calls to method marked with AggressiveInlining
+                // tempRoot.AppendToBlock(firstBlock.UnsafeGetRowKey<TKey>(firstBlock._head), firstBlock);
+                // tempRoot.AppendToBlock(key, blockToAdd);
+                ThrowHelper.DebugAssert(KeyComparer<TKey>.Default.Compare(blockToAdd.UnsafeGetRowKey<TKey>(blockToAdd._head), key) == 0);
+                var appendBlock = firstBlock;
+                for (int i = 0; i < 2; i++)
+                {
+                    tempRoot.AppendToBlock(appendBlock.UnsafeGetRowKey<TKey>(appendBlock._head), appendBlock);
+                    appendBlock = blockToAdd;
+                }
+
+                ThrowHelper.Assert(tempRoot.RowCount == 2);
+
+                tempRoot.MoveInto(root);
+                tempRoot.Dispose();
+                
+                root.LastBlock = blockToAdd.LastBlock;
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining
+#if HAS_AGGR_OPT
+                    | MethodImplOptions.AggressiveOptimization
+#endif
+        )]
+        internal static void AppendNode<TKey, TValue>(DataBlock block, TKey key, TValue value, out DataBlock? blockToAdd)
+        {
+            if (block.IsLeaf)
+                blockToAdd = AppendLeaf();
+            else
+                blockToAdd = AppendNode();
+
+            DataBlock? AppendLeaf()
+            {
+                ThrowHelper.DebugAssert(block.Height == 0);
+
+                if (block.TryAppendToBlock<TKey, TValue>(key, value, increaseCapacity: true))
+                {
+                    // TODO we should never be here with LastBlock optimization
+                    return null;
+                }
+
+                var newRowCapacity = Math.Min(block.RowCapacity * 2, MaxLeafSize);
+                var blockToAdd1 = CreateForSeries<TKey, TValue>(newRowCapacity);
+
+                blockToAdd1.AppendToBlock<TKey, TValue>(key, value);
+
+                block.NextBlock = blockToAdd1;
+                blockToAdd1.PreviousBlock = block;
+
+                // last leaf has self as last block, this bubbles up to the root
+                blockToAdd1.LastBlock = blockToAdd1;
+
+                blockToAdd1.Height = 0;
+                return blockToAdd1;
+            }
+
+            DataBlock? AppendNode()
+            {
+                DataBlock? blockToAdd1;
                 var lastBlock = block.UnsafeGetValue<DataBlock>(block.RowCount - 1);
                 ThrowHelper.DebugAssert(lastBlock.Height == block.Height - 1);
 
-                Append(lastBlock, key, value, out var newBlock);
+                // Recursive dive. Instead of storing parent blocks
+                // in a field or a stack we already have *the* stack.
+                // Depths >4 is practically impossible with reasonable
+                // fanout. Most common are 1 and 2, even 3 should be rare.
+                DataBlock.AppendNode(lastBlock, key, value, out var newBlock);
 
                 if (newBlock != null)
                 {
-                    if (block.TryAppendToBlock(key, newBlock))
+                    if (block.TryAppendToBlock<TKey, DataBlock>(key, newBlock, increaseCapacity: true))
                     {
-                        blockToAdd = null;
+                        block.LastBlock = newBlock.LastBlock;
+                        blockToAdd1 = null;
                     }
                     else
                     {
-                        blockToAdd = DataBlock.CreateForPanel();
-                        blockToAdd.AppendBlock(key, newBlock);
+                        var newRowCapacity = Math.Min(block.RowCapacity * 2, MaxNodeSize);
+                        blockToAdd1 = CreateForSeries<TKey, DataBlock>(newRowCapacity);
+                        blockToAdd1.AppendToBlock<TKey, DataBlock>(key, newBlock);
+
+                        block.LastBlock = null;
+                        blockToAdd1.LastBlock = newBlock.LastBlock;
                     }
                 }
                 else
                 {
-                    blockToAdd = null;
+                    blockToAdd1 = null;
                 }
-            }
-            else
-            {
-                if (block.TryAppendToBlock(key, value))
-                {
-                    blockToAdd = null;
-                }
-                else
-                {
-                    blockToAdd = DataBlock.CreateForPanel();
-                    blockToAdd.AppendBlock(key, value);
-                }
+
+                return blockToAdd1;
             }
         }
 
@@ -173,7 +274,7 @@ namespace Spreads.Collections.Internal
         )]
         public int LookupKey<T>(ref T key, Lookup lookup, KeyComparer<T> comparer = default)
         {
-            return VectorSearch.SortedLookup(ref _rowKeys.UnsafeGetRef<T>(), offset: 0, RowCount, ref key, lookup, comparer);
+            return VectorSearch.SortedLookup(ref RowKeys.UnsafeGetRef<T>(), offset: 0, RowCount, ref key, lookup, comparer);
         }
 
         [Obsolete("This should do the whole tree work, not just block. Using VecSearch on RetainedVec is trivial")]
@@ -184,7 +285,7 @@ namespace Spreads.Collections.Internal
         )]
         public int SearchKey<T>(T key, KeyComparer<T> comparer = default)
         {
-            return VectorSearch.SortedSearch(ref _rowKeys.UnsafeGetRef<T>(), offset: 0, RowCount, key, comparer);
+            return VectorSearch.SortedSearch(ref RowKeys.UnsafeGetRef<T>(), offset: 0, RowCount, key, comparer);
         }
     }
 }

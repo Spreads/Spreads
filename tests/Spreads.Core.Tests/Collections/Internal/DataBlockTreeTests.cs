@@ -4,6 +4,7 @@
 
 using NUnit.Framework;
 using Spreads.Collections.Internal;
+using Spreads.Native;
 
 #pragma warning disable 618
 
@@ -16,14 +17,27 @@ namespace Spreads.Core.Tests.Collections.Internal
         [Test]
         public void CouldAppend()
         {
-            DataBlock.MaxLeafSize = 2;
-            DataBlock.MaxNodeSize = 2;
+            var blockLimit = Settings.MIN_POOLED_BUFFER_LEN;
+            DataBlock.MaxLeafSize = blockLimit;
+            DataBlock.MaxNodeSize = blockLimit;
 
-            var db = DataBlock.CreateForSeries<int, long>();
+            var db = DataBlock.CreateSeries<int, int>();
+            
+            for (int i = 0; i < blockLimit; i++)
+            {
+                DataBlock.Append<int, int>(db, i, i);
+            }
+            
+            db.RowCount.ShouldEqual(blockLimit);
+            
+            var dbBeforeExpand = db;
+            
+            DataBlock.Append<int, int>(db, blockLimit, blockLimit);
+            
+            db.RowCount.ShouldEqual(2);
+            db.Values.RuntimeTypeId.ShouldEqual(VecTypeHelper<DataBlock>.RuntimeTypeId);
+            db.Values.UnsafeReadUnaligned<DataBlock>(0).ShouldNotEqual(dbBeforeExpand);
 
-            DataBlock.Append<int, long>(db, 1, 1, out var blockToAdd);
-
-            db.RowCount.ShouldEqual(1);
         }
     }
 }

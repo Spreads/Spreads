@@ -18,34 +18,43 @@ namespace Spreads.Collections.Internal
         {
             ThrowHelper.DebugAssert(index >= _head && index < RowCount, $"DangerousGetRowKeyValueRef: index [{index}] >=0 && index < _rowCount [{RowCount}]");
             var offset = _head + index;
-            key = _rowKeys.UnsafeReadUnaligned<TKey>(offset);
-            value = _values.UnsafeReadUnaligned<TValue>(offset);
+
+            if (typeof(TKey) == typeof(Index))
+                // ReSharper disable once HeapView.BoxingAllocation
+                key = (TKey)(object)new Index(index);
+            else
+                key = RowKeys.UnsafeReadUnaligned<TKey>(offset);
+            
+            value = Values.UnsafeReadUnaligned<TValue>(offset);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public T UnsafeGetRowKey<T>(int index)
         {
-            return _rowKeys.UnsafeReadUnaligned<T>(_head + index);
+            if(typeof(T) == typeof(Index))
+                // ReSharper disable once HeapView.BoxingAllocation
+                return (T)(object)new Index(index);
+            return RowKeys.UnsafeReadUnaligned<T>(_head + index);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public T UnsafeGetValue<T>(int index)
         {
-            return _values.UnsafeReadUnaligned<T>(_head + index);
+            return Values.UnsafeReadUnaligned<T>(_head + index);
         }
 
         [Conditional("DEBUG")]
         private void EnsurePanelLayout()
         {
             // TODO more checks
-            if (_columns != null)
+            if (Columns != null)
                 ThrowHelper.ThrowInvalidOperationException("_columns != null in panel layout");
 
-            ThrowHelper.DebugAssert((_columnKeys == default && ColumnCount == 1) || ColumnCount == _columnKeys.Length);
+            ThrowHelper.DebugAssert(ColumnKeys == default && ColumnCount == 1 || ColumnCount == ColumnKeys.Length);
 
-            var valueCount = _rowKeys.Length * ColumnCount;
+            var valueCount = RowKeys.Length * ColumnCount;
 
-            ThrowHelper.DebugAssert(valueCount <= _values.Length, "Values vector must have enough capacity for data");
+            ThrowHelper.DebugAssert(valueCount <= Values.Length, "Values vector must have enough capacity for data");
         }
 
         /// <summary>
@@ -74,9 +83,9 @@ namespace Spreads.Collections.Internal
 
             var rowCapacity = rowKeys.Length;
 
-            block._rowKeys = rowKeys;
-            block._columnKeys = columnKeys;
-            block._values = values;
+            block.RowKeys = rowKeys;
+            block.ColumnKeys = columnKeys;
+            block.Values = values;
 
             if (rowCount == -1)
             {
@@ -109,9 +118,16 @@ namespace Spreads.Collections.Internal
             return CreateForSeries<Index, TValue>(rowCapacity);
         }
 
+        public static DataBlock CreateSeries<TRowKey, TValue>()
+        {
+            var block = CreateForSeries<TRowKey, TValue>(rowCapacity: -1);
+            block.LastBlock = block;
+            return block;
+        }
+        
         public static DataBlock CreateForSeries<TRowKey, TValue>(int rowCapacity = -1)
         {
-            return CreateForPanel<TRowKey, Index, TValue>(rowCapacity, -1);
+            return CreateForPanel<TRowKey, Index, TValue>(rowCapacity, columnCount: -1);
         }
 
         public static DataBlock CreateForPanel<TRowKey, TColumnKey, TValue>(int rowCapacity = -1,
@@ -125,7 +141,7 @@ namespace Spreads.Collections.Internal
                 ThrowHelper.Assert(columnCount >= 1);
             }
 
-            var block = CreateForPanel(default, default, -1, columnKeys, columnCount);
+            var block = CreateForPanel(rowKeys: default, values: default, rowCount: -1, columnKeys, columnCount);
             block.IncreaseRowsCapacity<TRowKey, TValue>(rowCapacity);
             return block;
         }
@@ -146,11 +162,11 @@ namespace Spreads.Collections.Internal
             EnsureNotSentinel();
             EnsurePanelLayout();
 
-            if (_rowKeys.RuntimeTypeId != 0)
+            if (RowKeys.RuntimeTypeId != 0)
             {
-                if (_rowKeys.RuntimeTypeId != VecTypeHelper<TRowKey>.RuntimeTypeId)
+                if (RowKeys.RuntimeTypeId != VecTypeHelper<TRowKey>.RuntimeTypeId)
                     throw new ArrayTypeMismatchException(
-                        $"Type of TRowKey {typeof(TRowKey)} doesn't match existing row keys type {VecTypeHelper.GetInfo(_rowKeys.RuntimeTypeId).Type}");
+                        $"Type of TRowKey {typeof(TRowKey)} doesn't match existing row keys type {VecTypeHelper.GetInfo(RowKeys.RuntimeTypeId).Type}");
             }
             else if (RowCount > 0)
             {
@@ -159,10 +175,10 @@ namespace Spreads.Collections.Internal
 #pragma warning restore 618
             }
 
-            if (_values.RuntimeTypeId != 0)
+            if (Values.RuntimeTypeId != 0)
             {
-                if (_values.RuntimeTypeId != VecTypeHelper<TValue>.RuntimeTypeId)
-                    throw new ArrayTypeMismatchException($"Type of TValue {typeof(TValue)} doesn't match existing value type {VecTypeHelper.GetInfo(_values.RuntimeTypeId).Type}");
+                if (Values.RuntimeTypeId != VecTypeHelper<TValue>.RuntimeTypeId)
+                    throw new ArrayTypeMismatchException($"Type of TValue {typeof(TValue)} doesn't match existing value type {VecTypeHelper.GetInfo(Values.RuntimeTypeId).Type}");
             }
             else if (RowCount > 0)
             {
@@ -171,8 +187,8 @@ namespace Spreads.Collections.Internal
 #pragma warning restore 618
             }
 
-            var rowKeys = _rowKeys;
-            var values = _values;
+            var rowKeys = RowKeys;
+            var values = Values;
 
             var minCapacity = Math.Max(newCapacity, Settings.MIN_POOLED_BUFFER_LEN);
             var newRowCapacity = BitUtil.FindNextPositivePowerOfTwo(Math.Max(minCapacity, _rowCapacity + 1));
@@ -232,11 +248,11 @@ namespace Spreads.Collections.Internal
 
                     if (typeof(TRowKey) != typeof(Index))
                     {
-                        _rowKeys = newRowKeys;
+                        RowKeys = newRowKeys;
                         rowKeys.Dispose();
                     }
 
-                    _values = newValues;
+                    Values = newValues;
                     values.Dispose();
 
                     _rowCapacity = newRowCapacity;
@@ -255,21 +271,21 @@ namespace Spreads.Collections.Internal
                     | MethodImplOptions.AggressiveOptimization
 #endif
         )]
-        internal void AppendBlock<TKey, TValue>(TKey key, TValue value)
+        internal void AppendToBlock<TKey, TValue>(TKey key, TValue value)
         {
             if (AdditionalCorrectnessChecks.Enabled)
             {
                 EnsurePanelLayout();
                 EnsureNotSentinel();
-                ThrowHelper.Assert(RowCount < _rowKeys.Length, "_rowCount < _rowKeys.Length");
-                ThrowHelper.Assert(_rowKeys._runtimeTypeId == VecTypeHelper<TKey>.RuntimeTypeId, "_rowKeys._runtimeTypeId == VecTypeHelper<TKey>.RuntimeTypeId");
-                ThrowHelper.Assert(_values._runtimeTypeId == VecTypeHelper<TValue>.RuntimeTypeId, "_values._runtimeTypeId == VecTypeHelper<TValue>.RuntimeTypeId");
+                ThrowHelper.Assert(RowCount < RowKeys.Length, "_rowCount < _rowKeys.Length");
+                ThrowHelper.Assert(RowKeys._runtimeTypeId == VecTypeHelper<TKey>.RuntimeTypeId, "_rowKeys._runtimeTypeId == VecTypeHelper<TKey>.RuntimeTypeId");
+                ThrowHelper.Assert(Values._runtimeTypeId == VecTypeHelper<TValue>.RuntimeTypeId, "Values._runtimeTypeId == VecTypeHelper<TValue>.RuntimeTypeId");
             }
 
             var offset = RowCount;
 
-            _rowKeys.UnsafeWriteUnaligned(offset, key);
-            _values.UnsafeWriteUnaligned(offset, value);
+            RowKeys.UnsafeWriteUnaligned(offset, key);
+            Values.UnsafeWriteUnaligned(offset, value);
 
             // volatile increment goes last
             RowCount++;
@@ -280,22 +296,22 @@ namespace Spreads.Collections.Internal
                     | MethodImplOptions.AggressiveOptimization
 #endif
         )]
-        internal void AppendBlock<TKey, TValue>(TKey key, ReadOnlySpan<TValue> values)
+        internal void AppendToBlock<TKey, TValue>(TKey key, ReadOnlySpan<TValue> values)
         {
             if (AdditionalCorrectnessChecks.Enabled)
             {
                 EnsurePanelLayout(); // this guaranties that values have capacity for _rowKeys.Length * _columnCount
                 EnsureNotSentinel();
-                ThrowHelper.Assert(RowCount < _rowKeys.Length, "_rowCount < _rowKeys.Length");
-                ThrowHelper.Assert(_rowKeys._runtimeTypeId == VecTypeHelper<TKey>.RuntimeTypeId, "_rowKeys._runtimeTypeId == VecTypeHelper<TKey>.RuntimeTypeId");
-                ThrowHelper.Assert(_values._runtimeTypeId == VecTypeHelper<TValue>.RuntimeTypeId, "_values._runtimeTypeId == VecTypeHelper<TValue>.RuntimeTypeId");
+                ThrowHelper.Assert(RowCount < RowKeys.Length, "_rowCount < _rowKeys.Length");
+                ThrowHelper.Assert(RowKeys._runtimeTypeId == VecTypeHelper<TKey>.RuntimeTypeId, "_rowKeys._runtimeTypeId == VecTypeHelper<TKey>.RuntimeTypeId");
+                ThrowHelper.Assert(Values._runtimeTypeId == VecTypeHelper<TValue>.RuntimeTypeId, "Values._runtimeTypeId == VecTypeHelper<TValue>.RuntimeTypeId");
                 ThrowHelper.Assert(values.Length == ColumnCount);
             }
 
             var offset = RowCount;
 
-            _rowKeys.UnsafeWriteUnaligned(offset, key);
-            _values.UnsafeWriteUnaligned(offset, values);
+            RowKeys.UnsafeWriteUnaligned(offset, key);
+            Values.UnsafeWriteUnaligned(offset, values);
 
             // volatile increment goes last
             RowCount++;
@@ -306,13 +322,31 @@ namespace Spreads.Collections.Internal
                     | MethodImplOptions.AggressiveOptimization
 #endif
         )]
-        internal bool TryAppendToBlock<TKey, TValue>(TKey key, TValue value)
+        internal bool TryAppendToBlock<TKey, TValue>(TKey key, TValue value, bool increaseCapacity)
         {
-            if (RowCount >= _rowKeys.Length)
-                return false;
+            if (RowCount >= RowCapacity)
+            {
+                if (!IncreaseCapacity())
+                    return false;
+            }
 
-            AppendBlock(key, value);
+            AppendToBlock(key, value);
             return true;
+
+            bool IncreaseCapacity()
+            {
+                if (!increaseCapacity)
+                    return false;
+
+                var newCapacity = RowCapacity * 2;
+
+                if (newCapacity > (IsLeaf ? MaxLeafSize : MaxNodeSize))
+                    return false;
+
+                var actualCapacity = IncreaseRowsCapacity<TKey, TValue>(newCapacity);
+                ThrowHelper.Assert(RowCount < actualCapacity);
+                return true;
+            }
         }
 
         // There was trivial insert method, see git history. Nothing special, just copying Spans
