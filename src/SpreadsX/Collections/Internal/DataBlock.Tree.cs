@@ -7,8 +7,8 @@ namespace Spreads.Collections.Internal
 {
     internal sealed partial class DataBlock
     {
-        internal static int MaxLeafSize = 4096;
-        internal static int MaxNodeSize = 1024;
+        internal static int MaxLeafSize = 4 * 4096;
+        internal static int MaxNodeSize = 4096;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining
 #if HAS_AGGR_OPT

@@ -6,6 +6,7 @@ using System;
 using NUnit.Framework;
 using Spreads.Collections.Internal;
 using Spreads.Native;
+using Spreads.Utils;
 
 #pragma warning disable 618
 
@@ -160,6 +161,42 @@ namespace Spreads.Core.Tests.Collections.Internal
             value++;
 
             db.Height.ShouldEqual(3);
+            
+            db.Dispose();
+            
+            GC.Collect(2, GCCollectionMode.Forced, true, true);
+            GC.WaitForPendingFinalizers();
+            GC.Collect(2, GCCollectionMode.Forced, true, true);
+            GC.WaitForPendingFinalizers();
+        }
+
+        [Test, Explicit("Benchmark")]
+        public void CouldAppendBench()
+        {
+            // var blockLimit = Settings.MIN_POOLED_BUFFER_LEN * 64;
+            // DataBlock.MaxLeafSize = blockLimit;
+            // DataBlock.MaxNodeSize = blockLimit;
+            var count = 100_000_000;
+            var rounds = 20;
+            var dbs = new DataBlock[rounds];
+
+            for (int r = 0; r < rounds; r++)
+            {
+                var db = DataBlock.CreateSeries<int, int>();
+
+                using (Benchmark.Run("DB.Tree.Append", count))
+                {
+                    for (int i = 0; i < count; i++)
+                    {
+                        DataBlock.Append<int, int>(db, i, i);
+                    }
+                }
+
+                dbs[r] = db;
+                // Console.WriteLine($"Height: {db.Height}");
+            }
+
+            Benchmark.Dump();
         }
     }
 }

@@ -358,7 +358,7 @@ namespace Spreads.Collections.Internal
             ThrowHelper.DebugAssert(LastBlock == default);
         }
 
-        private void Dispose(bool disposing)
+        internal void Dispose(bool disposing)
         {
             if (this == Empty)
             {

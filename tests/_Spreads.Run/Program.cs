@@ -1,16 +1,12 @@
 ﻿using System;
 using System.Diagnostics;
 using System.Runtime;
-using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
-using Spreads.Core.Tests;
 using Spreads.Core.Tests.Algorithms;
-using Spreads.Core.Tests.Buffers;
 using Spreads.Core.Tests.Collections.Concurrent;
+using Spreads.Core.Tests.Collections.Internal;
 using Spreads.Core.Tests.Serialization;
-using Spreads.Native;
-using Spreads.Serialization;
 
 namespace Spreads.Run
 {
@@ -43,8 +39,8 @@ namespace Spreads.Run
             ExecutionContext.SuppressFlow();
             Settings.SharedSpinLockNotificationPort = 53412;
             
-            var test = new VecSearchTests();
-            test.LookupIrregularBench();
+            var test = new DataBlockTreeTests();
+            test.CouldAppendBench();
             
             GC.Collect(2, GCCollectionMode.Forced, true, true);
 
