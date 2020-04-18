@@ -3,6 +3,10 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using Spreads.Native;
@@ -17,6 +21,8 @@ namespace Spreads.Buffers
     /// This struct must be disposed and should only be used as a field of an owning object,
     /// which should implement <seealso cref="IDisposable"/> and have a finalizer directly or via its parents.
     /// </remarks>
+    [DebuggerTypeProxy(typeof(RetainedVec_DebugView))]
+    [DebuggerDisplay("Length={" + nameof(Length) + ("}"))]
     [StructLayout(LayoutKind.Explicit, Size = 32)]
     internal readonly struct RetainedVec : IDisposable, IEquatable<RetainedVec>
     {
@@ -221,6 +227,59 @@ namespace Spreads.Buffers
         public static bool operator !=(RetainedVec left, RetainedVec right)
         {
             return !left.Equals(right);
+        }
+    }
+
+    internal class RetainedVec_DebugView
+    {
+        private readonly RetainedVec _rv;
+        private readonly MethodInfo? _getter;
+
+        public RetainedVec_DebugView(RetainedVec rv)
+        {
+            _rv = rv;
+            MethodInfo method = typeof(RetainedVec_DebugView).GetMethod("GetAsObjectT", BindingFlags.Instance | BindingFlags.NonPublic);
+            // ReSharper disable once PossibleNullReferenceException
+            if(_rv.RuntimeTypeId != 0)
+                _getter = method!.MakeGenericMethod(VecTypeHelper.GetInfo(_rv.RuntimeTypeId).Type);
+        }
+
+        public IntPtr PointerOrOffset => _rv._pointerOrOffset;
+        public Array? Array => _rv._array;
+
+        public long Length => _rv.Length;
+
+        public bool IsExternallyOwned => _rv.IsExternallyOwned;
+        public Type Type => _rv.RuntimeTypeId == 0 ? null : VecTypeHelper.GetInfo(_rv.RuntimeTypeId).Type;
+        public IRefCounted MemoryOwner => _rv._memoryOwner;
+
+        private object GetAsObjectT<T>(int index)
+        {
+            // ReSharper disable once HeapView.BoxingAllocation
+            return _rv.UnsafeReadUnaligned<T>(index);
+        }
+
+        private object GetAsObject(int index)
+        {
+            return _getter.Invoke(this, new[] {(object) index});
+        }
+
+        public IEnumerable Items
+        {
+            get
+            {
+                return _getter == null 
+                    ? Array.Empty<object>()
+                    : Enumerable();
+
+                IEnumerable Enumerable()
+                {
+                    for (int i = 0; i < Math.Min(100, Length); i++)
+                    {
+                        yield return GetAsObject(i);
+                    }
+                }
+            }
         }
     }
 

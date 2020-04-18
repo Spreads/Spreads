@@ -152,26 +152,29 @@ namespace Spreads.Collections.Internal
                 // it's read-only field of Panel structs). 
                 // To do so, we need to replace content of the root
                 // with a new block that contains old root + blockToAdd + room for new blocks.
+                // This should happen quite rarely.
 
                 // content of the root moved to this new block
                 var firstBlock = root.MoveInto();
+
+                ThrowHelper.DebugAssert(firstBlock.Height == blockToAdd.Height);
                 
                 // now `block` is completely empty now
                 // create a temp block using existing methods
                 // and then move it into `block` and dispose 
-                
+
                 var tempRoot = CreateForSeries<TKey, DataBlock>();
-                
+
                 tempRoot._refCount = firstBlock._refCount; // copy back
                 firstBlock._refCount = 1; // owned by root
                 tempRoot.Height = firstBlock.Height + 1;
-                
-                if(firstBlock.ColumnKeys != default)
+
+                if (firstBlock.ColumnKeys != default)
                     tempRoot.ColumnKeys = firstBlock.ColumnKeys.Clone();
                 tempRoot.ColumnCount = firstBlock.ColumnCount;
                 // TODO review .Columns
 
-                // Avoid multiple calls to method marked with AggressiveInlining
+                // Avoid multiple calls to method marked with AggressiveInlining, opposite to unrolling
                 // tempRoot.AppendToBlock(firstBlock.UnsafeGetRowKey<TKey>(firstBlock._head), firstBlock);
                 // tempRoot.AppendToBlock(key, blockToAdd);
                 ThrowHelper.DebugAssert(KeyComparer<TKey>.Default.Compare(blockToAdd.UnsafeGetRowKey<TKey>(blockToAdd._head), key) == 0);
@@ -182,11 +185,28 @@ namespace Spreads.Collections.Internal
                     appendBlock = blockToAdd;
                 }
 
+                if (firstBlock.Height == 0)
+                {
+                    // AppendNode treated root as height=0, but we rewrite
+                    // it's content and need to update references
+                    ThrowHelper.DebugAssert(blockToAdd.PreviousBlock == root);
+                    blockToAdd.PreviousBlock = firstBlock;
+                    ThrowHelper.DebugAssert(firstBlock.NextBlock == blockToAdd);
+                }
+                else
+                {
+                    ThrowHelper.DebugAssert(blockToAdd.PreviousBlock == null);
+                    ThrowHelper.DebugAssert(firstBlock.NextBlock == null);
+                }
+
+                // firstBlock.NextBlock = blockToAdd; already
+                ThrowHelper.DebugAssert(tempRoot.NextBlock == null && tempRoot.PreviousBlock == null);
+
                 ThrowHelper.Assert(tempRoot.RowCount == 2);
 
                 tempRoot.MoveInto(root);
                 tempRoot.Dispose();
-                
+
                 root.LastBlock = blockToAdd.LastBlock;
             }
         }
@@ -221,6 +241,9 @@ namespace Spreads.Collections.Internal
                 block.NextBlock = blockToAdd1;
                 blockToAdd1.PreviousBlock = block;
 
+                ThrowHelper.Assert(block.LastBlock == block);
+                block.LastBlock = null;
+                
                 // last leaf has self as last block, this bubbles up to the root
                 blockToAdd1.LastBlock = blockToAdd1;
 
@@ -234,7 +257,7 @@ namespace Spreads.Collections.Internal
                 var lastBlock = block.UnsafeGetValue<DataBlock>(block.RowCount - 1);
                 ThrowHelper.DebugAssert(lastBlock.Height == block.Height - 1);
 
-                // Recursive dive. Instead of storing parent blocks
+                // Recursive call. Instead of storing parent blocks
                 // in a field or a stack we already have *the* stack.
                 // Depths >4 is practically impossible with reasonable
                 // fanout. Most common are 1 and 2, even 3 should be rare.
@@ -251,6 +274,7 @@ namespace Spreads.Collections.Internal
                     {
                         var newRowCapacity = Math.Min(block.RowCapacity * 2, MaxNodeSize);
                         blockToAdd1 = CreateForSeries<TKey, DataBlock>(newRowCapacity);
+                        blockToAdd1.Height = block.Height;
                         blockToAdd1.AppendToBlock<TKey, DataBlock>(key, newBlock);
 
                         block.LastBlock = null;

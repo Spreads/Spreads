@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections;
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -124,6 +125,8 @@ namespace Spreads.Core.Tests
             return actual;
         }
 
+        
+        [DebuggerStepThrough]
         public static T ShouldEqual<T>(this T actual, T expected, string message = null)
         {
             // ReSharper disable HeapView.BoxingAllocation
@@ -140,6 +143,12 @@ namespace Spreads.Core.Tests
         public static T ShouldNotEqual<T>(this T actual, T expected)
         {
             ((object) actual).ShouldNotEqual((object) expected);
+            return actual;
+        }
+        
+        public static object ShouldBeSame(this object actual, object expected, string message = null)
+        {
+            Assert.AreSame(expected, actual, message);
             return actual;
         }
 
