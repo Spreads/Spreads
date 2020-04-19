@@ -41,9 +41,9 @@ namespace Spreads.Collections.Internal
     internal struct BlockIndexCursor<TKey, TValue, TKVFactory> : ICursor<TKey, TValue, BlockIndexCursor<TKey, TValue, TKVFactory>>
         where TKVFactory : struct, IBlockIndexCursorKeyValueFactory<TKey, TValue>
     {
-        internal SpreadsX.Experimental.Series<TKey, TValue> _series;
+        //internal SpreadsX.Experimental.Series<TKey, TValue> _series;
 
-        internal BaseContainer<TKey> _container => _series._container;
+        internal DataContainer _container => _container;
 
         private int _columnIndex;
 
@@ -98,7 +98,6 @@ namespace Spreads.Collections.Internal
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public BlockIndexCursor(SpreadsX.Experimental.Series<TKey, TValue> series, int columnIndex = 0)
         {
-            _series = series;
             // _container = container;
             _columnIndex = columnIndex;
 
@@ -109,9 +108,9 @@ namespace Spreads.Collections.Internal
             _orderVersion = 0;
             _currentKey = default!;
             _currentValue = default!;
-            Debug.Assert(_series._container.Data != null, "source.Data != null: must be DataBlock.Empty instead of null");
-            if (_series._container.IsDataBlock(out var db, out _))
-                CurrentBlock = db;
+            Debug.Assert(series._container.Data != null, "source.Data != null: must be DataBlock.Empty instead of null");
+            if (series._container.Data.Height == 0)
+                CurrentBlock = series._container.Data;
         }
 
         public CursorState State
@@ -129,7 +128,7 @@ namespace Spreads.Collections.Internal
         public KeyComparer<TKey> Comparer
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => _container._comparer;
+            get => throw new NotImplementedException(); // _container._comparer;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -152,13 +151,14 @@ namespace Spreads.Collections.Internal
             // TODO rework sync for order version
             var version = _container.Version;
             {
-                found = DataContainer.TryFindBlockAt(_container.Data, ref key, direction, out nextBlock, out nextPosition, _container._comparer);
-                if (found)
-                {
-                    TKey key1 = default;
-                    default(TKVFactory).GetCurrentKeyValue(nextBlock ?? CurrentBlock, nextPosition, ref key1, ref v);
-                    Debug.Assert(_container._comparer.Compare(key1, key) == 0);
-                }
+                throw new NotImplementedException();
+                // found = DataContainer.TryFindBlockAt(_container.Data, ref key, direction, out nextBlock, out nextPosition, _container._comparer);
+                // if (found)
+                // {
+                //     TKey key1 = default;
+                //     default(TKVFactory).GetCurrentKeyValue(nextBlock ?? CurrentBlock, nextPosition, ref key1, ref v);
+                //     Debug.Assert(_container._comparer.Compare(key1, key) == 0);
+                // }
             }
 
             if (_container.NextOrderVersion != version)
@@ -357,55 +357,56 @@ namespace Spreads.Collections.Internal
             if (stride == 0)
                 return 0;
 
-            var cb = CurrentBlock;
-            if (_container.IsDataBlock(out var localBlock, out var ds))
-            {
-                if (cb != localBlock && cb.IsEmptySentinel)
-                {
-                    return MoveInitialize(stride, allowPartial, localBlock, out newBlock, out newBlockIndex);
-                }
-
-                ThrowHelper.DebugAssert(cb == localBlock, "CurrentBlock == localBlock");
-
-                if (CurrentBlockIndex < 0 & stride < 0) // not &&
-                {
-                    ThrowHelper.DebugAssert(State == CursorState.Initialized, "State == CursorState.Initialized");
-                    var nextPosition = unchecked((localBlock.RowCount + stride));
-                    if (nextPosition >= 0)
-                    {
-                        newBlockIndex = (ulong) nextPosition;
-                        return stride;
-                    }
-
-                    if (allowPartial)
-                    {
-                        newBlockIndex = 0;
-                        return -localBlock.RowCount;
-                    }
-                }
-
-                if (allowPartial)
-                {
-                    if (CurrentBlockIndex + stride >= localBlock.RowCount)
-                    {
-                        var mc = (localBlock.RowCount - 1) - CurrentBlockIndex;
-                        newBlockIndex = (ulong) (CurrentBlockIndex + mc);
-                        return mc;
-                    }
-
-                    if (stride < 0) // cannot just use else without checks before, e.g. what if BlockIndex == -1 and stride == 0
-                    {
-                        newBlockIndex = 0;
-                        return -CurrentBlockIndex;
-                    }
-                }
-
-                return 0;
-            }
-
-            return cb.IsFull
-                ? MoveBlock(ds, stride, allowPartial, out newBlock, out newBlockIndex)
-                : 0;
+            throw new NotImplementedException();
+            // var cb = CurrentBlock;
+            // if (_container.IsDataBlock(out var localBlock, out var ds))
+            // {
+            //     if (cb != localBlock && cb.IsEmptySentinel)
+            //     {
+            //         return MoveInitialize(stride, allowPartial, localBlock, out newBlock, out newBlockIndex);
+            //     }
+            //
+            //     ThrowHelper.DebugAssert(cb == localBlock, "CurrentBlock == localBlock");
+            //
+            //     if (CurrentBlockIndex < 0 & stride < 0) // not &&
+            //     {
+            //         ThrowHelper.DebugAssert(State == CursorState.Initialized, "State == CursorState.Initialized");
+            //         var nextPosition = unchecked((localBlock.RowCount + stride));
+            //         if (nextPosition >= 0)
+            //         {
+            //             newBlockIndex = (ulong) nextPosition;
+            //             return stride;
+            //         }
+            //
+            //         if (allowPartial)
+            //         {
+            //             newBlockIndex = 0;
+            //             return -localBlock.RowCount;
+            //         }
+            //     }
+            //
+            //     if (allowPartial)
+            //     {
+            //         if (CurrentBlockIndex + stride >= localBlock.RowCount)
+            //         {
+            //             var mc = (localBlock.RowCount - 1) - CurrentBlockIndex;
+            //             newBlockIndex = (ulong) (CurrentBlockIndex + mc);
+            //             return mc;
+            //         }
+            //
+            //         if (stride < 0) // cannot just use else without checks before, e.g. what if BlockIndex == -1 and stride == 0
+            //         {
+            //             newBlockIndex = 0;
+            //             return -CurrentBlockIndex;
+            //         }
+            //     }
+            //
+            //     return 0;
+            // }
+            //
+            // return cb.IsFull
+            //     ? MoveBlock(ds, stride, allowPartial, out newBlock, out newBlockIndex)
+            //     : 0;
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
@@ -421,140 +422,140 @@ namespace Spreads.Collections.Internal
             return Move(stride, allowPartial, out newBlock, out newBlockIndex);
         }
 
-        [MethodImpl(MethodImplOptions.NoInlining
-#if HAS_AGGR_OPT
-                    | MethodImplOptions.AggressiveOptimization
-#endif
-        )]
-        private long MoveBlock(DataBlockSource<TKey> ds, long stride, bool allowPartial, out DataBlock? newBlock, out ulong newBlockIndex)
-        {
-            ThrowHelper.DebugAssert(stride != 0);
-            ThrowHelper.DebugAssert(ds != null && ds.First.IsPresent);
-
-            // we couldn't move withing CB, but still at the same position before the attempt
-
-            //newBlock = null;
-            //newBlockIndex = ulong.MaxValue;
-
-            // virtual state
-            var cb = CurrentBlock;
-            var bi = CurrentBlockIndex;
-
-            long remaining = stride;
-
-            if (stride > 0)
-            {
-                if (bi == -1) // not initialized and not data block
-                {
-                    // Make the virtual state as if we were after MF
-                    ThrowHelper.DebugAssert(cb.IsEmptySentinel);
-                    if (AdditionalCorrectnessChecks.Enabled)
-                        ThrowHelper.Assert(ds.First.IsPresent, "ds.First.IsPresent");
-                    cb = ds.First.Present.Value;
-                    bi = 0;
-                    remaining--;
-                }
-
-                while (true)
-                {
-                    var availableInCb = (cb.RowCount - 1) - bi;
-
-                    if (remaining <= availableInCb)
-                    {
-                        bi += (int) remaining;
-                        ThrowHelper.DebugAssert(bi >= 0 && bi < cb.RowCount);
-                        remaining = 0;
-                        break;
-                    }
-
-                    remaining -= availableInCb;
-                    bi += availableInCb;
-
-                    // we are at the end of cb now
-                    ThrowHelper.DebugAssert(bi == cb.RowCount - 1 && remaining > 0);
-
-                    if (ds.TryGetNextBlock(cb, out var nb))
-                    {
-                        if (AdditionalCorrectnessChecks.Enabled)
-                            ThrowHelper.Assert(nb.RowCount > 0, "nb.RowCount > 0");
-                        // move to the first position of the next block
-                        cb = nb;
-                        bi = 0;
-                        remaining--;
-                    }
-                    else
-                    {
-                        if (!allowPartial)
-                            remaining = stride;
-                        break;
-                    }
-                }
-            }
-            else
-            {
-                if (bi == -1) // not initialized and not data block
-                {
-                    // Make the virtual state as if we were after ML
-                    ThrowHelper.DebugAssert(cb.IsEmptySentinel);
-                    if (AdditionalCorrectnessChecks.Enabled)
-                        ThrowHelper.Assert(ds.Last.IsPresent, "ds.First.IsPresent");
-                    cb = ds.LastValueOrDefault;
-                    bi = cb.RowCount - 1;
-                    remaining++;
-                }
-
-                while (true)
-                {
-                    var availableInCb = -bi;
-
-                    if (remaining >= availableInCb)
-                    {
-                        bi += (int) remaining;
-                        ThrowHelper.DebugAssert(bi >= 0 && bi < cb.RowCount);
-                        remaining = 0;
-                        break;
-                    }
-
-                    remaining -= availableInCb;
-                    bi += availableInCb;
-
-                    // we are at the start of cb now
-                    ThrowHelper.DebugAssert(bi == 0 && remaining < 0);
-
-                    if (ds.TryGetPreviousBlock(cb, out var pb))
-                    {
-                        if (AdditionalCorrectnessChecks.Enabled)
-                            ThrowHelper.Assert(pb.RowCount > 0, "pb.RowCount > 0");
-                        // move to the last position of the previous block
-                        cb = pb;
-                        bi = cb.RowCount - 1;
-                        remaining++;
-                    }
-                    else
-                    {
-                        if (!allowPartial)
-                            remaining = stride;
-                        break;
-                    }
-                }
-            }
-
-            var movedCount = stride - remaining;
-            if (movedCount != 0)
-            {
-                newBlock = cb;
-                newBlockIndex = (ulong) bi;
-            }
-            else
-            {
-                newBlock = null;
-                newBlockIndex = ulong.MaxValue;
-            }
-
-            if (AdditionalCorrectnessChecks.Enabled && movedCount != 0 && newBlockIndex >= (ulong) (newBlock ?? CurrentBlock).RowCount)
-                ThrowBadNewBlockIndex(newBlockIndex, movedCount);
-            return movedCount;
-        }
+//         [MethodImpl(MethodImplOptions.NoInlining
+// #if HAS_AGGR_OPT
+//                     | MethodImplOptions.AggressiveOptimization
+// #endif
+//         )]
+//         private long MoveBlock(DataBlockSource<TKey> ds, long stride, bool allowPartial, out DataBlock? newBlock, out ulong newBlockIndex)
+//         {
+//             ThrowHelper.DebugAssert(stride != 0);
+//             ThrowHelper.DebugAssert(ds != null && ds.First.IsPresent);
+//
+//             // we couldn't move withing CB, but still at the same position before the attempt
+//
+//             //newBlock = null;
+//             //newBlockIndex = ulong.MaxValue;
+//
+//             // virtual state
+//             var cb = CurrentBlock;
+//             var bi = CurrentBlockIndex;
+//
+//             long remaining = stride;
+//
+//             if (stride > 0)
+//             {
+//                 if (bi == -1) // not initialized and not data block
+//                 {
+//                     // Make the virtual state as if we were after MF
+//                     ThrowHelper.DebugAssert(cb.IsEmptySentinel);
+//                     if (AdditionalCorrectnessChecks.Enabled)
+//                         ThrowHelper.Assert(ds.First.IsPresent, "ds.First.IsPresent");
+//                     cb = ds.First.Present.Value;
+//                     bi = 0;
+//                     remaining--;
+//                 }
+//
+//                 while (true)
+//                 {
+//                     var availableInCb = (cb.RowCount - 1) - bi;
+//
+//                     if (remaining <= availableInCb)
+//                     {
+//                         bi += (int) remaining;
+//                         ThrowHelper.DebugAssert(bi >= 0 && bi < cb.RowCount);
+//                         remaining = 0;
+//                         break;
+//                     }
+//
+//                     remaining -= availableInCb;
+//                     bi += availableInCb;
+//
+//                     // we are at the end of cb now
+//                     ThrowHelper.DebugAssert(bi == cb.RowCount - 1 && remaining > 0);
+//
+//                     if (ds.TryGetNextBlock(cb, out var nb))
+//                     {
+//                         if (AdditionalCorrectnessChecks.Enabled)
+//                             ThrowHelper.Assert(nb.RowCount > 0, "nb.RowCount > 0");
+//                         // move to the first position of the next block
+//                         cb = nb;
+//                         bi = 0;
+//                         remaining--;
+//                     }
+//                     else
+//                     {
+//                         if (!allowPartial)
+//                             remaining = stride;
+//                         break;
+//                     }
+//                 }
+//             }
+//             else
+//             {
+//                 if (bi == -1) // not initialized and not data block
+//                 {
+//                     // Make the virtual state as if we were after ML
+//                     ThrowHelper.DebugAssert(cb.IsEmptySentinel);
+//                     if (AdditionalCorrectnessChecks.Enabled)
+//                         ThrowHelper.Assert(ds.Last.IsPresent, "ds.First.IsPresent");
+//                     cb = ds.LastValueOrDefault;
+//                     bi = cb.RowCount - 1;
+//                     remaining++;
+//                 }
+//
+//                 while (true)
+//                 {
+//                     var availableInCb = -bi;
+//
+//                     if (remaining >= availableInCb)
+//                     {
+//                         bi += (int) remaining;
+//                         ThrowHelper.DebugAssert(bi >= 0 && bi < cb.RowCount);
+//                         remaining = 0;
+//                         break;
+//                     }
+//
+//                     remaining -= availableInCb;
+//                     bi += availableInCb;
+//
+//                     // we are at the start of cb now
+//                     ThrowHelper.DebugAssert(bi == 0 && remaining < 0);
+//
+//                     if (ds.TryGetPreviousBlock(cb, out var pb))
+//                     {
+//                         if (AdditionalCorrectnessChecks.Enabled)
+//                             ThrowHelper.Assert(pb.RowCount > 0, "pb.RowCount > 0");
+//                         // move to the last position of the previous block
+//                         cb = pb;
+//                         bi = cb.RowCount - 1;
+//                         remaining++;
+//                     }
+//                     else
+//                     {
+//                         if (!allowPartial)
+//                             remaining = stride;
+//                         break;
+//                     }
+//                 }
+//             }
+//
+//             var movedCount = stride - remaining;
+//             if (movedCount != 0)
+//             {
+//                 newBlock = cb;
+//                 newBlockIndex = (ulong) bi;
+//             }
+//             else
+//             {
+//                 newBlock = null;
+//                 newBlockIndex = ulong.MaxValue;
+//             }
+//
+//             if (AdditionalCorrectnessChecks.Enabled && movedCount != 0 && newBlockIndex >= (ulong) (newBlock ?? CurrentBlock).RowCount)
+//                 ThrowBadNewBlockIndex(newBlockIndex, movedCount);
+//             return movedCount;
+//         }
 
         [Obsolete("TODO cursor counter, throw on dispose if there are undisposed cursors")]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -600,53 +601,55 @@ namespace Spreads.Collections.Internal
             var result = false;
             DataBlock? newBlock = null;
 
-            if (_container.IsDataBlock(out var db, out var ds))
-            {
-                if (AdditionalCorrectnessChecks.Enabled)
-                    ThrowHelper.Assert(db == CurrentBlock);
-                if (CurrentBlock.RowCount > 0)
-                {
-                    CurrentBlockIndex = 0;
-                    result = true;
-                }
-            }
-            else
-            {
-                if (AdditionalCorrectnessChecks.Enabled)
-                    ThrowHelper.Assert(ds.First.IsPresent);
-
-                newBlock = ds.First.Present.Value;
-                result = true;
-            }
-
-            TKey k = default!;
-            TValue v = default!;
-
-            if (result)
-            {
-                // Note: do not use _blockPosition, it's 20% slower than second cast to int
-                default(TKVFactory).GetCurrentKeyValue(newBlock ?? CurrentBlock, (int) 0, ref k, ref v);
-            }
-
-            if (_container.NextOrderVersion != _orderVersion)
-            {
-                // MN must compare to stored version, while MA
-                // must have constant order version only during the move
-                newBlock?.Decrement();
-                result = false;
-                ThrowCannotMove();
-            }
-
-            if (result)
-            {
-                if (newBlock != null)
-                    CurrentBlock = newBlock;
-                CurrentBlockIndex = (int) 0;
-                _currentKey = k;
-                _currentValue = v;
-            }
-
-            return result;
+            throw new NotImplementedException();
+            
+            // if (_container.IsDataBlock(out var db, out var ds))
+            // {
+            //     if (AdditionalCorrectnessChecks.Enabled)
+            //         ThrowHelper.Assert(db == CurrentBlock);
+            //     if (CurrentBlock.RowCount > 0)
+            //     {
+            //         CurrentBlockIndex = 0;
+            //         result = true;
+            //     }
+            // }
+            // else
+            // {
+            //     if (AdditionalCorrectnessChecks.Enabled)
+            //         ThrowHelper.Assert(ds.First.IsPresent);
+            //
+            //     newBlock = ds.First.Present.Value;
+            //     result = true;
+            // }
+            //
+            // TKey k = default!;
+            // TValue v = default!;
+            //
+            // if (result)
+            // {
+            //     // Note: do not use _blockPosition, it's 20% slower than second cast to int
+            //     default(TKVFactory).GetCurrentKeyValue(newBlock ?? CurrentBlock, (int) 0, ref k, ref v);
+            // }
+            //
+            // if (_container.NextOrderVersion != _orderVersion)
+            // {
+            //     // MN must compare to stored version, while MA
+            //     // must have constant order version only during the move
+            //     newBlock?.Decrement();
+            //     result = false;
+            //     ThrowCannotMove();
+            // }
+            //
+            // if (result)
+            // {
+            //     if (newBlock != null)
+            //         CurrentBlock = newBlock;
+            //     CurrentBlockIndex = (int) 0;
+            //     _currentKey = k;
+            //     _currentValue = v;
+            // }
+            //
+            // return result;
         }
 
         public bool MoveLast()
@@ -667,54 +670,56 @@ namespace Spreads.Collections.Internal
             DataBlock? newBlock = null;
             int newBlockIndex = -1;
 
-            if (_container.IsDataBlock(out var db, out var ds))
-            {
-                if (AdditionalCorrectnessChecks.Enabled)
-                    ThrowHelper.Assert(db == CurrentBlock);
-                if (CurrentBlock.RowCount > 0)
-                {
-                    newBlockIndex = CurrentBlock.RowCount - 1;
-                    result = true;
-                }
-            }
-            else
-            {
-                if (AdditionalCorrectnessChecks.Enabled)
-                    ThrowHelper.Assert(ds.Last.IsPresent);
-
-                newBlock = ds.LastValueOrDefault;
-                newBlockIndex = newBlock.RowCount - 1;
-                result = true;
-            }
-
-            TKey k = default!;
-            TValue v = default!;
-
-            if (result)
-            {
-                // Note: do not use _blockPosition, it's 20% slower than second cast to int
-                default(TKVFactory).GetCurrentKeyValue(newBlock ?? CurrentBlock, (int) newBlockIndex, ref k, ref v); // TODO WTF(!) 0 not newBlockIndex?
-            }
-
-            if (_container.NextOrderVersion != _orderVersion)
-            {
-                // MN must compare to stored version, while MA
-                // must have constant order version only during the move
-                newBlock?.Decrement();
-                result = false;
-                ThrowCannotMove();
-            }
-
-            if (result)
-            {
-                if (newBlock != null)
-                    CurrentBlock = newBlock;
-                CurrentBlockIndex = newBlockIndex;
-                _currentKey = k;
-                _currentValue = v;
-            }
-
-            return result;
+            throw new NotImplementedException();
+            
+            // if (_container.IsDataBlock(out var db, out var ds))
+            // {
+            //     if (AdditionalCorrectnessChecks.Enabled)
+            //         ThrowHelper.Assert(db == CurrentBlock);
+            //     if (CurrentBlock.RowCount > 0)
+            //     {
+            //         newBlockIndex = CurrentBlock.RowCount - 1;
+            //         result = true;
+            //     }
+            // }
+            // else
+            // {
+            //     if (AdditionalCorrectnessChecks.Enabled)
+            //         ThrowHelper.Assert(ds.Last.IsPresent);
+            //
+            //     newBlock = ds.LastValueOrDefault;
+            //     newBlockIndex = newBlock.RowCount - 1;
+            //     result = true;
+            // }
+            //
+            // TKey k = default!;
+            // TValue v = default!;
+            //
+            // if (result)
+            // {
+            //     // Note: do not use _blockPosition, it's 20% slower than second cast to int
+            //     default(TKVFactory).GetCurrentKeyValue(newBlock ?? CurrentBlock, (int) newBlockIndex, ref k, ref v); // TODO WTF(!) 0 not newBlockIndex?
+            // }
+            //
+            // if (_container.NextOrderVersion != _orderVersion)
+            // {
+            //     // MN must compare to stored version, while MA
+            //     // must have constant order version only during the move
+            //     newBlock?.Decrement();
+            //     result = false;
+            //     ThrowCannotMove();
+            // }
+            //
+            // if (result)
+            // {
+            //     if (newBlock != null)
+            //         CurrentBlock = newBlock;
+            //     CurrentBlockIndex = newBlockIndex;
+            //     _currentKey = k;
+            //     _currentValue = v;
+            // }
+            //
+            // return result;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -818,10 +823,11 @@ namespace Spreads.Collections.Internal
             _currentKey = default;
             _orderVersion = AtomicCounter.GetCount(ref _container.OrderVersion);
 
-            if (!_container.IsDataBlock(out _, out _))
-            {
-                CurrentBlock = DataBlock.Empty;
-            }
+            throw new NotImplementedException();
+            // if (!_container.IsDataBlock(out _, out _))
+            // {
+            //     CurrentBlock = DataBlock.Empty;
+            // }
         }
 
         public KeyValuePair<TKey, TValue> Current
@@ -844,7 +850,7 @@ namespace Spreads.Collections.Internal
             _orderVersion = AtomicCounter.GetCount(ref _container.OrderVersion);
             CurrentBlock = DataBlock.Empty;
             // _container = null;
-            _series = default;
+            //_series = default;
         }
 
         public ValueTask DisposeAsync()

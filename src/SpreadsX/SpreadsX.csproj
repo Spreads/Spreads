@@ -28,5 +28,9 @@
   <ItemGroup>
     <ProjectReference Include="..\Spreads.Core\Spreads.Core.csproj" />
   </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Obsolete" />
+  </ItemGroup>
   
 </Project>

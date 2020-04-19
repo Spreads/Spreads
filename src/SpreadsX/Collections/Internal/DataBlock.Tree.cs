@@ -19,6 +19,8 @@ namespace Spreads.Collections.Internal
         )]
         public static int GetAt(DataBlock root, long index, out DataBlock? block)
         {
+            // TODO(!) this won't work when _head is not zero or block size (RowCount) is not equal
+            
             unchecked
             {
                 block = root;
@@ -44,6 +46,26 @@ namespace Spreads.Collections.Internal
             }
         }
 
+        
+        // [MethodImpl(MethodImplOptions.NoInlining)]
+        // // ReSharper disable once UnusedParameter.Local
+        // private static bool TryGetAtSlow(long index, out DataBlock? block, out int blockIndex)
+        // {
+        //     using (var bc = new BlockCursor<TKey, int, BaseContainer<TKey>>())
+        //     {
+        //         if (bc.Move(index, false) == 0)
+        //         {
+        //             block = null;
+        //             blockIndex = -1;
+        //             return false;
+        //         }
+        //
+        //         block = bc.CurrentBlock;
+        //         blockIndex = bc.BlockIndex;
+        //         return true;
+        //     }
+        // }
+        
         [MethodImpl(MethodImplOptions.AggressiveInlining
 #if HAS_AGGR_OPT
                     | MethodImplOptions.AggressiveOptimization
@@ -184,7 +206,7 @@ namespace Spreads.Collections.Internal
                 }
 
                 UPDATE_KEY:
-                key = block.UnsafeGetRowKey<T>(i);
+                key = block!.UnsafeGetRowKey<T>(i);
 
                 RETURN_I:
                 ThrowHelper.DebugAssert(unchecked((uint) i) - block._head < unchecked((uint) (block.RowCount - block._head)));
@@ -203,6 +225,33 @@ namespace Spreads.Collections.Internal
         }
 
         //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining
+#if HAS_AGGR_OPT
+                    | MethodImplOptions.AggressiveOptimization
+#endif
+        )]
+        internal static bool TryAppend<TKey, TValue>(DataBlock block, ref DataBlock lastBlock, TKey key, TValue value, KeyComparer<TKey> comparer, KeySorting keySorting)
+        {
+            if (block.RowCount > 0)
+            {
+                var lastKey = lastBlock.UnsafeGetRowKey<TKey>(lastBlock.RowCount - 1);
+                var c = comparer.Compare(key, lastKey);
+                if (c <= 0 // faster path is c > 0
+                    && (c < 0 & keySorting == KeySorting.Weak)
+                    | // no short-circuit && or || here
+                    (c == 0 & keySorting == KeySorting.Strong)
+                )
+                {
+                    // TODO detect which condition caused that in Append.ThrowCannotAppend
+                    return false;
+                }
+            }
+            
+            Append(block, ref lastBlock, key, value);
+            
+            return true;
+        }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining
 #if HAS_AGGR_OPT

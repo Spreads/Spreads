@@ -565,108 +565,108 @@ namespace Spreads.Core.Tests.Serialization
         //    Assert.IsTrue(sm2.Values.SequenceEqual(sm.Values));
         //}
 
-        [Test, Ignore("SM not implemented")]
-        public unsafe void CouldSerializeRegularSortedMapWithZstd()
-        {
-            var rng = new Random();
+        // [Test, Ignore("SM not implemented")]
+        // public unsafe void CouldSerializeRegularSortedMapWithZstd()
+        // {
+        //     var rng = new Random();
+        //
+        //     var dest = (Memory<byte>)new byte[1000000];
+        //     var buffer = dest;
+        //     var handle = buffer.Pin();
+        //     var ptr = (IntPtr)handle.Pointer;
+        //
+        //     var sm = new MutableSeries<DateTime, decimal>();
+        //     for (var i = 0; i < 1000; i++)
+        //     {
+        //         sm.Add(DateTime.Today.AddSeconds(i), (decimal)Math.Round(i + rng.NextDouble(), 2));
+        //     }
+        //
+        //     var sizeOf = BinarySerializer.SizeOf(sm, out var tmp);
+        //     var written = BinarySerializer.Write(sm, dest.Span, tmp);
+        //     Assert.AreEqual(sizeOf, written);
+        //     Console.WriteLine($"Useful: {sm.RowCount * 24}");
+        //     Console.WriteLine($"Total: {written}");
+        //     // NB interesting that with converting double to decimal savings go from 65% to 85%,
+        //     // even calculated from (8+8) base size not decimal's 16 size
+        //     Console.WriteLine($"Savings: {1.0 - ((written * 1.0) / (sm.RowCount * 24.0))}");
+        //     Series<DateTime, decimal> sm2 = null;
+        //     var len2 = BinarySerializer.Read(buffer.Span, out sm2);
+        //
+        //     Assert.AreEqual(written, len2);
+        //
+        //     Assert.IsTrue(sm2.Keys.SequenceEqual(sm.Keys));
+        //     Assert.IsTrue(sm2.Values.SequenceEqual(sm.Values));
+        // }
+        //
+        // [Test, Ignore("Old SM not supported")]
+        // public unsafe void CouldSerializeSortedMap2()
+        // {
+        //     var rng = new Random();
+        //
+        //     var dest = (Memory<byte>)new byte[1000000];
+        //     var buffer = dest;
+        //     var handle = buffer.Pin();
+        //     var ptr = (IntPtr)handle.Pointer;
+        //
+        //     var sm = new MutableSeries<int, int>();
+        //     for (var i = 0; i < 10000; i++)
+        //     {
+        //         sm.Add(i, i);
+        //     }
+        //
+        //     var len = BinarySerializer.SizeOf(sm, out var temp);
+        //     var len2 = BinarySerializer.Write(sm, buffer.Span, temp);
+        //     Assert.AreEqual(len, len2);
+        //     Console.WriteLine($"Useful: {sm.RowCount * 8}");
+        //     Console.WriteLine($"Total: {len}");
+        //     // NB interesting that with converting double to decimal savings go from 65% to 85%,
+        //     // even calculated from (8+8) base size not decimal's 16 size
+        //     Console.WriteLine($"Savings: {1.0 - ((len * 1.0) / (sm.RowCount * 8.0))}");
+        //     Series<int, int> sm2 = null;
+        //     var len3 = BinarySerializer.Read(buffer.Span, out sm2);
+        //
+        //     Assert.AreEqual(len, len3);
+        //
+        //     Assert.IsTrue(sm2.Keys.SequenceEqual(sm.Keys));
+        //     Assert.IsTrue(sm2.Values.SequenceEqual(sm.Values));
+        // }
 
-            var dest = (Memory<byte>)new byte[1000000];
-            var buffer = dest;
-            var handle = buffer.Pin();
-            var ptr = (IntPtr)handle.Pointer;
-
-            var sm = new MutableSeries<DateTime, decimal>();
-            for (var i = 0; i < 1000; i++)
-            {
-                sm.Add(DateTime.Today.AddSeconds(i), (decimal)Math.Round(i + rng.NextDouble(), 2));
-            }
-
-            var sizeOf = BinarySerializer.SizeOf(sm, out var tmp);
-            var written = BinarySerializer.Write(sm, dest.Span, tmp);
-            Assert.AreEqual(sizeOf, written);
-            Console.WriteLine($"Useful: {sm.RowCount * 24}");
-            Console.WriteLine($"Total: {written}");
-            // NB interesting that with converting double to decimal savings go from 65% to 85%,
-            // even calculated from (8+8) base size not decimal's 16 size
-            Console.WriteLine($"Savings: {1.0 - ((written * 1.0) / (sm.RowCount * 24.0))}");
-            Series<DateTime, decimal> sm2 = null;
-            var len2 = BinarySerializer.Read(buffer.Span, out sm2);
-
-            Assert.AreEqual(written, len2);
-
-            Assert.IsTrue(sm2.Keys.SequenceEqual(sm.Keys));
-            Assert.IsTrue(sm2.Values.SequenceEqual(sm.Values));
-        }
-
-        [Test, Ignore("Old SM not supported")]
-        public unsafe void CouldSerializeSortedMap2()
-        {
-            var rng = new Random();
-
-            var dest = (Memory<byte>)new byte[1000000];
-            var buffer = dest;
-            var handle = buffer.Pin();
-            var ptr = (IntPtr)handle.Pointer;
-
-            var sm = new MutableSeries<int, int>();
-            for (var i = 0; i < 10000; i++)
-            {
-                sm.Add(i, i);
-            }
-
-            var len = BinarySerializer.SizeOf(sm, out var temp);
-            var len2 = BinarySerializer.Write(sm, buffer.Span, temp);
-            Assert.AreEqual(len, len2);
-            Console.WriteLine($"Useful: {sm.RowCount * 8}");
-            Console.WriteLine($"Total: {len}");
-            // NB interesting that with converting double to decimal savings go from 65% to 85%,
-            // even calculated from (8+8) base size not decimal's 16 size
-            Console.WriteLine($"Savings: {1.0 - ((len * 1.0) / (sm.RowCount * 8.0))}");
-            Series<int, int> sm2 = null;
-            var len3 = BinarySerializer.Read(buffer.Span, out sm2);
-
-            Assert.AreEqual(len, len3);
-
-            Assert.IsTrue(sm2.Keys.SequenceEqual(sm.Keys));
-            Assert.IsTrue(sm2.Values.SequenceEqual(sm.Values));
-        }
-
-        [Test, Ignore("Old SM not supported")]
-        public void CouldSerializeSortedMapWithStrings()
-        {
-            var rng = new Random();
-
-            var dest = (Memory<byte>)new byte[10000000];
-            var buffer = dest;
-            var handle = buffer.Pin();
-            var ptr = (IntPtr)handle.Pointer;
-
-            var valueLens = 0;
-            var sm = new MutableSeries<int, string>();
-            for (var i = 0; i < 100000; i++)
-            {
-                var str = i.ToString();
-                valueLens += str.Length;
-                sm.Add(i, str);
-            }
-
-            var len = BinarySerializer.SizeOf(sm, out var temp);
-            var len2 = BinarySerializer.Write(sm, buffer.Span, temp);
-            Assert.AreEqual(len, len2);
-            var usefulLen = ((int)sm.RowCount * 4) + valueLens;
-            Console.WriteLine($"Useful: {usefulLen}");
-            Console.WriteLine($"Total: {len}");
-            // NB interesting that with converting double to decimal savings go from 65% to 85%,
-            // even calculated from (8+8) base size not decimal's 16 size
-            Console.WriteLine($"Savings: {1.0 - ((len * 1.0) / (usefulLen))}");
-            Series<int, string> sm2 = null;
-            var len3 = BinarySerializer.Read(buffer.Span, out sm2);
-
-            Assert.AreEqual(len, len3);
-
-            Assert.IsTrue(sm2.Keys.SequenceEqual(sm.Keys));
-            Assert.IsTrue(sm2.Values.SequenceEqual(sm.Values));
-        }
+        // [Test, Ignore("Old SM not supported")]
+        // public void CouldSerializeSortedMapWithStrings()
+        // {
+        //     var rng = new Random();
+        //
+        //     var dest = (Memory<byte>)new byte[10000000];
+        //     var buffer = dest;
+        //     var handle = buffer.Pin();
+        //     var ptr = (IntPtr)handle.Pointer;
+        //
+        //     var valueLens = 0;
+        //     var sm = new MutableSeries<int, string>();
+        //     for (var i = 0; i < 100000; i++)
+        //     {
+        //         var str = i.ToString();
+        //         valueLens += str.Length;
+        //         sm.Add(i, str);
+        //     }
+        //
+        //     var len = BinarySerializer.SizeOf(sm, out var temp);
+        //     var len2 = BinarySerializer.Write(sm, buffer.Span, temp);
+        //     Assert.AreEqual(len, len2);
+        //     var usefulLen = ((int)sm.RowCount * 4) + valueLens;
+        //     Console.WriteLine($"Useful: {usefulLen}");
+        //     Console.WriteLine($"Total: {len}");
+        //     // NB interesting that with converting double to decimal savings go from 65% to 85%,
+        //     // even calculated from (8+8) base size not decimal's 16 size
+        //     Console.WriteLine($"Savings: {1.0 - ((len * 1.0) / (usefulLen))}");
+        //     Series<int, string> sm2 = null;
+        //     var len3 = BinarySerializer.Read(buffer.Span, out sm2);
+        //
+        //     Assert.AreEqual(len, len3);
+        //
+        //     Assert.IsTrue(sm2.Keys.SequenceEqual(sm.Keys));
+        //     Assert.IsTrue(sm2.Values.SequenceEqual(sm.Values));
+        // }
 
         [Test]
         public void CouldUseCompression()

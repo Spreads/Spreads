@@ -175,7 +175,7 @@ namespace SpreadsX.Experimental
 
     public readonly struct Series<K, V> : ISeries<K, V, Cursor<K, V>>
     {
-        internal readonly BaseContainer<K> _container;
+        internal readonly DataContainer _container;
         private readonly SeriesImpl<K, V> _impl;
 
         ICursor<K, V> ISeries<K, V>.GetCursor() => GetCursor();

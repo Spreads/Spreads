@@ -16,11 +16,11 @@ namespace Spreads.Collections
     /// Ownership issues for data container.
     /// </summary>
     [CannotApplyEqualityOperator]
-    public partial class DataContainer : IDataSource, IAsyncCompleter, IDisposable
+    internal partial class DataContainer : IDataSource, IAsyncCompleter, IDisposable
     {
-        /// <summary>
-        /// Flags.
-        /// </summary>
+        internal DataBlock? Data = DataBlock.Empty;
+        internal DataBlock? LastBlock = DataBlock.Empty;
+        
         internal Flags Flags;
 
         private int _locker;
@@ -44,14 +44,9 @@ namespace Spreads.Collections
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
-                if (Data is DataBlock block && block.Height == 0)
+                if (Data.Height == 0)
                 {
-                    return (ulong)block.RowCount;
-                }
-
-                if (Data is IRowCount rc)
-                {
-                    return rc.RowCount;
+                    return (ulong)Data.RowCount;
                 }
 
                 return RowCountImpl();
@@ -66,25 +61,7 @@ namespace Spreads.Collections
         public bool IsEmpty
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get
-            {
-                if (Data is DataBlock block)
-                {
-                    return block.RowCount == 0;
-                }
-
-                if (Data is IRowCount rc)
-                {
-                    return rc.IsEmpty;
-                }
-
-                return IsEmptyImpl();
-            }
-        }
-
-        protected virtual bool IsEmptyImpl()
-        {
-            throw new NotSupportedException("Derived containers must implement this method if Data does not provide it.");
+            get => Data.RowCount == 0;
         }
 
         #region Synchronization
@@ -423,6 +400,8 @@ namespace Spreads.Collections
             var data = Interlocked.Exchange(ref Data, null);
             if(data == null)
                 ThrowHelper.ThrowObjectDisposedException("baseContainer");
+            data.Dispose(true);
+            
             Dispose(data, true);
             GC.SuppressFinalize(this);
         }
