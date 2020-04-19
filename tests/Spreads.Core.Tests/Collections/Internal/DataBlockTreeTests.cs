@@ -20,8 +20,6 @@ namespace Spreads.Core.Tests.Collections.Internal
         public void CouldAppend()
         {
             var blockLimit = Settings.MIN_POOLED_BUFFER_LEN * 2;
-            DataBlock.MaxLeafSize = blockLimit;
-            DataBlock.MaxNodeSize = blockLimit;
 
             var db = DataBlock.CreateSeries<int, int>();
             var lastBlock = db;
@@ -172,32 +170,63 @@ namespace Spreads.Core.Tests.Collections.Internal
             {
                 var db = DataBlock.CreateSeries<int, int>();
                 var lastBlock = db;
-                using (Benchmark.Run("Append", count))
-                {
-                    for (int i = 0; i < count; i++)
-                    {
-                        DataBlock.Append<int, int>(db, ref lastBlock, i, i);
-                    }
-                }
 
-                using (Benchmark.Run("SearchKey", count))
-                {
-                    for (int i = 1; i < count; i++)
-                    {
-                        var key = i;
-                        var idx = 0;
-                        if ((idx = DataBlock.SearchKey(db, key, KeyComparer<int>.Default, out var b)) < 0)
-                        {
-                            Assert.Fail($"Cannot find existing key {i} - {key} - {idx}");
-                        }
-                    }
-                }
+                Bench_Append(count, db, lastBlock);
+
+                Bench_SearchKey(count, db);
+
+                Bench_GetAt(count, db);
 
                 Console.WriteLine($"Height: {db.Height}");
                 db.Dispose();
             }
 
             Benchmark.Dump();
+        }
+
+        private static void Bench_Append(long count, DataBlock db, DataBlock lastBlock)
+        {
+            using (Benchmark.Run("Append", count))
+            {
+                for (int i = 0; i < count; i++)
+                {
+                    DataBlock.Append<int, int>(db, ref lastBlock, i, i);
+                }
+            }
+        }
+
+        private static void Bench_SearchKey(long count, DataBlock db)
+        {
+            using (Benchmark.Run("SearchKey", count))
+            {
+                for (int i = 1; i < count; i++)
+                {
+                    var key = i;
+                    var idx = 0;
+                    if ((idx = DataBlock.SearchKey(db, key, KeyComparer<int>.Default, out var b)) < 0)
+                    {
+                        Assert.Fail($"Cannot find existing key {i} - {key} - {idx}");
+                    }
+                }
+            }
+        }
+
+        private static void Bench_GetAt(long count, DataBlock db)
+        {
+            using (Benchmark.Run("GetAt", count))
+            {
+                for (int i = 1; i < count; i++)
+                {
+                    var key = i;
+                    var idx = 0;
+                    if ((idx = DataBlock.GetAt(db, key, out var b)) < 0
+                        || b.UnsafeGetValue<int>(idx) != i
+                    )
+                    {
+                        Assert.Fail($"Cannot find existing key {i} - {key} - {idx}");
+                    }
+                }
+            }
         }
 
         [Test, Explicit("Benchmark")]
@@ -209,25 +238,13 @@ namespace Spreads.Core.Tests.Collections.Internal
             {
                 var db = DataBlock.CreateSeries<int, int>();
                 var lastBlock = db;
-                using (Benchmark.Run("DB.Tree.Append", count))
-                {
-                    for (long i = 0; i < count; i++)
-                    {
-                        DataBlock.Append<int, int>(db, ref lastBlock, (int) i, (int) i);
-                    }
-                }
 
-                using (Benchmark.Run("SearchKey", count))
-                {
-                    for (int i = 1; i < count; i++)
-                    {
-                        if (DataBlock.SearchKey(db, i, KeyComparer<int>.Default, out var b) < 0)
-                        {
-                            Assert.Fail($"Cannot find existing key {i}");
-                        }
-                    }
-                }
-                
+                Bench_Append(count, db, lastBlock);
+
+                Bench_SearchKey(count, db);
+
+                Bench_GetAt(count, db);
+
                 Console.WriteLine($"Height: {db.Height}");
                 db.Dispose();
             }

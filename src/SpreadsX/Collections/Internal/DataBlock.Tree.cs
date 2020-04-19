@@ -2,14 +2,47 @@
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using Spreads.Algorithms;
+using Spreads.Utils;
 
 namespace Spreads.Collections.Internal
 {
     internal sealed partial class DataBlock
     {
-        // TODO this affects copying cost for small series, with height > 0 we stop copying
-        internal static int MaxLeafSize = 4096;
-        internal static int MaxNodeSize = MaxLeafSize;
+        internal const int MaxNodeSize = 4096;
+        internal static readonly int NodeShift = 31 - BitUtil.NumberOfLeadingZeros(MaxNodeSize);
+        internal static readonly long NodeMask = (1 << NodeShift) - 1;
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining
+#if HAS_AGGR_OPT
+                    | MethodImplOptions.AggressiveOptimization
+#endif
+        )]
+        public static int GetAt(DataBlock root, long index, out DataBlock? block)
+        {
+            unchecked
+            {
+                block = root;
+                int i;
+                while (true)
+                {
+                    i = (int)((index >> NodeShift * block.Height) & NodeMask);
+                    if (block.Height > 0)
+                    {
+                        var newBlock = block.Values.UnsafeReadUnaligned<DataBlock>(i);
+                        ThrowHelper.DebugAssert(newBlock.Height == block.Height - 1);
+                        block = newBlock;
+                    }
+                    else
+                    {
+                        break;
+                    }
+                }
+
+                ThrowHelper.DebugAssert(block.Height == 0);
+                ThrowHelper.DebugAssert(unchecked((uint) i) - block._head < unchecked((uint) (block.RowCount - block._head)));
+                return i;
+            }
+        }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining
 #if HAS_AGGR_OPT
@@ -34,7 +67,7 @@ namespace Spreads.Collections.Internal
                         ThrowHelper.DebugAssert(block.NextBlock == null);
                         // adjust for LE operation if needed
                         int ii;
-                        if (i < 0 && (uint) (ii = ~i - 1) < block.RowCount)
+                        if ((uint) (ii = ~i - 1) < block.RowCount)
                             i = ii;
 
                         var newBlock = block.Values.UnsafeReadUnaligned<DataBlock>(i);
@@ -48,12 +81,12 @@ namespace Spreads.Collections.Internal
                 }
 
                 ThrowHelper.DebugAssert(block.Height == 0);
-                
+
                 ThrowHelper.DebugAssert(unchecked((uint) i) - block._head < unchecked((uint) (block.RowCount - block._head)));
                 return i;
             }
         }
-        
+
         [MethodImpl(MethodImplOptions.AggressiveInlining
 #if HAS_AGGR_OPT
                     | MethodImplOptions.AggressiveOptimization
@@ -161,10 +194,10 @@ namespace Spreads.Collections.Internal
                 block = block.PreviousBlock;
                 i = block == null ? -1 : block.RowCount - 1;
                 goto UPDATE_KEY;
-                
+
                 RETURN_NEXT:
                 block = block.NextBlock;
-                i =  block == null ? -1 : 0;
+                i = block == null ? -1 : 0;
                 goto UPDATE_KEY;
             }
         }
@@ -279,10 +312,10 @@ namespace Spreads.Collections.Internal
                     return;
                 }
 
-                var newRowCapacity = Math.Min(block.RowCapacity * 2, MaxLeafSize);
+                var newRowCapacity = Math.Min(block.RowCapacity * 2, MaxNodeSize);
                 blockToAdd = CreateForSeries<TKey, TValue>(newRowCapacity);
                 ThrowHelper.DebugAssert(blockToAdd.Height == 0);
-                
+
                 blockToAdd.AppendToBlock<TKey, TValue>(key, value);
 
                 block.NextBlock = blockToAdd;
@@ -314,7 +347,7 @@ namespace Spreads.Collections.Internal
                         blockToAdd = CreateForSeries<TKey, DataBlock>(newRowCapacity);
                         blockToAdd.Height = block.Height;
                         blockToAdd._refCount = 1;
-                        
+
                         blockToAdd.AppendToBlock<TKey, DataBlock>(key, newBlock);
                     }
                 }

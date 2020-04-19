@@ -339,7 +339,7 @@ namespace Spreads.Collections.Internal
 
                 var newCapacity = RowCapacity * 2;
 
-                if (newCapacity > (IsLeaf ? MaxLeafSize : MaxNodeSize))
+                if (newCapacity > MaxNodeSize)
                     return false;
 
                 var actualCapacity = IncreaseRowsCapacity<TKey, TValue>(newCapacity);
@@ -347,7 +347,5 @@ namespace Spreads.Collections.Internal
                 return true;
             }
         }
-
-        // There was trivial insert method, see git history. Nothing special, just copying Spans
     }
 }
