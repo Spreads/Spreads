@@ -337,33 +337,36 @@ namespace Spreads.Collections.Internal
         internal void Dispose(bool disposing)
         {
             if (this == Empty)
-                return;
+                // ThrowHelper.ThrowInvalidOperationException("Cannot dispose DataBlock.Empty sentinel");
+                return; // TODO review if we use it on a hot path to avoid checks. If not, need to throw. If yes, comment this here.
 
-            if (IsDisposed)
+            var zeroIfDisposedNow = AtomicCounter.TryDispose(ref _refCount);
+
+            if (zeroIfDisposedNow > 0)
+                BuffersThrowHelper.ThrowDisposingRetained<DataBlock>();
+
+            if (zeroIfDisposedNow == -1)
                 ThrowDisposed();
-
-            AtomicCounter.Dispose(ref _refCount); // TODO atomic try dispose
-
-            if (!disposing)
-                WarnFinalizing();
 
             if (Height > 0)
                 DisposeNode();
 
+            RowCapacity = default;
             RowCount = default;
             ColumnCount = default;
+            Height = 0;
             _head = default;
 
             if (NextBlock != null)
             {
-                Debug.Assert(NextBlock.PreviousBlock == this);
+                ThrowHelper.DebugAssert(NextBlock.PreviousBlock == this);
                 NextBlock.PreviousBlock = null;
                 NextBlock = null;
             }
 
             if (PreviousBlock != null)
             {
-                Debug.Assert(PreviousBlock.NextBlock == this);
+                ThrowHelper.DebugAssert(PreviousBlock.NextBlock == this);
                 PreviousBlock.NextBlock = null;
                 PreviousBlock = null;
             }
@@ -390,13 +393,17 @@ namespace Spreads.Collections.Internal
             {
                 for (int i = 0; i < Columns.Length; i++)
                 {
-                    Columns[i].Dispose(); // does _memoryOwner?.Increment => works for default RV
-                    Columns = default;
+                    Columns[i].Dispose();
                 }
+                Columns = default;
             }
 
-            var returned = ObjectPool.Return(this);
-            if (!returned)
+            var pooled = ObjectPool.Return(this);
+            
+            // See comments in PrivateMemory.Free
+            if(pooled && !disposing)
+                GC.ReRegisterForFinalize(this);
+            if (!pooled && disposing)
                 GC.SuppressFinalize(this);
         }
 
@@ -411,21 +418,12 @@ namespace Spreads.Collections.Internal
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
-        private static void WarnFinalizing()
-        {
-            Trace.TraceWarning("Finalizing DataBlock. It must be properly disposed.");
-        }
-
-        [MethodImpl(MethodImplOptions.NoInlining)]
         private static void ThrowDisposed()
         {
             ThrowHelper.ThrowObjectDisposedException(nameof(DataBlock));
         }
 
-        public void Dispose()
-        {
-            Dispose(true);
-        }
+        public void Dispose() => Dispose(true);
 
         ~DataBlock()
         {
@@ -619,7 +617,11 @@ namespace Spreads.Collections.Internal
 
         public int Decrement()
         {
-            return AtomicCounter.Decrement(ref _refCount);
+            var newRefCount = AtomicCounter.Decrement(ref _refCount);
+            if (newRefCount == 0)
+                Dispose(true);
+
+            return newRefCount;
         }
     }
 

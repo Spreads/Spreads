@@ -32,7 +32,7 @@ namespace Spreads.Buffers
         // directly, without abstracting ref T. 
 
         [FieldOffset(0)]
-        internal readonly Array? _array;
+        internal readonly object? _array;
 
         /// <summary>
         /// Item offset in <see cref="_array"/> for ref+ types, or starting pointer for blittable types.
@@ -49,7 +49,7 @@ namespace Spreads.Buffers
         [FieldOffset(24)]
         internal readonly IRefCounted? _memoryOwner;
 
-        private RetainedVec(IRefCounted? memoryOwner, Array? array, IntPtr pointerOrOffset, int length, int runtimeTypeId) : this()
+        private RetainedVec(IRefCounted? memoryOwner, object? array, IntPtr pointerOrOffset, int length, int runtimeTypeId) : this()
         {
             _memoryOwner = memoryOwner;
             _array = array;
@@ -245,7 +245,7 @@ namespace Spreads.Buffers
         }
 
         public IntPtr PointerOrOffset => _rv._pointerOrOffset;
-        public Array? Array => _rv._array;
+        public Array? Array => _rv._array as Array;
 
         public long Length => _rv.Length;
 

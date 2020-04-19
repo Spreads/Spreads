@@ -30,8 +30,8 @@ namespace Spreads.Core.Tests.Collections.Internal
                 DataBlock.Append<int, int>(db, ref lastBlock, i, i);
             }
 
+            db.ReferenceCount.ShouldEqual(0);
             db.RowCapacity.ShouldEqual(blockLimit);
-
             db.RowCount.ShouldEqual(blockLimit);
 
             // First height increase
@@ -147,23 +147,26 @@ namespace Spreads.Core.Tests.Collections.Internal
 
             db.Height.ShouldEqual(3);
 
-            // db.Dispose();
-            //
-            // GC.Collect(2, GCCollectionMode.Forced, true, true);
-            // GC.WaitForPendingFinalizers();
-            // GC.Collect(2, GCCollectionMode.Forced, true, true);
-            // GC.WaitForPendingFinalizers();
+            db.Dispose();
+
+            GC.Collect(2, GCCollectionMode.Forced, true, true);
+            GC.WaitForPendingFinalizers();
+            GC.Collect(2, GCCollectionMode.Forced, true, true);
+            GC.WaitForPendingFinalizers();
         }
 
-        [Test, Explicit("Benchmark")]
+        [Test
+#if RELEASE
+         , Explicit("Benchmark")
+#endif
+        ]
         public unsafe void CouldAppendBench()
         {
             // var blockLimit = Settings.MIN_POOLED_BUFFER_LEN;
             // DataBlock.MaxLeafSize = blockLimit;
             // DataBlock.MaxNodeSize = blockLimit;
-            var count = 10_000_000;
-            var rounds = 3;
-            var dbs = new DataBlock[rounds];
+            var count = TestUtils.GetBenchCount(100_000_000, 1000);
+            var rounds = 2;
 
             for (int r = 0; r < rounds; r++)
             {
@@ -185,9 +188,9 @@ namespace Spreads.Core.Tests.Collections.Internal
                         {
                             var key = i;
                             var idx = 0;
-                            if ((idx = DataBlock.LookupKey(db, ref key, Lookup.LT, KeyComparer<int>.Default, out var b)) < 0
-                                || b.UnsafeGetValue<int>(idx) != i - 1
-                                || key != i - 1)
+                            if ((idx = DataBlock.LookupKey(db, ref key, Lookup.EQ, KeyComparer<int>.Default, out var b)) < 0
+                                //|| b.UnsafeGetValue<int>(idx) != i - 1
+                                || key != i)
                             {
                                 Assert.Fail($"Cannot find existing key {i} - {key} - {idx}");
                             }
@@ -195,8 +198,8 @@ namespace Spreads.Core.Tests.Collections.Internal
                     }
                 }
 
-                dbs[r] = db;
                 Console.WriteLine($"Height: {db.Height}");
+                db.Dispose();
             }
 
             Benchmark.Dump();

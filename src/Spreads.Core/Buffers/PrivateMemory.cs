@@ -165,9 +165,9 @@ namespace Spreads.Buffers
                 var c = 0;
                 try
                 {
-                    // TODO
-                    _pointer = (IntPtr) Mem.MallocAligned((UIntPtr) bytesLength, (UIntPtr) alignment);
-                    // _pointer = Marshal.AllocHGlobal((IntPtr) bytesLength);
+                    // TODO Switch to mimalloc after updating to new release
+                    //_pointer = (IntPtr) Mem.MallocAligned((UIntPtr) bytesLength, (UIntPtr) alignment);
+                    _pointer = Marshal.AllocHGlobal((IntPtr) bytesLength);
                     break;
                 }
                 catch (OutOfMemoryException)
@@ -241,21 +241,24 @@ namespace Spreads.Buffers
         internal override unsafe void Free(bool finalizing)
         {
             ThrowHelper.Assert(IsDisposed);
-
+            
             var array = Interlocked.Exchange(ref _array, null);
             if (array != null)
             {
                 ThrowHelper.DebugAssert(TypeHelper<T>.IsReferenceOrContainsReferences);
-                if(!finalizing && !ExternallyOwned)
+                
+                // Even if we are finalizing the fields are not collected, because this
+                // object is reachable and hence the fields are reachable. 
+                if(!ExternallyOwned)
                     BufferPool<T>.Return(Unsafe.As<T[]>(array), clearArray: true);
             }
 
             var pointer = Interlocked.Exchange(ref _pointer, IntPtr.Zero);
             if (pointer != IntPtr.Zero)
             {
-                // TODO
-                //Marshal.FreeHGlobal(pointer);
-                Mem.Free((byte*) pointer);
+                // TODO Switch to mimalloc after updating to new release
+                Marshal.FreeHGlobal(pointer);
+                // Mem.Free((byte*) pointer);
                 BuffersStatistics.ReleasedNativeMemory.InterlockedAdd(_length);
             }
 
@@ -271,15 +274,24 @@ namespace Spreads.Buffers
             }
 
             ClearFields();
-
-            // We cannot tell if this object is pooled, so we rely on finalizer
-            // that will be called only if the object is not in the pool.
-            // But if we tried to pool the buffer to RMP but failed above
-            // then we called GC.SuppressFinalize(this)
-            // and finalizer won't be called if the object is dropped from ObjectPool.
-            // We have done buffer clean-up job and this object could die normally.
-            if (!finalizing)
-                ObjectPool.Return(this);
+            
+            // This instance is clean now.
+            // If we are finalizing then resurrect it by placing it to the pool.
+            // If we are disposing then also add to the pool.
+            var pooled = ObjectPool.Return(this);
+            
+            // If we were finalizing but resurrected then the next time 
+            // the instance is dropped the finalizer will not run,
+            // therefore we must re-register.
+            if(pooled && finalizing)
+                GC.ReRegisterForFinalize(this);
+            
+            // If we cannot pool the instance and not running from finalizer
+            // then the reference is dropped and finalizer could re-run.
+            // In that case suppress it.
+            // If not pooled and finalizing then the job is done. 
+            if(!pooled && !finalizing)
+                GC.SuppressFinalize(this);
         }
     }
 }

@@ -8,7 +8,7 @@ namespace Spreads.Collections.Internal
     internal sealed partial class DataBlock
     {
         // TODO this affects copying cost for small series, with height > 0 we stop copying
-        internal static int MaxLeafSize = 4096;
+        internal static int MaxLeafSize = 2 * 4096;
         internal static int MaxNodeSize = MaxLeafSize;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining
@@ -22,10 +22,9 @@ namespace Spreads.Collections.Internal
             {
                 block = root;
                 int i;
-                int length;
                 while (true)
                 {
-                    length = block.RowCount - block._head;
+                    var length = block.RowCount - block._head;
                     ThrowHelper.Assert(length > 0);
 
                     i = VectorSearch.SortedSearch(ref block.RowKeys.UnsafeGetRef<T>(), block._head, length, key, comparer);
@@ -74,7 +73,7 @@ namespace Spreads.Collections.Internal
                     else // depends on if (eqOk) above
                     {
                         Debug.Assert(lookup == Lookup.GT);
-                        if (i == block._head + length - 1)
+                        if (i == block.RowCount - 1)
                             goto RETURN_NEXT;
 
                         i++;
@@ -99,9 +98,9 @@ namespace Spreads.Collections.Internal
                     else
                     {
                         Debug.Assert(((uint) lookup & (uint) Lookup.GT) != 0);
-                        Debug.Assert(i <= block._head + length);
+                        Debug.Assert(i <= block.RowCount);
                         // if was negative, if it was ~length then there are no more elements for GE/GT
-                        if (i == block._head + length)
+                        if (i == block.RowCount)
                             goto RETURN_NEXT;
 
                         // i is the same, ~i is idx of element that is GT the value
@@ -112,7 +111,7 @@ namespace Spreads.Collections.Internal
                 key = block.UnsafeGetRowKey<T>(i);
 
                 RETURN_I:
-                ThrowHelper.DebugAssert(unchecked((uint) i) - block._head < unchecked((uint) length));
+                ThrowHelper.DebugAssert(unchecked((uint) i) - block._head < unchecked((uint) (block.RowCount - block._head)));
                 return i;
 
                 RETURN_PREV:
@@ -239,13 +238,14 @@ namespace Spreads.Collections.Internal
 
                 var newRowCapacity = Math.Min(block.RowCapacity * 2, MaxLeafSize);
                 blockToAdd = CreateForSeries<TKey, TValue>(newRowCapacity);
-
+                ThrowHelper.DebugAssert(blockToAdd.Height == 0);
+                
                 blockToAdd.AppendToBlock<TKey, TValue>(key, value);
 
                 block.NextBlock = blockToAdd;
                 blockToAdd.PreviousBlock = block;
                 blockToAdd.Height = 0;
-
+                blockToAdd._refCount = 1;
                 newlastBlock = blockToAdd;
             }
             else
@@ -270,6 +270,8 @@ namespace Spreads.Collections.Internal
                         var newRowCapacity = Math.Min(block.RowCapacity * 2, MaxNodeSize);
                         blockToAdd = CreateForSeries<TKey, DataBlock>(newRowCapacity);
                         blockToAdd.Height = block.Height;
+                        blockToAdd._refCount = 1;
+                        
                         blockToAdd.AppendToBlock<TKey, DataBlock>(key, newBlock);
                     }
                 }

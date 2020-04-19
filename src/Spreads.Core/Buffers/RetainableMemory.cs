@@ -31,7 +31,7 @@ namespace Spreads.Buffers
 
         // Even when unused it is a part of padding, which needed to avoid false sharing on _counter
         // Without this field we would need to make padding bigger in SharedMemory. Both PM and AM use it.
-        internal Array? _array;
+        internal object? _array;
 
         internal int _offset;
 
@@ -45,7 +45,7 @@ namespace Spreads.Buffers
         /// this is the case and this field should only be set to true if the implementation guarantees that.
         /// </summary>
         internal bool IsBlittableOffheap;
-        
+
         /// <summary>
         /// 0 - externally owned;
         /// 1 - default array pool (no RM pool);
@@ -221,7 +221,7 @@ namespace Spreads.Buffers
         internal virtual void ClearFields()
         {
             ThrowHelper.DebugAssert(AtomicCounter.GetIsDisposed(ref CounterRef));
-            
+
             PoolIndex = 0;
             _pointer = IntPtr.Zero;
             _offset = -1; // make it unusable if not re-initialized
@@ -236,23 +236,26 @@ namespace Spreads.Buffers
             // implementation, so we have to keep it. But MM doesn't have a finalizer 
             // and we call Free instead of Dispose(false) for destroying this object,
             // while Dispose(true) is for returning a memory object to a pool.
-            if (!disposing)
-                ThrowHelper.ThrowInvalidOperationException("Should not call PrivateMemory.Dispose(false)");
+            if (disposing)
+            {
+                var zeroIfDisposedNow = AtomicCounter.TryDispose(ref CounterRef);
 
-            var zeroIfDisposedNow = AtomicCounter.TryDispose(ref CounterRef);
+                if (zeroIfDisposedNow > 0)
+                    ThrowDisposingRetained<PrivateMemory<T>>();
 
-            if (zeroIfDisposedNow > 0)
-                ThrowDisposingRetained<PrivateMemory<T>>();
+                if (zeroIfDisposedNow == -1)
+                    ThrowDisposed<PrivateMemory<T>>();
 
-            if (zeroIfDisposedNow == -1)
-                ThrowDisposed<PrivateMemory<T>>();
-
-            var pool = Pool;
-            if (pool != null && pool.ReturnInternal(this, clearMemory: TypeHelper<T>.IsReferenceOrContainsReferences))
-                return;
-
-            GC.SuppressFinalize(this);
-            Free(finalizing: false);
+                var pool = Pool;
+                if (pool != null && pool.ReturnInternal(this, clearMemory: TypeHelper<T>.IsReferenceOrContainsReferences))
+                    return;
+                
+                Free(finalizing: false);
+            }
+            else
+            {
+                Free(finalizing: true);
+            }
         }
     }
 }
