@@ -25,6 +25,19 @@
     <ItemGroup>
       <ProjectReference Include="..\..\src\Spreads.Core\Spreads.Core.csproj" />
       <ProjectReference Include="..\..\src\Spreads\Spreads.csproj" />
+      <ProjectReference Include="..\Spreads.Core.Tests\Spreads.Core.Tests.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <Compile Remove="Cursors\**" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <EmbeddedResource Remove="Cursors\**" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <None Remove="Cursors\**" />
     </ItemGroup>
 
 

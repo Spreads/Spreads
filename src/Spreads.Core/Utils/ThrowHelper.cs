@@ -124,28 +124,6 @@ namespace Spreads
             throw GetNotSupportedException(message);
         }
 
-#if SPREADS
-
-        [DebuggerStepThrough]
-        [DoesNotReturn]
-        [ContractAnnotation("=> halt")]
-        [MethodImpl(MethodImplOptions.NoInlining)]
-        public static void ThrowOutOfOrderKeyException<TKey>(TKey key)
-        {
-            throw GetOutOfOrderKeyException(key);
-        }
-
-        [DebuggerStepThrough]
-        [DoesNotReturn]
-        [ContractAnnotation("=> halt")]
-        [MethodImpl(MethodImplOptions.NoInlining)]
-        public static void ThrowOutOfOrderKeyException<TKey>(TKey key, string message)
-        {
-            throw GetOutOfOrderKeyException(key, message);
-        }
-
-#endif
-
         [DebuggerStepThrough]
         [DoesNotReturn]
         [ContractAnnotation("=> halt")]
@@ -322,23 +300,7 @@ namespace Spreads
         {
             return new NotSupportedException(message);
         }
-
-#if SPREADS
-
-        [MethodImpl(MethodImplOptions.NoInlining)]
-        private static OutOfOrderKeyException<TKey> GetOutOfOrderKeyException<TKey>(TKey key)
-        {
-            return new OutOfOrderKeyException<TKey>(key);
-        }
-
-        [MethodImpl(MethodImplOptions.NoInlining)]
-        private static OutOfOrderKeyException<TKey> GetOutOfOrderKeyException<TKey>(TKey key, string message)
-        {
-            return new OutOfOrderKeyException<TKey>(key, message);
-        }
-
-#endif
-
+        
         [MethodImpl(MethodImplOptions.NoInlining)]
         private static KeyNotFoundException GetKeyNotFoundException(string message)
         {

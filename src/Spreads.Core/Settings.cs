@@ -12,7 +12,6 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using Spreads.Native;
 
-
 namespace Spreads
 {
     internal static class AdditionalCorrectnessChecks
@@ -94,12 +93,6 @@ namespace Spreads
         internal const int LARGE_BUFFER_POOL_SCALE = 64;
 
         internal const int MIN_POOLED_BUFFER_LEN = 16;
-
-        // TODO modes of zipping: replay, ignore
-        ///// <summary>
-        ///// Throw <see cref="OutOfOrderKeyException{TKey}"/> if Zip input values arrive out of order.
-        ///// </summary>
-        //public static bool ZipThrowOnOunOfOrderInputs { get; set; }
 
         /// <summary>
         /// Get or set default compression method: BinaryLz4 (default) or BinaryZstd).
@@ -237,28 +230,6 @@ namespace Spreads
             }
         }
 
-#if NETCOREAPP2_1
-        internal static int _brotliCompressionLevel = 3;
-        public static int BrotliCompressionLevel
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => _brotliCompressionLevel;
-            set
-            {
-                if (value < 0 || value >= 10)
-                {
-                    ThrowHelper.ThrowArgumentOutOfRangeException();
-                }
-
-                if (value > 4)
-                {
-                    Trace.TraceWarning("Setting BrotliCompressionLevel > 4 could be very slow without much gain in compression ratio. Check performance on real data.");
-                }
-                _brotliCompressionLevel = value;
-            }
-        }
-#endif
-
         /// <summary>
         /// Set this property before accessing ChaosMonkey or types that use it.
         /// When false then this value is stored in static readonly field and is
@@ -320,8 +291,6 @@ namespace Spreads
         /// </summary>
         public static bool UseStructLayoutSizeAsBlittableSize = false;
 
-        internal const int PinnedSlabLength = 2 * 128 * 1024;
-
         /// <summary>
         /// This only affects known types for which interpolation search works correctly
         /// and is expected to be significantly faster. No reason to set it to false.
@@ -330,8 +299,7 @@ namespace Spreads
 
         public static int SharedSpinLockNotificationPort = 0;
 
-        internal static Action ZeroValueNotificationCallback = null;
-
+        internal static Action? ZeroValueNotificationCallback = null;
 
         internal static int? PrivateMemoryPerCorePoolSize = 16 * 1024 / 128;
     }

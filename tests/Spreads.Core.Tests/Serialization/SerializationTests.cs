@@ -71,14 +71,14 @@ namespace Spreads.Core.Tests.Serialization
             var count = 100000;
             for (int i = 0; i < count; i++)
             {
-                var val = (double)i / (i + 1);
+                var val = (double) i / (i + 1);
 
                 var str = JsonSerializer.ToJsonString(val);
 
                 var bytes = Encoding.UTF8.GetBytes(str);
-                var mem = (Memory<byte>)bytes;
+                var mem = (Memory<byte>) bytes;
                 var h = mem.Pin();
-                var db = new DirectBuffer(bytes.Length, (byte*)h.Pointer);
+                var db = new DirectBuffer(bytes.Length, (byte*) h.Pointer);
                 var reader = new JsonReader(db);
 
                 var des = JsonSerializer.Deserialize<double>(ref reader);
@@ -95,105 +95,12 @@ namespace Spreads.Core.Tests.Serialization
             }
         }
 
-        [Test]
-        public void CouldSerializeOrderBag()
-        {
-            QuoteDecimal[] bids = new QuoteDecimal[10000];
-
-            for (int i = 0; i < bids.Length; i++)
-            {
-                bids[i] = new QuoteDecimal(new SmallDecimal(15000000.45, 8), new SmallDecimal((double)i, 8));
-            }
-
-            QuoteDecimal[] asks = new QuoteDecimal[2];
-            asks[0] = new QuoteDecimal(new SmallDecimal(123.89, 2), new SmallDecimal(0.00159748M, 8));
-            asks[1] = new QuoteDecimal(new SmallDecimal(123.99M, 2), new SmallDecimal(0.00128948M, 8));
-
-            var ob = new OrderBagDecimal(bids, asks);
-
-            var size = BinarySerializer.SizeOf(ob, out var segment, SerializationFormat.Json);
-
-            var rm = BufferPool.Retain(size);
-
-            var written = BinarySerializer.Write(ob, rm.GetSpan(), segment, SerializationFormat.Json);
-
-            Assert.AreEqual(size, written);
-
-            var str = JsonSerializer.ToJsonString(ob);
-
-            var ob2 = JsonSerializer.Deserialize<OrderBagDecimal>(str);
-
-            Console.WriteLine(str);
-
-            // var ob2 = JsonSerializer.Deserialize<OrderBagX>(str);
-
-            rm.Dispose();
-        }
-
-        [Test]
-        public unsafe void CouldSerializeTickDecimal()
-        {
-            var count = 1_00;
-            var rounds = 1;
-            var rm = BufferPool.Retain(512);
-            var db = new DirectBuffer(rm.Length, (byte*)rm.Pointer);
-
-            var formats = new[] { SerializationFormat.Binary, SerializationFormat.Json };
-
-            for (int r = 0; r < rounds; r++)
-            {
-                foreach (var serializationFormat in formats)
-                {
-                    using (Benchmark.Run(serializationFormat.ToString(), count, true))
-                    {
-                        for (int i = 0; i < count; i++)
-                        {
-                            var tick = new TickDecimal((Timestamp)(long)(i + 1), new SmallDecimal((double)i, 8), new SmallDecimal((double)i, 8), i % 3 - 1, i);
-
-                            var sizeOf = BinarySerializer.SizeOf(in tick, out var segment, serializationFormat);
-                            if (serializationFormat == SerializationFormat.Binary && sizeOf != 32 + 4)
-                            {
-                                Assert.Fail("size != 32");
-                            }
-
-                            var written = BinarySerializer.Write(tick, db, segment, serializationFormat);
-
-                            if (sizeOf != written)
-                            {
-                                Assert.Fail("size != written");
-                            }
-
-                            var readSource = db.Slice(0, written);
-                            var consumed = BinarySerializer.Read<TickDecimal>(readSource, out var tick1);
-
-                            if (consumed != written)
-                            {
-                                Assert.Fail("readSize != written");
-                            }
-
-                            if (!tick1.Equals(tick))
-                            {
-                                Assert.Fail("!tick1.Equals(tick)");
-                            }
-                        }
-                    }
-                }
-            }
-            Benchmark.Dump();
-
-            var tick2 = new TickDecimal(TimeService.Default.CurrentTime, new SmallDecimal((double)123.45, 8), new SmallDecimal((double)56.789, 8), 123, 7894561253);
-            var str = JsonSerializer.ToJsonString(tick2);
-
-            Console.WriteLine(str);
-            rm.Dispose();
-        }
-
         public void CouldSerializeBlittable<T>(T value) where T : IEquatable<T>
         {
             var bytes = BufferPool<byte>.Rent(1000);
-            var mem = (Memory<byte>)bytes;
+            var mem = (Memory<byte>) bytes;
             var h = mem.Pin();
-            var db = new DirectBuffer(bytes.Length, (byte*)h.Pointer);
+            var db = new DirectBuffer(bytes.Length, (byte*) h.Pointer);
 
             foreach (var format in Formats)
             {
@@ -250,7 +157,7 @@ namespace Spreads.Core.Tests.Serialization
         public void CouldSerializeBlittables()
         {
             Settings.DoAdditionalCorrectnessChecks = true;
-            
+
             CouldSerializeBlittable(0L);
             CouldSerializeBlittable(DateTime.Today);
             CouldSerializeBlittable(default(DateTime));
@@ -261,7 +168,7 @@ namespace Spreads.Core.Tests.Serialization
             CouldSerializeBlittable(TimeService.Default.CurrentTime);
             CouldSerializeBlittable(default(Timestamp));
             CouldSerializeBlittable(new Timestamped<int>(DateTime.UtcNow, 123));
-            CouldSerializeBlittable((Timestamp)long.MaxValue);
+            CouldSerializeBlittable((Timestamp) long.MaxValue);
 
             CouldSerializeBlittable(0.0);
 
@@ -280,13 +187,13 @@ namespace Spreads.Core.Tests.Serialization
 
                     CouldSerializeBlittable(TimeService.Default.CurrentTime);
                     CouldSerializeBlittable(default(Timestamp));
-                    CouldSerializeBlittable((Timestamp)long.MaxValue);
+                    CouldSerializeBlittable((Timestamp) long.MaxValue);
 
                     CouldSerializeBlittable(i);
-                    CouldSerializeBlittable((short)i);
-                    CouldSerializeBlittable((long)i);
+                    CouldSerializeBlittable((short) i);
+                    CouldSerializeBlittable((long) i);
 
-                    CouldSerializeBlittable((double)x / (double)(x + 1)); // / (double)(x + 1));
+                    CouldSerializeBlittable((double) x / (double) (x + 1)); // / (double)(x + 1));
                     // CouldSerializeBlittable((decimal)x / (decimal)(x + 1)); // / (double)(x + 1));
                 }
 
@@ -309,7 +216,7 @@ namespace Spreads.Core.Tests.Serialization
                 SerializationFormat.JsonZstd
             };
 
-            var lens = new[] { 1, 2, 10, 20, 50, 100, 200, 300, 400, 500, 600, 700, 1000, 10000 };
+            var lens = new[] {1, 2, 10, 20, 50, 100, 200, 300, 400, 500, 600, 700, 1000, 10000};
             var rng = new Random(42);
             foreach (var len in lens)
             {
@@ -362,7 +269,7 @@ namespace Spreads.Core.Tests.Serialization
                 SerializationFormat.JsonZstd
             };
 
-            var lens = new[] { 1, 2, 10, 20, 50, 100, 200, 300, 400, 500, 600, 700, 1000, 10000, 100000 };
+            var lens = new[] {1, 2, 10, 20, 50, 100, 200, 300, 400, 500, 600, 700, 1000, 10000, 100000};
             var rng = new Random(42);
             foreach (var len in lens)
             {
@@ -384,12 +291,14 @@ namespace Spreads.Core.Tests.Serialization
                     {
                         uncompressed = written;
                     }
+
                     Console.WriteLine($"len: {len}, format: {serializationFormat}, written bytes: {written}, ratio: {Math.Round(uncompressed / written, 2)}");
 
                     if (so != written)
                     {
                         Assert.Fail($"so {so} != written {written}");
                     }
+
                     Timestamp[] dta2 = null;
                     var read = BinarySerializer.Read(bytes, out dta2);
                     Assert.AreEqual(written, read);
@@ -511,12 +420,10 @@ namespace Spreads.Core.Tests.Serialization
             Assert.AreEqual(len, len2);
         }
 
-        
-
         [Test]
         public void JsonWorksWithArraySegment()
         {
-            var ints = new int[4] { 1, 2, 3, 4 };
+            var ints = new int[4] {1, 2, 3, 4};
             var segment = new ArraySegment<int>(ints, 1, 2);
             var serialized = Newtonsoft.Json.JsonConvert.SerializeObject(segment);
             Console.WriteLine(serialized);
@@ -676,7 +583,7 @@ namespace Spreads.Core.Tests.Serialization
 
             var formats = new[]
             {
-                SerializationFormat.BinaryZstd, SerializationFormat.Binary,  SerializationFormat.BinaryLz4,
+                SerializationFormat.BinaryZstd, SerializationFormat.Binary, SerializationFormat.BinaryLz4,
                 SerializationFormat.BinaryGZip,
                 SerializationFormat.Json, SerializationFormat.JsonGZip, SerializationFormat.JsonLz4,
                 SerializationFormat.JsonZstd
@@ -692,7 +599,7 @@ namespace Spreads.Core.Tests.Serialization
                 source[0] = 123.4567M;
                 for (var i = 1; i < count; i++)
                 {
-                    source[i] = source[i - 1] + Math.Round((decimal)rng.NextDouble() * 10, 4);
+                    source[i] = source[i - 1] + Math.Round((decimal) rng.NextDouble() * 10, 4);
                 }
 
                 var len = BinarySerializer.Write(source, bytes.Span, default,
@@ -723,7 +630,7 @@ namespace Spreads.Core.Tests.Serialization
         public void CouldSerializeTimestampAsAFieldDummyStruct()
         {
             var ptr = Marshal.AllocHGlobal(1000);
-            var db = new DirectBuffer(1000, (byte*)ptr);
+            var db = new DirectBuffer(1000, (byte*) ptr);
             var val = new Dummy()
             {
                 Timestamp = TimeService.Default.CurrentTime,
@@ -805,7 +712,6 @@ namespace Spreads.Core.Tests.Serialization
         {
             var bytes = new byte[1000];
             var value = "This is string";
-            
 
             var len0 = BinarySerializer.SizeOf(in value, out var pl);
 
@@ -827,7 +733,7 @@ namespace Spreads.Core.Tests.Serialization
 
             var val = "bar";
 
-            var serializationFormats = new[] { SerializationFormat.Json }; // Enum.GetValues(typeof(SerializationFormat)).Cast<SerializationFormat>(); // TODO
+            var serializationFormats = new[] {SerializationFormat.Json}; // Enum.GetValues(typeof(SerializationFormat)).Cast<SerializationFormat>(); // TODO
 
             foreach (var serializationFormat in serializationFormats)
             {
@@ -853,7 +759,7 @@ namespace Spreads.Core.Tests.Serialization
 
             var val = "bar";
 
-            var serializationFormats = new[] { SerializationFormat.Json }; // Enum.GetValues(typeof(SerializationFormat)).Cast<SerializationFormat>();
+            var serializationFormats = new[] {SerializationFormat.Json}; // Enum.GetValues(typeof(SerializationFormat)).Cast<SerializationFormat>();
 
             foreach (var serializationFormat in serializationFormats)
             {
@@ -877,7 +783,7 @@ namespace Spreads.Core.Tests.Serialization
             var rm = BufferPool.Retain(1000);
             var db = new DirectBuffer(rm);
 
-            var val = new[] { 1, 2, 3 };
+            var val = new[] {1, 2, 3};
             var ts = TimeService.Default.CurrentTime;
 
             var serializationFormats = Enum.GetValues(typeof(SerializationFormat)).Cast<SerializationFormat>().ToArray();
@@ -904,7 +810,7 @@ namespace Spreads.Core.Tests.Serialization
             var rm = BufferPool.Retain(1000);
             var db = new DirectBuffer(rm);
 
-            var val = new[] { new Dummy() { ValL = 1 }, new Dummy() { ValL = 2 } };
+            var val = new[] {new Dummy() {ValL = 1}, new Dummy() {ValL = 2}};
             var ts = TimeService.Default.CurrentTime;
 
             var serializationFormats = Enum.GetValues(typeof(SerializationFormat)).Cast<SerializationFormat>().ToArray();
@@ -924,7 +830,5 @@ namespace Spreads.Core.Tests.Serialization
 
             rm.Dispose();
         }
-
-        
     }
 }

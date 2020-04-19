@@ -65,11 +65,6 @@ namespace Spreads.DataTypes
             return new ReadOnlySpan<byte>(ptr, 16);
         }
 
-        [Obsolete]
-        public UUID(string value) : this(value.MD5Bytes())
-        {
-        }
-
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public int CompareTo(UUID other)
         {

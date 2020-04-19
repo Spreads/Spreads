@@ -105,15 +105,15 @@ namespace Spreads.DataTypes
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public static DecCalc FromDecimal(decimal value)
             {
-                return *(DecCalc*)&value;
+                return *(DecCalc*) &value;
             }
 
             internal int Scale
             {
                 [MethodImpl(MethodImplOptions.AggressiveInlining)]
-                get => (byte)((uflags & ScaleMaskDc) >> ScaleShiftDc);
+                get => (byte) ((uflags & ScaleMaskDc) >> ScaleShiftDc);
                 [MethodImpl(MethodImplOptions.AggressiveInlining)]
-                set => uflags = (uint)((value << ScaleShiftDc) & ScaleMaskDc);
+                set => uflags = (uint) ((value << ScaleShiftDc) & ScaleMaskDc);
             }
 
             internal uint Negative
@@ -157,7 +157,7 @@ namespace Spreads.DataTypes
 
         public static SmallDecimal MaxValue = new SmallDecimal(MaxValueLong);
         public static SmallDecimal MinValue = new SmallDecimal(MinValueLong);
-        public static SmallDecimal NaN = new SmallDecimal(unchecked((ulong)(-1)), false); // all bits are set to avoid misuse, not just two NaN ones.
+        public static SmallDecimal NaN = new SmallDecimal(unchecked((ulong) (-1)), false); // all bits are set to avoid misuse, not just two NaN ones.
 
         private readonly ulong _value;
 
@@ -186,7 +186,7 @@ namespace Spreads.DataTypes
         {
             if (decimals != -1)
             {
-                if (unchecked((uint)decimals) > 16)
+                if (unchecked((uint) decimals) > 16)
                 {
                     ThrowWrongDecimals();
                 }
@@ -211,6 +211,7 @@ namespace Spreads.DataTypes
                     {
                         ThrowValueTooBigOrTooSmall();
                     }
+
                     ThrowPrecisionLossNoTruncate();
                 }
             }
@@ -221,42 +222,50 @@ namespace Spreads.DataTypes
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public SmallDecimal(decimal value)
             : this(value, -1, default, false)
-        { }
+        {
+        }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public SmallDecimal(decimal value, bool truncate)
             : this(value, -1, default, truncate)
-        { }
+        {
+        }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public SmallDecimal(decimal value, int decimals, MidpointRounding rounding)
             : this(value, decimals, rounding, false)
-        { }
+        {
+        }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public SmallDecimal(decimal value, int decimals)
             : this(value, decimals, MidpointRounding.ToEven, false)
-        { }
+        {
+        }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal SmallDecimal(double value)
             : this(new decimal(value), -1)
-        { }
+        {
+        }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public SmallDecimal(double value, int decimals)
             : this(new decimal(value), decimals)
-        { }
+        {
+        }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal SmallDecimal(float value)
             : this(new decimal(value), -1)
-        { }
+        {
+        }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public SmallDecimal(float value, int decimals)
             : this(new decimal(value), decimals)
-        { }
+        {
+        }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public SmallDecimal(long value)
@@ -266,7 +275,7 @@ namespace Spreads.DataTypes
                 ThrowValueTooBigOrTooSmall();
             }
 
-            _value = (unchecked((ulong)value) & SignMask) | (ulong)Math.Abs(value);
+            _value = (unchecked((ulong) value) & SignMask) | (ulong) Math.Abs(value);
         }
 
         public SmallDecimal(ulong value)
@@ -281,8 +290,8 @@ namespace Spreads.DataTypes
 
         public SmallDecimal(int value)
         {
-            var abs = (ulong)Math.Abs(value);
-            _value = (unchecked((ulong)value) & SignMask) | abs;
+            var abs = (ulong) Math.Abs(value);
+            _value = (unchecked((ulong) value) & SignMask) | abs;
         }
 
         public SmallDecimal(uint value)
@@ -303,13 +312,13 @@ namespace Spreads.DataTypes
         internal uint Sign
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => (uint)(_value >> SignShift);
+            get => (uint) (_value >> SignShift);
         }
 
         internal uint Scale
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => (uint)((_value >> ScaleShift) & ScaleMask);
+            get => (uint) ((_value >> ScaleShift) & ScaleMask);
         }
 
         internal ulong UInt56
@@ -321,8 +330,8 @@ namespace Spreads.DataTypes
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static ulong FromDecCalc(DecCalc dc)
         {
-            return ((ulong)dc.Negative << SignShift)
-                   | (((ulong)dc.Scale & ScaleMask) << ScaleShift)
+            return ((ulong) dc.Negative << SignShift)
+                   | (((ulong) dc.Scale & ScaleMask) << ScaleShift)
                    | (dc.ulomidLE & UInt56Mask);
         }
 
@@ -333,6 +342,7 @@ namespace Spreads.DataTypes
             {
                 ThrowNaN();
             }
+
             var dc = new DecCalc
             {
                 ulomidLE = UInt56,
@@ -349,20 +359,20 @@ namespace Spreads.DataTypes
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static explicit operator double(SmallDecimal value)
         {
-            return (double)(decimal)value;
+            return (double) (decimal) value;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static explicit operator float(SmallDecimal value)
         {
-            return (float)(decimal)value;
+            return (float) (decimal) value;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static implicit operator decimal(SmallDecimal value)
         {
             DecCalc dc = value.ToDecCalc();
-            return *(decimal*)&dc;
+            return *(decimal*) &dc;
         }
 
         // Casts from floats could produce NaN. Such cast implies truncate operation
@@ -424,7 +434,7 @@ namespace Spreads.DataTypes
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public int CompareTo(SmallDecimal other)
         {
-            return ((decimal)this).CompareTo(other);
+            return ((decimal) this).CompareTo(other);
         }
 
         /// <inheritdoc />
@@ -435,7 +445,8 @@ namespace Spreads.DataTypes
             {
                 return _value == other._value;
             }
-            return (decimal)this == (decimal)other;
+
+            return (decimal) this == (decimal) other;
         }
 
         /// <inheritdoc />
@@ -491,38 +502,38 @@ namespace Spreads.DataTypes
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static SmallDecimal operator +(SmallDecimal x, SmallDecimal y)
         {
-            return new SmallDecimal((decimal)x + (decimal)y, (int)x.Scale);
+            return new SmallDecimal((decimal) x + (decimal) y, (int) x.Scale);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static SmallDecimal operator -(SmallDecimal x, SmallDecimal y)
         {
-            return new SmallDecimal((decimal)x - (decimal)y, (int)x.Scale);
+            return new SmallDecimal((decimal) x - (decimal) y, (int) x.Scale);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static SmallDecimal operator *(SmallDecimal x, int y)
         {
-            return new SmallDecimal((decimal)x * y, (int)x.Scale);
+            return new SmallDecimal((decimal) x * y, (int) x.Scale);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static SmallDecimal operator *(int y, SmallDecimal x)
         {
-            return new SmallDecimal((decimal)x * y, (int)x.Scale);
+            return new SmallDecimal((decimal) x * y, (int) x.Scale);
         }
 
         /// <inheritdoc />
         public override string ToString()
         {
-            var asDecimal = (decimal)this;
+            var asDecimal = (decimal) this;
             return asDecimal.ToString(CultureInfo.InvariantCulture);
         }
 
         /// <inheritdoc />
         public override int GetHashCode()
         {
-            return ((decimal)this).GetHashCode();
+            return ((decimal) this).GetHashCode();
         }
 
         #region IConvertible
@@ -596,13 +607,13 @@ namespace Spreads.DataTypes
         /// <inheritdoc />
         public float ToSingle(IFormatProvider provider)
         {
-            return (float)this;
+            return (float) this;
         }
 
         /// <inheritdoc />
         public double ToDouble(IFormatProvider provider)
         {
-            return (double)this;
+            return (double) this;
         }
 
         /// <inheritdoc />
@@ -620,7 +631,7 @@ namespace Spreads.DataTypes
         /// <inheritdoc />
         public string ToString(IFormatProvider provider)
         {
-            return ((decimal)this).ToString(provider);
+            return ((decimal) this).ToString(provider);
         }
 
         /// <inheritdoc />
@@ -650,7 +661,7 @@ namespace Spreads.DataTypes
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public SmallDecimal Add(long diff)
         {
-            var newInt56Value = (long)UInt56 + diff;
+            var newInt56Value = (long) UInt56 + diff;
 
             if (newInt56Value > MaxValueLong || newInt56Value < MinValueLong)
             {
@@ -661,13 +672,13 @@ namespace Spreads.DataTypes
             if (newInt56Value < 0)
             {
                 newValue = SignMask
-                           | ((ulong)Scale << ScaleShift)
-                           | (ulong)(-newInt56Value);
+                           | ((ulong) Scale << ScaleShift)
+                           | (ulong) (-newInt56Value);
             }
             else
             {
-                newValue = ((ulong)Scale << ScaleShift)
-                           | (ulong)newInt56Value;
+                newValue = ((ulong) Scale << ScaleShift)
+                           | (ulong) newInt56Value;
             }
 
             return new SmallDecimal(newValue, false);
@@ -680,7 +691,8 @@ namespace Spreads.DataTypes
             {
                 ThrowScalesNotEqualInDiff();
             }
-            return (long)UInt56 - (long)other.UInt56;
+
+            return (long) UInt56 - (long) other.UInt56;
         }
 
         #endregion IInt64Diffable

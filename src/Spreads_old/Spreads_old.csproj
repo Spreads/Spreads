@@ -1,0 +1,49 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <Import Project="..\..\build\common.props" />
+  <PropertyGroup>
+    <Description>Spreads top level library.</Description>
+    <AssemblyName>Spreads</AssemblyName>
+    <RootNamespace>Spreads</RootNamespace>
+    <PackageId>Spreads</PackageId>
+    <OutputType>Library</OutputType>
+
+    <LangVersion>8.0</LangVersion>
+    <Nullable>enable</Nullable>
+    <!-- TODO <WarningsAsErrors>CS8600;CS8602;CS8603</WarningsAsErrors>-->
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="NodaTime" Version="2.4.7" />
+    <PackageReference Include="MathNet.Numerics.Signed" Version="4.9.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Remove="Generation\RandomWalk.cs" />
+    <Compile Remove="Generation\SeriesGenerator.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Spreads.Core\Spreads.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Service Include="{508349b6-6b84-4df5-91f0-309beebad82d}" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Update="Series%273 %28Operators%29.cs">
+      <DesignTime>True</DesignTime>
+      <AutoGen>True</AutoGen>
+      <DependentUpon>Series'3 (Operators).tt</DependentUpon>
+    </Compile>
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="Series%273 %28Operators%29.tt">
+      <LastGenOutput>Series'3 (Operators).cs</LastGenOutput>
+      <Generator>TextTemplatingFileGenerator</Generator>
+    </None>
+  </ItemGroup>
+
+
+</Project>

@@ -15,27 +15,31 @@ jobs:
     vmImage: 'ubuntu-16.04'
 
   steps:
-  - task: DotNetCoreInstaller@0
+  - task: UseDotNet@2
+    displayName: Install .NET Core 3.1 SDK
     inputs:
-      version: '3.1.100'
+      version: '3.1.x'
+      packageType: sdk
 
-  - script: dotnet test tests/Spreads.Core.Tests/Spreads.Core.Tests.csproj -f netcoreapp3.0 -c Debug  --filter TestCategory=CI -v m
-    displayName: 'Test Debug netcoreapp3.0'
+#  - script: dotnet test tests/Spreads.Core.Tests/Spreads.Core.Tests.csproj -f netcoreapp3.0 -c Debug  --filter TestCategory=CI -v m
+#    displayName: 'Test Debug netcoreapp3.0'
 
   - script: dotnet test tests/Spreads.Core.Tests/Spreads.Core.Tests.csproj -f netcoreapp3.0 -c Release  --filter TestCategory=CI -v m
     displayName: 'Test Release netcoreapp3.0'
 
 - job: Mac
   pool:
-    vmImage: 'macOS-10.13'
+    vmImage: 'macOS-10.14'
 
   steps:
-  - task: DotNetCoreInstaller@0
+  - task: UseDotNet@2
+    displayName: Install .NET Core 3.1 SDK
     inputs:
-      version: '3.1.100'
+      version: '3.1.x'
+      packageType: sdk
 
-  - script: dotnet test tests/Spreads.Core.Tests/Spreads.Core.Tests.csproj -f netcoreapp3.0 -c Debug  --filter TestCategory=CI -v m
-    displayName: 'Test Debug netcoreapp3.0'
+#  - script: dotnet test tests/Spreads.Core.Tests/Spreads.Core.Tests.csproj -f netcoreapp3.0 -c Debug  --filter TestCategory=CI -v m
+#    displayName: 'Test Debug netcoreapp3.0'
 
   - script: dotnet test tests/Spreads.Core.Tests/Spreads.Core.Tests.csproj -f netcoreapp3.0 -c Release  --filter TestCategory=CI -v m
     displayName: 'Test Release netcoreapp3.0'
@@ -45,12 +49,14 @@ jobs:
     vmImage: 'vs2017-win2016'
 
   steps:
-  - task: DotNetCoreInstaller@0
+  - task: UseDotNet@2
+    displayName: Install .NET Core 3.1 SDK
     inputs:
-      version: '3.1.100'
+      version: '3.1.x'
+      packageType: sdk
 
-  - script: dotnet test tests/Spreads.Core.Tests/Spreads.Core.Tests.csproj -f netcoreapp3.0 -c Debug  --filter TestCategory=CI -v m
-    displayName: 'Test Debug netcoreapp3.0'
+#  - script: dotnet test tests/Spreads.Core.Tests/Spreads.Core.Tests.csproj -f netcoreapp3.0 -c Debug  --filter TestCategory=CI -v m
+#    displayName: 'Test Debug netcoreapp3.0'
 
   - script: dotnet test tests/Spreads.Core.Tests/Spreads.Core.Tests.csproj -f netcoreapp3.0 -c Release  --filter TestCategory=CI -v m
     displayName: 'Test Release netcoreapp3.0'

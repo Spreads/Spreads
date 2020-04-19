@@ -1673,7 +1673,6 @@ namespace Spreads.Core.Tests.Algorithms
 
                     int[] binRes = new int[vec.Length];
                     int[] interRes = new int[vec.Length];
-                    int[] interRes2 = new int[vec.Length];
 
                     for (int i = 1; i < count; i++)
                     {
@@ -1731,9 +1730,9 @@ namespace Spreads.Core.Tests.Algorithms
 
                     for (int i = 0; i < count; i++)
                     {
-                        if (binRes[i] != interRes[i] || binRes[i] != interRes2[i])
+                        if (binRes[i] != interRes[i])
                         {
-                            Console.WriteLine($"[{count}] binRes[i] {binRes[i]} != interRes[i] {interRes[i]} at {i}");
+                            Console.WriteLine($"[{count}] binRes[i] {binRes[i]}");
                             Assert.Fail();
                         }
                     }

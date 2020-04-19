@@ -79,7 +79,7 @@ namespace Spreads
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public AsyncCursor<TKey, TValue, TCursor> GetAsyncEnumerator(CancellationToken ct = default)
         {
-            return new AsyncCursor<TKey, TValue, TCursor>(_cursor.Initialize()); // TODO review batch mode
+            return new AsyncCursor<TKey, TValue, TCursor>(_cursor.Initialize(), true); // TODO review batch mode
         }
 
         #region ISeries members
@@ -139,38 +139,45 @@ namespace Spreads
             return GetEnumerator();
         }
 
+        /// <inheritdoc />
+        public bool IsIndexed
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => _cursor.IsIndexed;
+        }
+
+        /// <inheritdoc />
+        public bool IsCompleted
+        {
+            // NB this property is repeatedly called from MNA
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => _cursor.IsCompleted;
+        }
+
         // TODO (perf) Review if initilize/dispose is too much overhead vs a cached navigation cursor.
 
         /// <inheritdoc />
-        public KeyValuePair<TKey, TValue> First
+        public Opt<KeyValuePair<TKey, TValue>> First
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
                 using (var c = _cursor.Initialize())
                 {
-                    if (c.MoveFirst())
-                        return c.Current;
-
-                    ThrowHelper.ThrowInvalidCastException();
-                    return default;
+                    return c.MoveFirst() ? Opt.Present(c.Current) : Opt<KeyValuePair<TKey, TValue>>.Missing;
                 }
             }
         }
 
         /// <inheritdoc />
-        public KeyValuePair<TKey, TValue> Last
+        public Opt<KeyValuePair<TKey, TValue>> Last
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
                 using (var c = _cursor.Initialize())
                 {
-                    if (c.MoveLast())
-                        return c.Current;
-
-                    ThrowHelper.ThrowInvalidCastException();
-                    return default;
+                    return c.MoveLast() ? Opt.Present(c.Current) : Opt<KeyValuePair<TKey, TValue>>.Missing;
                 }
             }
         }
@@ -179,12 +186,12 @@ namespace Spreads
 
         [Pure]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool TryGet(TKey key, out TValue value)
+        public bool TryGetValue(TKey key, out TValue value)
         {
             // TODO (!) review, reuse cursor
             using (var c = _cursor.Initialize())
             {
-                return c.TryGet(key, out value);
+                return c.TryGetValue(key, out value);
             }
         }
 
@@ -198,7 +205,6 @@ namespace Spreads
             {
                 ThrowHelper.ThrowNotImplementedException("TODO Support negative indexes in TryGetAt");
             }
-
             using (var c = _cursor.Initialize())
             {
                 if (!c.MoveFirst())
@@ -206,7 +212,6 @@ namespace Spreads
                     kvp = default;
                     return false;
                 }
-
                 for (var i = 0; i < index - 1; i++)
                 {
                     if (!c.MoveNext())
@@ -215,7 +220,6 @@ namespace Spreads
                         return false;
                     }
                 }
-
                 kvp = c.Current;
                 return true;
             }
@@ -224,18 +228,17 @@ namespace Spreads
         /// <inheritdoc />
         [Pure]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool TryFind(ref TKey key, Lookup direction, out TValue value)
+        public bool TryFindAt(TKey key, Lookup direction, out KeyValuePair<TKey, TValue> kvp)
         {
             using (var c = _cursor.Initialize())
             {
-                if (c.MoveTo(key, direction))
+                if (c.MoveAt(key, direction))
                 {
-                    key = c.CurrentKey;
-                    value = c.CurrentValue;
+                    kvp = c.Current;
                     return true;
                 }
 
-                value = default;
+                kvp = default;
                 return false;
             }
         }
@@ -290,12 +293,11 @@ namespace Spreads
 
                 using (var c = _cursor.Initialize())
                 {
-                    if (c.TryGet(key, out var value))
+                    if (c.TryGetValue(key, out var value))
                     {
                         return value;
                     }
                 }
-
                 ThrowHelper.ThrowKeyNotFoundException("Key not found");
                 return default;
             }
@@ -317,6 +319,8 @@ namespace Spreads
             _cursor.Dispose();
         }
 
+        public ContainerLayout ContainerLayout => throw new NotImplementedException();
+
         public Mutability Mutability => throw new NotImplementedException();
 
         public KeySorting KeySorting => throw new NotImplementedException();
@@ -325,8 +329,7 @@ namespace Spreads
 
         public bool IsEmpty => throw new NotImplementedException();
 
-        System.Collections.Generic.IAsyncEnumerator<KeyValuePair<TKey, TValue>> System.Collections.Generic.IAsyncEnumerable<KeyValuePair<TKey, TValue>>.GetAsyncEnumerator(
-            CancellationToken cancellationToken)
+        System.Collections.Generic.IAsyncEnumerator<KeyValuePair<TKey, TValue>> System.Collections.Generic.IAsyncEnumerable<KeyValuePair<TKey, TValue>>.GetAsyncEnumerator(CancellationToken cancellationToken)
         {
             return GetAsyncEnumerator(cancellationToken);
         }

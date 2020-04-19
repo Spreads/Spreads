@@ -93,7 +93,7 @@ namespace Spreads.Serialization.Serializers
             }
             else
             {
-                value = EmptyArray<TElement>.Instance;
+                value = Array.Empty<TElement>();
             }
 
             return 4 + payloadSize;

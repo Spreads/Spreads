@@ -11,7 +11,7 @@ namespace Spreads.Core.Tests
     [TestFixture]
     public class Primes
     {
-        public static bool isPrime(long number)
+        public static bool IsPrime(long number)
         {
             long boundary = (long)Math.Floor(Math.Sqrt(number)) + 1L;
 
@@ -33,7 +33,7 @@ namespace Spreads.Core.Tests
             for (int i = 33; i >= 3; i--)
             {
                 var powerOfTwo = 1L << i - 1;
-                while (!(isPrime(powerOfTwo) && previous / powerOfTwo >= 2))
+                while (!(IsPrime(powerOfTwo) && previous / powerOfTwo >= 2))
                 {
                     powerOfTwo = powerOfTwo - 1L;
                 }

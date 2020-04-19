@@ -12,7 +12,6 @@ namespace Spreads.DataTypes
     [Obsolete("TODO needs rework or delete it")]
     public class KnownTypeAttribute : Attribute
     {
-
         public KnownTypeAttribute(byte typeCode)
         {
             TypeCode = typeCode;
@@ -38,11 +37,13 @@ namespace Spreads.DataTypes
                 {
                     Environment.FailFast($"Type {type.Name} is not known");
                 }
+
                 var code = knownTypeAttributes.Single().TypeCode;
                 if (!KnownTypes.TryAdd(code, t))
                 {
                     Environment.FailFast($"Duplicate type id: {code}");
                 }
+
                 return code;
             });
         }

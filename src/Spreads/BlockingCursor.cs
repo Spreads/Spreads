@@ -65,9 +65,9 @@
 //            return _cursor.MovePrevious(stride, allowPartial);
 //        }
 
-//        public bool MoveAt(TKey key, Lookup direction)
+//        public bool MoveTo(TKey key, Lookup direction)
 //        {
-//            return _cursor.MoveAt(key, direction);
+//            return _cursor.MoveTo(key, direction);
 //        }
 
 //        public TKey CurrentKey => _cursor.CurrentKey;
@@ -90,8 +90,6 @@
 //        {
 //            return _cursor.Clone();
 //        }
-
-//        public bool IsIndexed => _cursor.IsIndexed;
 
 //        public bool IsCompleted => _cursor.IsCompleted;
 
