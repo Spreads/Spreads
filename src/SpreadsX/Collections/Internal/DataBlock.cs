@@ -39,7 +39,7 @@ namespace Spreads.Collections.Internal
         /// Vec offset where data starts (where index ==0).
         /// </summary>
         protected volatile int _head = 0;
-        
+
         public int RowCount
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -63,7 +63,7 @@ namespace Spreads.Collections.Internal
         }
 
         public bool IsLeaf => _height == 0;
-        
+
         public int RowCapacity
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -71,7 +71,7 @@ namespace Spreads.Collections.Internal
             protected set => _rowCapacity = value;
         }
     }
-    
+
     internal class DataBlockVectors : DataBlockCounters
     {
         // _rowKeys should be at the and, rarely used fields act like padding
@@ -81,7 +81,7 @@ namespace Spreads.Collections.Internal
         private RetainedVec _columnKeys;
         private RetainedVec _values;
         private RetainedVec _rowKeys;
-        
+
         internal RetainedVec RowKeys
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -146,22 +146,6 @@ namespace Spreads.Collections.Internal
                 _nextBlock = value;
             }
         }
-
-        /// <summary>
-        /// When this block has height > 0, i.e. is a block of blocks, this
-        /// property contains the very last block with height == 0.
-        /// This could go several layers deep, not only last block of this block.
-        /// </summary>
-        [Obsolete("TODO Remove")]
-        public DataBlock? LastBlock
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => throw new NotSupportedException("TODO Remove LastBlock from DB");
-            protected set
-            {
-                throw new NotSupportedException("TODO Remove LastBlock from DB");
-            }
-        }
     }
 
     /// <summary>
@@ -183,15 +167,11 @@ namespace Spreads.Collections.Internal
         // TODO Review pools sizes, move them to settings. For series each DataBlock has 2x PrivateMemory instances, for which we have 256 pooled per core.
         private static readonly ObjectPool<DataBlock> ObjectPool = new ObjectPool<DataBlock>(() => new DataBlock(), perCoreSize: 256);
 
-
-
         private DataBlock()
         {
             // pool returns disposed data blocks
             AtomicCounter.Dispose(ref _refCount);
         }
-
-
 
         public int ColumnCapacity
         {

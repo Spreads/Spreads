@@ -3,8 +3,6 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 using System;
-using System.Reflection;
-using System.Runtime.CompilerServices;
 using NUnit.Framework;
 using Spreads.Collections.Internal;
 using Spreads.Native;
@@ -76,16 +74,12 @@ namespace Spreads.Core.Tests.Collections.Internal
 
                 blockI.NextBlock.ShouldBeSame(blockINext);
                 blockINext.PreviousBlock.ShouldBeSame(blockI);
-
-                blockI.LastBlock.ShouldBeNull();
             }
 
             var firstBlock = db.Values.UnsafeReadUnaligned<DataBlock>(0);
             firstBlock.PreviousBlock.ShouldBeNull();
-            firstBlock.LastBlock.ShouldBeNull();
             var last = db.Values.UnsafeReadUnaligned<DataBlock>(blockLimit - 1);
             last.NextBlock.ShouldBeNull();
-            last.LastBlock.ShouldBeNull();
 
             // Second height increase
             DataBlock.Append<int, int>(db, ref lastBlock, value, value);
@@ -132,7 +126,6 @@ namespace Spreads.Core.Tests.Collections.Internal
                 if (block.PreviousBlock == null)
                     break;
 
-                block.PreviousBlock.LastBlock.ShouldBeNull();
                 block.PreviousBlock.NextBlock.ShouldEqual(block);
                 block = block.PreviousBlock;
                 count++;
@@ -146,8 +139,6 @@ namespace Spreads.Core.Tests.Collections.Internal
 
                 blockI.PreviousBlock.ShouldBeNull();
                 blockI.NextBlock.ShouldBeNull();
-
-                blockI.LastBlock.ShouldBeNull();
             }
 
             // Third height increase

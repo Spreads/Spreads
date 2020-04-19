@@ -13,8 +13,9 @@ namespace Spreads.Collections
     public partial class DataContainer
     {
         [Obsolete("TODO Per key JIT-constant calculation")]
-        private const int DefaultMaxBlockRowCount = 16_384; // Math.Max(Settings.MIN_POOLED_BUFFER_LEN, Settings.LARGE_BUFFER_LIMIT / Math.Max(Unsafe.SizeOf<TKey>(), Unsafe.SizeOf<TValue>()));
-        
+        private const int
+            DefaultMaxBlockRowCount = 16_384; // Math.Max(Settings.MIN_POOLED_BUFFER_LEN, Settings.LARGE_BUFFER_LIMIT / Math.Max(Unsafe.SizeOf<TKey>(), Unsafe.SizeOf<TValue>()));
+
         [MethodImpl(MethodImplOptions.AggressiveInlining
 #if HAS_AGGR_OPT
                     | MethodImplOptions.AggressiveOptimization
@@ -38,7 +39,7 @@ namespace Spreads.Collections
                     && (c < 0 & keySorting == KeySorting.Weak)
                     | // no short-circuit && or || here
                     (c == 0 & keySorting == KeySorting.Strong)
-                    )
+                )
                 {
                     // TODO detect which condition caused that in Append.ThrowCannotAppend
                     return false;
@@ -52,6 +53,7 @@ namespace Spreads.Collections
                 {
                     return false;
                 }
+
                 // increased capacity and added values
             }
             else
@@ -74,14 +76,13 @@ namespace Spreads.Collections
             return true;
         }
 
-        
-
         [MethodImpl(MethodImplOptions.NoInlining
 #if HAS_AGGR_OPT
-                     | MethodImplOptions.AggressiveOptimization
+                    | MethodImplOptions.AggressiveOptimization
 #endif
         )]
-        private static bool TryAppendGrowCapacity<TKey, TValue>(DataContainer? container, object containerData, TKey key, TValue value, [NotNullWhen(true)] ref DataBlock? block, out object? data)
+        private static bool TryAppendGrowCapacity<TKey, TValue>(DataContainer? container, object containerData, TKey key, TValue value, [NotNullWhen(true)] ref DataBlock? block,
+            out object? data)
         {
             ThrowHelper.DebugAssert(block != null);
             data = null;
@@ -104,6 +105,7 @@ namespace Spreads.Collections
                         block = null;
                         return false;
                     }
+
                     // WindowOptions?.OnBeforeAppend();
                     block.AppendToBlock(key, value);
                 }
@@ -125,7 +127,7 @@ namespace Spreads.Collections
                     //    WindowOptions?.OnBeforeNewBlock();
 
                     var minCapacity = block.RowCapacity;
-                    
+
                     // TODO this is lazy, 
                     var newBlock = DataBlock.CreateForPanel(rowCount: 0);
                     if (newBlock.IncreaseRowsCapacity<TKey, TValue>(minCapacity) < 0)
@@ -151,80 +153,16 @@ namespace Spreads.Collections
                 return false;
             }
         }
-        
-        
+
         ///////////////////////////////////////////////////////////////////////////////////////////////////////////
-        
-        
-        
-        [MethodImpl(MethodImplOptions.AggressiveInlining
+
+        [MethodImpl(MethodImplOptions.NoInlining
 #if HAS_AGGR_OPT
                     | MethodImplOptions.AggressiveOptimization
 #endif
         )]
-        internal static bool TryAppend<TKey, TValue>(DataContainer? container, ref DataBlock containerData, KeyComparer<TKey> comparer, KeySorting keySorting, TKey key, TValue value)
-        {
-            if (!IsDataLeaf<TKey>(containerData, out var db, out var ds))
-                db = ds.DataRoot.LastBlock!;
-
-            ThrowHelper.DebugAssert(db != null);
-            
-#if BUILTIN_NULLABLE
-            Debug.Assert(db != null, "Data source must not be set if empty");
-#endif
-            var dbRowCount = db.RowCount;
-            if (dbRowCount > 0)
-            {
-                var lastKey = db.UnsafeGetRowKey<TKey>(dbRowCount - 1);
-
-                var c = comparer.Compare(key, lastKey);
-                if (c <= 0 // faster path is c > 0
-                    && (c < 0 & keySorting == KeySorting.Weak)
-                    | // no short-circuit && or || here
-                    (c == 0 & keySorting == KeySorting.Strong)
-                    )
-                {
-                    // TODO detect which condition caused that in Append.ThrowCannotAppend
-                    return false;
-                }
-            }
-
-            DataBlock? data = null;
-            if (dbRowCount == db.RowCapacity)
-            {
-                if (!TryAppendGrowCapacity(container, containerData, key, value, ref db, out data))
-                {
-                    return false;
-                }
-                // increased capacity and added values
-            }
-            else
-            {
-                // WindowOptions?.OnBeforeAppend();
-                db.AppendToBlock(key, value);
-            }
-
-            // Switch Data only after adding values to a data block.
-            // Otherwise DS could have an empty block for a short
-            // time and that requires a lot of special case handling
-            // on readers' side.
-            if (data != null)
-                containerData = data;
-
-            // TODO unchecked { Version++; }
-
-            container?.NotifyUpdate();
-
-            return true;
-        }
-        
-        
-        [MethodImpl(MethodImplOptions.NoInlining
-#if HAS_AGGR_OPT
-                     | MethodImplOptions.AggressiveOptimization
-#endif
-        )]
-        private static bool TryAppendGrowCapacity<TKey, TValue>(DataContainer? container, DataBlock containerData, TKey key, TValue value, [NotNullWhen(true)] ref DataBlock? block, out DataBlock? data)
+        private static bool TryAppendGrowCapacity<TKey, TValue>(DataContainer? container, DataBlock containerData, TKey key, TValue value, [NotNullWhen(true)] ref DataBlock? block,
+            out DataBlock? data)
         {
             ThrowHelper.DebugAssert(block != null);
             data = null;
@@ -247,6 +185,7 @@ namespace Spreads.Collections
                         block = null;
                         return false;
                     }
+
                     // WindowOptions?.OnBeforeAppend();
                     block.AppendToBlock(key, value);
                 }
@@ -261,11 +200,11 @@ namespace Spreads.Collections
 
                         var newHeight = db.Height + 1;
                         DataBlock newBlockX = default;
-                        
+
                         ds = new DataBlockSource2<TKey>(containerData);
-                        
+
                         ds.AddLast(block.UnsafeGetRowKey<TKey>(0), block);
-                        
+
                         data = ds.DataRoot;
                     }
 
@@ -286,12 +225,12 @@ namespace Spreads.Collections
                     newBlock.AppendToBlock(key, value);
 
                     ds.AddLast(key, newBlock);
-                    
+
                     // TODO should it be below block = newBlock;?
                     // The whole operation must be atomic, updating container root should be the last operation
                     if (containerData != ds.DataRoot)
                         data = ds.DataRoot;
-                    
+
                     block = newBlock;
                     ThrowHelper.DebugAssert((container == null || container.Data == ds.DataRoot) || data == ds.DataRoot);
                 }
