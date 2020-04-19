@@ -8,9 +8,52 @@ namespace Spreads.Collections.Internal
     internal sealed partial class DataBlock
     {
         // TODO this affects copying cost for small series, with height > 0 we stop copying
-        internal static int MaxLeafSize = 2 * 4096;
+        internal static int MaxLeafSize = 4096;
         internal static int MaxNodeSize = MaxLeafSize;
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining
+#if HAS_AGGR_OPT
+                    | MethodImplOptions.AggressiveOptimization
+#endif
+        )]
+        public static int SearchKey<T>(DataBlock root, T key, KeyComparer<T> comparer, out DataBlock? block)
+        {
+            unchecked
+            {
+                block = root;
+                int i;
+                while (true)
+                {
+                    var length = block.RowCount - block._head;
+                    ThrowHelper.Assert(length > 0);
+
+                    i = VectorSearch.SortedSearch(ref block.RowKeys.UnsafeGetRef<T>(), block._head, length, key, comparer);
+                    if (block.Height > 0)
+                    {
+                        ThrowHelper.DebugAssert(block.PreviousBlock == null);
+                        ThrowHelper.DebugAssert(block.NextBlock == null);
+                        // adjust for LE operation if needed
+                        int ii;
+                        if (i < 0 && (uint) (ii = ~i - 1) < block.RowCount)
+                            i = ii;
+
+                        var newBlock = block.Values.UnsafeReadUnaligned<DataBlock>(i);
+                        ThrowHelper.DebugAssert(newBlock.Height == block.Height - 1);
+                        block = newBlock;
+                    }
+                    else
+                    {
+                        break;
+                    }
+                }
+
+                ThrowHelper.DebugAssert(block.Height == 0);
+                
+                ThrowHelper.DebugAssert(unchecked((uint) i) - block._head < unchecked((uint) (block.RowCount - block._head)));
+                return i;
+            }
+        }
+        
         [MethodImpl(MethodImplOptions.AggressiveInlining
 #if HAS_AGGR_OPT
                     | MethodImplOptions.AggressiveOptimization

@@ -166,8 +166,11 @@ namespace Spreads.Buffers
                 try
                 {
                     // TODO Switch to mimalloc after updating to new release
-                    //_pointer = (IntPtr) Mem.MallocAligned((UIntPtr) bytesLength, (UIntPtr) alignment);
+                    // _pointer = (IntPtr) Mem.MallocAligned((UIntPtr) bytesLength, (UIntPtr) alignment);
                     _pointer = Marshal.AllocHGlobal((IntPtr) bytesLength);
+                    // TODO For mimalloc do not use try/catch
+                    if (_pointer == IntPtr.Zero)
+                        throw new OutOfMemoryException();
                     break;
                 }
                 catch (OutOfMemoryException)

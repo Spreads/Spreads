@@ -180,20 +180,15 @@ namespace Spreads.Core.Tests.Collections.Internal
                     }
                 }
 
-                using (Benchmark.Run("LookupLT", count))
+                using (Benchmark.Run("SearchKey", count))
                 {
-                    //for (int _ = 0; _ < 1000000; _++)
+                    for (int i = 1; i < count; i++)
                     {
-                        for (int i = 1; i < count; i++)
+                        var key = i;
+                        var idx = 0;
+                        if ((idx = DataBlock.SearchKey(db, key, KeyComparer<int>.Default, out var b)) < 0)
                         {
-                            var key = i;
-                            var idx = 0;
-                            if ((idx = DataBlock.LookupKey(db, ref key, Lookup.EQ, KeyComparer<int>.Default, out var b)) < 0
-                                //|| b.UnsafeGetValue<int>(idx) != i - 1
-                                || key != i)
-                            {
-                                Assert.Fail($"Cannot find existing key {i} - {key} - {idx}");
-                            }
+                            Assert.Fail($"Cannot find existing key {i} - {key} - {idx}");
                         }
                     }
                 }
@@ -208,19 +203,34 @@ namespace Spreads.Core.Tests.Collections.Internal
         [Test, Explicit("Benchmark")]
         public void CouldAppendIntMax()
         {
-            var count = ((long) Int32.MaxValue) + 1;
+            var count = (long) Int32.MaxValue;
 
-            var db = DataBlock.CreateSeries<int, int>();
-            var lastBlock = db;
-            using (Benchmark.Run("DB.Tree.Append", count))
+            for (int r = 0; r < 2; r++)
             {
-                for (long i = 0; i < count; i++)
+                var db = DataBlock.CreateSeries<int, int>();
+                var lastBlock = db;
+                using (Benchmark.Run("DB.Tree.Append", count))
                 {
-                    DataBlock.Append<int, int>(db, ref lastBlock, (int) i, (int) i);
+                    for (long i = 0; i < count; i++)
+                    {
+                        DataBlock.Append<int, int>(db, ref lastBlock, (int) i, (int) i);
+                    }
                 }
-            }
 
-            Console.WriteLine($"Height: {db.Height}");
+                using (Benchmark.Run("SearchKey", count))
+                {
+                    for (int i = 1; i < count; i++)
+                    {
+                        if (DataBlock.SearchKey(db, i, KeyComparer<int>.Default, out var b) < 0)
+                        {
+                            Assert.Fail($"Cannot find existing key {i}");
+                        }
+                    }
+                }
+                
+                Console.WriteLine($"Height: {db.Height}");
+                db.Dispose();
+            }
 
             Benchmark.Dump();
         }
