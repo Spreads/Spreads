@@ -239,10 +239,10 @@ namespace Spreads.Algorithms
                         goto RETURN_OL;
                     // i is the same, ~i is idx of element that is GT the value
                 }
-
-                value = UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref searchSpace, i));
             }
 
+            value = UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref searchSpace, i));
+            
             RETURN:
             Debug.Assert(unchecked((uint) i) - offset < unchecked((uint) length));
             return i;

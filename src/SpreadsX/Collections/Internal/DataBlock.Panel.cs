@@ -101,7 +101,7 @@ namespace Spreads.Collections.Internal
 
             block.ColumnCount = columnCount;
 
-            block._rowCapacity = rowCapacity;
+            block.RowCapacity = rowCapacity;
             block._head = 0;
 
             block._refCount = 0;
@@ -121,7 +121,6 @@ namespace Spreads.Collections.Internal
         public static DataBlock CreateSeries<TRowKey, TValue>()
         {
             var block = CreateForSeries<TRowKey, TValue>(rowCapacity: -1);
-            block.LastBlock = block;
             return block;
         }
         
@@ -191,7 +190,7 @@ namespace Spreads.Collections.Internal
             var values = Values;
 
             var minCapacity = Math.Max(newCapacity, Settings.MIN_POOLED_BUFFER_LEN);
-            var newRowCapacity = BitUtil.FindNextPositivePowerOfTwo(Math.Max(minCapacity, _rowCapacity + 1));
+            var newRowCapacity = BitUtil.FindNextPositivePowerOfTwo(Math.Max(minCapacity, RowCapacity + 1));
 
             RetainableMemory<TRowKey>? newRowKeysBuffer = null;
             RetainedVec newRowKeys = default;
@@ -255,10 +254,10 @@ namespace Spreads.Collections.Internal
                     Values = newValues;
                     values.Dispose();
 
-                    _rowCapacity = newRowCapacity;
+                    RowCapacity = newRowCapacity;
                 }
 
-                return _rowCapacity;
+                return RowCapacity;
             }
             catch
             {

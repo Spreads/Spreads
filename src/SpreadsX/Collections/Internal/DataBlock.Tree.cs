@@ -7,118 +7,124 @@ namespace Spreads.Collections.Internal
 {
     internal sealed partial class DataBlock
     {
-        internal static int MaxLeafSize = 4 * 4096;
-        internal static int MaxNodeSize = 4096;
+        // TODO this affects copying cost for small series, with height > 0 we stop copying
+        internal static int MaxLeafSize = 4096;
+        internal static int MaxNodeSize = MaxLeafSize;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining
 #if HAS_AGGR_OPT
                     | MethodImplOptions.AggressiveOptimization
 #endif
         )]
-        public int LookupKey<T>(ref T key, Lookup lookup, KeyComparer<T> comparer, out DataBlock? block)
+        public static int LookupKey<T>(DataBlock root, ref T key, Lookup lookup, KeyComparer<T> comparer, out DataBlock? block)
         {
-            block = this;
-            int i;
-            int length;
-            while (true)
+            unchecked
             {
-                length = block.RowCount - _head;
-                ThrowHelper.Assert(length > 0);
-
-                i = VectorSearch.SortedSearch(ref block.RowKeys.UnsafeGetRef<T>(), _head, length, key, comparer);
-                if (block.Height > 0)
+                block = root;
+                int i;
+                int length;
+                while (true)
                 {
-                    ThrowHelper.DebugAssert(block.PreviousBlock == null);
-                    ThrowHelper.DebugAssert(block.NextBlock == null);
-                    ThrowHelper.DebugAssert(block == this || block.LastBlock == null);
-                    // adjust for LE operation if needed
-                    int ii;
-                    if ((uint) (ii = ~i - 1) < RowCount)
-                        i = ii;
+                    length = block.RowCount - block._head;
+                    ThrowHelper.Assert(length > 0);
 
-                    if (i < 0) // cannot find LE block
+                    i = VectorSearch.SortedSearch(ref block.RowKeys.UnsafeGetRef<T>(), block._head, length, key, comparer);
+                    if (block.Height > 0)
                     {
-                        // if GE or GT, get first available block
-                        if ((lookup & Lookup.GT) != 0)
-                            i = _head;
-                        else
-                            return -1;
+                        ThrowHelper.DebugAssert(block.PreviousBlock == null);
+                        ThrowHelper.DebugAssert(block.NextBlock == null);
+                        // adjust for LE operation if needed
+                        int ii;
+                        if ((uint) (ii = ~i - 1) < block.RowCount)
+                            i = ii;
+
+                        if (i < 0) // cannot find LE block
+                        {
+                            // if GE or GT, get first available block
+                            if ((lookup & Lookup.GT) != 0)
+                                i = block._head;
+                            else
+                                return -1;
+                        }
+
+                        var newBlock = block.Values.UnsafeReadUnaligned<DataBlock>(i);
+                        ThrowHelper.DebugAssert(newBlock.Height == block.Height - 1);
+                        block = newBlock;
                     }
+                    else
+                    {
+                        break;
+                    }
+                }
 
-                    var newBlock = block.Values.UnsafeReadUnaligned<DataBlock>(i);
-                    ThrowHelper.DebugAssert(newBlock.Height == block.Height - 1);
-                    block = newBlock;
+                ThrowHelper.DebugAssert(block.Height == 0);
+
+                if (i >= block._head)
+                {
+                    if (lookup.IsEqualityOK())
+                        goto RETURN_I;
+
+                    if (lookup == Lookup.LT)
+                    {
+                        if (i == block._head)
+                            goto RETURN_PREV;
+
+                        i--;
+                    }
+                    else // depends on if (eqOk) above
+                    {
+                        Debug.Assert(lookup == Lookup.GT);
+                        if (i == block._head + length - 1)
+                            goto RETURN_NEXT;
+
+                        i++;
+                    }
                 }
                 else
                 {
-                    break;
-                }
-            }
+                    if (lookup == Lookup.EQ)
+                        goto RETURN_I;
 
-            ThrowHelper.DebugAssert(block.Height == 0);
+                    i = ~i;
 
-            if (i >= _head)
-            {
-                if (lookup.IsEqualityOK())
-                    goto RETURN_I;
+                    // LT or LE
+                    if (((uint) lookup & (uint) Lookup.LT) != 0)
+                    {
+                        // i is idx of element that is larger, nothing here for LE/LT
+                        if (i == block._head)
+                            goto RETURN_PREV;
 
-                if (lookup == Lookup.LT)
-                {
-                    if (i == _head)
-                        goto RETURN_PREV;
+                        i--;
+                    }
+                    else
+                    {
+                        Debug.Assert(((uint) lookup & (uint) Lookup.GT) != 0);
+                        Debug.Assert(i <= block._head + length);
+                        // if was negative, if it was ~length then there are no more elements for GE/GT
+                        if (i == block._head + length)
+                            goto RETURN_NEXT;
 
-                    i--;
-                }
-                else // depends on if (eqOk) above
-                {
-                    Debug.Assert(lookup == Lookup.GT);
-                    if (i == _head + length - 1)
-                        goto RETURN_NEXT;
-
-                    i++;
-                }
-            }
-            else
-            {
-                if (lookup == Lookup.EQ)
-                    goto RETURN_I;
-
-                i = ~i;
-
-                // LT or LE
-                if (((uint) lookup & (uint) Lookup.LT) != 0)
-                {
-                    // i is idx of element that is larger, nothing here for LE/LT
-                    if (i == _head)
-                        goto RETURN_PREV;
-
-                    i--;
-                }
-                else
-                {
-                    Debug.Assert(((uint) lookup & (uint) Lookup.GT) != 0);
-                    Debug.Assert(i <= _head + length);
-                    // if was negative, if it was ~length then there are no more elements for GE/GT
-                    if (i == _head + length)
-                        goto RETURN_NEXT;
-
-                    // i is the same, ~i is idx of element that is GT the value
+                        // i is the same, ~i is idx of element that is GT the value
+                    }
                 }
 
+                UPDATE_KEY:
                 key = block.UnsafeGetRowKey<T>(i);
+
+                RETURN_I:
+                ThrowHelper.DebugAssert(unchecked((uint) i) - block._head < unchecked((uint) length));
+                return i;
+
+                RETURN_PREV:
+                block = block.PreviousBlock;
+                i = block == null ? -1 : block.RowCount - 1;
+                goto UPDATE_KEY;
+                
+                RETURN_NEXT:
+                block = block.NextBlock;
+                i =  block == null ? -1 : 0;
+                goto UPDATE_KEY;
             }
-
-            RETURN_I:
-            ThrowHelper.DebugAssert(unchecked((uint) i) - _head < unchecked((uint) length));
-            return i;
-
-            RETURN_PREV:
-            block = block.PreviousBlock;
-            return block == null ? -1 : block.RowCount - 1;
-
-            RETURN_NEXT:
-            block = block.NextBlock;
-            return block == null ? -1 : 0;
         }
 
         //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -128,23 +134,19 @@ namespace Spreads.Collections.Internal
                     | MethodImplOptions.AggressiveOptimization
 #endif
         )]
-        internal static void Append<TKey, TValue>(DataBlock block, TKey key, TValue value)
+        internal static void Append<TKey, TValue>(DataBlock block, ref DataBlock lastBlock, TKey key, TValue value)
         {
-            var lastBlock = block.LastBlock;
             ThrowHelper.DebugAssert(lastBlock != null);
-            ThrowHelper.DebugAssert((block.IsLeaf && block.LastBlock == block) || !block.IsLeaf);
 
-            // TODO KeySorting check
+            // KeySorting should be done at upper level
 
             if (!lastBlock.TryAppendToBlock(key, value, increaseCapacity: true))
-            {
-                AppendNode(block, key, value);
-            }
+                AppendNode(block, ref lastBlock, key, value);
         }
 
-        internal static void AppendNode<TKey, TValue>(DataBlock root, TKey key, TValue value)
+        internal static void AppendNode<TKey, TValue>(DataBlock root, ref DataBlock lastBlock, TKey key, TValue value)
         {
-            AppendNode(root, key, value, out var blockToAdd);
+            AppendNode(root, key, value, out var blockToAdd, ref lastBlock);
             if (blockToAdd != null)
             {
                 // The root block is full, we need to create a new
@@ -158,7 +160,7 @@ namespace Spreads.Collections.Internal
                 var firstBlock = root.MoveInto();
 
                 ThrowHelper.DebugAssert(firstBlock.Height == blockToAdd.Height);
-                
+
                 // now `block` is completely empty now
                 // create a temp block using existing methods
                 // and then move it into `block` and dispose 
@@ -206,54 +208,48 @@ namespace Spreads.Collections.Internal
 
                 tempRoot.MoveInto(root);
                 tempRoot.Dispose();
-
-                root.LastBlock = blockToAdd.LastBlock;
             }
         }
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="block"></param>
+        /// <param name="key"></param>
+        /// <param name="value"></param>
+        /// <param name="blockToAdd">Not null when a new block must be added at the same height as <paramref name="block"/></param>
+        /// <param name="newlastBlock">Not null when a new last block with height zero is created.</param>
         [MethodImpl(MethodImplOptions.NoInlining
 #if HAS_AGGR_OPT
                     | MethodImplOptions.AggressiveOptimization
 #endif
         )]
-        internal static void AppendNode<TKey, TValue>(DataBlock block, TKey key, TValue value, out DataBlock? blockToAdd)
+        internal static void AppendNode<TKey, TValue>(DataBlock block, TKey key, TValue value,
+            out DataBlock? blockToAdd, ref DataBlock newlastBlock)
         {
             if (block.IsLeaf)
-                blockToAdd = AppendLeaf();
-            else
-                blockToAdd = AppendNode();
-
-            DataBlock? AppendLeaf()
             {
                 ThrowHelper.DebugAssert(block.Height == 0);
 
                 if (block.TryAppendToBlock<TKey, TValue>(key, value, increaseCapacity: true))
                 {
-                    // TODO we should never be here with LastBlock optimization
-                    return null;
+                    blockToAdd = null;
+                    return;
                 }
 
                 var newRowCapacity = Math.Min(block.RowCapacity * 2, MaxLeafSize);
-                var blockToAdd1 = CreateForSeries<TKey, TValue>(newRowCapacity);
+                blockToAdd = CreateForSeries<TKey, TValue>(newRowCapacity);
 
-                blockToAdd1.AppendToBlock<TKey, TValue>(key, value);
+                blockToAdd.AppendToBlock<TKey, TValue>(key, value);
 
-                block.NextBlock = blockToAdd1;
-                blockToAdd1.PreviousBlock = block;
+                block.NextBlock = blockToAdd;
+                blockToAdd.PreviousBlock = block;
+                blockToAdd.Height = 0;
 
-                ThrowHelper.Assert(block.LastBlock == block);
-                block.LastBlock = null;
-                
-                // last leaf has self as last block, this bubbles up to the root
-                blockToAdd1.LastBlock = blockToAdd1;
-
-                blockToAdd1.Height = 0;
-                return blockToAdd1;
+                newlastBlock = blockToAdd;
             }
-
-            DataBlock? AppendNode()
+            else
             {
-                DataBlock? blockToAdd1;
                 var lastBlock = block.UnsafeGetValue<DataBlock>(block.RowCount - 1);
                 ThrowHelper.DebugAssert(lastBlock.Height == block.Height - 1);
 
@@ -261,32 +257,26 @@ namespace Spreads.Collections.Internal
                 // in a field or a stack we already have *the* stack.
                 // Depths >4 is practically impossible with reasonable
                 // fanout. Most common are 1 and 2, even 3 should be rare.
-                DataBlock.AppendNode(lastBlock, key, value, out var newBlock);
+                AppendNode(lastBlock, key, value, out var newBlock, ref newlastBlock);
 
                 if (newBlock != null)
                 {
                     if (block.TryAppendToBlock<TKey, DataBlock>(key, newBlock, increaseCapacity: true))
                     {
-                        block.LastBlock = newBlock.LastBlock;
-                        blockToAdd1 = null;
+                        blockToAdd = null;
                     }
                     else
                     {
                         var newRowCapacity = Math.Min(block.RowCapacity * 2, MaxNodeSize);
-                        blockToAdd1 = CreateForSeries<TKey, DataBlock>(newRowCapacity);
-                        blockToAdd1.Height = block.Height;
-                        blockToAdd1.AppendToBlock<TKey, DataBlock>(key, newBlock);
-
-                        block.LastBlock = null;
-                        blockToAdd1.LastBlock = newBlock.LastBlock;
+                        blockToAdd = CreateForSeries<TKey, DataBlock>(newRowCapacity);
+                        blockToAdd.Height = block.Height;
+                        blockToAdd.AppendToBlock<TKey, DataBlock>(key, newBlock);
                     }
                 }
                 else
                 {
-                    blockToAdd1 = null;
+                    blockToAdd = null;
                 }
-
-                return blockToAdd1;
             }
         }
 

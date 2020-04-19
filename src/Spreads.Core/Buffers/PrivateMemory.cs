@@ -166,8 +166,8 @@ namespace Spreads.Buffers
                 try
                 {
                     // TODO
-                    //_pointer = (IntPtr) Mem.MallocAligned((UIntPtr) bytesLength, (UIntPtr) alignment);
-                    _pointer = Marshal.AllocHGlobal((IntPtr) bytesLength);
+                    _pointer = (IntPtr) Mem.MallocAligned((UIntPtr) bytesLength, (UIntPtr) alignment);
+                    // _pointer = Marshal.AllocHGlobal((IntPtr) bytesLength);
                     break;
                 }
                 catch (OutOfMemoryException)
@@ -254,8 +254,8 @@ namespace Spreads.Buffers
             if (pointer != IntPtr.Zero)
             {
                 // TODO
-                Marshal.FreeHGlobal(pointer);
-                //Mem.Free((byte*) pointer);
+                //Marshal.FreeHGlobal(pointer);
+                Mem.Free((byte*) pointer);
                 BuffersStatistics.ReleasedNativeMemory.InterlockedAdd(_length);
             }
 

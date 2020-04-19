@@ -33,6 +33,13 @@ namespace Spreads.Collections.Internal
 
         private int _height;
 
+        private int _rowCapacity = 0;
+
+        /// <summary>
+        /// Vec offset where data starts (where index ==0).
+        /// </summary>
+        protected volatile int _head = 0;
+        
         public int RowCount
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -56,25 +63,25 @@ namespace Spreads.Collections.Internal
         }
 
         public bool IsLeaf => _height == 0;
+        
+        public int RowCapacity
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => _rowCapacity;
+            protected set => _rowCapacity = value;
+        }
     }
-
-    internal class DataBlockPadding : DataBlockCounters
+    
+    internal class DataBlockVectors : DataBlockCounters
     {
-        // private Padding40 _padding;
-    }
-
-    internal class DataBlockVectors : DataBlockPadding
-    {
-        // 4x8 references = 32 + _columnKeys.Size = 32 => 64 bytes of padding
-        // before _rowKeys and _values from _rowCount
+        // _rowKeys should be at the and, rarely used fields act like padding
         private DataBlock? _previousBlock;
         private DataBlock? _nextBlock;
-        private DataBlock? _lastBlock;
         private RetainedVec[]? _columns;
         private RetainedVec _columnKeys;
-        private RetainedVec _rowKeys;
         private RetainedVec _values;
-
+        private RetainedVec _rowKeys;
+        
         internal RetainedVec RowKeys
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -145,14 +152,14 @@ namespace Spreads.Collections.Internal
         /// property contains the very last block with height == 0.
         /// This could go several layers deep, not only last block of this block.
         /// </summary>
+        [Obsolete("TODO Remove")]
         public DataBlock? LastBlock
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => _lastBlock;
+            get => throw new NotSupportedException("TODO Remove LastBlock from DB");
             protected set
             {
-                ThrowHelper.DebugAssert(value == null || value.Height == 0);
-                _lastBlock = value;
+                throw new NotSupportedException("TODO Remove LastBlock from DB");
             }
         }
     }
@@ -163,7 +170,7 @@ namespace Spreads.Collections.Internal
     /// <remarks>
     /// This is thread-unsafe storage. Callers should use some locking mechanism.
     /// </remarks>
-    internal sealed partial class DataBlock : DataBlockVectors, IRefCounted, IDisposable
+    internal sealed unsafe partial class DataBlock : DataBlockVectors, IRefCounted, IDisposable
     {
         /// <summary>
         /// We need this as a sentinel with RowLength == 0 in cursor
@@ -171,15 +178,12 @@ namespace Spreads.Collections.Internal
         /// </summary>
         internal static readonly DataBlock Empty = new DataBlock {RowCount = 0};
 
+        internal static ref DataBlock NullRef => ref Unsafe.AsRef<DataBlock>((void*) IntPtr.Zero);
+
         // TODO Review pools sizes, move them to settings. For series each DataBlock has 2x PrivateMemory instances, for which we have 256 pooled per core.
         private static readonly ObjectPool<DataBlock> ObjectPool = new ObjectPool<DataBlock>(() => new DataBlock(), perCoreSize: 256);
 
-        private int _rowCapacity = 0;
 
-        /// <summary>
-        /// Vec offset where data starts (where index ==0).
-        /// </summary>
-        private volatile int _head = 0;
 
         private DataBlock()
         {
@@ -187,12 +191,7 @@ namespace Spreads.Collections.Internal
             AtomicCounter.Dispose(ref _refCount);
         }
 
-        public int RowCapacity
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => _rowCapacity;
-            private set => _rowCapacity = value;
-        }
+
 
         public int ColumnCapacity
         {
@@ -241,7 +240,6 @@ namespace Spreads.Collections.Internal
             destination.Height = Height;
             destination.PreviousBlock = PreviousBlock;
             destination.NextBlock = NextBlock;
-            destination.LastBlock = LastBlock;
             destination.Columns = Columns;
             destination.ColumnKeys = ColumnKeys;
             destination.RowKeys = RowKeys;
@@ -255,7 +253,6 @@ namespace Spreads.Collections.Internal
             Height = default;
             PreviousBlock = default;
             NextBlock = default;
-            LastBlock = default;
             Columns = default;
             ColumnKeys = default;
             RowKeys = default;
@@ -355,27 +352,23 @@ namespace Spreads.Collections.Internal
             ThrowHelper.DebugAssert(Columns == default);
             ThrowHelper.DebugAssert(NextBlock == default);
             ThrowHelper.DebugAssert(PreviousBlock == default);
-            ThrowHelper.DebugAssert(LastBlock == default);
         }
 
         internal void Dispose(bool disposing)
         {
             if (this == Empty)
-            {
                 return;
-            }
 
             if (IsDisposed)
-            {
                 ThrowDisposed();
-            }
 
             AtomicCounter.Dispose(ref _refCount); // TODO atomic try dispose
 
             if (!disposing)
-            {
                 WarnFinalizing();
-            }
+
+            if (Height > 0)
+                DisposeNode();
 
             RowCount = default;
             ColumnCount = default;
@@ -422,7 +415,19 @@ namespace Spreads.Collections.Internal
                 }
             }
 
-            ObjectPool.Return(this);
+            var returned = ObjectPool.Return(this);
+            if (!returned)
+                GC.SuppressFinalize(this);
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        void DisposeNode()
+        {
+            for (int i = 0; i < RowCount; i++)
+            {
+                var node = Values.UnsafeReadUnaligned<DataBlock>(i);
+                node.Decrement();
+            }
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
@@ -440,7 +445,6 @@ namespace Spreads.Collections.Internal
         public void Dispose()
         {
             Dispose(true);
-            GC.SuppressFinalize(this);
         }
 
         ~DataBlock()
