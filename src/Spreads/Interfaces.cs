@@ -296,6 +296,11 @@ namespace Spreads
         bool TryMoveNextBatch(out Series<TKey, TValue, TCursor> batch);
     }
 
+    public interface ICursorX<TKey, TValue, TCursor> : ICursor<TKey, TValue, TCursor> where TCursor : ICursor<TKey, TValue, TCursor>
+    {
+        TCursor2 Combine<TValue2, TCursor2>(Func<TCursor, TCursor2> factory) where TCursor2 : ICursor<TKey, TValue2, TCursor2>;
+    }
+
     /// <summary>
     /// Series are navigable ordered data streams of key-value pairs.
     /// </summary>

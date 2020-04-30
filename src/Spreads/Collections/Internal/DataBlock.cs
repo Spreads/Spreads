@@ -31,7 +31,10 @@ namespace Spreads.Collections.Internal
         /// </summary>
         protected int _refCount;
 
-        private int _height;
+        private ushort _height;
+
+        // TODO only mutability is used so far. Mutability if only for data inside vecs and RowCount, Next/Prev/_head could change
+        internal Flags Flags;
 
         private int _rowCapacity = 0;
 
@@ -59,7 +62,7 @@ namespace Spreads.Collections.Internal
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => _height;
-            protected set => _height = value;
+            protected set => _height = checked((ushort)value);
         }
 
         public bool IsLeaf => _height == 0;
@@ -218,6 +221,7 @@ namespace Spreads.Collections.Internal
             destination.ColumnCount = ColumnCount;
             destination._refCount = _refCount;
             destination.Height = Height;
+            destination.Flags = Flags;
             destination.PreviousBlock = PreviousBlock;
             destination.NextBlock = NextBlock;
             destination.Columns = Columns;
@@ -231,6 +235,7 @@ namespace Spreads.Collections.Internal
             ColumnCount = default;
             _refCount = default;
             Height = default;
+            Flags = default;
             PreviousBlock = default;
             NextBlock = default;
             Columns = default;
@@ -354,7 +359,8 @@ namespace Spreads.Collections.Internal
             RowCapacity = default;
             RowCount = default;
             ColumnCount = default;
-            Height = 0;
+            Height = default;
+            Flags = default;
             _head = default;
 
             if (NextBlock != null)

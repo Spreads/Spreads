@@ -7,7 +7,7 @@ using System.Runtime.CompilerServices;
 
 namespace Spreads.Collections
 {
-    internal partial class DataContainer
+    internal sealed partial class DataContainer
     {
         private static readonly ConditionalWeakTable<DataContainer, Dictionary<string, object>> Attributes =
             new ConditionalWeakTable<DataContainer, Dictionary<string, object>>();

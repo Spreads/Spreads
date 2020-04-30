@@ -7,11 +7,13 @@ using System.Linq;
 using NUnit.Framework;
 using Spreads.Buffers;
 using Spreads.Collections.Internal;
+using Spreads.Core.Tests;
+using Spreads.Core.Tests.Collections;
 using Spreads.Native;
 
 #pragma warning disable 618
 
-namespace Spreads.Core.Tests.Collections.Internal
+namespace Spreads.Tests.Collections.Internal
 {
     [Category("CI")]
     [TestFixture]

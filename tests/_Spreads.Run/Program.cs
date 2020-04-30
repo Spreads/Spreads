@@ -5,8 +5,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using Spreads.Core.Tests.Algorithms;
 using Spreads.Core.Tests.Collections.Concurrent;
-using Spreads.Core.Tests.Collections.Internal;
+using Spreads.Core.Tests.Performance;
 using Spreads.Core.Tests.Serialization;
+using Spreads.Tests.Collections.Internal;
 
 namespace Spreads.Run
 {

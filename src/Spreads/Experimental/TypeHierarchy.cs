@@ -1,6 +1,8 @@
 ﻿// ReSharper disable once CheckNamespace
 
 using System;
+using System.Collections;
+using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using Spreads;
 using Spreads.Collections;
@@ -198,6 +200,16 @@ namespace SpreadsX.Experimental
 
         // Fill(x).Fill(y) == Fill(x) because Fill is defined everywhere
         // it's interesting that all possible filled series form a vector space if we could define zero and one for V. 
+
+        public bool Test()
+        {
+            if (typeof(V) == typeof(Series<V, double>))
+            {
+                return true;
+            }
+
+            return false;
+        }
     }
 
     public static class SeriesExtensions
@@ -294,4 +306,315 @@ namespace SpreadsX.Experimental
             throw new System.NotImplementedException();
         }
     }
+
+    public struct BlockIndexCursor<K>
+    {
+        internal DataBlock Block;
+        internal int Index;
+        internal K CurrentKey;
+
+        public int Move(int steps)
+        {
+            return steps;
+        }
+    }
+
+    // public interface ICursorX<K, V>
+    // {
+    //     
+    // }
+    // public interface ICursorX<K, V, TImpl> : ICursorX<K,V>
+    //     where TImpl : ICursorX<K, V, TImpl>
+    // {
+    //     TImpl GetImpl();
+    //
+    //     TCNew Combine<U, TImpl, TCNew>() where TCNew : ICursorX<K, U, TCNew>;
+    // }
+    //
+    // public struct CursorX<K, V> : ICursorX<K, V, CursorX<K, V>>
+    // {
+    //     internal BlockIndexCursor<K> InnerCursor;
+    //
+    //     private Func<BlockIndexCursor<K>, V>? ValueGetter;
+    //
+    //     public V GetV()
+    //     {
+    //         if (ValueGetter == null)
+    //         {
+    //             return InnerCursor.Block.UnsafeGetValue<V>(InnerCursor.Index);
+    //         }
+    //
+    //         return ValueGetter(InnerCursor);
+    //     }
+    //
+    //     public CursorX<K, V> GetImpl()
+    //     {
+    //         return this;
+    //     }
+    //
+    //     public TCNew Combine<U, TImpl, TCNew>() where TCNew : ICursorX<K, U, TCNew>
+    //     {
+    //         throw new NotImplementedException();
+    //     }
+    //
+    //     public  TCNew Combine<U, TCNew>() where TCNew : ICursorX<K, U, TCNew>
+    //     {
+    //         throw new NotImplementedException();
+    //     }
+    // }
+    //
+    // internal struct CursorY<K, V, C> : ICursorX<K,V> where C : ICursorX<K, V, C>
+    // {
+    //     private readonly C _inner;
+    //
+    //     public CursorY(C inner)
+    //     {
+    //         _inner = inner;
+    //     }
+    // }
+    //
+    // static class TestDynamic
+    // {
+    //     public static CursorY<K, V, C> CreateY<K, V, C>(ICursorX<K, V, C> inner) where C : ICursorX<K, V, C>
+    //     {
+    //         return new CursorY<K, V, C>(inner.GetImpl());
+    //     }
+    //
+    //     public static void Test()
+    //     {
+    //         var x = new CursorX<int, int>();
+    //         var y = CreateY(x);
+    //         ICursorX<int, int> xbox = x;
+    //         var xd = (dynamic) x;
+    //         ICursorX<int,int> yd = CreateY(xd);
+    //         
+    //         // var y = CreateY((dynamic)x);
+    //     }
+    // }
+
+    public struct CusrorA<K, V> : ICursorX<K, V, CusrorA<K, V>>
+    {
+        public TCursor2 Combine<TValue2, TCursor2>(Func<CusrorA<K, V>, TCursor2> factory) where TCursor2 : ICursor<K, TValue2, TCursor2>
+        {
+            throw new NotImplementedException();
+        }
+
+        public bool MoveNext()
+        {
+            throw new NotImplementedException();
+        }
+
+        public void Reset()
+        {
+            throw new NotImplementedException();
+        }
+
+        public KeyValuePair<K, V> Current => throw new NotImplementedException();
+
+        object IEnumerator.Current => Current;
+
+        public void Dispose()
+        {
+            throw new NotImplementedException();
+        }
+
+        public CursorState State => throw new NotImplementedException();
+
+        public KeyComparer<K> Comparer => throw new NotImplementedException();
+
+        public bool MoveFirst()
+        {
+            throw new NotImplementedException();
+        }
+
+        public bool MoveLast()
+        {
+            throw new NotImplementedException();
+        }
+
+        public long Move(long stride, bool allowPartial)
+        {
+            throw new NotImplementedException();
+        }
+
+        public bool MovePrevious()
+        {
+            throw new NotImplementedException();
+        }
+
+        public bool MoveTo(K key, Lookup direction)
+        {
+            throw new NotImplementedException();
+        }
+
+        public K CurrentKey => throw new NotImplementedException();
+
+        public V CurrentValue => throw new NotImplementedException();
+
+        Series<K, V, CusrorA<K, V>> ICursor<K, V, CusrorA<K, V>>.Source => throw new NotImplementedException();
+
+        public bool TryMoveNextBatch(out Series<K, V, CusrorA<K, V>> batch)
+        {
+            throw new NotImplementedException();
+        }
+
+        Spreads.ISeries<K, V> Spreads.ICursor<K, V>.Source => throw new NotImplementedException();
+
+        public CusrorA<K, V> Initialize()
+        {
+            throw new NotImplementedException();
+        }
+
+        CusrorA<K, V> ICursor<K, V, CusrorA<K, V>>.Clone()
+        {
+            throw new NotImplementedException();
+        }
+
+        public IAsyncCompleter AsyncCompleter => throw new NotImplementedException();
+
+        Spreads.ICursor<K, V> Spreads.ICursor<K, V>.Clone()
+        {
+            throw new NotImplementedException();
+        }
+
+        public bool IsContinuous => throw new NotImplementedException();
+
+        public bool TryGet(K key, out V value)
+        {
+            throw new NotImplementedException();
+        }
+
+        public bool TryMoveNextBatch(out Spreads.ISeries<K, V>? batch)
+        {
+            throw new NotImplementedException();
+        }
+    }
+
+    public static class MapFactory
+    {
+        public static Map<TKey, TInput, TResult, TCursor> Factory<TKey, TInput, TResult, TCursor>(TCursor x) where TCursor : ICursor<TKey, TInput, TCursor> => new Map<TKey, TInput, TResult, TCursor>();
+    }
+    
+    public struct Map<TKey, TInput, TResult, TCursor> :
+        ICursorX<TKey, TResult, Map<TKey, TInput, TResult, TCursor>>
+        where TCursor : ICursor<TKey, TInput, TCursor>
+    {
+        private readonly TCursor _inner;
+
+        public Map(TCursor inner)
+        {
+            _inner = inner;
+        }
+        public TCursor2 Combine<TValue2, TCursor2>(Func<Map<TKey, TInput, TResult, TCursor>, TCursor2> factory) where TCursor2 : ICursor<TKey, TValue2, TCursor2>
+        {
+            throw new NotImplementedException();
+        }
+
+        public bool MoveNext()
+        {
+            throw new NotImplementedException();
+        }
+
+        public void Reset()
+        {
+            throw new NotImplementedException();
+        }
+
+        public KeyValuePair<TKey, TResult> Current => throw new NotImplementedException();
+
+        object IEnumerator.Current => Current;
+
+        public void Dispose()
+        {
+            throw new NotImplementedException();
+        }
+
+        public CursorState State => throw new NotImplementedException();
+
+        public KeyComparer<TKey> Comparer => throw new NotImplementedException();
+
+        public bool MoveFirst()
+        {
+            throw new NotImplementedException();
+        }
+
+        public bool MoveLast()
+        {
+            throw new NotImplementedException();
+        }
+
+        public long Move(long stride, bool allowPartial)
+        {
+            throw new NotImplementedException();
+        }
+
+        public bool MovePrevious()
+        {
+            throw new NotImplementedException();
+        }
+
+        public bool MoveTo(TKey key, Lookup direction)
+        {
+            throw new NotImplementedException();
+        }
+
+        public TKey CurrentKey => throw new NotImplementedException();
+
+        public TResult CurrentValue => throw new NotImplementedException();
+
+        Series<TKey, TResult, Map<TKey, TInput, TResult, TCursor>> ICursor<TKey, TResult, Map<TKey, TInput, TResult, TCursor>>.Source => throw new NotImplementedException();
+
+        public bool TryMoveNextBatch(out Series<TKey, TResult, Map<TKey, TInput, TResult, TCursor>> batch)
+        {
+            throw new NotImplementedException();
+        }
+
+        Spreads.ISeries<TKey, TResult> Spreads.ICursor<TKey, TResult>.Source => throw new NotImplementedException();
+
+        public Map<TKey, TInput, TResult, TCursor> Initialize()
+        {
+            throw new NotImplementedException();
+        }
+
+        Map<TKey, TInput, TResult, TCursor> ICursor<TKey, TResult, Map<TKey, TInput, TResult, TCursor>>.Clone()
+        {
+            throw new NotImplementedException();
+        }
+
+        public IAsyncCompleter AsyncCompleter => throw new NotImplementedException();
+
+        Spreads.ICursor<TKey, TResult> Spreads.ICursor<TKey, TResult>.Clone()
+        {
+            throw new NotImplementedException();
+        }
+
+        public bool IsContinuous => throw new NotImplementedException();
+
+        public bool TryGet(TKey key, out TResult value)
+        {
+            throw new NotImplementedException();
+        }
+
+        public bool TryMoveNextBatch(out Spreads.ISeries<TKey, TResult>? batch)
+        {
+            throw new NotImplementedException();
+        }
+    }
+
+    public static class Mapper
+    {
+        public static Spreads.ICursor<K,U> Map<K,V, U>(CusrorA<K,V> cursor, Func<V,U> selector)
+        {
+            var x = cursor.Combine<U, Map<K, V, U, CusrorA<K, V>>>(inner => new Map<K, V, U, CusrorA<K, V>>(inner));
+            return (Spreads.ICursor<K,U>)x;
+        }
+    }
+
+    
+
+    // Principles:
+    // Never evaluate same value twice when we know in advance that this will happen and we could avoid it by saving data to memory, which is cheap
+
+    internal delegate Span<U> MapBatch<K, V, U>(Span<K> keys, Span<V> values);
+
 }

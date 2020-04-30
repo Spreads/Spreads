@@ -27,21 +27,10 @@ namespace Spreads
         /// A false move from this state must restore the cursor to its position before the move.
         /// </summary>
         Moving = 2,
-
-
-        // TODO Delete if we are OK with bool TryMoveNextBatch(out Span<int> batch)
-        //// TODO simple MN after MB is possible. But MB must set state so that
-        //// MN could move, not MN check every time - this is the hottest path.
-        //// MB puts cursor at the end of the batch.
-
-        //// TODO review how to minimize branches in SM
-        //// e.g. if (State > 0) MN should continue
-        //// only after that check is false we
-
-        ///// <summary>
-        ///// A cursor has started batch moving and is at a valid position.
-        ///// A false move from this state must restore the cursor to its position before the move.
-        ///// </summary>
-        //BatchMoving = -3,
+        
+        // /// <summary>
+        // /// A cursor has started batch moving and is at a valid position.
+        // /// </summary>
+        Batch = 3
     }
 }

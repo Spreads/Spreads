@@ -21,7 +21,7 @@ namespace Spreads.Core.Tests.Performance
     {
         public interface IIncrementable
         {
-            int Increment();
+            int Increment(int value = 0);
         }
 
         public struct ThisIsSrtuct : IIncrementable
@@ -34,14 +34,15 @@ namespace Spreads.Core.Tests.Performance
             {
                 value = bytes;
                 pinnedGcHandle = GCHandle.Alloc(value, GCHandleType.Pinned);
-                ptr = (int*)pinnedGcHandle.AddrOfPinnedObject().ToPointer();
+                ptr = (int*) pinnedGcHandle.AddrOfPinnedObject().ToPointer();
             }
 
-            public int Increment()
+            // [MethodImpl(MethodImplOptions.NoInlining)]
+            public int Increment(int value = 0)
             {
-                *((int*)ptr) = *((int*)ptr) + 1;
-                return (*((int*)ptr));
-                //return (*((int*)ptr))++;
+                if (value == 123456)
+                    return 123457;
+                return value + 1;
             }
         }
 
@@ -60,8 +61,8 @@ namespace Spreads.Core.Tests.Performance
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public static int Increment()
             {
-                *((int*)ptr) = *((int*)ptr) + 1;
-                return (*((int*)ptr));
+                *((int*) ptr) = *((int*) ptr) + 1;
+                return (*((int*) ptr));
             }
         }
 
@@ -78,10 +79,9 @@ namespace Spreads.Core.Tests.Performance
             }
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public int Increment()
+            public int Increment(int value = 0)
             {
-                *((int*)ptr) = *((int*)ptr) + 1;
-                return (*((int*)ptr));
+                return value + 1;
             }
         }
 
@@ -98,13 +98,9 @@ namespace Spreads.Core.Tests.Performance
             }
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public int Increment()
+            public int Increment(int value = 0)
             {
-                lock (this)
-                {
-                    *((int*)ptr) = *((int*)ptr) + 1;
-                    return (*((int*)ptr));
-                }
+                return value + 1;
             }
         }
 
@@ -120,12 +116,12 @@ namespace Spreads.Core.Tests.Performance
                 pinnedGcHandle = GCHandle.Alloc(value, GCHandleType.Pinned);
                 ptr = pinnedGcHandle.AddrOfPinnedObject();
 
-                _lock = (long*)Marshal.AllocHGlobal(8);
+                _lock = (long*) Marshal.AllocHGlobal(8);
                 *_lock = 0L;
             }
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public int Increment()
+            public int Increment(int value = 0)
             {
                 while (true)
                 {
@@ -133,10 +129,11 @@ namespace Spreads.Core.Tests.Performance
                     //{
                     if (Interlocked.CompareExchange(ref *_lock, 1, 0) == 0)
                     {
-                        *((int*)ptr) = *((int*)ptr) + 1;
+                        *((int*) ptr) = *((int*) ptr) + 1;
                         Volatile.Write(ref *_lock, 0);
-                        return (*((int*)ptr));
+                        return (*((int*) ptr));
                     }
+
                     //}
                     //finally
                     //{
@@ -158,14 +155,14 @@ namespace Spreads.Core.Tests.Performance
                 pinnedGcHandle = GCHandle.Alloc(value, GCHandleType.Pinned);
                 ptr = pinnedGcHandle.AddrOfPinnedObject();
 
-                _lock = (long*)Marshal.AllocHGlobal(8);
+                _lock = (long*) Marshal.AllocHGlobal(8);
                 *_lock = 0L;
             }
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public int Increment()
+            public int Increment(int value = 0)
             {
-                return Interlocked.Increment(ref *((int*)ptr));
+                return Interlocked.Increment(ref value);
             }
         }
 
@@ -182,10 +179,9 @@ namespace Spreads.Core.Tests.Performance
             }
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public virtual int Increment()
+            public virtual int Increment(int value = 0)
             {
-                *((int*)ptr) = *((int*)ptr) + 1;
-                return (*((int*)ptr));
+                return value + 1;
             }
         }
 
@@ -203,10 +199,9 @@ namespace Spreads.Core.Tests.Performance
             }
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public override int Increment()
+            public override int Increment(int value = 0)
             {
-                *((int*)ptr) = *((int*)ptr) + 1;
-                return (*((int*)ptr));
+                return value + 1;
             }
         }
 
@@ -224,10 +219,9 @@ namespace Spreads.Core.Tests.Performance
             }
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public override int Increment()
+            public int Increment(int value  = 0)
             {
-                *((int*)ptr) = *((int*)ptr) + 1;
-                return (*((int*)ptr));
+                return value + 1;
             }
         }
 
@@ -245,10 +239,9 @@ namespace Spreads.Core.Tests.Performance
             }
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public override int Increment()
+            public int Increment(int value = 0)
             {
-                *((int*)ptr) = *((int*)ptr) + 1;
-                return (*((int*)ptr));
+                return value + 1;
             }
         }
 
@@ -265,10 +258,9 @@ namespace Spreads.Core.Tests.Performance
             }
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public override int Increment()
+            public int Increment(int value = 0)
             {
-                *((int*)ptr) = *((int*)ptr) + 1;
-                return (*((int*)ptr));
+                return value + 1;
             }
         }
 
@@ -285,10 +277,9 @@ namespace Spreads.Core.Tests.Performance
             }
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public override int Increment()
+            public int Increment(int value = 0)
             {
-                *((int*)ptr) = *((int*)ptr) + 1;
-                return (*((int*)ptr));
+                return value + 1;
             }
         }
 
@@ -305,26 +296,25 @@ namespace Spreads.Core.Tests.Performance
             }
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public int Increment()
+            public int Increment(int value = 0)
             {
-                *((int*)ptr) = *((int*)ptr) + 1;
-                return (*((int*)ptr));
+                return value + 1;
             }
         }
 
         public class ThisIsComposedClass : IIncrementable
         {
-            private ThisIsClass value;
+            private ThisIsClass _value;
 
             public ThisIsComposedClass()
             {
-                value = new ThisIsClass();
+                _value = new ThisIsClass();
             }
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public int Increment()
+            public int Increment(int value = 0)
             {
-                return value.Increment();
+                return _value.Increment(value);
             }
         }
 
@@ -345,17 +335,18 @@ namespace Spreads.Core.Tests.Performance
             var count = 200_000_000;
             // var sw = new Stopwatch();
 
-            CallVsCallVirt_Value(count);
+            // CallVsCallVirt_Value(count);
 
             CallVsCallVirt_Struct(count);
+            CallVsCallVirt_StructDelegate(count);
 
-            CallVsCallVirt_Struct_IFace(count);
-
-            CallVsCallVirt_Constr_Struct(count);
-
-            CallVsCallVirt_StaticClass(count);
-
-            CallVsCallVirt_Class(count);
+            // CallVsCallVirt_Struct_IFace(count);
+            //
+            // CallVsCallVirt_Constr_Struct(count);
+            //
+            // CallVsCallVirt_StaticClass(count);
+            //
+            // CallVsCallVirt_Class(count);
 
             //using (Benchmark.Run("Class+Lock", count))
             //{
@@ -366,19 +357,19 @@ namespace Spreads.Core.Tests.Performance
             //    }
             //}
 
-            CallVsCallVirt_Class_ILIcr(count);
-            CallVsCallVirt_Class_CAS(count);
-
-            CallVsCallVirt_SealedClass(count);
-
-            CallVsCallVirt_Class_IFace(count);
-
-            ThisIsBaseClass dcl = new ThisIsDerivedClass2();
-            dcl.Increment();
-            dcl = new ThisIsDerivedClass();
-            CallVsCallVirt_Derived(count, dcl);
-            dcl = new ThisIsDerivedClass3();
-            dcl.Increment();
+            // CallVsCallVirt_Class_ILIcr(count);
+            // CallVsCallVirt_Class_CAS(count);
+            //
+            // CallVsCallVirt_SealedClass(count);
+            //
+            // CallVsCallVirt_Class_IFace(count);
+            //
+            // ThisIsBaseClass dcl = new ThisIsDerivedClass2();
+            // dcl.Increment();
+            // dcl = new ThisIsDerivedClass();
+            // CallVsCallVirt_Derived(count, dcl);
+            // dcl = new ThisIsDerivedClass3();
+            // dcl.Increment();
 
             //sw.Restart();
             //IIncrementable dcli = (IIncrementable)new ThisIsDerivedClass();
@@ -418,7 +409,7 @@ namespace Spreads.Core.Tests.Performance
         }
 
 #if NETCOREAPP3_0
-        [MethodImpl(MethodImplOptions.AggressiveOptimization| MethodImplOptions.NoInlining)]
+        [MethodImpl(MethodImplOptions.AggressiveOptimization | MethodImplOptions.NoInlining)]
 #endif
         private static void CallVsCallVirt_Value(int count)
         {
@@ -429,35 +420,66 @@ namespace Spreads.Core.Tests.Performance
                 int intValue = 0;
                 for (int i = 0; i < count; i++)
                 {
-                    (*((int*)ptr))++;
+                    (*((int*) ptr))++;
                     //* ((int*)ptr) = *((int*)ptr) + 1;
                 }
             }
         }
 
 #if NETCOREAPP3_0
-        [MethodImpl(MethodImplOptions.AggressiveOptimization| MethodImplOptions.NoInlining)]
+        [MethodImpl(MethodImplOptions.AggressiveOptimization | MethodImplOptions.NoInlining)]
 #endif
         private static void CallVsCallVirt_Struct(int count)
         {
             using (Benchmark.Run("Struct", count))
             {
                 var str = new ThisIsSrtuct(new byte[4]);
+                var value = 0;
                 for (int i = 0; i < count; i++)
                 {
-                    str.Increment();
+                    value = str.Increment(value);
+                }
+            }
+        }
+
+        private static Func<int,int>? dlg;
+
+        private static void InitDlg()
+        {
+            var str = new ThisIsSrtuct(new byte[4]);
+            dlg = new Func<int,int>((i) => str.Increment(i));
+        }
+
+#if NETCOREAPP3_0
+        [MethodImpl(MethodImplOptions.AggressiveOptimization | MethodImplOptions.NoInlining)]
+#endif
+        private static void CallVsCallVirt_StructDelegate(int count)
+        {
+            InitDlg();
+            var dlg2 = new Func<int,int>((i) =>
+            {
+                if (dlg == null)
+                    return 0;
+                return dlg.Invoke(i);
+            });
+            using (Benchmark.Run("StrDlg", count))
+            {
+                var value = 0;
+                for (int i = 0; i < count; i++)
+                {
+                    value = dlg.Invoke(value); 
                 }
             }
         }
 
 #if NETCOREAPP3_0
-        [MethodImpl(MethodImplOptions.AggressiveOptimization| MethodImplOptions.NoInlining)]
+        [MethodImpl(MethodImplOptions.AggressiveOptimization | MethodImplOptions.NoInlining)]
 #endif
         private static void CallVsCallVirt_Struct_IFace(int count)
         {
             using (Benchmark.Run("Str>Interface", count))
             {
-                IIncrementable strAsInterface = (IIncrementable)(new ThisIsSrtuct(new byte[4]));
+                IIncrementable strAsInterface = (IIncrementable) (new ThisIsSrtuct(new byte[4]));
                 for (int i = 0; i < count; i++)
                 {
                     strAsInterface.Increment();
@@ -466,7 +488,7 @@ namespace Spreads.Core.Tests.Performance
         }
 
 #if NETCOREAPP3_0
-        [MethodImpl(MethodImplOptions.AggressiveOptimization| MethodImplOptions.NoInlining)]
+        [MethodImpl(MethodImplOptions.AggressiveOptimization | MethodImplOptions.NoInlining)]
 #endif
         private void CallVsCallVirt_Constr_Struct(int count)
         {
@@ -478,7 +500,7 @@ namespace Spreads.Core.Tests.Performance
         }
 
 #if NETCOREAPP3_0
-        [MethodImpl(MethodImplOptions.AggressiveOptimization| MethodImplOptions.NoInlining)]
+        [MethodImpl(MethodImplOptions.AggressiveOptimization | MethodImplOptions.NoInlining)]
 #endif
         private static void CallVsCallVirt_StaticClass(int count)
         {
@@ -492,7 +514,7 @@ namespace Spreads.Core.Tests.Performance
         }
 
 #if NETCOREAPP3_0
-        [MethodImpl(MethodImplOptions.AggressiveOptimization| MethodImplOptions.NoInlining)]
+        [MethodImpl(MethodImplOptions.AggressiveOptimization | MethodImplOptions.NoInlining)]
 #endif
         private static void CallVsCallVirt_Class(int count)
         {
@@ -507,7 +529,7 @@ namespace Spreads.Core.Tests.Performance
         }
 
 #if NETCOREAPP3_0
-        [MethodImpl(MethodImplOptions.AggressiveOptimization| MethodImplOptions.NoInlining)]
+        [MethodImpl(MethodImplOptions.AggressiveOptimization | MethodImplOptions.NoInlining)]
 #endif
         private static void CallVsCallVirt_Class_ILIcr(int count)
         {
@@ -521,9 +543,8 @@ namespace Spreads.Core.Tests.Performance
             }
         }
 
-
 #if NETCOREAPP3_0
-        [MethodImpl(MethodImplOptions.AggressiveOptimization| MethodImplOptions.NoInlining)]
+        [MethodImpl(MethodImplOptions.AggressiveOptimization | MethodImplOptions.NoInlining)]
 #endif
         private static void CallVsCallVirt_Class_CAS(int count)
         {
@@ -538,7 +559,7 @@ namespace Spreads.Core.Tests.Performance
         }
 
 #if NETCOREAPP3_0
-        [MethodImpl(MethodImplOptions.AggressiveOptimization| MethodImplOptions.NoInlining)]
+        [MethodImpl(MethodImplOptions.AggressiveOptimization | MethodImplOptions.NoInlining)]
 #endif
         private static void CallVsCallVirt_SealedClass(int count)
         {
@@ -553,13 +574,13 @@ namespace Spreads.Core.Tests.Performance
         }
 
 #if NETCOREAPP3_0
-        [MethodImpl(MethodImplOptions.AggressiveOptimization| MethodImplOptions.NoInlining)]
+        [MethodImpl(MethodImplOptions.AggressiveOptimization | MethodImplOptions.NoInlining)]
 #endif
         private static void CallVsCallVirt_Class_IFace(int count)
         {
             using (Benchmark.Run("Class>IFace", count))
             {
-                IIncrementable cli = (IIncrementable)new ThisIsClass();
+                IIncrementable cli = (IIncrementable) new ThisIsClass();
                 for (int i = 0; i < count; i++)
                 {
                     cli.Increment();
@@ -568,7 +589,7 @@ namespace Spreads.Core.Tests.Performance
         }
 
 #if NETCOREAPP3_0
-        [MethodImpl(MethodImplOptions.AggressiveOptimization| MethodImplOptions.NoInlining)]
+        [MethodImpl(MethodImplOptions.AggressiveOptimization | MethodImplOptions.NoInlining)]
 #endif
         private static void CallVsCallVirt_Derived(int count, ThisIsBaseClass dcl)
         {
@@ -592,6 +613,7 @@ namespace Spreads.Core.Tests.Performance
                 CallVsCallVirt(r);
                 Console.WriteLine("-----------------");
             }
+
             Benchmark.Dump();
         }
 
@@ -616,6 +638,7 @@ namespace Spreads.Core.Tests.Performance
             {
                 ArrayVsListVsIList();
             }
+
             Benchmark.Dump();
         }
 
@@ -636,6 +659,7 @@ namespace Spreads.Core.Tests.Performance
                 arr[i] = i;
                 directBuffer.WriteDouble(i * 8, i);
             }
+
             var list = new List<double>(arr);
 
             var ilist = list as IList<double>;
@@ -757,7 +781,7 @@ namespace Spreads.Core.Tests.Performance
         [Test, Explicit("long running")]
         public unsafe void PinningNonBlittableThrows()
         {
-            var buffer = (Memory<string>)BufferPool<string>.Rent(100);
+            var buffer = (Memory<string>) BufferPool<string>.Rent(100);
             Assert.Throws<ArgumentException>(() =>
             {
                 var handle = buffer.Pin();
@@ -799,6 +823,7 @@ namespace Spreads.Core.Tests.Performance
                         }
                     }
                 }
+
                 sw.Stop();
                 Console.WriteLine($"mutable {sw.MOPS(count * 1000)}");
 
@@ -813,6 +838,7 @@ namespace Spreads.Core.Tests.Performance
                         }
                     }
                 }
+
                 sw.Stop();
                 Console.WriteLine($"readonly {sw.MOPS(count * 1000)}");
 
@@ -827,6 +853,7 @@ namespace Spreads.Core.Tests.Performance
                         }
                     }
                 }
+
                 sw.Stop();
                 Console.WriteLine($"TypeHelper {sw.MOPS(count * 1000)}");
             }
@@ -834,7 +861,7 @@ namespace Spreads.Core.Tests.Performance
 
         private ref T GetRef<T>(ArrayMemory<T> buffer)
         {
-            if (MemoryMarshal.TryGetArray((ReadOnlyMemory<T>)buffer.Memory, out var segment))
+            if (MemoryMarshal.TryGetArray((ReadOnlyMemory<T>) buffer.Memory, out var segment))
             {
                 return ref segment.Array[0];
             }
@@ -859,10 +886,11 @@ namespace Spreads.Core.Tests.Performance
                     //ref var addr = ref GetRef(buffer);
                     ref var addr = ref Unsafe.AsRef<T>(handle.Pointer);
                     ref var pos = ref Unsafe.Add(ref addr, i);
-                    pos = (T)(object)(double)i;
+                    pos = (T) (object) (double) i;
                     sum++;
                 }
             }
+
             sw.Stop();
             Console.WriteLine($"Unsafe write {sw.MOPS(count * 50)}");
         }
@@ -880,9 +908,10 @@ namespace Spreads.Core.Tests.Performance
                 {
                     ref var addr = ref Unsafe.AsRef<T>(handle.Pointer);
                     ref var pos = ref Unsafe.Add(ref addr, i);
-                    sum += (double)(object)pos;
+                    sum += (double) (object) pos;
                 }
             }
+
             sw.Stop();
             Console.WriteLine($"Unsafe read {sw.MOPS(count * 100)}");
         }
@@ -1057,6 +1086,7 @@ namespace Spreads.Core.Tests.Performance
                         sum2 += Array.BinarySearch(array, array[i], KeyComparer<DateTime>.Default);
                     }
                 }
+
                 sw.Stop();
                 Console.WriteLine($"Array {sw.MOPS(count * 100)}");
 
@@ -1100,6 +1130,7 @@ namespace Spreads.Core.Tests.Performance
                         sum2 += Array.BinarySearch(array, i, KeyComparer<int>.Default);
                     }
                 }
+
                 sw.Stop();
                 Console.WriteLine($"Array {sw.MOPS(count * 100)}");
 
@@ -1127,7 +1158,7 @@ namespace Spreads.Core.Tests.Performance
 
             for (long i = start; i < start + count; i++)
             {
-                if ((double)i > (double)(i + 1))
+                if ((double) i > (double) (i + 1))
                 {
                     Assert.Fail($"Double cast doesn't keep order for {i}");
                 }
@@ -1191,7 +1222,7 @@ namespace Spreads.Core.Tests.Performance
                     {
                         var c = comps[i]; // values[i - 1].CompareTo(values[i]); //
                         //bool b = c >= 0; // values[i - 1] >= values[i]; //
-                        var idx = 1 ^ (((uint)c) >> 31); // *((byte*)(&b));
+                        var idx = 1 ^ (((uint) c) >> 31); // *((byte*)(&b));
                         sumUnsafe += arr[idx];
                     }
                 }
@@ -1236,22 +1267,23 @@ namespace Spreads.Core.Tests.Performance
         {
             // https://github.com/dotnet/coreclr/issues/2430
 
-            var sizes = new[] { 3, 7, 17, 33, 65, 129, 257, 513 }; //, 1025, 2049, 4097, 8193 };
+            var sizes = new[] {3, 7, 17, 33, 65, 129, 257, 513}; //, 1025, 2049, 4097, 8193 };
 
             Console.WriteLine(Vector<byte>.Count);
 
             foreach (var size in sizes)
             {
-                var src = (byte*)Marshal.AllocHGlobal(size);
-                var dst = (byte*)Marshal.AllocHGlobal(size);
+                var src = (byte*) Marshal.AllocHGlobal(size);
+                var dst = (byte*) Marshal.AllocHGlobal(size);
                 var srcArr = new byte[size];
                 var dstArr = new byte[size];
                 for (int i = 0; i < size; i++)
                 {
-                    var val = (byte)(i % 255);
+                    var val = (byte) (i % 255);
                     *(src + i) = val;
                 }
-                var count = (int)(100_000_000 / Math.Log(size));
+
+                var count = (int) (100_000_000 / Math.Log(size));
                 var srcSpan = new Span<byte>(srcArr);
                 var dstSpan = new Span<byte>(dstArr);
 
@@ -1285,7 +1317,7 @@ namespace Spreads.Core.Tests.Performance
                     {
                         for (int i = 0; i < count; i++)
                         {
-                            System.Runtime.CompilerServices.Unsafe.CopyBlockUnaligned(dst, src, (uint)size);
+                            System.Runtime.CompilerServices.Unsafe.CopyBlockUnaligned(dst, src, (uint) size);
                         }
                     }
 
@@ -1293,7 +1325,7 @@ namespace Spreads.Core.Tests.Performance
                     {
                         for (int i = 0; i < count; i++)
                         {
-                            System.Runtime.CompilerServices.Unsafe.CopyBlockUnaligned(ref dstArr[0], ref srcArr[0], (uint)size);
+                            System.Runtime.CompilerServices.Unsafe.CopyBlockUnaligned(ref dstArr[0], ref srcArr[0], (uint) size);
                         }
                     }
 
@@ -1301,7 +1333,7 @@ namespace Spreads.Core.Tests.Performance
                     {
                         for (int i = 0; i < count; i++)
                         {
-                            Marshal.Copy((IntPtr)src, dstArr, 0, size);
+                            Marshal.Copy((IntPtr) src, dstArr, 0, size);
                         }
                     }
 
@@ -1369,6 +1401,7 @@ namespace Spreads.Core.Tests.Performance
                     TestInnerMethod();
                 }
             }
+
             return x;
         }
 
@@ -1376,6 +1409,81 @@ namespace Spreads.Core.Tests.Performance
         private void TestInnerMethod()
         {
             ThrowHelper.FailFast("longish text message");
+        }
+        
+        
+        
+        public enum  TestEnum
+        {
+            A = 1,
+            B,
+            C,
+            D,
+            E,
+            F,
+            G,
+            H,
+            I,
+            J,
+            K,
+            L,
+            M,
+            N
+        }
+
+        // [Test]
+        
+        public void SwitchEnum()
+        {
+            var rng = new Random();
+            var x = (TestEnum)rng.Next(1, (int) TestEnum.N);
+            switch (x)
+            {
+                case TestEnum.A:
+                    Console.WriteLine("A");
+                    break;
+                case TestEnum.B:
+                    Console.WriteLine("B");
+                    break;
+                case TestEnum.C:
+                    Console.WriteLine("C");
+                    break;
+                case TestEnum.D:
+                    Console.WriteLine("D");
+                    break;
+                case TestEnum.E:
+                    Console.WriteLine("E");
+                    break;
+                case TestEnum.F:
+                    Console.WriteLine("F");
+                    break;
+                case TestEnum.G:
+                    Console.WriteLine("G");
+                    break;
+                case TestEnum.H:
+                    Console.WriteLine("H");
+                    break;
+                case TestEnum.I:
+                    Console.WriteLine("I");
+                    break;
+                case TestEnum.J:
+                    Console.WriteLine("J");
+                    break;
+                case TestEnum.K:
+                    Console.WriteLine("K");
+                    break;
+                case TestEnum.L:
+                    Console.WriteLine("L");
+                    break;
+                case TestEnum.M:
+                    Console.WriteLine("M");
+                    break;
+                case TestEnum.N:
+                default:
+                    Console.WriteLine("N");
+                    break;
+            }
+
         }
     }
 }

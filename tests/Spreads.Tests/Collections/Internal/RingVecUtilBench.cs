@@ -4,14 +4,13 @@
 
 using System;
 using System.Runtime.CompilerServices;
-using System.Threading;
 using NUnit.Framework;
 using Spreads.Buffers;
 using Spreads.Collections.Internal;
-using Spreads.Core.Tests.Buffers;
+using Spreads.Core.Tests;
 using Spreads.Utils;
 
-namespace Spreads.Core.Tests.Collections.Internal
+namespace Spreads.Tests.Collections.Internal
 {
     [Category("CI")]
     [TestFixture]

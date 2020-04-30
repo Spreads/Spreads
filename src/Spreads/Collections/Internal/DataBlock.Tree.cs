@@ -8,10 +8,16 @@ namespace Spreads.Collections.Internal
 {
     internal sealed partial class DataBlock
     {
+        // TODO Settings
+#if DEBUG
+        internal static int MaxNodeSize = 4096;
+        internal static int NodeShift => 31 - BitUtil.NumberOfLeadingZeros(MaxNodeSize);
+        internal static long NodeMask => (1 << NodeShift) - 1;
+#else
         internal const int MaxNodeSize = 4096;
-        internal static readonly int NodeShift = 31 - BitUtil.NumberOfLeadingZeros(MaxNodeSize);
-        internal static readonly long NodeMask = (1 << NodeShift) - 1;
-
+        internal const int NodeShift = 12;
+        internal const long NodeMask = (1 << NodeShift) - 1;
+#endif
         [MethodImpl(MethodImplOptions.AggressiveInlining
 #if HAS_AGGR_OPT
                     | MethodImplOptions.AggressiveOptimization
@@ -20,14 +26,14 @@ namespace Spreads.Collections.Internal
         public static int GetAt(DataBlock root, long index, out DataBlock? block)
         {
             // TODO(!) this won't work when _head is not zero or block size (RowCount) is not equal
-            
+
             unchecked
             {
                 block = root;
                 int i;
                 while (true)
                 {
-                    i = (int)((index >> NodeShift * block.Height) & NodeMask);
+                    i = (int) ((index >> NodeShift * block.Height) & NodeMask);
                     if (block.Height > 0)
                     {
                         var newBlock = block.Values.UnsafeReadUnaligned<DataBlock>(i);
@@ -46,7 +52,6 @@ namespace Spreads.Collections.Internal
             }
         }
 
-        
         // [MethodImpl(MethodImplOptions.NoInlining)]
         // // ReSharper disable once UnusedParameter.Local
         // private static bool TryGetAtSlow(long index, out DataBlock? block, out int blockIndex)
@@ -65,7 +70,7 @@ namespace Spreads.Collections.Internal
         //         return true;
         //     }
         // }
-        
+
         [MethodImpl(MethodImplOptions.AggressiveInlining
 #if HAS_AGGR_OPT
                     | MethodImplOptions.AggressiveOptimization
@@ -235,6 +240,7 @@ namespace Spreads.Collections.Internal
         {
             if (block.RowCount > 0)
             {
+                ThrowHelper.DebugAssert(lastBlock.RowCount > 0);
                 var lastKey = lastBlock.UnsafeGetRowKey<TKey>(lastBlock.RowCount - 1);
                 var c = comparer.Compare(key, lastKey);
                 if (c <= 0 // faster path is c > 0
@@ -247,9 +253,9 @@ namespace Spreads.Collections.Internal
                     return false;
                 }
             }
-            
+
             Append(block, ref lastBlock, key, value);
-            
+
             return true;
         }
 
@@ -361,6 +367,11 @@ namespace Spreads.Collections.Internal
                     return;
                 }
 
+                ThrowHelper.DebugAssert(block.RowCount == MaxNodeSize);
+                block.Flags.MarkReadOnly();
+                
+                // TODO When adding new layout we could replace <K,V> with appender struct, like in GetValues
+                
                 var newRowCapacity = Math.Min(block.RowCapacity * 2, MaxNodeSize);
                 blockToAdd = CreateForSeries<TKey, TValue>(newRowCapacity);
                 ThrowHelper.DebugAssert(blockToAdd.Height == 0);
@@ -370,11 +381,13 @@ namespace Spreads.Collections.Internal
                 block.NextBlock = blockToAdd;
                 blockToAdd.PreviousBlock = block;
                 blockToAdd.Height = 0;
-                blockToAdd._refCount = 1;
+                blockToAdd._refCount = 1; // logically it is blockToAdd.Increment(), but we know it was zero and no-one uses it
                 newlastBlock = blockToAdd;
             }
             else
             {
+                DataBlock? newBlock = null;
+
                 var lastBlock = block.UnsafeGetValue<DataBlock>(block.RowCount - 1);
                 ThrowHelper.DebugAssert(lastBlock.Height == block.Height - 1);
 
@@ -382,11 +395,19 @@ namespace Spreads.Collections.Internal
                 // in a field or a stack we already have *the* stack.
                 // Depths >4 is practically impossible with reasonable
                 // fanout. Most common are 1 and 2, even 3 should be rare.
-                AppendNode(lastBlock, key, value, out var newBlock, ref newlastBlock);
+                AppendNode(lastBlock, key, value, out newBlock, ref newlastBlock);
 
                 if (newBlock != null)
                 {
-                    if (block.TryAppendToBlock<TKey, DataBlock>(key, newBlock, increaseCapacity: true))
+                    // If block has non-zero head it means some blocks are retired 
+                    // in the moving window case. In that case we should behave  
+                    // as if block is full and create a new block at the same height.
+                    // This will minimize copying when removing retired blocks from upper levels.
+                    // TODO this makes full block of different size and GetAt won't work
+                    if(block._head != 0)
+                        ThrowHelper.ThrowNotImplementedException();
+                    
+                    if (block._head == 0 && block.TryAppendToBlock<TKey, DataBlock>(key, newBlock, increaseCapacity: true))
                     {
                         blockToAdd = null;
                     }
@@ -395,7 +416,7 @@ namespace Spreads.Collections.Internal
                         var newRowCapacity = Math.Min(block.RowCapacity * 2, MaxNodeSize);
                         blockToAdd = CreateForSeries<TKey, DataBlock>(newRowCapacity);
                         blockToAdd.Height = block.Height;
-                        blockToAdd._refCount = 1;
+                        blockToAdd._refCount = 1; // logically it is blockToAdd.Increment(), but we know it was zero and no-one uses it
 
                         blockToAdd.AppendToBlock<TKey, DataBlock>(key, newBlock);
                     }
