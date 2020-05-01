@@ -44,7 +44,7 @@ namespace Spreads.Buffers
         internal readonly int _length;
 
         [FieldOffset(20)]
-        internal readonly int _runtimeTypeId;
+        private readonly int _runtimeTypeId;
 
         [FieldOffset(24)]
         internal readonly IRefCounted? _memoryOwner;
@@ -274,7 +274,7 @@ namespace Spreads.Buffers
 
                 IEnumerable Enumerable()
                 {
-                    for (int i = 0; i < Math.Min(100, Length); i++)
+                    for (int i = 0; i < Math.Min(1000, Length); i++)
                     {
                         yield return GetAsObject(i);
                     }
@@ -288,7 +288,7 @@ namespace Spreads.Buffers
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public RetainedVec(RetainedVec retainedVec)
         {
-            if (VecTypeHelper<T>.RuntimeTypeId != retainedVec._runtimeTypeId)
+            if (VecTypeHelper<T>.RuntimeTypeId != retainedVec.RuntimeTypeId)
                 VecThrowHelper.ThrowVecTypeMismatchException();
             Storage = retainedVec;
         }

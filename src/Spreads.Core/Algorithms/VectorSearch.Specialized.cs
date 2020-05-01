@@ -26,12 +26,10 @@ namespace Spreads.Algorithms {
                     | MethodImplOptions.AggressiveOptimization
 #endif
         )]
-        internal static int BinarySearchAvx2(ref sbyte searchSpace, int offset, int length, sbyte value)
+        internal static int BinarySearchAvx2LoHi(ref sbyte searchSpace, int lo, int hi, sbyte value)
         {
             unchecked
             {
-                int lo = offset;
-                int hi = offset + length - 1;
                 int mask;
 
                 sbyte vLo;
@@ -108,12 +106,10 @@ namespace Spreads.Algorithms {
                     | MethodImplOptions.AggressiveOptimization
 #endif
         )]
-        internal static int BinarySearchAvx2(ref short searchSpace, int offset, int length, short value)
+        internal static int BinarySearchAvx2LoHi(ref short searchSpace, int lo, int hi, short value)
         {
             unchecked
             {
-                int lo = offset;
-                int hi = offset + length - 1;
                 int mask;
 
                 short vLo;
@@ -190,12 +186,10 @@ namespace Spreads.Algorithms {
                     | MethodImplOptions.AggressiveOptimization
 #endif
         )]
-        internal static int BinarySearchAvx2(ref int searchSpace, int offset, int length, int value)
+        internal static int BinarySearchAvx2LoHi(ref int searchSpace, int lo, int hi, int value)
         {
             unchecked
             {
-                int lo = offset;
-                int hi = offset + length - 1;
                 int mask;
 
                 int vLo;
@@ -272,12 +266,10 @@ namespace Spreads.Algorithms {
                     | MethodImplOptions.AggressiveOptimization
 #endif
         )]
-        internal static int BinarySearchAvx2(ref long searchSpace, int offset, int length, long value)
+        internal static int BinarySearchAvx2LoHi(ref long searchSpace, int lo, int hi, long value)
         {
             unchecked
             {
-                int lo = offset;
-                int hi = offset + length - 1;
                 int mask;
 
                 long vLo;
@@ -355,13 +347,11 @@ namespace Spreads.Algorithms {
                     | MethodImplOptions.AggressiveOptimization
 #endif
         )]
-        internal static int BinarySearchSse42(ref sbyte searchSpace, int offset, int length, sbyte value)
+        internal static int BinarySearchSse42LoHi(ref sbyte searchSpace, int lo, int hi, sbyte value)
         {
             // Avx2 modification with mask as short and it's special handling 
             unchecked
             {
-                int lo = offset;
-                int hi = offset + length - 1;
                 short mask;
 
                 sbyte vLo;
@@ -431,13 +421,11 @@ namespace Spreads.Algorithms {
                     | MethodImplOptions.AggressiveOptimization
 #endif
         )]
-        internal static int BinarySearchSse42(ref short searchSpace, int offset, int length, short value)
+        internal static int BinarySearchSse42LoHi(ref short searchSpace, int lo, int hi, short value)
         {
             // Avx2 modification with mask as short and it's special handling 
             unchecked
             {
-                int lo = offset;
-                int hi = offset + length - 1;
                 short mask;
 
                 short vLo;
@@ -507,13 +495,11 @@ namespace Spreads.Algorithms {
                     | MethodImplOptions.AggressiveOptimization
 #endif
         )]
-        internal static int BinarySearchSse42(ref int searchSpace, int offset, int length, int value)
+        internal static int BinarySearchSse42LoHi(ref int searchSpace, int lo, int hi, int value)
         {
             // Avx2 modification with mask as short and it's special handling 
             unchecked
             {
-                int lo = offset;
-                int hi = offset + length - 1;
                 short mask;
 
                 int vLo;
@@ -583,13 +569,11 @@ namespace Spreads.Algorithms {
                     | MethodImplOptions.AggressiveOptimization
 #endif
         )]
-        internal static int BinarySearchSse42(ref long searchSpace, int offset, int length, long value)
+        internal static int BinarySearchSse42LoHi(ref long searchSpace, int lo, int hi, long value)
         {
             // Avx2 modification with mask as short and it's special handling 
             unchecked
             {
-                int lo = offset;
-                int hi = offset + length - 1;
                 short mask;
 
                 long vLo;
@@ -659,13 +643,11 @@ namespace Spreads.Algorithms {
                     | MethodImplOptions.AggressiveOptimization
 #endif
         )]
-        internal static int BinarySearchSse42(ref double searchSpace, int offset, int length, double value)
+        internal static int BinarySearchSse42LoHi(ref double searchSpace, int lo, int hi, double value)
         {
             // Avx2 modification with mask as short and it's special handling 
             unchecked
             {
-                int lo = offset;
-                int hi = offset + length - 1;
                 short mask;
 
                 double vLo;
@@ -735,13 +717,11 @@ namespace Spreads.Algorithms {
                     | MethodImplOptions.AggressiveOptimization
 #endif
         )]
-        internal static int BinarySearchSse42(ref float searchSpace, int offset, int length, float value)
+        internal static int BinarySearchSse42LoHi(ref float searchSpace, int lo, int hi, float value)
         {
             // Avx2 modification with mask as short and it's special handling 
             unchecked
             {
-                int lo = offset;
-                int hi = offset + length - 1;
                 short mask;
 
                 float vLo;
@@ -814,7 +794,7 @@ namespace Spreads.Algorithms {
                     | MethodImplOptions.AggressiveOptimization
 #endif
         )]
-        internal static int InterpolationSearchSpecialized(ref sbyte searchSpace, int offset, int length, sbyte value)
+        internal static int InterpolationSearchSpecializedLoHi(ref sbyte searchSpace, int lo, int hi, sbyte value)
         {
             // Try interpolation only for big-enough lengths and do minimal job,
             // just find the range with exponential search with minimal branches
@@ -822,9 +802,7 @@ namespace Spreads.Algorithms {
             unchecked
             {
                 int i;
-                int lo = offset;
-                int hi = offset + length - 1;
-
+                
                 if (hi - lo > Settings.SAFE_CACHE_LINE / Unsafe.SizeOf<sbyte>())
                 {
                     var vLo = UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref searchSpace, lo));
@@ -903,7 +881,7 @@ namespace Spreads.Algorithms {
                     }
                 }
 
-                return BinarySearch(ref searchSpace, lo, 1 + hi - lo, value);
+                return BinarySearchLoHi(ref searchSpace, lo, hi, value);
 
                 FOUND:
                 return i;
@@ -915,7 +893,7 @@ namespace Spreads.Algorithms {
                     | MethodImplOptions.AggressiveOptimization
 #endif
         )]
-        internal static int InterpolationSearchSpecialized(ref byte searchSpace, int offset, int length, byte value)
+        internal static int InterpolationSearchSpecializedLoHi(ref byte searchSpace, int lo, int hi, byte value)
         {
             // Try interpolation only for big-enough lengths and do minimal job,
             // just find the range with exponential search with minimal branches
@@ -923,9 +901,7 @@ namespace Spreads.Algorithms {
             unchecked
             {
                 int i;
-                int lo = offset;
-                int hi = offset + length - 1;
-
+                
                 if (hi - lo > Settings.SAFE_CACHE_LINE / Unsafe.SizeOf<byte>())
                 {
                     var vLo = UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref searchSpace, lo));
@@ -1004,7 +980,7 @@ namespace Spreads.Algorithms {
                     }
                 }
 
-                return BinarySearch(ref searchSpace, lo, 1 + hi - lo, value);
+                return BinarySearchLoHi(ref searchSpace, lo, hi, value);
 
                 FOUND:
                 return i;
@@ -1016,7 +992,7 @@ namespace Spreads.Algorithms {
                     | MethodImplOptions.AggressiveOptimization
 #endif
         )]
-        internal static int InterpolationSearchSpecialized(ref short searchSpace, int offset, int length, short value)
+        internal static int InterpolationSearchSpecializedLoHi(ref short searchSpace, int lo, int hi, short value)
         {
             // Try interpolation only for big-enough lengths and do minimal job,
             // just find the range with exponential search with minimal branches
@@ -1024,9 +1000,7 @@ namespace Spreads.Algorithms {
             unchecked
             {
                 int i;
-                int lo = offset;
-                int hi = offset + length - 1;
-
+                
                 if (hi - lo > Settings.SAFE_CACHE_LINE / Unsafe.SizeOf<short>())
                 {
                     var vLo = UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref searchSpace, lo));
@@ -1105,7 +1079,7 @@ namespace Spreads.Algorithms {
                     }
                 }
 
-                return BinarySearch(ref searchSpace, lo, 1 + hi - lo, value);
+                return BinarySearchLoHi(ref searchSpace, lo, hi, value);
 
                 FOUND:
                 return i;
@@ -1117,7 +1091,7 @@ namespace Spreads.Algorithms {
                     | MethodImplOptions.AggressiveOptimization
 #endif
         )]
-        internal static int InterpolationSearchSpecialized(ref ushort searchSpace, int offset, int length, ushort value)
+        internal static int InterpolationSearchSpecializedLoHi(ref ushort searchSpace, int lo, int hi, ushort value)
         {
             // Try interpolation only for big-enough lengths and do minimal job,
             // just find the range with exponential search with minimal branches
@@ -1125,9 +1099,7 @@ namespace Spreads.Algorithms {
             unchecked
             {
                 int i;
-                int lo = offset;
-                int hi = offset + length - 1;
-
+                
                 if (hi - lo > Settings.SAFE_CACHE_LINE / Unsafe.SizeOf<ushort>())
                 {
                     var vLo = UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref searchSpace, lo));
@@ -1206,7 +1178,7 @@ namespace Spreads.Algorithms {
                     }
                 }
 
-                return BinarySearch(ref searchSpace, lo, 1 + hi - lo, value);
+                return BinarySearchLoHi(ref searchSpace, lo, hi, value);
 
                 FOUND:
                 return i;
@@ -1218,7 +1190,7 @@ namespace Spreads.Algorithms {
                     | MethodImplOptions.AggressiveOptimization
 #endif
         )]
-        internal static int InterpolationSearchSpecialized(ref char searchSpace, int offset, int length, char value)
+        internal static int InterpolationSearchSpecializedLoHi(ref char searchSpace, int lo, int hi, char value)
         {
             // Try interpolation only for big-enough lengths and do minimal job,
             // just find the range with exponential search with minimal branches
@@ -1226,9 +1198,7 @@ namespace Spreads.Algorithms {
             unchecked
             {
                 int i;
-                int lo = offset;
-                int hi = offset + length - 1;
-
+                
                 if (hi - lo > Settings.SAFE_CACHE_LINE / Unsafe.SizeOf<char>())
                 {
                     var vLo = UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref searchSpace, lo));
@@ -1307,7 +1277,7 @@ namespace Spreads.Algorithms {
                     }
                 }
 
-                return BinarySearch(ref searchSpace, lo, 1 + hi - lo, value);
+                return BinarySearchLoHi(ref searchSpace, lo, hi, value);
 
                 FOUND:
                 return i;
@@ -1319,7 +1289,7 @@ namespace Spreads.Algorithms {
                     | MethodImplOptions.AggressiveOptimization
 #endif
         )]
-        internal static int InterpolationSearchSpecialized(ref int searchSpace, int offset, int length, int value)
+        internal static int InterpolationSearchSpecializedLoHi(ref int searchSpace, int lo, int hi, int value)
         {
             // Try interpolation only for big-enough lengths and do minimal job,
             // just find the range with exponential search with minimal branches
@@ -1327,9 +1297,7 @@ namespace Spreads.Algorithms {
             unchecked
             {
                 int i;
-                int lo = offset;
-                int hi = offset + length - 1;
-
+                
                 if (hi - lo > Settings.SAFE_CACHE_LINE / Unsafe.SizeOf<int>())
                 {
                     var vLo = UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref searchSpace, lo));
@@ -1408,7 +1376,7 @@ namespace Spreads.Algorithms {
                     }
                 }
 
-                return BinarySearch(ref searchSpace, lo, 1 + hi - lo, value);
+                return BinarySearchLoHi(ref searchSpace, lo, hi, value);
 
                 FOUND:
                 return i;
@@ -1420,7 +1388,7 @@ namespace Spreads.Algorithms {
                     | MethodImplOptions.AggressiveOptimization
 #endif
         )]
-        internal static int InterpolationSearchSpecialized(ref uint searchSpace, int offset, int length, uint value)
+        internal static int InterpolationSearchSpecializedLoHi(ref uint searchSpace, int lo, int hi, uint value)
         {
             // Try interpolation only for big-enough lengths and do minimal job,
             // just find the range with exponential search with minimal branches
@@ -1428,9 +1396,7 @@ namespace Spreads.Algorithms {
             unchecked
             {
                 int i;
-                int lo = offset;
-                int hi = offset + length - 1;
-
+                
                 if (hi - lo > Settings.SAFE_CACHE_LINE / Unsafe.SizeOf<uint>())
                 {
                     var vLo = UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref searchSpace, lo));
@@ -1509,7 +1475,7 @@ namespace Spreads.Algorithms {
                     }
                 }
 
-                return BinarySearch(ref searchSpace, lo, 1 + hi - lo, value);
+                return BinarySearchLoHi(ref searchSpace, lo, hi, value);
 
                 FOUND:
                 return i;
@@ -1521,7 +1487,7 @@ namespace Spreads.Algorithms {
                     | MethodImplOptions.AggressiveOptimization
 #endif
         )]
-        internal static int InterpolationSearchSpecialized(ref long searchSpace, int offset, int length, long value)
+        internal static int InterpolationSearchSpecializedLoHi(ref long searchSpace, int lo, int hi, long value)
         {
             // Try interpolation only for big-enough lengths and do minimal job,
             // just find the range with exponential search with minimal branches
@@ -1529,9 +1495,7 @@ namespace Spreads.Algorithms {
             unchecked
             {
                 int i;
-                int lo = offset;
-                int hi = offset + length - 1;
-
+                
                 if (hi - lo > Settings.SAFE_CACHE_LINE / Unsafe.SizeOf<long>())
                 {
                     var vLo = UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref searchSpace, lo));
@@ -1610,7 +1574,7 @@ namespace Spreads.Algorithms {
                     }
                 }
 
-                return BinarySearch(ref searchSpace, lo, 1 + hi - lo, value);
+                return BinarySearchLoHi(ref searchSpace, lo, hi, value);
 
                 FOUND:
                 return i;
@@ -1622,7 +1586,7 @@ namespace Spreads.Algorithms {
                     | MethodImplOptions.AggressiveOptimization
 #endif
         )]
-        internal static int InterpolationSearchSpecialized(ref ulong searchSpace, int offset, int length, ulong value)
+        internal static int InterpolationSearchSpecializedLoHi(ref ulong searchSpace, int lo, int hi, ulong value)
         {
             // Try interpolation only for big-enough lengths and do minimal job,
             // just find the range with exponential search with minimal branches
@@ -1630,9 +1594,7 @@ namespace Spreads.Algorithms {
             unchecked
             {
                 int i;
-                int lo = offset;
-                int hi = offset + length - 1;
-
+                
                 if (hi - lo > Settings.SAFE_CACHE_LINE / Unsafe.SizeOf<ulong>())
                 {
                     var vLo = UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref searchSpace, lo));
@@ -1711,7 +1673,7 @@ namespace Spreads.Algorithms {
                     }
                 }
 
-                return BinarySearch(ref searchSpace, lo, 1 + hi - lo, value);
+                return BinarySearchLoHi(ref searchSpace, lo, hi, value);
 
                 FOUND:
                 return i;
@@ -1723,7 +1685,7 @@ namespace Spreads.Algorithms {
                     | MethodImplOptions.AggressiveOptimization
 #endif
         )]
-        internal static int InterpolationSearchSpecialized(ref double searchSpace, int offset, int length, double value)
+        internal static int InterpolationSearchSpecializedLoHi(ref double searchSpace, int lo, int hi, double value)
         {
             // Try interpolation only for big-enough lengths and do minimal job,
             // just find the range with exponential search with minimal branches
@@ -1731,9 +1693,7 @@ namespace Spreads.Algorithms {
             unchecked
             {
                 int i;
-                int lo = offset;
-                int hi = offset + length - 1;
-
+                
                 if (hi - lo > Settings.SAFE_CACHE_LINE / Unsafe.SizeOf<double>())
                 {
                     var vLo = UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref searchSpace, lo));
@@ -1812,7 +1772,7 @@ namespace Spreads.Algorithms {
                     }
                 }
 
-                return BinarySearch(ref searchSpace, lo, 1 + hi - lo, value);
+                return BinarySearchLoHi(ref searchSpace, lo, hi, value);
 
                 FOUND:
                 return i;
@@ -1824,7 +1784,7 @@ namespace Spreads.Algorithms {
                     | MethodImplOptions.AggressiveOptimization
 #endif
         )]
-        internal static int InterpolationSearchSpecialized(ref float searchSpace, int offset, int length, float value)
+        internal static int InterpolationSearchSpecializedLoHi(ref float searchSpace, int lo, int hi, float value)
         {
             // Try interpolation only for big-enough lengths and do minimal job,
             // just find the range with exponential search with minimal branches
@@ -1832,9 +1792,7 @@ namespace Spreads.Algorithms {
             unchecked
             {
                 int i;
-                int lo = offset;
-                int hi = offset + length - 1;
-
+                
                 if (hi - lo > Settings.SAFE_CACHE_LINE / Unsafe.SizeOf<float>())
                 {
                     var vLo = UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref searchSpace, lo));
@@ -1913,7 +1871,7 @@ namespace Spreads.Algorithms {
                     }
                 }
 
-                return BinarySearch(ref searchSpace, lo, 1 + hi - lo, value);
+                return BinarySearchLoHi(ref searchSpace, lo, hi, value);
 
                 FOUND:
                 return i;

@@ -1279,7 +1279,7 @@ namespace Spreads.Core.Tests.Algorithms
                 {
                     var value = i & mask;
 #pragma warning disable 618
-                    var idx = VectorSearch.BinarySearchHybrid(ref vec[0], r, len, value);
+                    var idx = VectorSearch.BinarySearchHybridLoHi(ref vec[0], r, len + r - 1, value);
 #pragma warning restore 618
                 }
             }
@@ -1311,7 +1311,7 @@ namespace Spreads.Core.Tests.Algorithms
                 {
                     var value = i & mask;
 #pragma warning disable 618
-                    var idx = VectorSearch.BinarySearchAvx2(ref vec[0], r, len, value);
+                    var idx = VectorSearch.BinarySearchAvx2LoHi(ref vec[0], r, r + len - 1, value);
 #pragma warning restore 618
                 }
             }
@@ -1327,7 +1327,7 @@ namespace Spreads.Core.Tests.Algorithms
                 {
                     var value = i & mask;
 #pragma warning disable 618
-                    var idx = VectorSearch.BinarySearchSse42(ref vec[0], r, len, value);
+                    var idx = VectorSearch.BinarySearchSse42LoHi(ref vec[0], r, r + len - 1, value);
 #pragma warning restore 618
                 }
             }
@@ -1346,7 +1346,7 @@ namespace Spreads.Core.Tests.Algorithms
                     for (int i = 19; i < len + 10; i++)
                     {
                         var value = i;
-                        var idx = VectorSearch.BinarySearchSse42(ref vec[0], r, len - r, value);
+                        var idx = VectorSearch.BinarySearchSse42LoHi(ref vec[0], r, len - 1, value);
                         var idx2 = VectorSearch.BinarySearchClassic(ref vec[0], r, len - r, value);
 
                         if (idx != idx2)
@@ -1527,7 +1527,7 @@ namespace Spreads.Core.Tests.Algorithms
                     for (int i = -10; i < count + 10; i++)
                     {
                         var bs = VectorSearch.BinarySearchClassic(ref vec[0], r, count - r, (i * step));
-                        var bsavx = VectorSearch.BinarySearchAvx2(ref vec[0], r, count - r, (i * step));
+                        var bsavx = VectorSearch.BinarySearchAvx2LoHi(ref vec[0], r, count - 1, (i * step));
                         var ints = VectorSearch.InterpolationSearch(ref vec[0], r, count - r, (i * step));
                         // var intsAvx = VectorSearch.InterpolationSearchAvx3(ref vec[0], r, count - r, (i * step));
                         if (bs != ints)
@@ -1547,7 +1547,7 @@ namespace Spreads.Core.Tests.Algorithms
                         if (bs != bsavx)
                         {
                             Console.WriteLine($"BS_AVX: [{count}] binRes {bs} != bsavx {bsavx} at {i}");
-                            bsavx = VectorSearch.BinarySearchAvx2(ref vec[0], r, count - r, (i * step));
+                            bsavx = VectorSearch.BinarySearchAvx2LoHi(ref vec[0], r, count - 1, (i * step));
                             Assert.Fail();
                         }
 

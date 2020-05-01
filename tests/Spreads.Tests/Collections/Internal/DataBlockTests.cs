@@ -22,8 +22,8 @@ namespace Spreads.Tests.Collections.Internal
         [Test, Explicit("output")]
         public void SizeOf()
         {
-            ObjectLayoutInspector.TypeLayout.PrintLayout<Vec>();
             ObjectLayoutInspector.TypeLayout.PrintLayout<DataBlock>(false);
+            ObjectLayoutInspector.TypeLayout.PrintLayout<Vec>();
         }
 
         [Test]

@@ -46,48 +46,64 @@ namespace Spreads.Algorithms
         [SuppressMessage("ReSharper", "HeapView.BoxingAllocation")]
         public static int BinarySearch<T>(ref T searchSpace, int offset, int length, T value, KeyComparer<T> comparer = default)
         {
+            return BinarySearchLoHi(ref searchSpace, offset, offset + length - 1, value, comparer);
+        }
+
+        /// <summary>
+        /// Optimized binary search that returns the same value as the classic algorithm.
+        /// </summary>
+        /// <returns>Returns index of the value (if present) or its negative binary complement.
+        /// The index is relative to <paramref name="searchSpace"/>, not to <paramref name="lo"/>.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining
+#if HAS_AGGR_OPT
+                    | MethodImplOptions.AggressiveOptimization
+#endif
+        )]
+        [SuppressMessage("ReSharper", "HeapView.BoxingAllocation")]
+        internal static int BinarySearchLoHi<T>(ref T searchSpace, int lo, int hi, T value, KeyComparer<T> comparer = default)
+        {
 #if HAS_INTRINSICS
             if (System.Runtime.Intrinsics.X86.Avx2.IsSupported)
             {
                 if (typeof(T) == typeof(sbyte))
-                    return BinarySearchAvx2(ref Unsafe.As<T, sbyte>(ref searchSpace), offset, length, Unsafe.As<T, sbyte>(ref value));
+                    return BinarySearchAvx2LoHi(ref Unsafe.As<T, sbyte>(ref searchSpace), lo, hi, Unsafe.As<T, sbyte>(ref value));
 
                 if (typeof(T) == typeof(short))
-                    return BinarySearchAvx2(ref Unsafe.As<T, short>(ref searchSpace), offset, length, Unsafe.As<T, short>(ref value));
+                    return BinarySearchAvx2LoHi(ref Unsafe.As<T, short>(ref searchSpace), lo, hi, Unsafe.As<T, short>(ref value));
 
                 if (typeof(T) == typeof(int))
-                    return BinarySearchAvx2(ref Unsafe.As<T, int>(ref searchSpace), offset, length, Unsafe.As<T, int>(ref value));
+                    return BinarySearchAvx2LoHi(ref Unsafe.As<T, int>(ref searchSpace), lo, hi, Unsafe.As<T, int>(ref value));
 
                 if (typeof(T) == typeof(long)
                     || typeof(T) == typeof(Timestamp)
                 )
-                    return BinarySearchAvx2(ref Unsafe.As<T, long>(ref searchSpace), offset, length, Unsafe.As<T, long>(ref value));
+                    return BinarySearchAvx2LoHi(ref Unsafe.As<T, long>(ref searchSpace), lo, hi, Unsafe.As<T, long>(ref value));
             }
 
             if (System.Runtime.Intrinsics.X86.Sse42.IsSupported)
             {
                 if (typeof(T) == typeof(sbyte))
-                    return BinarySearchSse42(ref Unsafe.As<T, sbyte>(ref searchSpace), offset, length, Unsafe.As<T, sbyte>(ref value));
+                    return BinarySearchSse42LoHi(ref Unsafe.As<T, sbyte>(ref searchSpace), lo, hi, Unsafe.As<T, sbyte>(ref value));
 
                 if (typeof(T) == typeof(short))
-                    return BinarySearchSse42(ref Unsafe.As<T, short>(ref searchSpace), offset, length, Unsafe.As<T, short>(ref value));
+                    return BinarySearchSse42LoHi(ref Unsafe.As<T, short>(ref searchSpace), lo, hi, Unsafe.As<T, short>(ref value));
 
                 if (typeof(T) == typeof(int))
-                    return BinarySearchSse42(ref Unsafe.As<T, int>(ref searchSpace), offset, length, Unsafe.As<T, int>(ref value));
+                    return BinarySearchSse42LoHi(ref Unsafe.As<T, int>(ref searchSpace), lo, hi, Unsafe.As<T, int>(ref value));
 
                 if (typeof(T) == typeof(float))
-                    return BinarySearchSse42(ref Unsafe.As<T, float>(ref searchSpace), offset, length, Unsafe.As<T, float>(ref value));
+                    return BinarySearchSse42LoHi(ref Unsafe.As<T, float>(ref searchSpace), lo, hi, Unsafe.As<T, float>(ref value));
 
                 if (typeof(T) == typeof(double))
-                    return BinarySearchSse42(ref Unsafe.As<T, double>(ref searchSpace), offset, length, Unsafe.As<T, double>(ref value));
+                    return BinarySearchSse42LoHi(ref Unsafe.As<T, double>(ref searchSpace), lo, hi, Unsafe.As<T, double>(ref value));
 
                 if (typeof(T) == typeof(long)
                     || typeof(T) == typeof(Timestamp)
                 )
-                    return BinarySearchSse42(ref Unsafe.As<T, long>(ref searchSpace), offset, length, Unsafe.As<T, long>(ref value));
+                    return BinarySearchSse42LoHi(ref Unsafe.As<T, long>(ref searchSpace), lo, hi, Unsafe.As<T, long>(ref value));
             }
 #endif
-            return BinarySearchHybrid(ref searchSpace, offset, length, value, comparer);
+            return BinarySearchHybridLoHi(ref searchSpace, lo, hi, value, comparer);
         }
 
         /// <summary>
@@ -150,13 +166,11 @@ namespace Spreads.Algorithms
                     | MethodImplOptions.AggressiveOptimization
 #endif
         )]
-        internal static int BinarySearchHybrid<T>(ref T searchSpace, int offset, int length, T value, KeyComparer<T> comparer = default)
+        internal static int BinarySearchHybridLoHi<T>(ref T searchSpace, int lo, int hi, T value, KeyComparer<T> comparer = default)
         {
             unchecked
             {
                 int c;
-                int lo = offset;
-                int hi = offset + length - 1;
                 while (hi - lo > 7)
                 {
                     int i = (int) (((uint) hi + (uint) lo) >> 1);
@@ -191,16 +205,16 @@ namespace Spreads.Algorithms
         /// Converts a result of a sorted search to result of directional search with direction of <see cref="Lookup"/>.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int SearchToLookup<T>(int offset, int length, Lookup lookup, int i, ref T searchSpace, ref T value)
+        internal static int SearchToLookupLoHi<T>(int lo, int hi, Lookup lookup, int i, ref T searchSpace, ref T value)
         {
-            if (i >= offset)
+            if (i >= lo)
             {
                 if (lookup.IsEqualityOK())
                     goto RETURN;
 
                 if (lookup == Lookup.LT)
                 {
-                    if (i == offset)
+                    if (i == lo)
                         goto RETURN_O;
 
                     i--;
@@ -208,7 +222,7 @@ namespace Spreads.Algorithms
                 else // depends on if (eqOk) above
                 {
                     Debug.Assert(lookup == Lookup.GT);
-                    if (i == offset + length - 1)
+                    if (i == hi)
                         goto RETURN_OL;
 
                     i++;
@@ -225,7 +239,7 @@ namespace Spreads.Algorithms
                 if (((uint) lookup & (uint) Lookup.LT) != 0)
                 {
                     // i is idx of element that is larger, nothing here for LE/LT
-                    if (i == offset)
+                    if (i == lo)
                         goto RETURN_O;
 
                     i--;
@@ -233,25 +247,25 @@ namespace Spreads.Algorithms
                 else
                 {
                     Debug.Assert(((uint) lookup & (uint) Lookup.GT) != 0);
-                    Debug.Assert(i <= offset + length);
+                    Debug.Assert(i <= hi - 1);
                     // if was negative, if it was ~length then there are no more elements for GE/GT
-                    if (i == offset + length)
+                    if (i == hi - 1)
                         goto RETURN_OL;
                     // i is the same, ~i is idx of element that is GT the value
                 }
             }
 
             value = UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref searchSpace, i));
-            
+
             RETURN:
-            Debug.Assert(unchecked((uint) i) - offset < unchecked((uint) length));
+            Debug.Assert(unchecked((uint) i) - lo < unchecked((uint) (hi - lo + 1)));
             return i;
 
             RETURN_O:
-            return ~offset;
+            return ~lo;
 
             RETURN_OL:
-            return ~(offset + length);
+            return ~(hi + 1);
         }
 
         /// <summary>
@@ -270,8 +284,17 @@ namespace Spreads.Algorithms
         public static int BinaryLookup<T>(ref T searchSpace, int offset, int length, ref T value, Lookup lookup, KeyComparer<T> comparer = default)
         {
             Debug.Assert(length >= 0);
-            var i = BinarySearch(ref searchSpace, offset, length, value, comparer);
-            return SearchToLookup<T>(offset, length, lookup, i, ref searchSpace, ref value);
+            var lo = offset;
+            int hi = offset + length - 1;
+            var i = BinarySearchLoHi(ref searchSpace, lo, hi, value, comparer);
+            return SearchToLookupLoHi<T>(lo, hi, lookup, i, ref searchSpace, ref value);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static int BinaryLookupLoHi<T>(ref T searchSpace, int lo, int hi, ref T value, Lookup lookup, KeyComparer<T> comparer = default)
+        {
+            var i = BinarySearchLoHi(ref searchSpace, lo, hi, value, comparer);
+            return SearchToLookupLoHi<T>(hi, lo, lookup, i, ref searchSpace, ref value);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -283,48 +306,56 @@ namespace Spreads.Algorithms
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int InterpolationSearch<T>(ref T searchSpace, int offset, int length, T value, KeyComparer<T> comparer = default)
         {
-            if (typeof(T) == typeof(long)
-                || typeof(T) == typeof(Timestamp))
-                return InterpolationSearchSpecialized(ref Unsafe.As<T, long>(ref searchSpace), offset, length, Unsafe.As<T, long>(ref value));
-
-            if (typeof(T) == typeof(ulong))
-                return InterpolationSearchSpecialized(ref Unsafe.As<T, ulong>(ref searchSpace), offset, length, Unsafe.As<T, ulong>(ref value));
-
-            if (typeof(T) == typeof(int))
-                return InterpolationSearchSpecialized(ref Unsafe.As<T, int>(ref searchSpace), offset, length, Unsafe.As<T, int>(ref value));
-
-            if (typeof(T) == typeof(uint))
-                return InterpolationSearchSpecialized(ref Unsafe.As<T, uint>(ref searchSpace), offset, length, Unsafe.As<T, uint>(ref value));
-
-            if (typeof(T) == typeof(short))
-                return InterpolationSearchSpecialized(ref Unsafe.As<T, short>(ref searchSpace), offset, length, Unsafe.As<T, short>(ref value));
-
-            if (typeof(T) == typeof(ushort))
-                return InterpolationSearchSpecialized(ref Unsafe.As<T, ushort>(ref searchSpace), offset, length, Unsafe.As<T, ushort>(ref value));
-
-            if (typeof(T) == typeof(char))
-                return InterpolationSearchSpecialized(ref Unsafe.As<T, char>(ref searchSpace), offset, length, Unsafe.As<T, char>(ref value));
-
-            if (typeof(T) == typeof(byte))
-                return InterpolationSearchSpecialized(ref Unsafe.As<T, byte>(ref searchSpace), offset, length, Unsafe.As<T, byte>(ref value));
-
-            if (typeof(T) == typeof(sbyte))
-                return InterpolationSearchSpecialized(ref Unsafe.As<T, sbyte>(ref searchSpace), offset, length, Unsafe.As<T, sbyte>(ref value));
-
-            if (typeof(T) == typeof(float))
-                return InterpolationSearchSpecialized(ref Unsafe.As<T, float>(ref searchSpace), offset, length, Unsafe.As<T, float>(ref value));
-
-            if (typeof(T) == typeof(double))
-                return InterpolationSearchSpecialized(ref Unsafe.As<T, double>(ref searchSpace), offset, length, Unsafe.As<T, double>(ref value));
-
-            if (!KeyComparer<T>.Default.IsDiffable)
-                return BinarySearch(ref searchSpace, offset, length, value, comparer);
-
-            return InterpolationSearchGeneric(ref searchSpace, offset, length, value, comparer);
+            var lo = offset;
+            int hi = offset + length - 1;
+            return InterpolationSearchLoHi(ref searchSpace, lo, hi, value, comparer);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static int InterpolationSearchGeneric<T>(ref T searchSpace, int offset, int length, T value, KeyComparer<T> comparer = default)
+        public static int InterpolationSearchLoHi<T>(ref T searchSpace, int lo, int hi, T value, KeyComparer<T> comparer = default)
+        {
+            if (typeof(T) == typeof(long)
+                || typeof(T) == typeof(Timestamp))
+                return InterpolationSearchSpecializedLoHi(ref Unsafe.As<T, long>(ref searchSpace), lo, hi, Unsafe.As<T, long>(ref value));
+
+            if (typeof(T) == typeof(ulong))
+                return InterpolationSearchSpecializedLoHi(ref Unsafe.As<T, ulong>(ref searchSpace), lo, hi, Unsafe.As<T, ulong>(ref value));
+
+            if (typeof(T) == typeof(int))
+                return InterpolationSearchSpecializedLoHi(ref Unsafe.As<T, int>(ref searchSpace), lo, hi, Unsafe.As<T, int>(ref value));
+
+            if (typeof(T) == typeof(uint))
+                return InterpolationSearchSpecializedLoHi(ref Unsafe.As<T, uint>(ref searchSpace), lo, hi, Unsafe.As<T, uint>(ref value));
+
+            if (typeof(T) == typeof(short))
+                return InterpolationSearchSpecializedLoHi(ref Unsafe.As<T, short>(ref searchSpace), lo, hi, Unsafe.As<T, short>(ref value));
+
+            if (typeof(T) == typeof(ushort))
+                return InterpolationSearchSpecializedLoHi(ref Unsafe.As<T, ushort>(ref searchSpace), lo, hi, Unsafe.As<T, ushort>(ref value));
+
+            if (typeof(T) == typeof(char))
+                return InterpolationSearchSpecializedLoHi(ref Unsafe.As<T, char>(ref searchSpace), lo, hi, Unsafe.As<T, char>(ref value));
+
+            if (typeof(T) == typeof(byte))
+                return InterpolationSearchSpecializedLoHi(ref Unsafe.As<T, byte>(ref searchSpace), lo, hi, Unsafe.As<T, byte>(ref value));
+
+            if (typeof(T) == typeof(sbyte))
+                return InterpolationSearchSpecializedLoHi(ref Unsafe.As<T, sbyte>(ref searchSpace), lo, hi, Unsafe.As<T, sbyte>(ref value));
+
+            if (typeof(T) == typeof(float))
+                return InterpolationSearchSpecializedLoHi(ref Unsafe.As<T, float>(ref searchSpace), lo, hi, Unsafe.As<T, float>(ref value));
+
+            if (typeof(T) == typeof(double))
+                return InterpolationSearchSpecializedLoHi(ref Unsafe.As<T, double>(ref searchSpace), lo, hi, Unsafe.As<T, double>(ref value));
+
+            if (!KeyComparer<T>.Default.IsDiffable)
+                return BinarySearchLoHi(ref searchSpace, lo, hi, value, comparer);
+
+            return InterpolationSearchGenericLoHi(ref searchSpace, lo, hi, value, comparer);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static int InterpolationSearchGenericLoHi<T>(ref T searchSpace, int lo, int hi, T value, KeyComparer<T> comparer = default)
         {
             // Try interpolation only for big-enough lengths and do minimal job,
             // just find the range with exponential search with minimal branches
@@ -332,8 +363,6 @@ namespace Spreads.Algorithms
             unchecked
             {
                 int i;
-                int lo = offset;
-                int hi = offset + length - 1;
 
                 if (hi - lo > 16)
                 {
@@ -414,7 +443,7 @@ namespace Spreads.Algorithms
                     }
                 }
 
-                return BinarySearch(ref searchSpace, lo, 1 + hi - lo, value);
+                return BinarySearchLoHi(ref searchSpace, lo, hi, value);
 
                 FOUND:
                 return i;
@@ -440,8 +469,18 @@ namespace Spreads.Algorithms
         {
             Debug.Assert(length >= 0);
 
-            var i = InterpolationSearch(ref searchSpace, offset, length, value, comparer);
-            return SearchToLookup(offset, length, lookup, i, ref searchSpace, ref value);
+            var lo = offset;
+            int hi = offset + length - 1;
+
+            return InterpolationLookupLoHi(ref searchSpace, lo, hi, ref value, lookup, comparer);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static int InterpolationLookupLoHi<T>(ref T searchSpace, int lo, int hi, ref T value, Lookup lookup,
+            KeyComparer<T> comparer = default)
+        {
+            var i = InterpolationSearchLoHi(ref searchSpace, lo, hi, value, comparer);
+            return SearchToLookupLoHi(lo, hi, lookup, i, ref searchSpace, ref value);
         }
 
         /// <summary>
@@ -466,6 +505,16 @@ namespace Spreads.Algorithms
             return BinarySearch(ref searchSpace, offset, length, value, comparer);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static int SortedSearchLoHi<T>(ref T searchSpace, int lo, int hi, T value, KeyComparer<T> comparer = default)
+        {
+            // ReSharper disable once RedundantLogicalConditionalExpressionOperand
+            if (Settings.UseInterpolatedSearchForKnownTypes && KeyComparer<T>.IsDiffableSafe)
+                return InterpolationSearchLoHi(ref searchSpace, lo, hi, value, comparer);
+
+            return BinarySearchLoHi(ref searchSpace, lo, hi, value, comparer);
+        }
+
         /// <summary>
         /// Performs interpolation lookup for well-known types and binary lookup for other types.
         /// </summary>
@@ -486,6 +535,16 @@ namespace Spreads.Algorithms
                 return InterpolationLookup(ref searchSpace, offset, length, ref value, lookup, comparer);
 
             return BinaryLookup(ref searchSpace, offset, length, ref value, lookup, comparer);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int SortedLookupLoHi<T>(ref T searchSpace, int lo, int hi, ref T value, Lookup lookup, KeyComparer<T> comparer = default)
+        {
+            // ReSharper disable once RedundantLogicalConditionalExpressionOperand
+            if (Settings.UseInterpolatedSearchForKnownTypes && KeyComparer<T>.IsDiffableSafe)
+                return InterpolationLookupLoHi(ref searchSpace, lo, hi, ref value, lookup, comparer);
+
+            return BinaryLookupLoHi(ref searchSpace, lo, hi, ref value, lookup, comparer);
         }
     }
 }

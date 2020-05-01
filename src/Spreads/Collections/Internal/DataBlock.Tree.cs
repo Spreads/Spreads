@@ -47,7 +47,7 @@ namespace Spreads.Collections.Internal
                 }
 
                 ThrowHelper.DebugAssert(block.Height == 0);
-                ThrowHelper.DebugAssert(unchecked((uint) i) - block._head < unchecked((uint) (block.RowCount - block._head)));
+                ThrowHelper.DebugAssert(unchecked((uint) i) - block.Lo < unchecked((uint) (block.Hi + 1 - block.Lo)));
                 return i;
             }
         }
@@ -81,20 +81,23 @@ namespace Spreads.Collections.Internal
             unchecked
             {
                 block = root;
+                int lo;
+                int hi;
                 int i;
                 while (true)
                 {
-                    var length = block.RowCount - block._head;
-                    ThrowHelper.Assert(length > 0);
+                    lo = block.Lo;
+                    hi = block.Hi;
+                    ThrowHelper.Assert(lo >= 0 && hi >= 0);
 
-                    i = VectorSearch.SortedSearch(ref block.RowKeys.UnsafeGetRef<T>(), block._head, length, key, comparer);
+                    i = VectorSearch.SortedSearchLoHi(ref block.RowKeys.UnsafeGetRef<T>(), lo, hi, key, comparer);
                     if (block.Height > 0)
                     {
                         ThrowHelper.DebugAssert(block.PreviousBlock == null);
                         ThrowHelper.DebugAssert(block.NextBlock == null);
                         // adjust for LE operation if needed
                         int ii;
-                        if ((uint) (ii = ~i - 1) < block.RowCount)
+                        if ((uint) (ii = ~i - 1) <= hi)
                             i = ii;
 
                         var newBlock = block.Values.UnsafeReadUnaligned<DataBlock>(i);
@@ -109,7 +112,7 @@ namespace Spreads.Collections.Internal
 
                 ThrowHelper.DebugAssert(block.Height == 0);
 
-                ThrowHelper.DebugAssert(unchecked((uint) i) - block._head < unchecked((uint) (block.RowCount - block._head)));
+                ThrowHelper.DebugAssert(unchecked((uint) i) - lo < unchecked((uint) (hi + 1 - lo)));
                 return i;
             }
         }
@@ -124,27 +127,31 @@ namespace Spreads.Collections.Internal
             unchecked
             {
                 block = root;
+                int lo;
+                int hi;
                 int i;
                 while (true)
                 {
-                    var length = block.RowCount - block._head;
-                    ThrowHelper.Assert(length > 0);
+                    lo = block.Lo;
+                    hi = block.Hi;
+                    ThrowHelper.Assert(lo >= 0 && hi >= 0);
 
-                    i = VectorSearch.SortedSearch(ref block.RowKeys.UnsafeGetRef<T>(), block._head, length, key, comparer);
+                    i = VectorSearch.SortedSearchLoHi(ref block.RowKeys.UnsafeGetRef<T>(), lo, hi, key, comparer);
                     if (block.Height > 0)
                     {
+                        
                         ThrowHelper.DebugAssert(block.PreviousBlock == null);
                         ThrowHelper.DebugAssert(block.NextBlock == null);
                         // adjust for LE operation if needed
                         int ii;
-                        if ((uint) (ii = ~i - 1) < block.RowCount)
+                        if ((uint) (ii = ~i - 1) <= hi)
                             i = ii;
 
                         if (i < 0) // cannot find LE block
                         {
                             // if GE or GT, get first available block
                             if ((lookup & Lookup.GT) != 0)
-                                i = block._head;
+                                i = lo;
                             else
                                 return -1;
                         }
@@ -161,14 +168,14 @@ namespace Spreads.Collections.Internal
 
                 ThrowHelper.DebugAssert(block.Height == 0);
 
-                if (i >= block._head)
+                if (i >= lo)
                 {
                     if (lookup.IsEqualityOK())
                         goto RETURN_I;
 
                     if (lookup == Lookup.LT)
                     {
-                        if (i == block._head)
+                        if (i == lo)
                             goto RETURN_PREV;
 
                         i--;
@@ -176,7 +183,7 @@ namespace Spreads.Collections.Internal
                     else // depends on if (eqOk) above
                     {
                         Debug.Assert(lookup == Lookup.GT);
-                        if (i == block.RowCount - 1)
+                        if (i == hi)
                             goto RETURN_NEXT;
 
                         i++;
@@ -193,7 +200,7 @@ namespace Spreads.Collections.Internal
                     if (((uint) lookup & (uint) Lookup.LT) != 0)
                     {
                         // i is idx of element that is larger, nothing here for LE/LT
-                        if (i == block._head)
+                        if (i == lo)
                             goto RETURN_PREV;
 
                         i--;
@@ -201,9 +208,9 @@ namespace Spreads.Collections.Internal
                     else
                     {
                         Debug.Assert(((uint) lookup & (uint) Lookup.GT) != 0);
-                        Debug.Assert(i <= block.RowCount);
+                        Debug.Assert(i <= hi + 1);
                         // if was negative, if it was ~length then there are no more elements for GE/GT
-                        if (i == block.RowCount)
+                        if (i == hi + 1)
                             goto RETURN_NEXT;
 
                         // i is the same, ~i is idx of element that is GT the value
@@ -214,12 +221,12 @@ namespace Spreads.Collections.Internal
                 key = block!.UnsafeGetRowKey<T>(i);
 
                 RETURN_I:
-                ThrowHelper.DebugAssert(unchecked((uint) i) - block._head < unchecked((uint) (block.RowCount - block._head)));
+                ThrowHelper.DebugAssert(unchecked((uint) i) - lo < unchecked((uint) (hi + 1 - lo)));
                 return i;
 
                 RETURN_PREV:
                 block = block.PreviousBlock;
-                i = block == null ? -1 : block.RowCount - 1;
+                i = block == null ? -1 : block.Hi;
                 goto UPDATE_KEY;
 
                 RETURN_NEXT:
@@ -238,10 +245,10 @@ namespace Spreads.Collections.Internal
         )]
         internal static bool TryAppend<TKey, TValue>(DataBlock block, ref DataBlock lastBlock, TKey key, TValue value, KeyComparer<TKey> comparer, KeySorting keySorting)
         {
-            if (block.RowCount > 0)
+            if (block.Hi >= 0)
             {
-                ThrowHelper.DebugAssert(lastBlock.RowCount > 0);
-                var lastKey = lastBlock.UnsafeGetRowKey<TKey>(lastBlock.RowCount - 1);
+                ThrowHelper.DebugAssert(lastBlock.Hi >= 0);
+                var lastKey = lastBlock.UnsafeGetRowKey<TKey>(lastBlock.Hi);
                 var c = comparer.Compare(key, lastKey);
                 if (c <= 0 // faster path is c > 0
                     && (c < 0 & keySorting == KeySorting.Weak)
@@ -297,8 +304,8 @@ namespace Spreads.Collections.Internal
 
                 var tempRoot = CreateForSeries<TKey, DataBlock>();
 
-                tempRoot._refCount = firstBlock._refCount; // copy back
-                firstBlock._refCount = 1; // owned by root
+                tempRoot.RefCount = firstBlock.RefCount; // copy back
+                firstBlock.RefCount = 1; // owned by root
                 tempRoot.Height = firstBlock.Height + 1;
 
                 if (firstBlock.ColumnKeys != default)
@@ -309,11 +316,11 @@ namespace Spreads.Collections.Internal
                 // Avoid multiple calls to method marked with AggressiveInlining, opposite to unrolling
                 // tempRoot.AppendToBlock(firstBlock.UnsafeGetRowKey<TKey>(firstBlock._head), firstBlock);
                 // tempRoot.AppendToBlock(key, blockToAdd);
-                ThrowHelper.DebugAssert(KeyComparer<TKey>.Default.Compare(blockToAdd.UnsafeGetRowKey<TKey>(blockToAdd._head), key) == 0);
+                ThrowHelper.DebugAssert(KeyComparer<TKey>.Default.Compare(blockToAdd.UnsafeGetRowKey<TKey>(blockToAdd.Lo), key) == 0);
                 var appendBlock = firstBlock;
                 for (int i = 0; i < 2; i++)
                 {
-                    tempRoot.AppendToBlock(appendBlock.UnsafeGetRowKey<TKey>(appendBlock._head), appendBlock);
+                    tempRoot.AppendToBlock(appendBlock.UnsafeGetRowKey<TKey>(appendBlock.Lo), appendBlock);
                     appendBlock = blockToAdd;
                 }
 
@@ -334,7 +341,7 @@ namespace Spreads.Collections.Internal
                 // firstBlock.NextBlock = blockToAdd; already
                 ThrowHelper.DebugAssert(tempRoot.NextBlock == null && tempRoot.PreviousBlock == null);
 
-                ThrowHelper.Assert(tempRoot.RowCount == 2);
+                ThrowHelper.Assert(tempRoot.Lo == 0 && tempRoot.Hi == 1);
 
                 tempRoot.MoveInto(root);
                 tempRoot.Dispose();
@@ -368,10 +375,10 @@ namespace Spreads.Collections.Internal
                 }
 
                 ThrowHelper.DebugAssert(block.RowCount == MaxNodeSize);
-                block.Flags.MarkReadOnly();
-                
+                // block.Flags.MarkReadOnly();
+
                 // TODO When adding new layout we could replace <K,V> with appender struct, like in GetValues
-                
+
                 var newRowCapacity = Math.Min(block.RowCapacity * 2, MaxNodeSize);
                 blockToAdd = CreateForSeries<TKey, TValue>(newRowCapacity);
                 ThrowHelper.DebugAssert(blockToAdd.Height == 0);
@@ -381,14 +388,14 @@ namespace Spreads.Collections.Internal
                 block.NextBlock = blockToAdd;
                 blockToAdd.PreviousBlock = block;
                 blockToAdd.Height = 0;
-                blockToAdd._refCount = 1; // logically it is blockToAdd.Increment(), but we know it was zero and no-one uses it
+                blockToAdd.RefCount = 1; // logically it is blockToAdd.Increment(), but we know it was zero and no-one uses it
                 newlastBlock = blockToAdd;
             }
             else
             {
                 DataBlock? newBlock = null;
 
-                var lastBlock = block.UnsafeGetValue<DataBlock>(block.RowCount - 1);
+                var lastBlock = block.UnsafeGetValue<DataBlock>(block.Hi);
                 ThrowHelper.DebugAssert(lastBlock.Height == block.Height - 1);
 
                 // Recursive call. Instead of storing parent blocks
@@ -404,10 +411,10 @@ namespace Spreads.Collections.Internal
                     // as if block is full and create a new block at the same height.
                     // This will minimize copying when removing retired blocks from upper levels.
                     // TODO this makes full block of different size and GetAt won't work
-                    if(block._head != 0)
+                    if (block.Lo != 0)
                         ThrowHelper.ThrowNotImplementedException();
-                    
-                    if (block._head == 0 && block.TryAppendToBlock<TKey, DataBlock>(key, newBlock, increaseCapacity: true))
+
+                    if (block.Lo == 0 && block.TryAppendToBlock<TKey, DataBlock>(key, newBlock, increaseCapacity: true))
                     {
                         blockToAdd = null;
                     }
@@ -416,7 +423,7 @@ namespace Spreads.Collections.Internal
                         var newRowCapacity = Math.Min(block.RowCapacity * 2, MaxNodeSize);
                         blockToAdd = CreateForSeries<TKey, DataBlock>(newRowCapacity);
                         blockToAdd.Height = block.Height;
-                        blockToAdd._refCount = 1; // logically it is blockToAdd.Increment(), but we know it was zero and no-one uses it
+                        blockToAdd.RefCount = 1; // logically it is blockToAdd.Increment(), but we know it was zero and no-one uses it
 
                         blockToAdd.AppendToBlock<TKey, DataBlock>(key, newBlock);
                     }
@@ -436,7 +443,7 @@ namespace Spreads.Collections.Internal
         )]
         public int LookupKey<T>(ref T key, Lookup lookup, KeyComparer<T> comparer = default)
         {
-            return VectorSearch.SortedLookup(ref RowKeys.UnsafeGetRef<T>(), offset: 0, RowCount, ref key, lookup, comparer);
+            return VectorSearch.SortedLookupLoHi(ref RowKeys.UnsafeGetRef<T>(), Lo, Hi, ref key, lookup, comparer);
         }
 
         [Obsolete("This should do the whole tree work, not just block. Using VecSearch on RetainedVec is trivial")]
@@ -447,7 +454,7 @@ namespace Spreads.Collections.Internal
         )]
         public int SearchKey<T>(T key, KeyComparer<T> comparer = default)
         {
-            return VectorSearch.SortedSearch(ref RowKeys.UnsafeGetRef<T>(), offset: 0, RowCount, key, comparer);
+            return VectorSearch.SortedSearchLoHi(ref RowKeys.UnsafeGetRef<T>(), Lo, Hi, key, comparer);
         }
     }
 }

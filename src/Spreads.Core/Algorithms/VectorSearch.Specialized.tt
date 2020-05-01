@@ -66,12 +66,10 @@ namespace Spreads.Algorithms {
                     | MethodImplOptions.AggressiveOptimization
 #endif
         )]
-        internal static int BinarySearchAvx2(ref <#=type#> searchSpace, int offset, int length, <#=type#> value)
+        internal static int BinarySearchAvx2LoHi(ref <#=type#> searchSpace, int lo, int hi, <#=type#> value)
         {
             unchecked
             {
-                int lo = offset;
-                int hi = offset + length - 1;
                 int mask;
 
                 <#=type#> vLo;
@@ -156,13 +154,11 @@ namespace Spreads.Algorithms {
                     | MethodImplOptions.AggressiveOptimization
 #endif
         )]
-        internal static int BinarySearchSse42(ref <#=type#> searchSpace, int offset, int length, <#=type#> value)
+        internal static int BinarySearchSse42LoHi(ref <#=type#> searchSpace, int lo, int hi, <#=type#> value)
         {
             // Avx2 modification with mask as short and it's special handling 
             unchecked
             {
-                int lo = offset;
-                int hi = offset + length - 1;
                 short mask;
 
                 <#=type#> vLo;
@@ -242,7 +238,7 @@ namespace Spreads.Algorithms {
                     | MethodImplOptions.AggressiveOptimization
 #endif
         )]
-        internal static int InterpolationSearchSpecialized(ref <#=type#> searchSpace, int offset, int length, <#=type#> value)
+        internal static int InterpolationSearchSpecializedLoHi(ref <#=type#> searchSpace, int lo, int hi, <#=type#> value)
         {
             // Try interpolation only for big-enough lengths and do minimal job,
             // just find the range with exponential search with minimal branches
@@ -250,9 +246,7 @@ namespace Spreads.Algorithms {
             unchecked
             {
                 int i;
-                int lo = offset;
-                int hi = offset + length - 1;
-
+                
                 if (hi - lo > Settings.SAFE_CACHE_LINE / Unsafe.SizeOf<<#=type#>>())
                 {
                     var vLo = UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref searchSpace, lo));
@@ -331,7 +325,7 @@ namespace Spreads.Algorithms {
                     }
                 }
 
-                return BinarySearch(ref searchSpace, lo, 1 + hi - lo, value);
+                return BinarySearchLoHi(ref searchSpace, lo, hi, value);
 
                 FOUND:
                 return i;

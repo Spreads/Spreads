@@ -172,7 +172,7 @@ namespace Spreads.Tests.Collections.Internal
             // DataBlock.MaxLeafSize = blockLimit;
             // DataBlock.MaxNodeSize = blockLimit;
             var count = TestUtils.GetBenchCount(15_000_000, 1000);
-            var rounds = 20;
+            var rounds = (int)TestUtils.GetBenchCount(20, 1);
 
             for (int r = 0; r < rounds; r++)
             {
@@ -181,7 +181,7 @@ namespace Spreads.Tests.Collections.Internal
 
                 Bench_Append(count, db, lastBlock);
 
-                // Bench_SearchKey(count, db);
+                Bench_SearchKey(count, db);
 
                 Bench_GetAt(count, db);
                 Bench_Interate(count, db);
