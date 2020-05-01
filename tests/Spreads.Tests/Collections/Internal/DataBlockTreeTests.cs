@@ -3,6 +3,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 using System;
+using System.Runtime.CompilerServices;
 using NUnit.Framework;
 using Spreads.Collections.Internal;
 using Spreads.Core.Tests;
@@ -172,7 +173,7 @@ namespace Spreads.Tests.Collections.Internal
             // DataBlock.MaxLeafSize = blockLimit;
             // DataBlock.MaxNodeSize = blockLimit;
             var count = TestUtils.GetBenchCount(15_000_000, 1000);
-            var rounds = (int)TestUtils.GetBenchCount(20, 1);
+            var rounds = (int) TestUtils.GetBenchCount(20, 1);
 
             for (int r = 0; r < rounds; r++)
             {
@@ -193,6 +194,7 @@ namespace Spreads.Tests.Collections.Internal
             Benchmark.Dump();
         }
 
+        [MethodImpl(MethodImplOptions.NoInlining | MethodImplOptions.AggressiveOptimization)]
         private static void Bench_Append(long count, DataBlock db, DataBlock lastBlock)
         {
             using (Benchmark.Run("Append", count))
@@ -204,6 +206,7 @@ namespace Spreads.Tests.Collections.Internal
             }
         }
 
+        [MethodImpl(MethodImplOptions.NoInlining | MethodImplOptions.AggressiveOptimization)]
         private static void Bench_SearchKey(long count, DataBlock db)
         {
             using (Benchmark.Run("SearchKey", count))
@@ -220,6 +223,7 @@ namespace Spreads.Tests.Collections.Internal
             }
         }
 
+        [MethodImpl(MethodImplOptions.NoInlining | MethodImplOptions.AggressiveOptimization)]
         private static void Bench_GetAt(long count, DataBlock db)
         {
             using (Benchmark.Run("GetAt", count))
@@ -238,32 +242,35 @@ namespace Spreads.Tests.Collections.Internal
             }
         }
 
+        [MethodImpl(MethodImplOptions.NoInlining | MethodImplOptions.AggressiveOptimization)]
         private static void Bench_Interate(long count, DataBlock db)
         {
             var sum = 0L;
             using (Benchmark.Run("Iterate", count))
             {
                 DataBlock.GetAt(db, 0, out var block);
-                
+
                 var c = 0L;
                 while (true)
                 {
                     var blockIndex = 0;
-                    while (blockIndex < block.RowCount)
+                    var hi = block.Hi;
+                    while (blockIndex <= hi)
                     {
                         var key = block.UnsafeGetRowKey<int>(blockIndex);
                         var value = block.UnsafeGetValue<int>(blockIndex);
+#if DEBUG
                         if (value != c || key != c)
                         {
                             // Console.WriteLine($"Cannot interate existing key {c} - {key} - {value}");
                             Assert.Fail($"Cannot interate existing key {c} - {key} - {value}");
                         }
-
+#endif
                         blockIndex++;
                         c++;
                         sum += key + value;
                     }
-                    
+
                     if ((block = block.NextBlock) == null)
                         break;
                 }

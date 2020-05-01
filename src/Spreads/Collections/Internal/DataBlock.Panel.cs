@@ -54,7 +54,7 @@ namespace Spreads.Collections.Internal
 
             var valueCount = RowKeys.Length * ColumnCount;
 
-            ThrowHelper.DebugAssert(valueCount <= Values.Length, "Values vector must have enough capacity for data");
+            ThrowHelper.Assert(valueCount <= Values.Length, "Values vector must have enough capacity for data");
         }
 
         /// <summary>
@@ -104,7 +104,7 @@ namespace Spreads.Collections.Internal
             block.RowCapacity = rowCapacity;
             block.Lo = 0;
 
-            block.RefCount = 0;
+            block._refCount = 0;
 
             block.EnsurePanelLayout();
 

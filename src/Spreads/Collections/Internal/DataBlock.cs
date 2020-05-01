@@ -6,162 +6,19 @@ using System;
 using System.Diagnostics;
 using System.Linq;
 using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
 using Spreads.Buffers;
 using Spreads.Collections.Concurrent;
 using Spreads.Threading;
 
 namespace Spreads.Collections.Internal
 {
-    [StructLayout(LayoutKind.Sequential, Pack = 1)] // TODO merge counters and vectors to DataBlockLayout, all fields should be private
-    internal class DataBlockCounters
-    {
-        /// <summary>
-        /// Index of the first row.
-        /// </summary>
-        protected volatile int Lo;
-        
-        /// <summary>
-        /// Index of the last row.
-        /// </summary>
-        protected volatile int Hi = -1;
-
-        /// <summary>
-        /// Logical column count: 1 for Series, N for Panel (with _columns = null & row-major values) and Frames.
-        /// </summary>
-        private int _columnCount;
-
-        /// <summary>
-        /// Primarily for cursors and circular implementation.
-        /// We keep blocks used by cursors, which must
-        /// decrement a block ref count when they no longer need it.
-        /// </summary>
-        protected int RefCount;
-
-        private ushort _height;
-
-        // TODO only mutability is used so far. Mutability if only for data inside vecs and RowCount, Next/Prev/_head could change
-        internal Flags Flags;
-
-        /// <summary>
-        /// This could be not equal to RowKeys.Length for Vector/Matrix.
-        /// </summary>
-        private int _rowCapacity;
-
-        public int RowCount
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => Hi - Lo + 1;
-        }
-
-        public int ColumnCount
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => _columnCount;
-            protected set => _columnCount = value;
-        }
-
-        public int Height
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => _height;
-            protected set => _height = checked((ushort)value);
-        }
-
-        public bool IsLeaf => _height == 0;
-
-        public int RowCapacity
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => _rowCapacity;
-            protected set => _rowCapacity = value;
-        }
-    }
-
-    [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    internal class DataBlockVectors : DataBlockCounters
-    {
-        // _rowKeys should be at the and, rarely used fields act like padding
-        private DataBlock? _previousBlock;
-        private DataBlock? _nextBlock;
-        private RetainedVec[]? _columns;
-        private RetainedVec _columnKeys;
-        private RetainedVec _values;
-        private RetainedVec _rowKeys;
-
-        internal RetainedVec RowKeys
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => _rowKeys;
-            set => _rowKeys = value;
-        }
-
-        internal RetainedVec ColumnKeys
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => _columnKeys;
-            set => _columnKeys = value;
-        }
-
-        internal RetainedVec Values
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => _values;
-            set => _values = value;
-        }
-
-        internal RetainedVec[]? Columns
-        {
-            get { return _columns; }
-            set => _columns = value;
-        }
-
-        /// <summary>
-        /// Fast path to get the previous block from the current one.
-        /// </summary>
-        /// <remarks>
-        /// See remarks in <see cref="NextBlock"/>
-        /// </remarks>
-        /// <seealso cref="NextBlock"/>
-        public DataBlock? PreviousBlock
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => _previousBlock;
-            protected set
-            {
-                ThrowHelper.DebugAssert(value == null || (value.Height == Height && value.Hi >= 0 && value.RowCount > 0));
-                _previousBlock = value;
-            }
-        }
-
-        /// <summary>
-        /// Fast path to get the next block from the current one.
-        /// </summary>
-        /// <remarks>
-        /// A null value does not mean that there is no next block but
-        /// it just means that we cannot get it in a super fast way (whatever
-        /// this means depends on implementation).
-        /// </remarks>
-        /// <seealso cref="PreviousBlock"/>
-        public DataBlock? NextBlock
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => _nextBlock;
-            protected set
-            {
-                ThrowHelper.DebugAssert(value == null || (value.Height == Height && value.Hi >= 0 && value.RowCount > 0));
-                _nextBlock = value;
-            }
-        }
-    }
-
     /// <summary>
     /// Physycal storage for Series, Matrix and DataFrame blocks.
     /// </summary>
     /// <remarks>
-    /// This is thread-unsafe storage. Callers should use some locking mechanism.
+    /// This is thread-unsafe storage. Callers should use some synchronization mechanism.
     /// </remarks>
-    internal sealed unsafe partial class DataBlock : DataBlockVectors, IRefCounted, IDisposable
+    internal sealed unsafe partial class DataBlock : IRefCounted
     {
         /// <summary>
         /// We need this as a sentinel with RowLength == 0 in cursor
@@ -176,23 +33,6 @@ namespace Spreads.Collections.Internal
 
         private DataBlock()
         {
-            // pool returns disposed data blocks
-            AtomicCounter.Dispose(ref RefCount);
-        }
-
-        public int ColumnCapacity
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => ColumnKeys.Length;
-        }
-
-        /// <summary>
-        /// There is no free space beyond <see cref="Hi"/>.
-        /// </summary>
-        public bool IsFull
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => Hi == RowKeys.Length - 1;
         }
 
         /// <summary>
@@ -223,118 +63,38 @@ namespace Spreads.Collections.Internal
         {
             destination.Lo = Lo;
             destination.Hi = Hi;
+            destination.RowCapacity = RowCapacity;
             destination.ColumnCount = ColumnCount;
-            destination.RefCount = RefCount;
             destination.Height = Height;
-            // destination.Flags = Flags;
+            destination._refCount = _refCount;
             destination.PreviousBlock = PreviousBlock;
             destination.NextBlock = NextBlock;
             destination.Columns = Columns;
             destination.ColumnKeys = ColumnKeys;
-            destination.RowKeys = RowKeys;
             destination.Values = Values;
-            destination.RowCapacity = RowCapacity;
-            
+            destination.RowKeys = RowKeys;
 
             Lo = default;
             Hi = -1;
+            RowCapacity = default;
             ColumnCount = default;
-            RefCount = default;
             Height = default;
-            // Flags = default;
+            _refCount = default;
             PreviousBlock = default;
             NextBlock = default;
             Columns = default;
             ColumnKeys = default;
-            RowKeys = default;
             Values = default;
-            RowCapacity = default;
-        }
-
-        #region Lifecycle
-
-        // TODO delete this method
-        [Obsolete("Use container-specific factories, e.g. CreateForSeries")]
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static DataBlock Create(RetainedVec rowIndex = default, RetainedVec values = default,
-            RetainedVec[]? columns = null, int rowLength = -1)
-        {
-            var block = ObjectPool.Rent();
-            block.EnsureDisposed();
-
-            var rowCapacity = -1;
-
-            if (rowIndex != default)
-            {
-                block.RowKeys = rowIndex;
-                rowCapacity = rowIndex.Length;
-            }
-
-            if (values != default)
-            {
-                block.Values = values;
-                if (rowCapacity >= 0 && values.Length < rowCapacity)
-                {
-                    ThrowHelper.ThrowArgumentException("");
-                }
-                else
-                {
-                    rowCapacity = values.Length;
-                }
-
-                rowCapacity = Math.Min(rowCapacity, values.Length);
-            }
-
-            if (columns != null)
-            {
-                if (columns.Length == 0)
-                {
-                    ThrowHelper.ThrowArgumentException("Empty columns array. Pass null instead.");
-                }
-
-                block.Columns = columns;
-                foreach (var column in columns)
-                {
-                    rowCapacity = Math.Min(rowCapacity, column.Length);
-                }
-            }
-
-            if (rowLength == -1)
-            {
-                block.Hi = rowCapacity - 1;
-            }
-            else
-            {
-                if ((uint) rowLength > rowCapacity)
-                {
-                    ThrowHelper.ThrowArgumentOutOfRangeException("rowLength");
-                }
-                else
-                {
-                    block.Hi = rowLength - 1;
-                }
-            }
-
-            block.Lo = 0;
-            block.RefCount = 0;
-
-            ThrowHelper.DebugAssert(!block.IsDisposed, "!block.IsDisposed");
-
-            return block;
-        }
-
-        public bool IsDisposed
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => AtomicCounter.GetIsDisposed(ref RefCount);
+            RowKeys = default;
         }
 
         [Conditional("DEBUG")]
         private void EnsureDisposed()
         {
-            ThrowHelper.DebugAssert(AtomicCounter.GetIsDisposed(ref RefCount));
+            ThrowHelper.DebugAssert(AtomicCounter.GetIsDisposed(ref _refCount));
             ThrowHelper.DebugAssert(Lo == default);
             ThrowHelper.DebugAssert(Hi == -1);
+            ThrowHelper.DebugAssert(RowCapacity == default);
             ThrowHelper.DebugAssert(RowCount == default);
             ThrowHelper.DebugAssert(ColumnCount == default);
             ThrowHelper.DebugAssert(RowKeys == default);
@@ -351,23 +111,22 @@ namespace Spreads.Collections.Internal
                 // ThrowHelper.ThrowInvalidOperationException("Cannot dispose DataBlock.Empty sentinel");
                 return; // TODO review if we use it on a hot path to avoid checks. If not, need to throw. If yes, comment this here.
 
-            var zeroIfDisposedNow = AtomicCounter.TryDispose(ref RefCount);
+            var zeroIfDisposedNow = AtomicCounter.TryDispose(ref _refCount);
 
             if (zeroIfDisposedNow > 0)
                 BuffersThrowHelper.ThrowDisposingRetained<DataBlock>();
 
             if (zeroIfDisposedNow == -1)
-                ThrowDisposed();
+                ThrowHelper.ThrowObjectDisposedException(nameof(DataBlock));
 
             if (Height > 0)
                 DisposeNode();
 
-            RowCapacity = default;
-            Lo = default;
             Hi = -1;
+            Lo = default;
+            RowCapacity = default;
             ColumnCount = default;
             Height = default;
-            // Flags = default;
 
             if (NextBlock != null)
             {
@@ -407,13 +166,14 @@ namespace Spreads.Collections.Internal
                 {
                     Columns[i].Dispose();
                 }
+
                 Columns = default;
             }
 
             var pooled = ObjectPool.Return(this);
-            
+
             // See comments in PrivateMemory.Free
-            if(pooled && !disposing)
+            if (pooled && !disposing)
                 GC.ReRegisterForFinalize(this);
             if (!pooled && disposing)
                 GC.SuppressFinalize(this);
@@ -430,12 +190,6 @@ namespace Spreads.Collections.Internal
             }
         }
 
-        [MethodImpl(MethodImplOptions.NoInlining)]
-        private static void ThrowDisposed()
-        {
-            ThrowHelper.ThrowObjectDisposedException(nameof(DataBlock));
-        }
-
         public void Dispose() => Dispose(true);
 
         ~DataBlock()
@@ -445,8 +199,6 @@ namespace Spreads.Collections.Internal
 #endif
             Dispose(false);
         }
-
-        #endregion Lifecycle
 
         // TODO remove/rework these checks
 
@@ -621,27 +373,74 @@ namespace Spreads.Collections.Internal
 
         #endregion Structure check
 
-        public int ReferenceCount => AtomicCounter.GetCount(ref RefCount);
-
-        public int Increment()
+        // TODO delete this method
+        [Obsolete("Use container-specific factories, e.g. CreateForSeries")]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static DataBlock Create(RetainedVec rowIndex = default, RetainedVec values = default,
+            RetainedVec[]? columns = null, int rowLength = -1)
         {
-            return AtomicCounter.Increment(ref RefCount);
-        }
+            var block = ObjectPool.Rent()!;
+            block.EnsureDisposed();
 
-        public int Decrement()
-        {
-            var newRefCount = AtomicCounter.Decrement(ref RefCount);
-            if (newRefCount == 0)
-                Dispose(true);
+            var rowCapacity = -1;
 
-            return newRefCount;
-        }
-    }
+            if (rowIndex != default)
+            {
+                block.RowKeys = rowIndex;
+                rowCapacity = rowIndex.Length;
+            }
 
-    internal class DataBlockLayoutException : SpreadsException
-    {
-        public DataBlockLayoutException(string message) : base(message)
-        {
+            if (values != default)
+            {
+                block.Values = values;
+                if (rowCapacity >= 0 && values.Length < rowCapacity)
+                {
+                    ThrowHelper.ThrowArgumentException("");
+                }
+                else
+                {
+                    rowCapacity = values.Length;
+                }
+
+                rowCapacity = Math.Min(rowCapacity, values.Length);
+            }
+
+            if (columns != null)
+            {
+                if (columns.Length == 0)
+                {
+                    ThrowHelper.ThrowArgumentException("Empty columns array. Pass null instead.");
+                }
+
+                block.Columns = columns;
+                foreach (var column in columns)
+                {
+                    rowCapacity = Math.Min(rowCapacity, column.Length);
+                }
+            }
+
+            if (rowLength == -1)
+            {
+                block.Hi = rowCapacity - 1;
+            }
+            else
+            {
+                if ((uint) rowLength > rowCapacity)
+                {
+                    ThrowHelper.ThrowArgumentOutOfRangeException("rowLength");
+                }
+                else
+                {
+                    block.Hi = rowLength - 1;
+                }
+            }
+
+            block.Lo = 0;
+            block._refCount = 0;
+
+            ThrowHelper.DebugAssert(!block.IsDisposed, "!block.IsDisposed");
+
+            return block;
         }
     }
 }
