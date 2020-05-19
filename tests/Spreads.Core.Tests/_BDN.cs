@@ -77,4 +77,4 @@ namespace Spreads.Core.Tests
             BenchmarkSwitcher.FromTypes(new[] {GetType()}).Run(args, IsInTests ? GetTestConfig() : GetStandaloneConfig());
         }
     }
-}
+} 

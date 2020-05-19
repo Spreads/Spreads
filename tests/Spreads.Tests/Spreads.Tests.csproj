@@ -29,16 +29,23 @@
     </ItemGroup>
 
     <ItemGroup>
-      <Compile Remove="Cursors\**" />
+      <Compile Remove="Cursors\Internal\SpanOpTests.cs" />
+      <Compile Remove="Cursors\Online\**" />
+      <Compile Remove="Cursors\ArithmeticTests.cs" />
+      <Compile Remove="Cursors\FillCursorTest.cs" />
+      <Compile Remove="Cursors\MapCursorTest.cs" />
+      <Compile Remove="Cursors\RangeCursorTests.cs" />
+      <Compile Remove="Cursors\RepeatCursorTests.cs" />
+      <Compile Remove="Cursors\WindowCursorTests.cs" />
+      <Compile Remove="Cursors\ZipCursorTests.cs" />
     </ItemGroup>
 
     <ItemGroup>
-      <EmbeddedResource Remove="Cursors\**" />
+      <EmbeddedResource Remove="Cursors\Online\**" />
     </ItemGroup>
 
     <ItemGroup>
-      <None Remove="Cursors\**" />
+      <None Remove="Cursors\Online\**" />
     </ItemGroup>
-
 
 </Project>

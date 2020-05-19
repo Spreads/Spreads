@@ -54,7 +54,7 @@ namespace Spreads.Collections.Internal
                 int i;
                 while (true)
                 {
-                    i = (int) ((index >> NodeShift * block.Height) & NodeMask);
+                    i = (int) ((index >> (NodeShift * block.Height)) & NodeMask);
                     if (block.Height > 0)
                     {
                         var newBlock = block.Values.UnsafeReadUnaligned<DataBlock>(i);

@@ -44,7 +44,7 @@ namespace Spreads.Core.Tests.Buffers
             var prevReturnLoop = BuffersStatistics.ReturnLoop.Value;
 
             var count = TestUtils.GetBenchCount(10_000_000, 1_00);
-            var threadCount = Environment.ProcessorCount;
+            var threadCount = 1; //Environment.ProcessorCount;
             using (Benchmark.Run(testCase, count * 2 * threadCount))
             {
                 Task.WaitAll(Enumerable.Range(0, threadCount).Select(_ => Task.Factory.StartNew(() =>

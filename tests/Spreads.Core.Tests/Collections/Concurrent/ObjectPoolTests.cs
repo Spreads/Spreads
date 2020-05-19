@@ -47,17 +47,17 @@ namespace Spreads.Core.Tests.Collections.Concurrent
             var perCoreMPMCPool = new MPMCPool<DummyPoolable>(dummyFactory, perCoreCapacity);
             var perCoreObjectPool = new ObjectPool<DummyPoolable>(dummyFactory, perCoreCapacity);
             var perCoreLockedObjectPool = new LockedObjectPool<DummyPoolable>(dummyFactory, perCoreCapacity);
-            var threads = new int[] {4}; //{1, 2, 4, 6, 8, 12, 24};
+            var threads = new int[] {1}; //{1, 2, 4, 6, 8, 12, 24};
             foreach (var t in threads)
             {
                 for (int round = 0; round < 20; round++)
                 {
-                    MPMCBenchmark();
+                    // MPMCBenchmark();
                     // PoolBenchmark(mpmcPool, "MPMC", t);
                     // PoolBenchmark(objectPool, "OP", t);
                     // PoolBenchmark(lockedObjectPool, "LOP", t);
                     // PoolBenchmark(perCoreMPMCPool, "pcMPMC", t);
-                    // PoolBenchmark(perCoreObjectPool, "pcOP", t);
+                    PoolBenchmark(perCoreObjectPool, "pcOP", t);
                     // PoolBenchmark(perCoreLockedObjectPool, "pcLOP", t);
                 }
             }
@@ -70,16 +70,16 @@ namespace Spreads.Core.Tests.Collections.Concurrent
         {
             var count = 1_000_000;
             testCase = testCase + "_" + threads;
-            using (Benchmark.Run(testCase, count * 2 * threads))
+            using (Benchmark.Run(testCase, count  * threads))
             {
                 Task.WaitAll(Enumerable.Range(0, threads).Select(i => Task.Factory.StartNew(() =>
                 {
                     for (int i = 0; i < count; i++)
                     {
                         var x1 = pool.Rent();
-                        var x2 = pool.Rent();
+                        // var x2 = pool.Rent();
                         pool.Return(x1);
-                        pool.Return(x2);
+                        // pool.Return(x2);
                     }
                 }, TaskCreationOptions.LongRunning)).ToArray());
             }

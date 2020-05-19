@@ -324,7 +324,7 @@ namespace Spreads.Collections.Internal
                 if (rowCount < CurrentBlock.RowCapacity & stride > 0)
                     return 0;
 
-                moveCount = MoveRare(stride, allowPartial, out newBlock, out newBlockIndex);
+                moveCount =   MoveRare(stride, allowPartial, out newBlock, out newBlockIndex);
 
                 if (AdditionalCorrectnessChecks.Enabled && moveCount != 0 && newBlockIndex >= (ulong) (newBlock ?? CurrentBlock).RowCount)
                     ThrowBadNewBlockIndex(newBlockIndex, moveCount);

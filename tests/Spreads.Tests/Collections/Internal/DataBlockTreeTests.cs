@@ -180,7 +180,7 @@ namespace Spreads.Tests.Collections.Internal
                 var db = DataBlock.CreateSeries<int, int>();
                 var lastBlock = db;
 
-                Bench_Append(count, db, lastBlock);
+                Bench_Append(count, db, ref lastBlock);
 
                 Bench_SearchKey(count, db);
 
@@ -195,7 +195,7 @@ namespace Spreads.Tests.Collections.Internal
         }
 
         [MethodImpl(MethodImplOptions.NoInlining | MethodImplOptions.AggressiveOptimization)]
-        private static void Bench_Append(long count, DataBlock db, DataBlock lastBlock)
+        private static void Bench_Append(long count, DataBlock db, ref DataBlock lastBlock)
         {
             using (Benchmark.Run("Append", count))
             {
@@ -289,7 +289,7 @@ namespace Spreads.Tests.Collections.Internal
                 var db = DataBlock.CreateSeries<int, int>();
                 var lastBlock = db;
 
-                Bench_Append(count, db, lastBlock);
+                Bench_Append(count, db, ref lastBlock);
 
                 Bench_SearchKey(count, db);
 
