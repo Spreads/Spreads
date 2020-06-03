@@ -22,7 +22,7 @@ namespace Spreads
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static implicit operator Index(long index)
         {
-            return new Index(index);
+            return new System.Index(checked((int)index));
         }
     }
 }

@@ -20,10 +20,10 @@ namespace Spreads.Collections
     {
         // TODO review, for series over borrowed blocks
         public static readonly DataContainer NullSentinel = new DataContainer();
-        
+
         internal DataBlock? Data;
         internal DataBlock? LastBlock;
-        
+
         internal Flags Flags;
 
         private int _locker;
@@ -49,7 +49,7 @@ namespace Spreads.Collections
             {
                 if (Data.Height == 0)
                 {
-                    return (ulong)Data.RowCount;
+                    return (ulong) Data.RowCount;
                 }
 
                 return RowCountImpl();
@@ -70,7 +70,7 @@ namespace Spreads.Collections
         private void Dispose(bool disposing)
         {
             var data = Interlocked.Exchange(ref Data, null);
-            if(data == null)
+            if (data == null)
                 ThrowHelper.ThrowObjectDisposedException("DataContainer");
             data.Decrement();
         }

@@ -265,40 +265,18 @@ namespace Spreads
         ///// </summary>
         ///// <param name="batch"></param>
         ///// <returns></returns>
-        bool TryMoveNextBatch(out ISeries<TKey, TValue>? batch);
-    }
+        bool TryMoveNextBatch(out ISeries<TKey, TValue>? batch); // TODO (review) this thing should return something untyped or ROS-based
 
-    /// <summary>
-    /// A specialized <see cref="ICursor{TKey,TValue}" /> with a known implementation type.
-    /// </summary>
-    public interface ICursor<TKey, TValue, TCursor> : ICursor<TKey, TValue>
-        where TCursor : ICursor<TKey, TValue, TCursor>
-    {
         /// <summary>
-        /// Returns an initialized (ready to move) instance of <typeparamref name="TCursor"/>.
-        /// It could be the same instance for <see cref="Series{TKey,TValue,TCursor}"/>.
-        /// It is the equivalent to calling the method <see cref="ISeries{TKey,TValue}.GetCursor"/> on <see cref="ICursor{TKey,TValue}.Source"/> for the non-specialized ICursor.
+        /// Returns an initialized (ready to move) instance of <see cref="ICursor{TKey,TValue}"/>.
+        /// It is the equivalent to calling the method <see cref="ISeries{TKey,TValue}.GetCursor"/> on <see cref="ICursor{TKey,TValue}.Source"/>.
         /// </summary>
         /// <remarks>
-        /// This method must work on disposed instances of <see cref="ICursor{TKey,TValue,TCursor}"/>, i.e. it acts as a factory.
+        /// This method must work on disposed instances of <see cref="ICursor{TKey,TValue}"/>, i.e. it acts as a factory.
         /// </remarks>
-        TCursor Initialize();
-
-        /// <summary>
-        /// Copy this cursor and move the copy to the same <see cref="ICursor{TKey,Tvalue}.CurrentKey"/> as this cursor.
-        /// </summary>
-        new TCursor Clone();
+        ICursor<TKey, TValue> Initialize();
 
         IAsyncCompleter AsyncCompleter { get; }
-
-        new Series<TKey, TValue, TCursor> Source { get; }
-
-        bool TryMoveNextBatch(out Series<TKey, TValue, TCursor> batch);
-    }
-
-    public interface ICursorX<TKey, TValue, TCursor> : ICursor<TKey, TValue, TCursor> where TCursor : ICursor<TKey, TValue, TCursor>
-    {
-        TCursor2 Combine<TValue2, TCursor2>(Func<TCursor, TCursor2> factory) where TCursor2 : ICursor<TKey, TValue2, TCursor2>;
     }
 
     /// <summary>
@@ -367,19 +345,6 @@ namespace Spreads
         /// positions and relative LT/LE/GT/GE (<see cref="Lookup"/>) moves.
         /// </summary>
         ICursor<TKey, TValue> GetCursor();
-    }
-
-    /// <summary>
-    /// A series with a known strongly typed cursor type.
-    /// </summary>
-    public interface ISeries<TKey, TValue, out TCursor> : ISeries<TKey, TValue>
-        where TCursor : ICursor<TKey, TValue, TCursor>
-    {
-        /// <summary>
-        /// Get a strongly typed cursor that implements the <see cref="ICursor{TKey,TValue,TCursor}"/> interface.
-        /// </summary>
-        /// <returns></returns>
-        new TCursor GetCursor();
     }
 
     /// <summary>
@@ -499,5 +464,21 @@ namespace Spreads
         /// </summary>
         /// <exception cref="InvalidOperationException"><see cref="Mutability"/> of this series is already <see cref="Mutability.ReadOnly"/></exception>
         IAppendSeries<TKey, TValue> ToAppendOnly();
+    }
+
+    public interface IPanel<TRowKey, TColumnKey, TValue> : ISeries<TRowKey, ISeries<TColumnKey, TValue>>
+    {
+    }
+
+    public interface IPanel<TRowKey, TValue> : IPanel<TRowKey, Index, TValue>
+    {
+    }
+
+    public interface IVector<TValue> : ISeries<Index, TValue>
+    {
+    }
+
+    public interface IMatrix<TValue> : IPanel<Index, Index, TValue>
+    {
     }
 }

@@ -12,6 +12,8 @@ namespace Spreads.Cursors.Internal
     {
         public abstract int ProcessBatch(in DataBlock input, ref DataBlock output);
     }
+
+    
     
     /// <summary>
     /// Implements all cursor logic. Non-generic class with generic methods.
@@ -33,12 +35,26 @@ namespace Spreads.Cursors.Internal
             return c;
         }
 
+        
+        // TODO these two fields are experimental, idea is to store thread-local cursors if thread id doesn't match.
+        
+        /// <summary>
+        /// Composite <see cref="Series{TKey,TValue}"/> structs are backed by CursorImpl instance.
+        /// The structs are readonly so we could use this slot for mutable data.
+        /// </summary>
+        public object SeriesStorage;
+
+        /// <summary>
+        /// Id of the thread that initializes this instance. 
+        /// </summary>
+        public int InitThreadId;
+        
         // private CursorState _cursorState;
 
         /// <summary>
-        /// Lifecycle version, incremented every time this object is returned to the pool.
+        /// Incremented every time this object is returned to the pool.
         /// </summary>
-        internal int Version; 
+        internal int LifetimeVersion; 
         
         private DataBlock? _root;
 
@@ -246,7 +262,7 @@ namespace Spreads.Cursors.Internal
             // TODO
             unchecked
             {
-                Version++;    
+                LifetimeVersion++;    
             }
             ObjectPool.Return(this);
         }

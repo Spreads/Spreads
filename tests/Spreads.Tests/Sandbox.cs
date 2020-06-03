@@ -1,7 +1,6 @@
 ﻿using System;
 using NUnit.Framework;
 using Spreads.Utils;
-using SpreadsX.Experimental;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -10,13 +9,7 @@ namespace Spreads.Tests
     [TestFixture]
     public class Sandbox
     {
-        [Test]
-        public void GenericTypeof()
-        {
-            var s = new Series<int, Series<int, double>>();
-            Console.WriteLine(s.Test());
-        }
-
+        
         [Test]
         public void DynamicHack()
         {

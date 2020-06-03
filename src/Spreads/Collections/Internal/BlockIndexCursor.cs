@@ -38,7 +38,7 @@ namespace Spreads.Collections.Internal
     }
 
     [StructLayout(LayoutKind.Sequential, Pack = 4)]
-    internal struct BlockIndexCursor<TKey, TValue, TKVFactory> : ICursor<TKey, TValue, BlockIndexCursor<TKey, TValue, TKVFactory>>
+    internal struct BlockIndexCursor<TKey, TValue, TKVFactory> : ICursor<TKey, TValue>
         where TKVFactory : struct, IBlockIndexCursorKeyValueFactory<TKey, TValue>
     {
         //internal SpreadsX.Experimental.Series<TKey, TValue> _series;
@@ -96,7 +96,7 @@ namespace Spreads.Collections.Internal
         internal TValue _currentValue;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public BlockIndexCursor(SpreadsX.Experimental.Series<TKey, TValue> series, int columnIndex = 0)
+        public BlockIndexCursor(Series<TKey, TValue> series, int columnIndex = 0)
         {
             // _container = container;
             _columnIndex = columnIndex;
@@ -796,7 +796,7 @@ namespace Spreads.Collections.Internal
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public BlockIndexCursor<TKey, TValue, TKVFactory> Initialize()
+        public ICursor<TKey, TValue> Initialize()
         {
             var c = this;
             c.Reset();
@@ -835,7 +835,7 @@ namespace Spreads.Collections.Internal
             return false;
         }
 
-        public bool TryMoveNextBatch(out Series<TKey, TValue, BlockIndexCursor<TKey, TValue, TKVFactory>> batch)
+        public bool TryMoveNextBatch(out Series<TKey, TValue> batch)
         {
             throw new NotImplementedException();
         }
