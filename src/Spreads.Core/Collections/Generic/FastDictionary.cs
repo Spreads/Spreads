@@ -2,15 +2,10 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-// Original code is based on CoreCLR Dictoinary<TKey, TValue>, MIT licensed:
-
-// Licensed to the .NET Foundation under one or more agreements.
-// The .NET Foundation licenses this file to you under the MIT license.
-// See the LICENSE file in the project root for more information.
+// Original code is based on CoreCLR Dictoinary<TKey, TValue>, MIT licensed.
 
 namespace Spreads.Collections.Generic
 {
-    using Spreads.Collections;
     using Spreads.Serialization;
     using System;
     using System.Collections;
@@ -321,7 +316,7 @@ namespace Spreads.Collections.Generic
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private int FindEntry(TKey key)
         {
-            if (key == null)
+            if (key is null)
             {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.key);
             }

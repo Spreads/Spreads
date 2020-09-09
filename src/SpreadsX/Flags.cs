@@ -6,12 +6,15 @@ using System;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
+// TODO ContainerLayout is obsolete for rework
+#pragma warning disable 618
+
 namespace Spreads
 {
     [StructLayout(LayoutKind.Sequential, Pack = 1, Size = 1)]
     public struct Flags
     {
-        //  [context dependent][reserved][Mutability][KeySorting]
+        // [ContainerLayout 4 bits][Mutability 2 bits][KeySorting 2 bits]
 
         private byte _value;
 
@@ -22,73 +25,72 @@ namespace Spreads
 
         public Flags(KeySorting keySorting, Mutability mutability)
         {
-            _value = (byte)((byte)keySorting | (byte)mutability);
+            _value = (byte) ((byte) keySorting | (byte) mutability);
         }
 
         internal Flags(ContainerLayout layout, KeySorting keySorting, Mutability mutability)
         {
-            _value = (byte)((byte)layout | (byte)keySorting | (byte)mutability);
+            _value = (byte) ((byte) layout | (byte) keySorting | (byte) mutability);
         }
 
         public Mutability Mutability
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => (Mutability)(_value & (int)Mutability.Mutable);
+            get => (Mutability) (_value & (int) Mutability.Mutable);
         }
 
         public KeySorting KeySorting
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => (KeySorting)(_value & (int)KeySorting.Strong);
+            get => (KeySorting) (_value & (int) KeySorting.Strong);
         }
 
         internal ContainerLayout ContainerLayout
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => (ContainerLayout)(_value & (int)ContainerLayout.PanelFrameT);
+            get => (ContainerLayout) (_value & (int) ContainerLayout.PanelFrameT);
         }
 
         public bool IsAppendOnly
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => (_value & (int)Mutability.Mutable) == (int)Mutability.AppendOnly;
+            get => (_value & (int) Mutability.Mutable) == (int) Mutability.AppendOnly;
         }
 
-        // [Obsolete("This only checks is we could append, not ONLY append")]
-        public bool CouldAppend
+        public bool IsAppendable
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => (_value & (int)Mutability.AppendOnly) != 0;
+            get => (_value & (int) Mutability.AppendOnly) != 0;
         }
 
         public bool IsMutable
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => (_value & (int)Mutability.Mutable) != 0;
+            get => (_value & (int) Mutability.Mutable) != 0;
         }
 
         public bool IsImmutable
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => (_value & (int)Mutability.Mutable) == 0;
+            get => (_value & (int) Mutability.Mutable) == 0;
         }
 
         public bool IsStronglySorted
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => (_value & (int)KeySorting.Strong) != 0;
+            get => (_value & (int) KeySorting.Strong) != 0;
         }
 
         public bool IsWeaklySorted
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => (_value & (int)KeySorting.Weak) != 0;
+            get => (_value & (int) KeySorting.Weak) != 0;
         }
 
         public bool IsNotSorted
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => (_value & (int)KeySorting.Weak) == 0;
+            get => (_value & (int) KeySorting.Weak) == 0;
         }
 
         public void MarkAppendOnly()
@@ -97,6 +99,7 @@ namespace Spreads
             {
                 ThrowHelper.ThrowInvalidOperationException("Already immutable");
             }
+
             _value &= 0b_1111_1101; // clear mutability bit
         }
 
@@ -104,24 +107,6 @@ namespace Spreads
         {
             _value &= 0b_1111_1100; // clear mutability & append-only bits
         }
-
-        //internal bool Is8thBitSet
-        //{
-        //    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        //    get => (_value & (int)0b_1000_0000) != 0;
-        //}
-
-        //[MethodImpl(MethodImplOptions.AggressiveInlining)]
-        //internal void Set8ThBit()
-        //{
-        //    _value |= 0b_1000_0000;
-        //}
-
-        //[MethodImpl(MethodImplOptions.AggressiveInlining)]
-        //internal void Clear8ThBit()
-        //{
-        //    _value &= 0b_01111_1111;
-        //}
     }
 
     /// <summary>
@@ -130,6 +115,8 @@ namespace Spreads
     [Flags]
     public enum Mutability : byte
     {
+        // Bits 0b_0000_00XX
+
         /// <summary>
         /// Data cannot be modified.
         /// </summary>
@@ -153,6 +140,8 @@ namespace Spreads
     [Flags]
     public enum KeySorting : byte
     {
+        // Bits 0b_0000_XX00
+
         /// <summary>
         /// Key sorting is not enforced but it may still be tracked and keys could be strongly or weakly sorted by accident.
         /// </summary>
@@ -172,13 +161,12 @@ namespace Spreads
         Strong = 0b_0000_1100
     }
 
-    // TODO this is inferrable from DataBlock, need to rework: Frame now means Panel,
-    // but from layout POV vector, matrix and series are panels. Bits could be used 
-    // to specify that RowKeys/ColumnKeys are typed.
-    // A frame has non-zero columns in DataBlock
+    [Obsolete("TODO Review, sync with DataBlock")]
     [Flags]
     internal enum ContainerLayout : byte
     {
+        // Bits 0b_XXXX_0000
+
         /// <summary>
         /// Instance having this flag is none of the containers but a data stream or projection.
         /// It does not own DataBlock/DataBlockSource and does not inherit from BaseContainer.

@@ -12,9 +12,7 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{BF60BC93-E09B-4E5F-9D85-95A519479D54}"
 	ProjectSection(SolutionItems) = preProject
 		azure-pipelines.yml = azure-pipelines.yml
-		build.cmd = build.cmd
 		build\common.props = build\common.props
-		global.json = global.json
 		LICENSE.Dependencies.txt = LICENSE.Dependencies.txt
 		LICENSE.txt = LICENSE.txt
 		NuGet.config = NuGet.config
@@ -24,7 +22,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{ED8079DD-2B06-4030-9F0F-DC548F98E1C4}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Spreads", "src\Spreads\Spreads.csproj", "{70445300-4409-447E-B1AC-10FA148B9DD0}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Spreads.Old1", "src\Spreads.Old1\Spreads.Old1.csproj", "{70445300-4409-447E-B1AC-10FA148B9DD0}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Spreads.Core", "src\Spreads.Core\Spreads.Core.csproj", "{68A4EE77-DDF3-4E83-89C4-4473322D8006}"
 EndProject
@@ -50,6 +48,10 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Spreads_old", "src\Spreads_old\Spreads_old.csproj", "{FEE0E3F7-2360-4954-A30E-03196DC4E505}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Core", "Core", "{7D96B942-4DFA-4B94-9A23-789A660E2DC6}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SpreadsX", "src\SpreadsX\SpreadsX.csproj", "{DDBFD620-83D9-4ECD-B995-9F2EABC166DD}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Blake2Fast", "..\..\..\..\..\_OSS\dotnet\Blake2Fast\src\Blake2Fast\Blake2Fast.csproj", "{083B5209-74DE-43CF-B3CC-7A7D817474AD}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -145,6 +147,30 @@ Global
 		{FEE0E3F7-2360-4954-A30E-03196DC4E505}.Release|x64.Build.0 = Release|Any CPU
 		{FEE0E3F7-2360-4954-A30E-03196DC4E505}.Release|x86.ActiveCfg = Release|Any CPU
 		{FEE0E3F7-2360-4954-A30E-03196DC4E505}.Release|x86.Build.0 = Release|Any CPU
+		{DDBFD620-83D9-4ECD-B995-9F2EABC166DD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DDBFD620-83D9-4ECD-B995-9F2EABC166DD}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DDBFD620-83D9-4ECD-B995-9F2EABC166DD}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{DDBFD620-83D9-4ECD-B995-9F2EABC166DD}.Debug|x64.Build.0 = Debug|Any CPU
+		{DDBFD620-83D9-4ECD-B995-9F2EABC166DD}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{DDBFD620-83D9-4ECD-B995-9F2EABC166DD}.Debug|x86.Build.0 = Debug|Any CPU
+		{DDBFD620-83D9-4ECD-B995-9F2EABC166DD}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DDBFD620-83D9-4ECD-B995-9F2EABC166DD}.Release|Any CPU.Build.0 = Release|Any CPU
+		{DDBFD620-83D9-4ECD-B995-9F2EABC166DD}.Release|x64.ActiveCfg = Release|Any CPU
+		{DDBFD620-83D9-4ECD-B995-9F2EABC166DD}.Release|x64.Build.0 = Release|Any CPU
+		{DDBFD620-83D9-4ECD-B995-9F2EABC166DD}.Release|x86.ActiveCfg = Release|Any CPU
+		{DDBFD620-83D9-4ECD-B995-9F2EABC166DD}.Release|x86.Build.0 = Release|Any CPU
+		{083B5209-74DE-43CF-B3CC-7A7D817474AD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{083B5209-74DE-43CF-B3CC-7A7D817474AD}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{083B5209-74DE-43CF-B3CC-7A7D817474AD}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{083B5209-74DE-43CF-B3CC-7A7D817474AD}.Debug|x64.Build.0 = Debug|Any CPU
+		{083B5209-74DE-43CF-B3CC-7A7D817474AD}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{083B5209-74DE-43CF-B3CC-7A7D817474AD}.Debug|x86.Build.0 = Debug|Any CPU
+		{083B5209-74DE-43CF-B3CC-7A7D817474AD}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{083B5209-74DE-43CF-B3CC-7A7D817474AD}.Release|Any CPU.Build.0 = Release|Any CPU
+		{083B5209-74DE-43CF-B3CC-7A7D817474AD}.Release|x64.ActiveCfg = Release|Any CPU
+		{083B5209-74DE-43CF-B3CC-7A7D817474AD}.Release|x64.Build.0 = Release|Any CPU
+		{083B5209-74DE-43CF-B3CC-7A7D817474AD}.Release|x86.ActiveCfg = Release|Any CPU
+		{083B5209-74DE-43CF-B3CC-7A7D817474AD}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -158,6 +184,7 @@ Global
 		{66DED4DB-897F-4A4F-BDC4-397D3D37C87D} = {ED8079DD-2B06-4030-9F0F-DC548F98E1C4}
 		{CBD0AE67-F6E5-4659-8FB0-3BA57706088C} = {ED8079DD-2B06-4030-9F0F-DC548F98E1C4}
 		{68A4EE77-DDF3-4E83-89C4-4473322D8006} = {7D96B942-4DFA-4B94-9A23-789A660E2DC6}
+		{083B5209-74DE-43CF-B3CC-7A7D817474AD} = {ED8079DD-2B06-4030-9F0F-DC548F98E1C4}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {70B77C15-F13A-4AFD-891C-D7857FE8FD18}

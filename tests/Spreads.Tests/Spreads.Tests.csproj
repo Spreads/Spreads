@@ -24,7 +24,7 @@
 
     <ItemGroup>
       <ProjectReference Include="..\..\src\Spreads.Core\Spreads.Core.csproj" />
-      <ProjectReference Include="..\..\src\Spreads\Spreads.csproj" />
+      <ProjectReference Include="..\..\src\Spreads.Old1\Spreads.Old1.csproj" />
       <ProjectReference Include="..\Spreads.Core.Tests\Spreads.Core.Tests.csproj" />
     </ItemGroup>
 

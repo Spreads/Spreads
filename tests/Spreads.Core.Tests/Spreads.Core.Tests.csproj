@@ -17,6 +17,18 @@
 
     <ItemGroup>
         <Compile Remove="VariantTests.cs" />
+        <Compile Update="Algorithms\Hash\BLAKE2b\Blake2bAvx2.cs">
+          <DependentUpon>Blake2bAvx2.tt</DependentUpon>
+        </Compile>
+        <Compile Update="Algorithms\Hash\BLAKE2b\Blake2bContext.cs">
+          <DependentUpon>Blake2bContext.tt</DependentUpon>
+        </Compile>
+        <Compile Update="Algorithms\Hash\BLAKE2b\Blake2bScalar.cs">
+          <DependentUpon>Blake2bScalar.tt</DependentUpon>
+        </Compile>
+        <Compile Update="Algorithms\Hash\BLAKE2b\Blake2bSse4.cs">
+          <DependentUpon>Blake2bSse4.tt</DependentUpon>
+        </Compile>
     </ItemGroup>
 
 
@@ -42,7 +54,27 @@
     </ItemGroup>
 
     <ItemGroup>
+      <ProjectReference Include="..\..\..\..\..\..\..\_OSS\dotnet\Blake2Fast\src\Blake2Fast\Blake2Fast.csproj" />
       <ProjectReference Include="..\..\src\Spreads.Core\Spreads.Core.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <None Update="Algorithms\Hash\BLAKE2b\Blake2bAvx2.tt">
+        <Generator>TextTemplatingFileGenerator</Generator>
+        <LastGenOutput>Blake2bAvx2.cs</LastGenOutput>
+      </None>
+      <None Update="Algorithms\Hash\BLAKE2b\Blake2bContext.tt">
+        <Generator>TextTemplatingFileGenerator</Generator>
+        <LastGenOutput>Blake2bContext.cs</LastGenOutput>
+      </None>
+      <None Update="Algorithms\Hash\BLAKE2b\Blake2bScalar.tt">
+        <Generator>TextTemplatingFileGenerator</Generator>
+        <LastGenOutput>Blake2bScalar.cs</LastGenOutput>
+      </None>
+      <None Update="Algorithms\Hash\BLAKE2b\Blake2bSse4.tt">
+        <Generator>TextTemplatingFileGenerator</Generator>
+        <LastGenOutput>Blake2bSse4.cs</LastGenOutput>
+      </None>
     </ItemGroup>
 
 

@@ -24,5 +24,11 @@ namespace Spreads
         {
             return new System.Index(checked((int)index));
         }
+        
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static implicit operator long (Index index)
+        {
+            return index.Idx;
+        }
     }
 }

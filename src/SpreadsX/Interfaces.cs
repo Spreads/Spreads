@@ -9,11 +9,6 @@ using System.Threading;
 
 namespace Spreads
 {
-    // Interfaces in a single file because current order is logical from the most primitive to complex interfaces
-    // DEFAULT_INTERFACE_IMPL blocks are mostly for self-documentation, we still target netstandard2.0
-
-    #region Async interfaces
-
     // This interfaces match pattern-based compilation of IEnumerable and async streams (introduced in C# 8.0)
     // The compiler will bind to the pattern-based APIs if they exist, preferring those over using the interface
     // (the pattern may be satisfied with instance methods or extension methods). The requirements for the pattern for async streams are:
@@ -57,10 +52,9 @@ namespace Spreads
     /// </summary>
     public interface IAsyncEnumerable<out T> : IEnumerable<T>, System.Collections.Generic.IAsyncEnumerable<T>
     {
-        // Do not need new, delete
-        ///// <summary>
-        ///// Returns an async enumerator.
-        ///// </summary>
+        /// <summary>
+        /// Returns an async enumerator.
+        /// </summary>
         new IAsyncEnumerator<T> GetAsyncEnumerator(CancellationToken cancellationToken = default);
     }
 
@@ -70,7 +64,7 @@ namespace Spreads
     public interface IAsyncCompletable
     {
         /// <summary>
-        /// Try complete an outstanding operation via the thread pool. The default case is to
+        /// Try complete an outstanding operation via a thread pool. The default case is to
         /// notify continuation of <see cref="System.Collections.Generic.IAsyncEnumerator{T}.MoveNextAsync"/> when
         /// a data producer has a new value.
         /// </summary>
@@ -85,9 +79,6 @@ namespace Spreads
 
     public interface IAsyncSubscription : IDisposable
     {
-        // TODO review ReactiveStreams
-        // void Request();
-
         /// <summary>
         /// GC root for async continuation. Any strong reference storage should work.
         /// </summary>
@@ -105,16 +96,8 @@ namespace Spreads
         IDisposable Subscribe(IAsyncCompletable subscriber);
     }
 
-    #endregion Async interfaces
-
-    // Model untyped data closely to ML.NET IDataView, but do not binary depend on it
-    // * We need serializable schema with TypeEnums, decoupled from .NET type system as much as possible (e.g. Tuple is logically a sequence of types, not .NET type)
-    // * Do not depend on upstream future changes
-    // * Make bridging the two very easy...
-    // * ... but be flexible to adjust as needed here.
-
     /// <summary>
-    /// O(1) methods to check if a container is empty or get the number of rows if it is available.
+    /// O(1) methods to check if a data container is empty or get the number of rows if it is available.
     /// </summary>
     public interface IRowCount
     {
@@ -125,7 +108,7 @@ namespace Spreads
         ulong? RowCount { get; }
 
         /// <summary>
-        ///
+        /// True is a data container is empty. 
         /// </summary>
         bool IsEmpty { get; }
     }
@@ -161,14 +144,14 @@ namespace Spreads
     }
 
     /// <summary>
-    /// <see cref="ICursor{TKey,TValue}"/> is an advanced enumerator that supports moves to first, last, previous, next, exact
+    /// <see cref="ICursor{TKey,TValue}"/> supports moves to first, last, previous, next, exact
     /// positions and relative LT/LE/GT/GE (<see cref="Lookup"/>) moves.
     /// </summary>
     /// <remarks>
     /// A cursor is resilient to changes in an underlying sequence during movements, e.g. the
     /// sequence could grow during move next. (See documentation for out of order behavior.)
     ///
-    /// Contracts:
+    /// Contract:
     /// 1. At the beginning a cursor consumer could call any single move method.
     /// 2. Synchronous moves return true if data is instantly available, e.g. in a series data structure in memory or on fast disk DB.
     ///    ICursor implementations should not block threads, e.g. if a series is not completed then synchronous MoveNext should not wait for
@@ -176,7 +159,7 @@ namespace Spreads
     /// 3. When synchronous MoveNext or MoveLast return false, the consumer should call MoveNextAsync. Inside the async
     ///    implementation of MoveNextAsync, a cursor must check if the source could have new values and return Task.FromResult(false) immediately if it is not.
     /// 4. When any move returns false, a cursor stays at the position before that move. Current/CurrentKey/CurrentValue could be called
-    ///    any number of times and they are usually lazy and cached after the move (for containers) or the first call (for values that require evaluation).
+    ///    any number of times.
     ///    Any change in underlying container data will not be reflected in the current cursor values if the cursor is not moving and
     ///    no out-of-order exception is thrown e.g. when `SortedMap.Set(k, v)` is called and the cursor is at `k` position.
     ///    Subsequent move of the cursor will throw OOO exception.
@@ -238,7 +221,7 @@ namespace Spreads
         TValue CurrentValue { get; }
 
         /// <summary>
-        /// Original series. Note that <see cref="Source"/>'s <see cref="ISeries{TKey,TValue}.GetCursor"/> is equivalent to <see cref="ICursor{TKey,TValue,TCursor}.Initialize"/> or <see cref="Clone"/> called on not started cursor.
+        /// Original series. Note that <see cref="Source"/>'s <see cref="ISeries{TKey,TValue}.GetCursor"/> is equivalent to <see cref="ICursor{TKey,TValue}.Initialize"/> or <see cref="Clone"/> called on not started cursor.
         /// </summary>
         ISeries<TKey, TValue> Source { get; }
 
@@ -406,7 +389,7 @@ namespace Spreads
         /// <exception cref="KeyNotFoundException"></exception>
         /// <seealso cref="ISeries{TKey,TValue}.TryGet"/>
         /// <seealso cref="Set"/>
-        TValue this[TKey key] { get; set; }
+        new TValue this[TKey key] { get; set; }
 
         /// <summary>
         /// Sets (inserts or updates) the specified value at the key. Returns true if key did not exist before.
@@ -470,15 +453,15 @@ namespace Spreads
     {
     }
 
-    public interface IPanel<TRowKey, TValue> : IPanel<TRowKey, Index, TValue>
-    {
-    }
-
-    public interface IVector<TValue> : ISeries<Index, TValue>
-    {
-    }
-
-    public interface IMatrix<TValue> : IPanel<Index, Index, TValue>
-    {
-    }
+    // public interface IPanel<TRowKey, TValue> : IPanel<TRowKey, Index, TValue>
+    // {
+    // }
+    //
+    // public interface IVector<TValue> : ISeries<Index, TValue>
+    // {
+    // }
+    //
+    // public interface IMatrix<TValue> : IPanel<Index, Index, TValue>
+    // {
+    // }
 }

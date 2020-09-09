@@ -29,9 +29,9 @@ using System;
 using System.Runtime.CompilerServices;
 using Spreads.Buffers;
 using static System.Runtime.CompilerServices.Unsafe;
-
 #if HAS_INTRINSICS
 using System.Runtime.Intrinsics.X86;
+
 #endif
 
 namespace Spreads.Algorithms.Hash
@@ -75,12 +75,13 @@ namespace Spreads.Algorithms.Hash
                 //// TODO see for parallelism https://stackoverflow.com/questions/17645167/implementing-sse-4-2s-crc32c-in-software/17646775#17646775
                 var crc0 = uint.MaxValue ^ crc;
 
-                while (len > 0 && ((ulong)next & 7) != 0)
+                while (len > 0 && ((ulong) next & 7) != 0)
                 {
                     crc0 = Sse42.Crc32(crc0, *next);
                     next++;
                     len--;
                 }
+
                 if (Sse42.X64.IsSupported)
                 {
                     while (len >= 32)
@@ -149,10 +150,10 @@ namespace Spreads.Algorithms.Hash
             {
                 byte* next = data;
 
-                //// TODO see for parallelism https://stackoverflow.com/questions/17645167/implementing-sse-4-2s-crc32c-in-software/17646775#17646775
+                // TODO see for parallelism https://stackoverflow.com/questions/17645167/implementing-sse-4-2s-crc32c-in-software/17646775#17646775
                 var crc0 = uint.MaxValue ^ crc;
 
-                while (len > 0 && ((ulong)next & 7) != 0)
+                while (len > 0 && ((ulong) next & 7) != 0)
                 {
                     crc0 = Sse42.Crc32(crc0, *next);
                     *copyTarget = *next;
@@ -160,6 +161,7 @@ namespace Spreads.Algorithms.Hash
                     copyTarget++;
                     len--;
                 }
+
                 if (Sse42.X64.IsSupported)
                 {
                     while (len >= 32)
@@ -238,12 +240,12 @@ namespace Spreads.Algorithms.Hash
             else
             {
                 var crc0 = AppendManaged(crc, data, len);
-                CopyBlockUnaligned(copyTarget, data, (uint)len);
+                CopyBlockUnaligned(copyTarget, data, (uint) len);
                 return crc0;
             }
 #else
             var crc0 = AppendManaged(crc, data, len);
-            CopyBlockUnaligned(copyTarget, data, (uint)len);
+            CopyBlockUnaligned(copyTarget, data, (uint) len);
             return crc0;
 #endif
         }
@@ -255,40 +257,40 @@ namespace Spreads.Algorithms.Hash
             unchecked
             {
 #endif
-                var table = Crc32CTable;
-                uint crcLocal = uint.MaxValue ^ crc;
-                int offset = 0;
-                while (length >= 16)
-                {
-                    var a = table[(3 * 256) + *(data + offset + 12)]
-                            ^ table[(2 * 256) + *(data + offset + 13)]
-                            ^ table[(1 * 256) + *(data + offset + 14)]
-                            ^ table[(0 * 256) + *(data + offset + 15)];
+            var table = Crc32CTable;
+            uint crcLocal = uint.MaxValue ^ crc;
+            int offset = 0;
+            while (length >= 16)
+            {
+                var a = table[(3 * 256) + *(data + offset + 12)]
+                        ^ table[(2 * 256) + *(data + offset + 13)]
+                        ^ table[(1 * 256) + *(data + offset + 14)]
+                        ^ table[(0 * 256) + *(data + offset + 15)];
 
-                    var b = table[(7 * 256) + *(data + offset + 8)]
-                            ^ table[(6 * 256) + *(data + offset + 9)]
-                            ^ table[(5 * 256) + *(data + offset + 10)]
-                            ^ table[(4 * 256) + *(data + offset + 11)];
+                var b = table[(7 * 256) + *(data + offset + 8)]
+                        ^ table[(6 * 256) + *(data + offset + 9)]
+                        ^ table[(5 * 256) + *(data + offset + 10)]
+                        ^ table[(4 * 256) + *(data + offset + 11)];
 
-                    var c = table[(11 * 256) + *(data + offset + 4)]
-                            ^ table[(10 * 256) + *(data + offset + 5)]
-                            ^ table[(9 * 256) + *(data + offset + 6)]
-                            ^ table[(8 * 256) + *(data + offset + 7)];
+                var c = table[(11 * 256) + *(data + offset + 4)]
+                        ^ table[(10 * 256) + *(data + offset + 5)]
+                        ^ table[(9 * 256) + *(data + offset + 6)]
+                        ^ table[(8 * 256) + *(data + offset + 7)];
 
-                    var d = table[(15 * 256) + ((byte)crcLocal ^ *(data + offset))]
-                            ^ table[(14 * 256) + ((byte)(crcLocal >> 8) ^ *(data + offset + 1))]
-                            ^ table[(13 * 256) + ((byte)(crcLocal >> 16) ^ *(data + offset + 2))]
-                            ^ table[(12 * 256) + ((crcLocal >> 24) ^ *(data + offset + 3))];
+                var d = table[(15 * 256) + ((byte) crcLocal ^ *(data + offset))]
+                        ^ table[(14 * 256) + ((byte) (crcLocal >> 8) ^ *(data + offset + 1))]
+                        ^ table[(13 * 256) + ((byte) (crcLocal >> 16) ^ *(data + offset + 2))]
+                        ^ table[(12 * 256) + ((crcLocal >> 24) ^ *(data + offset + 3))];
 
-                    crcLocal = d ^ c ^ b ^ a;
-                    offset += 16;
-                    length -= 16;
-                }
+                crcLocal = d ^ c ^ b ^ a;
+                offset += 16;
+                length -= 16;
+            }
 
-                while (--length >= 0)
-                    crcLocal = table[(byte)(crcLocal ^ *(data + offset++))] ^ crcLocal >> 8;
+            while (--length >= 0)
+                crcLocal = table[(byte) (crcLocal ^ *(data + offset++))] ^ crcLocal >> 8;
 
-                return crcLocal ^ uint.MaxValue;
+            return crcLocal ^ uint.MaxValue;
 #if DEBUG
             }
 #endif
@@ -316,7 +318,7 @@ namespace Spreads.Algorithms.Hash
         internal static uint CopyWithCrc32CManaged(byte* data, int len, byte* copyTarget, uint seed = 0)
         {
             var crc0 = AppendManaged(seed, data, len);
-            CopyBlockUnaligned(copyTarget, data, (uint)len);
+            CopyBlockUnaligned(copyTarget, data, (uint) len);
             return crc0;
         }
 
@@ -324,30 +326,45 @@ namespace Spreads.Algorithms.Hash
         internal static uint CopyWithCrc32CManual(byte* data, int len, byte* copyTarget, uint seed = 0)
         {
             var crc0 = Append(seed, data, len);
-            CopyBlockUnaligned(copyTarget, data, (uint)len);
+            CopyBlockUnaligned(copyTarget, data, (uint) len);
             return crc0;
         }
     }
 
     public static class Crc32CExtensions
     {
-        // async methods do not allow unsafe and this is annoying, hide pointers in extension methods
-
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static unsafe uint Crc32C(in this DirectBuffer buffer, uint seed = 0)
         {
-            return Hash.Crc32C.CalculateCrc32C((byte*)buffer.Data, checked((int)buffer.Length), seed);
+            return Hash.Crc32C.CalculateCrc32C(buffer.Data, buffer.Length, seed);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static uint Crc32C(this Span<byte> span, uint seed = 0)
+        public static unsafe uint Crc32C(this Span<byte> span, uint seed = 0)
         {
-            var buffer = new DirectBuffer(span);
-            return buffer.Crc32C(seed);
+            fixed (byte* ptr = &span.GetPinnableReference())
+            {
+                return Hash.Crc32C.CalculateCrc32C(ptr, span.Length, seed);
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe uint Crc32C(this ReadOnlySpan<byte> span, uint seed = 0)
+        {
+            fixed (byte* ptr = &span.GetPinnableReference())
+            {
+                return Hash.Crc32C.CalculateCrc32C(ptr, span.Length, seed);
+            }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static uint Crc32C(this Memory<byte> memory, uint seed = 0)
+        {
+            return memory.Span.Crc32C(seed);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static uint Crc32C(this ReadOnlyMemory<byte> memory, uint seed = 0)
         {
             return memory.Span.Crc32C(seed);
         }

@@ -28,9 +28,9 @@ namespace Spreads
         /// </summary>
         Moving = 2,
         
-        // /// <summary>
-        // /// A cursor has started batch moving and is at a valid position.
-        // /// </summary>
+        /// <summary>
+        /// A cursor has started batch moving and is at a valid position.
+        /// </summary>
         Batch = 3
     }
 }

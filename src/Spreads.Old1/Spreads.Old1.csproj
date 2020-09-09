@@ -2,9 +2,8 @@
   <Import Project="..\..\build\common.props" />
   <PropertyGroup>
     <Description>Spreads top level library.</Description>
-    <AssemblyName>Spreads</AssemblyName>
     <RootNamespace>Spreads</RootNamespace>
-    <PackageId>SpreadsX</PackageId>
+    <PackageId>Spreads</PackageId>
     <OutputType>Library</OutputType>
 
     <LangVersion>8.0</LangVersion>
@@ -27,6 +26,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Spreads.Core\Spreads.Core.csproj" />
+    <ProjectReference Include="..\SpreadsX\SpreadsX.csproj" />
   </ItemGroup>
   
 </Project>

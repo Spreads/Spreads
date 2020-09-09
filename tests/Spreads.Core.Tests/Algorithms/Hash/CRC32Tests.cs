@@ -2,17 +2,14 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+using System;
 using NUnit.Framework;
 using Spreads.Algorithms.Hash;
-using Spreads.Buffers;
 using Spreads.Utils;
-using System;
-using System.Runtime.InteropServices;
-using Spreads.Core.Tests.Algorithms.Hash;
 
 // using System.Runtime.Intrinsics.X86;
 
-namespace Spreads.Core.Tests.Algorithms
+namespace Spreads.Core.Tests.Algorithms.Hash
 {
     [Category("CI")]
     [TestFixture]
