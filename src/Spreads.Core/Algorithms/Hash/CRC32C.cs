@@ -30,7 +30,8 @@ using System.Runtime.CompilerServices;
 using Spreads.Buffers;
 using static System.Runtime.CompilerServices.Unsafe;
 #if HAS_INTRINSICS
-using System.Runtime.Intrinsics.X86;
+using X86 = System.Runtime.Intrinsics.X86;
+using Arm = System.Runtime.Intrinsics.Arm;
 
 #endif
 
@@ -38,21 +39,24 @@ namespace Spreads.Algorithms.Hash
 {
     public static unsafe class Crc32C
     {
-#if HAS_INTRINSICS
-        public static readonly bool IsHardwareAccelerated = Sse42.IsSupported || Sse42.X64.IsSupported;
-#endif
+        // TODO see for parallelism
+        // https://stackoverflow.com/questions/17645167/implementing-sse-4-2s-crc32c-in-software/17646775#17646775        
+        // and https://github.com/htot/crc32c
+
         private const uint Crc32CPoly = 0x82F63B78u;
 
-        private static uint[] Crc32CTable = new uint[16 * 256];
+        private static uint[] _crc32CTable;
 
         static Crc32C()
         {
-            Init(ref Crc32CTable, Crc32CPoly);
+            // TODO when intrinsics are available this is only used for tests, make init manual in that case
+            Init(ref _crc32CTable, Crc32CPoly);
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static void Init(ref uint[] table, uint poly)
         {
+            _crc32CTable = new uint[16 * 256];
+
             for (uint i = 0; i < 256; i++)
             {
                 uint res = i;
@@ -68,131 +72,100 @@ namespace Spreads.Algorithms.Hash
         internal static uint Append(uint crc, byte* data, int len)
         {
 #if HAS_INTRINSICS
-            if (IsHardwareAccelerated)
+            if (X86.Sse42.IsSupported)
             {
                 byte* next = data;
 
-                //// TODO see for parallelism https://stackoverflow.com/questions/17645167/implementing-sse-4-2s-crc32c-in-software/17646775#17646775
                 var crc0 = uint.MaxValue ^ crc;
 
-                while (len > 0 && ((ulong) next & 7) != 0)
+                if (X86.Sse42.X64.IsSupported)
                 {
-                    crc0 = Sse42.Crc32(crc0, *next);
-                    next++;
-                    len--;
-                }
-
-                if (Sse42.X64.IsSupported)
-                {
-                    while (len >= 32)
-                    {
-                        crc0 = (uint) Sse42.X64.Crc32(crc0, Read<ulong>(next));
-                        crc0 = (uint) Sse42.X64.Crc32(crc0, Read<ulong>(next + 8));
-                        crc0 = (uint) Sse42.X64.Crc32(crc0, Read<ulong>(next + 16));
-                        crc0 = (uint) Sse42.X64.Crc32(crc0, Read<ulong>(next + 24));
-                        next += 32;
-                        len -= 32;
-                    }
-
-                    while (len >= 16)
-                    {
-                        crc0 = (uint) Sse42.X64.Crc32(crc0, Read<ulong>(next));
-                        crc0 = (uint) Sse42.X64.Crc32(crc0, Read<ulong>(next + 8));
-                        next += 16;
-                        len -= 16;
-                    }
-
                     while (len >= 8)
                     {
-                        crc0 = (uint) Sse42.X64.Crc32(crc0, Read<ulong>(next));
+                        crc0 = (uint) X86.Sse42.X64.Crc32(crc0, Read<ulong>(next));
                         next += 8;
                         len -= 8;
                     }
-                } // NB do not unroll anything for x86 case, it doesn't matter much
+                }
 
                 while (len >= 4)
                 {
-                    crc0 = Sse42.Crc32(crc0, Read<uint>(next));
+                    crc0 = X86.Sse42.Crc32(crc0, Read<uint>(next));
                     next += 4;
                     len -= 4;
                 }
 
-                while (len >= 2)
+                if (len >= 2)
                 {
-                    crc0 = Sse42.Crc32(crc0, Read<ushort>(next));
+                    crc0 = X86.Sse42.Crc32(crc0, Read<ushort>(next));
                     next += 2;
                     len -= 2;
                 }
 
-                while (len > 0)
+                if (len > 0)
                 {
-                    crc0 = Sse42.Crc32(crc0, Read<byte>(next));
-                    next++;
-                    len--;
+                    crc0 = X86.Sse42.Crc32(crc0, Read<byte>(next));
                 }
 
                 return crc0 ^ uint.MaxValue;
             }
-            else
+
+            if (Arm.Crc32.IsSupported)
             {
-                return AppendManaged(crc, data, len);
+                byte* next = data;
+
+                var crc0 = uint.MaxValue ^ crc;
+
+                if (Arm.Crc32.Arm64.IsSupported)
+                {
+                    while (len >= 8)
+                    {
+                        crc0 = (uint) Arm.Crc32.Arm64.ComputeCrc32C(crc0, Read<ulong>(next));
+                        next += 8;
+                        len -= 8;
+                    }
+                }
+
+                while (len >= 4)
+                {
+                    crc0 = Arm.Crc32.ComputeCrc32C(crc0, Read<uint>(next));
+                    next += 4;
+                    len -= 4;
+                }
+
+                if (len >= 2)
+                {
+                    crc0 = Arm.Crc32.ComputeCrc32C(crc0, Read<ushort>(next));
+                    next += 2;
+                    len -= 2;
+                }
+
+                if (len > 0)
+                {
+                    crc0 = Arm.Crc32.ComputeCrc32C(crc0, Read<byte>(next));
+                }
+
+                return crc0 ^ uint.MaxValue;
             }
-#else
-            return AppendManaged(crc, data, len);
 #endif
+            return AppendManaged(crc, data, len);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static uint AppendCopy(uint crc, byte* data, int len, byte* copyTarget)
         {
 #if HAS_INTRINSICS
-            if (IsHardwareAccelerated)
+            if (X86.Sse42.IsSupported)
             {
                 byte* next = data;
 
-                // TODO see for parallelism https://stackoverflow.com/questions/17645167/implementing-sse-4-2s-crc32c-in-software/17646775#17646775
                 var crc0 = uint.MaxValue ^ crc;
 
-                while (len > 0 && ((ulong) next & 7) != 0)
+                if (X86.Sse42.X64.IsSupported)
                 {
-                    crc0 = Sse42.Crc32(crc0, *next);
-                    *copyTarget = *next;
-                    next++;
-                    copyTarget++;
-                    len--;
-                }
-
-                if (Sse42.X64.IsSupported)
-                {
-                    while (len >= 32)
-                    {
-                        crc0 = (uint) Sse42.X64.Crc32(crc0, Read<ulong>(next));
-                        crc0 = (uint) Sse42.X64.Crc32(crc0, Read<ulong>(next + 8));
-                        crc0 = (uint) Sse42.X64.Crc32(crc0, Read<ulong>(next + 16));
-                        crc0 = (uint) Sse42.X64.Crc32(crc0, Read<ulong>(next + 24));
-
-                        CopyBlockUnaligned(copyTarget, next, 32);
-
-                        copyTarget += 32;
-                        next += 32;
-                        len -= 32;
-                    }
-
-                    while (len >= 16)
-                    {
-                        crc0 = (uint) Sse42.X64.Crc32(crc0, Read<ulong>(next));
-                        crc0 = (uint) Sse42.X64.Crc32(crc0, Read<ulong>(next + 8));
-
-                        CopyBlockUnaligned(copyTarget, next, 16);
-
-                        copyTarget += 16;
-                        next += 16;
-                        len -= 16;
-                    }
-
                     while (len >= 8)
                     {
-                        crc0 = (uint) Sse42.X64.Crc32(crc0, Read<ulong>(next));
+                        crc0 = (uint) X86.Sse42.X64.Crc32(crc0, Read<ulong>(next));
 
                         CopyBlockUnaligned(copyTarget, next, 8);
 
@@ -200,11 +173,11 @@ namespace Spreads.Algorithms.Hash
                         next += 8;
                         len -= 8;
                     }
-                } // NB do not unroll anything for x86 case, it doesn't matter much
+                }
 
                 while (len >= 4)
                 {
-                    crc0 = Sse42.Crc32(crc0, Read<uint>(next));
+                    crc0 = X86.Sse42.Crc32(crc0, Read<uint>(next));
 
                     CopyBlockUnaligned(copyTarget, next, 4);
 
@@ -213,9 +186,9 @@ namespace Spreads.Algorithms.Hash
                     len -= 4;
                 }
 
-                while (len >= 2)
+                if (len >= 2)
                 {
-                    crc0 = Sse42.Crc32(crc0, Read<ushort>(next));
+                    crc0 = X86.Sse42.Crc32(crc0, Read<ushort>(next));
 
                     CopyBlockUnaligned(copyTarget, next, 2);
 
@@ -224,30 +197,80 @@ namespace Spreads.Algorithms.Hash
                     len -= 2;
                 }
 
-                while (len > 0)
+                if (len > 0)
                 {
-                    crc0 = Sse42.Crc32(crc0, *next);
+                    crc0 = X86.Sse42.Crc32(crc0, *next);
 
                     *copyTarget = *next;
-
-                    copyTarget++;
-                    next++;
-                    len--;
                 }
 
                 return crc0 ^ uint.MaxValue;
             }
-            else
+
+            if (Arm.Crc32.IsSupported)
             {
-                var crc0 = AppendManaged(crc, data, len);
-                CopyBlockUnaligned(copyTarget, data, (uint) len);
-                return crc0;
+                byte* next = data;
+
+                var crc0 = uint.MaxValue ^ crc;
+
+                while (len > 0 && ((ulong) next & 7) != 0)
+                {
+                    crc0 = Arm.Crc32.ComputeCrc32C(crc0, *next);
+                    *copyTarget = *next;
+                    next++;
+                    copyTarget++;
+                    len--;
+                }
+
+                if (Arm.Crc32.Arm64.IsSupported)
+                {
+                    while (len >= 8)
+                    {
+                        crc0 = (uint) Arm.Crc32.Arm64.ComputeCrc32C(crc0, Read<ulong>(next));
+
+                        CopyBlockUnaligned(copyTarget, next, 8);
+
+                        copyTarget += 8;
+                        next += 8;
+                        len -= 8;
+                    }
+                }
+
+                while (len >= 4)
+                {
+                    crc0 = Arm.Crc32.ComputeCrc32C(crc0, Read<uint>(next));
+
+                    CopyBlockUnaligned(copyTarget, next, 4);
+
+                    copyTarget += 4;
+                    next += 4;
+                    len -= 4;
+                }
+
+                if (len >= 2)
+                {
+                    crc0 = Arm.Crc32.ComputeCrc32C(crc0, Read<ushort>(next));
+
+                    CopyBlockUnaligned(copyTarget, next, 2);
+
+                    copyTarget += 2;
+                    next += 2;
+                    len -= 2;
+                }
+
+                if (len > 0)
+                {
+                    crc0 = Arm.Crc32.ComputeCrc32C(crc0, *next);
+
+                    *copyTarget = *next;
+                }
+
+                return crc0 ^ uint.MaxValue;
             }
-#else
-            var crc0 = AppendManaged(crc, data, len);
-            CopyBlockUnaligned(copyTarget, data, (uint) len);
-            return crc0;
 #endif
+            var crc00 = AppendManaged(crc, data, len);
+            CopyBlockUnaligned(copyTarget, data, (uint) len);
+            return crc00;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -257,7 +280,7 @@ namespace Spreads.Algorithms.Hash
             unchecked
             {
 #endif
-            var table = Crc32CTable;
+            var table = _crc32CTable;
             uint crcLocal = uint.MaxValue ^ crc;
             int offset = 0;
             while (length >= 16)
