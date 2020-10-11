@@ -76,7 +76,7 @@ namespace Spreads.Core.Tests.Threading
 
         private static volatile bool running = true;
 
-        public class RateReporter
+        internal class RateReporter
         {
             internal readonly Subscriber Subscriber;
             internal readonly Publisher Publisher;
@@ -130,7 +130,7 @@ namespace Spreads.Core.Tests.Threading
             }
         }
 
-        public sealed class Publisher
+        internal sealed class Publisher
         {
             public readonly LocalMulticast<byte> Connection;
 
@@ -149,7 +149,7 @@ namespace Spreads.Core.Tests.Threading
             }
         }
 
-        public class Subscriber
+        internal class Subscriber
         {
             public readonly LocalMulticast<byte> Connection;
 

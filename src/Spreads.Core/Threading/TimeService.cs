@@ -43,7 +43,7 @@ namespace Spreads.Threading
         private bool _allocated;
 
         private Timer _timer;
-        private Thread _spinnerThread;
+        private Thread? _spinnerThread;
 
         /// <summary>
         /// Creates a new time service with update interval of 1 millisecond.

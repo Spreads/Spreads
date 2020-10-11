@@ -27,7 +27,6 @@ namespace Spreads.Core.Tests.Collections.Concurrent
         [Explicit("output")]
         public void CorePoolsLayout()
         {
-            TypeLayout.PrintLayout<MPMCPoolCore<DummyPoolable>>();
             TypeLayout.PrintLayout<ObjectPoolCore<DummyPoolable>>();
             TypeLayout.PrintLayout<LockedObjectPoolCore<DummyPoolable>>();
             TypeLayout.PrintLayout<ObjectPool<DummyPoolable>.RightPaddedObjectPoolCore>();
@@ -41,10 +40,8 @@ namespace Spreads.Core.Tests.Collections.Concurrent
             const int perCoreCapacity = 20;
             int capacity = Environment.ProcessorCount * perCoreCapacity;
             Func<DummyPoolable> dummyFactory = () => new DummyPoolable();
-            var mpmcPool = new MPMCPoolCore<DummyPoolable>(dummyFactory, capacity);
             var objectPool = new ObjectPoolCore<DummyPoolable>(dummyFactory, capacity);
             var lockedObjectPool = new LockedObjectPoolCore<DummyPoolable>(dummyFactory, capacity);
-            var perCoreMPMCPool = new MPMCPool<DummyPoolable>(dummyFactory, perCoreCapacity);
             var perCoreObjectPool = new ObjectPool<DummyPoolable>(dummyFactory, perCoreCapacity);
             var perCoreLockedObjectPool = new LockedObjectPool<DummyPoolable>(dummyFactory, perCoreCapacity);
             var threads = new int[] {1}; //{1, 2, 4, 6, 8, 12, 24};
@@ -52,11 +49,8 @@ namespace Spreads.Core.Tests.Collections.Concurrent
             {
                 for (int round = 0; round < 20; round++)
                 {
-                    // MPMCBenchmark();
-                    // PoolBenchmark(mpmcPool, "MPMC", t);
                     // PoolBenchmark(objectPool, "OP", t);
                     // PoolBenchmark(lockedObjectPool, "LOP", t);
-                    // PoolBenchmark(perCoreMPMCPool, "pcMPMC", t);
                     PoolBenchmark(perCoreObjectPool, "pcOP", t);
                     // PoolBenchmark(perCoreLockedObjectPool, "pcLOP", t);
                 }
@@ -70,7 +64,7 @@ namespace Spreads.Core.Tests.Collections.Concurrent
         {
             var count = 1_000_000;
             testCase = testCase + "_" + threads;
-            using (Benchmark.Run(testCase, count  * threads))
+            using (Benchmark.Run(testCase, count * threads))
             {
                 Task.WaitAll(Enumerable.Range(0, threads).Select(i => Task.Factory.StartNew(() =>
                 {
@@ -82,63 +76,6 @@ namespace Spreads.Core.Tests.Collections.Concurrent
                         // pool.Return(x2);
                     }
                 }, TaskCreationOptions.LongRunning)).ToArray());
-            }
-        }
-
-        [MethodImpl(MethodImplOptions.NoInlining | MethodImplOptions.AggressiveOptimization)]
-        internal void MPMCBenchmark()
-        {
-            var count = 2_000_000;
-            var threads = 4;
-            var oddQueue = new MPMCQueue(128);
-            var evenQueue = new MPMCQueue(128);
-            using (Benchmark.Run("MPMCQueue", count * threads))
-            {
-                Task.WaitAll(Enumerable.Range(0, threads).Select(i =>
-                {
-                    for (int j = 0; j < 4; j++)
-                    {
-                        oddQueue.Enqueue(new object());
-                        evenQueue.Enqueue(new object());
-                    }
-
-                    if (i % 2 == 0)
-                    {
-                        return Task.Factory.StartNew(() =>
-                        {
-                            for (int i = 0; i < count; i++)
-                            {
-                                object x1;
-                                do
-                                {
-                                    x1 = evenQueue.Dequeue();
-                                } while (x1 == null);
-
-                                while (!oddQueue.Enqueue(x1))
-                                {
-                                }
-                            }
-                        }, TaskCreationOptions.LongRunning);
-                    }
-                    else
-                    {
-                        return Task.Factory.StartNew(() =>
-                        {
-                            for (int i = 0; i < count; i++)
-                            {
-                                object x1;
-                                do
-                                {
-                                    x1 = oddQueue.Dequeue();
-                                } while (x1 == null);
-
-                                while (!evenQueue.Enqueue(x1))
-                                {
-                                }
-                            }
-                        }, TaskCreationOptions.LongRunning);
-                    }
-                }).ToArray());
             }
         }
 

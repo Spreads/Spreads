@@ -17,7 +17,7 @@ namespace Spreads.Threading
     /// Helper methods for <see cref="SharedSpinLock"/> and <see cref="Wpid"/>.
     /// Think of this interface as a collection of delegates and not as an object.
     /// </summary>
-    public interface IWpidHelper
+    internal interface IWpidHelper
     {
         /// <summary>
         /// <see cref="Wpid"/> of this helper.
@@ -60,7 +60,7 @@ namespace Spreads.Threading
     /// </summary>
     [StructLayout(LayoutKind.Sequential, Size = 8)]
     [DebuggerDisplay("{" + nameof(ToString) + "()}")]
-    public readonly struct Wpid : IEquatable<Wpid>
+    internal readonly struct Wpid : IEquatable<Wpid>
     {
         public static readonly Wpid Empty;
 
@@ -161,7 +161,7 @@ namespace Spreads.Threading
     /// TAS lock over (potentially) shared memory.
     /// </summary>
     [DebuggerDisplay("{" + nameof(ToString) + "}")]
-    public readonly struct SharedSpinLock
+    internal readonly struct SharedSpinLock
     {
         // 1. At first spin normally, locks should not be contented in DataSpreads
         // 2. After "quite small" number of retries assume that the lock holder

@@ -12,12 +12,12 @@ namespace Spreads.Threading
     /// <summary>
     /// Multi-threaded counter.
     /// Makes precise (interlocked) count uncontended and faster (via <see cref="InterlockedAdd"/>, <see cref="InterlockedIncrement"/>, <see cref="InterlockedDecrement"/>)
-    /// or approximate count more precise (via <see cref="Add"/>, <see cref="Increment"/>, <see cref="Decrement"/>).
+    /// or approximate count more accurate (via <see cref="Add"/>, <see cref="Increment"/>, <see cref="Decrement"/>).
     /// </summary>
     public class PerCoreCounter
     {
         private readonly RightPaddedCounterCore[] _perCoreCounters;
-        
+
         public PerCoreCounter()
         {
             var perCoreCounters = new RightPaddedCounterCore[Cpu.CoreCount];

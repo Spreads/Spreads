@@ -17,7 +17,7 @@ using System.Threading;
 namespace Spreads.Threading
 {
     // what if we could use local UDP multicast as notification channel?
-    public class LocalMulticast<TMessage> : IDisposable where TMessage : struct
+    internal class LocalMulticast<TMessage> : IDisposable where TMessage : struct
     {
         private readonly Action<TMessage> _handler;
         private readonly int _bufferLength;
@@ -273,8 +273,8 @@ namespace Spreads.Threading
         /// </summary>
         internal sealed class CachedEndPoint : EndPoint
         {
-            private EndPoint _endPoint;
-            private SocketAddress _serialized;
+            private EndPoint? _endPoint;
+            private SocketAddress? _serialized;
 
             private readonly IPEndPoint _ipep;
 
@@ -287,12 +287,12 @@ namespace Spreads.Threading
 
             public override EndPoint Create(SocketAddress socketAddress)
             {
-                return _endPoint ?? (_endPoint = _ipep.Create(socketAddress));
+                return _endPoint ??= _ipep.Create(socketAddress);
             }
 
             public override SocketAddress Serialize()
             {
-                return _serialized ?? (_serialized = _ipep.Serialize());
+                return _serialized ??= _ipep.Serialize();
             }
         }
     }

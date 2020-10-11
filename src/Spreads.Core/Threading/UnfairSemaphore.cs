@@ -18,7 +18,7 @@ namespace Spreads.Threading
     /// need to be woken.
     /// </summary>
     [StructLayout(LayoutKind.Sequential)]
-    public sealed class UnfairSemaphore
+    internal sealed class UnfairSemaphore
     {
         public const int MaxWorker = 0x7FFF;
 

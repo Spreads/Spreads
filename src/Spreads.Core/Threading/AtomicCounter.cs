@@ -8,9 +8,8 @@ using System.Threading;
 namespace Spreads.Threading
 {
     /// <summary>
-    /// Counts non-negative value and stores it in provided pointer in pinned/native memory.
+    /// Counts non-negative value and stores it in a provided location.
     /// </summary>
-    // [DebuggerDisplay("{" + nameof(Count) + "}")]
     public static class AtomicCounter
     {
         // We use interlocked operations which are  expensive. Limit the number of bits used
@@ -232,22 +231,16 @@ namespace Spreads.Threading
             int currentCount = currentValue & CountMask;
 
             if ((uint)(currentValue & CountMask) > MaxCount)
-            {
                 ThrowBadCounter(currentValue & CountMask);
-            }
 
             if (currentCount != 0)
-            {
                 ThrowPositiveRefCount(currentCount);
-            }
 
             int newValue = currentValue | CountMask; // set all count bits to 1, make counter unusable for Incr/Decr methods
 
             int existing = Interlocked.CompareExchange(ref counter, newValue, currentValue);
             if (existing != currentValue)
-            {
                 ThrowCounterChanged();
-            }
         }
 
         /// <summary>
@@ -295,25 +288,15 @@ namespace Spreads.Threading
         private static void ThrowBadCounter(int current)
         {
             if (current == CountMask)
-            {
                 ThrowDisposed();
-            }
             else
-            {
                 ThrowHelper.ThrowInvalidOperationException($"Bad counter: current count {current}");
-            }
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
         private static void ThrowDisposed()
         {
             ThrowHelper.ThrowObjectDisposedException(nameof(AtomicCounter));
-        }
-
-        [MethodImpl(MethodImplOptions.NoInlining)]
-        private static void ThowNullPointerInCtor()
-        {
-            ThrowHelper.ThrowInvalidOperationException($"Pointer in AtomicCounter ctor is null");
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
