@@ -5,7 +5,6 @@
 using System;
 using System.Linq;
 using System.Runtime.CompilerServices;
-using Blake2Fast.Implementation;
 using NSec.Cryptography;
 using NUnit.Framework;
 using Spreads.Algorithms.Hash.BLAKE2b;
@@ -28,7 +27,7 @@ namespace Spreads.Core.Tests.Algorithms.Hash
         {
             var hashLength = 32;
 
-#if NETCOREAPP3_0
+#if NET5_0
             NSec.Cryptography.Blake2b b = default;
             if (hashLength == 32)
             {
@@ -60,7 +59,7 @@ namespace Spreads.Core.Tests.Algorithms.Hash
             {
                 Blake2b.ComputeAndWriteHash(hashLength, bytes, hash0);
             }
-#if NETCOREAPP3_0
+#if NET5_0
             for (int i = 0; i < count / 10; i++)
             {
                 b.Hash(bytes.Span, hash1);
@@ -75,13 +74,13 @@ namespace Spreads.Core.Tests.Algorithms.Hash
 
                 CouldHash_Spreads(count, size, hashLength, bytes, hash0);
 
-                CouldHash_B2Fast_CWH(count, size, bytes, hashLength, hash0);
+                // CouldHash_B2Fast_CWH(count, size, bytes, hashLength, hash0);
+                //
+                // CouldHash_B2Fast_Init(count, size, bytes, hashLength, hash0);
+                //
+                // CouldHash_B2FastUnsafe(count, size, bytes, hashLength, hash0);
 
-                CouldHash_B2Fast_Init(count, size, bytes, hashLength, hash0);
-
-                CouldHash_B2FastUnsafe(count, size, bytes, hashLength, hash0);
-
-#if NETCOREAPP3_0
+#if NET5_0
                 CouldHash_LibSodium(count, size, b, bytes, hash1);
 
                 Assert.IsTrue(hash0.SequenceEqual(hash1));
@@ -105,52 +104,52 @@ namespace Spreads.Core.Tests.Algorithms.Hash
             }
         }
 
-        [MethodImpl(MethodImplOptions.NoInlining | MethodImplOptions.AggressiveOptimization)]
-        private static void CouldHash_B2Fast_CWH(long count, int size, DirectBuffer bytes, int hashLength, byte[] hash0)
-        {
-            using (Benchmark.Run("B2Fast CWH (MBsec)", count * size, false))
-            {
-                var input = bytes.Span;
-                for (int i = 0; i < count; i++)
-                {
-                    Blake2Fast.Blake2b.ComputeAndWriteHash(hashLength, input, hash0);
-                }
-            }
-        }
+        // [MethodImpl(MethodImplOptions.NoInlining | MethodImplOptions.AggressiveOptimization)]
+        // private static void CouldHash_B2Fast_CWH(long count, int size, DirectBuffer bytes, int hashLength, byte[] hash0)
+        // {
+        //     using (Benchmark.Run("B2Fast CWH (MBsec)", count * size, false))
+        //     {
+        //         var input = bytes.Span;
+        //         for (int i = 0; i < count; i++)
+        //         {
+        //             Blake2Fast.Blake2b.ComputeAndWriteHash(hashLength, input, hash0);
+        //         }
+        //     }
+        // }
+        //
+        // [MethodImpl(MethodImplOptions.NoInlining | MethodImplOptions.AggressiveOptimization)]
+        // private static void CouldHash_B2Fast_Init(long count, int size, DirectBuffer bytes, int hashLength, byte[] hash0)
+        // {
+        //
+        //     using (Benchmark.Run("B2Fast Init (MBsec)", count * size, false))
+        //     {
+        //         var input = bytes.Span;
+        //         for (int i = 0; i < count; i++)
+        //         {
+        //             var hs = default(Blake2bHashState);
+        //             hs.Init(hashLength);
+        //             hs.Update(input);
+        //             hs.Finish(hash0);
+        //         }
+        //     }
+        // }
 
-        [MethodImpl(MethodImplOptions.NoInlining | MethodImplOptions.AggressiveOptimization)]
-        private static void CouldHash_B2Fast_Init(long count, int size, DirectBuffer bytes, int hashLength, byte[] hash0)
-        {
-
-            using (Benchmark.Run("B2Fast Init (MBsec)", count * size, false))
-            {
-                var input = bytes.Span;
-                for (int i = 0; i < count; i++)
-                {
-                    var hs = default(Blake2bHashState);
-                    hs.Init(hashLength);
-                    hs.Update(input);
-                    hs.Finish(hash0);
-                }
-            }
-        }
-
-        [MethodImpl(MethodImplOptions.NoInlining | MethodImplOptions.AggressiveOptimization)]
-        private static void CouldHash_B2FastUnsafe(long count, int size, DirectBuffer bytes, int hashLength, byte[] hash0)
-        {
-
-            using (Benchmark.Run("B2Fast Unsafe (MBsec)", count * size, false))
-            {
-                var input = bytes.Span;
-                for (int i = 0; i < count; i++)
-                {
-                    var hs = default(Blake2bHashState);
-                    hs.UnsafeInit(hashLength);
-                    hs.UnsafeUpdate(input);
-                    hs.UnsafeFinish(hash0);
-                }
-            }
-        }
+        // [MethodImpl(MethodImplOptions.NoInlining | MethodImplOptions.AggressiveOptimization)]
+        // private static void CouldHash_B2FastUnsafe(long count, int size, DirectBuffer bytes, int hashLength, byte[] hash0)
+        // {
+        //
+        //     using (Benchmark.Run("B2Fast Unsafe (MBsec)", count * size, false))
+        //     {
+        //         var input = bytes.Span;
+        //         for (int i = 0; i < count; i++)
+        //         {
+        //             var hs = default(Blake2bHashState);
+        //             hs.UnsafeInit(hashLength);
+        //             hs.UnsafeUpdate(input);
+        //             hs.UnsafeFinish(hash0);
+        //         }
+        //     }
+        // }
 
         [MethodImpl(MethodImplOptions.NoInlining | MethodImplOptions.AggressiveOptimization)]
         private static void CouldHash_LibSodium(long count, int size, NSec.Cryptography.Blake2b b, DirectBuffer bytes, byte[] hash1)
@@ -232,37 +231,37 @@ namespace Spreads.Core.Tests.Algorithms.Hash
                     }
                 }
 
-                using (var stat = Benchmark.Run("B2Fast (MBsec)", byteLength, false))
-                {
-                    // for (int rr = 0; rr < 100; rr++)
-                    {
-                        var ctx = Blake2Fast.Blake2b.CreateIncrementalHasher(hashLength);
-                        var input = bytes.Span;
-                        for (int i = 0; i < steps; i++)
-                        {
-                            var slice = input.Slice(i * incrSize, incrSize);
-                            ctx.Update(slice);
-                            var ctxCopy = ctx;
-                            ctxCopy.Finish(hash0);
-                        }
-                    }
-                }
-
-                using (var stat = Benchmark.Run("B2Fast Unsafe (MBsec)", byteLength, false))
-                {
-                    // for (int rr = 0; rr < 100; rr++)
-                    {
-                        var ctx = Blake2Fast.Blake2b.CreateIncrementalHasher(hashLength);
-                        var input = bytes.Span;
-                        for (int i = 0; i < steps; i++)
-                        {
-                            var slice = input.Slice(i * incrSize, incrSize);
-                            ctx.UnsafeUpdate(slice);
-                            var ctxCopy = ctx;
-                            ctxCopy.UnsafeFinish(hash0);
-                        }
-                    }
-                }
+                // using (var stat = Benchmark.Run("B2Fast (MBsec)", byteLength, false))
+                // {
+                //     // for (int rr = 0; rr < 100; rr++)
+                //     {
+                //         var ctx = Blake2Fast.Blake2b.CreateIncrementalHasher(hashLength);
+                //         var input = bytes.Span;
+                //         for (int i = 0; i < steps; i++)
+                //         {
+                //             var slice = input.Slice(i * incrSize, incrSize);
+                //             ctx.Update(slice);
+                //             var ctxCopy = ctx;
+                //             ctxCopy.Finish(hash0);
+                //         }
+                //     }
+                // }
+                //
+                // using (var stat = Benchmark.Run("B2Fast Unsafe (MBsec)", byteLength, false))
+                // {
+                //     // for (int rr = 0; rr < 100; rr++)
+                //     {
+                //         // var ctx = Blake2Fast.Blake2b.CreateIncrementalHasher(hashLength);
+                //         var input = bytes.Span;
+                //         for (int i = 0; i < steps; i++)
+                //         {
+                //             var slice = input.Slice(i * incrSize, incrSize);
+                //             // ctx.UnsafeUpdate(slice);
+                //             var ctxCopy = ctx;
+                //             ctxCopy.UnsafeFinish(hash0);
+                //         }
+                //     }
+                // }
 
                 //using (var stat = Benchmark.Run("Libsodium (MBsec)", byteLength, false))
                 //{
@@ -324,75 +323,75 @@ namespace Spreads.Core.Tests.Algorithms.Hash
                     }
                 }
 
-                Chained_B2Fast_CWH(byteLength, steps, bytes, incrSize, hashLength, hash0);
-
-                Chained_B2Fast_Init(byteLength, steps, bytes, incrSize, hashLength, hash0);
-
-                Chained_B2Fast_Unsafe(byteLength, steps, bytes, incrSize, hashLength, hash0);
+                // Chained_B2Fast_CWH(byteLength, steps, bytes, incrSize, hashLength, hash0);
+                //
+                // Chained_B2Fast_Init(byteLength, steps, bytes, incrSize, hashLength, hash0);
+                //
+                // Chained_B2Fast_Unsafe(byteLength, steps, bytes, incrSize, hashLength, hash0);
             }
 
             Benchmark.Dump($"Chained hashing by {incrSize} bytes {steps} times");
             rmb.Dispose();
         }
 
-        [MethodImpl(MethodImplOptions.NoInlining | MethodImplOptions.AggressiveOptimization)]
-        private static void Chained_B2Fast_CWH(long byteLength, long steps, DirectBuffer bytes, int incrSize, int hashLength, byte[] hash0)
-        {
+        // [MethodImpl(MethodImplOptions.NoInlining | MethodImplOptions.AggressiveOptimization)]
+        // private static void Chained_B2Fast_CWH(long byteLength, long steps, DirectBuffer bytes, int incrSize, int hashLength, byte[] hash0)
+        // {
+        //
+        //     using (var stat = Benchmark.Run("B2Fast CWH (MBsec)", byteLength * 100, false))
+        //     {
+        //         for (int rr = 0; rr < 100; rr++)
+        //         {
+        //             for (int i = 0; i < steps; i++)
+        //             {
+        //                 var span = bytes.Span.Slice(i * incrSize, incrSize);
+        //
+        //                 Blake2Fast.Blake2b.ComputeAndWriteHash(hashLength, hash0, span, hash0);
+        //             }
+        //         }
+        //     }
+        // }
 
-            using (var stat = Benchmark.Run("B2Fast CWH (MBsec)", byteLength * 100, false))
-            {
-                for (int rr = 0; rr < 100; rr++)
-                {
-                    for (int i = 0; i < steps; i++)
-                    {
-                        var span = bytes.Span.Slice(i * incrSize, incrSize);
+        // [MethodImpl(MethodImplOptions.NoInlining | MethodImplOptions.AggressiveOptimization)]
+        // private static void Chained_B2Fast_Init(long byteLength, long steps, DirectBuffer bytes, int incrSize, int hashLength, byte[] hash0)
+        // {
+        //
+        //     using (var stat = Benchmark.Run("B2Fast Init (MBsec)", byteLength * 100, false))
+        //     {
+        //         for (int rr = 0; rr < 100; rr++)
+        //         {
+        //             for (int i = 0; i < steps; i++)
+        //             {
+        //                 var span = bytes.Span.Slice(i * incrSize, incrSize);
+        //
+        //                 var hs = default(Blake2bHashState);
+        //                 hs.Init(hashLength, hash0);
+        //                 hs.Update(span);
+        //                 hs.Finish(hash0);
+        //             }
+        //         }
+        //     }
+        // }
 
-                        Blake2Fast.Blake2b.ComputeAndWriteHash(hashLength, hash0, span, hash0);
-                    }
-                }
-            }
-        }
-
-        [MethodImpl(MethodImplOptions.NoInlining | MethodImplOptions.AggressiveOptimization)]
-        private static void Chained_B2Fast_Init(long byteLength, long steps, DirectBuffer bytes, int incrSize, int hashLength, byte[] hash0)
-        {
-
-            using (var stat = Benchmark.Run("B2Fast Init (MBsec)", byteLength * 100, false))
-            {
-                for (int rr = 0; rr < 100; rr++)
-                {
-                    for (int i = 0; i < steps; i++)
-                    {
-                        var span = bytes.Span.Slice(i * incrSize, incrSize);
-
-                        var hs = default(Blake2bHashState);
-                        hs.Init(hashLength, hash0);
-                        hs.Update(span);
-                        hs.Finish(hash0);
-                    }
-                }
-            }
-        }
-
-        [MethodImpl(MethodImplOptions.NoInlining | MethodImplOptions.AggressiveOptimization)]
-        private static void Chained_B2Fast_Unsafe(long byteLength, long steps, DirectBuffer bytes, int incrSize, int hashLength, byte[] hash0)
-        {
-            using (var stat = Benchmark.Run("B2Fast Unsafe (MBsec)", byteLength * 100, false))
-            {
-                for (int rr = 0; rr < 100; rr++)
-                {
-                    for (int i = 0; i < steps; i++)
-                    {
-                        var span = bytes.Span.Slice(i * incrSize, incrSize);
-
-                        var hs = default(Blake2bHashState);
-                        hs.UnsafeInit(hashLength, hash0);
-                        hs.UnsafeUpdate(span);
-                        hs.UnsafeFinish(hash0);
-                    }
-                }
-            }
-        }
+        // [MethodImpl(MethodImplOptions.NoInlining | MethodImplOptions.AggressiveOptimization)]
+        // private static void Chained_B2Fast_Unsafe(long byteLength, long steps, DirectBuffer bytes, int incrSize, int hashLength, byte[] hash0)
+        // {
+        //     using (var stat = Benchmark.Run("B2Fast Unsafe (MBsec)", byteLength * 100, false))
+        //     {
+        //         for (int rr = 0; rr < 100; rr++)
+        //         {
+        //             for (int i = 0; i < steps; i++)
+        //             {
+        //                 var span = bytes.Span.Slice(i * incrSize, incrSize);
+        //
+        //                 var hs = default(Blake2bHashState);
+        //                 hs.UnsafeInit(hashLength, hash0);
+        //                 hs.UnsafeUpdate(span);
+        //                 hs.UnsafeFinish(hash0);
+        //             }
+        //         }
+        //     }
+        // }
 
         [Test
 #if !DEBUG
@@ -441,7 +440,7 @@ namespace Spreads.Core.Tests.Algorithms.Hash
             for (int r = 0; r < rounds; r++)
             {
                 var ctx = Blake2b.CreateIncrementalHasher(hashLength);
-                var ctx_B2F = Blake2Fast.Blake2b.CreateIncrementalHasher(hashLength);
+                // var ctx_B2F = Blake2Fast.Blake2b.CreateIncrementalHasher(hashLength);
 
                 var sp = bytes.Span;
 
@@ -455,15 +454,15 @@ namespace Spreads.Core.Tests.Algorithms.Hash
                     ctx.UpdateHash(incrSpan, hash0);
 
                     // Incremental B2F
-                    ctx_B2F.Update(incrSpan.Span);
-                    var copy = ctx_B2F;
-                    copy.Finish(hash0_B2F);
+                    // ctx_B2F.Update(incrSpan.Span);
+                    // var copy = ctx_B2F;
+                    // copy.Finish(hash0_B2F);
 
                     // Running Spreads
                     Blake2b.ComputeAndWriteHash(hashLength, runningBuff, hash1);
 
                     // Running B2F
-                    Blake2Fast.Blake2b.ComputeAndWriteHash(hashLength, runningBuff.Span, hash1_B2F);
+                    // Blake2Fast.Blake2b.ComputeAndWriteHash(hashLength, runningBuff.Span, hash1_B2F);
 
                     // Libsodium
                     b.Hash(runningSpan, hash2);

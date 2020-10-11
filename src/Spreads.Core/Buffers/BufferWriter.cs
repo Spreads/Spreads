@@ -266,7 +266,7 @@ namespace Spreads.Buffers
         {
             CheckDisposed();
 
-            var newLength = BitUtil.FindNextPositivePowerOfTwo(_offset + appendLength);
+            var newLength = BitUtils.NextPow2(_offset + appendLength);
             if (newLength < MinLen)
             {
                 newLength = MinLen;

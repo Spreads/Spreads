@@ -1,111 +1,58 @@
-﻿// Mix of:
-// https://github.com/dotnet/runtime/blob/master/src/libraries/System.Private.CoreLib/src/System/Numerics/BitOperations.cs
-// https://raw.githubusercontent.com/AdaptiveConsulting/Aeron.NET/master/src/Adaptive.Agrona/BitUtil.cs
+﻿// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 using System;
 using System.Runtime.CompilerServices;
-using System.Text;
-
-// ReSharper disable InconsistentNaming
+#if HAS_INTRINSICS
+using System.Runtime.Intrinsics;
+using X86 = System.Runtime.Intrinsics.X86;
+using Arm = System.Runtime.Intrinsics.Arm;
+#endif
 
 namespace Spreads.Utils
 {
     /// <summary>
-    /// Miscellaneous useful functions for dealing with low level bits and bytes.
+    /// Bit operations utils.
     /// </summary>
-    public class BitUtil
+    public static class BitUtils
     {
-        // C# no-alloc optimization that directly wraps the data section of the dll (similar to string constants)
-        // https://github.com/dotnet/roslyn/pull/24621
-
-        private static ReadOnlySpan<byte> TrailingZeroCountDeBruijn => new byte[32]
+        /// <summary>
+        /// Find the closest positive power of 2 greater or equal to an integer value.
+        /// </summary>
+        /// <param name="value">The value</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int NextPow2(int value)
         {
-            00, 01, 28, 02, 29, 14, 24, 03,
-            30, 22, 20, 15, 25, 17, 04, 08,
-            31, 27, 13, 23, 21, 19, 16, 07,
-            26, 12, 18, 06, 11, 05, 10, 09
-        };
-
-        private static ReadOnlySpan<byte> Log2DeBruijn => new byte[32]
-        {
-            00, 09, 01, 10, 13, 21, 02, 29,
-            11, 14, 16, 18, 22, 25, 03, 30,
-            08, 12, 20, 28, 15, 17, 24, 07,
-            19, 27, 23, 06, 26, 05, 04, 31
-        };
-
-        private static ReadOnlySpan<byte> HexDigitTable => new byte[]
-        {
-            (byte) '0', (byte) '1', (byte) '2', (byte) '3', (byte) '4', (byte) '5', (byte) '6', (byte) '7',
-            (byte) '8', (byte) '9', (byte) 'a', (byte) 'b', (byte) 'c', (byte) 'd', (byte) 'e', (byte) 'f'
-        };
-
-        private static readonly byte[] FromHexDigitTable;
-
-        static BitUtil()
-        {
-            FromHexDigitTable = new byte[128];
-            FromHexDigitTable['0'] = 0x00;
-            FromHexDigitTable['1'] = 0x01;
-            FromHexDigitTable['2'] = 0x02;
-            FromHexDigitTable['3'] = 0x03;
-            FromHexDigitTable['4'] = 0x04;
-            FromHexDigitTable['5'] = 0x05;
-            FromHexDigitTable['6'] = 0x06;
-            FromHexDigitTable['7'] = 0x07;
-            FromHexDigitTable['8'] = 0x08;
-            FromHexDigitTable['9'] = 0x09;
-            FromHexDigitTable['a'] = 0x0a;
-            FromHexDigitTable['A'] = 0x0a;
-            FromHexDigitTable['b'] = 0x0b;
-            FromHexDigitTable['B'] = 0x0b;
-            FromHexDigitTable['c'] = 0x0c;
-            FromHexDigitTable['C'] = 0x0c;
-            FromHexDigitTable['d'] = 0x0d;
-            FromHexDigitTable['D'] = 0x0d;
-            FromHexDigitTable['e'] = 0x0e;
-            FromHexDigitTable['E'] = 0x0e;
-            FromHexDigitTable['f'] = 0x0f;
-            FromHexDigitTable['F'] = 0x0f;
+            unchecked
+            {
+                return 1 << (32 - LeadingZeroCount(value - 1));
+            }
         }
-
-        private const int LastDigitMask = 1;
-
-        private static readonly Encoding Utf8Encoding = Encoding.UTF8;
 
         /// <summary>
-        /// Fast method of finding the next power of 2 greater than or equal to the supplied value.
-        ///
-        /// If the value is &lt;= 0 then 1 will be returned.
-        ///
-        /// This method is not suitable for <seealso cref="int.MinValue"/> or numbers greater than 2^30.
+        /// Find the closest positive power of 2 greater or equal to an integer value.
         /// </summary>
-        /// <param name="value"> from which to search for next power of 2 </param>
-        /// <returns> The next power of 2 or the value itself if it is a power of 2 </returns>
+        /// <param name="value">The value</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int FindNextPositivePowerOfTwo(int value)
+        public static long NextPow2(long value)
         {
             unchecked
             {
-                return 1 << (32 - NumberOfLeadingZeros(value - 1));
+                return 1L << (64 - LeadingZeroCount(value - 1L));
             }
         }
 
+        /// <summary>
+        /// Find the closest positive power of 2 value less or equal to an integer value.
+        /// </summary>
+        /// <param name="value">The value</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static long FindNextPositivePowerOfTwo(long value)
+        public static int PrevPow2(int value)
         {
             unchecked
             {
-                return 1L << (64 - NumberOfLeadingZeros(value - 1L));
-            }
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int FindPreviousPositivePowerOfTwo(int value)
-        {
-            unchecked
-            {
-                return 1 << (31 - NumberOfLeadingZeros(value));
+                return 1 << (31 - LeadingZeroCount(value));
             }
         }
 
@@ -134,95 +81,6 @@ namespace Spreads.Utils
         }
 
         /// <summary>
-        /// Generate a byte array from the hex representation of the given byte array.
-        /// </summary>
-        /// <param name="buffer"> to convert from a hex representation (in Big Endian) </param>
-        /// <returns> new byte array that is decimal representation of the passed array </returns>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static byte[] FromHexByteArray(byte[] buffer)
-        {
-            byte[] outputBuffer = new byte[buffer.Length >> 1];
-
-            for (int i = 0; i < buffer.Length; i += 2)
-            {
-                outputBuffer[i >> 1] = (byte) ((FromHexDigitTable[buffer[i]] << 4) | FromHexDigitTable[buffer[i + 1]]);
-            }
-
-            return outputBuffer;
-        }
-
-        /// <summary>
-        /// Generate a byte array that is a hex representation of a given byte array.
-        /// </summary>
-        /// <param name="buffer"> to convert to a hex representation </param>
-        /// <returns> new byte array that is hex representation (in Big Endian) of the passed array </returns>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static byte[] ToHexByteArray(byte[] buffer)
-        {
-            return ToHexByteArray(buffer, 0, buffer.Length);
-        }
-
-        /// <summary>
-        /// Generate a byte array that is a hex representation of a given byte array.
-        /// </summary>
-        /// <param name="buffer"> to convert to a hex representation </param>
-        /// <param name="offset"> the offset into the buffer </param>
-        /// <param name="length"> the number of bytes to convert </param>
-        /// <returns> new byte array that is hex representation (in Big Endian) of the passed array </returns>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static byte[] ToHexByteArray(byte[] buffer, int offset, int length)
-        {
-            var outputBuffer = new byte[length << 1];
-
-            for (var i = 0; i < (length << 1); i += 2)
-            {
-                var b = buffer[offset + (i >> 1)];
-
-                outputBuffer[i] = HexDigitTable[(b >> 4) & 0x0F];
-                outputBuffer[i + 1] = HexDigitTable[b & 0x0F];
-            }
-
-            return outputBuffer;
-        }
-
-        /// <summary>
-        /// Generate a byte array from a string that is the hex representation of the given byte array.
-        /// </summary>
-        /// <param name="value"> to convert from a hex representation (in Big Endian) </param>
-        /// <returns> new byte array holding the decimal representation of the passed array </returns>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static byte[] FromHex(string value)
-        {
-            return FromHexByteArray(Utf8Encoding.GetBytes(value));
-        }
-
-        /// <summary>
-        /// Generate a string that is the hex representation of a given byte array.
-        /// </summary>
-        /// <param name="buffer"> to convert to a hex representation </param>
-        /// <param name="offset"> the offset into the buffer </param>
-        /// <param name="length"> the number of bytes to convert </param>
-        /// <returns> new String holding the hex representation (in Big Endian) of the passed array </returns>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static string ToHex(byte[] buffer, int offset, int length)
-        {
-            var hexByteArray = ToHexByteArray(buffer, offset, length);
-            return Utf8Encoding.GetString(hexByteArray, 0, hexByteArray.Length);
-        }
-
-        /// <summary>
-        /// Generate a string that is the hex representation of a given byte array.
-        /// </summary>
-        /// <param name="buffer"> to convert to a hex representation </param>
-        /// <returns> new String holding the hex representation (in Big Endian) of the passed array </returns>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static string ToHex(byte[] buffer)
-        {
-            var hexByteArray = ToHexByteArray(buffer);
-            return Utf8Encoding.GetString(hexByteArray, 0, hexByteArray.Length);
-        }
-
-        /// <summary>
         /// Is a number even.
         /// </summary>
         /// <param name="value"> to check. </param>
@@ -230,53 +88,7 @@ namespace Spreads.Utils
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool IsEven(int value)
         {
-            return (value & LastDigitMask) == 0;
-        }
-
-        /// <summary>
-        /// Is a value a positive power of two.
-        /// </summary>
-        /// <param name="value"> to be checked. </param>
-        /// <returns> true if the number is a positive power of two otherwise false. </returns>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool IsPowerOfTwo(int value)
-        {
-            return value > 0 && ((value & (~value + 1)) == value);
-        }
-
-        /// <summary>
-        /// Cycles indices of an array one at a time in a forward fashion
-        /// </summary>
-        /// <param name="current"> value to be incremented. </param>
-        /// <param name="max">     value for the cycle. </param>
-        /// <returns> the next value, or zero if max is reached. </returns>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int Next(int current, int max)
-        {
-            int next = current + 1;
-            if (next == max)
-            {
-                next = 0;
-            }
-
-            return next;
-        }
-
-        /// <summary>
-        /// Cycles indices of an array one at a time in a backwards fashion
-        /// </summary>
-        /// <param name="current"> value to be decremented. </param>
-        /// <param name="max">     value of the cycle. </param>
-        /// <returns> the next value, or max - 1 if current is zero </returns>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int Previous(int current, int max)
-        {
-            if (0 == current)
-            {
-                return max - 1;
-            }
-
-            return current - 1;
+            return (value & 1) == 0;
         }
 
         /// <summary>
@@ -289,198 +101,331 @@ namespace Spreads.Utils
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool IsAligned(long address, int alignment)
         {
-            if (!IsPowerOfTwo(alignment))
-            {
-                ThrowHelper.ThrowArgumentException("Alignment must be a power of 2: alignment=" + alignment);
-            }
+            if (AdditionalCorrectnessChecks.Enabled && !IsPow2((uint) alignment))
+                ThrowHelper.ThrowArgumentException($"Alignment must be a power of 2: alignment={alignment}");
 
             return (address & (alignment - 1)) == 0;
         }
 
         /// <summary>
-        /// Returns the number of zero bits following the lowest-order ("rightmost")
-        /// one-bit in the two's complement binary representation of the specified
-        /// {@code int} value.  Returns 32 if the specified value has no
-        /// one-bits in its two's complement representation, in other words if it is
-        /// equal to zero.
+        /// Count the number of trailing zero bits in an integer value.
+        /// Similar in behavior to the x86 instruction TZCNT.
         /// </summary>
-        /// <param name="i"> the value whose number of trailing zeros is to be computed </param>
-        /// <returns> the number of zero bits following the lowest-order ("rightmost")
-        ///     one-bit in the two's complement binary representation of the
-        ///     specified {@code int} value, or 32 if the value is equal
-        ///     to zero.
-        /// @since 1.5 </returns>
+        /// <param name="value">The value.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int NumberOfTrailingZeros(int i)
+        public static int TrailingZeroCount(int value)
         {
-            // HD, Figure 5-14
-            int y;
-            if (i == 0)
+            unchecked
             {
-                return 32;
-            }
+#if HAS_INTRINSICS
+                if (X86.Bmi1.IsSupported)
+                    // TZCNT contract is 0->32
+                    return (int) X86.Bmi1.TrailingZeroCount((uint) value);
 
-            int n = 31;
-            y = i << 16;
-            if (y != 0)
-            {
-                n = n - 16;
-                i = y;
-            }
+                if (Arm.ArmBase.IsSupported)
+                    return Arm.ArmBase.LeadingZeroCount(Arm.ArmBase.ReverseElementBits(value));
+#endif
+#if NET5_0
+                return System.Numerics.BitOperations.TrailingZeroCount(value);
+#else
+                // HD, Figure 5-14
+                int y;
+                if (value == 0)
+                {
+                    return 32;
+                }
 
-            y = i << 8;
-            if (y != 0)
-            {
-                n = n - 8;
-                i = y;
-            }
+                int n = 31;
+                y = value << 16;
+                if (y != 0)
+                {
+                    n = n - 16;
+                    value = y;
+                }
 
-            y = i << 4;
-            if (y != 0)
-            {
-                n = n - 4;
-                i = y;
-            }
+                y = value << 8;
+                if (y != 0)
+                {
+                    n = n - 8;
+                    value = y;
+                }
 
-            y = i << 2;
-            if (y != 0)
-            {
-                n = n - 2;
-                i = y;
-            }
+                y = value << 4;
+                if (y != 0)
+                {
+                    n = n - 4;
+                    value = y;
+                }
 
-            return n - ((int) ((uint) (i << 1) >> 31));
+                y = value << 2;
+                if (y != 0)
+                {
+                    n = n - 2;
+                    value = y;
+                }
+
+                return n - ((int) ((uint) (value << 1) >> 31));
+#endif
+            }
         }
 
         /// <summary>
-        /// Note Olivier: Direct port of the Java method Integer.NumberOfLeadingZeros
-        ///
-        /// Returns the number of zero bits preceding the highest-order
-        /// ("leftmost") one-bit in the two's complement binary representation
-        /// of the specified {@code int} value.  Returns 32 if the
-        /// specified value has no one-bits in its two's complement representation,
-        /// in other words if it is equal to zero.
-        ///
-        /// <para>Note that this method is closely related to the logarithm base 2.
-        /// For all positive {@code int} values x:
-        /// &lt;ul&gt;
-        /// &lt;li&gt;floor(log&lt;sub&gt;2&lt;/sub&gt;(x)) = {@code 31 - numberOfLeadingZeros(x)}
-        /// &lt;li&gt;ceil(log&lt;sub&gt;2&lt;/sub&gt;(x)) = {@code 32 - numberOfLeadingZeros(x - 1)}
-        /// &lt;/ul&gt;
-        ///
-        /// </para>
+        /// Count the number of leading zero bits in a mask.
+        /// Similar in behavior to the x86 instruction LZCNT.
         /// </summary>
-        /// <param name="i"> the value whose number of leading zeros is to be computed </param>
-        /// <returns> the number of zero bits preceding the highest-order
-        ///     ("leftmost") one-bit in the two's complement binary representation
-        ///     of the specified {@code int} value, or 32 if the value
-        ///     is equal to zero.
-        /// </returns>
+        /// <param name="value">The value.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int NumberOfLeadingZeros(int i)
+        public static int LeadingZeroCount(int value)
         {
             unchecked
             {
-#if NETCOREAPP3_0
-                if (System.Runtime.Intrinsics.X86.Lzcnt.IsSupported)
-                {
-                    return (int) System.Runtime.Intrinsics.X86.Lzcnt.LeadingZeroCount((uint) i);
-                }
+#if HAS_INTRINSICS
+                if (X86.Lzcnt.IsSupported)
+                    // LZCNT contract is 0->32
+                    return (int) X86.Lzcnt.LeadingZeroCount((uint) value);
+
+                if (Arm.ArmBase.IsSupported)
+                    return Arm.ArmBase.LeadingZeroCount(value);
 #endif
-
-                unchecked
+#if NET5_0
+                return System.Numerics.BitOperations.LeadingZeroCount((uint) value);
+#else
+                // HD, Figure 5-6
+                if (value == 0)
                 {
-                    // HD, Figure 5-6
-                    if (i == 0)
-                    {
-                        return 32;
-                    }
-
-                    int n = 1;
-                    if ((int) ((uint) i >> 16) == 0)
-                    {
-                        n += 16;
-                        i <<= 16;
-                    }
-
-                    if ((int) ((uint) i >> 24) == 0)
-                    {
-                        n += 8;
-                        i <<= 8;
-                    }
-
-                    if ((int) ((uint) i >> 28) == 0)
-                    {
-                        n += 4;
-                        i <<= 4;
-                    }
-
-                    if ((int) ((uint) i >> 30) == 0)
-                    {
-                        n += 2;
-                        i <<= 2;
-                    }
-
-                    n -= (int) ((uint) i >> 31);
-                    return n;
+                    return 32;
                 }
+
+                int n = 1;
+                if ((int) ((uint) value >> 16) == 0)
+                {
+                    n += 16;
+                    value <<= 16;
+                }
+
+                if ((int) ((uint) value >> 24) == 0)
+                {
+                    n += 8;
+                    value <<= 8;
+                }
+
+                if ((int) ((uint) value >> 28) == 0)
+                {
+                    n += 4;
+                    value <<= 4;
+                }
+
+                if ((int) ((uint) value >> 30) == 0)
+                {
+                    n += 2;
+                    value <<= 2;
+                }
+
+                n -= (int) ((uint) value >> 31);
+                return n;
+
+#endif
             }
         }
 
+        /// <summary>
+        /// Count the number of leading zero bits in a mask.
+        /// Similar in behavior to the x86 instruction LZCNT.
+        /// </summary>
+        /// <param name="value">The value.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int NumberOfLeadingZeros(long i)
+        public static int LeadingZeroCount(long value)
+        {
+#if HAS_INTRINSICS
+            if (X86.Lzcnt.X64.IsSupported)
+                return (int) X86.Lzcnt.X64.LeadingZeroCount((ulong) value);
+
+            if (Arm.ArmBase.Arm64.IsSupported)
+                return Arm.ArmBase.Arm64.LeadingZeroCount((ulong) value);
+#endif
+#if NET5_0
+            return System.Numerics.BitOperations.LeadingZeroCount((ulong) value);
+#else
+            unchecked
+            {
+                // HD, Figure 5-6
+                if (value == 0L)
+                {
+                    return 64;
+                }
+
+                int n = 1;
+                if ((long) ((ulong) value >> 32) == 0)
+                {
+                    n += 32;
+                    value <<= 32;
+                }
+
+                if ((long) ((ulong) value >> 48) == 0)
+                {
+                    n += 16;
+                    value <<= 16;
+                }
+
+                if ((long) ((ulong) value >> 56) == 0)
+                {
+                    n += 8;
+                    value <<= 8;
+                }
+
+                if ((long) ((ulong) value >> 60) == 0)
+                {
+                    n += 4;
+                    value <<= 4;
+                }
+
+                if ((long) ((ulong) value >> 62) == 0)
+                {
+                    n += 2;
+                    value <<= 2;
+                }
+
+                n -= (int) ((ulong) value >> 63);
+                return n;
+            }
+#endif
+        }
+
+        /// <summary>
+        /// Returns the population count (number of bits set) of a mask.
+        /// Similar in behavior to the x86 instruction POPCNT.
+        /// </summary>
+        /// <param name="value">The value.</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int PopCount(uint value)
+        {
+#if HAS_INTRINSICS
+            if (X86.Popcnt.IsSupported)
+                return (int) X86.Popcnt.PopCount(value);
+
+            if (Arm.AdvSimd.Arm64.IsSupported)
+            {
+                // PopCount works on vector so convert input value to vector first.
+
+                Vector64<uint> input = Vector64.CreateScalar(value);
+                Vector64<byte> aggregated = Arm.AdvSimd.Arm64.AddAcross(Arm.AdvSimd.PopCount(input.AsByte()));
+                return aggregated.ToScalar();
+            }
+#endif
+            return SoftwareFallback(value);
+
+            static int SoftwareFallback(uint value)
+            {
+                const uint c1 = 0x_55555555u;
+                const uint c2 = 0x_33333333u;
+                const uint c3 = 0x_0F0F0F0Fu;
+                const uint c4 = 0x_01010101u;
+
+                value -= (value >> 1) & c1;
+                value = (value & c2) + ((value >> 2) & c2);
+                value = (((value + (value >> 4)) & c3) * c4) >> 24;
+
+                return (int) value;
+            }
+        }
+
+        /// <summary>
+        /// Returns the population count (number of bits set) of a mask.
+        /// Similar in behavior to the x86 instruction POPCNT.
+        /// </summary>
+        /// <param name="value">The value.</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int PopCount(ulong value)
+        {
+#if HAS_INTRINSICS
+            if (X86.Popcnt.X64.IsSupported)
+                return (int) X86.Popcnt.X64.PopCount(value);
+
+            if (Arm.AdvSimd.Arm64.IsSupported)
+            {
+                // PopCount works on vector so convert input value to vector first.
+                Vector64<ulong> input = Vector64.Create(value);
+                Vector64<byte> aggregated = Arm.AdvSimd.Arm64.AddAcross(Arm.AdvSimd.PopCount(input.AsByte()));
+                return aggregated.ToScalar();
+            }
+
+            if (X86.Popcnt.IsSupported || Arm.AdvSimd.Arm64.IsSupported)
+            {
+                return PopCount((uint) value) // lo
+                       + PopCount((uint) (value >> 32)); // hi
+            }
+
+#endif
+            return SoftwareFallback(value);
+
+            static int SoftwareFallback(ulong value)
+            {
+                const ulong c1 = 0x_55555555_55555555ul;
+                const ulong c2 = 0x_33333333_33333333ul;
+                const ulong c3 = 0x_0F0F0F0F_0F0F0F0Ful;
+                const ulong c4 = 0x_01010101_01010101ul;
+
+                value -= (value >> 1) & c1;
+                value = (value & c2) + ((value >> 2) & c2);
+                value = (((value + (value >> 4)) & c3) * c4) >> 56;
+
+                return (int) value;
+            }
+        }
+
+        /// <summary>
+        /// Is a value a positive power of two.
+        /// </summary>
+        /// <param name="value"> to be checked. </param>
+        /// <returns> true if the number is a positive power of two otherwise false. </returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static bool IsPow2(uint value)
         {
             unchecked
             {
-#if NETCOREAPP3_0
-                if (System.Runtime.Intrinsics.X86.Lzcnt.X64.IsSupported)
+#if HAS_INTRINSICS
+                if (X86.Popcnt.IsSupported)
+                    return 1 == X86.Popcnt.PopCount(value);
+
+                if (Arm.AdvSimd.Arm64.IsSupported)
                 {
-                    return (int) System.Runtime.Intrinsics.X86.Lzcnt.X64.LeadingZeroCount((ulong) i);
+                    // PopCount works on vector so convert input value to vector first.
+                    Vector64<uint> input = Vector64.CreateScalar(value);
+                    Vector64<byte> aggregated = Arm.AdvSimd.Arm64.AddAcross(Arm.AdvSimd.PopCount(input.AsByte()));
+                    return 1 == aggregated.ToScalar();
                 }
 #endif
+                return ((value & (value - 1)) == value) && value != 0;
+            }
+        }
 
-                unchecked
+        /// <summary>
+        /// Is a value a positive power of two.
+        /// </summary>
+        /// <param name="value"> to be checked. </param>
+        /// <returns> true if the number is a positive power of two otherwise false. </returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static bool IsPow2(int value)
+        {
+            // TODO update with BitOperations final implementation dotnet/runtime/pull/36163
+            if (value <= 0)
+                return false;
+
+            unchecked
+            {
+#if HAS_INTRINSICS
+                if (X86.Popcnt.IsSupported)
+                    return 1 == X86.Popcnt.PopCount((uint) value);
+
+                if (Arm.AdvSimd.Arm64.IsSupported)
                 {
-                    // HD, Figure 5-6
-                    if (i == 0L)
-                    {
-                        return 64;
-                    }
-
-                    int n = 1;
-                    if ((long) ((ulong) i >> 32) == 0)
-                    {
-                        n += 32;
-                        i <<= 32;
-                    }
-
-                    if ((long) ((ulong) i >> 48) == 0)
-                    {
-                        n += 16;
-                        i <<= 16;
-                    }
-
-                    if ((long) ((ulong) i >> 56) == 0)
-                    {
-                        n += 8;
-                        i <<= 8;
-                    }
-
-                    if ((long) ((ulong) i >> 60) == 0)
-                    {
-                        n += 4;
-                        i <<= 4;
-                    }
-
-                    if ((long) ((ulong) i >> 62) == 0)
-                    {
-                        n += 2;
-                        i <<= 2;
-                    }
-
-                    n -= (int) ((ulong) i >> 63);
-                    return n;
+                    // PopCount works on vector so convert input value to vector first.
+                    Vector64<uint> input = Vector64.CreateScalar((uint) value);
+                    Vector64<byte> aggregated = Arm.AdvSimd.Arm64.AddAcross(Arm.AdvSimd.PopCount(input.AsByte()));
+                    return 1 == aggregated.ToScalar();
                 }
+#endif
+                return ((value & (value - 1)) == value);
             }
         }
     }

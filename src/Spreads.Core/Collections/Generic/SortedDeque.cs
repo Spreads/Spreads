@@ -32,7 +32,7 @@ namespace Spreads.Collections.Generic
         {
             if (capacity <= 0) throw new ArgumentOutOfRangeException(nameof(capacity));
             _comparer = comparer;
-            var cap = BitUtil.FindNextPositivePowerOfTwo(capacity);
+            var cap = BitUtils.NextPow2(capacity);
             _buffer = new T[cap];
             // capacity is always a power of two and we use bitshift instead of modulo
             _bufferMask = _buffer.Length - 1;
@@ -558,7 +558,7 @@ namespace Spreads.Collections.Generic
         {
             if (capacity <= 0) throw new ArgumentOutOfRangeException(nameof(capacity));
             _comparer = comparer;
-            var cap = BitUtil.FindNextPositivePowerOfTwo(capacity);
+            var cap = BitUtils.NextPow2(capacity);
             _buffer = new KeyValuePair<TKey, TValue>[cap];
             // capacity is always a power of two and we use bitshift instead of modulo
             _bufferMask = _buffer.Length - 1;

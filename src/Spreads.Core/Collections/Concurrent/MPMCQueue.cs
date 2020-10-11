@@ -31,7 +31,7 @@ namespace Spreads.Collections.Concurrent
 
         public MPMCQueue(int bufferSize)
         {
-            bufferSize = BitUtil.FindNextPositivePowerOfTwo(Math.Max(2, bufferSize));
+            bufferSize = BitUtils.NextPow2(Math.Max(2, bufferSize));
 
             var buffer = new Cell[bufferSize];
 

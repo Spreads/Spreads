@@ -132,7 +132,7 @@ namespace Spreads.Buffers
                                                       "maximumBufferSize must be at least blockSize");
             }
 
-            _blockSize = BitUtil.FindNextPositivePowerOfTwo(blockSize);
+            _blockSize = BitUtils.NextPow2(blockSize);
             _largeBufferMultiple = largeBufferMultiple;
             _maximumBufferSize = maximumBufferSize;
 

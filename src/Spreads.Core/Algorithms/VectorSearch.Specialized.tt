@@ -98,7 +98,7 @@ namespace Spreads.Algorithms {
                     {
                         if (mask != 0)
                         {
-                            int clz = (int) Lzcnt.LeadingZeroCount((uint) mask);
+                            int clz = (int) BitUtils.LeadingZeroCount((uint) mask);
                             int index = (32 - clz) / Unsafe.SizeOf<<#=type#>>();
                             lo = i + index;
                             vLo = UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref searchSpace, lo));
@@ -122,7 +122,7 @@ namespace Spreads.Algorithms {
                     gt = Avx2.CompareGreaterThan(valVec, vecI);
                     mask = Avx2.MoveMask(gt.AsByte());
 
-                    var clz = BitUtil.NumberOfLeadingZeros(mask);
+                    var clz = BitUtils.LeadingZeroCount(mask);
                     var index = (32 - clz) / Unsafe.SizeOf<<#=type#>>();
                     lo += index;
                 } while (mask == -1 & hi - lo >= Vector256<<#=type#>>.Count);
@@ -184,7 +184,7 @@ namespace Spreads.Algorithms {
                     {
                         if (mask != 0)
                         {
-                            int clz = (int) Lzcnt.LeadingZeroCount((ushort) mask);
+                            int clz = (int) BitUtils.LeadingZeroCount((ushort) mask);
                             int index = (32 - clz) / Unsafe.SizeOf<<#=type#>>();
                             lo = i + index;
                             vLo = UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref searchSpace, lo));
@@ -204,7 +204,7 @@ namespace Spreads.Algorithms {
                     gt = Sse42.CompareGreaterThan(valVec, vecI);
                     mask = (short)(((1u << 16) - 1) & (uint)Sse42.MoveMask(gt.AsByte()));
 
-                    var clz = BitUtil.NumberOfLeadingZeros((ushort)mask);
+                    var clz = BitUtils.LeadingZeroCount((ushort)mask);
                     var index = (32 - clz) / Unsafe.SizeOf<<#=type#>>();
                     lo += index;
                 } while (mask == -1 & hi - lo >= Vector128<<#=type#>>.Count);

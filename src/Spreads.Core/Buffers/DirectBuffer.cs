@@ -5,6 +5,7 @@
 using System;
 using System.Buffers;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.Contracts;
 using System.Numerics;
 using System.Runtime.CompilerServices;
@@ -23,64 +24,74 @@ namespace Spreads.Buffers
     [StructLayout(LayoutKind.Sequential)]
     public readonly unsafe struct DirectBuffer : IEquatable<DirectBuffer>
     {
-        public static DirectBuffer Invalid = new DirectBuffer(0, (byte*)IntPtr.Zero);
-
-        // NB this is used for Spreads.LMDB as MDB_val, where length is IntPtr. However, LMDB works normally only on x64
-        // if we even support x86 we will have to create a DTO with IntPtr length. But for x64 casting IntPtr to/from long
-        // is surprisingly expensive, e.g. Slice and ctor show up in profiler.
-
-        // TODO this should be (U)IntPtr. The comment above was probably with tiered on, need to review.
-        // LMDB 1.0 will work OK-ish on x86
+        public static DirectBuffer Invalid = new DirectBuffer(new IntPtr(-1L), (byte*) IntPtr.Zero);
 
         internal readonly IntPtr _length;
         internal readonly byte* _pointer;
 
         /// <summary>
-        /// Attach a view to an unmanaged buffer owned by external code
+        /// 
         /// </summary>
-        /// <param name="data">Unmanaged byte buffer</param>
-        /// <param name="length">Length of the buffer</param>
+        /// <param name="length"></param>
+        /// <param name="data"></param>
         [DebuggerStepThrough]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public DirectBuffer(long length, IntPtr data)
         {
+            if (length < 0)
+                ThrowHelper.ThrowArgumentException("length must be non negative");
+
             if (data == IntPtr.Zero)
-            {
-                ThrowHelper.ThrowArgumentNullException("data");
-            }
-            if (length <= 0)
-            {
-                ThrowHelper.ThrowArgumentException("Memory size must be > 0");
-            }
-            _length = (IntPtr)length;
-            _pointer = (byte*)data;
+                ThrowHelper.ThrowArgumentNullException("data must not be null");
+
+            _length = (IntPtr) length;
+            _pointer = (byte*) data;
         }
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="length"></param>
+        /// <param name="handle"></param>
         [DebuggerStepThrough]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public DirectBuffer(long length, MemoryHandle handle) : this(length, (byte*)handle.Pointer)
+        public DirectBuffer(long length, MemoryHandle handle) : this(length, (IntPtr) handle.Pointer)
         {
         }
 
         /// <summary>
         /// Unsafe constructors performs no input checks.
         /// </summary>
+        /// <param name="length"></param>
+        /// <param name="pointer"></param>
         [DebuggerStepThrough]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public DirectBuffer(long length, byte* pointer)
+        internal DirectBuffer(IntPtr length, byte* pointer)
         {
-            _length = (IntPtr)length;
+            _length = length;
             _pointer = pointer;
         }
 
         [DebuggerStepThrough]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal DirectBuffer(long length, byte* pointer)
+        {
+            _length = (IntPtr) length;
+            _pointer = pointer;
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="retainedMemory"></param>
+        [DebuggerStepThrough]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public DirectBuffer(RetainedMemory<byte> retainedMemory)
         {
-            if (!retainedMemory.IsPinned)
-                ThrowRetainedMemoryNotPinned();
-            _length = (IntPtr)retainedMemory.Length;
-            _pointer = (byte*)retainedMemory.Pointer;
+            if (!retainedMemory.IsPinned) ThrowRetainedMemoryNotPinned();
+
+            _length = (IntPtr) retainedMemory.Length;
+            _pointer = (byte*) retainedMemory.Pointer;
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
@@ -89,11 +100,15 @@ namespace Spreads.Buffers
             ThrowHelper.ThrowInvalidOperationException("RetainedMemory must be pinned for using as DirectBuffer.");
         }
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="span">Span must be backed by already pinned memory.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public DirectBuffer(Span<byte> span)
         {
-            _length = (IntPtr)span.Length;
-            _pointer = (byte*)AsPointer(ref span.GetPinnableReference());
+            _length = (IntPtr) span.Length;
+            _pointer = (byte*) AsPointer(ref span.GetPinnableReference());
         }
 
         public bool IsValid
@@ -115,7 +130,7 @@ namespace Spreads.Buffers
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool IsFilledWithValue(byte value)
         {
-            return IsFilledWithValue(ref *Data, (ulong)_length, value);
+            return IsFilledWithValue(ref *Data, (ulong) _length, value);
         }
 
         public Span<byte> Span
@@ -125,7 +140,7 @@ namespace Spreads.Buffers
             get
             {
 #if BUILTIN_SPAN
-                return MemoryMarshal.CreateSpan(ref *_pointer, (int)_length);
+                return MemoryMarshal.CreateSpan(ref *_pointer, (int) _length);
 #else
                 return new Span<byte>(_pointer, (int) _length);
 #endif
@@ -136,14 +151,14 @@ namespace Spreads.Buffers
         {
             [DebuggerStepThrough]
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => checked((int)(long)_length);
+            get => checked((int) (long) _length);
         }
 
         public long LongLength
         {
             [DebuggerStepThrough]
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => (long)_length;
+            get => (long) _length;
         }
 
         public byte* Data
@@ -153,12 +168,14 @@ namespace Spreads.Buffers
             get => _pointer;
         }
 
-        // for cases when unsafe is not allowed, e.g. async
-        public IntPtr IntPtr
+        /// <summary>
+        /// For cases when unsafe is not allowed, e.g. async
+        /// </summary>
+        public IntPtr DataIntPtr
         {
             [DebuggerStepThrough]
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => (IntPtr)_pointer;
+            get => (IntPtr) _pointer;
         }
 
         [Pure]
@@ -166,10 +183,9 @@ namespace Spreads.Buffers
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public DirectBuffer Slice(long start)
         {
-            if (AdditionalCorrectnessChecks.Enabled)
-            { Assert(0, start); }
+            if (AdditionalCorrectnessChecks.Enabled) Assert(0, start);
 
-            return new DirectBuffer((long)_length - start, _pointer + start);
+            return new DirectBuffer((IntPtr) ((long) _length - start), _pointer + start);
         }
 
         [Pure]
@@ -177,10 +193,9 @@ namespace Spreads.Buffers
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public DirectBuffer Slice(long start, long length)
         {
-            if (AdditionalCorrectnessChecks.Enabled)
-            { Assert(start, length); }
+            if (AdditionalCorrectnessChecks.Enabled) Assert(start, length);
 
-            return new DirectBuffer(length, _pointer + start);
+            return new DirectBuffer((IntPtr) length, _pointer + start);
         }
 
         [DebuggerStepThrough]
@@ -190,16 +205,12 @@ namespace Spreads.Buffers
             if (AdditionalCorrectnessChecks.Enabled)
             {
                 if (!IsValid)
-                {
                     ThrowHelper.ThrowInvalidOperationException("DirectBuffer is invalid.");
-                }
 
                 unchecked
                 {
-                    if ((ulong)index + (ulong)length > (ulong)_length)
-                    {
+                    if ((ulong) index + (ulong) length > (ulong) _length)
                         ThrowHelper.ThrowArgumentException("Not enough space in DirectBuffer or bad index/length.");
-                    }
                 }
             }
         }
@@ -213,8 +224,8 @@ namespace Spreads.Buffers
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public char ReadChar(long index)
         {
-            if (AdditionalCorrectnessChecks.Enabled)
-            { Assert(index, 2); }
+            if (AdditionalCorrectnessChecks.Enabled) Assert(index, 2);
+
             return ReadUnaligned<char>(_pointer + index);
         }
 
@@ -226,8 +237,8 @@ namespace Spreads.Buffers
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void WriteChar(long index, char value)
         {
-            if (AdditionalCorrectnessChecks.Enabled)
-            { Assert(index, 2); }
+            if (AdditionalCorrectnessChecks.Enabled) Assert(index, 2);
+
             WriteUnaligned(_pointer + index, value);
         }
 
@@ -239,8 +250,8 @@ namespace Spreads.Buffers
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public sbyte ReadSByte(long index)
         {
-            if (AdditionalCorrectnessChecks.Enabled)
-            { Assert(index, 1); }
+            if (AdditionalCorrectnessChecks.Enabled) Assert(index, 1);
+
             return ReadUnaligned<sbyte>(_pointer + index);
         }
 
@@ -252,8 +263,8 @@ namespace Spreads.Buffers
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void WriteSByte(long index, sbyte value)
         {
-            if (AdditionalCorrectnessChecks.Enabled)
-            { Assert(index, 1); }
+            if (AdditionalCorrectnessChecks.Enabled) Assert(index, 1);
+
             WriteUnaligned(_pointer + index, value);
         }
 
@@ -266,8 +277,8 @@ namespace Spreads.Buffers
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public byte ReadByte(long index)
         {
-            if (AdditionalCorrectnessChecks.Enabled)
-            { Assert(index, 1); }
+            if (AdditionalCorrectnessChecks.Enabled) Assert(index, 1);
+
             return ReadUnaligned<byte>(_pointer + index);
         }
 
@@ -279,8 +290,8 @@ namespace Spreads.Buffers
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void WriteByte(long index, byte value)
         {
-            if (AdditionalCorrectnessChecks.Enabled)
-            { Assert(index, 1); }
+            if (AdditionalCorrectnessChecks.Enabled) Assert(index, 1);
+
             WriteUnaligned(_pointer + index, value);
         }
 
@@ -290,18 +301,14 @@ namespace Spreads.Buffers
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
-                if (AdditionalCorrectnessChecks.Enabled)
-                {
-                    Assert(index, 1);
-                }
+                if (AdditionalCorrectnessChecks.Enabled) Assert(index, 1);
 
                 return *(_pointer + index);
             }
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             set
             {
-                if (AdditionalCorrectnessChecks.Enabled)
-                { Assert(index, 1); }
+                if (AdditionalCorrectnessChecks.Enabled) Assert(index, 1);
 
                 *(_pointer + index) = value;
             }
@@ -316,8 +323,8 @@ namespace Spreads.Buffers
         [Pure]
         public short ReadInt16(long index)
         {
-            if (AdditionalCorrectnessChecks.Enabled)
-            { Assert(index, 2); }
+            if (AdditionalCorrectnessChecks.Enabled) Assert(index, 2);
+
             return ReadUnaligned<short>(_pointer + index);
         }
 
@@ -329,8 +336,8 @@ namespace Spreads.Buffers
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void WriteInt16(long index, short value)
         {
-            if (AdditionalCorrectnessChecks.Enabled)
-            { Assert(index, 2); }
+            if (AdditionalCorrectnessChecks.Enabled) Assert(index, 2);
+
             WriteUnaligned(_pointer + index, value);
         }
 
@@ -343,8 +350,8 @@ namespace Spreads.Buffers
         [Pure]
         public int ReadInt32(long index)
         {
-            if (AdditionalCorrectnessChecks.Enabled)
-            { Assert(index, 4); }
+            if (AdditionalCorrectnessChecks.Enabled) Assert(index, 4);
+
             return ReadUnaligned<int>(_pointer + index);
         }
 
@@ -356,8 +363,8 @@ namespace Spreads.Buffers
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void WriteInt32(long index, int value)
         {
-            if (AdditionalCorrectnessChecks.Enabled)
-            { Assert(index, 4); }
+            if (AdditionalCorrectnessChecks.Enabled) Assert(index, 4);
+
             WriteUnaligned(_pointer + index, value);
         }
 
@@ -365,158 +372,158 @@ namespace Spreads.Buffers
         [Pure]
         public int VolatileReadInt32(long index)
         {
-            if (AdditionalCorrectnessChecks.Enabled)
-            { Assert(index, 4); }
-            return Volatile.Read(ref *(int*)(_pointer + index));
+            if (AdditionalCorrectnessChecks.Enabled) Assert(index, 4);
+
+            return Volatile.Read(ref *(int*) (_pointer + index));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void VolatileWriteInt32(long index, int value)
         {
-            if (AdditionalCorrectnessChecks.Enabled)
-            { Assert(index, 4); }
-            Volatile.Write(ref *(int*)(_pointer + index), value);
+            if (AdditionalCorrectnessChecks.Enabled) Assert(index, 4);
+
+            Volatile.Write(ref *(int*) (_pointer + index), value);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         [Pure]
         public uint VolatileReadUInt32(long index)
         {
-            if (AdditionalCorrectnessChecks.Enabled)
-            { Assert(index, 4); }
-            return Volatile.Read(ref *(uint*)(_pointer + index));
+            if (AdditionalCorrectnessChecks.Enabled) Assert(index, 4);
+
+            return Volatile.Read(ref *(uint*) (_pointer + index));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void VolatileWriteUInt32(long index, uint value)
         {
-            if (AdditionalCorrectnessChecks.Enabled)
-            { Assert(index, 4); }
-            Volatile.Write(ref *(uint*)(_pointer + index), value);
+            if (AdditionalCorrectnessChecks.Enabled) Assert(index, 4);
+
+            Volatile.Write(ref *(uint*) (_pointer + index), value);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         [Pure]
         public long VolatileReadInt64(long index)
         {
-            if (AdditionalCorrectnessChecks.Enabled)
-            { Assert(index, 8); }
-            return Volatile.Read(ref *(long*)(_pointer + index));
+            if (AdditionalCorrectnessChecks.Enabled) Assert(index, 8);
+
+            return Volatile.Read(ref *(long*) (_pointer + index));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void VolatileWriteUInt64(long index, ulong value)
         {
-            if (AdditionalCorrectnessChecks.Enabled)
-            { Assert(index, 8); }
-            Volatile.Write(ref *(ulong*)(_pointer + index), value);
+            if (AdditionalCorrectnessChecks.Enabled) Assert(index, 8);
+
+            Volatile.Write(ref *(ulong*) (_pointer + index), value);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         [Pure]
         public ulong VolatileReadUInt64(long index)
         {
-            if (AdditionalCorrectnessChecks.Enabled)
-            { Assert(index, 8); }
-            return Volatile.Read(ref *(ulong*)(_pointer + index));
+            if (AdditionalCorrectnessChecks.Enabled) Assert(index, 8);
+
+            return Volatile.Read(ref *(ulong*) (_pointer + index));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void VolatileWriteInt64(long index, long value)
         {
-            if (AdditionalCorrectnessChecks.Enabled)
-            { Assert(index, 8); }
-            Volatile.Write(ref *(long*)(_pointer + index), value);
+            if (AdditionalCorrectnessChecks.Enabled) Assert(index, 8);
+
+            Volatile.Write(ref *(long*) (_pointer + index), value);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         [Pure]
         public int InterlockedIncrementInt32(long index)
         {
-            if (AdditionalCorrectnessChecks.Enabled)
-            { Assert(index, 4); }
-            return Interlocked.Increment(ref *(int*)(_pointer + index));
+            if (AdditionalCorrectnessChecks.Enabled) Assert(index, 4);
+
+            return Interlocked.Increment(ref *(int*) (_pointer + index));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         [Pure]
         public int InterlockedDecrementInt32(long index)
         {
-            if (AdditionalCorrectnessChecks.Enabled)
-            { Assert(index, 4); }
-            return Interlocked.Decrement(ref *(int*)(_pointer + index));
+            if (AdditionalCorrectnessChecks.Enabled) Assert(index, 4);
+
+            return Interlocked.Decrement(ref *(int*) (_pointer + index));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         [Pure]
         public int InterlockedAddInt32(long index, int value)
         {
-            if (AdditionalCorrectnessChecks.Enabled)
-            { Assert(index, 4); }
-            return Interlocked.Add(ref *(int*)(_pointer + index), value);
+            if (AdditionalCorrectnessChecks.Enabled) Assert(index, 4);
+
+            return Interlocked.Add(ref *(int*) (_pointer + index), value);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         [Pure]
         public int InterlockedReadInt32(long index)
         {
-            if (AdditionalCorrectnessChecks.Enabled)
-            { Assert(index, 4); }
-            return Interlocked.Add(ref *(int*)(_pointer + index), 0);
+            if (AdditionalCorrectnessChecks.Enabled) Assert(index, 4);
+
+            return Interlocked.Add(ref *(int*) (_pointer + index), 0);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         [Pure]
         public int InterlockedCompareExchangeInt32(long index, int value, int comparand)
         {
-            if (AdditionalCorrectnessChecks.Enabled)
-            { Assert(index, 4); }
-            return Interlocked.CompareExchange(ref *(int*)(_pointer + index), value, comparand);
+            if (AdditionalCorrectnessChecks.Enabled) Assert(index, 4);
+
+            return Interlocked.CompareExchange(ref *(int*) (_pointer + index), value, comparand);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         [Pure]
         public long InterlockedIncrementInt64(long index)
         {
-            if (AdditionalCorrectnessChecks.Enabled)
-            { Assert(index, 8); }
-            return Interlocked.Increment(ref *(long*)(_pointer + index));
+            if (AdditionalCorrectnessChecks.Enabled) Assert(index, 8);
+
+            return Interlocked.Increment(ref *(long*) (_pointer + index));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         [Pure]
         public long InterlockedDecrementInt64(long index)
         {
-            if (AdditionalCorrectnessChecks.Enabled)
-            { Assert(index, 8); }
-            return Interlocked.Decrement(ref *(long*)(_pointer + index));
+            if (AdditionalCorrectnessChecks.Enabled) Assert(index, 8);
+
+            return Interlocked.Decrement(ref *(long*) (_pointer + index));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         [Pure]
         public long InterlockedAddInt64(long index, long value)
         {
-            if (AdditionalCorrectnessChecks.Enabled)
-            { Assert(index, 8); }
-            return Interlocked.Add(ref *(long*)(_pointer + index), value);
+            if (AdditionalCorrectnessChecks.Enabled) Assert(index, 8);
+
+            return Interlocked.Add(ref *(long*) (_pointer + index), value);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         [Pure]
         public long InterlockedReadInt64(long index)
         {
-            if (AdditionalCorrectnessChecks.Enabled)
-            { Assert(index, 8); }
-            return Interlocked.Add(ref *(long*)(_pointer + index), 0);
+            if (AdditionalCorrectnessChecks.Enabled) Assert(index, 8);
+
+            return Interlocked.Add(ref *(long*) (_pointer + index), 0);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         [Pure]
         public long InterlockedCompareExchangeInt64(long index, long value, long comparand)
         {
-            if (AdditionalCorrectnessChecks.Enabled)
-            { Assert(index, 8); }
-            return Interlocked.CompareExchange(ref *(long*)(_pointer + index), value, comparand);
+            if (AdditionalCorrectnessChecks.Enabled) Assert(index, 8);
+
+            return Interlocked.CompareExchange(ref *(long*) (_pointer + index), value, comparand);
         }
 
         /// <summary>
@@ -528,8 +535,8 @@ namespace Spreads.Buffers
         [Pure]
         public long ReadInt64(long index)
         {
-            if (AdditionalCorrectnessChecks.Enabled)
-            { Assert(index, 8); }
+            if (AdditionalCorrectnessChecks.Enabled) Assert(index, 8);
+
             return ReadUnaligned<long>(_pointer + index);
         }
 
@@ -541,8 +548,8 @@ namespace Spreads.Buffers
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void WriteInt64(long index, long value)
         {
-            if (AdditionalCorrectnessChecks.Enabled)
-            { Assert(index, 8); }
+            if (AdditionalCorrectnessChecks.Enabled) Assert(index, 8);
+
             WriteUnaligned(_pointer + index, value);
         }
 
@@ -555,8 +562,8 @@ namespace Spreads.Buffers
         [Pure]
         public ushort ReadUInt16(long index)
         {
-            if (AdditionalCorrectnessChecks.Enabled)
-            { Assert(index, 2); }
+            if (AdditionalCorrectnessChecks.Enabled) Assert(index, 2);
+
             return ReadUnaligned<ushort>(_pointer + index);
         }
 
@@ -568,8 +575,8 @@ namespace Spreads.Buffers
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void WriteUInt16(long index, ushort value)
         {
-            if (AdditionalCorrectnessChecks.Enabled)
-            { Assert(index, 2); }
+            if (AdditionalCorrectnessChecks.Enabled) Assert(index, 2);
+
             WriteUnaligned(_pointer + index, value);
         }
 
@@ -582,8 +589,8 @@ namespace Spreads.Buffers
         [Pure]
         public uint ReadUInt32(long index)
         {
-            if (AdditionalCorrectnessChecks.Enabled)
-            { Assert(index, 4); }
+            if (AdditionalCorrectnessChecks.Enabled) Assert(index, 4);
+
             return ReadUnaligned<uint>(_pointer + index);
         }
 
@@ -595,8 +602,8 @@ namespace Spreads.Buffers
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void WriteUInt32(long index, uint value)
         {
-            if (AdditionalCorrectnessChecks.Enabled)
-            { Assert(index, 4); }
+            if (AdditionalCorrectnessChecks.Enabled) Assert(index, 4);
+
             WriteUnaligned(_pointer + index, value);
         }
 
@@ -609,8 +616,8 @@ namespace Spreads.Buffers
         [Pure]
         public ulong ReadUInt64(long index)
         {
-            if (AdditionalCorrectnessChecks.Enabled)
-            { Assert(index, 8); }
+            if (AdditionalCorrectnessChecks.Enabled) Assert(index, 8);
+
             return ReadUnaligned<ulong>(_pointer + index);
         }
 
@@ -621,10 +628,8 @@ namespace Spreads.Buffers
         /// <param name="value">value to be written</param>
         public void WriteUInt64(long index, ulong value)
         {
-            if (AdditionalCorrectnessChecks.Enabled)
-            {
-                Assert(index, 8);
-            }
+            if (AdditionalCorrectnessChecks.Enabled) Assert(index, 8);
+
             WriteUnaligned(_pointer + index, value);
         }
 
@@ -637,8 +642,8 @@ namespace Spreads.Buffers
         [Pure]
         public float ReadFloat(long index)
         {
-            if (AdditionalCorrectnessChecks.Enabled)
-            { Assert(index, 4); }
+            if (AdditionalCorrectnessChecks.Enabled) Assert(index, 4);
+
             return ReadUnaligned<float>(_pointer + index);
         }
 
@@ -650,8 +655,8 @@ namespace Spreads.Buffers
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void WriteFloat(long index, float value)
         {
-            if (AdditionalCorrectnessChecks.Enabled)
-            { Assert(index, 4); }
+            if (AdditionalCorrectnessChecks.Enabled) Assert(index, 4);
+
             WriteUnaligned(_pointer + index, value);
         }
 
@@ -664,8 +669,8 @@ namespace Spreads.Buffers
         [Pure]
         public double ReadDouble(long index)
         {
-            if (AdditionalCorrectnessChecks.Enabled)
-            { Assert(index, 8); }
+            if (AdditionalCorrectnessChecks.Enabled) Assert(index, 8);
+
             return ReadUnaligned<double>(_pointer + index);
         }
 
@@ -677,8 +682,8 @@ namespace Spreads.Buffers
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void WriteDouble(long index, double value)
         {
-            if (AdditionalCorrectnessChecks.Enabled)
-            { Assert(index, 8); }
+            if (AdditionalCorrectnessChecks.Enabled) Assert(index, 8);
+
             WriteUnaligned(_pointer + index, value);
         }
 
@@ -694,11 +699,8 @@ namespace Spreads.Buffers
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public T Read<T>(long index)
         {
-            if (AdditionalCorrectnessChecks.Enabled)
-            {
-                var size = SizeOf<T>();
-                Assert(index, size);
-            }
+            if (AdditionalCorrectnessChecks.Enabled) Assert(index, SizeOf<T>());
+
             return ReadUnaligned<T>(_pointer + index);
         }
 
@@ -709,8 +711,8 @@ namespace Spreads.Buffers
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Write<T>(long index, T value)
         {
-            if (AdditionalCorrectnessChecks.Enabled)
-            { Assert(index, SizeOf<T>()); }
+            if (AdditionalCorrectnessChecks.Enabled) Assert(index, SizeOf<T>());
+
             WriteUnaligned(_pointer + index, value);
         }
 
@@ -718,8 +720,8 @@ namespace Spreads.Buffers
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal int WriteS<T>(long index, T value)
         {
-            if (AdditionalCorrectnessChecks.Enabled)
-            { Assert(index, SizeOf<T>()); }
+            if (AdditionalCorrectnessChecks.Enabled) Assert(index, SizeOf<T>());
+
             WriteUnaligned(_pointer + index, value);
             return SizeOf<T>();
         }
@@ -728,20 +730,20 @@ namespace Spreads.Buffers
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Clear(long index, int length)
         {
-            if (AdditionalCorrectnessChecks.Enabled)
-            { Assert(index, length); }
+            if (AdditionalCorrectnessChecks.Enabled) Assert(index, length);
+
             var destination = _pointer + index;
-            InitBlockUnaligned(destination, 0, (uint)length);
+            InitBlockUnaligned(destination, 0, (uint) length);
         }
 
         [DebuggerStepThrough]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Fill(long index, int length, byte value)
         {
-            if (AdditionalCorrectnessChecks.Enabled)
-            { Assert(index, length); }
+            if (AdditionalCorrectnessChecks.Enabled) Assert(index, length);
+
             var destination = _pointer + index;
-            InitBlockUnaligned(destination, value, (uint)length);
+            InitBlockUnaligned(destination, value, (uint) length);
         }
 
 #if SPREADS
@@ -751,8 +753,8 @@ namespace Spreads.Buffers
         // ReSharper disable once InconsistentNaming
         public DataTypes.UUID ReadUUID(long index)
         {
-            if (AdditionalCorrectnessChecks.Enabled)
-            { Assert(index, 16); }
+            if (AdditionalCorrectnessChecks.Enabled) Assert(index, 16);
+
             return ReadUnaligned<DataTypes.UUID>(_pointer + index);
         }
 
@@ -760,8 +762,8 @@ namespace Spreads.Buffers
         // ReSharper disable once InconsistentNaming
         public void WriteUUID(long index, DataTypes.UUID value)
         {
-            if (AdditionalCorrectnessChecks.Enabled)
-            { Assert(index, 16); }
+            if (AdditionalCorrectnessChecks.Enabled) Assert(index, 16);
+
             WriteUnaligned(_pointer + index, value);
         }
 
@@ -771,27 +773,26 @@ namespace Spreads.Buffers
         [Pure]
         public int ReadAsciiDigit(long index)
         {
-            if (AdditionalCorrectnessChecks.Enabled)
-            { Assert(index, 1); }
+            if (AdditionalCorrectnessChecks.Enabled) Assert(index, 1);
+
             return ReadUnaligned<byte>(_pointer + index) - '0';
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void WriteAsciiDigit(long index, byte value)
         {
-            if (AdditionalCorrectnessChecks.Enabled)
-            { Assert(index, 1); }
-            WriteUnaligned(_pointer + index, (byte)(value + '0'));
+            if (AdditionalCorrectnessChecks.Enabled) Assert(index, 1);
+
+            WriteUnaligned(_pointer + index, (byte) (value + '0'));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [SuppressMessage("ReSharper", "HeapView.BoxingAllocation")]
         public void VerifyAlignment(int alignment)
         {
-            if (0 != ((long)_pointer & (alignment - 1)))
-            {
+            if (0 != ((long) _pointer & (alignment - 1)))
                 ThrowHelper.ThrowInvalidOperationException(
-                    $"DirectBuffer is not correctly aligned: addressOffset={(long)_pointer:D} in not divisible by {alignment:D}");
-            }
+                    $"DirectBuffer is not correctly aligned: addressOffset={(long) _pointer:D} in not divisible by {alignment:D}");
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -803,19 +804,17 @@ namespace Spreads.Buffers
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void CopyTo(in DirectBuffer destination)
         {
-            if (AdditionalCorrectnessChecks.Enabled)
-            {
-                destination.Assert(0, (long)_length);
-            }
-            CopyTo(0, destination.Data, (int)_length);
+            if (AdditionalCorrectnessChecks.Enabled) destination.Assert(0, (long) _length);
+
+            CopyTo(0, destination.Data, (int) _length);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void CopyTo(long index, void* destination, int length)
         {
-            if (AdditionalCorrectnessChecks.Enabled)
-            { Assert(index, length); }
-            CopyBlockUnaligned(destination, _pointer + index, checked((uint)length));
+            if (AdditionalCorrectnessChecks.Enabled) Assert(index, length);
+
+            CopyBlockUnaligned(destination, _pointer + index, checked((uint) length));
         }
 
         #region Debugger proxy class
@@ -830,7 +829,7 @@ namespace Spreads.Buffers
                 _db = db;
             }
 
-            public void* Data => _db.Data;
+            public byte* Data => _db.Data;
 
             public long Length => _db.Length;
 
@@ -844,7 +843,7 @@ namespace Spreads.Buffers
         public override int GetHashCode()
         {
 #if SPREADS
-            return unchecked((int)Algorithms.Hash.Crc32C.CalculateCrc32C(_pointer, checked((int)(long)_length)));
+            return unchecked((int) Algorithms.Hash.Crc32C.CalculateCrc32C(_pointer, checked((int) (long) _length)));
 #else
             throw new NotSupportedException();
 #endif
@@ -854,11 +853,9 @@ namespace Spreads.Buffers
         public bool Equals(DirectBuffer other)
         {
             if (_length != other._length)
-            {
                 return false;
-            }
 
-            return SequenceEqual(ref *_pointer, ref *other._pointer, checked((uint)(long)_length));
+            return SequenceEqual(ref *_pointer, ref *other._pointer, checked((uint) (long) _length));
         }
 
         // Methods from https://source.dot.net/#System.Private.CoreLib/shared/System/SpanHelpers.Byte.cs,ae8b63bad07668b3
@@ -874,7 +871,6 @@ namespace Spreads.Buffers
 #if HAS_AGGR_OPT
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
 #endif
-
         public static bool SequenceEqual(ref byte first, ref byte second, uint length)
         {
             if (AreSame(ref first, ref second))
@@ -882,112 +878,120 @@ namespace Spreads.Buffers
                 goto Equal;
             }
 
-            IntPtr offset = (IntPtr)0; // Use IntPtr for arithmetic to avoid unnecessary 64->32->64 truncations
-            IntPtr lengthToExamine = (IntPtr)(void*)length;
+            IntPtr offset = (IntPtr) 0; // Use IntPtr for arithmetic to avoid unnecessary 64->32->64 truncations
+            IntPtr lengthToExamine = (IntPtr) (void*) length;
 
-            if (Vector.IsHardwareAccelerated && (byte*)lengthToExamine >= (byte*)Vector<byte>.Count)
+            if (Vector.IsHardwareAccelerated && (byte*) lengthToExamine >= (byte*) Vector<byte>.Count)
             {
                 lengthToExamine -= Vector<byte>.Count;
-                while ((byte*)lengthToExamine > (byte*)offset)
+                while ((byte*) lengthToExamine > (byte*) offset)
                 {
                     if (LoadVector(ref first, offset) != LoadVector(ref second, offset))
                     {
                         goto NotEqual;
                     }
+
                     offset += Vector<byte>.Count;
                 }
+
                 return LoadVector(ref first, lengthToExamine) == LoadVector(ref second, lengthToExamine);
             }
 
-            if ((byte*)lengthToExamine >= (byte*)sizeof(UIntPtr))
+            if ((byte*) lengthToExamine >= (byte*) sizeof(UIntPtr))
             {
                 lengthToExamine -= sizeof(UIntPtr);
-                while ((byte*)lengthToExamine > (byte*)offset)
+                while ((byte*) lengthToExamine > (byte*) offset)
                 {
                     if (LoadUIntPtr(ref first, offset) != LoadUIntPtr(ref second, offset))
                     {
                         goto NotEqual;
                     }
+
                     offset += sizeof(UIntPtr);
                 }
+
                 return LoadUIntPtr(ref first, lengthToExamine) == LoadUIntPtr(ref second, lengthToExamine);
             }
 
-            while ((byte*)lengthToExamine > (byte*)offset)
+            while ((byte*) lengthToExamine > (byte*) offset)
             {
                 if (AddByteOffset(ref first, offset) != AddByteOffset(ref second, offset))
                 {
                     goto NotEqual;
                 }
+
                 offset += 1;
             }
 
-        Equal:
+            Equal:
             return true;
-        NotEqual: // Workaround for https://github.com/dotnet/coreclr/issues/13549
+            NotEqual: // Workaround for https://github.com/dotnet/coreclr/issues/13549
             return false;
         }
 
 #if HAS_AGGR_OPT
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
 #endif
-
         public static bool IsFilledWithValue(ref byte first, ulong length, byte value)
         {
             var valueVector = new Vector<byte>(value);
-            IntPtr offset = (IntPtr)0; // Use IntPtr for arithmetic to avoid unnecessary 64->32->64 truncations
-            IntPtr lengthToExamine = (IntPtr)(void*)length;
+            IntPtr offset = (IntPtr) 0; // Use IntPtr for arithmetic to avoid unnecessary 64->32->64 truncations
+            IntPtr lengthToExamine = (IntPtr) (void*) length;
 
-            if (Vector.IsHardwareAccelerated && (byte*)lengthToExamine >= (byte*)Vector<byte>.Count)
+            if (Vector.IsHardwareAccelerated && (byte*) lengthToExamine >= (byte*) Vector<byte>.Count)
             {
                 lengthToExamine -= Vector<byte>.Count;
-                while ((byte*)lengthToExamine > (byte*)offset)
+                while ((byte*) lengthToExamine > (byte*) offset)
                 {
                     if (LoadVector(ref first, offset) != valueVector)
                     {
                         goto NotEqual;
                     }
+
                     offset += Vector<byte>.Count;
                 }
+
                 return LoadVector(ref first, lengthToExamine) == valueVector;
             }
-
-            // TODO UIntPtr or at least uint/ulong from value
-            if ((byte*)lengthToExamine >= (byte*)sizeof(UIntPtr))
+            
+            if ((byte*) lengthToExamine >= (byte*) sizeof(UIntPtr))
             {
                 lengthToExamine -= sizeof(UIntPtr);
                 UIntPtr uintPtrValue;
                 if (UIntPtr.Size == 8)
                 {
-                    uintPtrValue = (UIntPtr)Vector.AsVectorUInt64(valueVector)[0];
+                    uintPtrValue = (UIntPtr) Vector.AsVectorUInt64(valueVector)[0];
                 }
                 else
                 {
-                    uintPtrValue = (UIntPtr)Vector.AsVectorUInt32(valueVector)[0];
+                    uintPtrValue = (UIntPtr) Vector.AsVectorUInt32(valueVector)[0];
                 }
 
-                while ((byte*)lengthToExamine > (byte*)offset)
+                while ((byte*) lengthToExamine > (byte*) offset)
                 {
                     if (LoadUIntPtr(ref first, offset) != uintPtrValue)
                     {
                         goto NotEqual;
                     }
+
                     offset += sizeof(UIntPtr);
                 }
+
                 return LoadUIntPtr(ref first, lengthToExamine) == uintPtrValue;
             }
 
-            while ((byte*)lengthToExamine > (byte*)offset)
+            while ((byte*) lengthToExamine > (byte*) offset)
             {
                 if (AddByteOffset(ref first, offset) != value)
                 {
                     goto NotEqual;
                 }
+
                 offset += 1;
             }
 
             return true;
-        NotEqual: // Workaround for https://github.com/dotnet/coreclr/issues/13549
+            NotEqual: // Workaround for https://github.com/dotnet/coreclr/issues/13549
             return false;
         }
     }
@@ -1003,7 +1007,7 @@ namespace Spreads.Buffers
         {
             fixed (byte* ptr = source)
             {
-                var sourceDb = new DirectBuffer(source.Length, ptr);
+                var sourceDb = new DirectBuffer((IntPtr) source.Length, ptr);
                 sourceDb.CopyTo(destination);
             }
         }
@@ -1013,7 +1017,7 @@ namespace Spreads.Buffers
         {
             fixed (byte* ptr = source)
             {
-                var sourceDb = new DirectBuffer(source.Length, ptr);
+                var sourceDb = new DirectBuffer((IntPtr) source.Length, ptr);
                 sourceDb.CopyTo(destination);
             }
         }

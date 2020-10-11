@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
     <Import Project="..\..\build\common.props" />
     <PropertyGroup>
-        <TargetFrameworks>netcoreapp3.0</TargetFrameworks>
+        <TargetFramework>net5.0</TargetFramework>
         <AssemblyName>Spreads.Core.Tests</AssemblyName>
         <RootNamespace>Spreads.Core.Tests</RootNamespace>
         <LangVersion>8.0</LangVersion>
@@ -54,7 +54,6 @@
     </ItemGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\..\..\..\..\..\..\_OSS\dotnet\Blake2Fast\src\Blake2Fast\Blake2Fast.csproj" />
       <ProjectReference Include="..\..\src\Spreads.Core\Spreads.Core.csproj" />
     </ItemGroup>
 
@@ -76,6 +75,5 @@
         <LastGenOutput>Blake2bSse4.cs</LastGenOutput>
       </None>
     </ItemGroup>
-
-
+    
 </Project>

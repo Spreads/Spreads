@@ -4,13 +4,11 @@
   
   <PropertyGroup>
     <Description>Spreads Core library</Description>
-    
     <AssemblyName>Spreads.Core</AssemblyName>
     <RootNamespace>Spreads</RootNamespace>
     <PackageId>Spreads.Core</PackageId>
     <OutputType>Library</OutputType>
-
-    <LangVersion>8.0</LangVersion>
+    <LangVersion>9.0</LangVersion>
     <Nullable>annotations</Nullable>
   </PropertyGroup>
   

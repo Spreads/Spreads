@@ -58,7 +58,7 @@ namespace Spreads.Algorithms {
                     {
                         if (mask != 0)
                         {
-                            int clz = (int) Lzcnt.LeadingZeroCount((uint) mask);
+                            int clz = (int) BitUtils.LeadingZeroCount((uint) mask);
                             int index = (32 - clz) / Unsafe.SizeOf<sbyte>();
                             lo = i + index;
                             vLo = UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref searchSpace, lo));
@@ -82,7 +82,7 @@ namespace Spreads.Algorithms {
                     gt = Avx2.CompareGreaterThan(valVec, vecI);
                     mask = Avx2.MoveMask(gt.AsByte());
 
-                    var clz = BitUtil.NumberOfLeadingZeros(mask);
+                    var clz = BitUtils.LeadingZeroCount(mask);
                     var index = (32 - clz) / Unsafe.SizeOf<sbyte>();
                     lo += index;
                 } while (mask == -1 & hi - lo >= Vector256<sbyte>.Count);
@@ -138,7 +138,7 @@ namespace Spreads.Algorithms {
                     {
                         if (mask != 0)
                         {
-                            int clz = (int) Lzcnt.LeadingZeroCount((uint) mask);
+                            int clz = (int) BitUtils.LeadingZeroCount((uint) mask);
                             int index = (32 - clz) / Unsafe.SizeOf<short>();
                             lo = i + index;
                             vLo = UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref searchSpace, lo));
@@ -162,7 +162,7 @@ namespace Spreads.Algorithms {
                     gt = Avx2.CompareGreaterThan(valVec, vecI);
                     mask = Avx2.MoveMask(gt.AsByte());
 
-                    var clz = BitUtil.NumberOfLeadingZeros(mask);
+                    var clz = BitUtils.LeadingZeroCount(mask);
                     var index = (32 - clz) / Unsafe.SizeOf<short>();
                     lo += index;
                 } while (mask == -1 & hi - lo >= Vector256<short>.Count);
@@ -218,7 +218,7 @@ namespace Spreads.Algorithms {
                     {
                         if (mask != 0)
                         {
-                            int clz = (int) Lzcnt.LeadingZeroCount((uint) mask);
+                            int clz = (int) BitUtils.LeadingZeroCount((uint) mask);
                             int index = (32 - clz) / Unsafe.SizeOf<int>();
                             lo = i + index;
                             vLo = UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref searchSpace, lo));
@@ -242,7 +242,7 @@ namespace Spreads.Algorithms {
                     gt = Avx2.CompareGreaterThan(valVec, vecI);
                     mask = Avx2.MoveMask(gt.AsByte());
 
-                    var clz = BitUtil.NumberOfLeadingZeros(mask);
+                    var clz = BitUtils.LeadingZeroCount(mask);
                     var index = (32 - clz) / Unsafe.SizeOf<int>();
                     lo += index;
                 } while (mask == -1 & hi - lo >= Vector256<int>.Count);
@@ -298,7 +298,7 @@ namespace Spreads.Algorithms {
                     {
                         if (mask != 0)
                         {
-                            int clz = (int) Lzcnt.LeadingZeroCount((uint) mask);
+                            int clz = (int) BitUtils.LeadingZeroCount((uint) mask);
                             int index = (32 - clz) / Unsafe.SizeOf<long>();
                             lo = i + index;
                             vLo = UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref searchSpace, lo));
@@ -322,7 +322,7 @@ namespace Spreads.Algorithms {
                     gt = Avx2.CompareGreaterThan(valVec, vecI);
                     mask = Avx2.MoveMask(gt.AsByte());
 
-                    var clz = BitUtil.NumberOfLeadingZeros(mask);
+                    var clz = BitUtils.LeadingZeroCount(mask);
                     var index = (32 - clz) / Unsafe.SizeOf<long>();
                     lo += index;
                 } while (mask == -1 & hi - lo >= Vector256<long>.Count);
@@ -377,7 +377,7 @@ namespace Spreads.Algorithms {
                     {
                         if (mask != 0)
                         {
-                            int clz = (int) Lzcnt.LeadingZeroCount((ushort) mask);
+                            int clz = (int) BitUtils.LeadingZeroCount((ushort) mask);
                             int index = (32 - clz) / Unsafe.SizeOf<sbyte>();
                             lo = i + index;
                             vLo = UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref searchSpace, lo));
@@ -397,7 +397,7 @@ namespace Spreads.Algorithms {
                     gt = Sse42.CompareGreaterThan(valVec, vecI);
                     mask = (short)(((1u << 16) - 1) & (uint)Sse42.MoveMask(gt.AsByte()));
 
-                    var clz = BitUtil.NumberOfLeadingZeros((ushort)mask);
+                    var clz = BitUtils.LeadingZeroCount((ushort)mask);
                     var index = (32 - clz) / Unsafe.SizeOf<sbyte>();
                     lo += index;
                 } while (mask == -1 & hi - lo >= Vector128<sbyte>.Count);
@@ -451,7 +451,7 @@ namespace Spreads.Algorithms {
                     {
                         if (mask != 0)
                         {
-                            int clz = (int) Lzcnt.LeadingZeroCount((ushort) mask);
+                            int clz = (int) BitUtils.LeadingZeroCount((ushort) mask);
                             int index = (32 - clz) / Unsafe.SizeOf<short>();
                             lo = i + index;
                             vLo = UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref searchSpace, lo));
@@ -471,7 +471,7 @@ namespace Spreads.Algorithms {
                     gt = Sse42.CompareGreaterThan(valVec, vecI);
                     mask = (short)(((1u << 16) - 1) & (uint)Sse42.MoveMask(gt.AsByte()));
 
-                    var clz = BitUtil.NumberOfLeadingZeros((ushort)mask);
+                    var clz = BitUtils.LeadingZeroCount((ushort)mask);
                     var index = (32 - clz) / Unsafe.SizeOf<short>();
                     lo += index;
                 } while (mask == -1 & hi - lo >= Vector128<short>.Count);
@@ -525,7 +525,7 @@ namespace Spreads.Algorithms {
                     {
                         if (mask != 0)
                         {
-                            int clz = (int) Lzcnt.LeadingZeroCount((ushort) mask);
+                            int clz = (int) BitUtils.LeadingZeroCount((ushort) mask);
                             int index = (32 - clz) / Unsafe.SizeOf<int>();
                             lo = i + index;
                             vLo = UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref searchSpace, lo));
@@ -545,7 +545,7 @@ namespace Spreads.Algorithms {
                     gt = Sse42.CompareGreaterThan(valVec, vecI);
                     mask = (short)(((1u << 16) - 1) & (uint)Sse42.MoveMask(gt.AsByte()));
 
-                    var clz = BitUtil.NumberOfLeadingZeros((ushort)mask);
+                    var clz = BitUtils.LeadingZeroCount((ushort)mask);
                     var index = (32 - clz) / Unsafe.SizeOf<int>();
                     lo += index;
                 } while (mask == -1 & hi - lo >= Vector128<int>.Count);
@@ -599,7 +599,7 @@ namespace Spreads.Algorithms {
                     {
                         if (mask != 0)
                         {
-                            int clz = (int) Lzcnt.LeadingZeroCount((ushort) mask);
+                            int clz = (int) BitUtils.LeadingZeroCount((ushort) mask);
                             int index = (32 - clz) / Unsafe.SizeOf<long>();
                             lo = i + index;
                             vLo = UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref searchSpace, lo));
@@ -619,7 +619,7 @@ namespace Spreads.Algorithms {
                     gt = Sse42.CompareGreaterThan(valVec, vecI);
                     mask = (short)(((1u << 16) - 1) & (uint)Sse42.MoveMask(gt.AsByte()));
 
-                    var clz = BitUtil.NumberOfLeadingZeros((ushort)mask);
+                    var clz = BitUtils.LeadingZeroCount((ushort)mask);
                     var index = (32 - clz) / Unsafe.SizeOf<long>();
                     lo += index;
                 } while (mask == -1 & hi - lo >= Vector128<long>.Count);
@@ -673,7 +673,7 @@ namespace Spreads.Algorithms {
                     {
                         if (mask != 0)
                         {
-                            int clz = (int) Lzcnt.LeadingZeroCount((ushort) mask);
+                            int clz = (int) BitUtils.LeadingZeroCount((ushort) mask);
                             int index = (32 - clz) / Unsafe.SizeOf<double>();
                             lo = i + index;
                             vLo = UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref searchSpace, lo));
@@ -693,7 +693,7 @@ namespace Spreads.Algorithms {
                     gt = Sse42.CompareGreaterThan(valVec, vecI);
                     mask = (short)(((1u << 16) - 1) & (uint)Sse42.MoveMask(gt.AsByte()));
 
-                    var clz = BitUtil.NumberOfLeadingZeros((ushort)mask);
+                    var clz = BitUtils.LeadingZeroCount((ushort)mask);
                     var index = (32 - clz) / Unsafe.SizeOf<double>();
                     lo += index;
                 } while (mask == -1 & hi - lo >= Vector128<double>.Count);
@@ -747,7 +747,7 @@ namespace Spreads.Algorithms {
                     {
                         if (mask != 0)
                         {
-                            int clz = (int) Lzcnt.LeadingZeroCount((ushort) mask);
+                            int clz = (int) BitUtils.LeadingZeroCount((ushort) mask);
                             int index = (32 - clz) / Unsafe.SizeOf<float>();
                             lo = i + index;
                             vLo = UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref searchSpace, lo));
@@ -767,7 +767,7 @@ namespace Spreads.Algorithms {
                     gt = Sse42.CompareGreaterThan(valVec, vecI);
                     mask = (short)(((1u << 16) - 1) & (uint)Sse42.MoveMask(gt.AsByte()));
 
-                    var clz = BitUtil.NumberOfLeadingZeros((ushort)mask);
+                    var clz = BitUtils.LeadingZeroCount((ushort)mask);
                     var index = (32 - clz) / Unsafe.SizeOf<float>();
                     lo += index;
                 } while (mask == -1 & hi - lo >= Vector128<float>.Count);

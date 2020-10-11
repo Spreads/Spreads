@@ -182,7 +182,7 @@ namespace Spreads.Threading
                     case null:
                         if (_executionContext != null)
                         {
-#if NETCOREAPP3_0
+#if HAS_TPWORKITEM
                             ThreadPool.QueueUserWorkItem(continuation, state, preferLocal: true);
 #else
                             ThreadPool.QueueUserWorkItem((s) => continuation(s), state);
@@ -190,7 +190,7 @@ namespace Spreads.Threading
                         }
                         else
                         {
-#if NETCOREAPP3_0
+#if HAS_TPWORKITEM
                             ThreadPool.UnsafeQueueUserWorkItem(continuation, state, preferLocal: true);
 #else
                             ThreadPool.UnsafeQueueUserWorkItem((s) => continuation(s), state);
@@ -265,7 +265,7 @@ namespace Spreads.Threading
                     {
                         if (_executionContext != null)
                         {
-#if NETCOREAPP3_0
+#if HAS_TPWORKITEM
                             ThreadPool.QueueUserWorkItem(_continuation, _continuationState, preferLocal: true);
 #else
                             var c = _continuation;
@@ -274,7 +274,7 @@ namespace Spreads.Threading
                         }
                         else
                         {
-#if NETCOREAPP3_0
+#if HAS_TPWORKITEM
                             ThreadPool.UnsafeQueueUserWorkItem(_continuation, _continuationState, preferLocal: true);
 #else
                             var c = _continuation;

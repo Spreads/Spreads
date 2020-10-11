@@ -18,8 +18,8 @@ namespace Spreads.Core.Tests.Buffers
         // TODO DS SM
         public static object[] NonPooledFactories = new object[]
         {
-            new object[] { (Func<int,RetainableMemory<byte>>)((len) => ArrayMemory<byte>.Create(BitUtil.FindNextPositivePowerOfTwo(len)))},
-            new object[] { (Func<int,RetainableMemory<byte>>)((len) => PrivateMemory<byte>.Create(BitUtil.FindNextPositivePowerOfTwo(len)))}
+            new object[] { (Func<int,RetainableMemory<byte>>)((len) => ArrayMemory<byte>.Create(BitUtils.NextPow2(len)))},
+            new object[] { (Func<int,RetainableMemory<byte>>)((len) => PrivateMemory<byte>.Create(BitUtils.NextPow2(len)))}
         };
 
         // ReSharper disable once ClassNeverInstantiated.Local
@@ -83,7 +83,7 @@ namespace Spreads.Core.Tests.Buffers
                 Assert.AreEqual(1, memory.PoolIndex, "0, memory._poolIdx");
 
                 Assert.GreaterOrEqual(memory.Length, len, "memory.Length, len");
-                var pow2Len = BitUtil.IsPowerOfTwo(memory.Length) ? memory.Length : (BitUtil.FindNextPositivePowerOfTwo(memory.Length) / 2);
+                var pow2Len = BitUtils.IsPow2(memory.Length) ? memory.Length : (BitUtils.NextPow2(memory.Length) / 2);
                 Assert.AreEqual(pow2Len, memory.LengthPow2, "BitUtil.FindNextPositivePowerOfTwo(len) / 2, memory.LengthPow2");
 
                 var rm = memory.Retain(0, len);

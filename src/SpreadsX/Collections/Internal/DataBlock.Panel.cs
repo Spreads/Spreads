@@ -190,7 +190,7 @@ namespace Spreads.Collections.Internal
             var values = Values;
 
             var minCapacity = Math.Max(newCapacity, Settings.MIN_POOLED_BUFFER_LEN);
-            var newRowCapacity = BitUtil.FindNextPositivePowerOfTwo(Math.Max(minCapacity, RowCapacity + 1));
+            var newRowCapacity = BitUtils.NextPow2(Math.Max(minCapacity, RowCapacity + 1));
 
             RetainableMemory<TRowKey>? newRowKeysBuffer = null;
             RetainedVec newRowKeys = default;

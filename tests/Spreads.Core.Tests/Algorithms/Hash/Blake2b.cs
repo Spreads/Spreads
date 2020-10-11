@@ -14,7 +14,7 @@ using Spreads.Buffers;
 namespace Spreads.Algorithms.Hash
 {
     public static class Blake2b
-    {
+    {    
         /// <summary>The default hash digest length in bytes.  For BLAKE2b, this value is 64.</summary>
         public const int DefaultDigestLength = Blake2bContext.HashBytes;
 

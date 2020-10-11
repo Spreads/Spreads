@@ -139,7 +139,7 @@ namespace Spreads.Buffers
             var array = Interlocked.Exchange(ref _array, null);
             if (array != null)
             {
-                if(!finalizing && !ExternallyOwned)
+                if(!finalizing && !IsExternallyOwned)
                     BufferPool<T>.Return(Unsafe.As<T[]>(array), clearArray: true);
             }
 

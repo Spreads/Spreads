@@ -32,42 +32,44 @@ using static System.Runtime.CompilerServices.Unsafe;
 #if HAS_INTRINSICS
 using X86 = System.Runtime.Intrinsics.X86;
 using Arm = System.Runtime.Intrinsics.Arm;
-
 #endif
 
 namespace Spreads.Algorithms.Hash
 {
     public static unsafe class Crc32C
     {
-        // TODO see for parallelism
+        // See for parallelism:
         // https://stackoverflow.com/questions/17645167/implementing-sse-4-2s-crc32c-in-software/17646775#17646775        
         // and https://github.com/htot/crc32c
-
+        
         private const uint Crc32CPoly = 0x82F63B78u;
-
-        private static uint[] _crc32CTable;
-
-        static Crc32C()
+        
+        private static uint[]? _crc32CTable;
+        
+        private static uint[] Crc32CTable
         {
-            // TODO when intrinsics are available this is only used for tests, make init manual in that case
-            Init(ref _crc32CTable, Crc32CPoly);
-        }
-
-        internal static void Init(ref uint[] table, uint poly)
-        {
-            _crc32CTable = new uint[16 * 256];
-
-            for (uint i = 0; i < 256; i++)
+            get
             {
-                uint res = i;
-                for (int t = 0; t < 16; t++)
+                return _crc32CTable ??= Init(Crc32CPoly);
+
+                static uint[] Init(uint poly)
                 {
-                    for (int k = 0; k < 8; k++) res = (res & 1) == 1 ? poly ^ (res >> 1) : (res >> 1);
-                    table[(t * 256) + i] = res;
+                    var table = new uint[16 * 256];
+
+                    for (uint i = 0; i < 256; i++)
+                    {
+                        uint res = i;
+                        for (int t = 0; t < 16; t++)
+                        {
+                            for (int k = 0; k < 8; k++) res = (res & 1) == 1 ? poly ^ (res >> 1) : (res >> 1);
+                            table[(t * 256) + i] = res;
+                        }
+                    }
+                    return table;
                 }
             }
         }
-
+        
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static uint Append(uint crc, byte* data, int len)
         {
@@ -120,7 +122,7 @@ namespace Spreads.Algorithms.Hash
                 {
                     while (len >= 8)
                     {
-                        crc0 = (uint) Arm.Crc32.Arm64.ComputeCrc32C(crc0, Read<ulong>(next));
+                        crc0 = Arm.Crc32.Arm64.ComputeCrc32C(crc0, Read<ulong>(next));
                         next += 8;
                         len -= 8;
                     }
@@ -226,7 +228,7 @@ namespace Spreads.Algorithms.Hash
                 {
                     while (len >= 8)
                     {
-                        crc0 = (uint) Arm.Crc32.Arm64.ComputeCrc32C(crc0, Read<ulong>(next));
+                        crc0 = Arm.Crc32.Arm64.ComputeCrc32C(crc0, Read<ulong>(next));
 
                         CopyBlockUnaligned(copyTarget, next, 8);
 
@@ -280,7 +282,7 @@ namespace Spreads.Algorithms.Hash
             unchecked
             {
 #endif
-            var table = _crc32CTable;
+            var table = Crc32CTable;
             uint crcLocal = uint.MaxValue ^ crc;
             int offset = 0;
             while (length >= 16)

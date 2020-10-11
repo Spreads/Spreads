@@ -383,7 +383,7 @@ namespace Spreads.DataTypes
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static explicit operator SmallDecimal(double value)
         {
-#if NETCOREAPP3_0
+#if NETCOREAPP3_1
             if (double.IsNaN(value) || !double.IsFinite(value))
 #else
             if (double.IsNaN(value) || double.IsPositiveInfinity(value) || double.IsNegativeInfinity(value))
@@ -398,7 +398,7 @@ namespace Spreads.DataTypes
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static explicit operator SmallDecimal(float value)
         {
-#if NETCOREAPP3_0
+#if NETCOREAPP3_1
             if (float.IsNaN(value) || !float.IsFinite(value))
 #else
             if (float.IsNaN(value) || float.IsPositiveInfinity(value) || float.IsNegativeInfinity(value))

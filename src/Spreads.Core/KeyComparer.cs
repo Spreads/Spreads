@@ -82,9 +82,9 @@ namespace Spreads
         /// </summary>
         private static readonly bool IsIInt64Diffable = typeof(IInt64Diffable<T>).GetTypeInfo().IsAssignableFrom(typeof(T));
 
-        private readonly IKeyComparer<T> _keyComparer;
+        private readonly IKeyComparer<T>? _keyComparer;
 
-        private KeyComparer(IComparer<T> comparer)
+        private KeyComparer(IComparer<T>? comparer)
         {
             if (comparer != null && !ReferenceEquals(comparer, Comparer<T>.Default))
             {
@@ -640,7 +640,7 @@ namespace Spreads
         [MethodImpl(MethodImplOptions.NoInlining)]
         private long DiffViaInterface(T minuend, T subtrahend)
         {
-            if (!_keyComparer.IsDiffable)
+            if (!_keyComparer!.IsDiffable)
             {
                 ThrowHelper.ThrowInvalidOperationException("Cannot Diff: KeyComparer.IsDiffable is false");
             }
@@ -929,7 +929,7 @@ namespace Spreads
             return _keyComparer.Equals(other._keyComparer) && _valueComparer.Equals(other._valueComparer);
         }
 
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             if (ReferenceEquals(null, obj)) return false;
             return obj is KVPComparer<TKey, TValue> comparer && Equals(comparer);
@@ -939,7 +939,7 @@ namespace Spreads
         {
             unchecked
             {
-                return ((!_keyComparer.Equals(default(KeyComparer<TKey>)) ? _keyComparer.GetHashCode() : 0) * 397) ^ (!_valueComparer.Equals(default(KeyComparer<TValue>)) ? _valueComparer.GetHashCode() : 0);
+                return ((!_keyComparer.Equals(default) ? _keyComparer.GetHashCode() : 0) * 397) ^ (!_valueComparer.Equals(default) ? _valueComparer.GetHashCode() : 0);
             }
         }
     }

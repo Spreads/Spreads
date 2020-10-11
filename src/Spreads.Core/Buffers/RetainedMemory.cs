@@ -285,7 +285,7 @@ namespace Spreads.Buffers
             // throw new NotImplementedException("What about R-edM start & length!?"); // TODO fix & test
             if (MemoryMarshal.TryGetArray(rm.Memory, out segment))
             {
-                segment = new ArraySegment<byte>(segment.Array, segment.Offset + rm._start, rm.Length);
+                segment = new ArraySegment<byte>(segment.Array!, segment.Offset + rm._start, rm.Length);
                 return true;
             }
 

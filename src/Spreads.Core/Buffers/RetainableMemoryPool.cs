@@ -23,7 +23,7 @@ namespace Spreads.Buffers
     /// </summary>
     public class RetainableMemoryPool<T> : MemoryPool<T>
     {
-        internal static readonly RetainableMemoryPool<T>[] KnownPools = new RetainableMemoryPool<T>[64];
+        internal static readonly RetainableMemoryPool<T>?[] KnownPools = new RetainableMemoryPool<T>[64];
 
         internal static readonly Func<RetainableMemoryPool<T>, int, RetainableMemory<T>> DefaultFactory = (pool, length) => PrivateMemory<T>.Create(length, pool);
         
@@ -109,7 +109,7 @@ namespace Spreads.Buffers
                 minLength = 16;
             }
 
-            _minBufferLengthPow2 = 32 - BitUtil.NumberOfLeadingZeros(minLength - 1);
+            _minBufferLengthPow2 = 32 - BitUtils.LeadingZeroCount(minLength - 1);
             MinBufferLength = 1 << _minBufferLengthPow2;
 
             if (maxBucketsToTry < 0)
@@ -289,9 +289,9 @@ namespace Spreads.Buffers
                 // Clear the memory if the user requests regardless of pooling result.
                 // If not pooled then it should be RM.DisposeFinalize-d and destruction
                 // is not always GC.
-                if ((clearMemory || IsRentAlwaysClean || _typeHasReferences) && !memory.SkipCleaning)
+                if ((clearMemory || IsRentAlwaysClean || _typeHasReferences) && !memory.AlreadyClean)
                     memory.GetSpan().Clear();
-                memory.SkipCleaning = false;
+                memory.AlreadyClean = false;
 #pragma warning restore 618
 
                 pooled = bucket.Return(memory);
@@ -358,7 +358,7 @@ namespace Spreads.Buffers
         internal int SelectBucketIndex(int bufferSize)
         {
             Debug.Assert(bufferSize >= 0);
-            return Math.Max(0, (32 - BitUtil.NumberOfLeadingZeros(bufferSize - 1)) - _minBufferLengthPow2);
+            return Math.Max(0, (32 - BitUtils.LeadingZeroCount(bufferSize - 1)) - _minBufferLengthPow2);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

@@ -26,11 +26,12 @@ namespace Spreads.Buffers
         protected int _length;
 
         // [p*<-len---------------->] we must only check capacity at construction and then work from pointer
-        // [p*<-len-[<--lenPow2-->]>] buffer could be larger, pooling always by max pow2 we could store
+        // [p*<-len-[<--lenPow2-->]>] buffer could be larger, pooling always by max pow2 we could store.
+        // (use case is when we need a header and allocate in page units, e.g. 9 pages have 8 pages pow2 range)
         protected IntPtr _pointer;
 
         // Even when unused it is a part of padding, which needed to avoid false sharing on _counter
-        // Without this field we would need to make padding bigger in SharedMemory. Both PM and AM use it.
+        // Without this field we would need to make padding bigger in PrivateMemory. Both PM and AM use it.
         internal object? _array;
 
         internal int _offset;
@@ -59,8 +60,8 @@ namespace Spreads.Buffers
         /// but we know that the buffer is already clean. Use with caution only when cleanliness
         /// is obvious and when cost of cleaning could be high (larger buffers).
         /// </summary>
-        [Obsolete("Don't use unless 100% sure.")] // Keep this hook for now, but if it's never used remove the field later. 
-        internal bool SkipCleaning;
+        [Obsolete("Don't use unless 100% sure. May be removed later.")] 
+        internal bool AlreadyClean;
 
         internal Memory<T> _memory;
 
@@ -76,9 +77,9 @@ namespace Spreads.Buffers
         }
 
         /// <summary>
-        /// An array was allocated manually. Otherwise even if _pool == null we return the array to default array pool on Dispose.
+        /// An array was allocated manually. Otherwise even if <see cref="Pool"/> is null we return the array to default array pool on Dispose.
         /// </summary>
-        protected bool ExternallyOwned
+        protected bool IsExternallyOwned
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => PoolIndex == 0;
@@ -128,7 +129,7 @@ namespace Spreads.Buffers
         internal int LengthPow2
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => BitUtil.FindPreviousPositivePowerOfTwo(_length);
+            get => BitUtils.PrevPow2(_length);
         }
 
         /// <summary>

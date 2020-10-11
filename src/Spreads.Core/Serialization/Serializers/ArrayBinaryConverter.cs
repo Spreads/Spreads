@@ -70,7 +70,7 @@ namespace Spreads.Serialization.Serializers
             if (arraySize > 0)
             {
                 TElement[] array;
-                if (BitUtil.IsPowerOfTwo(arraySize))
+                if (BitUtils.IsPow2(arraySize))
                 {
                     array = BufferPool<TElement>.Rent(arraySize);
                     if (array.Length != arraySize)

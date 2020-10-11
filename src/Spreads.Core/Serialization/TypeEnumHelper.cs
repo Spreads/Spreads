@@ -27,7 +27,7 @@ namespace Spreads.Serialization
             var ptr = Marshal.AllocHGlobal(allocSize);
             (new Span<byte>((void*)ptr, allocSize)).Clear();
 
-            var alignedPtr = (IntPtr)BitUtil.Align((long)ptr, 64);
+            var alignedPtr = (IntPtr)BitUtils.Align((long)ptr, 64);
 
             var sizes = (short*)alignedPtr;
 

@@ -126,7 +126,7 @@ namespace Spreads.Core.Tests.Performance
                 for (int i = 0; i < count; i++)
                 {
                     ptrs[i] = Kernel32.VirtualAlloc(IntPtr.Zero, (uint)size, Kernel32.Consts.MEM_COMMIT | Kernel32.Consts.MEM_RESERVE, Kernel32.Consts.PAGE_READWRITE);
-                    if (!BitUtil.IsAligned((long)(ptrs[i]), 4096))
+                    if (!BitUtils.IsAligned((long)(ptrs[i]), 4096))
                     {
                         Console.WriteLine((long)(ptrs[i]) % 4096);
                     }

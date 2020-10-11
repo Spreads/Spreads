@@ -93,7 +93,7 @@ namespace Spreads.Algorithms.Online
 
         public int Nblocks => _nblocks;
 
-        private double[] _incompleteWindow;
+        private double[]? _incompleteWindow;
         private int _incompleteCount;
         private int _nblocks;
 
@@ -257,6 +257,7 @@ namespace Spreads.Algorithms.Online
                 LastValue = NaiveMedian(new ArraySegment<double>(_incompleteWindow, 0, _incompleteCount));
                 return LastValue;
             }
+            
             if (_incompleteWindow != null)
             {
                 _incompleteWindow[_incompleteCount] = nextValue; // happens only once

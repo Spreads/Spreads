@@ -665,7 +665,7 @@ namespace Spreads.Threading
 
         // Better to adjust BucketSize so that there are never more than 1 bucket, 4 max for safety so that the service always works.
         // Further increase could be slower when AC owners churn a lot.
-        internal static readonly int BucketSize = BitUtil.FindNextPositivePowerOfTwo(Math.Max(3, Settings.AtomicCounterPoolBucketSize));
+        internal static readonly int BucketSize = BitUtils.NextPow2(Math.Max(3, Settings.AtomicCounterPoolBucketSize));
 
         // By trying it first we save array deref and null check. This is not created until first usage of the service.
         internal static readonly AtomicCounterPool<OffHeapBuffer<int>> FirstBucket =

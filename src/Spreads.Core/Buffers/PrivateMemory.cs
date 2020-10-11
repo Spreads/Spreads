@@ -34,9 +34,8 @@ namespace Spreads.Buffers
     {
 #pragma warning disable 169
         /// <summary>
-        /// Without padding there is false sharing on <see cref="RefCountedMemory{T}.CounterRef"/>
-        /// that is modified during pool rent/return. We use <see cref="Vec"/> as a padding as
-        /// well, because it is unused during rent/return and when it's used the memory remains rented.
+        /// Without padding there is possible false sharing on <see cref="RefCountedMemory{T}.CounterRef"/>
+        /// that is modified during pool rent/return. (when instances are allocated sequentially)
         /// </summary>
         private readonly Padding24 _padding;
 #pragma warning restore 169
@@ -142,7 +141,7 @@ namespace Spreads.Buffers
             // It doesn't make a lot of sense to have it above a cache line (or 64 bytes for AVX512).
             // But cache line could be 128 (already exists) and CUDA could have 256 bytes alignment.
             // Three possible values: 64, 128 or 256
-            var alignment = Math.Min(Math.Max(Settings.AVX512_ALIGNMENT, BitUtil.FindNextPositivePowerOfTwo(Unsafe.SizeOf<T>())),
+            var alignment = Math.Min(Math.Max(Settings.AVX512_ALIGNMENT, BitUtils.NextPow2(Unsafe.SizeOf<T>())),
                 Settings.SAFE_CACHE_LINE * 2);
 
             var bytesLength = (long) length * Unsafe.SizeOf<T>();
@@ -155,10 +154,10 @@ namespace Spreads.Buffers
             if (bytesLength < alignment)
             {
                 // MIN_POOLED_BUFFER_LEN is minimum buffer size in bytes for byte type.
-                alignment = Math.Min(BitUtil.FindNextPositivePowerOfTwo(Unsafe.SizeOf<T>()), Settings.MIN_POOLED_BUFFER_LEN);
+                alignment = Math.Min(BitUtils.NextPow2(Unsafe.SizeOf<T>()), Settings.MIN_POOLED_BUFFER_LEN);
             }
 
-            bytesLength = (long) Mem.GoodSize((UIntPtr) BitUtil.FindNextPositivePowerOfTwo(bytesLength));
+            bytesLength = (long) Mem.GoodSize((UIntPtr) BitUtils.NextPow2(bytesLength));
 
             while (true)
             {
@@ -252,7 +251,7 @@ namespace Spreads.Buffers
                 
                 // Even if we are finalizing the fields are not collected, because this
                 // object is reachable and hence the fields are reachable. 
-                if(!ExternallyOwned)
+                if(!IsExternallyOwned)
                     BufferPool<T>.Return(Unsafe.As<T[]>(array), clearArray: true);
             }
 
