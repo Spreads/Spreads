@@ -23,7 +23,6 @@ using System.Runtime.CompilerServices;
 using System.Runtime.CompilerServices;
 #endif
 using System.Threading;
-using Spreads.Buffers;
 using Spreads.Threading;
 
 #if DETECT_LEAKS
@@ -61,7 +60,7 @@ namespace Spreads.Collections.Concurrent
             get;
             set;
         }
-        
+
         public void Dispose()
         {
             Pool.Dispose();
@@ -105,7 +104,7 @@ namespace Spreads.Collections.Concurrent
 
         // Storage for the pool objects. The first item is stored in a dedicated field because we
         // expect to be able to satisfy most requests from it.
-        private T _firstItem;
+        private T? _firstItem;
 
 #if DETECT_LEAKS
         private static readonly ConditionalWeakTable<T, LeakTracker> leakTrackers =
@@ -182,7 +181,7 @@ namespace Spreads.Collections.Concurrent
             // Note that the initial read is optimistically not synchronized. That is intentional.
             // We will interlock only when we have a candidate. in a worst case we may miss some
             // recently returned objects. Not a big deal.
-            T inst = _firstItem;
+            var inst = _firstItem;
             if (inst == null || inst != Interlocked.CompareExchange(ref _firstItem, null, inst))
                 inst = RentSlow();
 
@@ -268,7 +267,7 @@ namespace Spreads.Collections.Concurrent
         /// return a larger array to the pool than was originally allocated.
         /// </summary>
         [Conditional("DEBUG")]
-        internal void ForgetTrackedObject(T old, T replacement = null)
+        internal void ForgetTrackedObject(T old, T? replacement = null)
         {
 #if DETECT_LEAKS
             LeakTracker tracker;
@@ -292,11 +291,12 @@ namespace Spreads.Collections.Concurrent
         }
 
 #if DETECT_LEAKS
-        private static Lazy<Type> _stackTraceType = new Lazy<Type>(() => Type.GetType("System.Diagnostics.StackTrace"));
+        // ReSharper disable once StaticMemberInGenericType
+        private static readonly Lazy<Type> _stackTraceType = new Lazy<Type>(() => Type.GetType("System.Diagnostics.StackTrace"));
 
         private static object CaptureStackTrace()
         {
-            return Activator.CreateInstance(_stackTraceType.Value);
+            return Activator.CreateInstance(_stackTraceType.Value)!;
         }
 #endif
 

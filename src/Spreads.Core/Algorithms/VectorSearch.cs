@@ -10,7 +10,7 @@ using Spreads.Native;
 
 namespace Spreads.Algorithms
 {
-    /// <summary> 
+    /// <summary>
     /// Algorithms to find values in contiguous memory region.
     /// WARNING: Methods in this static class do not perform bound checks and are intended to be used
     /// as building blocks in other parts that calculate bounds correctly and
@@ -109,7 +109,7 @@ namespace Spreads.Algorithms
         /// <summary>
         /// Performs classic binary search and returns index of the value or its negative binary complement.
         /// Used mostly for correctness check and benchmark baseline for other faster implementations.
-        /// Use <see cref="SortedSearch{T}(ref T,int,T,Spreads.KeyComparer{T})"/> for the best performance. 
+        /// Use <see cref="SortedSearch{T}(ref T,int,T,Spreads.KeyComparer{T})"/> for the best performance.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining
 #if HAS_AGGR_OPT
@@ -131,7 +131,7 @@ namespace Spreads.Algorithms
                     //       and thus cannot overflow an uint.
                     //       Saves one subtraction per loop compared to
                     //       `int i = lo + ((hi - lo) >> 1);`
-                    int i = (int) (((uint) hi + (uint) lo) >> 1);
+                    int i = (int)(((uint)hi + (uint)lo) >> 1);
 
                     int c = comparer.Compare(value, UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref searchSpace, i)));
 
@@ -173,7 +173,7 @@ namespace Spreads.Algorithms
                 int c;
                 while (hi - lo > 7)
                 {
-                    int i = (int) (((uint) hi + (uint) lo) >> 1);
+                    int i = (int)(((uint)hi + (uint)lo) >> 1);
 
                     c = comparer.Compare(value, UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref searchSpace, i)));
 
@@ -236,7 +236,7 @@ namespace Spreads.Algorithms
                 i = ~i;
 
                 // LT or LE
-                if (((uint) lookup & (uint) Lookup.LT) != 0)
+                if (((uint)lookup & (uint)Lookup.LT) != 0)
                 {
                     // i is idx of element that is larger, nothing here for LE/LT
                     if (i == lo)
@@ -246,7 +246,7 @@ namespace Spreads.Algorithms
                 }
                 else
                 {
-                    Debug.Assert(((uint) lookup & (uint) Lookup.GT) != 0);
+                    Debug.Assert(((uint)lookup & (uint)Lookup.GT) != 0);
                     Debug.Assert(i <= hi - 1);
                     // if was negative, if it was ~length then there are no more elements for GE/GT
                     if (i == hi - 1)
@@ -258,7 +258,7 @@ namespace Spreads.Algorithms
             value = UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref searchSpace, i));
 
             RETURN:
-            Debug.Assert(unchecked((uint) i) - lo < unchecked((uint) (hi - lo + 1)));
+            Debug.Assert(unchecked((uint)i) - lo < unchecked((uint)(hi - lo + 1)));
             return i;
 
             RETURN_O:
@@ -375,11 +375,11 @@ namespace Spreads.Algorithms
                     // vlo could be zero while value could easily be close to int64.MaxValue (nanos in unix time, we are now between 60 and 61 bit at 60.4)
                     // convert to double here to avoid overflow and for much faster calculations
                     // (only 4 cycles vs 25 cycles https://lemire.me/blog/2017/11/16/fast-exact-integer-divisions-using-floating-point-operations/)
-                    double nominator = (hi - lo) * (double) comparer.Diff(value, vlo);
+                    double nominator = (hi - lo) * (double)comparer.Diff(value, vlo);
 
-                    i = (int) (nominator / vRange);
+                    i = (int)(nominator / vRange);
 
-                    if ((uint) i > range)
+                    if ((uint)i > range)
                         i = i < 0 ? 0 : range;
                     // make i relative to vecStart
                     i += lo;

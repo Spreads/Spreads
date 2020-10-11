@@ -290,7 +290,7 @@ namespace Spreads.Threading
                 return false;
             }
 
-            public ISpreadsThreadPoolWorkItem LocalPop() => m_headIndex < m_tailIndex ? LocalPopCore() : null;
+            public ISpreadsThreadPoolWorkItem? LocalPop() => m_headIndex < m_tailIndex ? LocalPopCore() : null;
 
             [SuppressMessage("Microsoft.Concurrency", "CA8001", Justification = "Reviewed for thread safety")]
             private ISpreadsThreadPoolWorkItem LocalPopCore()
@@ -498,7 +498,7 @@ namespace Spreads.Threading
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public ISpreadsThreadPoolWorkItem Dequeue(ThreadPoolWorkQueueThreadLocals tl, ref bool missedSteal)
+        public ISpreadsThreadPoolWorkItem? Dequeue(ThreadPoolWorkQueueThreadLocals tl, ref bool missedSteal)
         {
             WorkStealingQueue localWsq = tl.workStealingQueue;
             ISpreadsThreadPoolWorkItem callback;
@@ -602,7 +602,7 @@ namespace Spreads.Threading
         internal sealed class ThreadPoolWorkQueueThreadLocals
         {
             [ThreadStatic]
-            public static ThreadPoolWorkQueueThreadLocals threadLocals;
+            public static ThreadPoolWorkQueueThreadLocals? threadLocals;
 
             public readonly ThreadPoolWorkQueue workQueue;
             public readonly WorkStealingQueue workStealingQueue;
