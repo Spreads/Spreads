@@ -14,6 +14,7 @@ using Spreads.Buffers;
 using Spreads.Native;
 using Spreads.Serialization;
 using Spreads.Utils;
+using Vec = Spreads.Collections.Vec;
 
 namespace Spreads.Core.Tests.Buffers
 {

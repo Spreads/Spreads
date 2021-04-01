@@ -2,51 +2,113 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-using Spreads.DataTypes;
-using Spreads.Native;
-
 #if SPREADS
-
-using Spreads.Serialization.Serializers;
-
 #endif
-
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using Microsoft.Extensions.Logging;
 using Spreads.Buffers;
+using Spreads.Collections;
+using Spreads.Collections.Concurrent;
+using Spreads.DataTypes;
+using Spreads.Serialization;
+using Spreads.Serialization.Serializers;
+using Spreads.Utils;
 using static System.Runtime.CompilerServices.Unsafe;
 
 #pragma warning disable HAA0101 // Array allocation for params parameter
 
-namespace Spreads.Serialization
+namespace Spreads
 {
     internal delegate int FromPtrDelegate(IntPtr ptr, out object value);
 
-    internal delegate int ToPtrDelegate(object value, IntPtr destination, MemoryStream ms = null, SerializationFormat compression = SerializationFormat.Binary);
+    internal delegate int ToPtrDelegate(object value, IntPtr destination, MemoryStream? ms = null, SerializationFormat compression = SerializationFormat.Binary);
 
-    internal delegate int SizeOfDelegate(object value, out MemoryStream memoryStream, SerializationFormat compression = SerializationFormat.Binary);
+    internal delegate int SizeOfDelegate(object value, out MemoryStream? memoryStream, SerializationFormat compression = SerializationFormat.Binary);
 
-    internal static class TypeHelper
+    public static class TypeHelper
     {
-        private static readonly Dictionary<Type, FromPtrDelegate> FromPtrDelegateCache = new Dictionary<Type, FromPtrDelegate>();
+        internal static readonly AppendOnlyStorage<RuntimeTypeInfo> RuntimeTypeInfoStorage = new();
+        internal static readonly ConcurrentDictionary<Type, int> RuntimeTypeInfoIndexLookup = new();
 
+        public static readonly nint StringOffset = CalculateStringOffset();
+        public static readonly int StringOffsetInt = (int)StringOffset;
+
+        public static readonly nint ArrayOffset = TypeHelper<object>.ArrayOffset;
+        public static readonly int ArrayOffsetInt = (int)ArrayOffset;
+
+        private static nint CalculateStringOffset()
+        {
+            string sampleString = "a";
+            unsafe
+            {
+                fixed (char* pSampleString = sampleString)
+                {
+                    return ByteOffset(ref As<Box<char>>(sampleString)!.Value, ref AsRef<char>(pSampleString));
+                }
+            }
+        }
+
+        // ReSharper disable once UnusedMember.Local Use by reflection
+        private static RuntimeTypeInfo GetRuntimeVecInfoReflection<T>()
+        {
+            return TypeHelper<T>.GetRuntimeVecInfo();
+        }
+
+        [SuppressMessage("ReSharper", "InconsistentlySynchronizedField")]
+        public static ref readonly RuntimeTypeInfo GetRuntimeTypeInfo(Type ty)
+        {
+            if (RuntimeTypeInfoIndexLookup.TryGetValue(ty, out int idx))
+                return ref RuntimeTypeInfoStorage[idx];
+
+            lock (RuntimeTypeInfoStorage)
+            {
+                if (RuntimeTypeInfoIndexLookup.TryGetValue(ty, out idx))
+                    return ref RuntimeTypeInfoStorage[idx];
+
+                RuntimeTypeInfo GetRuntimeTypeInfoViaReflection()
+                {
+                    var mi = typeof(TypeHelper).GetMethod("GetRuntimeVecInfoReflection", BindingFlags.Static | BindingFlags.NonPublic);
+                    ThrowHelper.Assert(mi != null);
+                    var genericMi = mi.MakeGenericMethod(ty);
+                    // re-entrant lock
+                    RuntimeTypeInfo runtimeTypeInfo = (RuntimeTypeInfo) genericMi.Invoke(null, new object[] { })!;
+                    return runtimeTypeInfo;
+                }
+
+                RuntimeTypeInfo typeInfo = GetRuntimeTypeInfoViaReflection();
+                idx = RuntimeTypeInfoStorage.Add(typeInfo);
+                RuntimeTypeInfoIndexLookup[ty] = idx;
+                return ref RuntimeTypeInfoStorage[idx];
+            }
+        }
+
+        public static ref readonly RuntimeTypeInfo GetRuntimeTypeInfo(RuntimeTypeId typeId)
+        {
+            return ref RuntimeTypeInfoStorage[typeId.TypeId - 1];
+        }
+
+
+        private static readonly Dictionary<Type, FromPtrDelegate> _fromPtrDelegateCache = new();
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static FromPtrDelegate GetFromPtrDelegate(Type ty)
         {
             FromPtrDelegate temp;
-            if (FromPtrDelegateCache.TryGetValue(ty, out temp)) return temp;
+            if (_fromPtrDelegateCache.TryGetValue(ty, out temp)) return temp;
             var mi = typeof(TypeHelper).GetMethod("ReadObject", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
-            ThrowHelper.AssertFailFast(mi != null);
+            ThrowHelper.Assert(mi != null);
             var genericMi = mi.MakeGenericMethod(ty);
 
             temp = (FromPtrDelegate)genericMi.CreateDelegate(typeof(FromPtrDelegate));
-            FromPtrDelegateCache[ty] = temp;
+            _fromPtrDelegateCache[ty] = temp;
             return temp;
         }
 
@@ -82,20 +144,21 @@ namespace Spreads.Serialization
 
         private static readonly Dictionary<Type, int> SizeDelegateCache = new Dictionary<Type, int>();
 
-        // used by reflection below
-        // ReSharper disable once UnusedMember.Local
-        private static int Size<T>()
+        // ReSharper disable once UnusedMember.Local used by reflection below
+        private static int FixedSizeReflection<T>()
         {
             return TypeHelper<T>.FixedSize;
         }
 
         [Obsolete("This must go to TEH")]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static int GetSize(Type ty)
+        internal static int GetFixedSize(Type ty)
         {
+            // TODO replace with RTI lookup
+
             int temp;
             if (SizeDelegateCache.TryGetValue(ty, out temp)) return temp;
-            var mi = typeof(TypeHelper).GetMethod("Size", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
+            var mi = typeof(TypeHelper).GetMethod("FixedSizeReflection", BindingFlags.Static | BindingFlags.NonPublic);
             ThrowHelper.AssertFailFast(mi != null);
             var genericMi = mi.MakeGenericMethod(ty);
             temp = (int)genericMi.Invoke(null, new object[] { })!;
@@ -104,12 +167,13 @@ namespace Spreads.Serialization
         }
     }
 
+    [SuppressMessage("ReSharper", "StaticMemberInGenericType")]
     public static class TypeHelper<T>
     {
         // Do not use static ctor in any critical paths: https://github.com/Spreads/Spreads/issues/66
         // static TypeHelper() { }
 
-        internal static readonly BinarySerializer<T> TypeSerializer = InitSerializer();
+        internal static readonly BinarySerializer<T>? TypeSerializer = InitSerializer();
 
         /// <summary>
         /// Returns a positive number for primitive type, well known fixed size types
@@ -117,37 +181,110 @@ namespace Spreads.Serialization
         /// <see cref="BinarySerializationAttribute.BlittableSize"/> set to actual size.
         /// For other types returns -1.
         /// </summary>
-        // ReSharper disable once StaticMemberInGenericType
         public static readonly short FixedSize = InitFixedSizeSafe();
 
         // TODO this method must comply with xml doc
         // TODO ContainsReferences, it does what the name says. Auto layout and composites could have no references
         //      but have FixedSize <= 0 with out definitions. For skipping buffer cleaning we need !ContainsReferences
 
-        // ReSharper disable once StaticMemberInGenericType
         public static readonly bool IsFixedSize = FixedSize > 0;
 
-        // ReSharper disable once StaticMemberInGenericType
         public static readonly bool HasTypeSerializer = TypeSerializer != null;
 
-        // ReSharper disable once StaticMemberInGenericType
         internal static readonly bool IsTypeSerializerInternal = TypeSerializer is InternalSerializer<T>;
 
-        // ReSharper disable once StaticMemberInGenericType
         internal static readonly DataTypeHeader CustomHeader = InitCustomHeader();
 
-        // internal static readonly int SizeOfDefault = IsFixedSize ? TypeSerializer?.SizeOf(default, null) ?? 0 : 0;
-
-        // ReSharper disable once StaticMemberInGenericType
         public static readonly short PinnedSize = GetPinnedSize();
 
         /// <summary>
         /// True if T[] could be pinned in memory via GCHandle.
         /// </summary>
-        // ReSharper disable once StaticMemberInGenericType
         public static readonly bool IsPinnable = PinnedSize > 0;
 
-        public static readonly bool IsReferenceOrContainsReferences = VecTypeHelper<T>.IsReferenceOrContainsReferences;
+        public static readonly nint ArrayOffset = CalculateArrayOffset();
+        public static readonly int ArrayOffsetInt = (int)ArrayOffset;
+
+        public static readonly nint ArrayOffsetMinus1Item = CalculateArrayOffset() - SizeOf<T>();
+        public static readonly int ArrayOffsetIntMinus1Item = (int)ArrayOffsetMinus1Item;
+
+        public static readonly RuntimeTypeInfo RuntimeTypeInfo = GetRuntimeVecInfo();
+
+        public static readonly RuntimeTypeId RuntimeTypeId = RuntimeTypeInfo.RuntimeTypeId;
+
+        public static readonly bool IsReferenceOrContainsReferences = IsReferenceOrContainsReferencesImpl();
+
+        private static nint CalculateArrayOffset()
+        {
+            var oneArray = new T[1];
+            IntPtr offset = ByteOffset(ref As<Box<T>>(oneArray)!.Value, ref oneArray[0]);
+            ILogger<Box<T>> logger = Logger.Factory.CreateLogger<Box<T>>();
+            logger.LogTrace($"ArrayOffset for type {typeof(T).FullName} is {(int)offset}");
+            return offset;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static unsafe RuntimeTypeInfo GetRuntimeVecInfo()
+        {
+            if (TypeHelper.RuntimeTypeInfoIndexLookup.TryGetValue(typeof(T), out int idx))
+                return TypeHelper.RuntimeTypeInfoStorage[idx];
+
+            lock (TypeHelper.RuntimeTypeInfoStorage)
+            {
+                if (TypeHelper.RuntimeTypeInfoIndexLookup.TryGetValue(typeof(T), out idx))
+                    return TypeHelper.RuntimeTypeInfoStorage[idx];
+
+                var typeInfo = new RuntimeTypeInfo (
+                    typeof(T),
+                    // One based so that the default value is invalid
+                    (RuntimeTypeId)(TypeHelper.RuntimeTypeInfoStorage.Count + 1),
+                    checked((short)SizeOf<T>()),
+                    IsReferenceOrContainsReferences,
+                    &Vec.DangerousGetObject<T>
+                );
+
+                idx = TypeHelper.RuntimeTypeInfoStorage.Add(typeInfo);
+                TypeHelper.RuntimeTypeInfoIndexLookup[typeof(T)] = idx;
+
+                return typeInfo;
+            }
+        }
+
+        internal static bool IsReferenceOrContainsReferencesImpl()
+        {
+#if HAS_ISREF
+            return RuntimeHelpers.IsReferenceOrContainsReferences<T>();
+#else
+            return IsReferenceOrContainsReferencesManual(typeof(T));
+#endif
+        }
+
+        internal static bool IsReferenceOrContainsReferencesManual(Type type)
+        {
+            if (type.GetTypeInfo().IsPrimitive) // This is hopefully the common case. All types that return true for this are value types w/out embedded references.
+                return false;
+
+            if (!type.GetTypeInfo().IsValueType)
+                return true;
+
+            // If type is a Nullable<> of something, unwrap it first.
+            Type? underlyingNullable = Nullable.GetUnderlyingType(type);
+            if (underlyingNullable != null)
+                type = underlyingNullable;
+
+            if (type.GetTypeInfo().IsEnum)
+                return false;
+
+            foreach (FieldInfo field in type.GetTypeInfo().DeclaredFields)
+            {
+                if (field.IsStatic)
+                    continue;
+                if (IsReferenceOrContainsReferencesManual(field.FieldType))
+                    return true;
+            }
+
+            return false;
+        }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int EnsureFixedSize()
@@ -164,7 +301,8 @@ namespace Spreads.Serialization
         [MethodImpl(MethodImplOptions.NoInlining)]
         private static void ThrowTypeIsNotFixedSize()
         {
-            ThrowHelper.ThrowArgumentException($"Type {typeof(T).Name} is not fixed size. Add Spreads.BinarySerialization attribute to explicitly opt-in to treat non-primitive user-defined structs as fixed-size.");
+            ThrowHelper.ThrowArgumentException(
+                $"Type {typeof(T).Name} is not fixed size. Add Spreads.BinarySerialization attribute to explicitly opt-in to treat non-primitive user-defined structs as fixed-size.");
         }
 
         /// <summary>
@@ -195,7 +333,11 @@ namespace Spreads.Serialization
                 // Type helper works only with types that could be pinned in arrays
                 // Here we just cross-check, happens only in static constructor
                 var unsafeSize = SizeOf<T>();
-                if (unsafeSize != size) { ThrowHelper.FailFast("Pinned and unsafe sizes differ!"); }
+                if (unsafeSize != size)
+                {
+                    ThrowHelper.FailFast("Pinned and unsafe sizes differ!");
+                }
+
                 return (short)size;
             }
             catch
@@ -209,9 +351,7 @@ namespace Spreads.Serialization
             // Probably this method is always called first when endianness matters.
             // Not that we expect that ever happen in reality...
             if (!BitConverter.IsLittleEndian)
-            {
-                Environment.FailFast("Spreads library supports only little-endian architectures.");
-            }
+                Environment.FailFast("Spreads library only supports a little-endian architecture.");
 
             // TODO Do not wrap in try/catch attribute validation
             // We failed fast initially but now throw. Attribute errors should be testable
@@ -236,9 +376,8 @@ namespace Spreads.Serialization
             if (bsAttr != null && bsAttr.SerializerType != null)
             {
                 if (!typeof(BinarySerializer<T>).IsAssignableFrom(bsAttr.SerializerType))
-                {
-                    ThrowHelper.ThrowInvalidOperationException($"SerializerType `{bsAttr.SerializerType.FullName}` in BinarySerialization attribute does not implement IBinaryConverter<T> for the type `{typeof(T).FullName}`");
-                }
+                    ThrowHelper.ThrowInvalidOperationException($"SerializerType `{bsAttr.SerializerType.FullName}` in BinarySerialization " +
+                                                               $"attribute does not implement IBinaryConverter<T> for the type `{typeof(T).FullName}`");
 
                 try
                 {
@@ -257,9 +396,10 @@ namespace Spreads.Serialization
             if (typeof(BinarySerializer<T>).IsAssignableFrom(typeof(T)))
             {
                 if (serializer != null)
-                {
-                    ThrowHelper.ThrowInvalidOperationException($"IBinarySerializer `{serializer.GetType().FullName}` was already set via BinarySerialization attribute. The type `{typeof(T).FullName}` should not implement IBinaryConverter<T> interface or the attribute should not include SerializerType property.");
-                }
+                    ThrowHelper.ThrowInvalidOperationException($"IBinarySerializer `{serializer.GetType().FullName}` was already set via " +
+                                                               $"BinarySerialization attribute. The type `{typeof(T).FullName}` should not implement " +
+                                                               "IBinaryConverter<T> interface or the attribute should not include SerializerType property.");
+
                 try
                 {
                     serializer = (BinarySerializer<T>)(object)Activator.CreateInstance<T>();
@@ -282,9 +422,10 @@ namespace Spreads.Serialization
                 typeof(T).GetGenericTypeDefinition() == typeof(FixedArray<>))
             {
                 var elementType = typeof(T).GetGenericArguments()[0];
-                var elementSize = TypeHelper.GetSize(elementType);
+                var elementSize = TypeHelper.GetFixedSize(elementType);
                 if (elementSize > 0)
-                { // only for blittable types
+                {
+                    // only for blittable types
                     serializer = (InternalSerializer<T>)FixedArraySerializerFactory.Create(elementType);
                 }
             }
@@ -331,8 +472,8 @@ namespace Spreads.Serialization
                     .Any(i => i.IsGenericType
                               && i.GetGenericTypeDefinition() == typeof(ITuple<,,>)
                               && i.GetGenericArguments().Last() == typeof(T)
-                        )
-                )
+                    )
+            )
             {
                 var iTy = typeof(T).GetTypeInfo().GetInterfaces()
                     .First(i => i.IsGenericType
@@ -444,9 +585,10 @@ namespace Spreads.Serialization
             if (typeof(T).IsArray)
             {
                 var elementType = typeof(T).GetElementType();
-                var elementSize = TypeHelper.GetSize(elementType);
+                var elementSize = TypeHelper.GetFixedSize(elementType);
                 if (elementSize > 0)
-                { // only for blittable types
+                {
+                    // only for blittable types
                     serializer = (InternalSerializer<T>)ArraySerializerFactory.Create(elementType);
                 }
             }
@@ -456,9 +598,10 @@ namespace Spreads.Serialization
             {
                 // TODO TEH by type
                 var elementType = typeof(T).GenericTypeArguments[0];
-                var elementSize = TypeHelper.GetSize(elementType);
+                var elementSize = TypeHelper.GetFixedSize(elementType);
                 if (elementSize > 0)
-                { // only for blittable types
+                {
+                    // only for blittable types
                     serializer = (InternalSerializer<T>)Collections.Internal.VectorStorageSerializerFactory.Create(elementType);
                 }
             }
@@ -519,6 +662,7 @@ namespace Spreads.Serialization
                         ThrowHelper.ThrowInvalidOperationException(
                             $"Cannot define BlittableSize and ConverterType at the same time in BinarySerialization attribute of type {typeof(T).FullName}.");
                     }
+
                     hasSizeAttribute = true;
                 }
                 else
@@ -531,6 +675,7 @@ namespace Spreads.Serialization
                             ThrowHelper.ThrowInvalidOperationException(
                                 $"Size of type {typeof(T).Name} defined in StructLayoutAttribute {sla.Size} differs from calculated size {pinnedSize} or layout is set to LayoutKind.Auto.");
                         }
+
                         hasSizeAttribute = true;
                     }
                 }
@@ -544,6 +689,7 @@ namespace Spreads.Serialization
                         // and will lose ability to work with old values.
                         ThrowHelper.ThrowInvalidOperationException($"Blittable types must not implement IBinaryConverter<T> interface.");
                     }
+
                     return pinnedSize;
                 }
 
@@ -572,6 +718,7 @@ namespace Spreads.Serialization
                     // Internal
                     Environment.FailFast("CustomHeader.TEOFS.TypeEnum must be in the range [100,119]");
                 }
+
                 return sa.CustomHeader;
             }
 

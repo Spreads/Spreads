@@ -4,6 +4,7 @@
 
 using System;
 using System.Buffers;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using Spreads.Threading;
@@ -100,7 +101,7 @@ namespace Spreads.Buffers
         /// </summary>
         internal abstract void Free(bool finalizing);
 
-        internal string Tag
+        internal string? Tag
         {
             get => RetainableMemoryTracker.Tags.TryGetValue(this, out var tag) ? tag : null;
             set
@@ -131,12 +132,12 @@ namespace Spreads.Buffers
 #endif
             }
 
-            // There are no more references to this object, so regardless 
+            // There are no more references to this object, so regardless
             // or the CounterRef value we must free resources. Counter
             // could have left positive due to wrong usage or process
             // termination - we do not care, we should not make things
             // worse by throwing in the finalizer. We must release
-            // native memory and pooled arrays, without trying to 
+            // native memory and pooled arrays, without trying to
             // pool this object to RMP.
             // So just set the counter to disposed.
             CounterRef |= AtomicCounter.Disposed;

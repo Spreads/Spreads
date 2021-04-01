@@ -22,7 +22,7 @@ namespace Spreads
     /// <typeparam name="T"></typeparam>
     public struct KeyEqualityComparer<T> : IEqualityComparer<T>
     {
-        private static readonly bool IsIEquatable = typeof(IEquatable<T>).GetTypeInfo().IsAssignableFrom(typeof(T));
+        private static readonly bool _isIEquatable = typeof(IEquatable<T>).GetTypeInfo().IsAssignableFrom(typeof(T));
 
         /// <summary>
         /// Binary instance of a KeyEqualityComparer for type T.
@@ -33,18 +33,16 @@ namespace Spreads
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool Equals(T x, T y)
         {
-            return EqualsStatic(x, y);
+            return EqualsImpl(x, y);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static bool EqualsStatic(T x, T y)
+        internal static bool EqualsImpl(T x, T y)
         {
-            if (IsIEquatable)
-            {
-                return Native.UnsafeEx.EqualsConstrained(ref x, ref y);
-            }
+            return _isIEquatable
+                ? UnsafeEx.EqualsConstrained(ref x, ref y)
+                : EqualityComparer<T>.Default.Equals(x, y);
 
-            return EqualityComparer<T>.Default.Equals(x, y);
         }
 
         /// <summary>
@@ -59,12 +57,9 @@ namespace Spreads
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static int GetHashCodeStatic(T x)
         {
-            if (IsIEquatable)
-            {
-                return Native.UnsafeEx.GetHashCodeConstrained(ref x);
-            }
-
-            return EqualityComparer<T>.Default.GetHashCode(x);
+            return _isIEquatable
+                ? UnsafeEx.GetHashCodeConstrained(ref x)
+                : EqualityComparer<T>.Default.GetHashCode(x);
         }
     }
 }

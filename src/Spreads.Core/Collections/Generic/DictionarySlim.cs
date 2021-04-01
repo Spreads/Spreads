@@ -9,17 +9,14 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Runtime.CompilerServices;
-
-
-// ReSharper disable PossibleNullReferenceException
-// ReSharper disable InconsistentNaming
+using static Spreads.Utils.Constants;
 
 namespace Spreads.Collections.Generic
 {
     /// <summary>
     /// A lightweight Dictionary with three principal differences compared to <see cref="Dictionary{TKey, TValue}"/>
     ///
-    /// 1) It is possible to do "get or add" in a single lookup using <see cref="GetOrAddValueRef(TKey)"/>. For
+    /// 1) It is possible to do "get or add" in a single lookup using <see cref="GetOrAddValueRef"/>. For
     /// values that are value types, this also saves a copy of the value.
     /// 2) It assumes it is cheap to equate values.
     /// 3) It assumes the keys implement <see cref="IEquatable{TKey}"/> or else Equals() and they are cheap and sufficient.
@@ -32,9 +29,11 @@ namespace Spreads.Collections.Generic
     /// 3) This means it can avoid storing a comparer, and avoid the likely virtual call to a comparer.
     /// </remarks>
     [DebuggerTypeProxy(typeof(DictionarySlimDebugView<,>))]
-    [DebuggerDisplay("Count = {Count}")]
-    internal class DictionarySlim<TKey, TValue> : IReadOnlyCollection<KeyValuePair<TKey, TValue>> where TKey : IEquatable<TKey>
+    [DebuggerDisplay("Count = {" + nameof(Count) + "}")]
+    internal partial class DictionarySlim<TKey, TValue> : IReadOnlyCollection<KeyValuePair<TKey, TValue>> where TKey : IEquatable<TKey>
     {
+        private readonly TValue _defaultValue;
+
         // We want to initialize without allocating arrays. We also want to avoid null checks.
         // Array.Empty would give divide by zero in modulo operation. So we use static one element arrays.
         // The first add will cause a resize replacing these with real arrays of three elements.
@@ -48,28 +47,29 @@ namespace Spreads.Collections.Generic
 
         // 1-based index into _entries; 0 means empty
         private int[] _buckets;
-
         private Entry[] _entries;
 
-        [DebuggerDisplay("({key}, {value})->{next}")]
+        [DebuggerDisplay("({Key}, {Value})->{Next}")]
         private struct Entry
         {
-            public TKey key;
-            public TValue value;
+            public TKey Key;
+
+            public TValue Value;
 
             // 0-based index of next entry in chain: -1 means end of chain
             // also encodes whether this entry _itself_ is part of the free list by changing sign and subtracting 3,
             // so -2 means end of free list, -3 means index 0 but on free list, -4 means index 1 but on free list, etc.
-            public int next;
+            public int Next;
         }
 
         /// <summary>
         /// Construct with default capacity.
         /// </summary>
-        public DictionarySlim()
+        public DictionarySlim(TValue defaultValue = default!)
         {
             _buckets = HashHelpers.SizeOneIntArray;
             _entries = InitialEntries;
+            _defaultValue = defaultValue;
         }
 
         /// <summary>
@@ -77,15 +77,17 @@ namespace Spreads.Collections.Generic
         /// entries before resizing must occur.
         /// </summary>
         /// <param name="capacity">Requested minimum capacity</param>
-        public DictionarySlim(int capacity)
+        /// <param name="defaultValue"></param>
+        public DictionarySlim(int capacity, TValue defaultValue = default!)
         {
             if (capacity < 0)
-                Spreads.ThrowHelper.ThrowArgumentOutOfRangeException("capacity");
+                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.value, ExceptionResource.ArgumentOutOfRange_SmallCapacity);
             if (capacity < 2)
                 capacity = 2; // 1 would indicate the dummy array
             capacity = HashHelpers.PowerOf2(capacity);
             _buckets = new int[capacity];
             _entries = new Entry[capacity];
+            _defaultValue = defaultValue;
         }
 
         /// <summary>
@@ -109,25 +111,23 @@ namespace Spreads.Collections.Generic
         /// </summary>
         /// <param name="key">Key to look for</param>
         /// <returns>true if the key is present, otherwise false</returns>
-        public bool ContainsKey(TKey key)
+        public bool ContainsKey(in TKey key)
         {
-            if (key is null)
-            {
-                ThrowKeyArgumentNullException();
-            }
             Entry[] entries = _entries;
             int collisionCount = 0;
             for (int i = _buckets[key.GetHashCode() & (_buckets.Length - 1)] - 1;
-                    (uint)i < (uint)entries.Length; i = entries[i].next)
+                (uint) i < (uint) entries.Length;
+                i = entries[i].Next)
             {
-                if (key.Equals(entries[i].key))
+                if (key.Equals(entries[i].Key))
                     return true;
                 if (collisionCount == entries.Length)
                 {
                     // The chain of entries forms a loop; which means a concurrent update has happened.
                     // Break out of the loop and throw, rather than looping forever.
-                    ThrowConcurrentOperationsNotSupported();
+                    ThrowHelper.ThrowInvalidOperationException_ConcurrentOperationsNotSupported();
                 }
+
                 collisionCount++;
             }
 
@@ -140,18 +140,17 @@ namespace Spreads.Collections.Generic
         /// <param name="key">Key to look for</param>
         /// <param name="value">Value found, otherwise default(TValue)</param>
         /// <returns>true if the key is present, otherwise false</returns>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool TryGetValue(TKey key, out TValue value)
         {
             Entry[] entries = _entries;
             int collisionCount = 0;
             for (int i = _buckets[key.GetHashCode() & (_buckets.Length - 1)] - 1;
                 unchecked((uint)i) < (uint)entries.Length;
-                i = entries[i].next)
+                i = entries[i].Next)
             {
-                if (key.Equals(entries[i].key))
+                if (key.Equals(entries[i].Key))
                 {
-                    value = entries[i].value;
+                    value = entries[i].Value;
                     return true;
                 }
 
@@ -159,7 +158,7 @@ namespace Spreads.Collections.Generic
                 {
                     // The chain of entries forms a loop; which means a concurrent update has happened.
                     // Break out of the loop and throw, rather than looping forever.
-                    ThrowConcurrentOperationsNotSupported();
+                    ThrowHelper.ThrowInvalidOperationException_ConcurrentOperationsNotSupported();
                 }
 
                 collisionCount++;
@@ -172,18 +171,18 @@ namespace Spreads.Collections.Generic
         /// <summary>
         /// Assumes no concurrent updates are possible.
         /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool DangerousTryGetValue(TKey key, out TValue value)
+        [MethodImpl(MethodImplAggressiveAll)]
+        internal bool DangerousTryGetValue(TKey key, out TValue value)
         {
             Entry[] entries = _entries;
 
             for (int i = _buckets[key.GetHashCode() & (_buckets.Length - 1)] - 1;
                 unchecked((uint)i) < (uint)entries.Length;
-                i = entries[i].next)
+                i = entries[i].Next)
             {
-                if (key.Equals(entries[i].key))
+                if (key.Equals(entries[i].Key))
                 {
-                    value = entries[i].value;
+                    value = entries[i].Value;
                     return true;
                 }
             }
@@ -193,16 +192,151 @@ namespace Spreads.Collections.Generic
         }
 
         /// <summary>
+        /// Gets the value if present for the specified key.
+        /// </summary>
+        /// <param name="key">Key to look for</param>
+        /// <param name="found"></param>
+        /// <returns>true if the key is present, otherwise false</returns>
+        public ref readonly TValue TryGetValueRef(TKey key, out bool found)
+        {
+            Entry[] entries = _entries;
+            int collisionCount = 0;
+            for (int i = _buckets[key.GetHashCode() & (_buckets.Length - 1)] - 1;
+                (uint) i < (uint) entries.Length;
+                i = entries[i].Next)
+            {
+                if (key.Equals(entries[i].Key))
+                {
+                    found = true;
+                    return ref entries[i].Value;
+                }
+
+                if (collisionCount == entries.Length)
+                {
+                    // The chain of entries forms a loop; which means a concurrent update has happened.
+                    // Break out of the loop and throw, rather than looping forever.
+                    ThrowHelper.ThrowInvalidOperationException_ConcurrentOperationsNotSupported();
+                }
+
+                collisionCount++;
+            }
+
+            found = false;
+            return ref _defaultValue;
+        }
+
+        /// <summary>
+        /// Assumes no concurrent updates are possible.
+        /// </summary>
+        [MethodImpl(MethodImplAggressiveAll)]
+        internal ref readonly TValue DangerousTryGetValueRef(TKey key, out bool found)
+        {
+            Entry[] entries = _entries;
+            for (int i = _buckets[key.GetHashCode() & (_buckets.Length - 1)] - 1;
+                (uint) i < (uint) entries.Length;
+                i = entries[i].Next)
+            {
+                if (key.Equals(entries[i].Key))
+                {
+                    found = true;
+                    return ref entries[i].Value;
+                }
+            }
+
+            found = false;
+            return ref _defaultValue;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public ref readonly TValue GetOrDefault(TKey key)
+        {
+            Entry[] entries = _entries;
+            int collisionCount = 0;
+            for (int i = _buckets[key.GetHashCode() & (_buckets.Length - 1)] - 1;
+                (uint) i < (uint) entries.Length;
+                i = entries[i].Next)
+            {
+                if (key.Equals(entries[i].Key))
+                {
+                    return ref entries[i].Value;
+                }
+
+                if (collisionCount == entries.Length)
+                {
+                    // The chain of entries forms a loop; which means a concurrent update has happened.
+                    // Break out of the loop and throw, rather than looping forever.
+                    ThrowHelper.ThrowInvalidOperationException_ConcurrentOperationsNotSupported();
+                }
+
+                collisionCount++;
+            }
+
+            return ref _defaultValue;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public ref readonly TValue GetOrDefault(in TKey key)
+        {
+            Entry[] entries = _entries;
+            int collisionCount = 0;
+            for (int i = _buckets[key.GetHashCode() & (_buckets.Length - 1)] - 1;
+                (uint) i < (uint) entries.Length;
+                i = entries[i].Next)
+            {
+                if (key.Equals(entries[i].Key))
+                {
+                    return ref entries[i].Value;
+                }
+
+                if (collisionCount == entries.Length)
+                {
+                    // The chain of entries forms a loop; which means a concurrent update has happened.
+                    // Break out of the loop and throw, rather than looping forever.
+                    ThrowHelper.ThrowInvalidOperationException_ConcurrentOperationsNotSupported();
+                }
+
+                collisionCount++;
+            }
+
+            return ref _defaultValue;
+        }
+
+        public ref readonly TValue TryGetValueIdx(in TKey key, out int index)
+        {
+            Entry[] entries = _entries;
+            int collisionCount = 0;
+            for (int i = _buckets[key.GetHashCode() & (_buckets.Length - 1)] - 1;
+                (uint) i < (uint) entries.Length;
+                i = entries[i].Next)
+            {
+                if (key.Equals(entries[i].Key))
+                {
+                    index = i;
+                    return ref entries[i].Value;
+
+                }
+
+                if (collisionCount == entries.Length)
+                {
+                    // The chain of entries forms a loop; which means a concurrent update has happened.
+                    // Break out of the loop and throw, rather than looping forever.
+                    ThrowHelper.ThrowInvalidOperationException_ConcurrentOperationsNotSupported();
+                }
+
+                collisionCount++;
+            }
+
+            index = -1;
+            return ref _defaultValue;
+        }
+
+        /// <summary>
         /// Removes the entry if present with the specified key.
         /// </summary>
         /// <param name="key">Key to look for</param>
         /// <returns>true if the key is present, false if it is not</returns>
-        public bool Remove(TKey key)
+        public bool Remove(in TKey key)
         {
-            if (key == null)
-            {
-                ThrowKeyArgumentNullException();
-            }
             Entry[] entries = _entries;
             int bucketIndex = key.GetHashCode() & (_buckets.Length - 1);
             int entryIndex = _buckets[bucketIndex] - 1;
@@ -212,34 +346,38 @@ namespace Spreads.Collections.Generic
             while (entryIndex != -1)
             {
                 Entry candidate = entries[entryIndex];
-                if (candidate.key.Equals(key))
+                if (candidate.Key.Equals(key))
                 {
                     if (lastIndex != -1)
-                    {   // Fixup preceding element in chain to point to next (if any)
-                        entries[lastIndex].next = candidate.next;
+                    {
+                        // Fixup preceding element in chain to point to next (if any)
+                        entries[lastIndex].Next = candidate.Next;
                     }
                     else
-                    {   // Fixup bucket to new head (if any)
-                        _buckets[bucketIndex] = candidate.next + 1;
+                    {
+                        // Fixup bucket to new head (if any)
+                        _buckets[bucketIndex] = candidate.Next + 1;
                     }
 
                     entries[entryIndex] = default;
 
-                    entries[entryIndex].next = -3 - _freeList; // New head of free list
+                    entries[entryIndex].Next = -3 - _freeList; // New head of free list
                     _freeList = entryIndex;
 
                     _count--;
                     return true;
                 }
+
                 lastIndex = entryIndex;
-                entryIndex = candidate.next;
+                entryIndex = candidate.Next;
 
                 if (collisionCount == entries.Length)
                 {
                     // The chain of entries forms a loop; which means a concurrent update has happened.
                     // Break out of the loop and throw, rather than looping forever.
-                    ThrowConcurrentOperationsNotSupported();
+                    ThrowHelper.ThrowInvalidOperationException_ConcurrentOperationsNotSupported();
                 }
+
                 collisionCount++;
             }
 
@@ -255,53 +393,39 @@ namespace Spreads.Collections.Generic
         /// </summary>
         /// <param name="key">Key to look for</param>
         /// <returns>Reference to the new or existing value</returns>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public ref TValue GetOrAddValueRef(TKey key)
+        [return: MaybeNull]
+        public ref TValue GetOrAddValueRef(in TKey key)
         {
-            if (key == null)
+#pragma warning disable 8619
+            Entry[] entries = _entries;
+            int collisionCount = 0;
+            int bucketIndex = key.GetHashCode() & (_buckets.Length - 1);
+            for (int i = _buckets[bucketIndex] - 1;
+                (uint) i < (uint) entries.Length;
+                i = entries[i].Next)
             {
-                ThrowKeyArgumentNullException();
-            }
-
-            unchecked
-            {
-                Entry[] entries = _entries;
-                int collisionCount = 0;
-                int bucketIndex = key.GetHashCode() & (_buckets.Length - 1);
-                for (int i = _buckets[bucketIndex] - 1;
-                    (uint)i < (uint)entries.Length;
-                    i = entries[i].next)
+                if (key.Equals(entries[i].Key))
+                    return ref entries[i].Value;
+                if (collisionCount == entries.Length)
                 {
-                    if (key.Equals(entries[i].key))
-                        return ref entries[i].value;
-                    if (collisionCount == entries.Length)
-                    {
-                        // The chain of entries forms a loop; which means a concurrent update has happened.
-                        // Break out of the loop and throw, rather than looping forever.
-                        ThrowConcurrentOperationsNotSupported();
-                    }
-
-                    collisionCount++;
+                    // The chain of entries forms a loop; which means a concurrent update has happened.
+                    // Break out of the loop and throw, rather than looping forever.
+                    ThrowHelper.ThrowInvalidOperationException_ConcurrentOperationsNotSupported();
                 }
 
-                return ref AddKey(key, bucketIndex);
+                collisionCount++;
             }
+
+            return ref AddKey(key, bucketIndex);
+#pragma warning restore 8619
         }
 
-        [DoesNotReturn]
-        [MethodImpl(MethodImplOptions.NoInlining)]
-        private static void ThrowKeyArgumentNullException()
+        public void Add(TKey key, TValue value)
         {
-            Spreads.ThrowHelper.ThrowArgumentNullException("key");
+            if(ContainsKey(in key))
+                ThrowHelper.ThrowAddingDuplicateWithKeyArgumentException(key);
+            GetOrAddValueRef(in key) = value;
         }
-
-        [DoesNotReturn]
-        [MethodImpl(MethodImplOptions.NoInlining)]
-        private static void ThrowConcurrentOperationsNotSupported()
-        {
-            Spreads.ThrowHelper.ThrowInvalidOperationException("ConcurrentOperationsNotSupported");
-        }
-
 
         [MethodImpl(MethodImplOptions.NoInlining)]
         private ref TValue AddKey(TKey key, int bucketIndex)
@@ -311,7 +435,7 @@ namespace Spreads.Collections.Generic
             if (_freeList != -1)
             {
                 entryIndex = _freeList;
-                _freeList = -3 - entries[_freeList].next;
+                _freeList = -3 - entries[_freeList].Next;
             }
             else
             {
@@ -321,14 +445,15 @@ namespace Spreads.Collections.Generic
                     bucketIndex = key.GetHashCode() & (_buckets.Length - 1);
                     // entry indexes were not changed by Resize
                 }
+
                 entryIndex = _count;
             }
 
-            entries[entryIndex].key = key;
-            entries[entryIndex].next = _buckets[bucketIndex] - 1;
+            entries[entryIndex].Key = key;
+            entries[entryIndex].Next = _buckets[bucketIndex] - 1;
             _buckets[bucketIndex] = entryIndex + 1;
             _count++;
-            return ref entries[entryIndex].value;
+            return ref entries[entryIndex].Value;
         }
 
         private Entry[] Resize()
@@ -336,9 +461,8 @@ namespace Spreads.Collections.Generic
             Debug.Assert(_entries.Length == _count || _entries.Length == 1); // We only copy _count, so if it's longer we will miss some
             int count = _count;
             int newSize = _entries.Length * 2;
-            // ReSharper disable once RedundantCast
-            if ((uint)newSize > (uint)int.MaxValue) // uint cast handles overflow
-                throw new InvalidOperationException("Strings.Arg_HTCapacityOverflow");
+            if ((uint) newSize > (uint) int.MaxValue) // uint cast handles overflow
+                throw new InvalidOperationException("Capacity Overflow");
 
             var entries = new Entry[newSize];
             Array.Copy(_entries, 0, entries, 0, count);
@@ -346,8 +470,8 @@ namespace Spreads.Collections.Generic
             var newBuckets = new int[entries.Length];
             while (count-- > 0)
             {
-                int bucketIndex = entries[count].key.GetHashCode() & (newBuckets.Length - 1);
-                entries[count].next = newBuckets[bucketIndex] - 1;
+                int bucketIndex = entries[count].Key.GetHashCode() & (newBuckets.Length - 1);
+                entries[count].Next = newBuckets[bucketIndex] - 1;
                 newBuckets[bucketIndex] = count + 1;
             }
 
@@ -404,12 +528,12 @@ namespace Spreads.Collections.Generic
 
                 _count--;
 
-                while (_dictionary._entries[_index].next < -1)
+                while (_dictionary._entries[_index].Next < -1)
                     _index++;
 
                 _current = new KeyValuePair<TKey, TValue>(
-                    _dictionary._entries[_index].key,
-                    _dictionary._entries[_index++].value);
+                    _dictionary._entries[_index].Key,
+                    _dictionary._entries[_index++].Value);
                 return true;
             }
 
@@ -430,11 +554,13 @@ namespace Spreads.Collections.Generic
             /// <summary>
             /// Dispose the enumerator
             /// </summary>
-            public void Dispose() { }
+            public void Dispose()
+            {
+            }
         }
     }
 
-    internal sealed class DictionarySlimDebugView<K, V> where K : IEquatable<K>
+    internal sealed class DictionarySlimDebugView<K, V> where K : struct, IEquatable<K>
     {
         private readonly DictionarySlim<K, V> _dictionary;
 
@@ -444,26 +570,6 @@ namespace Spreads.Collections.Generic
         }
 
         [DebuggerBrowsable(DebuggerBrowsableState.RootHidden)]
-        public KeyValuePair<K, V>[] Items
-        {
-            get
-            {
-                return _dictionary.ToArray();
-            }
-        }
-    }
-
-    internal static partial class HashHelpers
-    {
-        internal static int PowerOf2(int v)
-        {
-            if ((v & (v - 1)) == 0) return v;
-            int i = 2;
-            while (i < v) i <<= 1;
-            return i;
-        }
-
-        // must never be written to
-        internal static readonly int[] SizeOneIntArray = new int[1];
+        public KeyValuePair<K, V>[] Items => _dictionary.ToArray();
     }
 }

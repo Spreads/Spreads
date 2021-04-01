@@ -8,22 +8,25 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
-using System.Diagnostics.Contracts;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 
 namespace Spreads
 {
+    public class StaticReadonly
+    {
+        public int JitConst { get; } = 1;
+    }
+
     internal class WrapperKeyComparer<T> : IKeyComparer<T>
     {
-        private IComparer<T> _comparer;
+        private readonly IComparer<T> _comparer;
 
         public WrapperKeyComparer(IComparer<T> comparer)
         {
             _comparer = comparer;
         }
 
-        [Pure]
         public int Compare(T x, T y)
         {
             return _comparer.Compare(x, y);
@@ -31,14 +34,12 @@ namespace Spreads
 
         public bool IsDiffable => false;
 
-        [Pure]
         public T Add(T value, long diff)
         {
             ThrowHelper.ThrowNotSupportedException();
             return default;
         }
 
-        [Pure]
         public long Diff(T minuend, T subtrahend)
         {
             ThrowHelper.ThrowNotSupportedException();
@@ -53,7 +54,7 @@ namespace Spreads
     public readonly struct KeyComparer<T> : IKeyComparer<T>, IEqualityComparer<T>, IEquatable<KeyComparer<T>>
     {
         /// <summary>
-        /// Returns true for built-in types that are numbers or could be represented as numbers via <see cref="IInt64Diffable{T}"/>.
+        /// Returns true for built-in (System and Spreads) types that are numbers or could be represented as numbers.
         /// </summary>
         public static readonly bool IsBuiltInNumericType =
             typeof(T) == typeof(bool)
@@ -222,7 +223,7 @@ namespace Spreads
         /// <summary>
         /// Get a new or default instance of KeyComparer.
         /// </summary>
-        public static KeyComparer<T> Create(IKeyComparer<T> comparer = null)
+        public static KeyComparer<T> Create(IKeyComparer<T>? comparer = null)
         {
             if (comparer == null)
             {
@@ -237,7 +238,6 @@ namespace Spreads
 
         /// <inheritdoc />
         [SuppressMessage("ReSharper", "PossibleNullReferenceException")]
-        [Pure]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public int Compare(T x, T y)
         {
@@ -445,7 +445,7 @@ namespace Spreads
         }
 
         /// <inheritdoc />
-        [Pure]
+        [SuppressMessage("ReSharper", "PossibleNullReferenceException")]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public T Add(T value, long diff)
         {
@@ -534,7 +534,7 @@ namespace Spreads
         /// <summary>
         /// Returns Int64 distance between two values.
         /// </summary>
-        [Pure]
+        [SuppressMessage("ReSharper", "PossibleNullReferenceException")]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public long Diff(T minuend, T subtrahend)
         {
@@ -649,7 +649,7 @@ namespace Spreads
         }
 
         /// <inheritdoc />
-        [Pure]
+        [SuppressMessage("ReSharper", "PossibleNullReferenceException")]
         public bool Equals(T x, T y)
         {
             // ReSharper disable PossibleNullReferenceException

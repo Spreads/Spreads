@@ -9,6 +9,8 @@ using System.Runtime.CompilerServices;
 
 namespace Spreads.Algorithms.Online
 {
+    // TODO (VB) See my Twitter discussion about another moving median impl
+
     // implementation of LIGO's Efficient Algorithm for computing a Running Median
     // https://dcc.ligo.org/public/0027/T030168/000/T030168-00.pdf
 
@@ -257,7 +259,7 @@ namespace Spreads.Algorithms.Online
                 LastValue = NaiveMedian(new ArraySegment<double>(_incompleteWindow, 0, _incompleteCount));
                 return LastValue;
             }
-            
+
             if (_incompleteWindow != null)
             {
                 _incompleteWindow[_incompleteCount] = nextValue; // happens only once

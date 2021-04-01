@@ -1,13 +1,13 @@
 ﻿using System;
 using System.Diagnostics;
 using System.Runtime;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Spreads.Core.Tests.Algorithms;
 using Spreads.Core.Tests.Collections.Concurrent;
 using Spreads.Core.Tests.Performance;
 using Spreads.Core.Tests.Serialization;
-using Spreads.Tests.Collections.Internal;
 
 namespace Spreads.Run
 {
@@ -26,7 +26,7 @@ namespace Spreads.Run
 
     internal class Program
     {
-        private static async Task Main(string[] args)
+        private static unsafe void Main(string[] args)
         {
             GCSettings.LatencyMode = GCLatencyMode.SustainedLowLatency;
             Trace.Listeners.Clear();
@@ -39,10 +39,18 @@ namespace Spreads.Run
             // EquiJoinBench();
             ExecutionContext.SuppressFlow();
             Settings.SharedSpinLockNotificationPort = 53412;
-            
-            var test = new DataBlockTreeTests();
-            test.CouldAppendBench();
-            
+
+            // var str = "123.456789";
+            // var bytes = Encoding.UTF8.GetBytes(str);
+            // fixed (byte* ptr = &bytes[0])
+            // {
+            //     csFastFloat.FastDoubleParser.ParseNumber(ptr, ptr + bytes.Length , out var readCount);
+            // }
+
+
+            var test = new Utf8JsonTests();
+            test.CompareUtf8JsonWithBinarySerializer();
+
             GC.Collect(2, GCCollectionMode.Forced, true, true);
 
             // Native.Mem.StatsPrint();

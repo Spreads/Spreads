@@ -2,6 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+using System;
 using Spreads.Utils;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
@@ -82,7 +83,7 @@ namespace Spreads.Buffers
         {
             ThrowHelper.ThrowInvalidOperationException("Memory not from pool: " + typeof(T).FullName);
         }
-        
+
         [ContractAnnotation("=> halt")]
         [DoesNotReturn]
         [MethodImpl(MethodImplOptions.NoInlining)]

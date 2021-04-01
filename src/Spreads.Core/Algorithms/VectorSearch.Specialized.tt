@@ -8,7 +8,7 @@
         "int",
         "long"
     };
-    
+
     var sseTypes = new[]
     {
         "sbyte",
@@ -18,7 +18,7 @@
         "double",
         "float"
     };
-    
+
     var interpolationTypes = new[]
     {
         "sbyte",
@@ -40,6 +40,7 @@
 
 using Spreads.Native;
 using System.Runtime.CompilerServices;
+using static Spreads.Utils.Constants;
 #if HAS_INTRINSICS
 using Spreads.Utils;
 using System.Runtime.Intrinsics;
@@ -61,11 +62,7 @@ namespace Spreads.Algorithms {
     foreach (var type in avxTypes)
     {
 #>
-    [MethodImpl(MethodImplOptions.AggressiveInlining
-#if HAS_AGGR_OPT
-                    | MethodImplOptions.AggressiveOptimization
-#endif
-        )]
+        [MethodImpl(MethodImplAggressiveAll)]
         internal static int BinarySearchAvx2LoHi(ref <#=type#> searchSpace, int lo, int hi, <#=type#> value)
         {
             unchecked
@@ -83,10 +80,10 @@ namespace Spreads.Algorithms {
                 Vector256<<#=type#>> vecI;
                 Vector256<<#=type#>> gt;
                 var valVec = Vector256.Create(value);
-                
+
                 // x3 is needed to safely fall into linear vectorized search:
                 // after this loop all possible lo/hi are valid for linear vectorized search
-                while (hi - lo >= Vector256<<#=type#>>.Count * 3) 
+                while (hi - lo >= Vector256<<#=type#>>.Count * 3)
                 {
                     var i = (int) (((uint) hi + (uint) lo - Vector256<<#=type#>>.Count) >> 1);
 
@@ -149,14 +146,10 @@ namespace Spreads.Algorithms {
     foreach (var type in sseTypes)
     {
 #>
-    [MethodImpl(MethodImplOptions.AggressiveInlining
-#if HAS_AGGR_OPT
-                    | MethodImplOptions.AggressiveOptimization
-#endif
-        )]
+        [MethodImpl(MethodImplAggressiveAll)]
         internal static int BinarySearchSse42LoHi(ref <#=type#> searchSpace, int lo, int hi, <#=type#> value)
         {
-            // Avx2 modification with mask as short and it's special handling 
+            // Avx2 modification with mask as short and it's special handling
             unchecked
             {
                 short mask;
@@ -233,11 +226,7 @@ namespace Spreads.Algorithms {
     foreach (var type in interpolationTypes)
     {
 #>
-    [MethodImpl(MethodImplOptions.AggressiveInlining
-#if HAS_AGGR_OPT
-                    | MethodImplOptions.AggressiveOptimization
-#endif
-        )]
+        [MethodImpl(MethodImplAggressiveAll)]
         internal static int InterpolationSearchSpecializedLoHi(ref <#=type#> searchSpace, int lo, int hi, <#=type#> value)
         {
             // Try interpolation only for big-enough lengths and do minimal job,
@@ -246,7 +235,7 @@ namespace Spreads.Algorithms {
             unchecked
             {
                 int i;
-                
+
                 if (hi - lo > Settings.SAFE_CACHE_LINE / Unsafe.SizeOf<<#=type#>>())
                 {
                     var vLo = UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref searchSpace, lo));
@@ -278,7 +267,7 @@ namespace Spreads.Algorithms {
                         while (true)
                         {
                             i += step;
-                            
+
                             if (i > hi)
                                 break;
 
@@ -303,7 +292,7 @@ namespace Spreads.Algorithms {
                         while (true)
                         {
                             i -= step;
-                            
+
                             if (i < lo)
                                 break;
 

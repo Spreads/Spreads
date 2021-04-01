@@ -4,6 +4,7 @@
 
 using Spreads.Native;
 using System.Runtime.CompilerServices;
+using static Spreads.Utils.Constants;
 #if HAS_INTRINSICS
 using Spreads.Utils;
 using System.Runtime.Intrinsics;
@@ -21,11 +22,7 @@ namespace Spreads.Algorithms {
 
 #if HAS_INTRINSICS
 
-	    [MethodImpl(MethodImplOptions.AggressiveInlining
-#if HAS_AGGR_OPT
-                    | MethodImplOptions.AggressiveOptimization
-#endif
-        )]
+	        [MethodImpl(MethodImplAggressiveAll)]
         internal static int BinarySearchAvx2LoHi(ref sbyte searchSpace, int lo, int hi, sbyte value)
         {
             unchecked
@@ -43,10 +40,10 @@ namespace Spreads.Algorithms {
                 Vector256<sbyte> vecI;
                 Vector256<sbyte> gt;
                 var valVec = Vector256.Create(value);
-                
+
                 // x3 is needed to safely fall into linear vectorized search:
                 // after this loop all possible lo/hi are valid for linear vectorized search
-                while (hi - lo >= Vector256<sbyte>.Count * 3) 
+                while (hi - lo >= Vector256<sbyte>.Count * 3)
                 {
                     var i = (int) (((uint) hi + (uint) lo - Vector256<sbyte>.Count) >> 1);
 
@@ -101,11 +98,7 @@ namespace Spreads.Algorithms {
             }
         }
 
-	    [MethodImpl(MethodImplOptions.AggressiveInlining
-#if HAS_AGGR_OPT
-                    | MethodImplOptions.AggressiveOptimization
-#endif
-        )]
+	        [MethodImpl(MethodImplAggressiveAll)]
         internal static int BinarySearchAvx2LoHi(ref short searchSpace, int lo, int hi, short value)
         {
             unchecked
@@ -123,10 +116,10 @@ namespace Spreads.Algorithms {
                 Vector256<short> vecI;
                 Vector256<short> gt;
                 var valVec = Vector256.Create(value);
-                
+
                 // x3 is needed to safely fall into linear vectorized search:
                 // after this loop all possible lo/hi are valid for linear vectorized search
-                while (hi - lo >= Vector256<short>.Count * 3) 
+                while (hi - lo >= Vector256<short>.Count * 3)
                 {
                     var i = (int) (((uint) hi + (uint) lo - Vector256<short>.Count) >> 1);
 
@@ -181,11 +174,7 @@ namespace Spreads.Algorithms {
             }
         }
 
-	    [MethodImpl(MethodImplOptions.AggressiveInlining
-#if HAS_AGGR_OPT
-                    | MethodImplOptions.AggressiveOptimization
-#endif
-        )]
+	        [MethodImpl(MethodImplAggressiveAll)]
         internal static int BinarySearchAvx2LoHi(ref int searchSpace, int lo, int hi, int value)
         {
             unchecked
@@ -203,10 +192,10 @@ namespace Spreads.Algorithms {
                 Vector256<int> vecI;
                 Vector256<int> gt;
                 var valVec = Vector256.Create(value);
-                
+
                 // x3 is needed to safely fall into linear vectorized search:
                 // after this loop all possible lo/hi are valid for linear vectorized search
-                while (hi - lo >= Vector256<int>.Count * 3) 
+                while (hi - lo >= Vector256<int>.Count * 3)
                 {
                     var i = (int) (((uint) hi + (uint) lo - Vector256<int>.Count) >> 1);
 
@@ -261,11 +250,7 @@ namespace Spreads.Algorithms {
             }
         }
 
-	    [MethodImpl(MethodImplOptions.AggressiveInlining
-#if HAS_AGGR_OPT
-                    | MethodImplOptions.AggressiveOptimization
-#endif
-        )]
+	        [MethodImpl(MethodImplAggressiveAll)]
         internal static int BinarySearchAvx2LoHi(ref long searchSpace, int lo, int hi, long value)
         {
             unchecked
@@ -283,10 +268,10 @@ namespace Spreads.Algorithms {
                 Vector256<long> vecI;
                 Vector256<long> gt;
                 var valVec = Vector256.Create(value);
-                
+
                 // x3 is needed to safely fall into linear vectorized search:
                 // after this loop all possible lo/hi are valid for linear vectorized search
-                while (hi - lo >= Vector256<long>.Count * 3) 
+                while (hi - lo >= Vector256<long>.Count * 3)
                 {
                     var i = (int) (((uint) hi + (uint) lo - Vector256<long>.Count) >> 1);
 
@@ -342,14 +327,10 @@ namespace Spreads.Algorithms {
         }
 
 	
-    [MethodImpl(MethodImplOptions.AggressiveInlining
-#if HAS_AGGR_OPT
-                    | MethodImplOptions.AggressiveOptimization
-#endif
-        )]
+        [MethodImpl(MethodImplAggressiveAll)]
         internal static int BinarySearchSse42LoHi(ref sbyte searchSpace, int lo, int hi, sbyte value)
         {
-            // Avx2 modification with mask as short and it's special handling 
+            // Avx2 modification with mask as short and it's special handling
             unchecked
             {
                 short mask;
@@ -416,14 +397,10 @@ namespace Spreads.Algorithms {
             }
         }
 
-	    [MethodImpl(MethodImplOptions.AggressiveInlining
-#if HAS_AGGR_OPT
-                    | MethodImplOptions.AggressiveOptimization
-#endif
-        )]
+	        [MethodImpl(MethodImplAggressiveAll)]
         internal static int BinarySearchSse42LoHi(ref short searchSpace, int lo, int hi, short value)
         {
-            // Avx2 modification with mask as short and it's special handling 
+            // Avx2 modification with mask as short and it's special handling
             unchecked
             {
                 short mask;
@@ -490,14 +467,10 @@ namespace Spreads.Algorithms {
             }
         }
 
-	    [MethodImpl(MethodImplOptions.AggressiveInlining
-#if HAS_AGGR_OPT
-                    | MethodImplOptions.AggressiveOptimization
-#endif
-        )]
+	        [MethodImpl(MethodImplAggressiveAll)]
         internal static int BinarySearchSse42LoHi(ref int searchSpace, int lo, int hi, int value)
         {
-            // Avx2 modification with mask as short and it's special handling 
+            // Avx2 modification with mask as short and it's special handling
             unchecked
             {
                 short mask;
@@ -564,14 +537,10 @@ namespace Spreads.Algorithms {
             }
         }
 
-	    [MethodImpl(MethodImplOptions.AggressiveInlining
-#if HAS_AGGR_OPT
-                    | MethodImplOptions.AggressiveOptimization
-#endif
-        )]
+	        [MethodImpl(MethodImplAggressiveAll)]
         internal static int BinarySearchSse42LoHi(ref long searchSpace, int lo, int hi, long value)
         {
-            // Avx2 modification with mask as short and it's special handling 
+            // Avx2 modification with mask as short and it's special handling
             unchecked
             {
                 short mask;
@@ -638,14 +607,10 @@ namespace Spreads.Algorithms {
             }
         }
 
-	    [MethodImpl(MethodImplOptions.AggressiveInlining
-#if HAS_AGGR_OPT
-                    | MethodImplOptions.AggressiveOptimization
-#endif
-        )]
+	        [MethodImpl(MethodImplAggressiveAll)]
         internal static int BinarySearchSse42LoHi(ref double searchSpace, int lo, int hi, double value)
         {
-            // Avx2 modification with mask as short and it's special handling 
+            // Avx2 modification with mask as short and it's special handling
             unchecked
             {
                 short mask;
@@ -712,14 +677,10 @@ namespace Spreads.Algorithms {
             }
         }
 
-	    [MethodImpl(MethodImplOptions.AggressiveInlining
-#if HAS_AGGR_OPT
-                    | MethodImplOptions.AggressiveOptimization
-#endif
-        )]
+	        [MethodImpl(MethodImplAggressiveAll)]
         internal static int BinarySearchSse42LoHi(ref float searchSpace, int lo, int hi, float value)
         {
-            // Avx2 modification with mask as short and it's special handling 
+            // Avx2 modification with mask as short and it's special handling
             unchecked
             {
                 short mask;
@@ -789,11 +750,7 @@ namespace Spreads.Algorithms {
 	
 #endif
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining
-#if HAS_AGGR_OPT
-                    | MethodImplOptions.AggressiveOptimization
-#endif
-        )]
+        [MethodImpl(MethodImplAggressiveAll)]
         internal static int InterpolationSearchSpecializedLoHi(ref sbyte searchSpace, int lo, int hi, sbyte value)
         {
             // Try interpolation only for big-enough lengths and do minimal job,
@@ -802,7 +759,7 @@ namespace Spreads.Algorithms {
             unchecked
             {
                 int i;
-                
+
                 if (hi - lo > Settings.SAFE_CACHE_LINE / Unsafe.SizeOf<sbyte>())
                 {
                     var vLo = UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref searchSpace, lo));
@@ -834,7 +791,7 @@ namespace Spreads.Algorithms {
                         while (true)
                         {
                             i += step;
-                            
+
                             if (i > hi)
                                 break;
 
@@ -859,7 +816,7 @@ namespace Spreads.Algorithms {
                         while (true)
                         {
                             i -= step;
-                            
+
                             if (i < lo)
                                 break;
 
@@ -888,11 +845,7 @@ namespace Spreads.Algorithms {
             }
         }
 
-	    [MethodImpl(MethodImplOptions.AggressiveInlining
-#if HAS_AGGR_OPT
-                    | MethodImplOptions.AggressiveOptimization
-#endif
-        )]
+	        [MethodImpl(MethodImplAggressiveAll)]
         internal static int InterpolationSearchSpecializedLoHi(ref byte searchSpace, int lo, int hi, byte value)
         {
             // Try interpolation only for big-enough lengths and do minimal job,
@@ -901,7 +854,7 @@ namespace Spreads.Algorithms {
             unchecked
             {
                 int i;
-                
+
                 if (hi - lo > Settings.SAFE_CACHE_LINE / Unsafe.SizeOf<byte>())
                 {
                     var vLo = UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref searchSpace, lo));
@@ -933,7 +886,7 @@ namespace Spreads.Algorithms {
                         while (true)
                         {
                             i += step;
-                            
+
                             if (i > hi)
                                 break;
 
@@ -958,7 +911,7 @@ namespace Spreads.Algorithms {
                         while (true)
                         {
                             i -= step;
-                            
+
                             if (i < lo)
                                 break;
 
@@ -987,11 +940,7 @@ namespace Spreads.Algorithms {
             }
         }
 
-	    [MethodImpl(MethodImplOptions.AggressiveInlining
-#if HAS_AGGR_OPT
-                    | MethodImplOptions.AggressiveOptimization
-#endif
-        )]
+	        [MethodImpl(MethodImplAggressiveAll)]
         internal static int InterpolationSearchSpecializedLoHi(ref short searchSpace, int lo, int hi, short value)
         {
             // Try interpolation only for big-enough lengths and do minimal job,
@@ -1000,7 +949,7 @@ namespace Spreads.Algorithms {
             unchecked
             {
                 int i;
-                
+
                 if (hi - lo > Settings.SAFE_CACHE_LINE / Unsafe.SizeOf<short>())
                 {
                     var vLo = UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref searchSpace, lo));
@@ -1032,7 +981,7 @@ namespace Spreads.Algorithms {
                         while (true)
                         {
                             i += step;
-                            
+
                             if (i > hi)
                                 break;
 
@@ -1057,7 +1006,7 @@ namespace Spreads.Algorithms {
                         while (true)
                         {
                             i -= step;
-                            
+
                             if (i < lo)
                                 break;
 
@@ -1086,11 +1035,7 @@ namespace Spreads.Algorithms {
             }
         }
 
-	    [MethodImpl(MethodImplOptions.AggressiveInlining
-#if HAS_AGGR_OPT
-                    | MethodImplOptions.AggressiveOptimization
-#endif
-        )]
+	        [MethodImpl(MethodImplAggressiveAll)]
         internal static int InterpolationSearchSpecializedLoHi(ref ushort searchSpace, int lo, int hi, ushort value)
         {
             // Try interpolation only for big-enough lengths and do minimal job,
@@ -1099,7 +1044,7 @@ namespace Spreads.Algorithms {
             unchecked
             {
                 int i;
-                
+
                 if (hi - lo > Settings.SAFE_CACHE_LINE / Unsafe.SizeOf<ushort>())
                 {
                     var vLo = UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref searchSpace, lo));
@@ -1131,7 +1076,7 @@ namespace Spreads.Algorithms {
                         while (true)
                         {
                             i += step;
-                            
+
                             if (i > hi)
                                 break;
 
@@ -1156,7 +1101,7 @@ namespace Spreads.Algorithms {
                         while (true)
                         {
                             i -= step;
-                            
+
                             if (i < lo)
                                 break;
 
@@ -1185,11 +1130,7 @@ namespace Spreads.Algorithms {
             }
         }
 
-	    [MethodImpl(MethodImplOptions.AggressiveInlining
-#if HAS_AGGR_OPT
-                    | MethodImplOptions.AggressiveOptimization
-#endif
-        )]
+	        [MethodImpl(MethodImplAggressiveAll)]
         internal static int InterpolationSearchSpecializedLoHi(ref char searchSpace, int lo, int hi, char value)
         {
             // Try interpolation only for big-enough lengths and do minimal job,
@@ -1198,7 +1139,7 @@ namespace Spreads.Algorithms {
             unchecked
             {
                 int i;
-                
+
                 if (hi - lo > Settings.SAFE_CACHE_LINE / Unsafe.SizeOf<char>())
                 {
                     var vLo = UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref searchSpace, lo));
@@ -1230,7 +1171,7 @@ namespace Spreads.Algorithms {
                         while (true)
                         {
                             i += step;
-                            
+
                             if (i > hi)
                                 break;
 
@@ -1255,7 +1196,7 @@ namespace Spreads.Algorithms {
                         while (true)
                         {
                             i -= step;
-                            
+
                             if (i < lo)
                                 break;
 
@@ -1284,11 +1225,7 @@ namespace Spreads.Algorithms {
             }
         }
 
-	    [MethodImpl(MethodImplOptions.AggressiveInlining
-#if HAS_AGGR_OPT
-                    | MethodImplOptions.AggressiveOptimization
-#endif
-        )]
+	        [MethodImpl(MethodImplAggressiveAll)]
         internal static int InterpolationSearchSpecializedLoHi(ref int searchSpace, int lo, int hi, int value)
         {
             // Try interpolation only for big-enough lengths and do minimal job,
@@ -1297,7 +1234,7 @@ namespace Spreads.Algorithms {
             unchecked
             {
                 int i;
-                
+
                 if (hi - lo > Settings.SAFE_CACHE_LINE / Unsafe.SizeOf<int>())
                 {
                     var vLo = UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref searchSpace, lo));
@@ -1329,7 +1266,7 @@ namespace Spreads.Algorithms {
                         while (true)
                         {
                             i += step;
-                            
+
                             if (i > hi)
                                 break;
 
@@ -1354,7 +1291,7 @@ namespace Spreads.Algorithms {
                         while (true)
                         {
                             i -= step;
-                            
+
                             if (i < lo)
                                 break;
 
@@ -1383,11 +1320,7 @@ namespace Spreads.Algorithms {
             }
         }
 
-	    [MethodImpl(MethodImplOptions.AggressiveInlining
-#if HAS_AGGR_OPT
-                    | MethodImplOptions.AggressiveOptimization
-#endif
-        )]
+	        [MethodImpl(MethodImplAggressiveAll)]
         internal static int InterpolationSearchSpecializedLoHi(ref uint searchSpace, int lo, int hi, uint value)
         {
             // Try interpolation only for big-enough lengths and do minimal job,
@@ -1396,7 +1329,7 @@ namespace Spreads.Algorithms {
             unchecked
             {
                 int i;
-                
+
                 if (hi - lo > Settings.SAFE_CACHE_LINE / Unsafe.SizeOf<uint>())
                 {
                     var vLo = UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref searchSpace, lo));
@@ -1428,7 +1361,7 @@ namespace Spreads.Algorithms {
                         while (true)
                         {
                             i += step;
-                            
+
                             if (i > hi)
                                 break;
 
@@ -1453,7 +1386,7 @@ namespace Spreads.Algorithms {
                         while (true)
                         {
                             i -= step;
-                            
+
                             if (i < lo)
                                 break;
 
@@ -1482,11 +1415,7 @@ namespace Spreads.Algorithms {
             }
         }
 
-	    [MethodImpl(MethodImplOptions.AggressiveInlining
-#if HAS_AGGR_OPT
-                    | MethodImplOptions.AggressiveOptimization
-#endif
-        )]
+	        [MethodImpl(MethodImplAggressiveAll)]
         internal static int InterpolationSearchSpecializedLoHi(ref long searchSpace, int lo, int hi, long value)
         {
             // Try interpolation only for big-enough lengths and do minimal job,
@@ -1495,7 +1424,7 @@ namespace Spreads.Algorithms {
             unchecked
             {
                 int i;
-                
+
                 if (hi - lo > Settings.SAFE_CACHE_LINE / Unsafe.SizeOf<long>())
                 {
                     var vLo = UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref searchSpace, lo));
@@ -1527,7 +1456,7 @@ namespace Spreads.Algorithms {
                         while (true)
                         {
                             i += step;
-                            
+
                             if (i > hi)
                                 break;
 
@@ -1552,7 +1481,7 @@ namespace Spreads.Algorithms {
                         while (true)
                         {
                             i -= step;
-                            
+
                             if (i < lo)
                                 break;
 
@@ -1581,11 +1510,7 @@ namespace Spreads.Algorithms {
             }
         }
 
-	    [MethodImpl(MethodImplOptions.AggressiveInlining
-#if HAS_AGGR_OPT
-                    | MethodImplOptions.AggressiveOptimization
-#endif
-        )]
+	        [MethodImpl(MethodImplAggressiveAll)]
         internal static int InterpolationSearchSpecializedLoHi(ref ulong searchSpace, int lo, int hi, ulong value)
         {
             // Try interpolation only for big-enough lengths and do minimal job,
@@ -1594,7 +1519,7 @@ namespace Spreads.Algorithms {
             unchecked
             {
                 int i;
-                
+
                 if (hi - lo > Settings.SAFE_CACHE_LINE / Unsafe.SizeOf<ulong>())
                 {
                     var vLo = UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref searchSpace, lo));
@@ -1626,7 +1551,7 @@ namespace Spreads.Algorithms {
                         while (true)
                         {
                             i += step;
-                            
+
                             if (i > hi)
                                 break;
 
@@ -1651,7 +1576,7 @@ namespace Spreads.Algorithms {
                         while (true)
                         {
                             i -= step;
-                            
+
                             if (i < lo)
                                 break;
 
@@ -1680,11 +1605,7 @@ namespace Spreads.Algorithms {
             }
         }
 
-	    [MethodImpl(MethodImplOptions.AggressiveInlining
-#if HAS_AGGR_OPT
-                    | MethodImplOptions.AggressiveOptimization
-#endif
-        )]
+	        [MethodImpl(MethodImplAggressiveAll)]
         internal static int InterpolationSearchSpecializedLoHi(ref double searchSpace, int lo, int hi, double value)
         {
             // Try interpolation only for big-enough lengths and do minimal job,
@@ -1693,7 +1614,7 @@ namespace Spreads.Algorithms {
             unchecked
             {
                 int i;
-                
+
                 if (hi - lo > Settings.SAFE_CACHE_LINE / Unsafe.SizeOf<double>())
                 {
                     var vLo = UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref searchSpace, lo));
@@ -1725,7 +1646,7 @@ namespace Spreads.Algorithms {
                         while (true)
                         {
                             i += step;
-                            
+
                             if (i > hi)
                                 break;
 
@@ -1750,7 +1671,7 @@ namespace Spreads.Algorithms {
                         while (true)
                         {
                             i -= step;
-                            
+
                             if (i < lo)
                                 break;
 
@@ -1779,11 +1700,7 @@ namespace Spreads.Algorithms {
             }
         }
 
-	    [MethodImpl(MethodImplOptions.AggressiveInlining
-#if HAS_AGGR_OPT
-                    | MethodImplOptions.AggressiveOptimization
-#endif
-        )]
+	        [MethodImpl(MethodImplAggressiveAll)]
         internal static int InterpolationSearchSpecializedLoHi(ref float searchSpace, int lo, int hi, float value)
         {
             // Try interpolation only for big-enough lengths and do minimal job,
@@ -1792,7 +1709,7 @@ namespace Spreads.Algorithms {
             unchecked
             {
                 int i;
-                
+
                 if (hi - lo > Settings.SAFE_CACHE_LINE / Unsafe.SizeOf<float>())
                 {
                     var vLo = UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref searchSpace, lo));
@@ -1824,7 +1741,7 @@ namespace Spreads.Algorithms {
                         while (true)
                         {
                             i += step;
-                            
+
                             if (i > hi)
                                 break;
 
@@ -1849,7 +1766,7 @@ namespace Spreads.Algorithms {
                         while (true)
                         {
                             i -= step;
-                            
+
                             if (i < lo)
                                 break;
 

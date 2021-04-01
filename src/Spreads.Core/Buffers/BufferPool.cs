@@ -11,7 +11,7 @@ namespace Spreads.Buffers
 {
     // TODO review it once again
     // * why two pools, not RMP.Default? What config is not good for default but good for data? Is it upper size and buckets to try?
-    
+
     public static class BufferPool<T>
     {
         /// <summary>
@@ -99,7 +99,7 @@ namespace Spreads.Buffers
             {
 #if SPREADS
                 // TODO test it!
-                Native.UnsafeEx.DisposeConstrained(ref array[i]); // ((IDisposable)array[i]).Dispose();
+                UnsafeEx.DisposeConstrained(ref array[i]); // ((IDisposable)array[i]).Dispose();
 #else
                 (array[i] as IDisposable)?.Dispose();
 #endif

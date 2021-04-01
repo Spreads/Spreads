@@ -1407,7 +1407,7 @@ namespace Spreads.Core.Tests.Algorithms
             {
                 foreach (var count in counts)
                 {
-                    var vec = new Vec<Timestamp>(Enumerable.Range(0, count).Select(x => (Timestamp) x).ToArray());
+                    var vec = new Spreads.Collections.Vec<Timestamp>(Enumerable.Range(0, count).Select(x => (Timestamp) x).ToArray());
 
                     var mult = 10_000_000 / count;
 
@@ -1663,7 +1663,7 @@ namespace Spreads.Core.Tests.Algorithms
                     var step = rng.Next(10, 1000);
                     var dev = step / rng.Next(2, 10);
 
-                    var vec = new Vec<Timestamp>(Enumerable.Range(0, count)
+                    var vec = new Spreads.Collections.Vec<Timestamp>(Enumerable.Range(0, count)
                         .Select(i => (Timestamp) i).ToArray());
 
                     for (int i = 1; i < vec.Length; i++)
@@ -1751,7 +1751,7 @@ namespace Spreads.Core.Tests.Algorithms
             {
                 foreach (var count in counts)
                 {
-                    var vec = new Vec<Timestamp>(Enumerable.Range(0, count).Select(x => (Timestamp) x).ToArray());
+                    var vec = new Spreads.Collections.Vec<Timestamp>(Enumerable.Range(0, count).Select(x => (Timestamp) x).ToArray());
 
                     var mult = 5_000_000 / count;
 
@@ -1783,7 +1783,7 @@ namespace Spreads.Core.Tests.Algorithms
 
             foreach (var count in counts)
             {
-                var vec = new Vec<long>(Enumerable.Range(0, count).Select(x => (long) x).ToArray());
+                var vec = new Spreads.Collections.Vec<long>(Enumerable.Range(0, count).Select(x => (long) x).ToArray());
 
                 var mult = 50_000_000 / count;
 

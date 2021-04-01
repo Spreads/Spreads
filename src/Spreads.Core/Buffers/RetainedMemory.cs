@@ -12,6 +12,7 @@ using System.Buffers;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using Spreads.Collections;
 
 namespace Spreads.Buffers
 {

@@ -12,7 +12,7 @@ namespace Spreads.Serialization
     [AttributeUsage(AttributeTargets.Class | AttributeTargets.Struct, AllowMultiple = false)]
     public class BinarySerializationAttribute : Attribute
     {
-        internal static BinarySerializationAttribute GetSerializationAttribute(Type type)
+        internal static BinarySerializationAttribute? GetSerializationAttribute(Type type)
         {
             var attr = type.GetTypeInfo().GetCustomAttributes<BinarySerializationAttribute>(true).FirstOrDefault();
             return attr;

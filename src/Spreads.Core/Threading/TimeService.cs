@@ -4,6 +4,7 @@
 
 using Spreads.DataTypes;
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -76,10 +77,7 @@ namespace Spreads.Threading
 
             UpdateTime();
 
-            _timer = new Timer(o =>
-            {
-                UpdateTime();
-            }, null, 0, intervalMilliseconds);
+            _timer = new Timer(o => { UpdateTime(); }, null, 0, intervalMilliseconds);
         }
 
         public void Dispose()
@@ -91,6 +89,7 @@ namespace Spreads.Threading
                 {
                     Marshal.FreeHGlobal(_lastUpdatedPtr);
                 }
+
                 _lastUpdatedPtr = IntPtr.Zero;
             }
         }
@@ -105,13 +104,12 @@ namespace Spreads.Threading
         public long UpdateTime()
         {
             if (_lastUpdatedPtr == IntPtr.Zero)
-            {
                 return (long)(Timestamp)DateTime.UtcNow;
-            }
+
             while (true)
             {
-                var last = Volatile.Read(ref *(long*)_lastUpdatedPtr);
-                var current = (long)(Timestamp)DateTime.UtcNow;
+                long last = Volatile.Read(ref *(long*)_lastUpdatedPtr);
+                long current = (long)(Timestamp)DateTime.UtcNow;
                 if (current > last)
                 {
                     if (last == Interlocked.CompareExchange(ref *(long*)_lastUpdatedPtr, current, last))
@@ -156,14 +154,12 @@ namespace Spreads.Threading
         {
             Trace.TraceInformation("Starting TimeService spinner thread");
             if (!ct.CanBeCanceled)
-            {
-                ThrowHelper.ThrowInvalidOperationException("Must provide cancellable token to TimeService.StartSpinUpdate, otherwise a thread will spin and consume 100% of a core without a way to stop it.");
-            }
+                ThrowHelper.ThrowInvalidOperationException(
+                    "Must provide cancellable token to TimeService.StartSpinUpdate," +
+                    " otherwise a thread will spin and consume 100% of a core without a clean way to stop it.");
 
             if (_spinnerThread != null)
-            {
                 ThrowHelper.ThrowInvalidOperationException("Spin Update is already started.");
-            }
 
             object started = null;
             var thread = new Thread(() =>
@@ -176,9 +172,10 @@ namespace Spreads.Threading
                     {
                         UpdateTime();
                         if (spinCount > 0)
-                        {
                             Thread.SpinWait(spinCount);
-                        }
+                        else
+                            if(!Thread.Yield())
+                                Thread.Sleep(0);
                     }
                 }
                 catch (Exception ex)

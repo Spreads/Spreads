@@ -2,7 +2,7 @@
   <!-- common.props is per repo config -->
   <Import Project="Spreads.props" />
   <PropertyGroup>
-    <TargetFrameworks>netstandard2.0;net5.0</TargetFrameworks>
+    <TargetFrameworks>net5.0</TargetFrameworks>
   </PropertyGroup>
 
   <PropertyGroup>
@@ -34,8 +34,8 @@
     <CheckForOverflowUnderflow>True</CheckForOverflowUnderflow>
     <DefineConstants>$(DefineConstants);TRACE;DEBUG</DefineConstants>
   </PropertyGroup>
-  
+
   <PropertyGroup Condition="'$(TargetFramework)'=='net5.0' OR '$(TargetFramework)'=='netcoreapp3.1'">
-    <DefineConstants>$(DefineConstants);NETSTANDARD;HAS_ISREF;HAS_AGGR_OPT;HAS_INTRINSICS;BUILTIN_SPAN;BUILTIN_NULLABLE;HAS_TPWORKITEM;HAS_RANGE</DefineConstants>
+    <DefineConstants>$(DefineConstants);NETSTANDARD;HAS_ISREF;HAS_AGGR_OPT;HAS_INTRINSICS;BUILTIN_SPAN;BUILTIN_NULLABLE;HAS_TPWORKITEM;HAS_RANGE;HAS_BITOPERATIONS</DefineConstants>
   </PropertyGroup>
 </Project>

@@ -2,12 +2,12 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-using Spreads.Native;
 using Spreads.Threading;
 using Spreads.Utils;
 using System;
 using System.Buffers;
 using System.Runtime.CompilerServices;
+using Spreads.Collections;
 using Spreads.Serialization;
 using static Spreads.Buffers.BuffersThrowHelper;
 
@@ -60,7 +60,7 @@ namespace Spreads.Buffers
         /// but we know that the buffer is already clean. Use with caution only when cleanliness
         /// is obvious and when cost of cleaning could be high (larger buffers).
         /// </summary>
-        [Obsolete("Don't use unless 100% sure. May be removed later.")] 
+        [Obsolete("Don't use unless 100% sure. May be removed later.")]
         internal bool AlreadyClean;
 
         internal Memory<T> _memory;
@@ -234,7 +234,7 @@ namespace Spreads.Buffers
         protected sealed override void Dispose(bool disposing)
         {
             // This overload if from MemoryManager<T> and is called from it's IDisposable
-            // implementation, so we have to keep it. But MM doesn't have a finalizer 
+            // implementation, so we have to keep it. But MM doesn't have a finalizer
             // and we call Free instead of Dispose(false) for destroying this object,
             // while Dispose(true) is for returning a memory object to a pool.
             if (disposing)
@@ -250,7 +250,7 @@ namespace Spreads.Buffers
                 var pool = Pool;
                 if (pool != null && pool.ReturnInternal(this, clearMemory: TypeHelper<T>.IsReferenceOrContainsReferences))
                     return;
-                
+
                 Free(finalizing: false);
             }
             else

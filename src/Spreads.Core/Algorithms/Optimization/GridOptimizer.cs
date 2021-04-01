@@ -10,6 +10,8 @@ using System.Threading.Tasks;
 
 namespace Spreads.Algorithms.Optimization
 {
+    // TODO (VB) There is evolution search impl somewhere in old TAM code, add it here
+
     /// <summary>
     /// Result of evaluating a target function with given parameters.
     /// </summary>

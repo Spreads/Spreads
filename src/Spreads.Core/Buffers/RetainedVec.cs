@@ -28,8 +28,8 @@ namespace Spreads.Buffers
     {
         // Some ideas from Spreads.Native.Vec are useful, but here we are more restrictive
         // and always store ref+ types as arrays and other types as off-heap memory.
-        // Therefore, we could use JIT-constant ISOCR and work with array or pointer 
-        // directly, without abstracting ref T. 
+        // Therefore, we could use JIT-constant ISOCR and work with array or pointer
+        // directly, without abstracting ref T.
 
         [FieldOffset(0)]
         internal readonly object? _array;
@@ -38,18 +38,18 @@ namespace Spreads.Buffers
         /// Item offset in <see cref="_array"/> for ref+ types, or starting pointer for blittable types.
         /// </summary>
         [FieldOffset(8)]
-        internal readonly IntPtr _pointerOrOffset;
+        internal readonly nint _pointerOrOffset;
 
         [FieldOffset(16)]
         internal readonly int _length;
 
         [FieldOffset(20)]
-        private readonly int _runtimeTypeId;
+        private readonly RuntimeTypeId _runtimeTypeId;
 
         [FieldOffset(24)]
         internal readonly IRefCounted? _memoryOwner;
 
-        private RetainedVec(IRefCounted? memoryOwner, object? array, IntPtr pointerOrOffset, int length, int runtimeTypeId) : this()
+        private RetainedVec(IRefCounted? memoryOwner, object? array, nint pointerOrOffset, int length, RuntimeTypeId runtimeTypeId) : this()
         {
             _memoryOwner = memoryOwner;
             _array = array;
@@ -70,16 +70,16 @@ namespace Spreads.Buffers
                 // RM's offset goes to _pointerOrOffset
                 vs = new RetainedVec(externallyOwned ? null : memorySource,
                     memorySource._array,
-                    (IntPtr) memorySource._offset,
+                    (IntPtr)memorySource._offset,
                     memorySource.Length,
-                    VecTypeHelper<T>.RuntimeTypeId);
+                    TypeHelper<T>.RuntimeTypeId);
             }
             else
             {
                 ThrowHelper.DebugAssert(memorySource.Pointer != default && memorySource._array == default);
                 // RM's offset added to _pointerOrOffset
-                vs = new RetainedVec(externallyOwned ? null : memorySource, array: null, (IntPtr) Unsafe.Add<T>(memorySource.Pointer, memorySource._offset), memorySource.Length,
-                    VecTypeHelper<T>.RuntimeTypeId);
+                vs = new RetainedVec(externallyOwned ? null : memorySource, array: null, (IntPtr)Unsafe.Add<T>(memorySource.Pointer, memorySource._offset), memorySource.Length,
+                    TypeHelper<T>.RuntimeTypeId);
             }
 
             return vs.Clone(start, length, externallyOwned);
@@ -106,12 +106,12 @@ namespace Spreads.Buffers
             // see CLR Span.Slice comment
             if (IntPtr.Size == 8)
             {
-                if ((ulong) (uint) start + (ulong) (uint) length > (ulong) (uint) _length)
+                if ((ulong)(uint)start + (ulong)(uint)length > (ulong)(uint)_length)
                     ThrowHelper.ThrowArgumentOutOfRangeException();
             }
             else
             {
-                if ((uint) start > (uint) _length || (uint) length > (uint) (_length - start))
+                if ((uint)start > (uint)_length || (uint)length > (uint)(_length - start))
                     ThrowHelper.ThrowArgumentOutOfRangeException();
             }
 
@@ -121,9 +121,9 @@ namespace Spreads.Buffers
             var slice = new RetainedVec(
                 externallyOwned ? null : _memoryOwner,
                 _array,
-                UnsafeEx.Add(_pointerOrOffset,
+                _pointerOrOffset + (
                     _array == null
-                        ? start * VecTypeHelper.GetInfo(_runtimeTypeId).ElemSize
+                        ? start * TypeHelper.GetRuntimeTypeInfo(_runtimeTypeId).ElemSize
                         : start),
                 length,
                 _runtimeTypeId
@@ -136,33 +136,33 @@ namespace Spreads.Buffers
         internal unsafe ref T UnsafeGetRef<T>()
         {
             if (TypeHelper<T>.IsReferenceOrContainsReferences)
-                return ref Unsafe.As<T[]>(_array)[(int) _pointerOrOffset];
-            return ref Unsafe.AsRef<T>((void*) _pointerOrOffset);
+                return ref Unsafe.As<T[]>(_array)[(int)_pointerOrOffset];
+            return ref Unsafe.AsRef<T>((void*)_pointerOrOffset);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal unsafe ref T UnsafeGetRef<T>(int index)
         {
             if (TypeHelper<T>.IsReferenceOrContainsReferences)
-                return ref Unsafe.As<T[]>(_array)[(int) (_pointerOrOffset + index)];
-            return ref Unsafe.Add<T>(ref Unsafe.AsRef<T>((void*) _pointerOrOffset), index);
+                return ref Unsafe.As<T[]>(_array)[(int)(_pointerOrOffset + index)];
+            return ref Unsafe.Add<T>(ref Unsafe.AsRef<T>((void*)_pointerOrOffset), index);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal unsafe T UnsafeReadUnaligned<T>(int index)
         {
             if (TypeHelper<T>.IsReferenceOrContainsReferences)
-                return Unsafe.As<T[]>(_array)[(int) (_pointerOrOffset + index)];
-            return Unsafe.ReadUnaligned<T>(ref Unsafe.As<T, byte>(ref Unsafe.AsRef<T>((void*) (_pointerOrOffset + index * Unsafe.SizeOf<T>()))));
+                return Unsafe.As<T[]>(_array)[(int)(_pointerOrOffset + index)];
+            return Unsafe.ReadUnaligned<T>(ref Unsafe.As<T, byte>(ref Unsafe.AsRef<T>((void*)(_pointerOrOffset + index * Unsafe.SizeOf<T>()))));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal unsafe void UnsafeWriteUnaligned<T>(int index, T value)
         {
             if (TypeHelper<T>.IsReferenceOrContainsReferences)
-                Unsafe.As<T[]>(_array)[(int) UnsafeEx.Add(_pointerOrOffset, index)] = value;
+                Unsafe.As<T[]>(_array)[(int)(_pointerOrOffset + index)] = value;
             else
-                Unsafe.WriteUnaligned<T>(ref Unsafe.As<T, byte>(ref Unsafe.AsRef<T>((void*) (_pointerOrOffset + index * Unsafe.SizeOf<T>()))), value);
+                Unsafe.WriteUnaligned<T>(ref Unsafe.As<T, byte>(ref Unsafe.AsRef<T>((void*)(_pointerOrOffset + index * Unsafe.SizeOf<T>()))), value);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -180,10 +180,10 @@ namespace Spreads.Buffers
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal unsafe Span<T> GetSpan<T>()
         {
-            ThrowHelper.DebugAssert(VecTypeHelper<T>.RuntimeTypeId == _runtimeTypeId, "RetainedVec.GetSpan: VecTypeHelper<T>.RuntimeTypeId == _runtimeTypeId");
+            ThrowHelper.DebugAssert(TypeHelper<T>.RuntimeTypeId == _runtimeTypeId, "RetainedVec.GetSpan: VecTypeHelper<T>.RuntimeTypeId == _runtimeTypeId");
             return TypeHelper<T>.IsReferenceOrContainsReferences
-                ? new Span<T>(Unsafe.As<T[]>(_array), (int) _pointerOrOffset, _length)
-                : new Span<T>((void*) _pointerOrOffset, _length * Unsafe.SizeOf<T>());
+                ? new Span<T>(Unsafe.As<T[]>(_array), (int)_pointerOrOffset, _length)
+                : new Span<T>((void*)_pointerOrOffset, _length * Unsafe.SizeOf<T>());
         }
 
         /// <summary>
@@ -197,7 +197,7 @@ namespace Spreads.Buffers
 
         public int Length => _length;
 
-        public int RuntimeTypeId => _runtimeTypeId;
+        public RuntimeTypeId RuntimeTypeId => _runtimeTypeId;
 
         public bool Equals(RetainedVec other)
         {
@@ -240,8 +240,8 @@ namespace Spreads.Buffers
             _rv = rv;
             MethodInfo method = typeof(RetainedVec_DebugView).GetMethod("GetAsObjectT", BindingFlags.Instance | BindingFlags.NonPublic);
             // ReSharper disable once PossibleNullReferenceException
-            if(_rv.RuntimeTypeId != 0)
-                _getter = method!.MakeGenericMethod(VecTypeHelper.GetInfo(_rv.RuntimeTypeId).Type);
+            if (_rv.RuntimeTypeId != 0)
+                _getter = method!.MakeGenericMethod(TypeHelper.GetRuntimeTypeInfo(_rv.RuntimeTypeId).Type);
         }
 
         public IntPtr PointerOrOffset => _rv._pointerOrOffset;
@@ -250,10 +250,10 @@ namespace Spreads.Buffers
         public long Length => _rv.Length;
 
         public bool IsExternallyOwned => _rv.IsExternallyOwned;
-        public Type Type => _rv.RuntimeTypeId == 0 ? null : VecTypeHelper.GetInfo(_rv.RuntimeTypeId).Type;
+        public Type? Type => _rv.RuntimeTypeId == 0 ? null : TypeHelper.GetRuntimeTypeInfo(_rv.RuntimeTypeId).Type;
         public IRefCounted MemoryOwner => _rv._memoryOwner;
 
-        private object GetAsObjectT<T>(int index)
+        private object? GetAsObjectT<T>(int index)
         {
             // ReSharper disable once HeapView.BoxingAllocation
             return _rv.UnsafeReadUnaligned<T>(index);
@@ -261,14 +261,14 @@ namespace Spreads.Buffers
 
         private object GetAsObject(int index)
         {
-            return _getter.Invoke(this, new[] {(object) index});
+            return _getter.Invoke(this, new[] {(object)index});
         }
 
         public IEnumerable Items
         {
             get
             {
-                return _getter == null 
+                return _getter == null
                     ? Array.Empty<object>()
                     : Enumerable();
 
@@ -288,8 +288,8 @@ namespace Spreads.Buffers
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public RetainedVec(RetainedVec retainedVec)
         {
-            if (VecTypeHelper<T>.RuntimeTypeId != retainedVec.RuntimeTypeId)
-                VecThrowHelper.ThrowVecTypeMismatchException();
+            if (TypeHelper<T>.RuntimeTypeId != retainedVec.RuntimeTypeId)
+                ThrowHelper.ThrowVecRuntimeTypeMismatchException();
             Storage = retainedVec;
         }
 

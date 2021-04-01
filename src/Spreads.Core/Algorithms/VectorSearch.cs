@@ -3,10 +3,9 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using Spreads.DataTypes;
-using Spreads.Native;
+using static Spreads.Utils.Constants;
 
 namespace Spreads.Algorithms
 {
@@ -18,16 +17,13 @@ namespace Spreads.Algorithms
     /// </summary>
     public static partial class VectorSearch
     {
+
+
         /// <summary>
         /// Optimized binary search that returns the same value as the classic algorithm.
         /// </summary>
         /// <returns>Returns index of the value (if present) or its negative binary complement.</returns>
-        [MethodImpl(MethodImplOptions.AggressiveInlining
-#if HAS_AGGR_OPT
-                    | MethodImplOptions.AggressiveOptimization
-#endif
-        )]
-        [SuppressMessage("ReSharper", "HeapView.BoxingAllocation")]
+        [MethodImpl(MethodImplAggressiveAll)]
         public static int BinarySearch<T>(ref T searchSpace, int length, T value, KeyComparer<T> comparer = default)
         {
             return BinarySearch(ref searchSpace, 0, length, value, comparer);
@@ -38,12 +34,7 @@ namespace Spreads.Algorithms
         /// </summary>
         /// <returns>Returns index of the value (if present) or its negative binary complement.
         /// The index is relative to <paramref name="searchSpace"/>, not to <paramref name="offset"/>.</returns>
-        [MethodImpl(MethodImplOptions.AggressiveInlining
-#if HAS_AGGR_OPT
-                    | MethodImplOptions.AggressiveOptimization
-#endif
-        )]
-        [SuppressMessage("ReSharper", "HeapView.BoxingAllocation")]
+        [MethodImpl(MethodImplAggressiveAll)]
         public static int BinarySearch<T>(ref T searchSpace, int offset, int length, T value, KeyComparer<T> comparer = default)
         {
             return BinarySearchLoHi(ref searchSpace, offset, offset + length - 1, value, comparer);
@@ -54,12 +45,7 @@ namespace Spreads.Algorithms
         /// </summary>
         /// <returns>Returns index of the value (if present) or its negative binary complement.
         /// The index is relative to <paramref name="searchSpace"/>, not to <paramref name="lo"/>.</returns>
-        [MethodImpl(MethodImplOptions.AggressiveInlining
-#if HAS_AGGR_OPT
-                    | MethodImplOptions.AggressiveOptimization
-#endif
-        )]
-        [SuppressMessage("ReSharper", "HeapView.BoxingAllocation")]
+        [MethodImpl(MethodImplAggressiveAll)]
         internal static int BinarySearchLoHi<T>(ref T searchSpace, int lo, int hi, T value, KeyComparer<T> comparer = default)
         {
 #if HAS_INTRINSICS
@@ -111,11 +97,7 @@ namespace Spreads.Algorithms
         /// Used mostly for correctness check and benchmark baseline for other faster implementations.
         /// Use <see cref="SortedSearch{T}(ref T,int,T,Spreads.KeyComparer{T})"/> for the best performance.
         /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining
-#if HAS_AGGR_OPT
-                    | MethodImplOptions.AggressiveOptimization
-#endif
-        )]
+        [MethodImpl(MethodImplAggressiveAll)]
         internal static int BinarySearchClassic<T>(ref T searchSpace, int offset, int length, T value, KeyComparer<T> comparer = default)
         {
             unchecked
@@ -161,11 +143,7 @@ namespace Spreads.Algorithms
         /// <summary>
         /// Classic binary search that falls back to linear search for the last small number of elements.
         /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining
-#if HAS_AGGR_OPT
-                    | MethodImplOptions.AggressiveOptimization
-#endif
-        )]
+        [MethodImpl(MethodImplAggressiveAll)]
         internal static int BinarySearchHybridLoHi<T>(ref T searchSpace, int lo, int hi, T value, KeyComparer<T> comparer = default)
         {
             unchecked
@@ -204,7 +182,7 @@ namespace Spreads.Algorithms
         /// <summary>
         /// Converts a result of a sorted search to result of directional search with direction of <see cref="Lookup"/>.
         /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(MethodImplAggressiveAll)]
         internal static int SearchToLookupLoHi<T>(int lo, int hi, Lookup lookup, int i, ref T searchSpace, ref T value)
         {
             if (i >= lo)
@@ -271,7 +249,7 @@ namespace Spreads.Algorithms
         /// <summary>
         /// Find value using binary search according to the lookup direction.
         /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(MethodImplAggressiveAll)]
         public static int BinaryLookup<T>(ref T searchSpace, int length, ref T value, Lookup lookup, KeyComparer<T> comparer = default)
         {
             return BinaryLookup(ref searchSpace, 0, length, ref value, lookup, comparer);
@@ -280,7 +258,7 @@ namespace Spreads.Algorithms
         /// <summary>
         /// Find value using binary search according to the lookup direction.
         /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(MethodImplAggressiveAll)]
         public static int BinaryLookup<T>(ref T searchSpace, int offset, int length, ref T value, Lookup lookup, KeyComparer<T> comparer = default)
         {
             Debug.Assert(length >= 0);
@@ -290,20 +268,20 @@ namespace Spreads.Algorithms
             return SearchToLookupLoHi<T>(lo, hi, lookup, i, ref searchSpace, ref value);
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(MethodImplAggressiveAll)]
         internal static int BinaryLookupLoHi<T>(ref T searchSpace, int lo, int hi, ref T value, Lookup lookup, KeyComparer<T> comparer = default)
         {
             var i = BinarySearchLoHi(ref searchSpace, lo, hi, value, comparer);
             return SearchToLookupLoHi<T>(hi, lo, lookup, i, ref searchSpace, ref value);
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(MethodImplAggressiveAll)]
         public static int InterpolationSearch<T>(ref T searchSpace, int length, T value, KeyComparer<T> comparer = default)
         {
             return InterpolationSearch(ref searchSpace, offset: 0, length, value, comparer);
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(MethodImplAggressiveAll)]
         public static int InterpolationSearch<T>(ref T searchSpace, int offset, int length, T value, KeyComparer<T> comparer = default)
         {
             var lo = offset;
@@ -311,7 +289,7 @@ namespace Spreads.Algorithms
             return InterpolationSearchLoHi(ref searchSpace, lo, hi, value, comparer);
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(MethodImplAggressiveAll)]
         public static int InterpolationSearchLoHi<T>(ref T searchSpace, int lo, int hi, T value, KeyComparer<T> comparer = default)
         {
             if (typeof(T) == typeof(long)
@@ -354,7 +332,7 @@ namespace Spreads.Algorithms
             return InterpolationSearchGenericLoHi(ref searchSpace, lo, hi, value, comparer);
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(MethodImplAggressiveAll)]
         internal static int InterpolationSearchGenericLoHi<T>(ref T searchSpace, int lo, int hi, T value, KeyComparer<T> comparer = default)
         {
             // Try interpolation only for big-enough lengths and do minimal job,
@@ -453,7 +431,7 @@ namespace Spreads.Algorithms
         /// <summary>
         /// Find value using binary search according to the lookup direction.
         /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(MethodImplAggressiveAll)]
         public static int InterpolationLookup<T>(ref T searchSpace, int length, ref T value, Lookup lookup,
             KeyComparer<T> comparer = default)
         {
@@ -463,7 +441,7 @@ namespace Spreads.Algorithms
         /// <summary>
         /// Find value using binary search according to the lookup direction.
         /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(MethodImplAggressiveAll)]
         public static int InterpolationLookup<T>(ref T searchSpace, int offset, int length, ref T value, Lookup lookup,
             KeyComparer<T> comparer = default)
         {
@@ -475,7 +453,7 @@ namespace Spreads.Algorithms
             return InterpolationLookupLoHi(ref searchSpace, lo, hi, ref value, lookup, comparer);
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(MethodImplAggressiveAll)]
         internal static int InterpolationLookupLoHi<T>(ref T searchSpace, int lo, int hi, ref T value, Lookup lookup,
             KeyComparer<T> comparer = default)
         {
@@ -486,7 +464,7 @@ namespace Spreads.Algorithms
         /// <summary>
         /// Performs interpolation search for well-known types and binary search for other types.
         /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(MethodImplAggressiveAll)]
         public static int SortedSearch<T>(ref T searchSpace, int length, T value, KeyComparer<T> comparer = default)
         {
             return SortedSearch(ref searchSpace, offset: 0, length, value, comparer);
@@ -495,7 +473,7 @@ namespace Spreads.Algorithms
         /// <summary>
         /// Performs interpolation search for well-known types and binary search for other types.
         /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(MethodImplAggressiveAll)]
         public static int SortedSearch<T>(ref T searchSpace, int offset, int length, T value, KeyComparer<T> comparer = default)
         {
             // ReSharper disable once RedundantLogicalConditionalExpressionOperand
@@ -505,7 +483,7 @@ namespace Spreads.Algorithms
             return BinarySearch(ref searchSpace, offset, length, value, comparer);
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(MethodImplAggressiveAll)]
         internal static int SortedSearchLoHi<T>(ref T searchSpace, int lo, int hi, T value, KeyComparer<T> comparer = default)
         {
             // ReSharper disable once RedundantLogicalConditionalExpressionOperand
@@ -518,7 +496,7 @@ namespace Spreads.Algorithms
         /// <summary>
         /// Performs interpolation lookup for well-known types and binary lookup for other types.
         /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(MethodImplAggressiveAll)]
         public static int SortedLookup<T>(ref T searchSpace, int length, ref T value, Lookup lookup, KeyComparer<T> comparer = default)
         {
             return SortedLookup(ref searchSpace, 0, length, ref value, lookup, comparer);
@@ -527,7 +505,7 @@ namespace Spreads.Algorithms
         /// <summary>
         /// Performs interpolation lookup for well-known types and binary lookup for other types.
         /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(MethodImplAggressiveAll)]
         public static int SortedLookup<T>(ref T searchSpace, int offset, int length, ref T value, Lookup lookup, KeyComparer<T> comparer = default)
         {
             // ReSharper disable once RedundantLogicalConditionalExpressionOperand
@@ -537,7 +515,7 @@ namespace Spreads.Algorithms
             return BinaryLookup(ref searchSpace, offset, length, ref value, lookup, comparer);
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(MethodImplAggressiveAll)]
         public static int SortedLookupLoHi<T>(ref T searchSpace, int lo, int hi, ref T value, Lookup lookup, KeyComparer<T> comparer = default)
         {
             // ReSharper disable once RedundantLogicalConditionalExpressionOperand

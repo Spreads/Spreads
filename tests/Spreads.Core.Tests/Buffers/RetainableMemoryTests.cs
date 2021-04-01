@@ -30,7 +30,7 @@ namespace Spreads.Core.Tests.Buffers
                 throw new NotImplementedException();
             }
             
-            public override Vec<byte> GetVec()
+            public override Spreads.Collections.Vec<byte> GetVec()
             {
                 throw new NotImplementedException();
             }

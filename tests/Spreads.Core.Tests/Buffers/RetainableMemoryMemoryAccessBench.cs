@@ -10,6 +10,7 @@ using Spreads.Buffers;
 using Spreads.Native;
 using Spreads.Serialization;
 using Spreads.Utils;
+using Vec = Spreads.Collections.Vec;
 
 namespace Spreads.Core.Tests.Buffers
 {
@@ -420,7 +421,7 @@ namespace Spreads.Core.Tests.Buffers
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static unsafe T UnsafeGetUnalignedX<T>(in this Vec vec, IntPtr index)
         {
-            if (VecTypeHelper<T>.IsReferenceOrContainsReferences)
+            if (TypeHelper<T>.IsReferenceOrContainsReferences)
                 return Unsafe.ReadUnaligned<T>(ref Unsafe.As<T, byte>(ref Unsafe.Add(ref Unsafe.AddByteOffset(ref Unsafe.As<Pinnable<T>>(vec._pinnable).Data, vec._byteOffset),
                     index)));
 

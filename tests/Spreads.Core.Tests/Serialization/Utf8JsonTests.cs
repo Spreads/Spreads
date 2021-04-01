@@ -73,7 +73,7 @@ namespace Spreads.Core.Tests.Serialization
             var values = new Serialization.TestValue[count];
             for (int i = 0; i < count; i++)
             {
-                values[i] = Serialization.TestValue.Create(rand, withDouble: false);
+                values[i] = Serialization.TestValue.Create(rand, withDouble: true);
             }
 
             for (int i = 0; i < 100; i++)
@@ -87,16 +87,16 @@ namespace Spreads.Core.Tests.Serialization
                 var val2 = Utf8Json.JsonSerializer.Deserialize<Serialization.TestValue>(bytes);
             }
             bytes.AsSpan().Clear();
-
+            CompareUtf8JsonWithBinarySerializer_SW(count, bytes, values);
             for (int r = 0; r < 20; r++)
             {
-                CompareUtf8JsonWithBinarySerializer_SW(count, bytes, values);
+                //
 
                 CompareUtf8JsonWithBinarySerializer_SR(count, db);
 
-                CompareUtf8JsonWithBinarySerializer_UW(count, bytes, values);
-
-                CompareUtf8JsonWithBinarySerializer_UR(count, bytes);
+                // CompareUtf8JsonWithBinarySerializer_UW(count, bytes, values);
+                //
+                // CompareUtf8JsonWithBinarySerializer_UR(count, bytes);
 
                 //using (Benchmark.Run("Spreads BinarySerializer", count))
                 //{
