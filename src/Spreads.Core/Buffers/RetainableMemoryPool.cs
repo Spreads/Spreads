@@ -2,7 +2,6 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-using Spreads.Serialization;
 using Spreads.Threading;
 using Spreads.Utils;
 using System;
@@ -13,7 +12,6 @@ using System.Diagnostics.Tracing;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using Spreads.Collections.Concurrent;
-using Spreads.Native;
 using static Spreads.Buffers.BuffersThrowHelper;
 
 namespace Spreads.Buffers
@@ -26,9 +24,9 @@ namespace Spreads.Buffers
         internal static readonly RetainableMemoryPool<T>?[] KnownPools = new RetainableMemoryPool<T>[64];
 
         internal static readonly Func<RetainableMemoryPool<T>, int, RetainableMemory<T>> DefaultFactory = (pool, length) => PrivateMemory<T>.Create(length, pool);
-        
+
         public static RetainableMemoryPool<T> Default = new RetainableMemoryPool<T>(DefaultFactory);
-        
+
         public readonly byte PoolIdx;
 
         /// <summary>
@@ -52,7 +50,7 @@ namespace Spreads.Buffers
 
         /// <summary>The default maximum number of memory buffers per bucket per core that are available for rent.</summary>
         public const int DefaultMaxNumberOfBuffersPerBucketPerCore = 8;
-        
+
         public const int DefaultMaxBucketsToTry = 2;
 
         private readonly MemoryBucket[] _buckets;
@@ -170,7 +168,7 @@ namespace Spreads.Buffers
         }
 
         /// <summary>
-        /// 
+        ///
         /// </summary>
         /// <param name="minBufferSize"></param>
         /// <param name="exactBucket">If true then <see cref="MaxBucketsToTry"/> value from ctor is ignored and only a single bucket is tried before allocating a new buffer.</param>
@@ -212,7 +210,7 @@ namespace Spreads.Buffers
                 {
                     log.BufferRented(memory.GetHashCode(), memory.Length, Id, _buckets[i].GetHashCode());
                 }
-                
+
 #if DEBUG
                 if (AddStackTraceOnRent)
                     memory.Tag = Environment.StackTrace;
@@ -230,9 +228,9 @@ namespace Spreads.Buffers
             // Set counter to zero, keep other flags
             // Do not need atomic CAS here because we own the buffer here
             memory.CounterRef &= ~AtomicCounter.CountMask;
-            
+
             ThrowHelper.DebugAssert(!memory.IsDisposed && memory.ReferenceCount == 0, "!buffer.IsDisposed");
-            
+
             if (log.IsEnabled())
             {
                 int bufferId = memory.GetHashCode(), bucketId = -1; // no bucket for an on-demand allocated buffer
@@ -323,7 +321,7 @@ namespace Spreads.Buffers
             {
                 if (_disposed)
                     return;
-                
+
                 if (this == Default && !(Environment.HasShutdownStarted || AppDomain.CurrentDomain.IsFinalizingForUnload()))
                     ThrowHelper.ThrowInvalidOperationException("Disposing default retained memory pool is only possible during application shutdown");
 

@@ -5,13 +5,12 @@
 using System;
 using System.Runtime.CompilerServices;
 using System.Threading;
-using Spreads.Native;
 
 namespace Spreads.Threading
 {
     /// <summary>
     /// Multi-threaded counter.
-    /// Makes precise (interlocked) count uncontended and faster (via <see cref="InterlockedAdd"/>, <see cref="InterlockedIncrement"/>, <see cref="InterlockedDecrement"/>)
+    /// Makes precise (interlocked) count uncontended and faster (via <see cref="InterlockedAdd"/>, <see cref="InterlockedIncrement()"/>, <see cref="InterlockedDecrement()"/>)
     /// or approximate count more accurate (via <see cref="Add"/>, <see cref="Increment"/>, <see cref="Decrement"/>).
     /// </summary>
     public class PerCoreCounter

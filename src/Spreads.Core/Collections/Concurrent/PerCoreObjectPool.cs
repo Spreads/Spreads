@@ -7,7 +7,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using Spreads.Buffers;
-using Spreads.Native;
+using Spreads.Threading;
 
 namespace Spreads.Collections.Concurrent
 {

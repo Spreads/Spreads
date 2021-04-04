@@ -476,7 +476,7 @@ namespace Spreads.Threading
             | MethodImplOptions.AggressiveOptimization // first call could be problematic with the loop if tiered compilation is on
 #endif
         )]
-        private static Wpid TryAcquireLockContended(ref long locker, long lockValue, int spinLimit, IWpidHelper wpidHelper, bool pinned = false)
+        private static Wpid TryAcquireLockContended(ref long locker, long lockValue, int spinLimit, IWpidHelper? wpidHelper, bool pinned = false)
         {
             DateTime backOffStarted = default;
             SemaphoreSlim sem = null;
@@ -581,7 +581,7 @@ namespace Spreads.Threading
                             // In DataSpreads DataStreamWriter holds a lock
                             // but could be dropped without disposal. The lock
                             // will remain until it is finalized, but if before
-                            // finalization an app tried to acquire the same lock
+                            // finalization an app tries to acquire the same lock
                             // it will be blocked but nothing will trigger GC.
                             // A problem is such code is easy to write, e.g. opening
                             // a writer in a loop and forgetting to dispose it.
@@ -595,13 +595,9 @@ namespace Spreads.Threading
                         if (counter > DeadLockThreshold)
                         {
                             if (wpidHelper != null)
-                            {
                                 wpidHelper.Suicide();
-                            }
                             else
-                            {
-                                ThrowHelper.FailFast("Deadlock");
-                            }
+                                Environment.FailFast("Deadlock");
                         }
                     }
                 }

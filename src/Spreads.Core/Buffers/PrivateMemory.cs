@@ -3,20 +3,21 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 using Spreads.Collections.Concurrent;
-using Spreads.Native;
-using Spreads.Serialization;
 using Spreads.Threading;
 using Spreads.Utils;
 using System;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
 using System.Threading;
 using Spreads.Collections;
 using static Spreads.Buffers.BuffersThrowHelper;
 
 namespace Spreads.Buffers
 {
+
+    // TODO Blittable types are more complex than just IsReferenceOrContainsReferences due to TypeHelper usage
+    // Review if PrivateMemory
+
     /// <summary>
     /// Memory owned by the current process (as opposed to shared memory).
     /// </summary>
@@ -66,13 +67,13 @@ namespace Spreads.Buffers
             // Need to touch these fields very early in a common not hot place for JIT static
             // readonly optimization even if tiered compilation is off.
             // Note single & to avoid short circuit.
-            if (AdditionalCorrectnessChecks.Enabled & TypeHelper<T>.IsReferenceOrContainsReferences) 
+            if (AdditionalCorrectnessChecks.Enabled & TypeHelper<T>.IsReferenceOrContainsReferences)
                 ThrowHelper.Assert(!op.IsDisposed);
-            
+
             return op;
         }
 
-        // In this implementation all blittable (pinnable) types are backed by 
+        // In this implementation all blittable (pinnable) types are backed by
         // native memory (from Marshal.AllocHGlobal/VirtualAlloc/similar)
         // and is always pinned. Therefore there is no need for GCHandle or
         // pinning logic - memory is already pinned when it is possible.
@@ -136,9 +137,6 @@ namespace Spreads.Buffers
 
         private unsafe void AllocateBlittable(int length, int cpuId)
         {
-            if (!NativeAllocatorSettings.Initialized)
-                ThrowHelper.ThrowInvalidOperationException();
-
             // It doesn't make a lot of sense to have it above a cache line (or 64 bytes for AVX512).
             // But cache line could be 128 (already exists) and CUDA could have 256 bytes alignment.
             // Three possible values: 64, 128 or 256
@@ -150,7 +148,7 @@ namespace Spreads.Buffers
             // TODO this is somewhat reasonable, but need to come back here after doing work on DataBlock
             // Do we need Pow2 there? Or we are doing only binary search?
             // Is RingBuffer implementation benefiting from pow2 or it's marginal?
-            // Ideally we must use the same native buffer size for any T. 
+            // Ideally we must use the same native buffer size for any T.
 
             if (bytesLength < alignment)
             {
@@ -158,18 +156,17 @@ namespace Spreads.Buffers
                 alignment = Math.Min(BitUtils.NextPow2(Unsafe.SizeOf<T>()), Settings.MIN_POOLED_BUFFER_LEN);
             }
 
-            bytesLength = (long) Mem.GoodSize((UIntPtr) BitUtils.NextPow2(bytesLength));
+            bytesLength = BitUtils.NextPow2(bytesLength);
 
             while (true)
             {
-                var c = 0;
+                int c = 0;
                 try
                 {
-                    // TODO Switch to mimalloc after updating to new release
-                    // _pointer = (IntPtr) Mem.MallocAligned((UIntPtr) bytesLength, (UIntPtr) alignment);
-                    _pointer = Marshal.AllocHGlobal((IntPtr) bytesLength);
-                    // TODO For mimalloc do not use try/catch
-                    if (_pointer == IntPtr.Zero)
+                    _pointer = (IntPtr)NativeAllocator.Allocate((nuint)bytesLength, out var usableSize);
+                    bytesLength = (long)usableSize;
+
+                    if (_pointer == IntPtr.Zero) // Not needed for correct NativeAllocator implementation, but it may be incorrect.
                         throw new OutOfMemoryException();
                     break;
                 }
@@ -183,13 +180,13 @@ namespace Spreads.Buffers
             }
 
             _offset = 0;
-            _length = (int) bytesLength / Unsafe.SizeOf<T>();
+            _length = (int) (bytesLength / Unsafe.SizeOf<T>());
 
             // Note that we do not call GC.AddMemoryPressure(bytesLength)
             // because the entire point of using native memory is to avoid GC.
-            // When system available memory becomes low GC will become more 
+            // When system available memory becomes low GC will become more
             // aggressive and will finalize not disposed memory.
-            // But with correct usage there should be no not disposed 
+            // But with correct usage there should be no not disposed
             // memory, so we should not bother for incorrect usage.
             // And even in the later case, an app should survive without OOM (TODO test)
             BuffersStatistics.AllocatedNativeMemory.InterlockedAdd(bytesLength, cpuId);
@@ -233,8 +230,8 @@ namespace Spreads.Buffers
                 ThrowDisposed<PrivateMemory<T>>();
 
             // With pooling it's quite problematic to expose the internal
-            // array that could be used somewhere while being returned to 
-            // a pool. It's safe to not even try. Pooled arrays are 
+            // array that could be used somewhere while being returned to
+            // a pool. It's safe to not even try. Pooled arrays are
             // more like native memory which is managed manually, so do
             // not return true even when backed by arrays.
             buffer = default;
@@ -244,14 +241,14 @@ namespace Spreads.Buffers
         internal override unsafe void Free(bool finalizing)
         {
             ThrowHelper.Assert(IsDisposed);
-            
+
             var array = Interlocked.Exchange(ref _array, null);
             if (array != null)
             {
                 ThrowHelper.DebugAssert(TypeHelper<T>.IsReferenceOrContainsReferences);
-                
+
                 // Even if we are finalizing the fields are not collected, because this
-                // object is reachable and hence the fields are reachable. 
+                // object is reachable and hence the fields are reachable.
                 if(!IsExternallyOwned)
                     BufferPool<T>.Return(Unsafe.As<T[]>(array), clearArray: true);
             }
@@ -259,9 +256,7 @@ namespace Spreads.Buffers
             var pointer = Interlocked.Exchange(ref _pointer, IntPtr.Zero);
             if (pointer != IntPtr.Zero)
             {
-                // TODO Switch to mimalloc after updating to new release
-                Marshal.FreeHGlobal(pointer);
-                // Mem.Free((byte*) pointer);
+                NativeAllocator.Free((byte*)pointer);
                 BuffersStatistics.ReleasedNativeMemory.InterlockedAdd(_length);
             }
 
@@ -277,22 +272,22 @@ namespace Spreads.Buffers
             }
 
             ClearFields();
-            
+
             // This instance is clean now.
             // If we are finalizing then resurrect it by placing it to the pool.
             // If we are disposing then also add to the pool.
             var pooled = ObjectPool.Return(this);
-            
-            // If we were finalizing but resurrected then the next time 
+
+            // If we were finalizing but resurrected then the next time
             // the instance is dropped the finalizer will not run,
             // therefore we must re-register.
             if(pooled && finalizing)
                 GC.ReRegisterForFinalize(this);
-            
+
             // If we cannot pool the instance and not running from finalizer
             // then the reference is dropped and finalizer could re-run.
             // In that case suppress it.
-            // If not pooled and finalizing then the job is done. 
+            // If not pooled and finalizing then the job is done.
             if(!pooled && !finalizing)
                 GC.SuppressFinalize(this);
         }

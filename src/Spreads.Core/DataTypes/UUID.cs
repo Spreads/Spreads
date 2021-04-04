@@ -6,16 +6,15 @@ using Spreads.Utils;
 using System;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using Spreads.Serialization;
 
 namespace Spreads.DataTypes
 {
     /// <summary>
     /// GUID-like structure that do not promise any RFC compliance and
-    /// could be treated as securely random 16 bytes.
+    /// could be treated as random 16 bytes.
     /// </summary>
     [StructLayout(LayoutKind.Sequential)]
-    [BinarySerialization(16)]
+    [BuiltInDataType(16)]
     public readonly unsafe struct UUID : IEquatable<UUID>, IComparable<UUID>
     {
         // opaque 16 bytes

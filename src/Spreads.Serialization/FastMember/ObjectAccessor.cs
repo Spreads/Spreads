@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Dynamic;
+using Spreads.Serialization.FastMember;
+
 #if !NO_DYNAMIC
 
 #endif

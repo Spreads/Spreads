@@ -12,7 +12,7 @@ namespace Spreads.Utils
         private static readonly ConditionalWeakTable<object, Box<int>> _refIds = new();
         private static int _refIdCounter;
 
-        public static int GetLazyRefId(this object? obj)
+        public static int GetLazyRefId(object? obj)
         {
             if (obj == null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.obj);

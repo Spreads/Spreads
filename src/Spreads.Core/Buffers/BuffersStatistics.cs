@@ -4,14 +4,14 @@ namespace Spreads.Buffers
 {
     internal static class BuffersStatistics
     {
-        internal static PerCoreCounter AllocatedNativeMemory = new PerCoreCounter();
-        internal static PerCoreCounter ReleasedNativeMemory = new PerCoreCounter();
-        internal static PerCoreCounter RentReturnedBeforeYield = new PerCoreCounter();
-        internal static PerCoreCounter ReturnReturnedBeforeYield = new PerCoreCounter();
-        internal static PerCoreCounter SameCoreRentContention = new PerCoreCounter();
-        internal static PerCoreCounter SameCoreReturnContention = new PerCoreCounter();
-        
-        internal static PerCoreCounter RentLoop = new PerCoreCounter();
-        internal static PerCoreCounter ReturnLoop = new PerCoreCounter();
+        internal static PerCoreCounter AllocatedNativeMemory = new();
+        internal static PerCoreCounter ReleasedNativeMemory = new();
+        internal static PerCoreCounter RentReturnedBeforeYield = new();
+        internal static PerCoreCounter ReturnReturnedBeforeYield = new();
+        internal static PerCoreCounter SameCoreRentContention = new();
+        internal static PerCoreCounter SameCoreReturnContention = new();
+
+        internal static PerCoreCounter RentLoop = new();
+        internal static PerCoreCounter ReturnLoop = new();
     }
 }

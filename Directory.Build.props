@@ -1,0 +1,92 @@
+<Project>
+  <PropertyGroup Label="BasePath">
+    <!-- This fixed missing property when using from dotnet cli -->
+    <SolutionDir Condition="'$(SolutionDir)'==''">$(MSBuildThisFileDirectory)..\</SolutionDir>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <Product>Spreads</Product>
+    <Authors>Victor Baybekov</Authors>
+    <Company>DataSpreads!io</Company>
+    <Copyright>Victor Baybekov 2017-2021</Copyright>
+    <NeutralLanguage>en-US</NeutralLanguage>
+
+    <RepositoryType>git</RepositoryType>
+    <RepositoryUrl>https://github.com/Spreads/Spreads.git</RepositoryUrl>
+
+    <!-- The SPDX name for the source license. See https://spdx.org/licenses/. -->
+    <PackageLicenseExpression>MPL-2.0</PackageLicenseExpression>
+    <!-- MPL is at file level, but dependencies will pop up the accept window anyway. -->
+    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+
+    <MaintainerEmail>DataSpreads@DataSpreads.io</MaintainerEmail>
+    <!-- TODO setup redirect from spreads.dev to this page -->
+    <PackageProjectUrl>http://docs.dataspreads.io/spreads/</PackageProjectUrl>
+    <PackageIconUrl>https://raw.githubusercontent.com/DataSpreads/Docs/master/images/Spreads/Spreads_64.png</PackageIconUrl>
+    <PackageTags>Spreads CEP data streaming fast realtime analysis streams timeseries async native compression series matrix dataframe</PackageTags>
+
+    <IncludeSource>false</IncludeSource>
+    <DebugType>embedded</DebugType>
+    <DebugSymbols>true</DebugSymbols>
+
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn),1591</NoWarn>
+    <SignAssembly>true</SignAssembly>
+    <DelaySign>false</DelaySign>
+    <PublicSign Condition=" '$(OS)' != 'Windows_NT' ">true</PublicSign>
+    <AssemblyOriginatorKeyFile>..\..\build\SpreadsKey.snk</AssemblyOriginatorKeyFile>
+
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <Configurations>Debug;Release</Configurations>
+
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <DefineConstants>$(DefineConstants);SPREADS</DefineConstants>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <TargetFrameworks>netstandard2.0</TargetFrameworks>
+
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <!-- Change YY and Q only for important releases. -->
+    <YYVersion>2020</YYVersion>
+    <QVersion>0</QVersion>
+
+    <!-- Overrides -->
+    <MMDDVersion>114</MMDDVersion>
+    <PackageHHMMSSSuffix Condition="$(AutoSuffix) != '' AND $(AutoSuffix)">$(VersionSuffix)</PackageHHMMSSSuffix>
+
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <!-- Set to True for auto incrementing build releases. Is set by scripts. -->
+    <AutoSuffix>False</AutoSuffix>
+
+    <MMDDVersion Condition="'$(MMDDVersion)' == '' AND $(AutoSuffix)">$([System.DateTime]::Now.ToString(MMdd))</MMDDVersion>
+    <PackageHHMMSSSuffix Condition="'$(PackageHHMMSSSuffix)' != ''">-$(PackageHHMMSSSuffix)</PackageHHMMSSSuffix>
+    <PackageHHMMSSSuffix Condition="'$(PackageHHMMSSSuffix)' == '' AND $(AutoSuffix)">-build$([System.DateTime]::Now.ToString("HHmmss"))</PackageHHMMSSSuffix>
+    <Version>$(YYVersion).$(QVersion).$(MMDDVersion)$(PackageHHMMSSSuffix)</Version>
+
+    <!-- Do not change the assembly version. Keeping it fixed eliminates most problems, NuGet will choose the right version. -->
+    <GenerateAssemblyVersionAttribute>false</GenerateAssemblyVersionAttribute>
+
+  </PropertyGroup>
+
+  <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
+    <CheckForOverflowUnderflow>True</CheckForOverflowUnderflow>
+    <DefineConstants>$(DefineConstants);TRACE;DEBUG</DefineConstants>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(TargetFramework)'=='net6.0' OR '$(TargetFramework)'=='net5.0' OR '$(TargetFramework)'=='netcoreapp3.1'">
+    <DefineConstants>$(DefineConstants);NETSTANDARD;HAS_ISREF;HAS_AGGR_OPT;HAS_INTRINSICS;BUILTIN_SPAN;BUILTIN_NULLABLE;HAS_TPWORKITEM;HAS_RANGE;HAS_BITOPERATIONS</DefineConstants>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(TargetFramework)'=='net6.0' OR '$(TargetFramework)'=='net5.0'">
+    <DefineConstants>$(DefineConstants);HAS_SUPPRESS_GC_TRANSITION</DefineConstants>
+  </PropertyGroup>
+</Project>

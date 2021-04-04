@@ -2,9 +2,6 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-using Spreads.Native;
-using Spreads.Serialization;
-using Spreads.Serialization.Utf8Json;
 using System;
 using System.Diagnostics;
 using System.Globalization;
@@ -13,6 +10,9 @@ using System.Runtime.InteropServices;
 
 namespace Spreads.DataTypes
 {
+    // TODO Use Dec64 layout, break things as if this struct was never used (there should be no serialized binary payload)
+    // Also note that this is not intended for math performance, so relax and make correct and simple implementation.
+
     /// <summary>
     /// A blittable 64-bit structure to store small(ish) fixed-point decimal values with precision up to 16 digits.
     /// It is implemented similarly to <see cref="decimal"/> and only uses Int56 to stores significant digits
@@ -37,7 +37,7 @@ namespace Spreads.DataTypes
     ///  0                   1                   2                   3
     ///  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
     /// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-    /// |S|NaN|  Scale  |                  UInt56                       |
+    /// |S|NaN|  Scale  |                  UInt56                     ...
     /// +-------------------------------+-+-+---------------------------+
     /// ```
     /// <para />
@@ -57,9 +57,8 @@ namespace Spreads.DataTypes
     ///
     /// </remarks>
     [StructLayout(LayoutKind.Sequential, Pack = 8, Size = 8)]
-    [BinarySerialization(Size)]
+    [BuiltInDataType(Size)]
     [DebuggerDisplay("{" + nameof(ToString) + "()}")]
-    [JsonFormatter(typeof(Formatter))]
     public readonly unsafe struct SmallDecimal :
         IInt64Diffable<SmallDecimal>,
         IEquatable<SmallDecimal>,
@@ -696,27 +695,6 @@ namespace Spreads.DataTypes
         }
 
         #endregion IInt64Diffable
-
-        internal class Formatter : IJsonFormatter<SmallDecimal>
-        {
-            public void Serialize(ref JsonWriter writer, SmallDecimal value, IJsonFormatterResolver formatterResolver)
-            {
-                var df = formatterResolver.GetFormatter<decimal>();
-                df.Serialize(ref writer, value, formatterResolver);
-            }
-
-            public SmallDecimal Deserialize(ref JsonReader reader, IJsonFormatterResolver formatterResolver)
-            {
-                var df = formatterResolver.GetFormatter<decimal>();
-
-                var d = df.Deserialize(ref reader, formatterResolver);
-
-                // if we are reading SD then it was probably written as SD
-                // if we are reading decimal we cannot silently truncate from serialized
-                // value - that's the point of storing as decimal: not to lose precision
-                return new SmallDecimal(d, truncate: false);
-            }
-        }
 
         #region Throw helpers
 

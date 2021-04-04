@@ -30,7 +30,7 @@ namespace Spreads.Collections.Generic
     /// </remarks>
     [DebuggerTypeProxy(typeof(DictionarySlimDebugView<,>))]
     [DebuggerDisplay("Count = {" + nameof(Count) + "}")]
-    internal partial class DictionarySlim<TKey, TValue> : IReadOnlyCollection<KeyValuePair<TKey, TValue>> where TKey : IEquatable<TKey>
+    public partial class DictionarySlim<TKey, TValue> : IReadOnlyCollection<KeyValuePair<TKey, TValue>> where TKey : IEquatable<TKey>
     {
         private readonly TValue _defaultValue;
 
@@ -116,7 +116,7 @@ namespace Spreads.Collections.Generic
             Entry[] entries = _entries;
             int collisionCount = 0;
             for (int i = _buckets[key.GetHashCode() & (_buckets.Length - 1)] - 1;
-                (uint) i < (uint) entries.Length;
+                unchecked((uint)i < (uint)entries.Length);
                 i = entries[i].Next)
             {
                 if (key.Equals(entries[i].Key))
@@ -202,7 +202,7 @@ namespace Spreads.Collections.Generic
             Entry[] entries = _entries;
             int collisionCount = 0;
             for (int i = _buckets[key.GetHashCode() & (_buckets.Length - 1)] - 1;
-                (uint) i < (uint) entries.Length;
+                unchecked((uint)i < (uint)entries.Length);
                 i = entries[i].Next)
             {
                 if (key.Equals(entries[i].Key))
@@ -233,7 +233,7 @@ namespace Spreads.Collections.Generic
         {
             Entry[] entries = _entries;
             for (int i = _buckets[key.GetHashCode() & (_buckets.Length - 1)] - 1;
-                (uint) i < (uint) entries.Length;
+                unchecked((uint)i < (uint)entries.Length);
                 i = entries[i].Next)
             {
                 if (key.Equals(entries[i].Key))
@@ -253,7 +253,7 @@ namespace Spreads.Collections.Generic
             Entry[] entries = _entries;
             int collisionCount = 0;
             for (int i = _buckets[key.GetHashCode() & (_buckets.Length - 1)] - 1;
-                (uint) i < (uint) entries.Length;
+                unchecked((uint)i < (uint)entries.Length);
                 i = entries[i].Next)
             {
                 if (key.Equals(entries[i].Key))
@@ -280,7 +280,7 @@ namespace Spreads.Collections.Generic
             Entry[] entries = _entries;
             int collisionCount = 0;
             for (int i = _buckets[key.GetHashCode() & (_buckets.Length - 1)] - 1;
-                (uint) i < (uint) entries.Length;
+                unchecked((uint)i < (uint)entries.Length);
                 i = entries[i].Next)
             {
                 if (key.Equals(entries[i].Key))
@@ -306,7 +306,7 @@ namespace Spreads.Collections.Generic
             Entry[] entries = _entries;
             int collisionCount = 0;
             for (int i = _buckets[key.GetHashCode() & (_buckets.Length - 1)] - 1;
-                (uint) i < (uint) entries.Length;
+                unchecked((uint)i < (uint)entries.Length);
                 i = entries[i].Next)
             {
                 if (key.Equals(entries[i].Key))
@@ -401,7 +401,7 @@ namespace Spreads.Collections.Generic
             int collisionCount = 0;
             int bucketIndex = key.GetHashCode() & (_buckets.Length - 1);
             for (int i = _buckets[bucketIndex] - 1;
-                (uint) i < (uint) entries.Length;
+                unchecked((uint)i < (uint)entries.Length);
                 i = entries[i].Next)
             {
                 if (key.Equals(entries[i].Key))
@@ -422,7 +422,7 @@ namespace Spreads.Collections.Generic
 
         public void Add(TKey key, TValue value)
         {
-            if(ContainsKey(in key))
+            if (ContainsKey(in key))
                 ThrowHelper.ThrowAddingDuplicateWithKeyArgumentException(key);
             GetOrAddValueRef(in key) = value;
         }
@@ -461,7 +461,7 @@ namespace Spreads.Collections.Generic
             Debug.Assert(_entries.Length == _count || _entries.Length == 1); // We only copy _count, so if it's longer we will miss some
             int count = _count;
             int newSize = _entries.Length * 2;
-            if ((uint) newSize > (uint) int.MaxValue) // uint cast handles overflow
+            if ((uint)newSize > (uint)int.MaxValue) // uint cast handles overflow
                 throw new InvalidOperationException("Capacity Overflow");
 
             var entries = new Entry[newSize];

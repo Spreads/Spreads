@@ -90,7 +90,7 @@ namespace Spreads.Serialization
         /// </remarks>
         internal int BlittableSize { get; set; }
 
-        internal Type SerializerType { get; set; }
+        internal Type? SerializerType { get; set; }
 
         public byte KnownTypeId { get; set; }
 

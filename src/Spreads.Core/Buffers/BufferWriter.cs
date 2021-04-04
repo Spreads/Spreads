@@ -3,7 +3,6 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 using Spreads.Collections.Concurrent;
-using Spreads.Serialization;
 using Spreads.Utils;
 using System;
 using System.Buffers;
@@ -17,7 +16,7 @@ namespace Spreads.Buffers
     /// </summary>
     public unsafe class BufferWriter : IBufferWriter<byte>, IDisposable
     {
-        private static readonly ObjectPool<BufferWriter> ObjectPool = new ObjectPool<BufferWriter>(() => new BufferWriter(), perCoreSize: 4);
+        private static readonly ObjectPool<BufferWriter> _objectPool = new ObjectPool<BufferWriter>(() => new BufferWriter(), perCoreSize: 4);
 
         internal const int MinLen = 16 * 1024;
         internal const int MaxLen = 1024 * 1024 * 1024;
@@ -31,7 +30,7 @@ namespace Spreads.Buffers
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static BufferWriter Create(int capacityHint = 0)
         {
-            var buffer = ObjectPool.Rent();
+            var buffer = _objectPool.Rent();
             buffer._offset = 0;
             if (capacityHint > buffer.FreeCapacity)
             {
@@ -39,8 +38,6 @@ namespace Spreads.Buffers
             }
             return buffer;
         }
-
-        
 
         public int WrittenLength => _offset;
 
@@ -307,7 +304,7 @@ namespace Spreads.Buffers
             _offset = -1;
             var buffer = _buffer;
             _buffer = default;
-            ObjectPool.Return(this);
+            _objectPool.Return(this);
             return buffer;
         }
 
@@ -322,7 +319,7 @@ namespace Spreads.Buffers
                     _buffer.Dispose();
                     _buffer = default;
                 }
-                ObjectPool.Return(this);
+                _objectPool.Return(this);
             }
             else
             {

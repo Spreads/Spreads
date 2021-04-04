@@ -54,6 +54,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SpreadsX", "src\SpreadsX\Sp
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Blake2Fast", "..\..\..\..\..\_OSS\dotnet\Blake2Fast\src\Blake2Fast\Blake2Fast.csproj", "{083B5209-74DE-43CF-B3CC-7A7D817474AD}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Spreads.Serialization", "src\Spreads.Serialization\Spreads.Serialization.csproj", "{075F6248-67F2-4475-A4EE-0733C197D023}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -172,6 +174,18 @@ Global
 		{083B5209-74DE-43CF-B3CC-7A7D817474AD}.Release|x64.Build.0 = Release|Any CPU
 		{083B5209-74DE-43CF-B3CC-7A7D817474AD}.Release|x86.ActiveCfg = Release|Any CPU
 		{083B5209-74DE-43CF-B3CC-7A7D817474AD}.Release|x86.Build.0 = Release|Any CPU
+		{075F6248-67F2-4475-A4EE-0733C197D023}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{075F6248-67F2-4475-A4EE-0733C197D023}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{075F6248-67F2-4475-A4EE-0733C197D023}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{075F6248-67F2-4475-A4EE-0733C197D023}.Debug|x64.Build.0 = Debug|Any CPU
+		{075F6248-67F2-4475-A4EE-0733C197D023}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{075F6248-67F2-4475-A4EE-0733C197D023}.Debug|x86.Build.0 = Debug|Any CPU
+		{075F6248-67F2-4475-A4EE-0733C197D023}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{075F6248-67F2-4475-A4EE-0733C197D023}.Release|Any CPU.Build.0 = Release|Any CPU
+		{075F6248-67F2-4475-A4EE-0733C197D023}.Release|x64.ActiveCfg = Release|Any CPU
+		{075F6248-67F2-4475-A4EE-0733C197D023}.Release|x64.Build.0 = Release|Any CPU
+		{075F6248-67F2-4475-A4EE-0733C197D023}.Release|x86.ActiveCfg = Release|Any CPU
+		{075F6248-67F2-4475-A4EE-0733C197D023}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -186,6 +200,7 @@ Global
 		{CBD0AE67-F6E5-4659-8FB0-3BA57706088C} = {ED8079DD-2B06-4030-9F0F-DC548F98E1C4}
 		{68A4EE77-DDF3-4E83-89C4-4473322D8006} = {7D96B942-4DFA-4B94-9A23-789A660E2DC6}
 		{083B5209-74DE-43CF-B3CC-7A7D817474AD} = {ED8079DD-2B06-4030-9F0F-DC548F98E1C4}
+		{075F6248-67F2-4475-A4EE-0733C197D023} = {7D96B942-4DFA-4B94-9A23-789A660E2DC6}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {70B77C15-F13A-4AFD-891C-D7857FE8FD18}

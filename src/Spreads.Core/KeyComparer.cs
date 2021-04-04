@@ -3,7 +3,6 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 using Spreads.DataTypes;
-using Spreads.Native;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -11,13 +10,11 @@ using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 
+#pragma warning disable 8600
+#pragma warning disable 8605
+
 namespace Spreads
 {
-    public class StaticReadonly
-    {
-        public int JitConst { get; } = 1;
-    }
-
     internal class WrapperKeyComparer<T> : IKeyComparer<T>
     {
         private readonly IComparer<T> _comparer;
@@ -205,7 +202,7 @@ namespace Spreads
         /// <summary>
         /// Get a new or default instance of KeyComparer.
         /// </summary>
-        public static KeyComparer<T> Create(IComparer<T> comparer = null)
+        public static KeyComparer<T> Create(IComparer<T>? comparer = null)
         {
             if (comparer == null || ReferenceEquals(comparer, Comparer<T>.Default))
             {
@@ -248,8 +245,8 @@ namespace Spreads
             {
                 Debug.Assert(_keyComparer == null, "Known types should not have a comparer");
 
-                var x1 = (bool)(object)(x);
-                var y1 = (bool)(object)(y);
+                var x1 = (bool)(object)x;
+                var y1 = (bool)(object)y;
                 return x1.CompareTo(y1);
             }
 
@@ -257,8 +254,8 @@ namespace Spreads
             {
                 Debug.Assert(_keyComparer == null, "Known types should not have a comparer");
 
-                var x1 = (byte)(object)(x);
-                var y1 = (byte)(object)(y);
+                var x1 = (byte)(object)x;
+                var y1 = (byte)(object)y;
                 return x1 - y1;
             }
 
@@ -266,8 +263,8 @@ namespace Spreads
             {
                 Debug.Assert(_keyComparer == null, "Known types should not have a comparer");
 
-                var x1 = (sbyte)(object)(x);
-                var y1 = (sbyte)(object)(y);
+                var x1 = (sbyte)(object)x;
+                var y1 = (sbyte)(object)y;
                 return x1 - y1;
             }
 
@@ -275,8 +272,8 @@ namespace Spreads
             {
                 Debug.Assert(_keyComparer == null, "Known types should not have a comparer");
 
-                var x1 = (char)(object)(x);
-                var y1 = (char)(object)(y);
+                var x1 = (char)(object)x;
+                var y1 = (char)(object)y;
                 return x1 - y1;
             }
 
@@ -284,8 +281,8 @@ namespace Spreads
             {
                 Debug.Assert(_keyComparer == null, "Known types should not have a comparer");
 
-                var x1 = (short)(object)(x);
-                var y1 = (short)(object)(y);
+                var x1 = (short)(object)x;
+                var y1 = (short)(object)y;
                 return x1 - y1;
             }
 
@@ -293,8 +290,8 @@ namespace Spreads
             {
                 Debug.Assert(_keyComparer == null, "Known types should not have a comparer");
 
-                var x1 = (ushort)(object)(x);
-                var y1 = (ushort)(object)(y);
+                var x1 = (ushort)(object)x;
+                var y1 = (ushort)(object)y;
 
                 // ReSharper disable RedundantCast
                 return (int)x1 - (int)y1;
@@ -305,8 +302,8 @@ namespace Spreads
             {
                 Debug.Assert(_keyComparer == null, "Known types should not have a comparer");
 
-                var x1 = (int)(object)(x);
-                var y1 = (int)(object)(y);
+                var x1 = (int)(object)x;
+                var y1 = (int)(object)y;
                 return x1.CompareTo(y1);
             }
 
@@ -314,8 +311,8 @@ namespace Spreads
             {
                 Debug.Assert(_keyComparer == null, "Known types should not have a comparer");
 
-                var x1 = (uint)(object)(x);
-                var y1 = (uint)(object)(y);
+                var x1 = (uint)(object)x;
+                var y1 = (uint)(object)y;
 
                 return x1.CompareTo(y1);
             }
@@ -324,8 +321,8 @@ namespace Spreads
             {
                 Debug.Assert(_keyComparer == null, "Known types should not have a comparer");
 
-                var x1 = (long)(object)(x);
-                var y1 = (long)(object)(y);
+                var x1 = (long)(object)x;
+                var y1 = (long)(object)y;
 
                 return x1.CompareTo(y1);
             }
@@ -334,8 +331,8 @@ namespace Spreads
             {
                 Debug.Assert(_keyComparer == null, "Known types should not have a comparer");
 
-                var x1 = (ulong)(object)(x);
-                var y1 = (ulong)(object)(y);
+                var x1 = (ulong)(object)x;
+                var y1 = (ulong)(object)y;
                 return x1.CompareTo(y1);
             }
 
@@ -343,8 +340,8 @@ namespace Spreads
             {
                 Debug.Assert(_keyComparer == null, "Known types should not have a comparer");
 
-                var x1 = (float)(object)(x);
-                var y1 = (float)(object)(y);
+                var x1 = (float)(object)x;
+                var y1 = (float)(object)y;
 
                 if (x1 < y1) { return -1; }
                 if (x1 > y1) { return 1; }
@@ -353,7 +350,7 @@ namespace Spreads
 
                 // At least one of the values is NaN.
                 if (float.IsNaN(x1))
-                { return (float.IsNaN(y1) ? 0 : -1); }
+                { return float.IsNaN(y1) ? 0 : -1; }
                 else // f is NaN.
                 { return 1; }
             }
@@ -364,8 +361,8 @@ namespace Spreads
                 // https://github.com/dotnet/corefx/blob/5fe165ab631675273f5d19bebc15b5733ef1354d/src/Common/src/CoreLib/System/Double.cs#L147
                 Debug.Assert(_keyComparer == null, "Known types should not have a comparer");
 
-                var x1 = (double)(object)(x);
-                var y1 = (double)(object)(y);
+                var x1 = (double)(object)x;
+                var y1 = (double)(object)y;
 
                 if (x1 < y1) { return -1; }
                 if (x1 > y1) { return 1; }
@@ -374,7 +371,7 @@ namespace Spreads
 
                 // At least one of the values is NaN.
                 if (double.IsNaN(x1))
-                { return (double.IsNaN(y1) ? 0 : -1); }
+                { return double.IsNaN(y1) ? 0 : -1; }
                 else
                 { return 1; }
             }
@@ -383,8 +380,8 @@ namespace Spreads
             {
                 Debug.Assert(_keyComparer == null, "Known types should not have a comparer");
 
-                var x1 = (decimal)(object)(x);
-                var y1 = (decimal)(object)(y);
+                var x1 = (decimal)(object)x;
+                var y1 = (decimal)(object)y;
 
                 return decimal.Compare(x1, y1);
             }
@@ -393,8 +390,8 @@ namespace Spreads
             {
                 Debug.Assert(_keyComparer == null, "Known types should not have a comparer");
 
-                var x1 = (DateTime)(object)(x);
-                var y1 = (DateTime)(object)(y);
+                var x1 = (DateTime)(object)x;
+                var y1 = (DateTime)(object)y;
                 return DateTime.Compare(x1, y1);
             }
 
@@ -404,8 +401,8 @@ namespace Spreads
 
                 Debug.Assert(_keyComparer == null, "Known types should not have a comparer");
 
-                var x1 = ((Timestamp)(object)(x)).Nanos;
-                var y1 = ((Timestamp)(object)(y)).Nanos;
+                var x1 = ((Timestamp)(object)x).Nanos;
+                var y1 = ((Timestamp)(object)y).Nanos;
 
                 return x1.CompareTo(y1);
             }
@@ -451,68 +448,68 @@ namespace Spreads
         {
             if (typeof(T) == typeof(byte))
             {
-                var value1 = (byte)(object)(value);
-                return (T)(object)(checked((byte)((sbyte)value1 + diff)));
+                var value1 = (byte)(object)value;
+                return (T)(object)checked((byte)((sbyte)value1 + diff));
             }
 
             if (typeof(T) == typeof(sbyte))
             {
-                var value1 = (sbyte)(object)(value);
-                return (T)(object)(checked((sbyte)(value1 + diff)));
+                var value1 = (sbyte)(object)value;
+                return (T)(object)checked((sbyte)(value1 + diff));
             }
 
             if (typeof(T) == typeof(char))
             {
-                var value1 = (char)(object)(value);
-                return (T)(object)(checked((char)(value1 + diff)));
+                var value1 = (char)(object)value;
+                return (T)(object)checked((char)(value1 + diff));
             }
 
             if (typeof(T) == typeof(short))
             {
-                var value1 = (short)(object)(value);
-                return (T)(object)(checked((short)(value1 + diff)));
+                var value1 = (short)(object)value;
+                return (T)(object)checked((short)(value1 + diff));
             }
 
             if (typeof(T) == typeof(ushort))
             {
-                var value1 = (ushort)(object)(value);
-                return (T)(object)(checked((ushort)((short)value1 + diff)));
+                var value1 = (ushort)(object)value;
+                return (T)(object)checked((ushort)((short)value1 + diff));
             }
 
             if (typeof(T) == typeof(int))
             {
-                var value1 = (int)(object)(value);
-                return (T)(object)(checked((int)(value1 + diff)));
+                var value1 = (int)(object)value;
+                return (T)(object)checked((int)(value1 + diff));
             }
 
             if (typeof(T) == typeof(uint))
             {
-                var value1 = (uint)(object)(value);
-                return (T)(object)(checked((uint)((int)value1 + diff)));
+                var value1 = (uint)(object)value;
+                return (T)(object)checked((uint)((int)value1 + diff));
             }
 
             if (typeof(T) == typeof(long))
             {
-                var value1 = (long)(object)(value);
-                return (T)(object)(checked(value1 + diff));
+                var value1 = (long)(object)value;
+                return (T)(object)checked(value1 + diff);
             }
 
             if (typeof(T) == typeof(ulong))
             {
-                var value1 = (ulong)(object)(value);
-                return (T)(object)(checked((ulong)((long)value1 + diff)));
+                var value1 = (ulong)(object)value;
+                return (T)(object)checked((ulong)((long)value1 + diff));
             }
 
             if (typeof(T) == typeof(DateTime))
             {
-                var value1 = (DateTime)(object)(value);
+                var value1 = (DateTime)(object)value;
                 return (T)(object)value1.AddTicks(diff);
             }
 
             if (typeof(T) == typeof(Timestamp))
             {
-                var value1 = (Timestamp)(object)(value);
-                return (T)(object)(new Timestamp(value1.Nanos + diff));
+                var value1 = (Timestamp)(object)value;
+                return (T)(object)new Timestamp(value1.Nanos + diff);
             }
 
             // TODO SmallDecimal
@@ -541,81 +538,81 @@ namespace Spreads
             // ReSharper disable RedundantCast
             if (typeof(T) == typeof(byte))
             {
-                var x1 = (byte)(object)(minuend);
-                var y1 = (byte)(object)(subtrahend);
+                var x1 = (byte)(object)minuend;
+                var y1 = (byte)(object)subtrahend;
 
-                return checked((long)(x1) - (long)y1);
+                return checked((long)x1 - (long)y1);
             }
 
             if (typeof(T) == typeof(sbyte))
             {
-                var x1 = (sbyte)(object)(minuend);
-                var y1 = (sbyte)(object)(subtrahend);
-                return checked((long)(x1) - (long)y1);
+                var x1 = (sbyte)(object)minuend;
+                var y1 = (sbyte)(object)subtrahend;
+                return checked((long)x1 - (long)y1);
             }
 
             if (typeof(T) == typeof(char))
             {
-                var x1 = (char)(object)(minuend);
-                var y1 = (char)(object)(subtrahend);
-                return checked((long)(x1) - (long)y1);
+                var x1 = (char)(object)minuend;
+                var y1 = (char)(object)subtrahend;
+                return checked((long)x1 - (long)y1);
             }
 
             if (typeof(T) == typeof(short))
             {
-                var x1 = (short)(object)(minuend);
-                var y1 = (short)(object)(subtrahend);
-                return checked((long)(x1) - (long)y1);
+                var x1 = (short)(object)minuend;
+                var y1 = (short)(object)subtrahend;
+                return checked((long)x1 - (long)y1);
             }
 
             if (typeof(T) == typeof(ushort))
             {
-                var x1 = (ushort)(object)(minuend);
-                var y1 = (ushort)(object)(subtrahend);
-                return checked((long)(x1) - (long)y1);
+                var x1 = (ushort)(object)minuend;
+                var y1 = (ushort)(object)subtrahend;
+                return checked((long)x1 - (long)y1);
             }
 
             if (typeof(T) == typeof(int))
             {
-                var x1 = (int)(object)(minuend);
-                var y1 = (int)(object)(subtrahend);
-                return checked((long)(x1) - (long)y1);
+                var x1 = (int)(object)minuend;
+                var y1 = (int)(object)subtrahend;
+                return checked((long)x1 - (long)y1);
             }
 
             if (typeof(T) == typeof(uint))
             {
-                var x1 = (uint)(object)(minuend);
-                var y1 = (uint)(object)(subtrahend);
-                return checked((long)(x1) - y1);
+                var x1 = (uint)(object)minuend;
+                var y1 = (uint)(object)subtrahend;
+                return checked((long)x1 - y1);
             }
 
             if (typeof(T) == typeof(long))
             {
-                var x1 = (long)(object)(minuend);
-                var y1 = (long)(object)(subtrahend);
+                var x1 = (long)(object)minuend;
+                var y1 = (long)(object)subtrahend;
 
                 return checked(x1 - y1);
             }
 
             if (typeof(T) == typeof(ulong))
             {
-                var x1 = (ulong)(object)(minuend);
-                var y1 = (ulong)(object)(subtrahend);
-                return checked((long)(x1) - (long)y1);
+                var x1 = (ulong)(object)minuend;
+                var y1 = (ulong)(object)subtrahend;
+                return checked((long)x1 - (long)y1);
             }
 
             if (typeof(T) == typeof(DateTime))
             {
-                var x1 = (DateTime)(object)(minuend);
-                var y1 = (DateTime)(object)(subtrahend);
+                var x1 = (DateTime)(object)minuend;
+                var y1 = (DateTime)(object)subtrahend;
 
                 return checked(x1.Ticks - y1.Ticks);
             }
 
             if (typeof(T) == typeof(Timestamp))
             {
-                var x1 = (Timestamp)(object)(minuend);
-                var y1 = (Timestamp)(object)(subtrahend);
+                var x1 = (Timestamp)(object)minuend;
+                var y1 = (Timestamp)(object)subtrahend;
 
                 return checked(x1.Nanos - y1.Nanos);
             }
@@ -656,88 +653,88 @@ namespace Spreads
 
             if (typeof(T) == typeof(bool))
             {
-                var x1 = (bool)(object)(x);
-                var y1 = (bool)(object)(y);
+                var x1 = (bool)(object)x;
+                var y1 = (bool)(object)y;
                 return x1 == y1;
             }
 
             if (typeof(T) == typeof(byte))
             {
-                var x1 = (byte)(object)(x);
-                var y1 = (byte)(object)(y);
+                var x1 = (byte)(object)x;
+                var y1 = (byte)(object)y;
                 return x1 == y1;
             }
 
             if (typeof(T) == typeof(sbyte))
             {
-                var x1 = (sbyte)(object)(x);
-                var y1 = (sbyte)(object)(y);
+                var x1 = (sbyte)(object)x;
+                var y1 = (sbyte)(object)y;
                 return x1 == y1;
             }
 
             if (typeof(T) == typeof(char))
             {
-                var x1 = (char)(object)(x);
-                var y1 = (char)(object)(y);
+                var x1 = (char)(object)x;
+                var y1 = (char)(object)y;
                 return x1 == y1;
             }
 
             if (typeof(T) == typeof(short))
             {
-                var x1 = (short)(object)(x);
-                var y1 = (short)(object)(y);
+                var x1 = (short)(object)x;
+                var y1 = (short)(object)y;
                 return x1 == y1;
             }
 
             if (typeof(T) == typeof(ushort))
             {
-                var x1 = (ushort)(object)(x);
-                var y1 = (ushort)(object)(y);
+                var x1 = (ushort)(object)x;
+                var y1 = (ushort)(object)y;
                 return x1 == y1;
             }
 
             if (typeof(T) == typeof(int))
             {
-                var x1 = (int)(object)(x);
-                var y1 = (int)(object)(y);
+                var x1 = (int)(object)x;
+                var y1 = (int)(object)y;
                 return x1 == y1;
             }
 
             if (typeof(T) == typeof(uint))
             {
-                var x1 = (uint)(object)(x);
-                var y1 = (uint)(object)(y);
+                var x1 = (uint)(object)x;
+                var y1 = (uint)(object)y;
 
                 return x1 == y1;
             }
 
             if (typeof(T) == typeof(long))
             {
-                var x1 = (long)(object)(x);
-                var y1 = (long)(object)(y);
+                var x1 = (long)(object)x;
+                var y1 = (long)(object)y;
 
                 return x1 == y1;
             }
 
             if (typeof(T) == typeof(ulong))
             {
-                var x1 = (ulong)(object)(x);
-                var y1 = (ulong)(object)(y);
+                var x1 = (ulong)(object)x;
+                var y1 = (ulong)(object)y;
 
                 return x1 == y1;
             }
 
             if (typeof(T) == typeof(decimal))
             {
-                var x1 = (decimal)(object)(x);
-                var y1 = (decimal)(object)(y);
+                var x1 = (decimal)(object)x;
+                var y1 = (decimal)(object)y;
 
                 return x1 == y1;
             }
             if (typeof(T) == typeof(float))
             {
-                var x1 = (float)(object)(x);
-                var y1 = (float)(object)(y);
+                var x1 = (float)(object)x;
+                var y1 = (float)(object)y;
 
                 // ReSharper disable once CompareOfFloatsByEqualityOperator
                 return x1 == y1;
@@ -745,30 +742,30 @@ namespace Spreads
 
             if (typeof(T) == typeof(double))
             {
-                var x1 = (double)(object)(x);
-                var y1 = (double)(object)(y);
+                var x1 = (double)(object)x;
+                var y1 = (double)(object)y;
 
                 // ReSharper disable once CompareOfFloatsByEqualityOperator
                 return x1 == y1;
             }
             if (typeof(T) == typeof(DateTime))
             {
-                var x1 = (DateTime)(object)(x);
-                var y1 = (DateTime)(object)(y);
+                var x1 = (DateTime)(object)x;
+                var y1 = (DateTime)(object)y;
                 return x1 == y1;
             }
 
             if (typeof(T) == typeof(Timestamp))
             {
-                var x1 = (Timestamp)(object)(x);
-                var y1 = (Timestamp)(object)(y);
+                var x1 = (Timestamp)(object)x;
+                var y1 = (Timestamp)(object)y;
                 return x1 == y1;
             }
 
             if (typeof(T) == typeof(SmallDecimal))
             {
-                var x1 = (SmallDecimal)(object)(x);
-                var y1 = (SmallDecimal)(object)(y);
+                var x1 = (SmallDecimal)(object)x;
+                var y1 = (SmallDecimal)(object)y;
                 return x1 == y1;
             }
 

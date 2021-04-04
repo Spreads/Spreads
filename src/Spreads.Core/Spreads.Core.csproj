@@ -1,15 +1,11 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
-  <Import Project="..\..\build\common.props" />
-
   <PropertyGroup>
     <Description>Spreads Core library</Description>
     <AssemblyName>Spreads.Core</AssemblyName>
     <RootNamespace>Spreads</RootNamespace>
     <PackageId>Spreads.Core</PackageId>
     <OutputType>Library</OutputType>
-    <LangVersion>9.0</LangVersion>
-    <Nullable>annotations</Nullable>
   </PropertyGroup>
 
   <ItemGroup>
@@ -20,38 +16,16 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Include="..\..\lib\Utf8Json\src\Utf8Json\**\*.cs" Exclude="..\..\lib\Utf8Json\src\Utf8Json\obj\**\*.*" Link="Serialization\Utf8Json\%(RecursiveDir)%(FileName)%(Extension)" />
-    <Compile Remove="..\..\lib\Utf8Json\src\Utf8Json\_AssemblyInfo.cs" />
-    <Compile Remove="..\..\lib\Utf8Json\src\Utf8Json\Internal\UnsafeMemory.cs" />
-    <Compile Remove="..\..\lib\Utf8Json\src\Utf8Json\Internal\UnsafeMemory.Low.cs" />
-    <Compile Remove="..\..\lib\Utf8Json\src\Utf8Json\Spreads\*.cs" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <PackageReference Condition="'$(TargetFramework)' != 'netcoreapp3.0' and '$(TargetFramework)' != 'netstandard2.1' " Include="Microsoft.Bcl.AsyncInterfaces" Version="1.1.0" />
-    <PackageReference Include="Spreads.Native" Version="2021.1.331" />
     <PackageReference Include="Spreads.Unsafe" Version="2021.1.331" />
     <PackageReference Include="System.Buffers" Version="4.5.1" />
     <PackageReference Include="System.Collections.Immutable" Version="1.7.0" />
     <PackageReference Include="System.Memory" Version="4.5.4" />
     <PackageReference Include="System.Numerics.Vectors" Version="4.5.0" />
-    <PackageReference Include="System.Reflection.Emit" Version="4.7.0" />
-    <PackageReference Include="System.Reflection.Emit.ILGeneration" Version="4.7.0" />
-    <PackageReference Include="System.Reflection.Emit.Lightweight" Version="4.7.0" />
-    <PackageReference Include="System.Reflection.Extensions" Version="4.3.0" />
-    <PackageReference Include="System.Reflection.TypeExtensions" Version="4.7.0" />
     <PackageReference Include="System.Threading.Tasks.Extensions" Version="4.5.3" />
     <PackageReference Include="System.ValueTuple" Version="4.5.0" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="5.0.0" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Folder Include="Serialization\Utf8Json\Formatters\" />
-    <Folder Include="Serialization\Utf8Json\Internal\DoubleConversion\" />
-    <Folder Include="Serialization\Utf8Json\Internal\Emit\" />
-    <Folder Include="Serialization\Utf8Json\Resolvers\" />
-    <Folder Include="VecTODO" />
-  </ItemGroup>
   <ItemGroup>
     <Compile Update="Algorithms\Hash\BLAKE2b\Blake2bAvx2.cs">
       <DesignTime>True</DesignTime>

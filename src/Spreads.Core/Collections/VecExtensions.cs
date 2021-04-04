@@ -3,6 +3,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 using System;
+using System.Diagnostics;
 using Spreads.Algorithms;
 using System.Runtime.CompilerServices;
 
@@ -10,6 +11,18 @@ namespace Spreads.Collections
 {
     public static class VectorExtensions
     {
+        // TODO Rename to UnsafeGetAt
+        /// <summary>
+        /// Get an <paramref name="array"/> element at <paramref name="index"/> in a very unsafe way.
+        /// There are no checks for null or bounds, they validity of the call must be ensured before using this method.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static ref T GetAt<T>(this T[] array, int index)
+        {
+            Debug.Assert((uint)index < array.Length, "GetAt: (uint)index < array.Length");
+            return ref Unsafe.Add(ref Unsafe.AddByteOffset(ref Unsafe.As<Box<T>>(array)!.Value, TypeHelper.ArrayOffset), index);
+        }
+
         /// <summary>
         /// Creates a new Vec over the portion of the target array.
         /// </summary>

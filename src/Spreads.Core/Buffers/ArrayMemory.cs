@@ -3,8 +3,6 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 using Spreads.Collections.Concurrent;
-using Spreads.Native;
-using Spreads.Serialization;
 using System;
 using System.Buffers;
 using System.Diagnostics;
@@ -19,17 +17,17 @@ namespace Spreads.Buffers
     /// <summary>
     /// <see cref="RetainableMemory{T}"/> backed by an array.
     /// </summary>
-    [Obsolete("TODO Comment this out, remove usages when pooled PM should be used, then keep it only as a wrapper for external CLR arrays")]
+    [Obsolete("TODO Comment this class out, remove usages when pooled PM should be used, then keep it only as a wrapper for external CLR arrays")]
     public sealed class ArrayMemory<T> : RetainableMemory<T>
     {
-        private static readonly ObjectPool<ArrayMemory<T>> ObjectPool = new ObjectPool<ArrayMemory<T>>(() => new ArrayMemory<T>(), perCoreSize: 16);
+        private static readonly ObjectPool<ArrayMemory<T>> _objectPool = new(() => new ArrayMemory<T>(), perCoreSize: 16);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private ArrayMemory()
         {
         }
 
-        internal T[] Array
+        internal T[]? Array
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => Unsafe.As<T[]>(_array);
@@ -50,7 +48,7 @@ namespace Spreads.Buffers
             var array = BufferPool<T>.Rent(minLength);
             return Create(array, offset: 0, array.Length, externallyOwned: false);
         }
-        
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static ArrayMemory<T> Create(RetainableMemoryPool<T> pool, int minLength)
         {
@@ -73,7 +71,7 @@ namespace Spreads.Buffers
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static ArrayMemory<T> Create(T[] array, int offset, int length, bool externallyOwned, RetainableMemoryPool<T> pool = null)
         {
-            var arrayMemory = ObjectPool.Rent();
+            var arrayMemory = _objectPool.Rent();
             arrayMemory._array = array;
             arrayMemory._pointer = IntPtr.Zero;
             arrayMemory._offset = offset;
@@ -158,7 +156,7 @@ namespace Spreads.Buffers
 
             // See PrivateMemory comment in the same place
             if (!finalizing)
-                ObjectPool.Return(this);
+                _objectPool.Return(this);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

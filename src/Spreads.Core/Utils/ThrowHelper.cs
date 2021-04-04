@@ -13,6 +13,7 @@ using System.Runtime.CompilerServices;
 using System.Runtime.Serialization;
 using System.Security;
 
+#pragma warning disable 8763
 // ReSharper disable InconsistentNaming
 
 // ReSharper disable once CheckNamespace
@@ -152,18 +153,15 @@ namespace Spreads
         {
             if (!expectedTrueCondition)
             {
-                DoFailFast(message);
+                Environment.FailFast(message);
             }
         }
 
         [DoesNotReturn]
         [MethodImpl(MethodImplOptions.NoInlining)]
-        [Obsolete("Use only when data could be corrupted or for debug")] // TODO review all usage, we should fail only if data could be corrupted or segfault is expected
-        internal static void FailFast(string? message = null) => DoFailFast(message);
-
-        [DoesNotReturn]
-        [MethodImpl(MethodImplOptions.NoInlining)]
-        private static void DoFailFast(string? message = null) => Environment.FailFast(message, new Exception(message));
+        [Obsolete("Use only when data could be corrupted or for debug")]
+        // TODO review all usage, we should fail only if data could be corrupted or segfault is possible, Replace with Env.FF.
+        internal static void FailFast(string? message = null) => Environment.FailFast(message);
 
         [MethodImpl(MethodImplOptions.NoInlining)]
         private static ArgumentOutOfRangeException GetArgumentOutOfRangeException(string argument) => new(argument);
@@ -171,7 +169,7 @@ namespace Spreads
         [MethodImpl(MethodImplOptions.NoInlining)]
         private static InvalidOperationException GetInvalidOperationException() => new();
 
-        internal static InvalidOperationException GetInvalidOperationException(ExceptionResource resource) => new(GetResourceString(resource));
+        private static InvalidOperationException GetInvalidOperationException(ExceptionResource resource) => new(GetResourceString(resource));
 
         [MethodImpl(MethodImplOptions.NoInlining)]
         // ReSharper disable once InconsistentNaming
@@ -206,8 +204,11 @@ namespace Spreads
 
         [DoesNotReturn]
         internal static void ThrowArgumentOutOfRange_IndexException() =>
-            throw GetArgumentOutOfRangeException(ExceptionArgument.index,
-                ExceptionResource.ArgumentOutOfRange_Index);
+            throw GetArgumentOutOfRangeException(ExceptionArgument.index, ExceptionResource.ArgumentOutOfRange_Index);
+
+        [DoesNotReturn]
+        internal static void ThrowArgumentOutOfRange_CapacityException() =>
+            throw GetArgumentOutOfRangeException(ExceptionArgument.capacity, ExceptionResource.ArgumentOutOfRange_Capacity);
 
         [DoesNotReturn]
         internal static void ThrowIndexArgumentOutOfRange_NeedNonNegNumException() =>
@@ -233,7 +234,7 @@ namespace Spreads
         internal static void ThrowWrongKeyTypeArgumentException(object key, Type targetType) => throw GetWrongKeyTypeArgumentException(key, targetType);
 
         [DoesNotReturn]
-        internal static void ThrowWrongValueTypeArgumentException(object value, Type targetType) => throw GetWrongValueTypeArgumentException(value, targetType);
+        internal static void ThrowWrongValueTypeArgumentException(object? value, Type targetType) => throw GetWrongValueTypeArgumentException(value, targetType);
 
         private static ArgumentException GetAddingDuplicateWithKeyArgumentException(object key) => new($"SR.Format(SR.Argument_AddingDuplicateWithKey, {key})");
 
@@ -348,10 +349,10 @@ namespace Spreads
 
         private static ArgumentException GetWrongKeyTypeArgumentException(object key, Type targetType) => new($"SR.Format(SR.Arg_WrongType, {key}, {targetType})", nameof(key));
 
-        private static ArgumentException GetWrongValueTypeArgumentException(object value, Type targetType) =>
+        private static ArgumentException GetWrongValueTypeArgumentException(object? value, Type targetType) =>
             new($"SR.Format(SR.Arg_WrongType, {value}, {targetType})", nameof(value));
 
-        internal static ArgumentOutOfRangeException GetArgumentOutOfRangeException(ExceptionArgument argument, ExceptionResource resource) =>
+        private static ArgumentOutOfRangeException GetArgumentOutOfRangeException(ExceptionArgument argument, ExceptionResource resource) =>
             new(GetArgumentName(argument), GetResourceString(resource));
 
         private static ArgumentException GetArgumentException(ExceptionResource resource, ExceptionArgument argument) =>
@@ -686,6 +687,7 @@ namespace Spreads
         Argument_InvalidArrayType,
         NotSupported_KeyCollectionSet,
         NotSupported_ValueCollectionSet,
+        ArgumentOutOfRange_Capacity,
         ArgumentOutOfRange_SmallCapacity,
         ArgumentOutOfRange_Index,
         Argument_InvalidOffLen,

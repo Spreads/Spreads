@@ -2,7 +2,6 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-using Spreads.Serialization;
 using System;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
@@ -22,7 +21,7 @@ namespace Spreads.DataTypes
     /// </summary>
     [DebuggerDisplay("{" + nameof(ToString) + "()}")]
     [StructLayout(LayoutKind.Sequential, Size = Size)]
-    [BinarySerialization(Size)]
+    [BuiltInDataType(Size)]
     public unsafe struct Symbol : IEquatable<Symbol>
     {
         public const int Size = 16;
@@ -151,7 +150,7 @@ namespace Spreads.DataTypes
     /// </summary>
     [DebuggerDisplay("{" + nameof(ToString) + "()}")]
     [StructLayout(LayoutKind.Sequential, Size = Size)]
-    [BinarySerialization(Size)]
+    [BuiltInDataType(Size)]
     public unsafe struct Symbol32 : IEquatable<Symbol32>
     {
         public const int Size = 32;
@@ -279,7 +278,7 @@ namespace Spreads.DataTypes
     /// </summary>
     [DebuggerDisplay("{" + nameof(ToString) + "()}")]
     [StructLayout(LayoutKind.Sequential, Size = Size)]
-    [BinarySerialization(Size)]
+    [BuiltInDataType(Size)]
     public unsafe struct Symbol64 : IEquatable<Symbol64>
     {
         public const int Size = 64;
@@ -407,7 +406,7 @@ namespace Spreads.DataTypes
     /// </summary>
     [DebuggerDisplay("{" + nameof(ToString) + "()}")]
     [StructLayout(LayoutKind.Sequential, Size = Size)]
-    [BinarySerialization(Size)]
+    [BuiltInDataType(Size)]
     public unsafe struct Symbol128 : IEquatable<Symbol128>
     {
         public const int Size = 128;
@@ -535,7 +534,7 @@ namespace Spreads.DataTypes
     /// </summary>
     [DebuggerDisplay("{" + nameof(ToString) + "()}")]
     [StructLayout(LayoutKind.Sequential, Size = Size)]
-    [BinarySerialization(Size)]
+    [BuiltInDataType(Size)]
     public unsafe struct Symbol256 : IEquatable<Symbol256>
     {
         public const int Size = 256;

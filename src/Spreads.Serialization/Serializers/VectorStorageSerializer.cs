@@ -3,7 +3,6 @@ using System.Diagnostics;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using Spreads.Buffers;
-using Spreads.Native;
 using Spreads.Serialization;
 
 namespace Spreads.Collections.Internal
@@ -75,7 +74,7 @@ namespace Spreads.Collections.Internal
 
                         BinarySerializer.Shuffle(source, destSpan, (byte)Unsafe.SizeOf<T>());
                     }
-                     
+
                     BufferPool<T>.Return(arr);
                 }
                 else

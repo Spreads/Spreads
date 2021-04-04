@@ -8,13 +8,15 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-using Spreads.Serialization;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Diagnostics.Contracts;
 using System.Runtime.CompilerServices;
+// ReSharper disable ConditionIsAlwaysTrueOrFalse
+
+#nullable disable
 
 namespace Spreads.Collections.Generic
 {
@@ -74,8 +76,7 @@ namespace Spreads.Collections.Generic
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.collection);
             Contract.EndContractBlock();
 
-            ICollection<T> c = collection as ICollection<T>;
-            if (c != null)
+            if (collection is ICollection<T> c)
             {
                 int count = c.Count;
                 if (count == 0)
@@ -157,13 +158,13 @@ namespace Spreads.Collections.Generic
         bool System.Collections.ICollection.IsSynchronized => false;
 
         // Synchronization root for this object.
-        Object System.Collections.ICollection.SyncRoot
+        object System.Collections.ICollection.SyncRoot
         {
             get
             {
                 if (_syncRoot == null)
                 {
-                    System.Threading.Interlocked.CompareExchange<Object>(ref _syncRoot, new Object(), null);
+                    System.Threading.Interlocked.CompareExchange<object>(ref _syncRoot, new object(), null);
                 }
                 return _syncRoot;
             }
@@ -231,7 +232,7 @@ namespace Spreads.Collections.Generic
             return ((value is T) || (value == null && default(T) == null));
         }
 
-        Object System.Collections.IList.this[int index]
+        object System.Collections.IList.this[int index]
         {
             get => this[index];
             set
@@ -279,7 +280,7 @@ namespace Spreads.Collections.Generic
             _items[size] = item;
         }
 
-        int System.Collections.IList.Add(Object item)
+        int System.Collections.IList.Add(object item)
         {
             ThrowHelper.IfNullAndNullsAreIllegalThenThrow<T>(item, ExceptionArgument.item);
 
@@ -395,7 +396,7 @@ namespace Spreads.Collections.Generic
             return _size != 0 && IndexOf(item) != -1;
         }
 
-        bool System.Collections.IList.Contains(Object item)
+        bool System.Collections.IList.Contains(object item)
         {
             if (IsCompatibleObject(item))
             {
@@ -740,7 +741,7 @@ namespace Spreads.Collections.Generic
             return Array.IndexOf(_items, item, 0, _size);
         }
 
-        int System.Collections.IList.IndexOf(Object item)
+        int System.Collections.IList.IndexOf(object item)
         {
             if (IsCompatibleObject(item))
             {
@@ -812,7 +813,7 @@ namespace Spreads.Collections.Generic
             _version++;
         }
 
-        void System.Collections.IList.Insert(int index, Object item)
+        void System.Collections.IList.Insert(int index, object item)
         {
             ThrowHelper.IfNullAndNullsAreIllegalThenThrow<T>(item, ExceptionArgument.item);
 
@@ -990,7 +991,7 @@ namespace Spreads.Collections.Generic
             return false;
         }
 
-        void System.Collections.IList.Remove(Object item)
+        void System.Collections.IList.Remove(object item)
         {
             if (IsCompatibleObject(item))
             {
@@ -1257,19 +1258,19 @@ namespace Spreads.Collections.Generic
         }
 
         [Serializable]
-        public struct Enumerator : IEnumerator<T>, System.Collections.IEnumerator
+        public struct Enumerator : IEnumerator<T>
         {
-            private RefList<T> refList;
-            private int index;
-            private int version;
-            private T current;
+            private RefList<T> _refList;
+            private int _index;
+            private int _version;
+            private T _current;
 
             internal Enumerator(RefList<T> refList)
             {
-                this.refList = refList;
-                index = 0;
-                version = refList._version;
-                current = default(T);
+                _refList = refList;
+                _index = 0;
+                _version = refList._version;
+                _current = default!;
             }
 
             public void Dispose()
@@ -1278,12 +1279,12 @@ namespace Spreads.Collections.Generic
 
             public bool MoveNext()
             {
-                RefList<T> localRefList = refList;
+                RefList<T> localRefList = _refList;
 
-                if (version == localRefList._version && ((uint)index < (uint)localRefList._size))
+                if (_version == localRefList._version && ((uint)_index < (uint)localRefList._size))
                 {
-                    current = localRefList._items[index];
-                    index++;
+                    _current = localRefList._items[_index];
+                    _index++;
                     return true;
                 }
                 return MoveNextRare();
@@ -1291,39 +1292,39 @@ namespace Spreads.Collections.Generic
 
             private bool MoveNextRare()
             {
-                if (version != refList._version)
+                if (_version != _refList._version)
                 {
                     ThrowHelper.ThrowInvalidOperationException_InvalidOperation_EnumFailedVersion();
                 }
 
-                index = refList._size + 1;
-                current = default(T);
+                _index = _refList._size + 1;
+                _current = default!;
                 return false;
             }
 
-            public T Current => current;
+            public T Current => _current;
 
-            Object System.Collections.IEnumerator.Current
+            object System.Collections.IEnumerator.Current
             {
                 get
                 {
-                    if (index == 0 || index == refList._size + 1)
+                    if (_index == 0 || _index == _refList._size + 1)
                     {
                         ThrowHelper.ThrowInvalidOperationException_InvalidOperation_EnumOpCantHappen();
                     }
-                    return Current;
+                    return Current!;
                 }
             }
 
             void System.Collections.IEnumerator.Reset()
             {
-                if (version != refList._version)
+                if (_version != _refList._version)
                 {
                     ThrowHelper.ThrowInvalidOperationException_InvalidOperation_EnumFailedVersion();
                 }
 
-                index = 0;
-                current = default(T);
+                _index = 0;
+                _current = default!;
             }
         }
     }

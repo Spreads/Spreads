@@ -7,7 +7,6 @@ using System.Runtime.CompilerServices;
 using NUnit.Framework;
 using Spreads.Collections.Internal;
 using Spreads.Core.Tests;
-using Spreads.Native;
 using Spreads.Utils;
 
 #pragma warning disable 618

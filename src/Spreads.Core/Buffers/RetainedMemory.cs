@@ -6,7 +6,6 @@
 #define DETECT_LEAKS
 #endif
 
-using Spreads.Native;
 using System;
 using System.Buffers;
 using System.Diagnostics;

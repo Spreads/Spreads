@@ -4,18 +4,15 @@
 
 // Original code is based on CoreCLR Dictoinary<TKey, TValue>, MIT licensed.
 
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Diagnostics.Contracts;
+using System.Runtime.CompilerServices;
+
 namespace Spreads.Collections.Generic
 {
-    using Spreads.Serialization;
-    using System;
-    using System.Collections;
-    using System.Collections.Generic;
-    using System.Diagnostics;
-    using System.Diagnostics.Contracts;
-    using System.Runtime.CompilerServices;
-    using System.Runtime.Serialization;
-    using System.Threading;
-
     /// <summary>
     /// Used internally to control behavior of insertion into a <see cref="FastDictionary{TKey, TValue}"/>.
     /// </summary>

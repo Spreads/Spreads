@@ -94,7 +94,7 @@ namespace Spreads.Collections.Concurrent
     /// Pessimized write operations in favor of fast reads. Scenario is for
     /// a lot of objects stored as weak references and cleaned when no used.
     /// </summary>
-    public sealed class IndexedLockedWeakDictionary<TKey, TValue> 
+    public sealed class IndexedLockedWeakDictionary<TKey, TValue>
         where TValue : class, IStorageIndexed where TKey : IEquatable<TKey>
     {
         private readonly DictionarySlim<TKey, GCHandle> _inner = new DictionarySlim<TKey, GCHandle>();
@@ -110,7 +110,7 @@ namespace Spreads.Collections.Concurrent
         private void GrowIndexArray()
         {
             // TODO RMS-style, append chunks, no need to copy
-            
+
             // Indexes remain valid, only writers could grow the array when adding a new index value.
             // This happens inside a lock and on a thread that can allow to wait.
             // TryGet by key is not affected (and it is locked anyways), TryGet by index should not
@@ -127,16 +127,14 @@ namespace Spreads.Collections.Concurrent
         public bool TryAdd(TKey key, TValue value)
         {
             if (value.StorageIndex != 0)
-            {
                 ThrowStorageIndexNonZero();
-            }
 
             EnterWriteLock();
             try
             {
                 var h = GCHandle.Alloc(value, GCHandleType.Weak);
-                
-                ref var hr = ref _inner.GetOrAddValueRef(key);
+
+                ref GCHandle hr = ref _inner.GetOrAddValueRef(key);
                 var added = true;
                 if (hr.IsAllocated)
                 {
@@ -146,7 +144,7 @@ namespace Spreads.Collections.Concurrent
                 else
                 {
                     hr = h;
-                    var idx = _counter++; // we are inside lock, do not need: Interlocked.Increment(ref _counter);
+                    int idx = _counter++; // we are inside lock, do not need: Interlocked.Increment(ref _counter);
                     if (idx >= _index.Length)
                     {
                         if (_freeSlots.Count == 0)
@@ -159,9 +157,7 @@ namespace Spreads.Collections.Concurrent
                             if (AdditionalCorrectnessChecks.Enabled)
                             {
                                 if (_index[idx].IsAllocated)
-                                {
-                                    ThrowHelper.FailFast("Free slot is allocated");
-                                }
+                                    ThrowHelper.ThrowInvalidOperationException("Free slot is allocated");
                             }
                         }
                     }
@@ -205,7 +201,7 @@ namespace Spreads.Collections.Concurrent
                 {
                     _inner.Remove(key);
                 }
-                
+
                 if (!exists)
                 {
                     Volatile.Write(ref _locker, 0L);
@@ -216,7 +212,7 @@ namespace Spreads.Collections.Concurrent
                 {
                     if (!h.IsAllocated)
                     {
-                        ThrowHelper.FailFast("!h.IsAllocated in TryRemove");
+                        ThrowHelper.ThrowInvalidOperationException("!h.IsAllocated in TryRemove");
                     }
                 }
 

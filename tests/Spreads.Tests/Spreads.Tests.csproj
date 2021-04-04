@@ -1,7 +1,6 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
-    <Import Project="..\..\build\common.props" />
     <PropertyGroup>
-        <TargetFrameworks>netcoreapp3.0</TargetFrameworks>
+        <TargetFrameworks>net5.0</TargetFrameworks>
         <AssemblyName>Spreads.Tests</AssemblyName>
         <RootNamespace>Spreads.Tests</RootNamespace>
         <LangVersion>8.0</LangVersion>

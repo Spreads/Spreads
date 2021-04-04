@@ -125,7 +125,8 @@ namespace Spreads.Utils
                 return (double)((SmallDecimal)(object)value);
             }
 
-            return (double)((dynamic)value);
+            // TODO Review why this method is needed and where it's used. If it's really needed, review if null should return double.NaN.
+            return (double)(object)(value);
         }
     }
 }

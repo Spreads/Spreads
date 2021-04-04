@@ -5,6 +5,8 @@ using System.Dynamic;
 using System.Reflection;
 using System.Reflection.Emit;
 using System.Threading;
+using Spreads.Serialization.FastMember;
+
 #if !NO_DYNAMIC
 
 #endif

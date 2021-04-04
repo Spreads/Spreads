@@ -2,7 +2,6 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-using Spreads.Native;
 using System.Runtime.CompilerServices;
 using static Spreads.Utils.Constants;
 #if HAS_INTRINSICS
@@ -21,8 +20,7 @@ namespace Spreads.Algorithms {
     {
 
 #if HAS_INTRINSICS
-
-	        [MethodImpl(MethodImplAggressiveAll)]
+        [MethodImpl(MethodImplAggressiveAll)]
         internal static int BinarySearchAvx2LoHi(ref sbyte searchSpace, int lo, int hi, sbyte value)
         {
             unchecked
@@ -326,7 +324,7 @@ namespace Spreads.Algorithms {
             }
         }
 
-	
+
         [MethodImpl(MethodImplAggressiveAll)]
         internal static int BinarySearchSse42LoHi(ref sbyte searchSpace, int lo, int hi, sbyte value)
         {
@@ -747,7 +745,7 @@ namespace Spreads.Algorithms {
             }
         }
 
-	
+
 #endif
 
         [MethodImpl(MethodImplAggressiveAll)]

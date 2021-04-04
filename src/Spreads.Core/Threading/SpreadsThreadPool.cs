@@ -54,9 +54,9 @@ namespace Spreads.Threading
 
         public ThreadPoolSettings(int numThreads,
                                    ThreadType threadType,
-                                   string name = null,
+                                   string? name = null,
                                    ApartmentState apartmentState = ApartmentState.Unknown,
-                                   Action<Exception> exceptionHandler = null,
+                                   Action<Exception>? exceptionHandler = null,
                                    int threadMaxStackSize = 0,
                                    ThreadPriority threadPriority = ThreadPriority.Normal)
         {
@@ -67,13 +67,13 @@ namespace Spreads.Threading
             ApartmentState = apartmentState;
             ExceptionHandler = exceptionHandler ?? (ex =>
             {
-                ThrowHelper.FailFast("Unhandled exception in dedicated thread pool: " + ex);
+                Environment.FailFast("Unhandled exception in the dedicated thread pool: " + ex);
             });
             ThreadMaxStackSize = threadMaxStackSize;
 
 #if !HAS_TPWORKITEM
             if (numThreads <= 0)
-                throw new ArgumentOutOfRangeException("numThreads", string.Format("numThreads must be at least 1. Was {0}", numThreads));
+                throw new ArgumentOutOfRangeException(nameof(numThreads), $"numThreads must be at least 1. Was {numThreads}");
 #endif
         }
 
@@ -124,8 +124,8 @@ namespace Spreads.Threading
             1 * 4 + 1 * 2 + Environment.ProcessorCount * 2;
 
         // Without accessing this namespace and class it is not created
-        private static SpreadsThreadPool _default;
-        private static SpreadsThreadPool _background;
+        private static SpreadsThreadPool? _default;
+        private static SpreadsThreadPool? _background;
 
         private TaskScheduler _scheduler;
 

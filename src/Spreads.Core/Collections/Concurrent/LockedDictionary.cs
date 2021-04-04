@@ -132,7 +132,7 @@ namespace Spreads.Collections.Concurrent
         private static void FailCanontRemoveExisting()
         {
             // TODO review & remove
-            ThrowHelper.FailFast("Cannot remove a value that we have just read from inside lock.");
+            ThrowHelper.ThrowInvalidOperationException("Cannot remove a value that we have just read from inside lock.");
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

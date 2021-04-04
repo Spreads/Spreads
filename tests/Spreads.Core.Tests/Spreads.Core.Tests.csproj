@@ -1,5 +1,4 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
-    <Import Project="..\..\build\common.props" />
     <PropertyGroup>
         <TargetFrameworks>net5.0</TargetFrameworks>
         <AssemblyName>Spreads.Core.Tests</AssemblyName>
@@ -56,6 +55,7 @@
 
     <ItemGroup>
       <ProjectReference Include="..\..\src\Spreads.Core\Spreads.Core.csproj" />
+      <ProjectReference Include="..\..\src\Spreads.Serialization\Spreads.Serialization.csproj" />
     </ItemGroup>
 
     <ItemGroup>

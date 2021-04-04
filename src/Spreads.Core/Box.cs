@@ -4,12 +4,16 @@
 
 namespace Spreads
 {
-    public static class Box
+    public class Box
     {
+        protected Box()
+        {
+        }
+
         public static Box<T> New<T>(in T unboxed) => new(unboxed);
     }
 
-    public class Box<T>
+    public class Box<T> : Box
     {
         public T Value = default!;
 

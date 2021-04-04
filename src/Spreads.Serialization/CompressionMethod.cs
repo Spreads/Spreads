@@ -8,7 +8,11 @@ namespace Spreads.Serialization
     {
         None = 0, // 00
         GZip = 1, // 01
-        Lz4 = 2,  // 10
+        Lz4 = 2, // 10
         Zstd = 3, // 11
+
+        // These are for completeness, but should not be used inside Spreads serialization
+        Deflate = 200,
+        ZLib = 201
     }
 }

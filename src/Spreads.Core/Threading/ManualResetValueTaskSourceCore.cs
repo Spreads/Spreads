@@ -268,7 +268,7 @@ namespace Spreads.Threading
 #if HAS_TPWORKITEM
                             ThreadPool.QueueUserWorkItem(_continuation, _continuationState, preferLocal: true);
 #else
-                            var c = _continuation;
+                            Action<object?> c = _continuation!;
                             ThreadPool.QueueUserWorkItem((s) => c(s), _continuationState);
 #endif
                         }
@@ -277,14 +277,14 @@ namespace Spreads.Threading
 #if HAS_TPWORKITEM
                             ThreadPool.UnsafeQueueUserWorkItem(_continuation, _continuationState, preferLocal: true);
 #else
-                            var c = _continuation;
+                            Action<object?> c = _continuation!;
                             ThreadPool.UnsafeQueueUserWorkItem((s) => c(s), _continuationState);
 #endif
                         }
                     }
                     else
                     {
-                        _continuation(_continuationState);
+                        _continuation!(_continuationState);
                     }
                     break;
 

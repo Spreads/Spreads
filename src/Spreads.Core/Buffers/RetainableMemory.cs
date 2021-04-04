@@ -8,7 +8,6 @@ using System;
 using System.Buffers;
 using System.Runtime.CompilerServices;
 using Spreads.Collections;
-using Spreads.Serialization;
 using static Spreads.Buffers.BuffersThrowHelper;
 
 namespace Spreads.Buffers

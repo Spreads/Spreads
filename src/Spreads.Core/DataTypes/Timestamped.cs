@@ -2,8 +2,6 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-using Spreads.Serialization;
-using Spreads.Serialization.Utf8Json;
 using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
@@ -14,7 +12,7 @@ namespace Spreads.DataTypes
     /// <summary>
     /// A value with a <see cref="Timestamp"/>.
     /// </summary>
-    [BinarySerialization(preferBlittable: true)]
+    [BuiltInDataType(preferBlittable: true)]
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     // NB cannot use JsonFormatter attribute, this is hardcoded in DynamicGenericResolverGetFormatterHelper
     public readonly struct Timestamped<T> : IEquatable<Timestamped<T>>
@@ -64,7 +62,7 @@ namespace Spreads.DataTypes
             return !x.Equals(y);
         }
 
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             if (obj is null) return false;
             return obj is Timestamped<T> other && Equals(other);
@@ -84,35 +82,5 @@ namespace Spreads.DataTypes
         }
     }
 
-    // NB cannot use JsonFormatter attribute, this is hardcoded in DynamicGenericResolverGetFormatterHelper
-    public class TimestampedFormatter<T> : IJsonFormatter<Timestamped<T>>
-    {
-        public void Serialize(ref JsonWriter writer, Timestamped<T> value, IJsonFormatterResolver formatterResolver)
-        {
-            writer.WriteBeginArray();
 
-            formatterResolver.GetFormatter<Timestamp>().Serialize(ref writer, value.Timestamp, formatterResolver);
-
-            writer.WriteValueSeparator();
-
-            formatterResolver.GetFormatter<T>().Serialize(ref writer, value.Value, formatterResolver);
-
-            writer.WriteEndArray();
-        }
-
-        public Timestamped<T> Deserialize(ref JsonReader reader, IJsonFormatterResolver formatterResolver)
-        {
-            reader.ReadIsBeginArrayWithVerify();
-
-            var timestamp = formatterResolver.GetFormatter<Timestamp>().Deserialize(ref reader, formatterResolver);
-
-            reader.ReadIsValueSeparatorWithVerify();
-
-            var value = formatterResolver.GetFormatterWithVerify<T>().Deserialize(ref reader, formatterResolver);
-
-            reader.ReadIsEndArrayWithVerify();
-
-            return new Timestamped<T>(timestamp, value);
-        }
-    }
 }

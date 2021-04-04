@@ -1,5 +1,4 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
-  <Import Project="..\..\build\common.props" />
   <PropertyGroup>
     <Description>Spreads top level library.</Description>
     <RootNamespace>Spreads</RootNamespace>
@@ -13,7 +12,7 @@
   <PropertyGroup Condition=" '$(TargetFramework)' != 'netstandard2.0' ">
     <Nullable>enable</Nullable>
   </PropertyGroup>
-  
+
   <PropertyGroup Condition=" '$(TargetFramework)' == 'netstandard2.0' ">
     <Nullable>annotations</Nullable>
   </PropertyGroup>
@@ -28,5 +27,5 @@
     <ProjectReference Include="..\Spreads.Core\Spreads.Core.csproj" />
     <ProjectReference Include="..\SpreadsX\SpreadsX.csproj" />
   </ItemGroup>
-  
+
 </Project>

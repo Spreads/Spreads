@@ -11,7 +11,6 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using Spreads.Serialization;
 
 namespace Spreads.Collections
 {
@@ -437,8 +436,7 @@ namespace Spreads.Collections
 
         internal void FillNonGeneric(object value)
         {
-            // ReSharper disable once RedundantCast
-            Span.Fill((T) (dynamic) value);
+            Span.Fill((T) value);
         }
 
         /// <summary>

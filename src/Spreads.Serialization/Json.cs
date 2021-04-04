@@ -2,14 +2,14 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-using Spreads.Buffers;
-using Spreads.Serialization.Utf8Json;
 using System;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text;
+using Spreads.Buffers;
+using Spreads.Serialization.Utf8Json;
 
-namespace Spreads.DataTypes
+namespace Spreads.Serialization
 {
     /// <summary>
     /// Wrapper for UTF8 JSON string.
@@ -19,8 +19,9 @@ namespace Spreads.DataTypes
     [JsonFormatter(typeof(Formatter))]
     public struct Json
     {
+        // TODO Use StringSegment
         private readonly ArraySegment<byte> _segment;
-        private string _string;
+        private string? _string;
         private readonly DirectBuffer _db;
 
         public Json(ArraySegment<byte> segment)
@@ -73,7 +74,7 @@ namespace Spreads.DataTypes
                 {
                     var _ = ToString(); // side effect TODO Add DB/Memory overloads to WriteRawSegment
                 }
-                
+
                 if (value._string != null)
                 {
                     var maxLen = Encoding.UTF8.GetMaxByteCount(value._string.Length);
