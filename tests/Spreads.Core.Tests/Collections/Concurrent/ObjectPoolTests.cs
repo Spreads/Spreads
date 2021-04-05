@@ -10,7 +10,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using ObjectLayoutInspector;
-using Spreads.Buffers;
 using Spreads.Collections.Concurrent;
 using Spreads.Utils;
 

@@ -29,7 +29,7 @@ namespace Spreads.Collections
     /// Typed native or managed vector.
     /// </summary>
     /// <remarks>Not thread safe and not safe at all</remarks>
-    [StructLayout(LayoutKind.Sequential, Pack = 4)]
+    [StructLayout(LayoutKind.Auto)]
     public readonly unsafe struct Vec<T> : IEnumerable<T>
     {
         //
@@ -560,16 +560,12 @@ namespace Spreads.Collections
     /// Untyped native or managed vector.
     /// </summary>
     /// <remarks>Not thread safe and not safe at all</remarks>
-    [StructLayout(LayoutKind.Explicit, Pack = 4, Size = 24)]
+    [StructLayout(LayoutKind.Auto)]
     public readonly unsafe struct Vec : IEnumerable
     {
-        [FieldOffset(0)]
         internal readonly Array? _pinnable;
-        [FieldOffset(8)]
         internal readonly IntPtr _byteOffset;
-        [FieldOffset(16)]
         private readonly int _length;
-        [FieldOffset(20)]
         internal readonly RuntimeTypeId _runtimeTypeId;
 
         /// <summary>

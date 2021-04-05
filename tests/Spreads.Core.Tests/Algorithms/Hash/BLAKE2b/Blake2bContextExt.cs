@@ -6,7 +6,7 @@ using Spreads.Buffers;
 using System.Runtime.Intrinsics.X86;
 #endif
 
-namespace Spreads.Algorithms.Hash.BLAKE2b
+namespace Spreads.Core.Tests.Algorithms.Hash.BLAKE2b
 {
     public unsafe partial struct Blake2bContext
     {

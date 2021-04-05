@@ -46,9 +46,9 @@ namespace Spreads
         }
 
         // ReSharper disable once UnusedMember.Local Use by reflection
-        private static RuntimeTypeInfo GetRuntimeVecInfoReflection<T>()
+        private static RuntimeTypeId GetRuntimeTypeIdReflection<T>()
         {
-            return TypeHelper<T>.GetRuntimeVecInfo();
+            return TypeHelper<T>.GetRuntimeVecInfo().RuntimeTypeId;
         }
 
         [SuppressMessage("ReSharper", "InconsistentlySynchronizedField")]
@@ -60,22 +60,21 @@ namespace Spreads
             lock (RuntimeTypeInfoStorage)
             {
                 if (RuntimeTypeInfoIndexLookup.TryGetValue(ty, out idx))
-                    return ref RuntimeTypeInfoStorage[idx];
-
-                RuntimeTypeInfo GetRuntimeTypeInfoViaReflection()
                 {
-                    MethodInfo mi = typeof(TypeHelper).GetMethod("GetRuntimeVecInfoReflection", BindingFlags.Static | BindingFlags.NonPublic);
-                    ThrowHelper.Assert(mi != null);
-                    MethodInfo genericMi = mi.MakeGenericMethod(ty);
-                    // re-entrant lock
-                    var runtimeTypeInfo = (RuntimeTypeInfo) genericMi.Invoke(null, new object[] { })!;
-                    return runtimeTypeInfo;
+                    return ref RuntimeTypeInfoStorage[idx];
                 }
 
-                RuntimeTypeInfo typeInfo = GetRuntimeTypeInfoViaReflection();
-                idx = RuntimeTypeInfoStorage.Add(typeInfo);
-                RuntimeTypeInfoIndexLookup[ty] = idx;
-                return ref RuntimeTypeInfoStorage[idx];
+                RuntimeTypeId GetRuntimeTypeInfoViaReflection()
+                {
+                    MethodInfo mi = typeof(TypeHelper).GetMethod("GetRuntimeTypeIdReflection", BindingFlags.Static | BindingFlags.NonPublic)!;
+                    ThrowHelper.Assert(mi != null);
+                    MethodInfo genericMi = mi.MakeGenericMethod(ty);
+                    var runtimeTypeId = (RuntimeTypeId) genericMi.Invoke(null, new object[] { })!;
+                    return runtimeTypeId;
+                }
+
+                return ref GetRuntimeTypeInfo(GetRuntimeTypeInfoViaReflection());
+
             }
         }
 
@@ -95,6 +94,8 @@ namespace Spreads
     [SuppressMessage("ReSharper", "StaticMemberInGenericType")]
     public static class TypeHelper<T>
     {
+        private static readonly ILogger _logger = Logger.Factory.CreateLogger(typeof(TypeHelper<T>));
+
         /// <summary>
         /// Returns a positive number for primitive type, well known fixed size types
         /// and pinnable structs with <see cref="BuiltInDataTypeAttribute"/> and
@@ -128,8 +129,8 @@ namespace Spreads
         {
             var oneArray = new T[1];
             IntPtr offset = ByteOffset(ref As<Box<T>>(oneArray)!.Value, ref oneArray[0]);
-            ILogger<Box<T>> logger = Logger.Factory.CreateLogger<Box<T>>();
-            logger.LogTrace($"ArrayOffset for type {typeof(T).FullName} is {(int)offset}");
+            if(_logger.IsEnabled(LogLevel.Trace))
+                _logger.LogTrace($"ArrayOffset for type {typeof(T).FullName} is {(int)offset}");
             return offset;
         }
 

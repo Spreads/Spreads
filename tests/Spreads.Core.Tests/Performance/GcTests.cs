@@ -4,7 +4,6 @@ using NUnit.Framework;
 using Spreads.Utils;
 using System.Collections.Generic;
 using System.Security;
-using System.Threading;
 
 namespace Spreads.Core.Tests.Performance
 {

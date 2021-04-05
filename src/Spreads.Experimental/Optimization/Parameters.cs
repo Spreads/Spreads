@@ -7,7 +7,7 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using Spreads.Collections.Generic;
 
-namespace Spreads.Algorithms.Optimization
+namespace Spreads.Experimental.Optimization
 {
     public class Parameters : DynamicObject, IReadOnlyList<Parameter>
     {
@@ -52,7 +52,7 @@ namespace Spreads.Algorithms.Optimization
             {
                 // NB simple (almost silly) optimization for linear search:
                 // if we lookup the same code or sequentially lookup codes
-                // in the same order they were added then we will hit the right parameter 
+                // in the same order they were added then we will hit the right parameter
                 // instantly or in two comparisons
                 var idx = _lastLookupIndex;
                 var total = _parameters.Count;

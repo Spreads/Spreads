@@ -19,6 +19,7 @@ namespace Spreads.Collections.Generic
                 }
             }
 
+            pair = default;
             return -1;
         }
 
@@ -27,7 +28,10 @@ namespace Spreads.Collections.Generic
             TryGetValueIdx(in key, out int index);
 
             if (index < 0)
+            {
+                pair = default;
                 return -2;
+            }
 
             for (int i = index + 1; i < _count; i++)
             {
@@ -39,6 +43,7 @@ namespace Spreads.Collections.Generic
                 }
             }
 
+            pair = default;
             return -1;
         }
     }

@@ -4,8 +4,8 @@
 
 using System;
 using NUnit.Framework;
-using Spreads.Algorithms.Optimization;
 using Spreads.Collections.Generic;
+using Spreads.Experimental.Optimization;
 
 namespace Spreads.Core.Tests
 {

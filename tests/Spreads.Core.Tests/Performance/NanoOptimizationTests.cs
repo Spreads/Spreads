@@ -11,7 +11,6 @@ using System.Runtime.InteropServices;
 using System.Threading;
 using NUnit.Framework;
 using Spreads.Buffers;
-using Spreads.Serialization;
 using Spreads.Utils;
 
 namespace Spreads.Core.Tests.Performance
@@ -34,7 +33,7 @@ namespace Spreads.Core.Tests.Performance
             {
                 value = bytes;
                 pinnedGcHandle = GCHandle.Alloc(value, GCHandleType.Pinned);
-                ptr = (int*) pinnedGcHandle.AddrOfPinnedObject().ToPointer();
+                ptr = (int*)pinnedGcHandle.AddrOfPinnedObject().ToPointer();
             }
 
             // [MethodImpl(MethodImplOptions.NoInlining)]
@@ -61,8 +60,8 @@ namespace Spreads.Core.Tests.Performance
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public static int Increment()
             {
-                *((int*) ptr) = *((int*) ptr) + 1;
-                return (*((int*) ptr));
+                *((int*)ptr) = *((int*)ptr) + 1;
+                return (*((int*)ptr));
             }
         }
 
@@ -116,7 +115,7 @@ namespace Spreads.Core.Tests.Performance
                 pinnedGcHandle = GCHandle.Alloc(value, GCHandleType.Pinned);
                 ptr = pinnedGcHandle.AddrOfPinnedObject();
 
-                _lock = (long*) Marshal.AllocHGlobal(8);
+                _lock = (long*)Marshal.AllocHGlobal(8);
                 *_lock = 0L;
             }
 
@@ -129,9 +128,9 @@ namespace Spreads.Core.Tests.Performance
                     //{
                     if (Interlocked.CompareExchange(ref *_lock, 1, 0) == 0)
                     {
-                        *((int*) ptr) = *((int*) ptr) + 1;
+                        *((int*)ptr) = *((int*)ptr) + 1;
                         Volatile.Write(ref *_lock, 0);
-                        return (*((int*) ptr));
+                        return (*((int*)ptr));
                     }
 
                     //}
@@ -155,7 +154,7 @@ namespace Spreads.Core.Tests.Performance
                 pinnedGcHandle = GCHandle.Alloc(value, GCHandleType.Pinned);
                 ptr = pinnedGcHandle.AddrOfPinnedObject();
 
-                _lock = (long*) Marshal.AllocHGlobal(8);
+                _lock = (long*)Marshal.AllocHGlobal(8);
                 *_lock = 0L;
             }
 
@@ -219,7 +218,7 @@ namespace Spreads.Core.Tests.Performance
             }
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public int Increment(int value  = 0)
+            public int Increment(int value = 0)
             {
                 return value + 1;
             }
@@ -329,7 +328,6 @@ namespace Spreads.Core.Tests.Performance
 #if NETCOREAPP3_0
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
 #endif
-        [Test, Explicit("long running")]
         public void CallVsCallVirt(int r)
         {
             var count = 200_000_000;
@@ -420,7 +418,7 @@ namespace Spreads.Core.Tests.Performance
                 int intValue = 0;
                 for (int i = 0; i < count; i++)
                 {
-                    (*((int*) ptr))++;
+                    (*((int*)ptr))++;
                     //* ((int*)ptr) = *((int*)ptr) + 1;
                 }
             }
@@ -442,12 +440,12 @@ namespace Spreads.Core.Tests.Performance
             }
         }
 
-        private static Func<int,int>? dlg;
+        private static Func<int, int>? dlg;
 
         private static void InitDlg()
         {
             var str = new ThisIsSrtuct(new byte[4]);
-            dlg = new Func<int,int>((i) => str.Increment(i));
+            dlg = new Func<int, int>((i) => str.Increment(i));
         }
 
 #if NETCOREAPP3_0
@@ -456,7 +454,7 @@ namespace Spreads.Core.Tests.Performance
         private static void CallVsCallVirt_StructDelegate(int count)
         {
             InitDlg();
-            var dlg2 = new Func<int,int>((i) =>
+            var dlg2 = new Func<int, int>((i) =>
             {
                 if (dlg == null)
                     return 0;
@@ -467,7 +465,7 @@ namespace Spreads.Core.Tests.Performance
                 var value = 0;
                 for (int i = 0; i < count; i++)
                 {
-                    value = dlg.Invoke(value); 
+                    value = dlg.Invoke(value);
                 }
             }
         }
@@ -479,7 +477,7 @@ namespace Spreads.Core.Tests.Performance
         {
             using (Benchmark.Run("Str>Interface", count))
             {
-                IIncrementable strAsInterface = (IIncrementable) (new ThisIsSrtuct(new byte[4]));
+                IIncrementable strAsInterface = (IIncrementable)(new ThisIsSrtuct(new byte[4]));
                 for (int i = 0; i < count; i++)
                 {
                     strAsInterface.Increment();
@@ -580,7 +578,7 @@ namespace Spreads.Core.Tests.Performance
         {
             using (Benchmark.Run("Class>IFace", count))
             {
-                IIncrementable cli = (IIncrementable) new ThisIsClass();
+                IIncrementable cli = (IIncrementable)new ThisIsClass();
                 for (int i = 0; i < count; i++)
                 {
                     cli.Increment();
@@ -781,7 +779,7 @@ namespace Spreads.Core.Tests.Performance
         [Test, Explicit("long running")]
         public unsafe void PinningNonBlittableThrows()
         {
-            var buffer = (Memory<string>) BufferPool<string>.Rent(100);
+            var buffer = (Memory<string>)BufferPool<string>.Rent(100);
             Assert.Throws<ArgumentException>(() =>
             {
                 var handle = buffer.Pin();
@@ -861,7 +859,7 @@ namespace Spreads.Core.Tests.Performance
 
         private ref T GetRef<T>(ArrayMemory<T> buffer)
         {
-            if (MemoryMarshal.TryGetArray((ReadOnlyMemory<T>) buffer.Memory, out var segment))
+            if (MemoryMarshal.TryGetArray((ReadOnlyMemory<T>)buffer.Memory, out var segment))
             {
                 return ref segment.Array[0];
             }
@@ -886,7 +884,7 @@ namespace Spreads.Core.Tests.Performance
                     //ref var addr = ref GetRef(buffer);
                     ref var addr = ref Unsafe.AsRef<T>(handle.Pointer);
                     ref var pos = ref Unsafe.Add(ref addr, i);
-                    pos = (T) (object) (double) i;
+                    pos = (T)(object)(double)i;
                     sum++;
                 }
             }
@@ -908,7 +906,7 @@ namespace Spreads.Core.Tests.Performance
                 {
                     ref var addr = ref Unsafe.AsRef<T>(handle.Pointer);
                     ref var pos = ref Unsafe.Add(ref addr, i);
-                    sum += (double) (object) pos;
+                    sum += (double)(object)pos;
                 }
             }
 
@@ -1158,7 +1156,7 @@ namespace Spreads.Core.Tests.Performance
 
             for (long i = start; i < start + count; i++)
             {
-                if ((double) i > (double) (i + 1))
+                if ((double)i > (double)(i + 1))
                 {
                     Assert.Fail($"Double cast doesn't keep order for {i}");
                 }
@@ -1222,7 +1220,7 @@ namespace Spreads.Core.Tests.Performance
                     {
                         var c = comps[i]; // values[i - 1].CompareTo(values[i]); //
                         //bool b = c >= 0; // values[i - 1] >= values[i]; //
-                        var idx = 1 ^ (((uint) c) >> 31); // *((byte*)(&b));
+                        var idx = 1 ^ (((uint)c) >> 31); // *((byte*)(&b));
                         sumUnsafe += arr[idx];
                     }
                 }
@@ -1243,7 +1241,11 @@ namespace Spreads.Core.Tests.Performance
             // initialized
             //Assert.True(AdditionalCorrectnessChecks.DoChecks);
 
+#if DEBUG
+            Assert.True(Settings.DoAdditionalCorrectnessChecks);
+#else
             Assert.False(Settings.DoAdditionalCorrectnessChecks);
+#endif
         }
 
         [Test, Explicit("long running")]
@@ -1273,17 +1275,17 @@ namespace Spreads.Core.Tests.Performance
 
             foreach (var size in sizes)
             {
-                var src = (byte*) Marshal.AllocHGlobal(size);
-                var dst = (byte*) Marshal.AllocHGlobal(size);
+                var src = (byte*)Marshal.AllocHGlobal(size);
+                var dst = (byte*)Marshal.AllocHGlobal(size);
                 var srcArr = new byte[size];
                 var dstArr = new byte[size];
                 for (int i = 0; i < size; i++)
                 {
-                    var val = (byte) (i % 255);
+                    var val = (byte)(i % 255);
                     *(src + i) = val;
                 }
 
-                var count = (int) (100_000_000 / Math.Log(size));
+                var count = (int)(100_000_000 / Math.Log(size));
                 var srcSpan = new Span<byte>(srcArr);
                 var dstSpan = new Span<byte>(dstArr);
 
@@ -1317,7 +1319,7 @@ namespace Spreads.Core.Tests.Performance
                     {
                         for (int i = 0; i < count; i++)
                         {
-                            System.Runtime.CompilerServices.Unsafe.CopyBlockUnaligned(dst, src, (uint) size);
+                            System.Runtime.CompilerServices.Unsafe.CopyBlockUnaligned(dst, src, (uint)size);
                         }
                     }
 
@@ -1325,7 +1327,7 @@ namespace Spreads.Core.Tests.Performance
                     {
                         for (int i = 0; i < count; i++)
                         {
-                            System.Runtime.CompilerServices.Unsafe.CopyBlockUnaligned(ref dstArr[0], ref srcArr[0], (uint) size);
+                            System.Runtime.CompilerServices.Unsafe.CopyBlockUnaligned(ref dstArr[0], ref srcArr[0], (uint)size);
                         }
                     }
 
@@ -1333,7 +1335,7 @@ namespace Spreads.Core.Tests.Performance
                     {
                         for (int i = 0; i < count; i++)
                         {
-                            Marshal.Copy((IntPtr) src, dstArr, 0, size);
+                            Marshal.Copy((IntPtr)src, dstArr, 0, size);
                         }
                     }
 
@@ -1410,10 +1412,8 @@ namespace Spreads.Core.Tests.Performance
         {
             ThrowHelper.FailFast("longish text message");
         }
-        
-        
-        
-        public enum  TestEnum
+
+        public enum TestEnum
         {
             A = 1,
             B,
@@ -1432,11 +1432,11 @@ namespace Spreads.Core.Tests.Performance
         }
 
         // [Test]
-        
+
         public void SwitchEnum()
         {
             var rng = new Random();
-            var x = (TestEnum)rng.Next(1, (int) TestEnum.N);
+            var x = (TestEnum)rng.Next(1, (int)TestEnum.N);
             switch (x)
             {
                 case TestEnum.A:

@@ -146,6 +146,9 @@ namespace Spreads.Algorithms
         [MethodImpl(MethodImplAggressiveAll)]
         internal static int BinarySearchHybridLoHi<T>(ref T searchSpace, int lo, int hi, T value, KeyComparer<T> comparer = default)
         {
+            if (lo > hi)
+                return ~lo;
+
             unchecked
             {
                 int c;
@@ -168,13 +171,14 @@ namespace Spreads.Algorithms
                     }
                 }
 
+                Debug.Assert(lo <= hi);
                 while ((c = comparer.Compare(value, UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref searchSpace, lo)))) > 0
                        && ++lo <= hi)
                 {
                 }
 
                 RETURN:
-                var ceq1 = -UnsafeEx.Ceq(c, 0);
+                int ceq1 = -UnsafeEx.Ceq(c, 0);
                 return (ceq1 & lo) | (~ceq1 & ~lo);
             }
         }
@@ -185,6 +189,9 @@ namespace Spreads.Algorithms
         [MethodImpl(MethodImplAggressiveAll)]
         internal static int SearchToLookupLoHi<T>(int lo, int hi, Lookup lookup, int i, ref T searchSpace, ref T value)
         {
+            if (lookup == Lookup.EQ)
+                return i;
+
             if (i >= lo)
             {
                 if (lookup.IsEqualityOK())
@@ -208,9 +215,6 @@ namespace Spreads.Algorithms
             }
             else
             {
-                if (lookup == Lookup.EQ)
-                    goto RETURN;
-
                 i = ~i;
 
                 // LT or LE
@@ -225,9 +229,9 @@ namespace Spreads.Algorithms
                 else
                 {
                     Debug.Assert(((uint)lookup & (uint)Lookup.GT) != 0);
-                    Debug.Assert(i <= hi - 1);
+                    Debug.Assert(i <= hi + 1);
                     // if was negative, if it was ~length then there are no more elements for GE/GT
-                    if (i == hi - 1)
+                    if (i == hi + 1)
                         goto RETURN_OL;
                     // i is the same, ~i is idx of element that is GT the value
                 }

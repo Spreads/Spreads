@@ -6,7 +6,7 @@ using System;
 using System.Diagnostics;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Spreads.Algorithms.Optimization;
+using Spreads.Experimental.Optimization;
 
 namespace Spreads.Core.Tests.Algorithms
 {

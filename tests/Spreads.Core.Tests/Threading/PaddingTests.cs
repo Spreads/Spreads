@@ -4,14 +4,7 @@
 
 using NUnit.Framework;
 using Spreads.Threading;
-using Spreads.Utils;
-using System;
-using System.Diagnostics;
-using System.Linq;
 using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace Spreads.Core.Tests.Threading
 {

@@ -8,9 +8,10 @@ using System.Runtime.InteropServices;
 
 namespace Spreads
 {
-    [StructLayout(LayoutKind.Sequential, Size = sizeof(int))]
+    [StructLayout(LayoutKind.Explicit, Size = sizeof(int))]
     public readonly struct RuntimeTypeId : IEquatable<RuntimeTypeId>
     {
+        [FieldOffset(0)]
         public readonly int TypeId;
 
         private RuntimeTypeId(int typeId)

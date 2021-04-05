@@ -67,6 +67,12 @@ namespace Spreads.Collections
             return DangerousBinarySearch(ref vec, offset, length, value, comparer);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int BinarySearch<T>(this ref Vec<T> vec, T value, KeyComparer<T> comparer = default)
+        {
+            return DangerousBinarySearch(ref vec, 0, vec.Length, value, comparer);
+        }
+
         /// <summary>
         /// Performs <see cref="BinarySearch{T}(ref Vec{T},int,int,T,KeyComparer{T})"/> without bound checks.
         /// </summary>
@@ -105,6 +111,8 @@ namespace Spreads.Collections
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int DangerousBinarySearch<T>(this T[] array, int offset, int length, T value, KeyComparer<T> comparer = default)
         {
+            if (length == 0)
+                return -1;
             return VectorSearch.BinarySearch(ref array[0], offset, length, value, comparer);
         }
 
@@ -120,6 +128,12 @@ namespace Spreads.Collections
         {
             ThrowHelper.EnsureOffsetLength(offset, length, vec.Length);
             return DangerousBinaryLookup(ref vec, offset, length, ref value, lookup, comparer);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int BinaryLookup<T>(this ref Vec<T> vec, ref T value, Lookup lookup, KeyComparer<T> comparer = default)
+        {
+            return DangerousBinaryLookup(ref vec, 0, vec.Length, ref value, lookup, comparer);
         }
 
         /// <summary>
@@ -164,6 +178,8 @@ namespace Spreads.Collections
         public static int DangerousBinaryLookup<T>(this T[] array, int offset, int length,
             ref T value, Lookup lookup, KeyComparer<T> comparer = default)
         {
+            if (length == 0)
+                return -1;
             return VectorSearch.BinaryLookup(ref array[0], offset, length, ref value, lookup, comparer);
         }
 
@@ -179,6 +195,12 @@ namespace Spreads.Collections
         {
             ThrowHelper.EnsureOffsetLength(offset, length, vec.Length);
             return DangerousInterpolationSearch(ref vec, offset, length, value, comparer);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int InterpolationSearch<T>(this ref Vec<T> vec, T value, KeyComparer<T> comparer = default)
+        {
+            return DangerousInterpolationSearch(ref vec, 0, vec.Length, value, comparer);
         }
 
         /// <summary>
@@ -219,6 +241,8 @@ namespace Spreads.Collections
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int DangerousInterpolationSearch<T>(this T[] array, int offset, int length, T value, KeyComparer<T> comparer = default)
         {
+            if (length == 0)
+                return -1;
             return VectorSearch.InterpolationSearch(ref array[0], offset, length, value, comparer);
         }
 
@@ -236,6 +260,14 @@ namespace Spreads.Collections
             ThrowHelper.EnsureOffsetLength(offset, length, vec.Length);
             return DangerousInterpolationLookup(ref vec, offset, length, ref value, lookup, comparer);
         }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int InterpolationLookup<T>(this ref Vec<T> vec, ref T value,
+            Lookup lookup, KeyComparer<T> comparer = default)
+        {
+            return DangerousInterpolationLookup(ref vec, 0, vec.Length, ref value, lookup, comparer);
+        }
+
 
         /// <summary>
         /// <see cref="InterpolationLookup{T}(ref Vec{T},int,int,ref T,Spreads.Lookup,Spreads.KeyComparer{T})"/> without bound checks.
@@ -277,6 +309,8 @@ namespace Spreads.Collections
         public static int DangerousInterpolationLookup<T>(this T[] array, int offset, int length,
             ref T value, Lookup lookup, KeyComparer<T> comparer = default)
         {
+            if (length == 0)
+                return -1;
             return VectorSearch.InterpolationLookup(ref array[0], offset, length, ref value, lookup, comparer);
         }
 

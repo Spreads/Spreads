@@ -1,16 +1,15 @@
 ﻿// This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
-
+#if NET5_0
 using System;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using NSec.Cryptography;
 using NUnit.Framework;
-using Spreads.Algorithms.Hash.BLAKE2b;
 using Spreads.Buffers;
+using Spreads.Core.Tests.Algorithms.Hash.BLAKE2b;
 using Spreads.Utils;
-using Blake2b = Spreads.Algorithms.Hash.Blake2b;
 
 namespace Spreads.Core.Tests.Algorithms.Hash
 {
@@ -484,3 +483,4 @@ namespace Spreads.Core.Tests.Algorithms.Hash
         }
     }
 }
+#endif

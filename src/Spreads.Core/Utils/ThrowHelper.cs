@@ -25,15 +25,18 @@ namespace Spreads
         [SuppressMessage("ReSharper", "RedundantCast")]
         internal static void EnsureOffsetLength(int start, int length, int maxLength)
         {
-            if (IntPtr.Size == 8)
+            unchecked
             {
-                if ((ulong)(uint)start + (ulong)(uint)length > (ulong)(uint)maxLength)
-                    ThrowArgumentOutOfRangeException();
-            }
-            else
-            {
-                if ((uint)start > (uint)length || (uint)length > (uint)(maxLength - start))
-                    ThrowArgumentOutOfRangeException();
+                if (IntPtr.Size == 8)
+                {
+                    if ((ulong)(uint)start + (ulong)(uint)length > (ulong)(uint)maxLength)
+                        ThrowArgumentOutOfRangeException();
+                }
+                else
+                {
+                    if ((uint)start > (uint)length || (uint)length > (uint)(maxLength - start))
+                        ThrowArgumentOutOfRangeException();
+                }
             }
         }
 
@@ -187,6 +190,11 @@ namespace Spreads
         [MethodImpl(MethodImplOptions.NoInlining)]
         internal static void ThrowInvalidOperationException_ArrayNotVector() =>
             throw new InvalidOperationException("Array is not a Vector (one-dimentional array with zero low bound)");
+
+        [DebuggerStepThrough]
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        internal static void ThrowInvalidOperationException_StringSegmentKeyNotTrimmed() =>
+            throw new InvalidOperationException("A StringSegment must be trimmed when used as a key.");
 
         [DoesNotReturn]
         [MethodImpl(MethodImplOptions.NoInlining)]

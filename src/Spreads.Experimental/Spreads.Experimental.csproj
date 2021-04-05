@@ -2,14 +2,12 @@
 
   <PropertyGroup>
     <TargetFrameworks>netstandard2.0;net5.0</TargetFrameworks>
-    <Description>Spreads Core library</Description>
-    <AssemblyName>Spreads.Core</AssemblyName>
-    <RootNamespace>Spreads</RootNamespace>
-    <PackageId>Spreads.Core</PackageId>
+    <Description>Spreads Experimental library</Description>
+    <AssemblyName>Spreads.Experimental</AssemblyName>
+    <RootNamespace>Spreads.Experimental</RootNamespace>
+    <PackageId>Spreads.Experimental</PackageId>
     <OutputType>Library</OutputType>
   </PropertyGroup>
-
-
 
   <ItemGroup>
     <PackageReference Include="Spreads.Unsafe" Version="2021.1.331" />
@@ -22,19 +20,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Remove="Utils\FastMember\ObjectReader.cs" />
-    <Compile Update="Algorithms\VectorSearch.Specialized.cs">
-      <DependentUpon>VectorSearch.Specialized.tt</DependentUpon>
-    </Compile>
-  </ItemGroup>
-  <ItemGroup>
-    <None Update="Algorithms\VectorSearch.Specialized.tt">
-      <Generator>TextTemplatingFileGenerator</Generator>
-      <LastGenOutput>VectorSearch.Specialized.cs</LastGenOutput>
-    </None>
-  </ItemGroup>
-  <ItemGroup>
-    <Service Include="{508349b6-6b84-4df5-91f0-309beebad82d}" />
+    <ProjectReference Include="..\Spreads.Core\Spreads.Core.csproj" />
   </ItemGroup>
 
 </Project>

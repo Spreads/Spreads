@@ -7,8 +7,6 @@ using System.Runtime.CompilerServices;
 using System.Threading;
 using NUnit.Framework;
 using Spreads.Buffers;
-using Spreads.Native;
-using Spreads.Serialization;
 using Spreads.Utils;
 using Vec = Spreads.Collections.Vec;
 
@@ -396,7 +394,7 @@ namespace Spreads.Core.Tests.Buffers
             // return Vec.UnsafeGetUnalignedX<T>(index);
             if (TypeHelper<T>.IsReferenceOrContainsReferences)
                 return Unsafe.ReadUnaligned<T>(ref Unsafe.As<T, byte>(ref Unsafe.Add(
-                    ref Unsafe.AddByteOffset(ref Unsafe.As<Pinnable<T>>(RetainedVec._array).Data, (IntPtr) RetainedVec._pointerOrOffset),
+                    ref Unsafe.AddByteOffset(ref Unsafe.As<Box<T>>(RetainedVec._array).Value, (IntPtr) RetainedVec._pointerOrOffset),
                     index)));
             return Unsafe.ReadUnaligned<T>(ref Unsafe.As<T, byte>(ref Unsafe.Add<T>(ref Unsafe.AsRef<T>((void*) RetainedVec._pointerOrOffset), index)));
         }
@@ -413,7 +411,7 @@ namespace Spreads.Core.Tests.Buffers
         public static unsafe ref T UnsafeGetRefX<T>(in this Vec vec, IntPtr index)
         {
             if (TypeHelper<T>.IsReferenceOrContainsReferences)
-                return ref Unsafe.Add(ref Unsafe.AddByteOffset(ref Unsafe.As<Pinnable<T>>(vec._pinnable).Data, vec._byteOffset), index);
+                return ref Unsafe.Add(ref Unsafe.AddByteOffset(ref Unsafe.As<Box<T>>(vec._pinnable).Value, vec._byteOffset), index);
 
             return ref Unsafe.Add(ref Unsafe.AsRef<T>((void*) vec._byteOffset), index);
         }
@@ -422,7 +420,7 @@ namespace Spreads.Core.Tests.Buffers
         internal static unsafe T UnsafeGetUnalignedX<T>(in this Vec vec, IntPtr index)
         {
             if (TypeHelper<T>.IsReferenceOrContainsReferences)
-                return Unsafe.ReadUnaligned<T>(ref Unsafe.As<T, byte>(ref Unsafe.Add(ref Unsafe.AddByteOffset(ref Unsafe.As<Pinnable<T>>(vec._pinnable).Data, vec._byteOffset),
+                return Unsafe.ReadUnaligned<T>(ref Unsafe.As<T, byte>(ref Unsafe.Add(ref Unsafe.AddByteOffset(ref Unsafe.As<Box<T>>(vec._pinnable).Value, vec._byteOffset),
                     index)));
 
             return Unsafe.ReadUnaligned<T>(ref Unsafe.As<T, byte>(ref Unsafe.Add<T>(ref Unsafe.AsRef<T>((void*) vec._byteOffset), index)));

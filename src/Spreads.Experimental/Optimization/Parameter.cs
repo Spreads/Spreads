@@ -2,16 +2,14 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-using Spreads.Collections.Generic;
 using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
 using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
+using Spreads.Collections.Generic;
 
-namespace Spreads.Algorithms.Optimization
+namespace Spreads.Experimental.Optimization
 {
     // [StructLayout(LayoutKind.Explicit, Pack = 4, Size = 64)]
     public class Parameter : IEnumerable<double>, IEnumerator<double>

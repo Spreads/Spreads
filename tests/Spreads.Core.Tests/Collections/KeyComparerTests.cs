@@ -4,7 +4,6 @@
 
 using System.Collections.Generic;
 using NUnit.Framework;
-using Spreads.Native;
 using Spreads.Utils;
 
 namespace Spreads.Core.Tests.Collections

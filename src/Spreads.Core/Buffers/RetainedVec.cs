@@ -21,7 +21,7 @@ namespace Spreads.Buffers
     [DebuggerTypeProxy(typeof(RetainedVec_DebugView))]
     [DebuggerDisplay("Length={" + nameof(Length) + ("}"))]
     [StructLayout(LayoutKind.Explicit, Size = 32)]
-    internal readonly struct RetainedVec : IDisposable, IEquatable<RetainedVec>
+    public readonly struct RetainedVec : IDisposable, IEquatable<RetainedVec>
     {
         // Some ideas from Spreads.Native.Vec are useful, but here we are more restrictive
         // and always store ref+ types as arrays and other types as off-heap memory.

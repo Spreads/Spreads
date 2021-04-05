@@ -2,15 +2,18 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-using NUnit.Framework;
 using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
+using NUnit.Framework;
+using ObjectLayoutInspector;
+using Spreads.Collections;
+using Spreads.Utils;
 
 // ReSharper disable UnusedVariable
 
-namespace Spreads.Native.Tests
+namespace Spreads.Core.Tests.Collections
 {
     internal sealed class Container
     {
@@ -63,9 +66,12 @@ namespace Spreads.Native.Tests
         [Test]
         public void SizeOfVec()
         {
+            TypeLayout.PrintLayout<Vec<int>>();
+            TypeLayout.PrintLayout<Vec>();
+            // Console.WriteLine(Unsafe.SizeOf<Vec<int>>());
             // >= for x86
-            Assert.IsTrue(24 >= Unsafe.SizeOf<Vec<int>>());
-            Assert.IsTrue(24 >= Unsafe.SizeOf<Vec>());
+            Assert.IsTrue(32 >= Unsafe.SizeOf<Vec<int>>());
+            Assert.IsTrue(32 >= Unsafe.SizeOf<Vec>());
             // Console.WriteLine(Unsafe.SizeOf<RuntimeVecInfo>());
             // Assert.AreEqual(24, Unsafe.SizeOf<RuntimeVecInfo>());
         }
@@ -78,20 +84,20 @@ namespace Spreads.Native.Tests
             var vec = new Vec(arr);
 
             Assert.AreEqual(2, vecT[1]);
-            Assert.AreEqual(2, vec[1]);
+            Assert.AreEqual(2, vec.DangerousGetObject(1));
 
             vecT[1] = 42;
 
-            vec[2] = (byte)123; // dynamic cast inside
+            // vec[2] = (byte)123; // dynamic cast inside
 
             Assert.AreEqual(3, vecT.Length);
             Assert.AreEqual(3, vec.Length);
 
             Assert.AreEqual(42, vecT[1]);
-            Assert.AreEqual(123, vecT[2]);
+            // Assert.AreEqual(123, vecT[2]);
 
-            Assert.AreEqual(42, vec[1]);
-            Assert.AreEqual(123, vec[2]);
+            Assert.AreEqual(42, vec.DangerousGetObject(1));
+            // Assert.AreEqual(123, vec[2]);
 
             Assert.Throws<IndexOutOfRangeException>(() => { vecT[3] = 42; });
 
@@ -116,8 +122,8 @@ namespace Spreads.Native.Tests
             Assert.AreEqual(2, vecT[0]);
             Assert.AreEqual(3, vecT[1]);
 
-            Assert.AreEqual(2, vec[0]);
-            Assert.AreEqual(3, vec[1]);
+            Assert.AreEqual(2, vec.DangerousGetObject(0));
+            Assert.AreEqual(3, vec.DangerousGetObject(1));
 
             Assert.IsTrue(vec.As<int>().ReferenceEquals(vecT));
 

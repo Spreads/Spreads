@@ -1,38 +1,18 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
     <PropertyGroup>
         <TargetFramework>net5.0</TargetFramework>
-        <AssemblyName>Spreads.Core.Tests</AssemblyName>
-        <RootNamespace>Spreads.Core.Tests</RootNamespace>
+        <AssemblyName>Spreads.Serialization.Tests</AssemblyName>
+        <RootNamespace>Spreads.Serialization.Tests</RootNamespace>
         <TieredCompilation>false</TieredCompilation>
     </PropertyGroup>
 
     <PropertyGroup>
         <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
-        <ApplicationIcon />
         <OutputType>Library</OutputType>
-        <StartupObject />
     </PropertyGroup>
 
     <ItemGroup>
-        <Compile Remove="VariantTests.cs" />
-        <Compile Update="Algorithms\Hash\BLAKE2b\Blake2bAvx2.cs">
-          <DependentUpon>Blake2bAvx2.tt</DependentUpon>
-        </Compile>
-        <Compile Update="Algorithms\Hash\BLAKE2b\Blake2bContext.cs">
-          <DependentUpon>Blake2bContext.tt</DependentUpon>
-        </Compile>
-        <Compile Update="Algorithms\Hash\BLAKE2b\Blake2bScalar.cs">
-          <DependentUpon>Blake2bScalar.tt</DependentUpon>
-        </Compile>
-        <Compile Update="Algorithms\Hash\BLAKE2b\Blake2bSse4.cs">
-          <DependentUpon>Blake2bSse4.tt</DependentUpon>
-        </Compile>
-    </ItemGroup>
-
-
-    <ItemGroup>
-        <PackageReference Include="Spreads.Native" Version="2021.1.331" />
-        <PackageReference Include="BenchmarkDotNet" Version="0.12.1" />
+        <PackageReference Include="BenchmarkDotNet" Version="0.12.0" />
         <PackageReference Include="CRC32C.Standard" Version="1.0.0" />
         <PackageReference Include="Disruptor" Version="3.6.1" />
         <PackageReference Include="JetBrains.dotMemoryUnit" Version="3.1.20200127.214830" />
@@ -55,25 +35,6 @@
 
     <ItemGroup>
       <ProjectReference Include="..\..\src\Spreads.Core\Spreads.Core.csproj" />
+      <ProjectReference Include="..\..\src\Spreads.Serialization\Spreads.Serialization.csproj" />
     </ItemGroup>
-
-    <ItemGroup>
-      <None Update="Algorithms\Hash\BLAKE2b\Blake2bAvx2.tt">
-        <Generator>TextTemplatingFileGenerator</Generator>
-        <LastGenOutput>Blake2bAvx2.cs</LastGenOutput>
-      </None>
-      <None Update="Algorithms\Hash\BLAKE2b\Blake2bContext.tt">
-        <Generator>TextTemplatingFileGenerator</Generator>
-        <LastGenOutput>Blake2bContext.cs</LastGenOutput>
-      </None>
-      <None Update="Algorithms\Hash\BLAKE2b\Blake2bScalar.tt">
-        <Generator>TextTemplatingFileGenerator</Generator>
-        <LastGenOutput>Blake2bScalar.cs</LastGenOutput>
-      </None>
-      <None Update="Algorithms\Hash\BLAKE2b\Blake2bSse4.tt">
-        <Generator>TextTemplatingFileGenerator</Generator>
-        <LastGenOutput>Blake2bSse4.cs</LastGenOutput>
-      </None>
-    </ItemGroup>
-
 </Project>

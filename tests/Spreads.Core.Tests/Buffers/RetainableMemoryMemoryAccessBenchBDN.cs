@@ -4,16 +4,11 @@
 
 using System;
 using System.Runtime.CompilerServices;
-using System.Threading;
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Configs;
 using BenchmarkDotNet.Jobs;
-using BenchmarkDotNet.Order;
 using NUnit.Framework;
 using Spreads.Buffers;
-using Spreads.Native;
-using Spreads.Serialization;
-using Spreads.Utils;
 using Vec = Spreads.Collections.Vec;
 
 namespace Spreads.Core.Tests.Buffers
@@ -133,7 +128,7 @@ namespace Spreads.Core.Tests.Buffers
         {
             return _db.RetainedVec.UnsafeReadUnaligned<int>(_idx);
         }
-        
+
         [BenchmarkCategoryAttribute("MemAccess")]
         [Benchmark(OperationsPerInvoke = 10)]
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]

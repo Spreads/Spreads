@@ -2,9 +2,8 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-using System.Runtime.CompilerServices;
-
 #if !HAS_RANGE
+using System.Runtime.CompilerServices;
 // ReSharper disable once CheckNamespace
 namespace System
 {
@@ -41,7 +40,7 @@ namespace System
         }
 
         // The following private constructors mainly created for perf reason to avoid the checks
-        private Index(int value)
+        public Index(int value)
         {
             _value = value;
         }

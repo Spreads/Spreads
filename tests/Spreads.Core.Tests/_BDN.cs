@@ -2,12 +2,12 @@
 using System.Collections.Generic;
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Configs;
-using BenchmarkDotNet.Horology;
 using BenchmarkDotNet.Jobs;
 using BenchmarkDotNet.Order;
 using BenchmarkDotNet.Running;
 using BenchmarkDotNet.Toolchains.InProcess.Emit;
 using NUnit.Framework;
+using Perfolizer.Horology;
 
 namespace Spreads.Core.Tests
 {
@@ -77,4 +77,4 @@ namespace Spreads.Core.Tests
             BenchmarkSwitcher.FromTypes(new[] {GetType()}).Run(args, IsInTests ? GetTestConfig() : GetStandaloneConfig());
         }
     }
-} 
+}

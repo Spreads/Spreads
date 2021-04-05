@@ -9,7 +9,6 @@ using System.Diagnostics;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
-using Spreads.Algorithms.Online;
 
 namespace Spreads.Utils
 {

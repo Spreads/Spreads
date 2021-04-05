@@ -20,7 +20,8 @@ namespace Spreads.Algorithms {
     {
 
 #if HAS_INTRINSICS
-        [MethodImpl(MethodImplAggressiveAll)]
+
+	        [MethodImpl(MethodImplAggressiveAll)]
         internal static int BinarySearchAvx2LoHi(ref sbyte searchSpace, int lo, int hi, sbyte value)
         {
             unchecked
@@ -324,7 +325,7 @@ namespace Spreads.Algorithms {
             }
         }
 
-
+	
         [MethodImpl(MethodImplAggressiveAll)]
         internal static int BinarySearchSse42LoHi(ref sbyte searchSpace, int lo, int hi, sbyte value)
         {
@@ -745,7 +746,7 @@ namespace Spreads.Algorithms {
             }
         }
 
-
+	
 #endif
 
         [MethodImpl(MethodImplAggressiveAll)]

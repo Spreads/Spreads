@@ -1,8 +1,7 @@
 ﻿using System;
 using System.Runtime.CompilerServices;
-using Spreads.Serialization;
 
-namespace Spreads.Algorithms.Hash.BLAKE2b
+namespace Spreads.Core.Tests.Algorithms.Hash.BLAKE2b
 {
     internal static class ThrowHelper
     {

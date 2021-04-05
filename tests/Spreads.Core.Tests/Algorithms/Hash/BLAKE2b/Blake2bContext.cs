@@ -6,14 +6,14 @@
 //------------------------------------------------------------------------------
 
 using System;
-using System.Runtime.InteropServices;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 
 #if HAS_INTRINSICS
 using System.Runtime.Intrinsics.X86;
 #endif
 
-namespace Spreads.Algorithms.Hash.BLAKE2b
+namespace Spreads.Core.Tests.Algorithms.Hash.BLAKE2b
 {
 	unsafe public partial struct Blake2bContext
 	{

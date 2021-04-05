@@ -10,18 +10,16 @@ namespace Spreads.Utils
 {
     public static class Logger
     {
-        private static readonly ILoggerFactory NoopFactory = new NoopLoggerFactory();
-        private static ILoggerFactory _factory = NoopFactory;
+        private static readonly ILoggerFactory _noopFactory = new NoopLoggerFactory();
+        private static ILoggerFactory _factory = _noopFactory;
 
         public static ILoggerFactory Factory
         {
             get => _factory;
             set
             {
-                if (value == null!)
-                    Interlocked.Exchange(ref _factory, NoopFactory);
-                else
-                    Interlocked.Exchange(ref _factory, value)?.Dispose();
+                if (value == null!) value ??= _noopFactory;
+                Interlocked.Exchange(ref _factory, value)?.Dispose();
             }
         }
 

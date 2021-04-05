@@ -4,7 +4,6 @@
 
 using NUnit.Framework;
 using Spreads.DataTypes;
-using Spreads.Serialization.Utf8Json;
 using Spreads.Utils;
 using System;
 
@@ -235,25 +234,7 @@ namespace Spreads.Core.Tests.DataTypes
             });
         }
 
-        [Test]
-        public void JsonSerializationWorks()
-        {
-            var sd = (SmallDecimal)(-123.456);
-            var str = JsonSerializer.ToJsonString(sd);
-            Console.WriteLine(str);
-            Assert.AreEqual("-123.456", str);
-
-            var sd1 = JsonSerializer.Deserialize<SmallDecimal>(str);
-            var sd2 = JsonSerializer.Deserialize<SmallDecimal>("\"-123.456000000\"");
-
-            var d1 = JsonSerializer.Deserialize<decimal>(str);
-            var d2 = JsonSerializer.Deserialize<decimal>("\"-123.456000000\"");
-
-            Assert.AreEqual((decimal)sd, (decimal)sd1);
-            Assert.AreEqual((decimal)sd, (decimal)sd2);
-            Assert.AreEqual((decimal)sd, d1);
-            Assert.AreEqual((decimal)sd, d2);
-        }
+       
 
         [Test, Ignore("wrong impl")]
         // ReSharper disable once InconsistentNaming

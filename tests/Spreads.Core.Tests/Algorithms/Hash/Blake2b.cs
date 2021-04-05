@@ -8,10 +8,10 @@
 
 using System;
 using System.Runtime.CompilerServices;
-using Spreads.Algorithms.Hash.BLAKE2b;
 using Spreads.Buffers;
+using Spreads.Core.Tests.Algorithms.Hash.BLAKE2b;
 
-namespace Spreads.Algorithms.Hash
+namespace Spreads.Core.Tests.Algorithms.Hash
 {
     public static class Blake2b
     {    

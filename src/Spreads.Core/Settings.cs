@@ -105,6 +105,7 @@ namespace Spreads
                 // access it immediately: https://github.com/dotnet/coreclr/issues/2526
                 if (!AdditionalCorrectnessChecks.Enabled)
                 {
+                    // TODO use Logger
                     Trace.TraceInformation("Disabled AdditionalCorrectnessChecks");
                 }
             }

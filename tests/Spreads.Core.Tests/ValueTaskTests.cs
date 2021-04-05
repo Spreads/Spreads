@@ -5,7 +5,6 @@
 using NUnit.Framework;
 using Spreads.Utils;
 using System;
-using System.Threading;
 using System.Threading.Tasks;
 
 namespace Spreads.Core.Tests

@@ -1,7 +1,9 @@
 <Project>
-  <PropertyGroup Label="BasePath">
-    <!-- This fixed missing property when using from dotnet cli -->
-    <SolutionDir Condition="'$(SolutionDir)'==''">$(MSBuildThisFileDirectory)..\</SolutionDir>
+  <PropertyGroup Condition="'$(TargetFramework)'=='net6.0' OR '$(TargetFramework)'=='net5.0' OR '$(TargetFramework)'=='netcoreapp3.1'">
+    <DefineConstants>$(DefineConstants);NETSTANDARD;HAS_ISREF;HAS_AGGR_OPT;HAS_INTRINSICS;BUILTIN_SPAN;BUILTIN_NULLABLE;HAS_TPWORKITEM;HAS_RANGE;HAS_BITOPERATIONS</DefineConstants>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(TargetFramework)'=='net6.0' OR '$(TargetFramework)'=='net5.0'">
+    <DefineConstants>$(DefineConstants);HAS_SUPPRESS_GC_TRANSITION</DefineConstants>
   </PropertyGroup>
 
   <PropertyGroup>
@@ -10,7 +12,6 @@
     <Company>DataSpreads!io</Company>
     <Copyright>Victor Baybekov 2017-2021</Copyright>
     <NeutralLanguage>en-US</NeutralLanguage>
-
     <RepositoryType>git</RepositoryType>
     <RepositoryUrl>https://github.com/Spreads/Spreads.git</RepositoryUrl>
 
@@ -49,11 +50,6 @@
   </PropertyGroup>
 
   <PropertyGroup>
-    <TargetFrameworks>netstandard2.0</TargetFrameworks>
-
-  </PropertyGroup>
-
-  <PropertyGroup>
     <!-- Change YY and Q only for important releases. -->
     <YYVersion>2020</YYVersion>
     <QVersion>0</QVersion>
@@ -83,10 +79,8 @@
     <DefineConstants>$(DefineConstants);TRACE;DEBUG</DefineConstants>
   </PropertyGroup>
 
-  <PropertyGroup Condition="'$(TargetFramework)'=='net6.0' OR '$(TargetFramework)'=='net5.0' OR '$(TargetFramework)'=='netcoreapp3.1'">
-    <DefineConstants>$(DefineConstants);NETSTANDARD;HAS_ISREF;HAS_AGGR_OPT;HAS_INTRINSICS;BUILTIN_SPAN;BUILTIN_NULLABLE;HAS_TPWORKITEM;HAS_RANGE;HAS_BITOPERATIONS</DefineConstants>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(TargetFramework)'=='net6.0' OR '$(TargetFramework)'=='net5.0'">
-    <DefineConstants>$(DefineConstants);HAS_SUPPRESS_GC_TRANSITION</DefineConstants>
+  <PropertyGroup Label="BasePath">
+    <!-- This fixed missing property when using from dotnet cli -->
+    <SolutionDir Condition="'$(SolutionDir)'==''">$(MSBuildThisFileDirectory)..\</SolutionDir>
   </PropertyGroup>
 </Project>

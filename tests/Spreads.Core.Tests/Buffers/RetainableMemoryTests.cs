@@ -7,7 +7,6 @@ using ObjectLayoutInspector;
 using Spreads.Buffers;
 using Spreads.Utils;
 using System;
-using Spreads.Native;
 
 namespace Spreads.Core.Tests.Buffers
 {
@@ -29,7 +28,7 @@ namespace Spreads.Core.Tests.Buffers
             {
                 throw new NotImplementedException();
             }
-            
+
             public override Spreads.Collections.Vec<byte> GetVec()
             {
                 throw new NotImplementedException();
@@ -72,7 +71,7 @@ namespace Spreads.Core.Tests.Buffers
             foreach (var len in lens)
             {
                 var memory = factory(len);
-                
+
                 Assert.IsFalse(memory.IsPoolable);
                 Assert.IsFalse(memory.IsPooled);
                 Assert.IsFalse(memory.IsRetained);
