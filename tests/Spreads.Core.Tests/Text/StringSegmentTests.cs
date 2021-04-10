@@ -154,6 +154,33 @@ namespace Spreads.Core.Tests.Text
             Should.Throw<ArgumentOutOfRangeException>(() => seg.Slice(-1, 2));
         }
 
+        [TestCase("abc \n\r")]
+        [TestCase("abc \r\n")]
+        [TestCase("abc \n")]
+        [TestCase("abc \r")]
+        [Test]
+        public void ShouldTrimWhiteSpaceAtEnd(string segment)
+        {
+            var seg = new StringSegment(segment);
+            StringSegment trimmed = seg.TrimWhiteSpaceAtEnd();
+            trimmed.Length.ShouldBe(3);
+            trimmed.ShouldBe("abc");
+        }
+
+
+        [TestCase("abc \n\r")]
+        [TestCase("abc \r\n")]
+        [TestCase("abc \n")]
+        [TestCase("abc \r")]
+        [Test]
+        public void ShouldTrimNewLineAtEnd(string segment)
+        {
+            var seg = new StringSegment(segment);
+            StringSegment trimmed = seg.TrimNewLineAtEnd();
+            trimmed.Length.ShouldBe(4);
+            trimmed.ShouldBe("abc ");
+        }
+
         [Test, Explicit("benchmark")]
         public void SlicePerf()
         {

@@ -11,6 +11,7 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using Spreads.Buffers;
 
 namespace Spreads.Collections
 {
@@ -30,7 +31,7 @@ namespace Spreads.Collections
     /// </summary>
     /// <remarks>Not thread safe and not safe at all</remarks>
     [StructLayout(LayoutKind.Auto)]
-    public readonly unsafe struct Vec<T> : IEnumerable<T>
+    public readonly unsafe struct Vec<T> : IEnumerable<T>// TODO , ISegment<Vec<T>, T>
     {
         //
         // If the Vec was constructed from an object,
@@ -354,10 +355,8 @@ namespace Spreads.Collections
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Vec<T> Slice(int start, int length)
         {
-            if ((uint) start > (uint) _length || (uint) length > (uint) (_length - start))
-                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.start);
-
-            IntPtr newOffset = (IntPtr) Unsafe.Add<T>((byte*) _byteOffset, start);
+            ThrowHelper.EnsureOffsetLength(start, length, _length);
+            var newOffset = (IntPtr) Unsafe.Add<T>((byte*) _byteOffset, start);
             return new Vec<T>(_pinnable, newOffset, length, _runtimeTypeId);
         }
 

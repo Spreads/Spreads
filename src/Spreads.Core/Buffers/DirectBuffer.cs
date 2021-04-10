@@ -22,7 +22,7 @@ namespace Spreads.Buffers
     [DebuggerTypeProxy(typeof(SpreadsBuffers_DirectBufferDebugView))]
     [DebuggerDisplay("Length={" + nameof(Length) + ("}"))]
     [StructLayout(LayoutKind.Sequential)]
-    public readonly unsafe struct DirectBuffer : IEquatable<DirectBuffer>
+    public readonly unsafe struct DirectBuffer : IEquatable<DirectBuffer> // TODO , ISegment<DirectBuffer, byte>
     {
         public static DirectBuffer Invalid = new DirectBuffer(new IntPtr(-1L), (byte*) IntPtr.Zero);
 
@@ -30,7 +30,7 @@ namespace Spreads.Buffers
         internal readonly byte* _pointer;
 
         /// <summary>
-        /// 
+        ///
         /// </summary>
         /// <param name="length"></param>
         /// <param name="data"></param>
@@ -49,7 +49,7 @@ namespace Spreads.Buffers
         }
 
         /// <summary>
-        /// 
+        ///
         /// </summary>
         /// <param name="length"></param>
         /// <param name="handle"></param>
@@ -81,7 +81,7 @@ namespace Spreads.Buffers
         }
 
         /// <summary>
-        /// 
+        ///
         /// </summary>
         /// <param name="retainedMemory"></param>
         [DebuggerStepThrough]
@@ -101,7 +101,7 @@ namespace Spreads.Buffers
         }
 
         /// <summary>
-        /// 
+        ///
         /// </summary>
         /// <param name="span">Span must be backed by already pinned memory.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -953,7 +953,7 @@ namespace Spreads.Buffers
 
                 return LoadVector(ref first, lengthToExamine) == valueVector;
             }
-            
+
             if ((byte*) lengthToExamine >= (byte*) sizeof(UIntPtr))
             {
                 lengthToExamine -= sizeof(UIntPtr);

@@ -1,21 +1,23 @@
 ﻿using System;
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using Spreads.Buffers;
 using Spreads.Collections.Generic;
 
 namespace Spreads.Text
 {
     // TODO OwnedStringSegment that is backed by a pooled char[], should work with native memory: copy to a borrowed array and return it to pool on dispose
 
+    /// <summary>
+    /// A non-ref (could be stored as a field of a class) <see cref="ReadOnlySpan{T}"/>-like structure that wraps a segment of a <see cref="string"/> or an array of <see cref="char"/>s.
+    /// Does not distinguish between <see langword="null"/> and <see cref="string.Empty"/> so that empty <see cref="StringSegment"/>s are always equal.
+    /// </summary>
+    [DebuggerDisplay("{ToString()}")]
     [StructLayout(LayoutKind.Explicit, Size = 16)]
-    public readonly struct StringSegment : IEquatable<StringSegment>, IComparable<StringSegment>
+    public readonly struct StringSegment : ISegment<StringSegment, char>
     {
-        // TODO Add to docs that Empty and Null are equal for StringSegment,
-
-        public static readonly StringSegment Empty = new(string.Empty);
-
-        [Obsolete("Use StringSegment.Empty")]
-        public static readonly StringSegment Null;
+        public static readonly StringSegment Empty;
 
         // Could also do native pointer, but chars/UTF16 are less common in native, and that would require branching
 
@@ -97,13 +99,7 @@ namespace Spreads.Text
             _charLength = length;
         }
 
-        [Obsolete("Use StringSegment.IsEmpty")]
-        public bool IsNull => _charLength == 0;
-
-        [Obsolete("Use StringSegment.IsEmpty")]
-        public bool IsNullOrEmpty => _charLength == 0;
-
-        public bool IsEmpty => _charLength == 0;
+        public bool IsEmpty => Length == 0;
 
         public bool IsEmptyOrWhiteSpace
         {
@@ -128,12 +124,12 @@ namespace Spreads.Text
         {
             if (_charLength == 0) return Empty;
 
-            // TODO Do not use Span here
-            var span = Span;
+            ref readonly char first = ref First;
+
             int pos;
-            for (pos = span.Length - 1; pos >= 0; pos--)
+            for (pos = Length - 1; pos >= 0; pos--)
             {
-                var c = span[pos];
+                var c = Unsafe.Add(ref Unsafe.AsRef(in first), pos);
                 if (!(c == '\n' || c == '\r'))
                     break;
             }
@@ -141,11 +137,30 @@ namespace Spreads.Text
             return new StringSegment(_object, _byteStart, pos + 1);
         }
 
-        public int Length
+        public StringSegment TrimWhiteSpaceAtEnd()
+        {
+            if (_charLength == 0) return Empty;
+
+            ref readonly char first = ref First;
+
+            int pos;
+            for (pos = Length - 1; pos >= 0; pos--)
+            {
+                if (!char.IsWhiteSpace(Unsafe.Add(ref Unsafe.AsRef(in first), pos)))
+                    break;
+            }
+
+            return new StringSegment(_object, _byteStart, pos + 1);
+        }
+
+        public int Start
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => _charLength;
+            get { return (_byteStart - (_object is string ? TypeHelper.StringOffsetInt : TypeHelper.ArrayOffsetInt)) / Unsafe.SizeOf<char>(); }
         }
+
+        public int Length => _charLength;
+        public int End => Start + Length;
 
         internal string? String => _object as string;
         internal char[]? Array => _object as char[];

@@ -23,6 +23,13 @@ namespace Spreads.Collections
             return ref Unsafe.Add(ref Unsafe.AddByteOffset(ref Unsafe.As<Box<T>>(array)!.Value, TypeHelper.ArrayOffset), index);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static ref T GetAt<T>(this object[] array, int index)
+        {
+            Debug.Assert((uint)index < array.Length, "GetAt: (uint)index < array.Length");
+            return ref Unsafe.Add(ref Unsafe.AddByteOffset(ref Unsafe.As<Box<T>>(array)!.Value, TypeHelper.ArrayOffset), index);
+        }
+
         /// <summary>
         /// Creates a new Vec over the portion of the target array.
         /// </summary>
