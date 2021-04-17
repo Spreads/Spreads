@@ -6,6 +6,7 @@ using NUnit.Framework;
 using Spreads.DataTypes;
 using Spreads.Utils;
 using System;
+using Shouldly;
 
 namespace Spreads.Core.Tests.DataTypes
 {
@@ -24,29 +25,67 @@ namespace Spreads.Core.Tests.DataTypes
         }
 
         [Test]
-        public void CouldSubtractDecimalPrice()
+        public void MaxMinValuesHaveZeroScale()
+        {
+            SmallDecimal.MaxValue.Scale.ShouldBe((uint)0);
+            SmallDecimal.MinValue.Scale.ShouldBe((uint)0);
+            SmallDecimal.MaxValue.Decimals.ShouldBe(0);
+            SmallDecimal.MinValue.Decimals.ShouldBe(0);
+
+            // Hardcoded 58 to catch future changes in a test: just do not change 58! It's OK. And we have 2 values left (Scale 29/30).
+            SmallDecimal.MaxValue.Mantissa.ShouldBe((1UL << 58) - 1);
+            SmallDecimal.MinValue.Mantissa.ShouldBe((1UL << 58) - 1);
+        }
+
+        [Test]
+        public void SubtractDecimalPrice()
         {
             var first = new SmallDecimal(12345.6M);
             var fd = (decimal)first;
 
-            Assert.AreEqual(12345.6M, fd);
+            fd.ShouldBe(12345.6M);
 
             var second = new SmallDecimal(12340.6M);
             var sd = (decimal)second;
 
-            Assert.AreEqual(12340.6M, sd);
+            sd.ShouldBe(12340.6M);
 
             var delta = second - first;
             var dd = (decimal)delta;
 
             var expectedDelta = 12340.6M - 12345.6M;
+            dd.ShouldBe(expectedDelta);
+
+            Console.WriteLine(delta);
+        }
+
+        [Test]
+        public void SubtractDecimalPrice2()
+        {
+            var f = 123.45M;
+            var s = 1.00000000000155M;
+
+            var first = new SmallDecimal(f);
+            var fd = (decimal)first;
+
+            Assert.AreEqual(f, fd);
+
+            var second = new SmallDecimal(s);
+            var sd = (decimal)second;
+
+            Assert.AreEqual(s, sd);
+
+            var delta = first - second;
+            var dd = (decimal)delta;
+
+            var expectedDelta = f - s;
             Assert.AreEqual(expectedDelta, dd);
 
             Console.WriteLine(delta);
         }
 
         [Test]
-        public void CouldSubtractDoublePrice()
+        public void SubtractDoublePrice()
         {
             var first = (SmallDecimal)(12345.6);
             var fd = (double)first;
@@ -68,7 +107,7 @@ namespace Spreads.Core.Tests.DataTypes
         }
 
         [Test]
-        public void CouldNegate()
+        public void Negate()
         {
             var first = (SmallDecimal)(12345.6);
             var second = -first;
@@ -76,7 +115,7 @@ namespace Spreads.Core.Tests.DataTypes
         }
 
         [Test, Explicit("long running")]
-        public void CouldConvertToDoubleDynamic()
+        public void ConvertToDoubleDynamic()
         {
 #if DEBUG
             var count = 10_000;
@@ -150,6 +189,7 @@ namespace Spreads.Core.Tests.DataTypes
 
                 Assert.IsTrue(sum > 0);
             }
+
             Benchmark.Dump();
         }
 
@@ -169,32 +209,32 @@ namespace Spreads.Core.Tests.DataTypes
         [Test]
         public void ThrowsOnLargeSmallValues()
         {
-            Assert.Throws<ArgumentException>(() =>
+            Assert.Throws<OverflowException>(() =>
             {
                 var _ = new SmallDecimal(long.MaxValue);
             });
 
-            Assert.Throws<ArgumentException>(() =>
+            Assert.Throws<OverflowException>(() =>
             {
                 var _ = new SmallDecimal(long.MinValue);
             });
 
-            Assert.Throws<ArgumentException>(() =>
+            Assert.Throws<OverflowException>(() =>
             {
                 var _ = new SmallDecimal((decimal)long.MaxValue);
             });
 
-            Assert.Throws<ArgumentException>(() =>
+            Assert.Throws<OverflowException>(() =>
             {
                 var _ = new SmallDecimal((decimal)long.MinValue);
             });
 
-            Assert.Throws<ArgumentException>(() =>
+            Assert.Throws<OverflowException>(() =>
             {
                 var _ = (SmallDecimal)((double)long.MaxValue);
             });
 
-            Assert.Throws<ArgumentException>(() =>
+            Assert.Throws<OverflowException>(() =>
             {
                 var _ = (SmallDecimal)((double)long.MinValue);
             });
@@ -223,18 +263,10 @@ namespace Spreads.Core.Tests.DataTypes
 
             Assert.AreEqual(3.5M, (decimal)sd);
 #endif
-            Assert.Throws<ArgumentOutOfRangeException>(() =>
-            {
-                sd = new SmallDecimal(3.5M, 17);
-            });
+            Assert.Throws<ArgumentOutOfRangeException>(() => { sd = new SmallDecimal(3.5M, 17); });
 
-            Assert.Throws<ArgumentOutOfRangeException>(() =>
-            {
-                sd = new SmallDecimal(3.5M, -2);
-            });
+            Assert.Throws<ArgumentOutOfRangeException>(() => { sd = new SmallDecimal(3.5M, -2); });
         }
-
-       
 
         [Test, Ignore("wrong impl")]
         // ReSharper disable once InconsistentNaming
@@ -249,14 +281,119 @@ namespace Spreads.Core.Tests.DataTypes
         }
 
         [Test]
-        public void NaNThrows()
+        public void ThrowsWhenNaN()
         {
             var sd = (SmallDecimal)(double.NaN);
+
+            sd.IsNaN.ShouldBeTrue();
 
             Assert.Throws<InvalidOperationException>(() =>
             {
                 var _ = sd + 1;
             });
+        }
+
+        [TestCase("123.45600", 5)]
+        [TestCase("0.000001", 6)]
+        [TestCase("10.000001", 6)]
+        [TestCase("1000000000000.001", 3)]
+        [TestCase("-123.45600", 5)]
+        [TestCase("-0.000100", 6)]
+        [TestCase("-10.000001", 6)]
+        [TestCase(" -1000000000000.001 ", 3)]
+        public void ParseWithDecimals(string str, int decimals)
+        {
+            var sd = SmallDecimal.Parse(str);
+            sd.Decimals.ShouldBe(decimals);
+            decimal value = decimal.Parse(str);
+            ((decimal)sd).ShouldBe(value);
+        }
+
+        [TestCase("123.456", 789, 3)]
+        [TestCase("123.456", -789, 3)]
+        [TestCase("0.0000000000456", -789, 13)]
+        [TestCase("288230376151711743", 1, 0)]
+        [TestCase("-288230376151711743", 1, 0)]
+        [TestCase("288230376151711743", 0, 0)]
+        [TestCase("-288230376151711743", 0, 0)]
+        [TestCase("128230376151711743", 2, 0)]
+        [TestCase("-128230376151711743", 2, 0)]
+        [TestCase("12823037.6151711743", 2, 10)]
+        [TestCase("-12823037.6151711743", 2, 10)]
+        [TestCase("0.0000000000128230376151711743", 2, 28)]
+        [TestCase("-0.0000000000128230376151711743", 2, 28)]
+        [TestCase("0.0000000000012230376151711743", 20, 28)]
+        [TestCase("-0.0000000000012230376151711743", 20, 28)]
+        public void MultiplicationByInt(string leftStr, int right, int decimals)
+        {
+            var left = decimal.Parse(leftStr);
+            var leftSd = new SmallDecimal(left);
+            var product = leftSd * right;
+
+            ((decimal)product).ShouldBe(left * right);
+            product.Decimals.ShouldBe(decimals);
+
+        }
+
+        [Test, Explicit("Bench")]
+        public void MultiplicationByIntBench()
+        {
+            var outerCount = 20;
+            var innerCount = 1_000_000;
+
+            SmallDecimal[] sdecs = new SmallDecimal[outerCount];
+            Decimal[] decs = new decimal[outerCount];
+
+            sdecs[0] = new SmallDecimal(SmallDecimal.MaxValue.Mantissa / (ulong)(innerCount / 2));
+            decs[0] = sdecs[0];
+            sdecs[1] = new SmallDecimal(SmallDecimal.MaxValue.Mantissa / (ulong)(innerCount / 2));
+            decs[1] = sdecs[1];
+            ;
+
+            for (int i = 2; i < outerCount; i++)
+            {
+                var smallDecimal = new SmallDecimal(Math.Pow(3, i), i);
+                if (i % 2 == 0)
+                    smallDecimal = -smallDecimal;
+                sdecs[i] = smallDecimal;
+                decs[i] = smallDecimal;
+            }
+
+            for (int r = 0; r < 10; r++)
+            {
+                Benchmark.Run("MultByInt", () =>
+                {
+                    for (int s = 0; s < outerCount; s++)
+                    {
+                        var sd = sdecs[s];
+                        var d = decs[s];
+                        for (int i = -innerCount / 2; i < innerCount / 2; i++)
+                        {
+                            var result = sd * i;
+                            // comment the check before running a benchmark
+                            var expected = d * i;
+                            if ((decimal)result != expected)
+                                Assert.Fail();
+                        }
+                    }
+
+                }, outerCount * innerCount, targetTime: TimeSpan.FromSeconds(0.5));
+
+                // Benchmark.Run("MultDecByInt", () =>
+                // {
+                //     for (int s = 0; s < outerCount; s++)
+                //     {
+                //         var d = decs[s];
+                //         for (int i = -innerCount / 2; i < innerCount / 2; i++)
+                //         {
+                //             var result = d * i;
+                //         }
+                //     }
+                //
+                // }, outerCount * innerCount, targetTime: TimeSpan.FromSeconds(0.5));
+            }
+
+            Benchmark.Dump();
         }
     }
 }

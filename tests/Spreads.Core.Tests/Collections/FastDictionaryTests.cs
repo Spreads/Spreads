@@ -95,54 +95,6 @@ namespace Spreads.Core.Tests.Collections
             Benchmark.Dump();
         }
 
-        [Test, Explicit("long running")]
-        public void CompareSCGAndFastDictionaryWithSymbol()
-        {
-            var dictionary = new Dictionary<Symbol, int>();
-            var fastDictionary = new FastDictionary<Symbol, int>();
-            var symbols = new Symbol[1000];
-            for (int i = 0; i < 1000; i++)
-            {
-                var s = new Symbol(i.ToString());
-                symbols[i] = s;
-                dictionary.Add(s, i);
-                fastDictionary.Add(s, i);
-            }
 
-            const int count = 10000;
-
-            for (int r = 0; r < 10; r++)
-            {
-                var sum = 0L;
-                using (Benchmark.Run("Dictionary", count * 1000))
-                {
-                    for (int i = 0; i < count; i++)
-                    {
-                        for (int j = 0; j < 1000; j++)
-                        {
-                            sum += dictionary[symbols[j]];
-                        }
-                    }
-                }
-
-                Assert.True(sum > 0);
-
-                var sum1 = 0L;
-                using (Benchmark.Run("FastDictionary", count * 1000))
-                {
-                    for (int i = 0; i < count; i++)
-                    {
-                        for (int j = 0; j < 1000; j++)
-                        {
-                            sum1 += fastDictionary[symbols[j]];
-                        }
-                    }
-                }
-                Assert.True(sum > 0);
-
-                Assert.AreEqual(sum, sum1);
-            }
-            Benchmark.Dump();
-        }
     }
 }

@@ -243,7 +243,7 @@ namespace Spreads.Utils
             if (Arm.ArmBase.Arm64.IsSupported)
                 return Arm.ArmBase.Arm64.LeadingZeroCount((ulong) value);
 #endif
-#if NET5_0
+#if HAS_BITOPERATIONS
             return System.Numerics.BitOperations.LeadingZeroCount((ulong) value);
 #else
             unchecked

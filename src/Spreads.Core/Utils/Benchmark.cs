@@ -24,7 +24,7 @@ namespace Spreads.Utils
         /// </summary>
         public static bool ForceSilence { get; set; }
 
-        private static Stopwatch _sw;
+        private static Stopwatch? _sw;
         private static bool _headerIsPrinted;
         private static readonly ConcurrentDictionary<string, List<Stat>> Stats = new ConcurrentDictionary<string, List<Stat>>();
 
@@ -38,12 +38,50 @@ namespace Spreads.Utils
         /// <returns>A disposable structure that measures time and memory allocations until disposed.</returns>
         public static Stat Run(string caseName, long innerLoopCount = 1, bool silent = false)
         {
-            var sw = Interlocked.Exchange(ref _sw, null);
-            sw = sw ?? new Stopwatch();
-
+            Stopwatch? sw = Interlocked.Exchange(ref _sw, null);
+            sw ??= new Stopwatch();
             var stat = new Stat(caseName, sw, innerLoopCount, silent);
-
             return stat;
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        public static void Run(string caseName, Action action, long innerLoopCount = 1, bool silent = false, TimeSpan targetTime = default)
+        {
+            Stat stat = Run(caseName, innerLoopCount, silent);
+            try
+            {
+                var count = 0;
+                do
+                {
+                    action();
+                    count++;
+                } while (stat.Stopwatch.Elapsed < targetTime);
+
+                stat.InnerLoopCount *= count;
+            }
+            finally
+            {
+                stat.Dispose();
+            }
+        }
+
+        private static double NaiveMedian(ArraySegment<double> sourceNumbers)
+        {
+            //Framework 2.0 version of this method. there is an easier way in F4
+            if (sourceNumbers == null || sourceNumbers.Count == 0)
+                throw new Exception("Median of empty array not defined.");
+
+            //make sure the list is sorted, but use a new array
+            double[] sortedPNumbers = sourceNumbers.ToArray();
+            Array.Sort(sortedPNumbers);
+
+            //get the median
+            int size = sortedPNumbers.Length;
+            int mid = size / 2;
+            double median = (size % 2 != 0)
+                ? (double) sortedPNumbers[mid]
+                : ((double) sortedPNumbers[mid] + (double) sortedPNumbers[mid - 1]) / 2;
+            return median;
         }
 
         private static void PrintHeader(string summary, string caller, int? caseLength = null, string unit = null)
@@ -99,7 +137,7 @@ namespace Spreads.Utils
                     : 0;
                 var values = kvp.Value.Skip(skip).ToList();
 
-                var elapsed = values.Select(l => (double)l._statSnapshot.Elapsed).Average();
+                var elapsed = values.Select(l => (double)l._statSnapshot.ElapsedTicks).Average();
                 var gc0 = values.Select(l => l._statSnapshot.Gc0).Average();
                 var gc1 = values.Select(l => l._statSnapshot.Gc1).Average();
                 var gc2 = values.Select(l => l._statSnapshot.Gc2).Average();
@@ -107,7 +145,7 @@ namespace Spreads.Utils
 
                 var result = kvp.Value.First();
 
-                result._statSnapshot.Elapsed = (long)elapsed;
+                result._statSnapshot.ElapsedTicks = (long)elapsed;
                 result._statSnapshot.Gc0 = gc0;
                 result._statSnapshot.Gc1 = gc1;
                 result._statSnapshot.Gc2 = gc2;
@@ -124,9 +162,9 @@ namespace Spreads.Utils
         {
             public string CaseName { get; }
             public Stopwatch Stopwatch { get; }
-            public long InnerLoopCount { get; }
+            public long InnerLoopCount { get; internal set; }
             public StatSnapshot _statSnapshot;
-            internal bool _silent;
+            internal readonly bool _silent;
             private readonly string _unit;
 
             internal Stat(string caseName, Stopwatch sw, long innerLoopCount, bool silent = false, string unit = null)
@@ -146,7 +184,7 @@ namespace Spreads.Utils
                 var statEntry = new StatSnapshot(Stopwatch, false);
                 Interlocked.Exchange(ref _sw, Stopwatch);
 
-                _statSnapshot.Elapsed = statEntry.Elapsed;
+                _statSnapshot.ElapsedTicks = statEntry.ElapsedTicks;
                 _statSnapshot.Gc0 = statEntry.Gc0 - _statSnapshot.Gc0 ;
                 _statSnapshot.Gc1 = statEntry.Gc1 - _statSnapshot.Gc1;
                 _statSnapshot.Gc2 = statEntry.Gc2 - _statSnapshot.Gc2;
@@ -170,7 +208,7 @@ namespace Spreads.Utils
             /// Million operations per second.
             /// </summary>
             // ReSharper disable once InconsistentNaming
-            public double MOPS => Math.Round((InnerLoopCount * 0.001) / (_statSnapshot.Elapsed / 10000.0), 3);
+            public double MOPS => Math.Round((InnerLoopCount * 0.001) / (_statSnapshot.ElapsedTicks / 10000.0), 3);
 
             internal StatSnapshot StatSnapshot
             {
@@ -181,19 +219,19 @@ namespace Spreads.Utils
             public override string ToString()
             {
                 var trimmedCaseName = CaseName.Length > 20 ? CaseName.Substring(0, 17) + "..." : CaseName;
-                return $"{trimmedCaseName,-20} |{MOPS,8:f2} | {_statSnapshot.Elapsed / 10000.0:N0} ms | {_statSnapshot.Gc0,5:f1} | {_statSnapshot.Gc1,5:f1} | {_statSnapshot.Gc2,5:f1} | {_statSnapshot.Memory / (1024 * 1024.0),5:f3} MB";
+                return $"{trimmedCaseName,-20} |{MOPS,8:f2} | {_statSnapshot.ElapsedTicks / 10000.0:N0} ms | {_statSnapshot.Gc0,5:f1} | {_statSnapshot.Gc1,5:f1} | {_statSnapshot.Gc2,5:f1} | {_statSnapshot.Memory / (1024 * 1024.0),5:f3} MB";
             }
 
             internal string ToString(int caseAlignmentLength)
             {
                 var paddedCaseName = CaseName.PadRight(caseAlignmentLength);
-                return $"{paddedCaseName,-20} |{MOPS,8:f2} | {_statSnapshot.Elapsed/10000.0:N0} ms | {_statSnapshot.Gc0,5:f1} | {_statSnapshot.Gc1,5:f1} | {_statSnapshot.Gc2,5:f1} | {_statSnapshot.Memory / (1024 * 1024.0),5:f3} MB";
+                return $"{paddedCaseName,-20} |{MOPS,8:f2} | {_statSnapshot.ElapsedTicks/10000.0:N0} ms | {_statSnapshot.Gc0,5:f1} | {_statSnapshot.Gc1,5:f1} | {_statSnapshot.Gc2,5:f1} | {_statSnapshot.Memory / (1024 * 1024.0),5:f3} MB";
             }
         }
 
         public struct StatSnapshot
         {
-            public long Elapsed;
+            public long ElapsedTicks;
             public double Gc0;
             public double Gc1;
             public double Gc2;
@@ -207,7 +245,7 @@ namespace Spreads.Utils
                 {
                     // end of measurement, first stop timer then collect/count
                     sw.Stop();
-                    Elapsed = sw.Elapsed.Ticks;
+                    ElapsedTicks = sw.Elapsed.Ticks;
 
                     // NB we exclude forced GC from counters,
                     // by measuring memory before forced GC we could

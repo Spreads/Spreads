@@ -8,6 +8,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Runtime.Serialization;
@@ -49,6 +50,11 @@ namespace Spreads
         [DoesNotReturn]
         [MethodImpl(MethodImplOptions.NoInlining)]
         internal static void ThrowArgumentException(string message) => throw new ArgumentException(message);
+
+        [DebuggerStepThrough]
+        [DoesNotReturn]
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        internal static void ThrowOverflowException(string? message = null) => throw new OverflowException(message);
 
         [DoesNotReturn]
         [MethodImpl(MethodImplOptions.NoInlining)]
