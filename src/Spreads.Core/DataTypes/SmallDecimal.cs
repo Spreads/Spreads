@@ -438,8 +438,6 @@ namespace Spreads.DataTypes
         public static SmallDecimal operator *(SmallDecimal x, int y)
         {
 #if OWN_MATH
-            // set sign, the whole value is either 0 or -1 after this
-            // ulong value = (x._value ^ (unchecked((ulong)(long)y))) & SignMask;
             ulong value = (x._value ^ ((ulong)(unchecked((uint)y) & SignMaskInt) << 32)) & ~MantissaMask;
 
             if (y < 0)
@@ -451,11 +449,35 @@ namespace Spreads.DataTypes
                 ThrowHelper.ThrowOverflowException(); // TODO (low) Better error
 
             value |= newMatissa;
-            // value |= ScaleValueMask & x._value; // set scale bits
 
             return Unsafe.As<ulong, SmallDecimal>(ref value);
 #else
             return new((decimal)x * y, (int)x.Scale);
+#endif
+
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static SmallDecimal operator *(SmallDecimal x, SmallDecimal y)
+        {
+#if _OWN_MATH // TODO Do not enable before proper tests
+            uint scale = x.Scale + y.Scale;
+
+            if(scale > ScaleMax)
+                ThrowHelper.ThrowOverflowException(); // TODO Error message/type
+
+            ulong value = ((x._value ^ y._value) & ~SignMask) | ((ulong)scale << ScaleShift);
+
+            ulong newMatissa = checked(x.Mantissa * y.Mantissa);
+
+            if (newMatissa > MaxValueLong)
+                ThrowHelper.ThrowOverflowException(); // TODO (low) Better error
+
+            value |= newMatissa;
+
+            return Unsafe.As<ulong, SmallDecimal>(ref value);
+#else
+            return new((decimal)x * (decimal)y, (int)(x.Scale + y.Scale));
 #endif
 
         }

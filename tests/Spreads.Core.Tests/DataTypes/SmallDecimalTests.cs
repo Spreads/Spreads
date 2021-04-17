@@ -332,7 +332,6 @@ namespace Spreads.Core.Tests.DataTypes
 
             ((decimal)product).ShouldBe(left * right);
             product.Decimals.ShouldBe(decimals);
-
         }
 
         [Test, Explicit("Bench")]
@@ -371,29 +370,28 @@ namespace Spreads.Core.Tests.DataTypes
                         {
                             var result = sd * i;
                             // comment the check before running a benchmark
-                            var expected = d * i;
-                            if ((decimal)result != expected)
-                                Assert.Fail();
+                            // var expected = d * i;
+                            // if ((decimal)result != expected)
+                            //     Assert.Fail();
+                        }
+                    }
+                }, outerCount * innerCount);
+
+                Benchmark.Run("MultDecByInt", () =>
+                {
+                    for (int s = 0; s < outerCount; s++)
+                    {
+                        var d = decs[s];
+                        for (int i = -innerCount / 2; i < innerCount / 2; i++)
+                        {
+                            var result = d * i;
                         }
                     }
 
-                }, outerCount * innerCount, targetTime: TimeSpan.FromSeconds(0.5));
-
-                // Benchmark.Run("MultDecByInt", () =>
-                // {
-                //     for (int s = 0; s < outerCount; s++)
-                //     {
-                //         var d = decs[s];
-                //         for (int i = -innerCount / 2; i < innerCount / 2; i++)
-                //         {
-                //             var result = d * i;
-                //         }
-                //     }
-                //
-                // }, outerCount * innerCount, targetTime: TimeSpan.FromSeconds(0.5));
+                }, outerCount * innerCount);
             }
 
-            Benchmark.Dump();
+            Benchmark.Dump(opsAggregate:Benchmark.OpsAggregate.Max);
         }
     }
 }

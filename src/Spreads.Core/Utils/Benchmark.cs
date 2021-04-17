@@ -6,6 +6,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
@@ -19,6 +20,14 @@ namespace Spreads.Utils
     /// </summary>
     public static class Benchmark
     {
+        public enum OpsAggregate
+        {
+            Average,
+            Median,
+            Min,
+            Max
+        }
+
         /// <summary>
         /// Disable console output regardless of individual <see cref="Run"/> method parameters.
         /// </summary>
@@ -35,19 +44,20 @@ namespace Spreads.Utils
         /// <param name="caseName">Benchmark case.</param>
         /// <param name="innerLoopCount">Number of iterations to calculate performance.</param>
         /// <param name="silent">True to mute console output during disposal.</param>
+        /// <param name="unit"></param>
         /// <returns>A disposable structure that measures time and memory allocations until disposed.</returns>
-        public static Stat Run(string caseName, long innerLoopCount = 1, bool silent = false)
+        public static Stat Run(string caseName, long innerLoopCount = 1, bool silent = false, string? unit = null)
         {
             Stopwatch? sw = Interlocked.Exchange(ref _sw, null);
             sw ??= new Stopwatch();
-            var stat = new Stat(caseName, sw, innerLoopCount, silent);
+            var stat = new Stat(caseName, sw, innerLoopCount, silent, unit);
             return stat;
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
-        public static void Run(string caseName, Action action, long innerLoopCount = 1, bool silent = false, TimeSpan targetTime = default)
+        public static void Run(string caseName, Action action, long innerLoopCount = 1, bool silent = false, TimeSpan targetTime = default, string? unit = null)
         {
-            Stat stat = Run(caseName, innerLoopCount, silent);
+            Stat stat = Run(caseName, innerLoopCount, silent, unit);
             try
             {
                 var count = 0;
@@ -79,27 +89,36 @@ namespace Spreads.Utils
             int size = sortedPNumbers.Length;
             int mid = size / 2;
             double median = (size % 2 != 0)
-                ? (double) sortedPNumbers[mid]
-                : ((double) sortedPNumbers[mid] + (double) sortedPNumbers[mid - 1]) / 2;
+                ? (double)sortedPNumbers[mid]
+                : ((double)sortedPNumbers[mid] + (double)sortedPNumbers[mid - 1]) / 2;
             return median;
         }
 
-        private static void PrintHeader(string summary, string caller, int? caseLength = null, string unit = null)
+        private static void PrintHeader(string? summary, string? caller, int? caseLength = null, string? unit = null)
         {
             var len = caseLength ?? 20;
             var caseDahes = new string('-', len + 1);
-            var dashes = $"{caseDahes,-21}|{new string('-', 8),8}:|{new string('-', 9),9}:|{new string('-', 6),6}:|{new string('-', 6),6}:|{new string('-', 6),6}:|{new string('-', 8),8}:";
+            var dashes =
+                $"{caseDahes,-21}|{new string('-', 8),8}:|{new string('-', 9),9}:|{new string('-', 6),6}:|{new string('-', 6),6}:|{new string('-', 6),6}:|{new string('-', 8),8}:";
             Console.WriteLine();
-            if (!string.IsNullOrWhiteSpace(caller)) { Console.WriteLine($"**{caller}**"); }
-            if (!string.IsNullOrWhiteSpace(summary)) { Console.WriteLine($"*{summary}*"); }
+            if (!string.IsNullOrWhiteSpace(caller))
+            {
+                Console.WriteLine($"**{caller}**");
+            }
+
+            if (!string.IsNullOrWhiteSpace(summary))
+            {
+                Console.WriteLine($"*{summary}*");
+            }
+
             Console.WriteLine();
             Console.WriteLine(GetHeader(caseLength, unit));
             Console.WriteLine(dashes);
         }
 
-        internal static string GetHeader(int? caseLength = null, string unit = null)
+        internal static string GetHeader(int? caseLength = null, string? unit = null)
         {
-            unit = unit ?? "MOPS";
+            unit ??= "MOPS";
             var len = caseLength ?? 20;
             var caseHeader = "Case".PadRight(len);
             return $" {caseHeader,-20}| {unit,7} | {"Elapsed",8} | {"GC0",5} | {"GC1",5} | {"GC2",5} | {"Memory",7} ";
@@ -111,11 +130,11 @@ namespace Spreads.Utils
         /// <param name="summary"></param>
         /// <param name="caller">A description of the benchmark that is printed above the table.</param>
         /// <param name="unit">Overwrite default MOPS unit of measure</param>
-        public static void Dump(string summary = "", [CallerMemberName]string caller = "", string unit = null)
+        public static void Dump(string summary = "", [CallerMemberName] string caller = "", OpsAggregate opsAggregate = OpsAggregate.Median, string? unit = null)
         {
             var maxLength = Stats.Keys.Select(k => k.Length).Max();
 
-            PrintHeader(summary, caller, maxLength);
+            PrintHeader(summary, caller, maxLength, unit ?? Stats.First().Value.Select(s => s._unit).FirstOrDefault(u => u != null));
 
             var stats = Stats.Select(GetAverages).OrderByDescending(s => s.MOPS);
 
@@ -137,7 +156,17 @@ namespace Spreads.Utils
                     : 0;
                 var values = kvp.Value.Skip(skip).ToList();
 
-                var elapsed = values.Select(l => (double)l._statSnapshot.ElapsedTicks).Average();
+                var elapsed =
+                    opsAggregate switch
+                    {
+                        OpsAggregate.Median => NaiveMedian(
+                            new ArraySegment<double>(values.Select(l => (double)l._statSnapshot.ElapsedTicks).ToArray())),
+                        OpsAggregate.Average => values.Select(l => (double)l._statSnapshot.ElapsedTicks).Average(),
+                        OpsAggregate.Max => values.Select(l => (double)l._statSnapshot.ElapsedTicks).Min(),
+                        OpsAggregate.Min => values.Select(l => (double)l._statSnapshot.ElapsedTicks).Max(),
+                        _ => throw new ArgumentOutOfRangeException(nameof(opsAggregate), opsAggregate, null)
+                    };
+
                 var gc0 = values.Select(l => l._statSnapshot.Gc0).Average();
                 var gc1 = values.Select(l => l._statSnapshot.Gc1).Average();
                 var gc2 = values.Select(l => l._statSnapshot.Gc2).Average();
@@ -151,6 +180,7 @@ namespace Spreads.Utils
                 result._statSnapshot.Gc2 = gc2;
                 result._statSnapshot.Memory = memory;
 
+                result._unit = kvp.Value.Select(s => s._unit).FirstOrDefault(u => u != null);
                 return result;
             }
         }
@@ -165,9 +195,9 @@ namespace Spreads.Utils
             public long InnerLoopCount { get; internal set; }
             public StatSnapshot _statSnapshot;
             internal readonly bool _silent;
-            private readonly string _unit;
+            internal string? _unit;
 
-            internal Stat(string caseName, Stopwatch sw, long innerLoopCount, bool silent = false, string unit = null)
+            internal Stat(string caseName, Stopwatch sw, long innerLoopCount, bool silent = false, string? unit = null)
             {
                 CaseName = caseName;
                 Stopwatch = sw;
@@ -185,7 +215,7 @@ namespace Spreads.Utils
                 Interlocked.Exchange(ref _sw, Stopwatch);
 
                 _statSnapshot.ElapsedTicks = statEntry.ElapsedTicks;
-                _statSnapshot.Gc0 = statEntry.Gc0 - _statSnapshot.Gc0 ;
+                _statSnapshot.Gc0 = statEntry.Gc0 - _statSnapshot.Gc0;
                 _statSnapshot.Gc1 = statEntry.Gc1 - _statSnapshot.Gc1;
                 _statSnapshot.Gc2 = statEntry.Gc2 - _statSnapshot.Gc2;
                 _statSnapshot.Memory = statEntry.Memory - _statSnapshot.Memory;
@@ -200,6 +230,7 @@ namespace Spreads.Utils
                         PrintHeader(null, null, unit: _unit);
                         _headerIsPrinted = true;
                     }
+
                     Console.WriteLine(ToString());
                 }
             }
@@ -219,13 +250,15 @@ namespace Spreads.Utils
             public override string ToString()
             {
                 var trimmedCaseName = CaseName.Length > 20 ? CaseName.Substring(0, 17) + "..." : CaseName;
-                return $"{trimmedCaseName,-20} |{MOPS,8:f2} | {_statSnapshot.ElapsedTicks / 10000.0:N0} ms | {_statSnapshot.Gc0,5:f1} | {_statSnapshot.Gc1,5:f1} | {_statSnapshot.Gc2,5:f1} | {_statSnapshot.Memory / (1024 * 1024.0),5:f3} MB";
+                return
+                    $"{trimmedCaseName,-20} |{MOPS,8:f2} | {_statSnapshot.ElapsedTicks / 10000.0:N0} ms | {_statSnapshot.Gc0,5:f1} | {_statSnapshot.Gc1,5:f1} | {_statSnapshot.Gc2,5:f1} | {_statSnapshot.Memory / (1024 * 1024.0),5:f3} MB";
             }
 
             internal string ToString(int caseAlignmentLength)
             {
                 var paddedCaseName = CaseName.PadRight(caseAlignmentLength);
-                return $"{paddedCaseName,-20} |{MOPS,8:f2} | {_statSnapshot.ElapsedTicks/10000.0:N0} ms | {_statSnapshot.Gc0,5:f1} | {_statSnapshot.Gc1,5:f1} | {_statSnapshot.Gc2,5:f1} | {_statSnapshot.Memory / (1024 * 1024.0),5:f3} MB";
+                return
+                    $"{paddedCaseName,-20} |{MOPS,8:f2} | {_statSnapshot.ElapsedTicks / 10000.0:N0} ms | {_statSnapshot.Gc0,5:f1} | {_statSnapshot.Gc1,5:f1} | {_statSnapshot.Gc2,5:f1} | {_statSnapshot.Memory / (1024 * 1024.0),5:f3} MB";
             }
         }
 
@@ -257,7 +290,6 @@ namespace Spreads.Utils
                 //GC.WaitForPendingFinalizers();
                 //GC.Collect(2, GCCollectionMode.Forced, true);
                 //GC.WaitForPendingFinalizers();
-
 
                 Gc0 = GC.CollectionCount(0);
                 Gc1 = GC.CollectionCount(1);
