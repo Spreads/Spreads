@@ -22,11 +22,11 @@ namespace Spreads
     //   that can be awaited and whose GetResult() returns void.
 
     /// <summary>
-    /// Combines <see cref="System.Collections.Generic"/>'s <see cref="IEnumerator{T}"/> and <see cref="System.Collections.Generic.IAsyncEnumerator{T}"/>.
+    /// Combines <see cref="System.Collections.Generic"/>'s <see cref="IEnumerator{T}"/> and <see cref="IAsyncEnumerator{T}"/>.
     /// </summary>
     /// <remarks>
     /// Contract: When <see cref="IEnumerator.MoveNext"/> returns false it means that there are no more elements
-    /// *right now*, and a consumer must call <see cref="System.Collections.Generic.IAsyncEnumerator{T}.MoveNextAsync()"/> and await a new element, or spin
+    /// *right now*, and a consumer must call <see cref="IAsyncEnumerator{T}.MoveNextAsync()"/> and await a new element, or spin
     /// and repeatedly call <see cref="IEnumerator.MoveNext"/> when a new element is expected very soon.
     /// Repeated calls to MoveNext() could eventually return true. Changes to the underlying sequence that
     /// do not affect enumeration (e.g. append) do not invalidate the enumerator.
@@ -65,7 +65,7 @@ namespace Spreads
     {
         /// <summary>
         /// Try complete an outstanding operation via a thread pool. The default case is to
-        /// notify continuation of <see cref="System.Collections.Generic.IAsyncEnumerator{T}.MoveNextAsync"/> when
+        /// notify continuation of <see cref="IAsyncEnumerator{T}.MoveNextAsync"/> when
         /// a data producer has a new value.
         /// </summary>
         /// <remarks>
@@ -108,7 +108,7 @@ namespace Spreads
         ulong? RowCount { get; }
 
         /// <summary>
-        /// True is a data container is empty. 
+        /// True is a data container is empty.
         /// </summary>
         bool IsEmpty { get; }
     }

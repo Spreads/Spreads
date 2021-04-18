@@ -6,39 +6,40 @@ using System;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using Spreads.Algorithms;
+using Spreads.Utils;
 
 namespace Spreads.Collections.Internal
 {
     internal sealed partial class DataBlock
     {
-        // Increasing this value further brings no benefits on single-thread
-        // micro-benchmark. On real load higher value will lead to more cache
+        // Increasing this value further brings no benefits on a single-thread
+        // microbenchmark. On a real load, a higher value will lead to more cache
         // trashing and misses, worse locality for sorted search and whatnot.
         //
         // Height 1: 4096^2 ~ 16 million items or 250 MB of payload with 8/8 KV size
         // Height 2: 4096^3 ~ 68 billion items or 1 TB of payload with 8/8 KV size
-        // Height 3: 4096^4 ~ ... 4 PB (peta byte) of payload with 8/8 KV size, impossible on known modern hardware
-        // 
+        // Height 3: 4096^4 ~ ... 4 PB (peta byte) of payload with 8/8 KV size, impossible on common hardware
+        //
         // The main relevant parameter is the threshold between height 2 and 3.
         // The only other good candidate is 8192 and it give 16 * (2^2) = 67 million items:
         // payload must be in 16-67 million items and mostly consist of sorted searches
-        // and accessing by index (GetAt) to justify MaxNodeSize at 8192.  
-        // 
+        // and accessing by index (GetAt) to justify MaxNodeSize at 8192.
+        //
         // MaxNodeSize of 2048 makes the height 1/2 threshold too small. Another consideration
         // is SIMD/batching performance that benefits from higher block size.
         // Therefore the value of 4096 is optimal as the initial choice.
         // We will need real load benches to see if 2048 or 8192 are better.
-        // TODO (low) check 2048/8192 with batching calculation tree. 
+        // TODO (low) check 2048/8192 with batching calculation tree.
 #if DEBUG
         internal static int MaxNodeSize = 4096;
-        internal static int NodeShift => 31 - BitUtil.NumberOfLeadingZeros(MaxNodeSize);
+        internal static int NodeShift => 31 - BitUtils.LeadingZeroCount(MaxNodeSize);
         internal static long NodeMask => (1 << NodeShift) - 1;
 #else
         internal const int MaxNodeSize = 4096;
         internal const int NodeShift = 12;
         internal const long NodeMask = (1 << NodeShift) - 1;
 #endif
-        
+
         [MethodImpl(MethodImplOptions.AggressiveInlining
 #if HAS_AGGR_OPT
                     | MethodImplOptions.AggressiveOptimization
@@ -158,7 +159,7 @@ namespace Spreads.Collections.Internal
                     i = VectorSearch.SortedSearchLoHi(ref block.RowKeys.UnsafeGetRef<T>(), lo, hi, key, comparer);
                     if (block.Height > 0)
                     {
-                        
+
                         ThrowHelper.DebugAssert(block.PreviousBlock == null);
                         ThrowHelper.DebugAssert(block.NextBlock == null);
                         // adjust for LE operation if needed
@@ -307,7 +308,7 @@ namespace Spreads.Collections.Internal
             {
                 // The root block is full, we need to create a new
                 // root, but must keep the object reference (e.g.
-                // it's read-only field of Panel structs). 
+                // it's read-only field of Panel structs).
                 // To do so, we need to replace content of the root
                 // with a new block that contains old root + blockToAdd + room for new blocks.
                 // This should happen quite rarely.
@@ -319,7 +320,7 @@ namespace Spreads.Collections.Internal
 
                 // now `block` is completely empty now
                 // create a temp block using existing methods
-                // and then move it into `block` and dispose 
+                // and then move it into `block` and dispose
 
                 var tempRoot = CreateForSeries<TKey, DataBlock>();
 
@@ -368,7 +369,7 @@ namespace Spreads.Collections.Internal
         }
 
         /// <summary>
-        /// 
+        ///
         /// </summary>
         /// <param name="block"></param>
         /// <param name="key"></param>
@@ -423,13 +424,13 @@ namespace Spreads.Collections.Internal
 
                 if (newBlock != null)
                 {
-                    // If block has non-zero head it means some blocks are retired 
-                    // in the moving window case. In that case we should behave  
+                    // If block has non-zero head it means some blocks are retired
+                    // in the moving window case. In that case we should behave
                     // as if block is full and create a new block at the same height.
                     // This will minimize copying when removing retired blocks from upper levels.
                     // TODO this makes full block of different size and GetAt won't work
                     if (block.Lo != 0)
-                        ThrowHelper.ThrowNotImplementedException();
+                        ThrowHelper.ThrowNotImplementedException("block.Lo != 0");
 
                     if (block.Lo == 0 && block.TryAppendToBlock<TKey, DataBlock>(key, newBlock, increaseCapacity: true))
                     {

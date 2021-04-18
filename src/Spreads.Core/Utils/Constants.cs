@@ -5,7 +5,7 @@ using System.Runtime.CompilerServices;
 
 namespace Spreads.Utils
 {
-    public static class Constants
+    internal static class Constants
     {
         internal const MethodImplOptions MethodImplAggressiveAll = MethodImplOptions.AggressiveInlining
 #if HAS_AGGR_OPT

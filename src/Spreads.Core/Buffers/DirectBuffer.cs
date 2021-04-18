@@ -750,17 +750,15 @@ namespace Spreads.Buffers
 
         [Pure]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        // ReSharper disable once InconsistentNaming
-        public DataTypes.UUID ReadUUID(long index)
+        public Guid ReadGuid(long index)
         {
             if (AdditionalCorrectnessChecks.Enabled) Assert(index, 16);
 
-            return ReadUnaligned<DataTypes.UUID>(_pointer + index);
+            return ReadUnaligned<Guid>(_pointer + index);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        // ReSharper disable once InconsistentNaming
-        public void WriteUUID(long index, DataTypes.UUID value)
+        public void WriteGuid(long index, Guid value)
         {
             if (AdditionalCorrectnessChecks.Enabled) Assert(index, 16);
 

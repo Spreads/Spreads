@@ -11,6 +11,8 @@ using System.Runtime.InteropServices;
 
 namespace Spreads
 {
+    // TODO (low) recollect why Nullable<T> was not good enough
+
     /// <summary>
     /// Helper methods for <see cref="Opt{T}"/>.
     /// </summary>
@@ -97,16 +99,16 @@ namespace Spreads
             {
                 if (AdditionalCorrectnessChecks.Enabled && IsMissing)
                     ThrowHelper.Assert((EqualityComparer<T>.Default.Equals(default, _present)));
-                
+
                 return _present;
             }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public readonly T PresentOrDefault(T defaultValue = default)
-        {
-            return IsMissing ? defaultValue : _present;
-        }
+        public readonly T PresentOrDefault() => _present;
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public readonly T PresentOrDefault(T defaultValue) => IsMissing ? defaultValue : _present;
 
         /// <summary>
         /// Return a larger Opt value or Missing if both are missing. Missing value is treated as smaller than a present value.
@@ -161,7 +163,7 @@ namespace Spreads
         /// </summary>
         public static explicit operator T(Opt<T> optValue)
         {
-            return optValue.IsPresent ? optValue.Present : default;
+            return optValue.PresentOrDefault();
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -174,7 +176,7 @@ namespace Spreads
                 return true;
             }
 
-            value = default;
+            value = default!;
             return false;
         }
 
@@ -187,7 +189,7 @@ namespace Spreads
 
         public override string ToString()
         {
-            return IsMissing ? "{Opt: Missing}" : $"{{Opt: {Present.ToString()}}}";
+            return IsMissing ? "{Opt: Missing}" : $"{{Opt: {Present?.ToString()}}}";
         }
     }
 

@@ -11,20 +11,19 @@ namespace Spreads.Collections
 {
     public static class VectorExtensions
     {
-        // TODO Rename to UnsafeGetAt
         /// <summary>
         /// Get an <paramref name="array"/> element at <paramref name="index"/> in a very unsafe way.
         /// There are no checks for null or bounds, they validity of the call must be ensured before using this method.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static ref T GetAt<T>(this T[] array, int index)
+        public static ref T UnsafeGetAt<T>(this T[] array, int index)
         {
             Debug.Assert((uint)index < array.Length, "GetAt: (uint)index < array.Length");
             return ref Unsafe.Add(ref Unsafe.AddByteOffset(ref Unsafe.As<Box<T>>(array)!.Value, TypeHelper.ArrayOffset), index);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static ref T GetAt<T>(this object[] array, int index)
+        public static ref T UnsafeGetAt<T>(this object[] array, int index)
         {
             Debug.Assert((uint)index < array.Length, "GetAt: (uint)index < array.Length");
             return ref Unsafe.Add(ref Unsafe.AddByteOffset(ref Unsafe.As<Box<T>>(array)!.Value, TypeHelper.ArrayOffset), index);

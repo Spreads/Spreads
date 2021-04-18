@@ -94,7 +94,7 @@ namespace Spreads.Collections.Generic
             int collisionCount = 0;
             for (int i = _buckets[value.GetHashCode() & (_buckets.Length - 1)] - 1;
                 unchecked((uint) i < (uint) entries.Length);
-                i = nexts.GetAt(i))
+                i = nexts.UnsafeGetAt(i))
             {
                 if (value.Equals(entries[i]))
                     return true;
@@ -124,7 +124,7 @@ namespace Spreads.Collections.Generic
             int collisionCount = 0;
             for (int i = _buckets[value.GetHashCode() & (_buckets.Length - 1)] - 1;
                 unchecked((uint) i < (uint) entries.Length);
-                i = nexts.GetAt(i))
+                i = nexts.UnsafeGetAt(i))
             {
                 if (value.Equals(entries[i]))
                 {
@@ -154,7 +154,7 @@ namespace Spreads.Collections.Generic
             int collisionCount = 0;
             for (int i = _buckets[value.GetHashCode() & (_buckets.Length - 1)] - 1;
                 unchecked((uint) i < (uint) entries.Length);
-                i = nexts.GetAt(i))
+                i = nexts.UnsafeGetAt(i))
             {
                 if (value.Equals(entries[i]))
                 {
@@ -182,7 +182,7 @@ namespace Spreads.Collections.Generic
             int collisionCount = 0;
             for (int i = _buckets[value.GetHashCode() & (_buckets.Length - 1)] - 1;
                 unchecked ((uint) i < (uint) entries.Length);
-                i = nexts.GetAt(i))
+                i = nexts.UnsafeGetAt(i))
             {
                 if (value.Equals(entries[i]))
                 {
@@ -209,7 +209,7 @@ namespace Spreads.Collections.Generic
             int collisionCount = 0;
             for (int i = _buckets[value.GetHashCode() & (_buckets.Length - 1)] - 1;
                 unchecked((uint) i < (uint) entries.Length);
-                i = nexts.GetAt(i))
+                i = nexts.UnsafeGetAt(i))
             {
                 if (value.Equals(entries[i]))
                 {
@@ -249,13 +249,13 @@ namespace Spreads.Collections.Generic
             while (entryIndex != -1)
             {
                 T candidate = entries[entryIndex];
-                int candidateNext = nexts.GetAt(entryIndex);
+                int candidateNext = nexts.UnsafeGetAt(entryIndex);
                 if (candidate.Equals(key))
                 {
                     if (lastIndex != -1)
                     {
                         // Fixup preceding element in chain to point to next (if any)
-                        nexts.GetAt(lastIndex) = candidateNext;
+                        nexts.UnsafeGetAt(lastIndex) = candidateNext;
                     }
                     else
                     {
@@ -265,7 +265,7 @@ namespace Spreads.Collections.Generic
 
                     entries[entryIndex] = default!;
 
-                    nexts.GetAt(entryIndex) = -3 - _freeList; // New head of free list
+                    nexts.UnsafeGetAt(entryIndex) = -3 - _freeList; // New head of free list
                     _freeList = entryIndex;
 
                     _count--;
@@ -307,7 +307,7 @@ namespace Spreads.Collections.Generic
             int bucketIndex = value.GetHashCode() & (_buckets.Length - 1);
             for (int i = _buckets[bucketIndex] - 1;
                 unchecked ((uint) i < (uint) entries.Length);
-                i = nexts.GetAt(i))
+                i = nexts.UnsafeGetAt(i))
             {
                 if (value.Equals(entries[i]))
                 {
@@ -337,7 +337,7 @@ namespace Spreads.Collections.Generic
             if (_freeList != -1)
             {
                 entryIndex = _freeList;
-                _freeList = -3 - nexts.GetAt(_freeList);
+                _freeList = -3 - nexts.UnsafeGetAt(_freeList);
             }
             else
             {
@@ -351,12 +351,12 @@ namespace Spreads.Collections.Generic
                 entryIndex = _count;
             }
 
-            entries.GetAt(entryIndex) = value;
-            nexts.GetAt(entryIndex) = _buckets[bucketIndex] - 1;
-            _buckets.GetAt(bucketIndex) = entryIndex + 1;
+            entries.UnsafeGetAt(entryIndex) = value;
+            nexts.UnsafeGetAt(entryIndex) = _buckets[bucketIndex] - 1;
+            _buckets.UnsafeGetAt(bucketIndex) = entryIndex + 1;
             _count++;
             index = entryIndex;
-            return ref entries.GetAt(entryIndex);
+            return ref entries.UnsafeGetAt(entryIndex);
         }
 
         private (T[],int[]) Resize()

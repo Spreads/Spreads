@@ -37,7 +37,7 @@ namespace Spreads.Threading
 
         private readonly ObjectPool<SocketAsyncEventArgs> _sendArgsPool;
         private readonly string _name;
-#if NETCOREAPP
+#if NETCOREAPPX
         private SendToDelegate? _sendToDelegate;
         private SafeSocketHandle _handle;
         private int _mcAddressSize;
@@ -122,7 +122,7 @@ namespace Spreads.Threading
 
             StartReceive();
 
-#if NETCOREAPP
+#if NETCOREAPPX
             try
             {
                 _handle = _socket.SafeHandle;
@@ -148,7 +148,7 @@ namespace Spreads.Threading
 #endif
         }
 
-#if NETCOREAPP
+#if NETCOREAPPX
         public delegate SocketError SendToDelegate(SafeSocketHandle handle, byte[] buffer, int offset, int size,
             SocketFlags socketFlags, byte[] peerAddress, int peerAddressSize, out int bytesTransferred);
 #endif
@@ -178,7 +178,7 @@ namespace Spreads.Threading
 
             Unsafe.WriteUnaligned(ref buffer[0], message);
 
-#if NETCOREAPP
+#if NETCOREAPPX
             if (_sendToDelegate != null)
             {
                 _sendToDelegate.Invoke(_handle, buffer, 0, _bufferLength, SocketFlags.None, _mcAddressBuffer,

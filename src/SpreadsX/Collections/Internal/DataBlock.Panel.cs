@@ -6,7 +6,6 @@ using System;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using Spreads.Buffers;
-using Spreads.Native;
 using Spreads.Utils;
 
 namespace Spreads.Collections.Internal
@@ -24,7 +23,7 @@ namespace Spreads.Collections.Internal
                 key = (TKey)(object)new Index(index);
             else
                 key = RowKeys.UnsafeReadUnaligned<TKey>(offset);
-            
+
             value = Values.UnsafeReadUnaligned<TValue>(offset);
         }
 
@@ -75,7 +74,7 @@ namespace Spreads.Collections.Internal
                     ThrowHelper.ThrowArgumentOutOfRangeException(nameof(columnCount));
             }
 
-            // RetainedVec is slice-able, easy to get exact layout 
+            // RetainedVec is slice-able, easy to get exact layout
             ThrowHelper.Assert(rowKeys.Length == values.Length * columnCount, "rowKeys.Length != values.Length * columnCount");
 
             var block = ObjectPool.Rent()!;
@@ -123,7 +122,7 @@ namespace Spreads.Collections.Internal
             var block = CreateForSeries<TRowKey, TValue>(rowCapacity: -1);
             return block;
         }
-        
+
         public static DataBlock CreateForSeries<TRowKey, TValue>(int rowCapacity = -1)
         {
             return CreateForPanel<TRowKey, Index, TValue>(rowCapacity, columnCount: -1);
@@ -156,16 +155,16 @@ namespace Spreads.Collections.Internal
         internal int IncreaseRowsCapacity<TRowKey, TValue>(int newCapacity = -1)
         {
             if (Lo != 0)
-                ThrowHelper.ThrowNotImplementedException();
+                ThrowHelper.ThrowNotImplementedException("Lo != 0"); // TODO
 
             EnsureNotSentinel();
             EnsurePanelLayout();
 
             if (RowKeys.RuntimeTypeId != 0)
             {
-                if (RowKeys.RuntimeTypeId != VecTypeHelper<TRowKey>.RuntimeTypeId)
+                if (RowKeys.RuntimeTypeId != TypeHelper<TRowKey>.RuntimeTypeId)
                     throw new ArrayTypeMismatchException(
-                        $"Type of TRowKey {typeof(TRowKey)} doesn't match existing row keys type {VecTypeHelper.GetInfo(RowKeys.RuntimeTypeId).Type}");
+                        $"Type of TRowKey {typeof(TRowKey)} doesn't match existing row keys type {TypeHelper.GetRuntimeTypeInfo(RowKeys.RuntimeTypeId).Type}");
             }
             else if (Hi >= 0)
             {
@@ -176,8 +175,8 @@ namespace Spreads.Collections.Internal
 
             if (Values.RuntimeTypeId != 0)
             {
-                if (Values.RuntimeTypeId != VecTypeHelper<TValue>.RuntimeTypeId)
-                    throw new ArrayTypeMismatchException($"Type of TValue {typeof(TValue)} doesn't match existing value type {VecTypeHelper.GetInfo(Values.RuntimeTypeId).Type}");
+                if (Values.RuntimeTypeId != TypeHelper<TValue>.RuntimeTypeId)
+                    throw new ArrayTypeMismatchException($"Type of TValue {typeof(TValue)} doesn't match existing value type {TypeHelper.GetRuntimeTypeInfo(Values.RuntimeTypeId).Type}");
             }
             else if (Hi >= 0)
             {
@@ -214,8 +213,8 @@ namespace Spreads.Collections.Internal
                 {
                     // TODO Lo != 0 throws above, need to decide from where to copy: 0 or Lo
                     // Depends on what cursors store - index or offset. Index will require comparison
-                    // with RowCount, which is 2 volatile reads and 2 add ops, so it looks like we 
-                    // want to copy from zero and store block offset from zero in cursors. 
+                    // with RowCount, which is 2 volatile reads and 2 add ops, so it looks like we
+                    // want to copy from zero and store block offset from zero in cursors.
                     // TODO but should be copy the part before Lo? Should increase capacity be completely transparent
                     // without side effects other than - as in the name - capacity? It looks like this is the case, but need to review.
                     if (typeof(TRowKey) != typeof(Index))
@@ -283,8 +282,8 @@ namespace Spreads.Collections.Internal
                 EnsurePanelLayout();
                 EnsureNotSentinel();
                 ThrowHelper.Assert(RowCount < RowKeys.Length, "RowCount < RowKeys.Length");
-                ThrowHelper.Assert(RowKeys.RuntimeTypeId == VecTypeHelper<TKey>.RuntimeTypeId, "RowKeys.RuntimeTypeId == VecTypeHelper<TKey>.RuntimeTypeId");
-                ThrowHelper.Assert(Values.RuntimeTypeId == VecTypeHelper<TValue>.RuntimeTypeId, "Values.RuntimeTypeId == VecTypeHelper<TValue>.RuntimeTypeId");
+                ThrowHelper.Assert(RowKeys.RuntimeTypeId == TypeHelper<TKey>.RuntimeTypeId, "RowKeys.RuntimeTypeId == VecTypeHelper<TKey>.RuntimeTypeId");
+                ThrowHelper.Assert(Values.RuntimeTypeId == TypeHelper<TValue>.RuntimeTypeId, "Values.RuntimeTypeId == VecTypeHelper<TValue>.RuntimeTypeId");
             }
 
             var offset = Hi + 1;
@@ -308,8 +307,8 @@ namespace Spreads.Collections.Internal
                 EnsurePanelLayout(); // this guaranties that values have capacity for _rowKeys.Length * _columnCount
                 EnsureNotSentinel();
                 ThrowHelper.Assert(RowCount < RowKeys.Length, "RowCount < RowKeys.Length");
-                ThrowHelper.Assert(RowKeys.RuntimeTypeId == VecTypeHelper<TKey>.RuntimeTypeId, "RowKeys._runtimeTypeId == VecTypeHelper<TKey>.RuntimeTypeId");
-                ThrowHelper.Assert(Values.RuntimeTypeId == VecTypeHelper<TValue>.RuntimeTypeId, "Values._runtimeTypeId == VecTypeHelper<TValue>.RuntimeTypeId");
+                ThrowHelper.Assert(RowKeys.RuntimeTypeId == TypeHelper<TKey>.RuntimeTypeId, "RowKeys._runtimeTypeId == VecTypeHelper<TKey>.RuntimeTypeId");
+                ThrowHelper.Assert(Values.RuntimeTypeId == TypeHelper<TValue>.RuntimeTypeId, "Values._runtimeTypeId == VecTypeHelper<TValue>.RuntimeTypeId");
                 ThrowHelper.Assert(values.Length == ColumnCount);
             }
 
@@ -349,7 +348,7 @@ namespace Spreads.Collections.Internal
                     return false;
 
                 var actualCapacity = IncreaseRowsCapacity<TKey, TValue>(newCapacity);
-                ThrowHelper.Assert(Hi + 1 < actualCapacity); // 
+                ThrowHelper.Assert(Hi + 1 < actualCapacity); //
                 return true;
             }
         }

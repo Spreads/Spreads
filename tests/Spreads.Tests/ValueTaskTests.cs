@@ -12,44 +12,6 @@ namespace Spreads.Core.Tests
     [TestFixture]
     public class ValueTaskTests
     {
-        [Test]
-        public async Task CouldUseIDeltaMethods()
-        {
-            var tasks = new ValueTask<int>[4];
-
-            tasks[0] = new ValueTask<int>(1);
-            tasks[1] = new ValueTask<int>(Task.Run(async () =>
-            {
-                await Task.Delay(100);
-                return 42;
-            }));
-            tasks[2] = new ValueTask<int>(Task.Run(async () =>
-            {
-                await Task.Delay(200);
-                ThrowHelper.ThrowInvalidOperationException();
-                return 0;
-            }));
-
-            tasks[3] = new ValueTask<int>(Task.Run<int>(async () => throw new OperationCanceledException()));
-
-            await tasks.WhenAll();
-
-            Assert.AreEqual(tasks[0].Result, 1);
-            Assert.AreEqual(tasks[1].Result, 42);
-            Assert.IsTrue(tasks[2].IsFaulted);
-            Assert.IsTrue(tasks[3].IsCanceled);
-
-            Assert.Throws<InvalidOperationException>(() =>
-            {
-                var _ = tasks[2].Result;
-            });
-
-            Assert.Throws<OperationCanceledException>(() =>
-            {
-                var _ = tasks[3].Result;
-            });
-        }
-
         // [Test, Explicit("")]
         // public void SortedMapNotifierTest()
         // {

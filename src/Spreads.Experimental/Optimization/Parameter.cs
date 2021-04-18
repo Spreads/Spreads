@@ -9,7 +9,7 @@ using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using Spreads.Collections.Generic;
 
-namespace Spreads.Experimental.Optimization
+namespace Spreads.Optimization
 {
     // [StructLayout(LayoutKind.Explicit, Pack = 4, Size = 64)]
     public class Parameter : IEnumerable<double>, IEnumerator<double>

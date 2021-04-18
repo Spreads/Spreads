@@ -4,9 +4,6 @@
 
 using System;
 using System.Globalization;
-using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
-using Spreads.Utils;
 
 namespace Spreads.DataTypes
 {
@@ -15,14 +12,16 @@ namespace Spreads.DataTypes
 #if BUILTIN_SPAN
         /// <summary>
         /// Same as <see cref="decimal.Parse(System.ReadOnlySpan{char},System.Globalization.NumberStyles,System.IFormatProvider?)"/>
-        /// with <see cref="NumberStyles.Number"/> and <see cref="CultureInfo.InvariantCulture"/>. For different parameters
+        /// with <see cref="NumberStyles.Number"/> | <see cref="NumberStyles.AllowExponent"/> and <see cref="CultureInfo.InvariantCulture"/>. For different parameters
         /// first parse to a <see cref="decimal"/> value and then convert it to <see cref="SmallDecimal"/>.
         /// </summary>
         /// <param name="s"></param>
         /// <returns></returns>
         public static SmallDecimal Parse(ReadOnlySpan<char> s)
         {
-            return new(decimal.Parse(s, NumberStyles.Number, CultureInfo.InvariantCulture));
+            // We need AllowExponent because some sources (e.g. BBG API) could send what is logically decimal
+            // with an exponent notation.
+            return new(decimal.Parse(s, NumberStyles.Number | NumberStyles.AllowExponent, CultureInfo.InvariantCulture));
         }
 #endif
     }

@@ -11,7 +11,6 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using Spreads.Buffers;
 
 namespace Spreads.Collections
 {

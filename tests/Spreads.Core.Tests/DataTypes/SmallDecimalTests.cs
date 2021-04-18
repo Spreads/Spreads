@@ -6,6 +6,7 @@ using NUnit.Framework;
 using Spreads.DataTypes;
 using Spreads.Utils;
 using System;
+using System.Globalization;
 using Shouldly;
 
 namespace Spreads.Core.Tests.DataTypes
@@ -263,7 +264,7 @@ namespace Spreads.Core.Tests.DataTypes
 
             Assert.AreEqual(3.5M, (decimal)sd);
 #endif
-            Assert.Throws<ArgumentOutOfRangeException>(() => { sd = new SmallDecimal(3.5M, 17); });
+            Assert.Throws<ArgumentOutOfRangeException>(() => { sd = new SmallDecimal(3.5M, 29); });
 
             Assert.Throws<ArgumentOutOfRangeException>(() => { sd = new SmallDecimal(3.5M, -2); });
         }
@@ -301,11 +302,13 @@ namespace Spreads.Core.Tests.DataTypes
         [TestCase("-0.000100", 6)]
         [TestCase("-10.000001", 6)]
         [TestCase(" -1000000000000.001 ", 3)]
+        [TestCase("2.5e-002", 3)]
+        [TestCase("-2.5e-002", 3)]
         public void ParseWithDecimals(string str, int decimals)
         {
             var sd = SmallDecimal.Parse(str);
             sd.Decimals.ShouldBe(decimals);
-            decimal value = decimal.Parse(str);
+            decimal value = decimal.Parse(str, NumberStyles.Number | NumberStyles.AllowExponent);
             ((decimal)sd).ShouldBe(value);
         }
 

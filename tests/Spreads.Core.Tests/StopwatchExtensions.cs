@@ -5,7 +5,7 @@
 using System;
 using System.Diagnostics;
 
-namespace Spreads.Utils
+namespace Spreads.Core.Tests
 {
     internal static class StopwatchExtensions
     {

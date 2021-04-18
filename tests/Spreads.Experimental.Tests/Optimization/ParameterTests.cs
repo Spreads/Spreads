@@ -5,7 +5,7 @@
 using System;
 using NUnit.Framework;
 using Spreads.Collections.Generic;
-using Spreads.Experimental.Optimization;
+using Spreads.Optimization;
 
 namespace Spreads.Core.Tests
 {

@@ -4,9 +4,8 @@
 
 using System;
 using System.Runtime.InteropServices;
-using Spreads.Buffers;
 
-namespace Spreads
+namespace Spreads.Buffers
 {
     /// <summary>
     /// Configurable native memory allocate/free delegates. Default implementations uses
@@ -39,6 +38,8 @@ namespace Spreads
         /// </summary>
         /// <param name="memory">A pointer to native memory returned by <see cref="NativeAllocator.Allocate"/></param>
         public delegate void FreeDelegate(byte* memory);
+
+        // TODO (low) CleanUp delegate for ThreadPool extended spinning
 
         public static AllocateDelegate Allocate { get; private set; } = DefaultAllocate();
 

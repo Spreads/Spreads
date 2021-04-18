@@ -11,7 +11,7 @@ using System.Runtime.InteropServices;
 namespace Spreads.DataTypes
 {
     /// <summary>
-    /// A Timestamp is stored as UTC nanos since Unix epoch.
+    /// A Timestamp represents UTC nanoseconds since Unix epoch.
     /// </summary>
     /// <remarks>
     /// Timestamp is used as a faster and more convenient replacement of <see cref="DateTime"/>
@@ -58,7 +58,6 @@ namespace Spreads.DataTypes
     /// 292 years of nanos in 2^63 is ought to be enough for everyone living now and their grand grand grand children.
     /// ```
     /// </remarks>
-    /// <seealso cref="TimeService"/>
     [StructLayout(LayoutKind.Sequential, Size = Size)]
     [BuiltInDataType(Size)]
     [DebuggerDisplay("{" + nameof(ToString) + "()}")]

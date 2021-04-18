@@ -10,7 +10,7 @@ using Spreads.Utils;
 namespace Spreads.Threading
 {
     [SuppressUnmanagedCodeSecurity]
-    public static class Cpu
+    public static partial class Cpu
     {
         /// <summary>
         /// The number of cpu cores available for the current process.

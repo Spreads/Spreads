@@ -13,6 +13,7 @@ namespace Spreads
             Idx = idx;
         }
 
+#if HAS_RANGE
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static implicit operator Index(System.Index index)
         {
@@ -24,9 +25,10 @@ namespace Spreads
         {
             return new System.Index(checked((int)index));
         }
-        
+#endif
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static implicit operator long (Index index)
+        public static implicit operator long(Index index)
         {
             return index.Idx;
         }

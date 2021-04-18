@@ -7,7 +7,7 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using Spreads.Collections.Generic;
 
-namespace Spreads.Experimental.Optimization
+namespace Spreads.Optimization
 {
     public class Parameters : DynamicObject, IReadOnlyList<Parameter>
     {

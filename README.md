@@ -1,6 +1,9 @@
-|   Linux   |  Windows  |    Mac    | 
-|:---------:|:---------:|:---------:|
-| [![Build Status](https://dev.azure.com/DataSpreads/Spreads/_apis/build/status/Spreads.Spreads?branchName=master&jobName=Linux)](https://dev.azure.com/DataSpreads/Spreads/_build/latest?definitionId=2&branchName=master) | [![Build Status](https://dev.azure.com/DataSpreads/Spreads/_apis/build/status/Spreads.Spreads?branchName=master&jobName=Windows)](https://dev.azure.com/DataSpreads/Spreads/_build/latest?definitionId=2&branchName=master) | [![Build Status](https://dev.azure.com/DataSpreads/Spreads/_apis/build/status/Spreads.Spreads?branchName=master&jobName=Mac)](https://dev.azure.com/DataSpreads/Spreads/_build/latest?definitionId=2&branchName=master) |
+# Spreads.Core
+
+Spreads.Core contains several high-performance features: buffer pools, optimized binary/interpolation search, collections, threading utils, etc.
+
+-----------------------------------
+**Below is a very old readme, the library is under very slow rewrite**
 
 # Spreads
 <img src="https://raw.githubusercontent.com/Spreads/Spreads.Docs/master/img/ZipN.png" alt="Spreads" width="200" align="right" />
@@ -36,8 +39,8 @@ Google/Facebook and similar user event streams could be processed independently.
 Spreads library is optimized for performance and memory usage.
 It is several times faster than other open source [projects](https://github.com/BlueMountainCapital/Deedle),
 does not allocate memory for intermediate calculations or windows,
-and provides real-time incremental calculations with low-latency lock-free synchronization 
-between data producers and consumers. You could run tests and [benchmarks](https://github.com/Spreads/Spreads/blob/master/tests/Spreads.Tests/Benchmarks.fs) 
+and provides real-time incremental calculations with low-latency lock-free synchronization
+between data producers and consumers. You could run tests and [benchmarks](https://github.com/Spreads/Spreads/blob/master/tests/Spreads.Tests/Benchmarks.fs)
 to see the exact numbers.
 
 For regular keys - keys that have equal difference between them (e.g. seconds) - Spreads stores
@@ -48,18 +51,18 @@ series, and one could argue that memory is cheap. However, L1/L2/L3 caches
 are still small, and saving 50% of memory allows to place two times
 more useful data in the caches and to avoid needless cache trashing.
 
-Spreads library is written in C# and F# and targets .NET 4.5.1 and .NET Standard 1.6 versions. 
+Spreads library is written in C# and F# and targets .NET 4.5.1 and .NET Standard 1.6 versions.
 .NET gives native performance when optimized for memory access patterns, which means
  no functional data structures and minimum allocations.
 Even though .NET is a managed platform with garbage collection, in a steady state Spreads
-should not allocate many objects and create GC pressure. 
-.NET properly supports generic value types and arrays of them are laid out 
+should not allocate many objects and create GC pressure.
+.NET properly supports generic value types and arrays of them are laid out
 contiguously in memory. Such layout enables CPUs to prefetch data efficiently,
 resulting in great performance boost compared to collections of boxed objects. Also .NET makes
-it trivial to call native methods and *Spreads.Core* project 
+it trivial to call native methods and *Spreads.Core* project
 uses SIMD-optimized compression and math libraries written in C.
 
-We haven't compared Spreads performance to performance of commercial systems yet 
+We haven't compared Spreads performance to performance of commercial systems yet
 (because their costs are atrocious and learning cryptic languages is not necessary).
 However, the main benchmark while developing Spreads was modern CPUs capabilities,
 not any existing product. We tried to achieve mechanical sympathy, to avoid any wasteful
@@ -120,23 +123,23 @@ non-observed keys are calculated on demand and do not take any space.
 
 ### ZipN
 
-ZipN functionality is probably the most important part in Spreads.Core 
+ZipN functionality is probably the most important part in Spreads.Core
 and it is shown on Spreads logo.
-ZipN supports declarative lazy joining of N series and in many 
+ZipN supports declarative lazy joining of N series and in many
 cases replaces Frames/Panels functionality and adds
 real-time incremental calculations over N joined series.
 
 
 <img src="https://raw.githubusercontent.com/Spreads/Spreads.Docs/master/img/ZipN.png" alt="ZipN" width="200"  />
 
-All binary arithmetic operations are implemented via ZipN cursor with N=2. 
-ZipN alway produces inner join, but it is very easy to implement any complex 
+All binary arithmetic operations are implemented via ZipN cursor with N=2.
+ZipN alway produces inner join, but it is very easy to implement any complex
 outer join by transforming an input series from a discrete to a continuous one.
 
-For example, imagine we have two discrete series (in pseudocode) `let upper = [2=>2; 4=>4]` 
-and `let lower = [1=>10; 3=>30; 5=>50]` that correspond to the picture. If we add them via `+` operator, 
-we will get an empty series because there are no matching keys and inner join returns an empty set. 
-But if we repeat the upper series, we will get two items, because the 
+For example, imagine we have two discrete series (in pseudocode) `let upper = [2=>2; 4=>4]`
+and `let lower = [1=>10; 3=>30; 5=>50]` that correspond to the picture. If we add them via `+` operator,
+we will get an empty series because there are no matching keys and inner join returns an empty set.
+But if we repeat the upper series, we will get two items, because the
 repeated upper series is defined at any key:
 
     let sum = upper.Repeat() + lower // [3=>2+30=32; 5=>4+50=54]
@@ -145,16 +148,16 @@ If we then fill the lower series with 42, we will get:
 
     let sum = upper.Repeat() + lower.Fill(42.0) // [2=>2+42=44; 3=>2+30=32; 4=>4+42=46; 5=>4+50=54]
 
-For N series logic remains the same. If we want to calculate a simple price index like DJIA 
+For N series logic remains the same. If we want to calculate a simple price index like DJIA
 for each tick of underlying stocks, we could take 30 tick series, repeat them (because ticks are irregular), apply `ZipN`
 and calculate average of prices at any point:
 
-    let index30 : Series<DateTime,double> = 
+    let index30 : Series<DateTime,double> =
         arrayOfDiscreteSeries
         .Map(fun ds -> ds.Repeat())
         .ZipN(fun (k:'DateTime) (vArr:'double[]) -> vArr.Average())
 
-The values array `vArr` is not copied and the lambda must not return anything that has a 
+The values array `vArr` is not copied and the lambda must not return anything that has a
 reference to the array. If the arrays of zipped values are needed for further use outside
 zip method, one must copy the array inside the lambda. However, this is rarely needed,
 because we could zip outputs of zips and process the arrays inside lambda without allocating
@@ -172,8 +175,8 @@ SumProduct, we will only allocate two arrays of values and one array or arrays (
     let indexReturn =
         returns.ZipN(weights.Repeat(), (fun k (ret:double[]) (ws:double[]) -> SumProduct(ret, ws))
 
-Here we violate the rule of not returning vArr, because it will be used inside lambda of 
-ZipLag, which applies lambda to current and lagged values and does not returns references to 
+Here we violate the rule of not returning vArr, because it will be used inside lambda of
+ZipLag, which applies lambda to current and lagged values and does not returns references to
 them. But for this to be true, Zip of arrays must be eager and we will have to allocate
 an array to store the result. We could change the example to avoid intermediate allocations:
 
@@ -186,8 +189,8 @@ an array to store the result. We could change the example to avoid intermediate 
         .ZipN(fun k vArr -> vArr)
     let indexReturn =
         returns.ZipN(
-            weights.Repeat(), 
-            (fun k (ret:ValueTuple<double[],double[]>) (ws:double[]) ->  
+            weights.Repeat(),
+            (fun k (ret:ValueTuple<double[],double[]>) (ws:double[]) ->
                     let currentPrices : double[] = ret.Item1
                     let previousPrices: double[] = ret.Item2
                     let currentWeights: double[] = ws
@@ -201,13 +204,13 @@ In the last ZipN lambda we have three arrays of current and previous prices and 
 We could calculate weighted return with them and return a single value. For each key, these arrays
 are refilled with new values and the last lambda is reapplied to updated arrays.
 
-When all series are continuous, we get full outer join and the resulting series will have 
+When all series are continuous, we get full outer join and the resulting series will have
 a union of all keys from input series, with values defined by continuous series constructor.
 Other than repeat/fill it could be linear or spline interpolation, a forecast from
-moving regression or any other complex logic that is hidden inside an input continuous 
-series. For outside world, such a continuous series becomes defined at every point, inner 
+moving regression or any other complex logic that is hidden inside an input continuous
+series. For outside world, such a continuous series becomes defined at every point, inner
 join assumes that every key exists and zipping works as expected just as if we had precalculated
-every point. But this works without allocating memory and also works in real-time for streaming 
+every point. But this works without allocating memory and also works in real-time for streaming
 data.
 
 

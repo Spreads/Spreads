@@ -13,13 +13,14 @@ namespace Spreads.Core.Tests.Threading
     [TestFixture]
     public class LocalMulticastTests
     {
-        [Test]
+        [Test, Explicit("Flaky")]
         public unsafe void CouldSendReceive()
         {
-            var connection0 = new LocalMulticast<long>(51311, x => Console.WriteLine("0: " + x), "0");
-            var connection1 = new LocalMulticast<long>(51311, x => Console.WriteLine("1: " + x), "1");
-            var connection2 = new LocalMulticast<long>(51311, x => Console.WriteLine("2: " + x), "2");
-            var connection3 = new LocalMulticast<long>(51311, x => Console.WriteLine("3: " + x), "3");
+            var port = 51211;
+            var connection0 = new LocalMulticast<long>(port, x => Console.WriteLine("0: " + x), "0");
+            var connection1 = new LocalMulticast<long>(port, x => Console.WriteLine("1: " + x), "1");
+            var connection2 = new LocalMulticast<long>(port, x => Console.WriteLine("2: " + x), "2");
+            var connection3 = new LocalMulticast<long>(port, x => Console.WriteLine("3: " + x), "3");
 
             connection0.StartReceive();
             Thread.Sleep(100);

@@ -8,7 +8,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 
-namespace Spreads.Experimental.Optimization
+namespace Spreads.Optimization
 {
     // TODO (VB) There is evolution search impl somewhere in old TAM code, add it here
 

@@ -4,7 +4,7 @@
     <TargetFrameworks>netstandard2.0;net5.0</TargetFrameworks>
     <Description>Spreads Experimental library</Description>
     <AssemblyName>Spreads.Experimental</AssemblyName>
-    <RootNamespace>Spreads.Experimental</RootNamespace>
+    <RootNamespace>Spreads</RootNamespace>
     <PackageId>Spreads.Experimental</PackageId>
     <OutputType>Library</OutputType>
   </PropertyGroup>
