@@ -2,8 +2,6 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-using System.Runtime.InteropServices;
-
 namespace Spreads
 {
     // int32, we could later reuse negative space for other flags if needed. For MoveNext we should be able to do just `>0` to continue
@@ -27,7 +25,7 @@ namespace Spreads
         /// A false move from this state must restore the cursor to its position before the move.
         /// </summary>
         Moving = 2,
-        
+
         /// <summary>
         /// A cursor has started batch moving and is at a valid position.
         /// </summary>

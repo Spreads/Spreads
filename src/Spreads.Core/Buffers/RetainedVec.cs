@@ -8,24 +8,25 @@ using System.Diagnostics;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using Spreads.Collections;
 
 namespace Spreads.Buffers
 {
     /// <summary>
-    /// A borrowing of <see cref="PrivateMemory{T}"/> that owns a reference from it.
+    /// A borrowing of <see cref="PrivateMemory{T}"/> that owns a reference to it.
     /// </summary>
     /// <remarks>
     /// This struct must be disposed and should only be used as a field of an owning object,
     /// which should implement <seealso cref="IDisposable"/> and have a finalizer directly or via its parents.
     /// </remarks>
-    [DebuggerTypeProxy(typeof(RetainedVec_DebugView))]
+    [DebuggerTypeProxy(typeof(RetainedVecDebugView))]
     [DebuggerDisplay("Length={" + nameof(Length) + ("}"))]
     [StructLayout(LayoutKind.Explicit, Size = 32)]
     public readonly struct RetainedVec : IDisposable, IEquatable<RetainedVec>
     {
-        // Some ideas from Spreads.Native.Vec are useful, but here we are more restrictive
+        // Some ideas from Spreads.Vec are useful, but here we are more restrictive
         // and always store ref+ types as arrays and other types as off-heap memory.
-        // Therefore, we could use JIT-constant ISOCR and work with array or pointer
+        // Therefore, we could use JIT-constant IROCR and work with array or pointer
         // directly, without abstracting ref T.
 
         [FieldOffset(0)]
@@ -46,7 +47,7 @@ namespace Spreads.Buffers
         [FieldOffset(24)]
         internal readonly IRefCounted? _memoryOwner;
 
-        private RetainedVec(IRefCounted? memoryOwner, object? array, nint pointerOrOffset, int length, RuntimeTypeId runtimeTypeId) : this()
+        private RetainedVec(IRefCounted? memoryOwner, object? array, nint pointerOrOffset, int length, RuntimeTypeId runtimeTypeId)
         {
             _memoryOwner = memoryOwner;
             _array = array;
@@ -133,7 +134,7 @@ namespace Spreads.Buffers
         internal unsafe ref T UnsafeGetRef<T>()
         {
             if (TypeHelper<T>.IsReferenceOrContainsReferences)
-                return ref Unsafe.As<T[]>(_array)[(int)_pointerOrOffset];
+                return ref Unsafe.As<T[]>(_array)!.UnsafeGetAt((int)_pointerOrOffset);
             return ref Unsafe.AsRef<T>((void*)_pointerOrOffset);
         }
 
@@ -141,7 +142,7 @@ namespace Spreads.Buffers
         internal unsafe ref T UnsafeGetRef<T>(int index)
         {
             if (TypeHelper<T>.IsReferenceOrContainsReferences)
-                return ref Unsafe.As<T[]>(_array)[(int)(_pointerOrOffset + index)];
+                return ref Unsafe.As<T[]>(_array)!.UnsafeGetAt((int)(_pointerOrOffset + index));
             return ref Unsafe.Add<T>(ref Unsafe.AsRef<T>((void*)_pointerOrOffset), index);
         }
 
@@ -149,7 +150,7 @@ namespace Spreads.Buffers
         internal unsafe T UnsafeReadUnaligned<T>(int index)
         {
             if (TypeHelper<T>.IsReferenceOrContainsReferences)
-                return Unsafe.As<T[]>(_array)[(int)(_pointerOrOffset + index)];
+                return Unsafe.As<T[]>(_array)!.UnsafeGetAt((int)(_pointerOrOffset + index));
             return Unsafe.ReadUnaligned<T>(ref Unsafe.As<T, byte>(ref Unsafe.AsRef<T>((void*)(_pointerOrOffset + index * Unsafe.SizeOf<T>()))));
         }
 
@@ -157,9 +158,9 @@ namespace Spreads.Buffers
         internal unsafe void UnsafeWriteUnaligned<T>(int index, T value)
         {
             if (TypeHelper<T>.IsReferenceOrContainsReferences)
-                Unsafe.As<T[]>(_array)[(int)(_pointerOrOffset + index)] = value;
+                Unsafe.As<T[]>(_array)!.UnsafeGetAt((int)(_pointerOrOffset + index)) = value;
             else
-                Unsafe.WriteUnaligned<T>(ref Unsafe.As<T, byte>(ref Unsafe.AsRef<T>((void*)(_pointerOrOffset + index * Unsafe.SizeOf<T>()))), value);
+                Unsafe.WriteUnaligned(ref Unsafe.As<T, byte>(ref Unsafe.AsRef<T>((void*)(_pointerOrOffset + index * Unsafe.SizeOf<T>()))), value);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -206,7 +207,7 @@ namespace Spreads.Buffers
                 ;
         }
 
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             return obj is RetainedVec other && Equals(other);
         }
@@ -227,15 +228,15 @@ namespace Spreads.Buffers
         }
     }
 
-    internal class RetainedVec_DebugView
+    internal class RetainedVecDebugView
     {
         private readonly RetainedVec _rv;
         private readonly MethodInfo? _getter;
 
-        public RetainedVec_DebugView(RetainedVec rv)
+        public RetainedVecDebugView(RetainedVec rv)
         {
             _rv = rv;
-            MethodInfo method = typeof(RetainedVec_DebugView).GetMethod("GetAsObjectT", BindingFlags.Instance | BindingFlags.NonPublic);
+            MethodInfo method = typeof(RetainedVecDebugView).GetMethod("GetAsObjectT", BindingFlags.Instance | BindingFlags.NonPublic)!;
             // ReSharper disable once PossibleNullReferenceException
             if (_rv.RuntimeTypeId != 0)
                 _getter = method!.MakeGenericMethod(TypeHelper.GetRuntimeTypeInfo(_rv.RuntimeTypeId).Type);

@@ -90,8 +90,8 @@ namespace Spreads.Serialization.Serializers
         // ReSharper disable once StaticMemberInGenericType
         internal static readonly short FixedSize = CalculateFixedSize();
 
-        internal static readonly bool HasAnySerializer = TypeHelper<T1>.HasTypeSerializer
-                                                          || TypeHelper<T2>.HasTypeSerializer
+        internal static readonly bool HasAnySerializer = BinarySerializer<T1>.HasTypeSerializer
+                                                         || BinarySerializer<T2>.HasTypeSerializer
                                                           ;
 
         private static short CalculateFixedSize()
@@ -397,9 +397,9 @@ namespace Spreads.Serialization.Serializers
         // ReSharper disable once StaticMemberInGenericType
         internal static readonly short FixedSize = CalculateFixedSize();
 
-        internal static readonly bool HasAnySerializer = TypeHelper<T1>.HasTypeSerializer
-                                                          || TypeHelper<T2>.HasTypeSerializer
-                                                          || TypeHelper<T3>.HasTypeSerializer
+        internal static readonly bool HasAnySerializer = BinarySerializer<T1>.HasTypeSerializer
+                                                         || BinarySerializer<T2>.HasTypeSerializer
+                                                         || BinarySerializer<T3>.HasTypeSerializer
                                                           ;
 
         private static short CalculateFixedSize()
@@ -671,10 +671,10 @@ namespace Spreads.Serialization.Serializers
         // ReSharper disable once StaticMemberInGenericType
         internal static readonly short FixedSize = CalculateFixedSize();
 
-        internal static readonly bool HasAnySerializer = TypeHelper<T1>.HasTypeSerializer
-                                                          || TypeHelper<T2>.HasTypeSerializer
-                                                          || TypeHelper<T3>.HasTypeSerializer
-                                                          || TypeHelper<T4>.HasTypeSerializer
+        internal static readonly bool HasAnySerializer = BinarySerializer<T1>.HasTypeSerializer
+                                                         || BinarySerializer<T2>.HasTypeSerializer
+                                                         || BinarySerializer<T3>.HasTypeSerializer
+                                                         || BinarySerializer<T4>.HasTypeSerializer
                                                           ;
 
         private static short CalculateFixedSize()
@@ -906,11 +906,11 @@ namespace Spreads.Serialization.Serializers
         // ReSharper disable once StaticMemberInGenericType
         internal static readonly short FixedSize = CalculateFixedSize();
 
-        internal static readonly bool HasAnySerializer = TypeHelper<T1>.HasTypeSerializer
-                                                          || TypeHelper<T2>.HasTypeSerializer
-                                                          || TypeHelper<T3>.HasTypeSerializer
-                                                          || TypeHelper<T4>.HasTypeSerializer
-                                                          || TypeHelper<T5>.HasTypeSerializer
+        internal static readonly bool HasAnySerializer = BinarySerializer<T1>.HasTypeSerializer
+                                                         || BinarySerializer<T2>.HasTypeSerializer
+                                                         || BinarySerializer<T3>.HasTypeSerializer
+                                                         || BinarySerializer<T4>.HasTypeSerializer
+                                                         || BinarySerializer<T5>.HasTypeSerializer
                                                           ;
 
         private static short CalculateFixedSize()

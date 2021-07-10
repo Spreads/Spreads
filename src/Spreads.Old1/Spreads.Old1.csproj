@@ -1,11 +1,11 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
+    <TargetFrameworks>netstandard2.0;net5.0</TargetFrameworks>
     <Description>Spreads top level library.</Description>
-    <RootNamespace>Spreads</RootNamespace>
-    <PackageId>Spreads</PackageId>
     <OutputType>Library</OutputType>
-
-    <LangVersion>8.0</LangVersion>
+    <AssemblyName>Spreads.Old1</AssemblyName>
+    <RootNamespace>Spreads.Old1</RootNamespace>
+    <PackageId>Spreads.Old1</PackageId>
     <!--<WarningsAsErrors>CS8600;CS8602;CS8603;CS8625;CS8618</WarningsAsErrors>-->
   </PropertyGroup>
 

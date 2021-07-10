@@ -1170,7 +1170,7 @@ namespace Spreads.Utils
     }
 }
 
-#if !NETCOREAPP3_0 && !NETSTANDARD2_1
+#if !NETCOREAPP && !NETSTANDARD2_1
 
 namespace System.Diagnostics.CodeAnalysis
 {

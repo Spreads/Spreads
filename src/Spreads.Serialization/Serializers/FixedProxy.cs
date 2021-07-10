@@ -24,19 +24,19 @@ namespace Spreads.Serialization.Serializers
 
         // private static readonly BinarySerializer<T> Serializer = TypeHelper<T>.TypeSerializer;
 
-        internal static short FixedSize = TypeHelper<T>.TypeSerializer?.FixedSize ?? TypeEnumHelper<T>.FixedSize;
+        internal static short FixedSize = BinarySerializer<T>.TypeSerializer?.FixedSize ?? TypeEnumHelper<T>.FixedSize;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int SizeOf(in T value, BufferWriter bufferWriter)
         {
-            if (!TypeHelper<T>.HasTypeSerializer)
+            if (!BinarySerializer<T>.HasTypeSerializer)
             {
                 Debug.Assert(TypeHelper<T>.FixedSize == FixedSize);
                 bufferWriter?.Write(in value);
                 return FixedSize;
             }
-            var sizeOf = TypeHelper<T>.TypeSerializer.SizeOf(in value, bufferWriter);
-            
+            var sizeOf = BinarySerializer<T>.TypeSerializer.SizeOf(in value, bufferWriter);
+
             Debug.Assert(sizeOf == FixedSize);
             return sizeOf;
         }
@@ -44,13 +44,13 @@ namespace Spreads.Serialization.Serializers
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int Write(in T value, DirectBuffer destination)
         {
-            if (!TypeHelper<T>.HasTypeSerializer)
+            if (!BinarySerializer<T>.HasTypeSerializer)
             {
                 Debug.Assert(TypeHelper<T>.FixedSize == FixedSize);
                 destination.Write(0, value);
                 return FixedSize;
             }
-            var written = TypeHelper<T>.TypeSerializer.Write(in value, destination);
+            var written = BinarySerializer<T>.TypeSerializer.Write(in value, destination);
             Debug.Assert(written == FixedSize);
             return written;
         }
@@ -58,12 +58,12 @@ namespace Spreads.Serialization.Serializers
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int Read(DirectBuffer source, out T value)
         {
-            if (!TypeHelper<T>.HasTypeSerializer)
+            if (!BinarySerializer<T>.HasTypeSerializer)
             {
                 value = source.Read<T>(0);
                 return FixedSize;
             }
-            var consumed = TypeHelper<T>.TypeSerializer.Read(source, out value);
+            var consumed = BinarySerializer<T>.TypeSerializer.Read(source, out value);
             Debug.Assert(consumed == FixedSize);
             return consumed;
         }

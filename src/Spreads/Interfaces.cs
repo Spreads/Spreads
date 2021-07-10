@@ -137,10 +137,10 @@ namespace Spreads
         /// </summary>
         KeySorting KeySorting { get; }
 
-        ///// <summary>
-        ///// Unique string identifier or a string expression describing the data (e.g. "a + b").
-        ///// </summary>
-        // string? Expression { get; } TODO this could be done much later and added as a layer, core functionality does not depend on this
+        /// <summary>
+        /// Unique string identifier or a string expression describing the data (e.g. "a + b" or "ma(a + b, 20)").
+        /// </summary>
+        string? Expression { get; }
     }
 
     /// <summary>
@@ -152,8 +152,8 @@ namespace Spreads
     /// sequence could grow during move next. (See documentation for out of order behavior.)
     ///
     /// Contract:
-    /// 1. At the beginning a cursor consumer could call any single move method.
-    /// 2. Synchronous moves return true if data is instantly available, e.g. in a series data structure in memory or on fast disk DB.
+    /// 1. Initially a cursor consumer could call any single move method.
+    /// 2. Synchronous moves return true if data is instantly available, e.g. in a in-memory data structure or on a fast memory-mapped DB.
     ///    ICursor implementations should not block threads, e.g. if a series is not completed then synchronous MoveNext should not wait for
     ///    an update but return false if there is no data right now.
     /// 3. When synchronous MoveNext or MoveLast return false, the consumer should call MoveNextAsync. Inside the async
@@ -232,7 +232,7 @@ namespace Spreads
 
         /// <summary>
         /// If true then <see cref="TryGet"/> could return values for any keys, not only for existing keys.
-        /// E.g. previous value, interpolated value, etc.
+        /// E.g. previous repeat value, interpolated value, etc.
         /// </summary>
         bool IsContinuous { get; }
 
@@ -248,7 +248,7 @@ namespace Spreads
         ///// </summary>
         ///// <param name="batch"></param>
         ///// <returns></returns>
-        bool TryMoveNextBatch(out ISeries<TKey, TValue>? batch); // TODO (review) this thing should return something untyped or ROS-based
+        bool TryMoveNextBatch(out Batch<TKey, TValue> batch); // TODO (review) this thing should return something untyped or ROS-based
 
         /// <summary>
         /// Returns an initialized (ready to move) instance of <see cref="ICursor{TKey,TValue}"/>.
@@ -260,6 +260,11 @@ namespace Spreads
         ICursor<TKey, TValue> Initialize();
 
         IAsyncCompleter AsyncCompleter { get; }
+    }
+
+    public readonly ref struct Batch<TKey, TValue>
+    {
+
     }
 
     /// <summary>
@@ -304,8 +309,8 @@ namespace Spreads
         bool TryGet(TKey key, out TValue value);
 
         /// <summary>
-        /// Try get value at index (offset). The method is implemented efficiently for some containers (in-memory or immutable/append-only), but default implementation
-        /// is LINQ <code>[series].Skip(idx-1).Take(1).Value</code>.
+        /// Try get value at index (offset). The method is implemented efficiently for some containers (in-memory or immutable/append-only),
+        /// but the default implementation is an equivalent of LINQ code: <code>[series].Skip(idx-1).Take(1).Value</code>.
         /// </summary>
         bool TryGetAt(long index, out KeyValuePair<TKey, TValue> kvp);
 
@@ -436,7 +441,8 @@ namespace Spreads
         bool TryRemoveLast(out KeyValuePair<TKey, TValue> pair);
 
         /// <summary>
-        /// Removes all keys from the specified key towards the specified direction and returns the nearest removed key/value pair.
+        /// Removes all keys starting from the specified <paramref name="key"/> towards the specified <paramref name="direction"/> and returns the nearest removed key/value <paramref name="pair"/>.
+        /// Returns true if at least one pair was removed.
         /// </summary>
         bool TryRemoveMany(TKey key, Lookup direction, out KeyValuePair<TKey, TValue> pair);
 

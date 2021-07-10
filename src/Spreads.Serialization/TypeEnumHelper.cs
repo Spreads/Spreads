@@ -282,9 +282,9 @@ namespace Spreads.Serialization
 
             if (ti.FixedSize > 0)
             {
-                if ((!TypeHelper<T>.IsFixedSize && !TypeHelper<T>.HasTypeSerializer)
+                if ((!TypeHelper<T>.IsFixedSize && !BinarySerializer<T>.HasTypeSerializer)
                     ||
-                    (!TypeHelper<T>.IsFixedSize && TypeHelper<T>.HasTypeSerializer && TypeHelper<T>.TypeSerializer.FixedSize <= 0)
+                    (!TypeHelper<T>.IsFixedSize && BinarySerializer<T>.HasTypeSerializer && BinarySerializer<T>.TypeSerializer.FixedSize <= 0)
                     )
                 {
                     throw new InvalidOperationException("Fixed size type could be either a primitive or well-known scalar type, " +
@@ -355,7 +355,7 @@ namespace Spreads.Serialization
                     typeof(T).GetGenericArguments()[0]
                 );
                 var header = func();
-                var fs = TypeHelper<T>.TypeSerializer?.FixedSize ?? -1;
+                var fs = BinarySerializer<T>.TypeSerializer?.FixedSize ?? -1;
                 return new TypeEnumInfo
                 {
                     Header = header,
@@ -385,7 +385,7 @@ namespace Spreads.Serialization
                         nameof(CreateTuple2Header),
                         gArgs[0], gArgs[1]
                     );
-                    fs = TypeHelper<T>.TypeSerializer?.FixedSize ?? -1;
+                    fs = BinarySerializer<T>.TypeSerializer?.FixedSize ?? -1;
                 }
 
                 var header = func();
@@ -408,7 +408,7 @@ namespace Spreads.Serialization
                 // ```
                 var gArgs = typeof(T).GetGenericArguments();
 
-                var fs = TypeHelper<T>.TypeSerializer?.FixedSize ?? 0;
+                var fs = BinarySerializer<T>.TypeSerializer?.FixedSize ?? 0;
 
                 var header = new DataTypeHeader
                 {
@@ -426,13 +426,13 @@ namespace Spreads.Serialization
 
             if ((byte)te >= 100 && (byte)te <= 119)
             {
-                var custom = TypeHelper<T>.CustomHeader;
+                var custom = BinarySerializer<T>.CustomHeader;
                 Debug.Assert(te == custom.TEOFS.TypeEnum);
 
                 short fs = 0;
-                if (TypeHelper<T>.TypeSerializer != null)
+                if (BinarySerializer<T>.TypeSerializer != null)
                 {
-                    fs = Math.Max((short)0, TypeHelper<T>.TypeSerializer.FixedSize);
+                    fs = Math.Max((short)0, BinarySerializer<T>.TypeSerializer.FixedSize);
                 }
 
                 return new TypeEnumInfo
@@ -445,9 +445,9 @@ namespace Spreads.Serialization
             if (te == TypeEnum.UserType)
             {
                 short fs = 0;
-                if (TypeHelper<T>.TypeSerializer != null)
+                if (BinarySerializer<T>.TypeSerializer != null)
                 {
-                    fs = Math.Max((short)0, TypeHelper<T>.TypeSerializer.FixedSize);
+                    fs = Math.Max((short)0, BinarySerializer<T>.TypeSerializer.FixedSize);
                 }
 
                 return new TypeEnumInfo
@@ -774,12 +774,12 @@ namespace Spreads.Serialization
             // Fixed types should rarely have a custom serializer
             // but if they then the serializer is more important.
 
-            if (TypeHelper<T>.CustomHeader.TEOFS.TypeEnum != TypeEnum.None)
+            if (BinarySerializer<T>.CustomHeader.TEOFS.TypeEnum != TypeEnum.None)
             {
-                return TypeHelper<T>.CustomHeader.TEOFS.TypeEnum;
+                return BinarySerializer<T>.CustomHeader.TEOFS.TypeEnum;
             }
 
-            if (TypeHelper<T>.HasTypeSerializer && !TypeHelper<T>.IsTypeSerializerInternal)
+            if (BinarySerializer<T>.HasTypeSerializer && !BinarySerializer<T>.IsTypeSerializerInternal)
             {
                 return TypeEnum.UserType;
             }

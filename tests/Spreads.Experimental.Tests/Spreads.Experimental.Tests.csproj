@@ -1,6 +1,6 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
     <PropertyGroup>
-        <TargetFramework>net5.0</TargetFramework>
+        <TargetFramework>net6.0</TargetFramework>
         <AssemblyName>Spreads.Experimental.Tests</AssemblyName>
         <RootNamespace>Spreads.Experimental.Tests</RootNamespace>
         <TieredCompilation>false</TieredCompilation>
@@ -12,7 +12,7 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="BenchmarkDotNet" Version="0.12.0" />
+        <PackageReference Include="BenchmarkDotNet" Version="0.13.0" />
         <PackageReference Include="CRC32C.Standard" Version="1.0.0" />
         <PackageReference Include="Disruptor" Version="3.6.1" />
         <PackageReference Include="JetBrains.dotMemoryUnit" Version="3.1.20200127.214830" />
@@ -36,5 +36,6 @@
     <ItemGroup>
       <ProjectReference Include="..\..\src\Spreads.Core\Spreads.Core.csproj" />
       <ProjectReference Include="..\..\src\Spreads.Experimental\Spreads.Experimental.csproj" />
+      <ProjectReference Include="..\Spreads.Core.Tests\Spreads.Core.Tests.csproj" />
     </ItemGroup>
 </Project>

@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>netstandard2.0;net5.0</TargetFrameworks>
+    <TargetFrameworks>netstandard2.0;net6.0</TargetFrameworks>
     <Description>Spreads Core library</Description>
     <AssemblyName>Spreads.Core</AssemblyName>
     <RootNamespace>Spreads</RootNamespace>
@@ -33,6 +33,9 @@
   </ItemGroup>
   <ItemGroup>
     <Service Include="{508349b6-6b84-4df5-91f0-309beebad82d}" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="Algorithms\Online" />
   </ItemGroup>
 
 </Project>

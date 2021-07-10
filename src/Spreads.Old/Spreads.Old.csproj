@@ -1,13 +1,12 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
+    <TargetFrameworks>netstandard2.0;net5.0</TargetFrameworks>
     <Description>Spreads top level library.</Description>
-    <AssemblyName>Spreads</AssemblyName>
-    <RootNamespace>Spreads</RootNamespace>
-    <PackageId>Spreads</PackageId>
+    <AssemblyName>Spreads.Old</AssemblyName>
+    <RootNamespace>Spreads.Old</RootNamespace>
+    <PackageId>Spreads.Old</PackageId>
     <OutputType>Library</OutputType>
 
-    <LangVersion>8.0</LangVersion>
-    <Nullable>enable</Nullable>
     <!-- TODO <WarningsAsErrors>CS8600;CS8602;CS8603</WarningsAsErrors>-->
   </PropertyGroup>
 
@@ -42,6 +41,12 @@
       <LastGenOutput>Series'3 (Operators).cs</LastGenOutput>
       <Generator>TextTemplatingFileGenerator</Generator>
     </None>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="System.Runtime, Version=4.1.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a">
+      <HintPath>..\..\..\..\..\..\..\..\..\..\..\transient\nugetcache\system.runtime\4.3.0\ref\netstandard1.5\System.Runtime.dll</HintPath>
+    </Reference>
   </ItemGroup>
 
 

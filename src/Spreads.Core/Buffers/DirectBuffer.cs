@@ -24,9 +24,9 @@ namespace Spreads.Buffers
     [StructLayout(LayoutKind.Sequential)]
     public readonly unsafe struct DirectBuffer : IEquatable<DirectBuffer> // TODO , ISegment<DirectBuffer, byte>
     {
-        public static DirectBuffer Invalid = new DirectBuffer(new IntPtr(-1L), (byte*) IntPtr.Zero);
+        public static DirectBuffer Invalid = new((nint)(-1L), pointer: null);
 
-        internal readonly IntPtr _length;
+        internal readonly nint _length;
         internal readonly byte* _pointer;
 
         /// <summary>
@@ -36,15 +36,15 @@ namespace Spreads.Buffers
         /// <param name="data"></param>
         [DebuggerStepThrough]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public DirectBuffer(long length, IntPtr data)
+        public DirectBuffer(long length, nint data)
         {
             if (length < 0)
                 ThrowHelper.ThrowArgumentException("length must be non negative");
 
-            if (data == IntPtr.Zero)
-                ThrowHelper.ThrowArgumentNullException("data must not be null");
+            if (data == default)
+                ThrowHelper.ThrowArgumentNullException("data pointer must not be null");
 
-            _length = (IntPtr) length;
+            _length = (nint) length;
             _pointer = (byte*) data;
         }
 
@@ -55,7 +55,7 @@ namespace Spreads.Buffers
         /// <param name="handle"></param>
         [DebuggerStepThrough]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public DirectBuffer(long length, MemoryHandle handle) : this(length, (IntPtr) handle.Pointer)
+        public DirectBuffer(long length, MemoryHandle handle) : this(length, (nint) handle.Pointer)
         {
         }
 
@@ -66,7 +66,7 @@ namespace Spreads.Buffers
         /// <param name="pointer"></param>
         [DebuggerStepThrough]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal DirectBuffer(IntPtr length, byte* pointer)
+        internal DirectBuffer(nint length, byte* pointer)
         {
             _length = length;
             _pointer = pointer;
@@ -76,7 +76,7 @@ namespace Spreads.Buffers
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal DirectBuffer(long length, byte* pointer)
         {
-            _length = (IntPtr) length;
+            _length = (nint) length;
             _pointer = pointer;
         }
 
@@ -90,7 +90,7 @@ namespace Spreads.Buffers
         {
             if (!retainedMemory.IsPinned) ThrowRetainedMemoryNotPinned();
 
-            _length = (IntPtr) retainedMemory.Length;
+            _length = retainedMemory.Length;
             _pointer = (byte*) retainedMemory.Pointer;
         }
 
@@ -107,7 +107,7 @@ namespace Spreads.Buffers
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public DirectBuffer(Span<byte> span)
         {
-            _length = (IntPtr) span.Length;
+            _length = span.Length;
             _pointer = (byte*) AsPointer(ref span.GetPinnableReference());
         }
 
@@ -118,12 +118,11 @@ namespace Spreads.Buffers
             get => _pointer != null;
         }
 
-        // TODO review: empty could be a result from Slice and perfectly valid, so it is not the same as IsValid which checks pointer.
         public bool IsEmpty
         {
             [DebuggerStepThrough]
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => _length == IntPtr.Zero;
+            get => _length ==default;
         }
 
         [DebuggerStepThrough]
@@ -158,7 +157,7 @@ namespace Spreads.Buffers
         {
             [DebuggerStepThrough]
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => (long) _length;
+            get => _length;
         }
 
         public byte* Data
@@ -171,11 +170,11 @@ namespace Spreads.Buffers
         /// <summary>
         /// For cases when unsafe is not allowed, e.g. async
         /// </summary>
-        public IntPtr DataIntPtr
+        public nint DataIntPtr
         {
             [DebuggerStepThrough]
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => (IntPtr) _pointer;
+            get => (nint) _pointer;
         }
 
         [Pure]
@@ -185,7 +184,7 @@ namespace Spreads.Buffers
         {
             if (AdditionalCorrectnessChecks.Enabled) Assert(0, start);
 
-            return new DirectBuffer((IntPtr) ((long) _length - start), _pointer + start);
+            return new DirectBuffer(_length - start, _pointer + start);
         }
 
         [Pure]
@@ -195,7 +194,7 @@ namespace Spreads.Buffers
         {
             if (AdditionalCorrectnessChecks.Enabled) Assert(start, length);
 
-            return new DirectBuffer((IntPtr) length, _pointer + start);
+            return new DirectBuffer(length, _pointer + start);
         }
 
         [DebuggerStepThrough]
@@ -859,11 +858,11 @@ namespace Spreads.Buffers
         // Methods from https://source.dot.net/#System.Private.CoreLib/shared/System/SpanHelpers.Byte.cs,ae8b63bad07668b3
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static UIntPtr LoadUIntPtr(ref byte start, IntPtr offset)
+        private static nuint LoadUIntPtr(ref byte start, nint offset)
             => ReadUnaligned<UIntPtr>(ref AddByteOffset(ref start, offset));
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static Vector<byte> LoadVector(ref byte start, IntPtr offset)
+        private static Vector<byte> LoadVector(ref byte start, nint offset)
             => ReadUnaligned<Vector<byte>>(ref AddByteOffset(ref start, offset));
 
 #if HAS_AGGR_OPT
@@ -876,8 +875,8 @@ namespace Spreads.Buffers
                 goto Equal;
             }
 
-            IntPtr offset = (IntPtr) 0; // Use IntPtr for arithmetic to avoid unnecessary 64->32->64 truncations
-            IntPtr lengthToExamine = (IntPtr) (void*) length;
+            nint offset = default; // Use nint for arithmetic to avoid unnecessary 64->32->64 truncations
+            nint lengthToExamine = (nint) (void*) length;
 
             if (Vector.IsHardwareAccelerated && (byte*) lengthToExamine >= (byte*) Vector<byte>.Count)
             {
@@ -895,9 +894,9 @@ namespace Spreads.Buffers
                 return LoadVector(ref first, lengthToExamine) == LoadVector(ref second, lengthToExamine);
             }
 
-            if ((byte*) lengthToExamine >= (byte*) sizeof(UIntPtr))
+            if ((byte*) lengthToExamine >= (byte*) sizeof(nuint))
             {
-                lengthToExamine -= sizeof(UIntPtr);
+                lengthToExamine -= sizeof(nuint);
                 while ((byte*) lengthToExamine > (byte*) offset)
                 {
                     if (LoadUIntPtr(ref first, offset) != LoadUIntPtr(ref second, offset))
@@ -905,7 +904,7 @@ namespace Spreads.Buffers
                         goto NotEqual;
                     }
 
-                    offset += sizeof(UIntPtr);
+                    offset += sizeof(nuint);
                 }
 
                 return LoadUIntPtr(ref first, lengthToExamine) == LoadUIntPtr(ref second, lengthToExamine);
@@ -933,8 +932,8 @@ namespace Spreads.Buffers
         public static bool IsFilledWithValue(ref byte first, ulong length, byte value)
         {
             var valueVector = new Vector<byte>(value);
-            IntPtr offset = (IntPtr) 0; // Use IntPtr for arithmetic to avoid unnecessary 64->32->64 truncations
-            IntPtr lengthToExamine = (IntPtr) (void*) length;
+            nint offset = default; // Use IntPtr for arithmetic to avoid unnecessary 64->32->64 truncations
+            nint lengthToExamine = (nint) (void*) length;
 
             if (Vector.IsHardwareAccelerated && (byte*) lengthToExamine >= (byte*) Vector<byte>.Count)
             {
@@ -952,17 +951,17 @@ namespace Spreads.Buffers
                 return LoadVector(ref first, lengthToExamine) == valueVector;
             }
 
-            if ((byte*) lengthToExamine >= (byte*) sizeof(UIntPtr))
+            if ((byte*) lengthToExamine >= (byte*) sizeof(nuint))
             {
-                lengthToExamine -= sizeof(UIntPtr);
-                UIntPtr uintPtrValue;
+                lengthToExamine -= sizeof(nuint);
+                nuint uintPtrValue;
                 if (UIntPtr.Size == 8)
                 {
-                    uintPtrValue = (UIntPtr) Vector.AsVectorUInt64(valueVector)[0];
+                    uintPtrValue = (nuint) Vector.AsVectorUInt64(valueVector)[0];
                 }
                 else
                 {
-                    uintPtrValue = (UIntPtr) Vector.AsVectorUInt32(valueVector)[0];
+                    uintPtrValue = (nuint) Vector.AsVectorUInt32(valueVector)[0];
                 }
 
                 while ((byte*) lengthToExamine > (byte*) offset)
@@ -972,7 +971,7 @@ namespace Spreads.Buffers
                         goto NotEqual;
                     }
 
-                    offset += sizeof(UIntPtr);
+                    offset += sizeof(nuint);
                 }
 
                 return LoadUIntPtr(ref first, lengthToExamine) == uintPtrValue;
@@ -1005,7 +1004,7 @@ namespace Spreads.Buffers
         {
             fixed (byte* ptr = source)
             {
-                var sourceDb = new DirectBuffer((IntPtr) source.Length, ptr);
+                var sourceDb = new DirectBuffer(source.Length, ptr);
                 sourceDb.CopyTo(destination);
             }
         }
@@ -1015,7 +1014,7 @@ namespace Spreads.Buffers
         {
             fixed (byte* ptr = source)
             {
-                var sourceDb = new DirectBuffer((IntPtr) source.Length, ptr);
+                var sourceDb = new DirectBuffer(source.Length, ptr);
                 sourceDb.CopyTo(destination);
             }
         }

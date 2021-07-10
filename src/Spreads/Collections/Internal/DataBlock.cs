@@ -180,12 +180,12 @@ namespace Spreads.Collections.Internal
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
-        void DisposeNode()
+        private void DisposeNode()
         {
             // TODO review, we start at 0 not Lo. When Lo > 0 values could stay for a while in moving window case.
             for (int i = 0; i <= Hi; i++)
             {
-                var node = Values.UnsafeReadUnaligned<DataBlock>(i);
+                DataBlock? node = Values.UnsafeReadUnaligned<DataBlock?>(i);
                 node?.Decrement();
             }
         }

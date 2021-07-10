@@ -2,14 +2,14 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+using System;
 using System.Runtime.CompilerServices;
 
 namespace Spreads.Collections.Concurrent
 {
     /// <summary>
-    /// Fast reads and locked writes.
+    /// Append-only linear storage with fast reads and locked writes.
     /// </summary>
-    /// <typeparam name="T"></typeparam>
     public class AppendOnlyStorage<T>
     {
         internal T[] _storage = new T[16];
@@ -22,7 +22,6 @@ namespace Spreads.Collections.Concurrent
             {
                 var idx = _count;
                 int cnt = idx + 1;
-                _count = cnt;
 
                 if (cnt > _storage.Length)
                 {
@@ -32,17 +31,30 @@ namespace Spreads.Collections.Concurrent
                 }
 
                 _storage[idx] = value;
+                _count = cnt;
                 return idx;
             }
         }
 
+        /// <summary>
+        /// Get an item at <paramref name="index"/>.
+        /// </summary>
         public ref T this[int index]
         {
             // no locks here because _storage could be changed atomically
-            // and to use an index from code it must be added first and
-            // Add must return first (otherwise usage is broken).
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => ref _storage[index];
         }
+
+        /// <summary>
+        /// Get an item at <paramref name="index"/> without bound checks.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public ref T UnsafeGetAt(int index) => ref _storage.UnsafeGetAt(index);
+
+        /// <summary>
+        /// Get a <see cref="ReadOnlySpan{T}"/> for the entire <see cref="AppendOnlyStorage{T}"/>.
+        /// </summary>
+        public ReadOnlySpan<T> Span => _storage.AsSpan().Slice(0, _count);
     }
 }

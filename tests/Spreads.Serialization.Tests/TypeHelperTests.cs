@@ -261,9 +261,9 @@ namespace Spreads.Core.Tests
             Assert.AreEqual(-1, TypeHelper<NonBlittableStruct>.FixedSize);
             Assert.AreEqual(4, TypeHelper<BlittableStruct1>.FixedSize);
             Assert.AreEqual(-1, TypeHelper<BlittableStruct2>.FixedSize);
-            Settings.UseStructLayoutSizeAsBlittableSize = true;
+            BinarySerializer.UseStructLayoutSizeAsBlittableSize = true;
             Assert.AreEqual(4, TypeHelper<BlittableStruct3>.FixedSize);
-            Settings.UseStructLayoutSizeAsBlittableSize = false;
+            BinarySerializer.UseStructLayoutSizeAsBlittableSize = false;
             Assert.AreEqual(4, TypeHelper<BlittableStruct3>.FixedSize);
 
             // TODO that must throw
@@ -278,7 +278,7 @@ namespace Spreads.Core.Tests
             Assert.IsFalse(CouldWriteToUnmanagedMemory<(int, string)>());
 
             Console.WriteLine(Unsafe.SizeOf<(int, decimal)>());
-            
+
             var ptr = Marshal.AllocHGlobal(Unsafe.SizeOf<(int, decimal)>());
             Unsafe.WriteUnaligned<(int, decimal)>((void*) ptr, (42, 43M));
             var value = Unsafe.ReadUnaligned<(int, decimal)>((void*) ptr);

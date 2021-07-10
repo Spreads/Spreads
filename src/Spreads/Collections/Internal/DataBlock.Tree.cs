@@ -58,7 +58,7 @@ namespace Spreads.Collections.Internal
                     i = (int) ((index >> (NodeShift * block.Height)) & NodeMask);
                     if (block.Height > 0)
                     {
-                        var newBlock = block.Values.UnsafeReadUnaligned<DataBlock>(i);
+                        DataBlock newBlock = block.Values.UnsafeReadUnaligned<DataBlock>(i);
                         ThrowHelper.DebugAssert(newBlock.Height == block.Height - 1);
                         block = newBlock;
                     }
@@ -293,7 +293,7 @@ namespace Spreads.Collections.Internal
         )]
         internal static void Append<TKey, TValue>(DataBlock block, ref DataBlock lastBlock, TKey key, TValue value)
         {
-            ThrowHelper.DebugAssert(lastBlock != null);
+            ThrowHelper.DebugAssert(lastBlock != null!);
 
             // KeySorting should be done at upper level
 
@@ -303,7 +303,7 @@ namespace Spreads.Collections.Internal
 
         internal static void AppendNode<TKey, TValue>(DataBlock root, ref DataBlock lastBlock, TKey key, TValue value)
         {
-            AppendNode(root, key, value, out var blockToAdd, ref lastBlock);
+            AppendNode(root, key, value, out DataBlock? blockToAdd, ref lastBlock);
             if (blockToAdd != null)
             {
                 // The root block is full, we need to create a new

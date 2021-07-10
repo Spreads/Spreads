@@ -10,6 +10,16 @@ using System.Diagnostics;
 
 namespace Spreads.Core.Tests.Algorithms
 {
+    [Obsolete("Use Benchmark utility")]
+    internal static class StopwatchExtensions
+    {
+        [Obsolete("Use Benchmark utility")]
+        public static double MOPS(this Stopwatch stopwatch, int count, int decimals = 2)
+        {
+            return Math.Round((count * 0.001) / ((double)stopwatch.ElapsedMilliseconds), decimals);
+        }
+    }
+
     [Category("CI")]
     [TestFixture]
     public class MovingMedianTests

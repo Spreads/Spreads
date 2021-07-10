@@ -1,6 +1,6 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
     <PropertyGroup>
-        <TargetFramework>net5.0</TargetFramework>
+        <TargetFramework>net6.0</TargetFramework>
         <AssemblyName>Spreads.Serialization.Tests</AssemblyName>
         <RootNamespace>Spreads.Serialization.Tests</RootNamespace>
         <TieredCompilation>false</TieredCompilation>
@@ -36,5 +36,6 @@
     <ItemGroup>
       <ProjectReference Include="..\..\src\Spreads.Core\Spreads.Core.csproj" />
       <ProjectReference Include="..\..\src\Spreads.Serialization\Spreads.Serialization.csproj" />
+      <ProjectReference Include="..\Spreads.Core.Tests\Spreads.Core.Tests.csproj" />
     </ItemGroup>
 </Project>

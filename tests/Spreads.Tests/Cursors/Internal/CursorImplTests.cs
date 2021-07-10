@@ -1,4 +1,5 @@
 ﻿using NUnit.Framework;
+using Shouldly;
 using Spreads.Collections.Internal;
 using Spreads.Core.Tests;
 using Spreads.Cursors.Internal;
@@ -14,7 +15,7 @@ namespace Spreads.Tests.Cursors.Internal
             var c = CursorImpl.Create();
             c.Dispose();
         }
-        
+
         [Test]
         public void CouldMoveRooted()
         {
@@ -22,7 +23,7 @@ namespace Spreads.Tests.Cursors.Internal
 
             var block = DataBlock.CreateSeries<int, int>();
             var lastBlock = block;
-            
+
             for (int i = 0; i < DataBlock.MaxNodeSize * 2; i++)
             {
                 DataBlock.Append<int, int>(block, ref lastBlock, i, i);
@@ -35,17 +36,17 @@ namespace Spreads.Tests.Cursors.Internal
                 int key = default;
                 int value = default;
                 c.Move(1, false, ref key, ref value).ShouldEqual(1);
-                key.ShouldEqual(i);
-                value.ShouldEqual(i);
+                key.ShouldBe(i);
+                value.ShouldBe(i);
             }
-            
+
             for (int i = DataBlock.MaxNodeSize - 2; i >= 0; i--)
             {
                 int key = default;
                 int value = default;
                 c.Move(-1, false, ref key, ref value).ShouldEqual(-1);
-                key.ShouldEqual(i);
-                value.ShouldEqual(i);
+                key.ShouldBe(i);
+                value.ShouldBe(i);
             }
         }
     }

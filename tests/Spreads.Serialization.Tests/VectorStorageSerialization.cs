@@ -3,6 +3,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 using System;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using NUnit.Framework;
 using Spreads.Buffers;

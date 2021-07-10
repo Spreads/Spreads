@@ -62,17 +62,17 @@ namespace Spreads
         [DebuggerStepThrough]
         [DoesNotReturn]
         [MethodImpl(MethodImplOptions.NoInlining)]
-        internal static void ThrowInvalidOperationException() => throw GetInvalidOperationException();
-
-        [DebuggerStepThrough]
-        [DoesNotReturn]
-        [MethodImpl(MethodImplOptions.NoInlining)]
-        internal static void ThrowInvalidCastException() => throw new InvalidCastException();
+        internal static void ThrowInvalidOperationException() => throw new InvalidOperationException();
 
         [DebuggerStepThrough]
         [DoesNotReturn]
         [MethodImpl(MethodImplOptions.NoInlining)]
         internal static void ThrowInvalidOperationException(string message) => throw new InvalidOperationException(message);
+
+        [DebuggerStepThrough]
+        [DoesNotReturn]
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        internal static void ThrowInvalidCastException() => throw new InvalidCastException();
 
         [DebuggerStepThrough]
         [DoesNotReturn]
@@ -173,9 +173,6 @@ namespace Spreads
 
         [MethodImpl(MethodImplOptions.NoInlining)]
         private static ArgumentOutOfRangeException GetArgumentOutOfRangeException(string argument) => new(argument);
-
-        [MethodImpl(MethodImplOptions.NoInlining)]
-        private static InvalidOperationException GetInvalidOperationException() => new();
 
         private static InvalidOperationException GetInvalidOperationException(ExceptionResource resource) => new(GetResourceString(resource));
 

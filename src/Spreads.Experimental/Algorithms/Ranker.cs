@@ -30,7 +30,7 @@ namespace Spreads.Algorithms
         public static ArraySegment<int> SortRank(ArraySegment<T> values, KeyComparer<T> comparer = default(KeyComparer<T>))
         {
             KVPComparer<T, int> kvComparer;
-            if (EqualityComparer<KeyComparer<T>>.Default.Equals(comparer, default(KeyComparer<T>)))
+            if (KeyEqualityComparer<KeyComparer<T>>.Default.Equals(comparer, default(KeyComparer<T>)))
             {
                 kvComparer = _kvComparer;
             }

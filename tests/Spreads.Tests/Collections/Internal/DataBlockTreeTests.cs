@@ -5,6 +5,7 @@
 using System;
 using System.Runtime.CompilerServices;
 using NUnit.Framework;
+using Shouldly;
 using Spreads.Collections.Internal;
 using Spreads.Core.Tests;
 using Spreads.Utils;
@@ -35,21 +36,21 @@ namespace Spreads.Tests.Collections.Internal
                 DataBlock.Append<int, int>(db, ref lastBlock, i, i);
             }
 
-            db.ReferenceCount.ShouldEqual(0);
-            db.RowCapacity.ShouldEqual(blockLimit);
-            db.RowCount.ShouldEqual(blockLimit);
+            db.ReferenceCount.ShouldBe(0);
+            db.RowCapacity.ShouldBe(blockLimit);
+            db.RowCount.ShouldBe(blockLimit);
 
             // First height increase
             DataBlock.Append<int, int>(db, ref lastBlock, blockLimit, blockLimit);
 
-            db.Height.ShouldEqual(1);
-            db.RowCount.ShouldEqual(2);
-            db.RowCapacity.ShouldEqual(Settings.MIN_POOLED_BUFFER_LEN);
-            db.Values.RuntimeTypeId.ShouldEqual(VecTypeHelper<DataBlock>.RuntimeTypeId);
-            db.Values.UnsafeReadUnaligned<DataBlock>(0).ShouldNotEqual(db);
+            db.Height.ShouldBe(1);
+            db.RowCount.ShouldBe(2);
+            db.RowCapacity.ShouldBe(Settings.MIN_POOLED_BUFFER_LEN);
+            db.Values.RuntimeTypeId.ShouldBe(TypeHelper<DataBlock>.RuntimeTypeId);
+            db.Values.UnsafeReadUnaligned<DataBlock>(0).ShouldNotBe(db);
 
-            db.Values.UnsafeReadUnaligned<DataBlock>(0).NextBlock.ShouldBeSame(db.Values.UnsafeReadUnaligned<DataBlock>(1));
-            db.Values.UnsafeReadUnaligned<DataBlock>(1).PreviousBlock.ShouldBeSame(db.Values.UnsafeReadUnaligned<DataBlock>(0));
+            db.Values.UnsafeReadUnaligned<DataBlock>(0).NextBlock.ShouldBeSameAs(db.Values.UnsafeReadUnaligned<DataBlock>(1));
+            db.Values.UnsafeReadUnaligned<DataBlock>(1).PreviousBlock.ShouldBeSameAs(db.Values.UnsafeReadUnaligned<DataBlock>(0));
 
             var value = blockLimit + 1;
             // root has one block and could have up to blockLimit blocks
@@ -64,9 +65,9 @@ namespace Spreads.Tests.Collections.Internal
                 }
             }
 
-            db.Height.ShouldEqual(1);
-            db.RowCount.ShouldEqual(blockLimit);
-            db.RowCapacity.ShouldEqual(blockLimit);
+            db.Height.ShouldBe(1);
+            db.RowCount.ShouldBe(blockLimit);
+            db.RowCapacity.ShouldBe(blockLimit);
 
             for (int i = 1; i < blockLimit - 1; i++)
             {
@@ -74,11 +75,11 @@ namespace Spreads.Tests.Collections.Internal
                 var blockIPrev = db.Values.UnsafeReadUnaligned<DataBlock>(i - 1);
                 var blockINext = db.Values.UnsafeReadUnaligned<DataBlock>(i + 1);
 
-                blockIPrev.NextBlock.ShouldBeSame(blockI);
-                blockI.PreviousBlock.ShouldBeSame(blockIPrev);
+                blockIPrev.NextBlock.ShouldBeSameAs(blockI);
+                blockI.PreviousBlock.ShouldBeSameAs(blockIPrev);
 
-                blockI.NextBlock.ShouldBeSame(blockINext);
-                blockINext.PreviousBlock.ShouldBeSame(blockI);
+                blockI.NextBlock.ShouldBeSameAs(blockINext);
+                blockINext.PreviousBlock.ShouldBeSameAs(blockI);
             }
 
             var firstBlock = db.Values.UnsafeReadUnaligned<DataBlock>(0);
@@ -90,9 +91,9 @@ namespace Spreads.Tests.Collections.Internal
             DataBlock.Append<int, int>(db, ref lastBlock, value, value);
             value++;
 
-            db.Height.ShouldEqual(2);
-            db.RowCount.ShouldEqual(2);
-            db.RowCapacity.ShouldEqual(Settings.MIN_POOLED_BUFFER_LEN);
+            db.Height.ShouldBe(2);
+            db.RowCount.ShouldBe(2);
+            db.RowCapacity.ShouldBe(Settings.MIN_POOLED_BUFFER_LEN);
 
             for (int h2 = 1; h2 < blockLimit; h2++)
             {
@@ -108,7 +109,7 @@ namespace Spreads.Tests.Collections.Internal
                 }
             }
 
-            db.Height.ShouldEqual(2);
+            db.Height.ShouldBe(2);
 
             firstBlock = db.Values.UnsafeReadUnaligned<DataBlock>(0).Values.UnsafeReadUnaligned<DataBlock>(0);
             var block = firstBlock;
@@ -118,12 +119,12 @@ namespace Spreads.Tests.Collections.Internal
                 if (block.NextBlock == null)
                     break;
 
-                block.NextBlock.PreviousBlock.ShouldEqual(block);
+                block.NextBlock.PreviousBlock.ShouldBe(block);
                 block = block.NextBlock;
                 count++;
             }
 
-            count.ShouldEqual(blockLimit * blockLimit - 1);
+            count.ShouldBe(blockLimit * blockLimit - 1);
             last = block;
             count = 0;
             while (true)
@@ -131,12 +132,12 @@ namespace Spreads.Tests.Collections.Internal
                 if (block.PreviousBlock == null)
                     break;
 
-                block.PreviousBlock.NextBlock.ShouldEqual(block);
+                block.PreviousBlock.NextBlock.ShouldBe(block);
                 block = block.PreviousBlock;
                 count++;
             }
 
-            count.ShouldEqual(blockLimit * blockLimit - 1);
+            count.ShouldBe(blockLimit * blockLimit - 1);
 
             for (int i = 0; i < blockLimit; i++)
             {
@@ -150,7 +151,7 @@ namespace Spreads.Tests.Collections.Internal
             DataBlock.Append<int, int>(db, ref lastBlock, value, value);
             value++;
 
-            db.Height.ShouldEqual(3);
+            db.Height.ShouldBe(3);
 
             db.Dispose();
 

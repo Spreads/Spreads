@@ -1,6 +1,6 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
     <PropertyGroup>
-        <TargetFrameworks>net5.0</TargetFrameworks>
+        <TargetFramework>net5.0</TargetFramework>
         <AssemblyName>Spreads.Tests</AssemblyName>
         <RootNamespace>Spreads.Tests</RootNamespace>
         <LangVersion>8.0</LangVersion>
@@ -19,11 +19,13 @@
         <PackageReference Include="NUnit" Version="3.12.0" />
         <PackageReference Include="NUnit3TestAdapter" Version="3.15.1" />
         <PackageReference Include="ObjectLayoutInspector" Version="0.1.1" />
+        <PackageReference Include="Shouldly" Version="3.0.2" />
     </ItemGroup>
 
     <ItemGroup>
       <ProjectReference Include="..\..\src\Spreads.Core\Spreads.Core.csproj" />
       <ProjectReference Include="..\..\src\Spreads.Old1\Spreads.Old1.csproj" />
+      <ProjectReference Include="..\..\src\SpreadsX\SpreadsX.csproj" />
       <ProjectReference Include="..\Spreads.Core.Tests\Spreads.Core.Tests.csproj" />
     </ItemGroup>
 

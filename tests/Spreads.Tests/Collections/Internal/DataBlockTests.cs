@@ -5,7 +5,9 @@
 using System;
 using System.Linq;
 using NUnit.Framework;
+using Shouldly;
 using Spreads.Buffers;
+using Spreads.Collections;
 using Spreads.Collections.Internal;
 using Spreads.Core.Tests;
 using Spreads.Core.Tests.Collections;
@@ -103,29 +105,29 @@ namespace Spreads.Tests.Collections.Internal
         public void CouldCreateForSeries()
         {
             var db = DataBlock.CreateForSeries<long, int>();
-            db.RowCount.ShouldEqual(0);
-            db.RowKeys.Length.ShouldEqual(Settings.MIN_POOLED_BUFFER_LEN);
-            db.Values.Length.ShouldEqual(Settings.MIN_POOLED_BUFFER_LEN);
-            db.ColumnCount.ShouldEqual(1);
-            db.ColumnKeys.Length.ShouldEqual(0);
+            db.RowCount.ShouldBe(0);
+            db.RowKeys.Length.ShouldBe(Settings.MIN_POOLED_BUFFER_LEN);
+            db.Values.Length.ShouldBe(Settings.MIN_POOLED_BUFFER_LEN);
+            db.ColumnCount.ShouldBe(1);
+            db.ColumnKeys.Length.ShouldBe(0);
 
-            db.RowKeys.RuntimeTypeId.ShouldEqual(VecTypeHelper<long>.RuntimeTypeId);
-            db.Values.RuntimeTypeId.ShouldEqual(VecTypeHelper<int>.RuntimeTypeId);
-            db.ColumnKeys.RuntimeTypeId.ShouldEqual(0);
+            db.RowKeys.RuntimeTypeId.ShouldBe(TypeHelper<long>.RuntimeTypeId);
+            db.Values.RuntimeTypeId.ShouldBe(TypeHelper<int>.RuntimeTypeId);
+            db.ColumnKeys.RuntimeTypeId.ShouldBe((RuntimeTypeId)0);
 
             db.Columns.ShouldBeNull();
             db.IsDisposed.ShouldBeFalse();
             db.IsValid.ShouldBeTrue();
-            db.ReferenceCount.ShouldEqual(0);
-            db.ReferenceCount.ShouldEqual(0);
+            db.ReferenceCount.ShouldBe(0);
+            db.ReferenceCount.ShouldBe(0);
 
             Assert.Throws<ArrayTypeMismatchException>(() => db.IncreaseRowsCapacity<int, int>());
 
             Assert.Throws<ArrayTypeMismatchException>(code: () => db.IncreaseRowsCapacity<long, long>());
 
-            db.IncreaseRowsCapacity<long, int>().ShouldEqual(Settings.MIN_POOLED_BUFFER_LEN * 2);
-            db.RowKeys.Length.ShouldEqual(Settings.MIN_POOLED_BUFFER_LEN * 2);
-            db.Values.Length.ShouldEqual(Settings.MIN_POOLED_BUFFER_LEN * 2);
+            db.IncreaseRowsCapacity<long, int>().ShouldBe(Settings.MIN_POOLED_BUFFER_LEN * 2);
+            db.RowKeys.Length.ShouldBe(Settings.MIN_POOLED_BUFFER_LEN * 2);
+            db.Values.Length.ShouldBe(Settings.MIN_POOLED_BUFFER_LEN * 2);
 
             var ro = db.RowKeys._memoryOwner!;
             var vo = db.Values._memoryOwner!;
@@ -137,8 +139,8 @@ namespace Spreads.Tests.Collections.Internal
             ro.IsDisposed.ShouldBeTrue();
             vo.IsDisposed.ShouldBeTrue();
 
-            db.RowKeys.Length.ShouldEqual(0);
-            db.Values.Length.ShouldEqual(0);
+            db.RowKeys.Length.ShouldBe(0);
+            db.Values.Length.ShouldBe(0);
 
             (ro as PrivateMemory<long>).IsPooled.ShouldBeTrue();
 
@@ -151,26 +153,26 @@ namespace Spreads.Tests.Collections.Internal
         public void CouldCreateForVector()
         {
             var db = DataBlock.CreateForVector<long>();
-            db.RowCount.ShouldEqual(0);
-            db.RowKeys.Length.ShouldEqual(0);
-            db.Values.Length.ShouldEqual(Settings.MIN_POOLED_BUFFER_LEN);
-            db.ColumnCount.ShouldEqual(1);
-            db.ColumnKeys.Length.ShouldEqual(0);
+            db.RowCount.ShouldBe(0);
+            db.RowKeys.Length.ShouldBe(0);
+            db.Values.Length.ShouldBe(Settings.MIN_POOLED_BUFFER_LEN);
+            db.ColumnCount.ShouldBe(1);
+            db.ColumnKeys.Length.ShouldBe(0);
 
-            db.RowKeys.RuntimeTypeId.ShouldEqual(0);
-            db.Values.RuntimeTypeId.ShouldEqual(VecTypeHelper<long>.RuntimeTypeId);
-            db.ColumnKeys.RuntimeTypeId.ShouldEqual(0);
+            db.RowKeys.RuntimeTypeId.ShouldBe((RuntimeTypeId)0);
+            db.Values.RuntimeTypeId.ShouldBe(TypeHelper<long>.RuntimeTypeId);
+            db.ColumnKeys.RuntimeTypeId.ShouldBe((RuntimeTypeId)0);
 
             db.Columns.ShouldBeNull();
             db.IsDisposed.ShouldBeFalse();
             db.IsValid.ShouldBeTrue();
-            db.ReferenceCount.ShouldEqual(0);
+            db.ReferenceCount.ShouldBe(0);
 
             Assert.Throws<ArrayTypeMismatchException>(() => db.IncreaseRowsCapacity<Index, int>());
 
-            db.IncreaseRowsCapacity<Index, long>().ShouldEqual(Settings.MIN_POOLED_BUFFER_LEN * 2);
-            db.RowKeys.Length.ShouldEqual(0);
-            db.Values.Length.ShouldEqual(Settings.MIN_POOLED_BUFFER_LEN * 2);
+            db.IncreaseRowsCapacity<Index, long>().ShouldBe(Settings.MIN_POOLED_BUFFER_LEN * 2);
+            db.RowKeys.Length.ShouldBe(0);
+            db.Values.Length.ShouldBe(Settings.MIN_POOLED_BUFFER_LEN * 2);
 
             db.RowKeys._memoryOwner.ShouldBeNull();
             var vo = db.Values._memoryOwner!;
@@ -182,8 +184,8 @@ namespace Spreads.Tests.Collections.Internal
 
             vo.IsDisposed.ShouldBeTrue();
 
-            db.RowKeys.Length.ShouldEqual(0);
-            db.Values.Length.ShouldEqual(0);
+            db.RowKeys.Length.ShouldBe(0);
+            db.Values.Length.ShouldBe(0);
 
             (vo as PrivateMemory<long>).IsPooled.ShouldBeTrue();
 

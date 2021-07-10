@@ -10,7 +10,7 @@ using Spreads.Threading;
 namespace Spreads.Collections.Internal
 {
     [StructLayout(LayoutKind.Explicit)]
-    internal sealed partial class DataBlock 
+    internal sealed partial class DataBlock
     {
         [FieldOffset(0)]
         private volatile int _lo;
@@ -18,8 +18,9 @@ namespace Spreads.Collections.Internal
         [FieldOffset(4)]
         private volatile int _hi = -1;
 
-        // This could be not equal to RowKeys.Length for Vector/Matrix.
-
+        /// <summary>
+        /// This could differ from RowKeys.Length for Vector/Matrix.
+        /// </summary>
         [FieldOffset(8)]
         private int _rowCapacity;
 
@@ -109,7 +110,7 @@ namespace Spreads.Collections.Internal
         public bool IsFull
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => Hi == _rowCapacity - 1;
+            get => _hi == _rowCapacity - 1;
         }
 
         /// <summary>

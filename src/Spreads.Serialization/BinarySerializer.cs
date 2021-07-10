@@ -98,13 +98,13 @@ namespace Spreads.Serialization
                     return headerSize + TypeEnumHelper<T>.FixedSize;
                 }
 
-                if (TypeHelper<T>.HasTypeSerializer)
+                if (BinarySerializer<T>.HasTypeSerializer)
                 {
-                    Debug.Assert(TypeHelper<T>.TypeSerializer.FixedSize <= 0);
+                    Debug.Assert(BinarySerializer<T>.TypeSerializer.FixedSize <= 0);
 
                     writer = BufferWriter.Create();
                     writer.Advance(headerSize + PayloadLengthSize);
-                    plLen = TypeHelper<T>.TypeSerializer.SizeOf(in value, writer);
+                    plLen = BinarySerializer<T>.TypeSerializer.SizeOf(in value, writer);
                     if (writer.WrittenLength == headerSize + PayloadLengthSize)
                     {
                         writer.Dispose();
@@ -138,7 +138,7 @@ namespace Spreads.Serialization
             // if we reached this line then payload is var size and in addition to header will have plLen in Write
 
             if (preferredFormat.CompressionMethod() == CompressionMethod.None
-                 || plLen < Settings.CompressionStartFrom // LT, value is inclusive
+                 || plLen < CompressionStartFrom // LT, value is inclusive
             )
             {
                 if (writer != null)
@@ -250,8 +250,8 @@ namespace Spreads.Serialization
             // Fixed size already returned and we do not compress it,
             // JSON always returns non-empty temp buffer.
             // The only option is that TBS returned size with empty buffer.
-            Debug.Assert(TypeHelper<T>.TypeSerializer != null && format.IsBinary());
-            var tbs = TypeHelper<T>.TypeSerializer;
+            Debug.Assert(BinarySerializer<T>.TypeSerializer != null && format.IsBinary());
+            var tbs = BinarySerializer<T>.TypeSerializer;
 
             bufferWriter.EnsureCapacity(DataTypeHeader.Size + PayloadLengthSize + rawLength);
             bufferWriter.Advance(DataTypeHeader.Size + PayloadLengthSize);
@@ -402,7 +402,7 @@ namespace Spreads.Serialization
             BinarySerializer<T> tbs;
             if (format.IsBinary())
             {
-                tbs = TypeHelper<T>.TypeSerializer ?? JsonBinarySerializer<T>.Instance;
+                tbs = BinarySerializer<T>.TypeSerializer ?? JsonBinarySerializer<T>.Instance;
             }
             else
             {
@@ -427,7 +427,7 @@ namespace Spreads.Serialization
                     {
                         if (format.CompressionMethod() != CompressionMethod.None)
                         {
-                            if (rawLength >= Settings.CompressionStartFrom)
+                            if (rawLength >= CompressionStartFrom)
                             {
                                 ThrowHelper.FailFast("SizeOf with compressed format must return non-empty payload.");
                             }
@@ -438,7 +438,7 @@ namespace Spreads.Serialization
                             }
                         }
 
-                        if (Settings.DefensiveBinarySerializerWrite && !TypeHelper<T>.IsTypeSerializerInternal)
+                        if (DefensiveBinarySerializerWrite && !BinarySerializer<T>.IsTypeSerializerInternal)
                         {
 #if DEBUG
                             // ReSharper disable once PossibleNullReferenceException
@@ -608,7 +608,7 @@ namespace Spreads.Serialization
                     return -1;
                 }
 
-                Debug.Assert(TypeHelper<T>.HasTypeSerializer ^ (TypeHelper<T>.TypeSerializer == null));
+                Debug.Assert(BinarySerializer<T>.HasTypeSerializer ^ (BinarySerializer<T>.TypeSerializer == null));
 
                 var consumed = FixedProxy<T>.Read(source, out value);
                 Debug.Assert(consumed == fs);
@@ -636,7 +636,7 @@ namespace Spreads.Serialization
 
             if (header.VersionAndFlags.IsBinary)
             {
-                bc = TypeHelper<T>.TypeSerializer;
+                bc = BinarySerializer<T>.TypeSerializer;
             }
 
             var payloadLen = source.Read<int>(0);
