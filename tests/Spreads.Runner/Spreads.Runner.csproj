@@ -2,17 +2,14 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFrameworks>net5.0</TargetFrameworks>
+    <TargetFramework>net6.0</TargetFramework>
     <RootNamespace>Spreads.Run</RootNamespace>
-    <!--<RuntimeFrameworkVersion>3.0.0-preview-27324-5</RuntimeFrameworkVersion>
-    <RuntimeIdentifier>win-x64</RuntimeIdentifier>-->
     <TieredCompilation>False</TieredCompilation>
-<!--    <TieredCompilationQuickJit>True</TieredCompilationQuickJit>-->
     <TieredCompilationQuickJitForLoops>False</TieredCompilationQuickJitForLoops>
     <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
     <DockerTargetOS>Linux</DockerTargetOS>
     <DockerComposeProjectPath>..\..\docker-compose.dcproj</DockerComposeProjectPath>
-    <LangVersion>7.2</LangVersion>
+    <LangVersion>latest</LangVersion>
     <Prefer32Bit>false</Prefer32Bit>
     <ServerGarbageCollection>true</ServerGarbageCollection>
     <ConcurrentGarbageCollection>true</ConcurrentGarbageCollection>
@@ -21,16 +18,13 @@
   <PropertyGroup>
     <PlatformTarget>AnyCPU</PlatformTarget>
   </PropertyGroup>
-  <!--<PropertyGroup>
-    <PackageConflictPreferredPackages>Microsoft.Private.CoreFx.NETCoreApp;runtime.win-x64.Microsoft.Private.CoreFx.NETCoreApp;$(PackageConflictPreferredPackages)</PackageConflictPreferredPackages>
-  </PropertyGroup>-->
+  
   <ItemGroup>
     <ProjectReference Include="..\..\src\Spreads.Core\Spreads.Core.csproj" />
+    <ProjectReference Include="..\..\src\Spreads.Experimental\Spreads.Experimental.csproj" />
+    <ProjectReference Include="..\..\src\Spreads.Serialization\Spreads.Serialization.csproj" />
     <ProjectReference Include="..\Spreads.Core.Tests\Spreads.Core.Tests.csproj" />
-<!--    <ProjectReference Include="..\Spreads.Core.Tests\Spreads.Core.Tests.csproj" />-->
-<!--    <ProjectReference Include="..\Spreads.Tests\Spreads.Tests.csproj" />-->
+    <ProjectReference Include="..\Spreads.Experimental.Tests\Spreads.Experimental.Tests.csproj" />
+    <ProjectReference Include="..\Spreads.Serialization.Tests\Spreads.Serialization.Tests.csproj" />
   </ItemGroup>
-  <!--<ItemGroup>
-    <PackageReference Include="runtime.win-x64.Microsoft.Private.CoreFx.NETCoreApp" Version="4.6.0-dev.19120.1" />
-  </ItemGroup>-->
 </Project>

@@ -3,7 +3,9 @@
 Spreads.Core contains several high-performance features: buffer pools, optimized binary/interpolation search, collections, threading utils, etc.
 
 -----------------------------------
-**Below is a very old readme, the library is under very slow rewrite**
+**The "series and panels" part of the library is under very slow rewrite**
+
+**Below is a very old readme**
 
 # Spreads
 <img src="https://raw.githubusercontent.com/Spreads/Spreads.Docs/master/img/ZipN.png" alt="Spreads" width="200" align="right" />
