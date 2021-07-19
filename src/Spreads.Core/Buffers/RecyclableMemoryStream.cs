@@ -1040,8 +1040,8 @@ namespace Spreads.Buffers
                 {
                     ThrowHelper.ThrowNotImplementedException("Large arrays are not implemented yet in RMS");
                 }
-#if NETCOREAPP2_1
-                stream.Write(_largeBuffer.Span.Slice(0, checked((int)_length)));
+#if NETCOREAPP
+                stream.Write(_largeBuffer.GetSpan().Slice(0, checked((int)_length)));
 #else
                 if (_largeBuffer.TryGetArray(out var segment))
                 {

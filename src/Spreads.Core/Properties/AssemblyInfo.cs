@@ -12,4 +12,4 @@ using System.Runtime.CompilerServices;
 [assembly: CLSCompliant(false)]
 [assembly: CompilationRelaxations(CompilationRelaxations.NoStringInterning)]
 [assembly: RuntimeCompatibility(WrapNonExceptionThrows = true)]
-[assembly: AssemblyVersion("2020.0.0.0")]
+[assembly: AssemblyVersion("2021.0.0.0")]

@@ -125,7 +125,7 @@ namespace Spreads.Utils
                 if (Arm.ArmBase.IsSupported)
                     return Arm.ArmBase.LeadingZeroCount(Arm.ArmBase.ReverseElementBits(value));
 #endif
-#if NET5_0
+#if HAS_BITOPERATIONS
                 return System.Numerics.BitOperations.TrailingZeroCount(value);
 #else
                 // HD, Figure 5-14
@@ -187,7 +187,7 @@ namespace Spreads.Utils
                 if (Arm.ArmBase.IsSupported)
                     return Arm.ArmBase.LeadingZeroCount(value);
 #endif
-#if NET5_0
+#if HAS_BITOPERATIONS
                 return System.Numerics.BitOperations.LeadingZeroCount((uint) value);
 #else
                 // HD, Figure 5-6
