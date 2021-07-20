@@ -26,6 +26,12 @@ namespace Spreads.Buffers
     {
         public static DirectBuffer Invalid = new((nint)(-1L), pointer: null);
 
+        /// <summary>
+        /// Create a <see cref="DirectBuffer"/> with the null data pointer and the specified length.
+        /// This is useful for some byref native APIs.
+        /// </summary>
+        public static DirectBuffer LengthOnly(uint length) => new(length, pointer: null);
+
         internal readonly nint _length;
         internal readonly byte* _pointer;
 

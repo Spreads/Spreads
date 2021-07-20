@@ -5,6 +5,7 @@
 using NUnit.Framework;
 using Spreads.Buffers;
 using System;
+using Shouldly;
 
 namespace Spreads.Core.Tests.Buffers
 {
@@ -70,6 +71,15 @@ namespace Spreads.Core.Tests.Buffers
                 rm0.Dispose();
                 rm1.Dispose();
             }
+        }
+
+        [Test]
+        public unsafe void LengthOnlyIsInvalid()
+        {
+            var db = DirectBuffer.LengthOnly(123);
+            db.Length.ShouldBe(123);
+            ((long)db.Data).ShouldBe(0);
+            db.IsValid.ShouldBeFalse();
         }
     }
 }
