@@ -176,10 +176,19 @@ namespace Spreads.Text
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public ref readonly char UnsafeGetAt(int index)
+        {
+            return ref Unsafe.AddByteOffset(ref Unsafe.As<Box<char>>(_object)!.Value, (nint)(_byteStart + index * sizeof(char)));
+        }
+
         public ref readonly char this[int index]
         {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => ref Unsafe.AddByteOffset(ref Unsafe.As<Box<char>>(_object)!.Value, (nint)(_byteStart + index * sizeof(char)));
+            get
+            {
+                ThrowHelper.EnsureOffset(index, _charLength);
+                return ref UnsafeGetAt(index);
+            }
         }
 
         public ReadOnlySpan<char> Span
@@ -297,6 +306,10 @@ namespace Spreads.Text
             return UnsafeGetHashCode(in First, _charLength);
         }
 
+        /// <summary>
+        /// The <paramref name="length"/> must be valid, not bound checks could be made with
+        /// the first argument <paramref name="firstChar"/> provided as a reference.
+        /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int UnsafeGetHashCode(in char firstChar, int length)
         {

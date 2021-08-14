@@ -40,6 +40,17 @@ namespace Spreads
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [SuppressMessage("ReSharper", "RedundantCast")]
+        internal static void EnsureOffset(int offset, int maxLength)
+        {
+            unchecked
+            {
+                if ((ulong)(uint)offset >= (ulong)(uint)maxLength)
+                    ThrowIndexOutOfRangeException();
+            }
+        }
+
         [DebuggerStepThrough]
         [DoesNotReturn]
         [MethodImpl(MethodImplOptions.NoInlining)]
@@ -124,8 +135,7 @@ namespace Spreads
         /// <param name="message"></param>
         [DebuggerStepThrough]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static void Assert([DoesNotReturnIf(parameterValue: false)]
-            bool expectedTrueCondition, string? message = null)
+        internal static void Assert([DoesNotReturnIf(parameterValue: false)] bool expectedTrueCondition, string? message = null)
         {
             if (!expectedTrueCondition)
             {
@@ -141,8 +151,7 @@ namespace Spreads
         [DebuggerStepThrough]
         [Conditional("DEBUG")]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static void DebugAssert([DoesNotReturnIf(parameterValue: false)]
-            bool expectedTrueCondition, string? message = null)
+        internal static void DebugAssert([DoesNotReturnIf(parameterValue: false)] bool expectedTrueCondition, string? message = null)
         {
             if (!expectedTrueCondition)
             {
@@ -156,8 +165,7 @@ namespace Spreads
 
         [Obsolete("Use only when data could be corrupted or for debug")]
         [MethodImpl(MethodImplOptions.NoInlining)]
-        internal static void AssertFailFast([DoesNotReturnIf(parameterValue: false)]
-            bool expectedTrueCondition, string? message = null)
+        internal static void AssertFailFast([DoesNotReturnIf(parameterValue: false)] bool expectedTrueCondition, string? message = null)
         {
             if (!expectedTrueCondition)
             {

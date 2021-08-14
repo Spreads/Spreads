@@ -202,5 +202,13 @@ namespace Spreads.Core.Tests.Text
             lenSum.ShouldBeGreaterThan(count);
             Benchmark.Dump();
         }
+
+        [Test]
+        public void ShouldBoundCheck()
+        {
+            var ss = new StringSegment("abcd", 0, 2);
+            Should.Throw<IndexOutOfRangeException>(() => ss[2]);
+            ss.UnsafeGetAt(2).ShouldBe('c');
+        }
     }
 }
