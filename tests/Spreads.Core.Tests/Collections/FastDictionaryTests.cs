@@ -38,63 +38,65 @@ namespace Spreads.Core.Tests.Collections
             for (int r = 0; r < 10; r++)
             {
                 var sum = 0L;
-                using (Benchmark.Run("Dictionary", count * length))
+                Benchmark.Run("Dictionary", () =>
                 {
                     for (int i = 0; i < count; i++)
                     {
                         for (int j = 0; j < length; j++)
                         {
-                            sum += dictionary[j];
+                            dictionary.TryGetValue(j, out var value);
+                            sum += value;
                         }
                     }
-                }
+                }, count * length);
+
                 Assert.True(sum > 0);
 
                 var sum1 = 0L;
-                using (Benchmark.Run("FastDictionary", count * length))
+                Benchmark.Run("FastDictionary", () =>
                 {
                     for (int i = 0; i < count; i++)
                     {
                         for (int j = 0; j < length; j++)
                         {
-                            sum1 += fastDictionary[j];
+                            fastDictionary.TryGetValue(j, out var value);
+                            sum1 += value;
                         }
                     }
-                }
+                }, count * length);
                 Assert.True(sum1 > 0);
                 // Assert.AreEqual(sum, sum1);
 
                 var sum2 = 0L;
-                using (Benchmark.Run("ConcurrentDictionary", count * length))
+                Benchmark.Run("ConcurrentDictionary", () =>
                 {
                     for (int i = 0; i < count; i++)
                     {
                         for (int j = 0; j < length; j++)
                         {
-                            sum2 += concurrentDictionary[j];
+                            concurrentDictionary.TryGetValue(j, out var value);
+                            sum2 += value;
                         }
                     }
-                }
+                }, count * length);
                 Assert.True(sum2 > 0);
 
                 var sum3 = 0L;
-                using (Benchmark.Run("DictionarySlim", count * length))
+                Benchmark.Run("DictionarySlim", () =>
                 {
                     for (int i = 0; i < count; i++)
                     {
                         for (int j = 0; j < length; j++)
                         {
-                            sum3 += dictionarySlim.GetOrAddValueRef(j);
+                            sum3 += dictionarySlim.DangerousTryGetValueRef(j, out _);
                         }
                     }
-                }
+                }, count * length);
                 Assert.True(sum3 > 0);
 
             }
 
             Benchmark.Dump();
         }
-
-
     }
 }

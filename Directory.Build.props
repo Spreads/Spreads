@@ -55,14 +55,14 @@
     <QVersion>0</QVersion>
 
     <!-- Overrides -->
-    <MMDDVersion>719</MMDDVersion>
+    <MMDDVersion></MMDDVersion>
     <PackageHHMMSSSuffix Condition="$(AutoSuffix) != '' AND $(AutoSuffix)">$(VersionSuffix)</PackageHHMMSSSuffix>
 
   </PropertyGroup>
 
   <PropertyGroup>
     <!-- Set to True for auto incrementing build releases. Is set by scripts. -->
-    <AutoSuffix>False</AutoSuffix>
+    <AutoSuffix>True</AutoSuffix>
 
     <MMDDVersion Condition="'$(MMDDVersion)' == '' AND $(AutoSuffix)">$([System.DateTime]::Now.ToString(MMdd))</MMDDVersion>
     <PackageHHMMSSSuffix Condition="'$(PackageHHMMSSSuffix)' != ''">-$(PackageHHMMSSSuffix)</PackageHHMMSSSuffix>

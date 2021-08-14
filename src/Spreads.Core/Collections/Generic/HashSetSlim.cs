@@ -38,12 +38,12 @@ namespace Spreads.Collections.Generic
         /// <summary>
         /// Construct with default capacity.
         /// </summary>
-        public HashSetSlim(T defaultValue = default!)
+        public HashSetSlim()
         {
             _buckets = HashHelpers.SizeOneIntArray;
             _entries = InitialEntries;
             _nexts = InitialNexts;
-            _defaultValue = defaultValue;
+            _defaultValue = default!;
         }
 
         /// <summary>
@@ -52,7 +52,7 @@ namespace Spreads.Collections.Generic
         /// </summary>
         /// <param name="capacity">Requested minimum capacity</param>
         /// <param name="defaultValue"></param>
-        public HashSetSlim(int capacity, T defaultValue = default!)
+        public HashSetSlim(int capacity = 0, T defaultValue = default!)
         {
             if (capacity < 0)
                 ThrowHelper.ThrowArgumentOutOfRange_CapacityException();;

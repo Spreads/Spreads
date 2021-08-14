@@ -65,11 +65,11 @@ namespace Spreads.Collections.Generic
         /// <summary>
         /// Construct with default capacity.
         /// </summary>
-        public DictionarySlim(TValue defaultValue = default!)
+        public DictionarySlim()
         {
             _buckets = HashHelpers.SizeOneIntArray;
             _entries = InitialEntries;
-            _defaultValue = defaultValue;
+            _defaultValue = default!;
         }
 
         /// <summary>
@@ -78,7 +78,7 @@ namespace Spreads.Collections.Generic
         /// </summary>
         /// <param name="capacity">Requested minimum capacity</param>
         /// <param name="defaultValue"></param>
-        public DictionarySlim(int capacity, TValue defaultValue = default!)
+        public DictionarySlim(int capacity = 0, TValue defaultValue = default!)
         {
             if (capacity < 0)
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.value, ExceptionResource.ArgumentOutOfRange_SmallCapacity);
@@ -164,7 +164,7 @@ namespace Spreads.Collections.Generic
                 collisionCount++;
             }
 
-            value = default;
+            value = _defaultValue;
             return false;
         }
 
@@ -172,7 +172,7 @@ namespace Spreads.Collections.Generic
         /// Assumes no concurrent updates are possible.
         /// </summary>
         [MethodImpl(MethodImplAggressiveAll)]
-        internal bool DangerousTryGetValue(TKey key, out TValue value)
+        public bool DangerousTryGetValue(TKey key, out TValue value)
         {
             Entry[] entries = _entries;
 
@@ -187,7 +187,7 @@ namespace Spreads.Collections.Generic
                 }
             }
 
-            value = default;
+            value = _defaultValue;
             return false;
         }
 
@@ -229,7 +229,7 @@ namespace Spreads.Collections.Generic
         /// Assumes no concurrent updates are possible.
         /// </summary>
         [MethodImpl(MethodImplAggressiveAll)]
-        internal ref readonly TValue DangerousTryGetValueRef(TKey key, out bool found)
+        public ref readonly TValue DangerousTryGetValueRef(TKey key, out bool found)
         {
             Entry[] entries = _entries;
             for (int i = _buckets[key.GetHashCode() & (_buckets.Length - 1)] - 1;
