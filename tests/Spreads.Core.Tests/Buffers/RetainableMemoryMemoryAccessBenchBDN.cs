@@ -9,6 +9,7 @@ using BenchmarkDotNet.Configs;
 using BenchmarkDotNet.Jobs;
 using NUnit.Framework;
 using Spreads.Buffers;
+using Spreads.Utils;
 using Vec = Spreads.Collections.Vec;
 
 namespace Spreads.Core.Tests.Buffers
@@ -60,7 +61,7 @@ namespace Spreads.Core.Tests.Buffers
 #endif
         ]
 #if NETCOREAPP3_0
-        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+        [MethodImpl(Constants.MethodImplAggressiveOptimization)]
 #endif
         public void MemoryAccessBench()
         {
@@ -69,7 +70,7 @@ namespace Spreads.Core.Tests.Buffers
 
         [BenchmarkCategoryAttribute("MemAccess")]
         [Benchmark(OperationsPerInvoke = 10)]
-        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+        [MethodImpl(Constants.MethodImplAggressiveOptimization)]
         public unsafe int MemoryAccessViaDbPointer()
         {
             return _db.Ptr[_db.Ptr[_db.Ptr[_db.Ptr[_db.Ptr[_db.Ptr[_db.Ptr[_db.Ptr[_db.Ptr[_db.Ptr[_idx]]]]]]]]]];
@@ -77,7 +78,7 @@ namespace Spreads.Core.Tests.Buffers
 
         [BenchmarkCategoryAttribute("MemAccess")]
         [Benchmark(OperationsPerInvoke = 10)]
-        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+        [MethodImpl(Constants.MethodImplAggressiveOptimization)]
         public unsafe int MemoryAccessViaDbPointerX()
         {
             return Unsafe.ReadUnaligned<int>(ref Unsafe.As<int, byte>(ref Unsafe.Add(ref Unsafe.AsRef<int>(_db.Ptr),
@@ -95,35 +96,35 @@ namespace Spreads.Core.Tests.Buffers
 
         [BenchmarkCategoryAttribute("MemAccess")]
         [Benchmark(OperationsPerInvoke = 10)]
-        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+        [MethodImpl(Constants.MethodImplAggressiveOptimization)]
         public int MemoryAccessViaDbArray()
         {
             return _db.arr[_db.arr[_db.arr[_db.arr[_db.arr[_db.arr[_db.arr[_db.arr[_db.arr[_db.arr[_idx]]]]]]]]]];
         }
 
         [Benchmark]
-        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+        [MethodImpl(Constants.MethodImplAggressiveOptimization)]
         public int MemoryAccessVecViaMemSpan()
         {
             return _rm.Memory.Span[(int) _idx];
         }
 
         [Benchmark]
-        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+        [MethodImpl(Constants.MethodImplAggressiveOptimization)]
         public int MemoryAccessVecViaLocalDangerous()
         {
             return _vec.DangerousGetUnaligned<int>(_idx);
         }
 
         [Benchmark]
-        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+        [MethodImpl(Constants.MethodImplAggressiveOptimization)]
         public int MemoryAccessVecViaLocalUnsafe()
         {
             return _vec.UnsafeGetUnaligned<int>((IntPtr) _idx);
         }
 
         [Benchmark]
-        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+        [MethodImpl(Constants.MethodImplAggressiveOptimization)]
         public int MemoryAccessVecViaDbVecDangerous()
         {
             return _db.RetainedVec.UnsafeReadUnaligned<int>(_idx);
@@ -131,7 +132,7 @@ namespace Spreads.Core.Tests.Buffers
 
         [BenchmarkCategoryAttribute("MemAccess")]
         [Benchmark(OperationsPerInvoke = 10)]
-        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+        [MethodImpl(Constants.MethodImplAggressiveOptimization)]
         public int MemoryAccessVecViaDbVecUnsafe()
         {
             return _db.RetainedVec.UnsafeReadUnaligned<int>( _db.RetainedVec.UnsafeReadUnaligned<int>( _db.RetainedVec.UnsafeReadUnaligned<int>(
@@ -142,7 +143,7 @@ namespace Spreads.Core.Tests.Buffers
 
         [BenchmarkCategoryAttribute("MemAccess")]
         [Benchmark(OperationsPerInvoke = 10)]
-        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+        [MethodImpl(Constants.MethodImplAggressiveOptimization)]
         public int MemoryAccessVecViaDbVecStorageRead()
         {
             return _db.RetainedVec.UnsafeReadUnaligned<int>(_db.RetainedVec.UnsafeReadUnaligned<int>( _db.RetainedVec.UnsafeReadUnaligned<int>(
@@ -153,7 +154,7 @@ namespace Spreads.Core.Tests.Buffers
         }
 
         [Benchmark]
-        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+        [MethodImpl(Constants.MethodImplAggressiveOptimization)]
         public unsafe int MemoryAccessVecViaDbVecPointer()
         {
             return Unsafe.ReadUnaligned<int>(ref Unsafe.As<int, byte>(ref Unsafe.Add<int>(ref Unsafe.AsRef<int>((void*) _db.Vec._byteOffset), (IntPtr) _idx)));
@@ -161,7 +162,7 @@ namespace Spreads.Core.Tests.Buffers
 
         [BenchmarkCategoryAttribute("MemAccess")]
         [Benchmark(OperationsPerInvoke = 10)]
-        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+        [MethodImpl(Constants.MethodImplAggressiveOptimization)]
         public int MemoryAccessVecViaDbVecStorageUnsafe()
         {
             return _db.RetainedVec.UnsafeReadUnaligned<int>( _db.RetainedVec.UnsafeReadUnaligned<int>( _db.RetainedVec.UnsafeReadUnaligned<int>(
@@ -173,7 +174,7 @@ namespace Spreads.Core.Tests.Buffers
 
         [BenchmarkCategoryAttribute("MemAccess")]
         [Benchmark(OperationsPerInvoke = 10)]
-        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+        [MethodImpl(Constants.MethodImplAggressiveOptimization)]
         public int MemoryAccessVecViaDbVecStorageDangerous()
         {
             return _db.RetainedVec.UnsafeReadUnaligned<int>(_db.RetainedVec.UnsafeReadUnaligned<int>(_db.RetainedVec.UnsafeReadUnaligned<int>(
@@ -188,7 +189,7 @@ namespace Spreads.Core.Tests.Buffers
 #endif
         ]
 #if NETCOREAPP3_0
-        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+        [MethodImpl(Constants.MethodImplAggressiveOptimization)]
 #endif
         public void MemoryFieldBench()
         {
@@ -196,7 +197,7 @@ namespace Spreads.Core.Tests.Buffers
         }
 
         [Benchmark(OperationsPerInvoke = 1000)]
-        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+        [MethodImpl(Constants.MethodImplAggressiveOptimization)]
         public long MemoryFieldBench_Field()
         {
             var rounds = 1000;
@@ -213,7 +214,7 @@ namespace Spreads.Core.Tests.Buffers
         }
 
         [Benchmark(OperationsPerInvoke = 1000)]
-        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+        [MethodImpl(Constants.MethodImplAggressiveOptimization)]
         public long MemoryFieldBench_CreateMem()
         {
             var rounds = 1000;

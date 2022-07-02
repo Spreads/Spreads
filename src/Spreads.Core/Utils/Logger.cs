@@ -13,6 +13,9 @@ namespace Spreads.Utils
         private static readonly ILoggerFactory _noopFactory = new NoopLoggerFactory();
         private static ILoggerFactory _factory = _noopFactory;
 
+        public static ILogger ForType<T>() => Factory.CreateLogger<T>();
+        public static ILogger ForType(Type type) => Factory.CreateLogger(type);
+
         public static ILoggerFactory Factory
         {
             get => _factory;
@@ -23,15 +26,10 @@ namespace Spreads.Utils
             }
         }
 
+        public static void SetNoopLogger() => Factory = new NoopLoggerFactory();
+
         private class NoopLoggerFactory : ILoggerFactory, ILogger
         {
-            private class NoopDisposable : IDisposable
-            {
-                public void Dispose()
-                {
-                }
-            }
-
             public void Dispose()
             {
             }
@@ -43,22 +41,39 @@ namespace Spreads.Utils
 
             public void AddProvider(ILoggerProvider provider)
             {
-
             }
 
             public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception exception, Func<TState, Exception, string> formatter)
             {
             }
 
-            public bool IsEnabled(LogLevel logLevel)
+            public bool IsEnabled(LogLevel logLevel) => false;
+
+            public IDisposable BeginScope<TState>(TState state) => this;
+        }
+
+        public static void SetConsoleLogger() => Factory = new FastConsoleLoggerFactory();
+
+        /// <summary>
+        /// Flushes instantly, good for tests.
+        /// </summary>
+        private class FastConsoleLoggerFactory : ILoggerFactory, ILogger
+        {
+            public void Dispose()
             {
-                return false;
             }
 
-            public IDisposable BeginScope<TState>(TState state)
+            public ILogger CreateLogger(string categoryName) => this;
+
+            public void AddProvider(ILoggerProvider provider)
             {
-                return new NoopDisposable();
             }
+
+            public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception exception, Func<TState, Exception, string> formatter) => Console.WriteLine(formatter(state, exception));
+
+            public bool IsEnabled(LogLevel logLevel) => true;
+
+            public IDisposable BeginScope<TState>(TState state) => this;
         }
     }
 }

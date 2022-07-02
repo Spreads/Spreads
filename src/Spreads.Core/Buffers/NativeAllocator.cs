@@ -4,6 +4,8 @@
 
 using System;
 using System.Runtime.InteropServices;
+using Microsoft.Extensions.Logging;
+using Spreads.Utils;
 
 namespace Spreads.Buffers
 {
@@ -17,8 +19,10 @@ namespace Spreads.Buffers
     /// keep too much memory per thread, not releasing it back to OS proactively.
     /// See e.g. https://github.com/microsoft/snmalloc/issues/127 and related commit and Twitter discussion.
     /// </remarks>
-    public static unsafe class NativeAllocator
+    public unsafe class NativeAllocator
     {
+        private static readonly ILogger _log = Logger.ForType<NativeAllocator>();
+        
         /// <summary>
         /// Allocated non-initialized native memory. Some allocators, such as Mimalloc or Jemalloc,
         /// could allocate more usable memory than requested. Use <paramref name="usableSize"/>
@@ -47,7 +51,11 @@ namespace Spreads.Buffers
         {
             return (nuint requiredSize, out nuint usableSize) =>
             {
+#if NET6_0
+                var ptr = (byte*)NativeMemory.Alloc(requiredSize);
+#else
                 var ptr = (byte*)Marshal.AllocHGlobal((nint)requiredSize);
+#endif
                 usableSize = requiredSize;
                 return ptr;
             };
@@ -57,7 +65,14 @@ namespace Spreads.Buffers
 
         private static FreeDelegate DefaultFree()
         {
-            return memory => Marshal.FreeHGlobal((IntPtr)memory);
+            return memory =>
+            {
+#if NET6_0
+                NativeMemory.Free(memory);
+#else
+                Marshal.FreeHGlobal((IntPtr)memory);
+#endif
+            };
         }
 
         /// <summary>
@@ -69,6 +84,14 @@ namespace Spreads.Buffers
         /// <param name="freeDelegate"></param>
         public static void SetDelegates(AllocateDelegate allocateDelegate, FreeDelegate freeDelegate)
         {
+            _log.LogInformation("Setting native allocators.");
+
+            // detect wrong implementation early, log before potential unmanaged fail.
+            for (int i = 1000; i <= 10000; i += 100)
+            {
+                freeDelegate(allocateDelegate((nuint)i, out _));
+            }
+
             Allocate = allocateDelegate;
             Free = freeDelegate;
         }

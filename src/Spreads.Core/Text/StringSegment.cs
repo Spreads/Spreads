@@ -251,6 +251,7 @@ namespace Spreads.Text
         /// When using with <see cref="HashSetSlim{T}"/>, a <see cref="StringSegment"/> could be interned
         /// and its <see cref="int"/> index in the <see cref="HashSetSlim{T}"/> could be used as a small reference to the segment.
         /// </summary>
+        [Obsolete("TODO Rename, it's confusing with .Span.Trim")]
         public StringSegment Trim()
         {
             return new(ToString());
@@ -307,7 +308,7 @@ namespace Spreads.Text
         }
 
         /// <summary>
-        /// The <paramref name="length"/> must be valid, not bound checks could be made with
+        /// The <paramref name="length"/> must be valid, no bound checks could be made with
         /// the first argument <paramref name="firstChar"/> provided as a reference.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -319,7 +320,7 @@ namespace Spreads.Text
             unchecked
             {
                 // Lazy FNV, just read 2 chars as int
-                // Would be nice to put xxh3 here, it's optimized for short length.
+                // It would be nice to put xxh3 here because it's optimized for short length.
 
                 ref char first = ref Unsafe.AsRef(in firstChar);
 

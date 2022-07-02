@@ -170,6 +170,7 @@ namespace Spreads.Collections.Generic
 
         /// <summary>
         /// Assumes no concurrent updates are possible.
+        /// The danger is that the code could enter an endless loop is this dictionary is modified from multiple threads.
         /// </summary>
         [MethodImpl(MethodImplAggressiveAll)]
         public bool DangerousTryGetValue(TKey key, out TValue value)
@@ -227,6 +228,7 @@ namespace Spreads.Collections.Generic
 
         /// <summary>
         /// Assumes no concurrent updates are possible.
+        /// The danger is that the code could enter an endless loop is this dictionary is modified from multiple threads.
         /// </summary>
         [MethodImpl(MethodImplAggressiveAll)]
         public ref readonly TValue DangerousTryGetValueRef(TKey key, out bool found)
@@ -461,7 +463,7 @@ namespace Spreads.Collections.Generic
             Debug.Assert(_entries.Length == _count || _entries.Length == 1); // We only copy _count, so if it's longer we will miss some
             int count = _count;
             int newSize = _entries.Length * 2;
-            if ((uint)newSize > (uint)int.MaxValue) // uint cast handles overflow
+            if (_entries.Length == int.MaxValue)
                 throw new InvalidOperationException("Capacity Overflow");
 
             var entries = new Entry[newSize];
@@ -479,6 +481,30 @@ namespace Spreads.Collections.Generic
             _entries = entries;
 
             return entries;
+        }
+
+        // TODO (low) Special zero-alloc iterators for keys/value
+
+        public IEnumerable<TKey> Keys
+        {
+            get
+            {
+                foreach (KeyValuePair<TKey, TValue> value in this)
+                {
+                    yield return value.Key;
+                }
+            }
+        }
+
+        public IEnumerable<TValue> Values
+        {
+            get
+            {
+                foreach (KeyValuePair<TKey, TValue> value in this)
+                {
+                    yield return value.Value;
+                }
+            }
         }
 
         /// <summary>

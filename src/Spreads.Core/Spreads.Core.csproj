@@ -24,6 +24,8 @@
     <Compile Remove="Utils\FastMember\ObjectReader.cs" />
     <Compile Update="Algorithms\VectorSearch.Specialized.cs">
       <DependentUpon>VectorSearch.Specialized.tt</DependentUpon>
+      <DesignTime>True</DesignTime>
+      <AutoGen>True</AutoGen>
     </Compile>
   </ItemGroup>
   <ItemGroup>

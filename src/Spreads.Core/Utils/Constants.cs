@@ -13,5 +13,11 @@ namespace Spreads.Utils
 #endif
             ;
 
+        internal const MethodImplOptions MethodImplAggressiveOptimization = 0
+#if HAS_AGGR_OPT
+                                                                   | MethodImplOptions.AggressiveOptimization
+#endif
+            ;
+
     }
 }

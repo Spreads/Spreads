@@ -13,23 +13,27 @@ using Microsoft.Extensions.Logging;
 using Spreads.Collections;
 using Spreads.Collections.Concurrent;
 using Spreads.DataTypes;
-
 using Spreads.Utils;
 using static System.Runtime.CompilerServices.Unsafe;
+
 // ReSharper disable HeapView.ObjectAllocation.Possible
 
 #pragma warning disable HAA0101 // Array allocation for params parameter
 
 namespace Spreads
 {
-    public static class TypeHelper
+    internal static class TypeHelperStorage
     {
         internal static readonly AppendOnlyStorage<RuntimeTypeInfo> _runtimeTypeInfoStorage = new();
         internal static readonly ConcurrentDictionary<Type, int> _runtimeTypeInfoIndexLookup = new();
+    }
 
+    public static class TypeHelper
+    {
         public static readonly nint StringOffset = CalculateStringOffset();
         public static readonly int StringOffsetInt = (int)StringOffset;
 
+        // circular w.r.t. storage, blows up on non-Core frameworks, moved storage to a separate class
         public static readonly nint ArrayOffset = TypeHelper<object>.ArrayOffset;
         public static readonly int ArrayOffsetInt = (int)ArrayOffset;
 
@@ -45,31 +49,25 @@ namespace Spreads
             }
         }
 
-        // ReSharper disable once UnusedMember.Local Use by reflection
-        private static RuntimeTypeId GetRuntimeTypeIdReflection<T>()
-        {
-            return TypeHelper<T>.GetRuntimeVecInfo().RuntimeTypeId;
-        }
+        private static RuntimeTypeId GetRuntimeTypeIdReflection<T>() => TypeHelper<T>.GetRuntimeVecInfo().RuntimeTypeId;
 
         [SuppressMessage("ReSharper", "InconsistentlySynchronizedField")]
         public static ref readonly RuntimeTypeInfo GetRuntimeTypeInfo(Type ty)
         {
-            if (_runtimeTypeInfoIndexLookup.TryGetValue(ty, out int idx))
-                return ref _runtimeTypeInfoStorage[idx];
+            if (TypeHelperStorage._runtimeTypeInfoIndexLookup.TryGetValue(ty, out int idx))
+                return ref TypeHelperStorage._runtimeTypeInfoStorage[idx];
 
-            lock (_runtimeTypeInfoStorage)
+            lock (TypeHelperStorage._runtimeTypeInfoStorage)
             {
-                if (_runtimeTypeInfoIndexLookup.TryGetValue(ty, out idx))
-                {
-                    return ref _runtimeTypeInfoStorage[idx];
-                }
+                if (TypeHelperStorage._runtimeTypeInfoIndexLookup.TryGetValue(ty, out idx))
+                    return ref TypeHelperStorage._runtimeTypeInfoStorage[idx];
 
                 RuntimeTypeId GetRuntimeTypeInfoViaReflection()
                 {
-                    MethodInfo mi = typeof(TypeHelper).GetMethod("GetRuntimeTypeIdReflection", BindingFlags.Static | BindingFlags.NonPublic)!;
+                    MethodInfo mi = typeof(TypeHelper).GetMethod(nameof(GetRuntimeTypeIdReflection), BindingFlags.Static | BindingFlags.NonPublic)!;
                     ThrowHelper.Assert(mi != null);
                     MethodInfo genericMi = mi.MakeGenericMethod(ty);
-                    var runtimeTypeId = (RuntimeTypeId) genericMi.Invoke(null, new object[] { })!;
+                    var runtimeTypeId = (RuntimeTypeId)genericMi.Invoke(null, new object[] { })!;
                     return runtimeTypeId;
                 }
 
@@ -80,7 +78,7 @@ namespace Spreads
 
         public static ref readonly RuntimeTypeInfo GetRuntimeTypeInfo(RuntimeTypeId typeId)
         {
-            return ref _runtimeTypeInfoStorage[typeId.TypeId - 1];
+            return ref TypeHelperStorage._runtimeTypeInfoStorage[typeId.TypeId - 1];
         }
 
         [Obsolete("This must go to TEH")]
@@ -129,7 +127,7 @@ namespace Spreads
         {
             var oneArray = new T[1];
             IntPtr offset = ByteOffset(ref As<Box<T>>(oneArray)!.Value, ref oneArray[0]);
-            if(_logger.IsEnabled(LogLevel.Trace))
+            if (_logger != null! && _logger.IsEnabled(LogLevel.Trace))
                 _logger.LogTrace($"ArrayOffset for type {typeof(T).FullName} is {(int)offset}");
             return offset;
         }
@@ -137,26 +135,26 @@ namespace Spreads
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static unsafe RuntimeTypeInfo GetRuntimeVecInfo()
         {
-            if (TypeHelper._runtimeTypeInfoIndexLookup.TryGetValue(typeof(T), out int idx))
-                return TypeHelper._runtimeTypeInfoStorage[idx];
+            if (TypeHelperStorage._runtimeTypeInfoIndexLookup.TryGetValue(typeof(T), out int idx))
+                return TypeHelperStorage._runtimeTypeInfoStorage[idx];
 
-            lock (TypeHelper._runtimeTypeInfoStorage)
+            lock (TypeHelperStorage._runtimeTypeInfoStorage)
             {
-                if (TypeHelper._runtimeTypeInfoIndexLookup.TryGetValue(typeof(T), out idx))
-                    return TypeHelper._runtimeTypeInfoStorage[idx];
+                if (TypeHelperStorage._runtimeTypeInfoIndexLookup.TryGetValue(typeof(T), out idx))
+                    return TypeHelperStorage._runtimeTypeInfoStorage[idx];
 
-                var typeInfo = new RuntimeTypeInfo (
+                var typeInfo = new RuntimeTypeInfo(
                     typeof(T),
                     // One based so that the default value is invalid
-                    (RuntimeTypeId)(TypeHelper._runtimeTypeInfoStorage.Count + 1),
+                    (RuntimeTypeId)(TypeHelperStorage._runtimeTypeInfoStorage.Count + 1),
                     checked((short)SizeOf<T>()),
                     FixedSize,
                     IsReferenceOrContainsReferences,
                     &Vec.DangerousGetObject<T>
                 );
 
-                idx = TypeHelper._runtimeTypeInfoStorage.Add(typeInfo);
-                TypeHelper._runtimeTypeInfoIndexLookup[typeof(T)] = idx;
+                idx = TypeHelperStorage._runtimeTypeInfoStorage.Add(typeInfo);
+                TypeHelperStorage._runtimeTypeInfoIndexLookup[typeof(T)] = idx;
 
                 return typeInfo;
             }
@@ -313,7 +311,5 @@ namespace Spreads
 
             return -1;
         }
-
-
     }
 }

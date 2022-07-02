@@ -8,12 +8,13 @@ using System.Runtime.CompilerServices;
 namespace Spreads.Collections.Concurrent
 {
     /// <summary>
-    /// Append-only linear storage with fast reads and locked writes.
+    /// Append-only linear storage with fast reads and synchronized writes.
     /// </summary>
     public class AppendOnlyStorage<T>
     {
-        internal T[] _storage = new T[16];
+        private T[] _storage = new T[16];
         private int _count;
+
         public int Count => _count;
 
         public int Add(T value)

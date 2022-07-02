@@ -43,7 +43,7 @@ namespace Spreads.Core.Tests.Collections.Concurrent
             var lockedObjectPool = new LockedObjectPoolCore<DummyPoolable>(dummyFactory, capacity);
             var perCoreObjectPool = new ObjectPool<DummyPoolable>(dummyFactory, perCoreCapacity);
             var perCoreLockedObjectPool = new LockedObjectPool<DummyPoolable>(dummyFactory, perCoreCapacity);
-            var threads = new int[] {1}; //{1, 2, 4, 6, 8, 12, 24};
+            var threads = new int[] { 1 }; //{1, 2, 4, 6, 8, 12, 24};
             foreach (var t in threads)
             {
                 for (int round = 0; round < 20; round++)
@@ -58,12 +58,11 @@ namespace Spreads.Core.Tests.Collections.Concurrent
             Benchmark.Dump();
         }
 
-        [MethodImpl(MethodImplOptions.NoInlining | MethodImplOptions.AggressiveOptimization)]
         internal void PoolBenchmark<T>(T pool, string testCase, int threads) where T : IObjectPool<DummyPoolable>
         {
             var count = 1_000_000;
             testCase = testCase + "_" + threads;
-            using (Benchmark.Run(testCase, count * threads))
+            Benchmark.Run(testCase, () =>
             {
                 Task.WaitAll(Enumerable.Range(0, threads).Select(i => Task.Factory.StartNew(() =>
                 {
@@ -75,7 +74,7 @@ namespace Spreads.Core.Tests.Collections.Concurrent
                         // pool.Return(x2);
                     }
                 }, TaskCreationOptions.LongRunning)).ToArray());
-            }
+            }, count * threads);
         }
 
         [Test]

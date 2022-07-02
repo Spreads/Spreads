@@ -294,6 +294,7 @@ namespace Spreads.Core.Tests.DataTypes
             });
         }
 
+#if BUILTIN_SPAN
         [TestCase("123.45600", 5)]
         [TestCase("0.000001", 6)]
         [TestCase("10.000001", 6)]
@@ -311,6 +312,7 @@ namespace Spreads.Core.Tests.DataTypes
             decimal value = decimal.Parse(str, NumberStyles.Number | NumberStyles.AllowExponent);
             ((decimal)sd).ShouldBe(value);
         }
+#endif
 
         [TestCase("123.456", 789, 3)]
         [TestCase("123.456", -789, 3)]
@@ -394,7 +396,7 @@ namespace Spreads.Core.Tests.DataTypes
                 }, outerCount * innerCount);
             }
 
-            Benchmark.Dump(opsAggregate:Benchmark.OpsAggregate.Max);
+            Benchmark.Dump(opsAggregate:Benchmark.OpsAggregate.MaxTime);
         }
     }
 }

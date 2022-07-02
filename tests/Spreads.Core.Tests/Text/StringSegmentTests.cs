@@ -21,13 +21,13 @@ namespace Spreads.Core.Tests.Text
             var seg = new StringSegment(str, 2, 3);
             seg.ToString().ShouldBe("cde");
             seg.ToString().ShouldNotBeSameAs(str);
-            seg.Span.SequenceEqual("cde").ShouldBeTrue();
+            seg.Span.SequenceEqual("cde".AsSpan()).ShouldBeTrue();
 
             char[] chars = str.ToCharArray();
             var seg1 = new StringSegment(chars, 2, 3);
             seg1.ToString().ShouldBe("cde");
             seg1.ToString().ShouldNotBeSameAs(str);
-            seg1.Span.SequenceEqual("cde").ShouldBeTrue();
+            seg1.Span.SequenceEqual("cde".AsSpan()).ShouldBeTrue();
 
             seg.ShouldBe(seg1);
             seg.GetHashCode().ShouldBe(seg1.GetHashCode());

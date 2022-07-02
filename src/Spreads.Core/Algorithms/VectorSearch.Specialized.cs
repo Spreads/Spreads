@@ -2,6 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+using System;
 using System.Runtime.CompilerServices;
 using static Spreads.Utils.Constants;
 #if HAS_INTRINSICS
@@ -54,7 +55,7 @@ namespace Spreads.Algorithms {
                     {
                         if (mask != 0)
                         {
-                            int clz = (int) BitUtils.LeadingZeroCount((uint) mask);
+                            int clz = (int) BitUtils.LeadingZeroCount(mask);
                             int index = (32 - clz) / Unsafe.SizeOf<sbyte>();
                             lo = i + index;
                             vLo = UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref searchSpace, lo));
@@ -130,7 +131,7 @@ namespace Spreads.Algorithms {
                     {
                         if (mask != 0)
                         {
-                            int clz = (int) BitUtils.LeadingZeroCount((uint) mask);
+                            int clz = (int) BitUtils.LeadingZeroCount(mask);
                             int index = (32 - clz) / Unsafe.SizeOf<short>();
                             lo = i + index;
                             vLo = UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref searchSpace, lo));
@@ -206,7 +207,7 @@ namespace Spreads.Algorithms {
                     {
                         if (mask != 0)
                         {
-                            int clz = (int) BitUtils.LeadingZeroCount((uint) mask);
+                            int clz = (int) BitUtils.LeadingZeroCount(mask);
                             int index = (32 - clz) / Unsafe.SizeOf<int>();
                             lo = i + index;
                             vLo = UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref searchSpace, lo));
@@ -282,7 +283,7 @@ namespace Spreads.Algorithms {
                     {
                         if (mask != 0)
                         {
-                            int clz = (int) BitUtils.LeadingZeroCount((uint) mask);
+                            int clz = (int) BitUtils.LeadingZeroCount(mask);
                             int index = (32 - clz) / Unsafe.SizeOf<long>();
                             lo = i + index;
                             vLo = UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref searchSpace, lo));

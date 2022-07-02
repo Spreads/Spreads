@@ -31,9 +31,7 @@ namespace Spreads.Collections.Generic
         private int[] _nexts;
         private T[] _entries;
 
-        public T[] Values => _entries;
-
-        internal event Action<T[]?>? OnCapacityChange;
+        public event Action<T[]?>? OnCapacityChange;
 
         /// <summary>
         /// Construct with default capacity.
@@ -55,7 +53,8 @@ namespace Spreads.Collections.Generic
         public HashSetSlim(int capacity = 0, T defaultValue = default!)
         {
             if (capacity < 0)
-                ThrowHelper.ThrowArgumentOutOfRange_CapacityException();;
+                ThrowHelper.ThrowArgumentOutOfRange_CapacityException();
+            ;
             if (capacity < 2)
                 capacity = 2; // 1 would indicate the dummy array
             capacity = HashHelpers.PowerOf2(capacity);
@@ -93,7 +92,7 @@ namespace Spreads.Collections.Generic
             int[] nexts = _nexts;
             int collisionCount = 0;
             for (int i = _buckets[value.GetHashCode() & (_buckets.Length - 1)] - 1;
-                unchecked((uint) i < (uint) entries.Length);
+                unchecked((uint)i < (uint)entries.Length);
                 i = nexts.UnsafeGetAt(i))
             {
                 if (value.Equals(entries[i]))
@@ -123,7 +122,7 @@ namespace Spreads.Collections.Generic
             int[] nexts = _nexts;
             int collisionCount = 0;
             for (int i = _buckets[value.GetHashCode() & (_buckets.Length - 1)] - 1;
-                unchecked((uint) i < (uint) entries.Length);
+                unchecked((uint)i < (uint)entries.Length);
                 i = nexts.UnsafeGetAt(i))
             {
                 if (value.Equals(entries[i]))
@@ -149,11 +148,13 @@ namespace Spreads.Collections.Generic
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ref readonly T GetOrDefault(T value)
         {
+            // it's a copy of the version with in parameter, cannot just call it due to byref
+
             T[] entries = _entries;
             int[] nexts = _nexts;
             int collisionCount = 0;
             for (int i = _buckets[value.GetHashCode() & (_buckets.Length - 1)] - 1;
-                unchecked((uint) i < (uint) entries.Length);
+                unchecked((uint)i < (uint)entries.Length);
                 i = nexts.UnsafeGetAt(i))
             {
                 if (value.Equals(entries[i]))
@@ -181,7 +182,7 @@ namespace Spreads.Collections.Generic
             int[] nexts = _nexts;
             int collisionCount = 0;
             for (int i = _buckets[value.GetHashCode() & (_buckets.Length - 1)] - 1;
-                unchecked ((uint) i < (uint) entries.Length);
+                unchecked((uint)i < (uint)entries.Length);
                 i = nexts.UnsafeGetAt(i))
             {
                 if (value.Equals(entries[i]))
@@ -208,7 +209,7 @@ namespace Spreads.Collections.Generic
             int[] nexts = _nexts;
             int collisionCount = 0;
             for (int i = _buckets[value.GetHashCode() & (_buckets.Length - 1)] - 1;
-                unchecked((uint) i < (uint) entries.Length);
+                unchecked((uint)i < (uint)entries.Length);
                 i = nexts.UnsafeGetAt(i))
             {
                 if (value.Equals(entries[i]))
@@ -230,6 +231,18 @@ namespace Spreads.Collections.Generic
 
             index = -1;
             return ref _defaultValue;
+        }
+
+        public ref readonly T GetAt(int index)
+        {
+            ThrowHelper.EnsureOffset(index, _count);
+            return ref UnsafeGetAt(index);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public ref readonly T UnsafeGetAt(int index)
+        {
+            return ref _entries.UnsafeGetAt(index);
         }
 
         /// <summary>
@@ -306,7 +319,7 @@ namespace Spreads.Collections.Generic
             int collisionCount = 0;
             int bucketIndex = value.GetHashCode() & (_buckets.Length - 1);
             for (int i = _buckets[bucketIndex] - 1;
-                unchecked ((uint) i < (uint) entries.Length);
+                unchecked((uint)i < (uint)entries.Length);
                 i = nexts.UnsafeGetAt(i))
             {
                 if (value.Equals(entries[i]))
@@ -314,6 +327,7 @@ namespace Spreads.Collections.Generic
                     index = i;
                     return ref entries[i];
                 }
+
                 if (collisionCount == entries.Length)
                 {
                     // The chain of entries forms a loop; which means a concurrent update has happened.
@@ -359,12 +373,12 @@ namespace Spreads.Collections.Generic
             return ref entries.UnsafeGetAt(entryIndex);
         }
 
-        private (T[],int[]) Resize()
+        private (T[], int[]) Resize()
         {
             Debug.Assert(_entries.Length == _count || _entries.Length == 1); // We only copy _count, so if it's longer we will miss some
             int count = _count;
             int newSize = _entries.Length * 2;
-            if ((uint) newSize > (uint) int.MaxValue) // uint cast handles overflow
+            if ((uint)newSize > (uint)int.MaxValue) // uint cast handles overflow
                 throw new InvalidOperationException("Capacity Overflow");
 
             var entries = new T[newSize];
@@ -387,6 +401,17 @@ namespace Spreads.Collections.Generic
             OnCapacityChange?.Invoke(entries);
 
             return (entries, nexts);
+        }
+
+        public IEnumerable<T> Values
+        {
+            get
+            {
+                foreach (T value in this)
+                {
+                    yield return value;
+                }
+            }
         }
 
         /// <summary>

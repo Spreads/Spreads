@@ -9,7 +9,7 @@
 using System;
 
 
-namespace Spreads.Algorithms.Hash.BLAKE2b
+namespace Spreads.Core.Tests.Algorithms.Hash.BLAKE2b
 {
 	/// <summary>Static helper methods for BLAKE2<#= alg.suffix #> hashing.</summary>
 	internal static class Blake2<#= alg.suffix #>

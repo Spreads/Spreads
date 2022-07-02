@@ -88,7 +88,7 @@ namespace Spreads.Core.Tests.Collections
                     {
                         for (int j = 0; j < length; j++)
                         {
-                            sum3 += dictionarySlim.DangerousTryGetValueRef(j, out _);
+                            sum3 += dictionarySlim.TryGetValueRef(j, out _);
                         }
                     }
                 }, count * length);

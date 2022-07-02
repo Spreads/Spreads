@@ -24,9 +24,9 @@ namespace Spreads.Collections.Internal
         /// We need this as a sentinel with RowLength == 0 in cursor
         /// to not penalize fast path of single-block containers.
         /// </summary>
-        internal static readonly DataBlock Empty = new DataBlock();
+        internal static readonly DataBlock Empty = new();
 
-        internal static ref DataBlock NullRef => ref Unsafe.AsRef<DataBlock>((void*) IntPtr.Zero);
+        internal static ref DataBlock NullRef => ref Unsafe.NullRef<DataBlock>();
 
         // TODO Review pools sizes, move them to settings. For series each DataBlock has 2x PrivateMemory instances, for which we have 256 pooled per core.
         private static readonly ObjectPool<DataBlock> ObjectPool = new ObjectPool<DataBlock>(() => new DataBlock(), perCoreSize: 256);

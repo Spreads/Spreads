@@ -17,17 +17,13 @@ namespace Spreads.Algorithms
     /// </summary>
     public static partial class VectorSearch
     {
-
-
         /// <summary>
         /// Optimized binary search that returns the same value as the classic algorithm.
         /// </summary>
         /// <returns>Returns index of the value (if present) or its negative binary complement.</returns>
         [MethodImpl(MethodImplAggressiveAll)]
         public static int BinarySearch<T>(ref T searchSpace, int length, T value, KeyComparer<T> comparer = default)
-        {
-            return BinarySearch(ref searchSpace, 0, length, value, comparer);
-        }
+            => BinarySearch(ref searchSpace, 0, length, value, comparer);
 
         /// <summary>
         /// Optimized binary search that returns the same value as the classic algorithm.
@@ -62,7 +58,7 @@ namespace Spreads.Algorithms
 
                 if (typeof(T) == typeof(long)
                     || typeof(T) == typeof(Timestamp)
-                )
+                   )
                     return BinarySearchAvx2LoHi(ref Unsafe.As<T, long>(ref searchSpace), lo, hi, Unsafe.As<T, long>(ref value));
             }
 
@@ -85,12 +81,21 @@ namespace Spreads.Algorithms
 
                 if (typeof(T) == typeof(long)
                     || typeof(T) == typeof(Timestamp)
-                )
+                   )
                     return BinarySearchSse42LoHi(ref Unsafe.As<T, long>(ref searchSpace), lo, hi, Unsafe.As<T, long>(ref value));
             }
 #endif
             return BinarySearchHybridLoHi(ref searchSpace, lo, hi, value, comparer);
         }
+
+        /// <summary>
+        /// Performs classic binary search and returns index of the value or its negative binary complement.
+        /// Used mostly for correctness check and benchmark baseline for other faster implementations.
+        /// Use <see cref="SortedSearch{T}(ref T,int,T,Spreads.KeyComparer{T})"/> for the best performance.
+        /// </summary>
+        [MethodImpl(MethodImplAggressiveAll)]
+        internal static int BinarySearchClassic<T>(ref T searchSpace, int length, T value, KeyComparer<T> comparer = default)
+            => BinarySearchClassic(ref searchSpace, 0, length, value, comparer);
 
         /// <summary>
         /// Performs classic binary search and returns index of the value or its negative binary complement.

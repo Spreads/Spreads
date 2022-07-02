@@ -180,7 +180,7 @@ namespace Spreads.Core.Tests.Collections
             Assert.True(d.Remove('b'));
             d.GetOrAddValueRef('d') = 3;
             Assert.AreEqual(3, d.Count);
-            Assert.AreEqual(new[] {'a', 'c', 'd' }, d.OrderBy(i => i.Key).Select(i => i.Key));
+            Assert.AreEqual(new[] { 'a', 'c', 'd' }, d.OrderBy(i => i.Key).Select(i => i.Key));
             Assert.AreEqual(new[] { 0, 2, 3 }, d.OrderBy(i => i.Key).Select(i => i.Value));
         }
 
@@ -285,6 +285,7 @@ namespace Spreads.Core.Tests.Collections
                 d.Remove(kut);
                 return wr;
             }
+
             var ret = a();
             GC.Collect();
             GC.WaitForPendingFinalizers();
@@ -307,7 +308,7 @@ namespace Spreads.Core.Tests.Collections
             d.GetOrAddValueRef('a') = 0;
             d.GetOrAddValueRef('b') = 1;
             Assert.True(d.Remove('a'));
-            Assert.AreEqual(KeyValuePair.Create('b', 1), d.Single());
+            Assert.AreEqual(new KeyValuePair<char, int>('b', 1), d.Single());
         }
 
         [Test]
@@ -390,12 +391,15 @@ namespace Spreads.Core.Tests.Collections
                 var k = (ulong)rand.Next(100) + 23;
                 var v = rand.Next();
 
-                rd.GetOrAddValueRef(k) += v;
+                unchecked
+                {
+                    rd.GetOrAddValueRef(k) += v;
 
-                if (d.TryGetValue(k, out int t))
-                    d[k] = t + v;
-                else
-                    d[k] = v;
+                    if (d.TryGetValue(k, out int t))
+                        d[k] = t + v;
+                    else
+                        d[k] = v;
+                }
             }
 
             Assert.AreEqual(d.Count, rd.Count);
@@ -418,12 +422,15 @@ namespace Spreads.Core.Tests.Collections
                     var k = C(rand.Next(100) + 23);
                     var v = rand.Next();
 
-                    rd.GetOrAddValueRef(k) += v;
+                    unchecked
+                    {
+                        rd.GetOrAddValueRef(k) += v;
 
-                    if (d.TryGetValue(k, out int t))
-                        d[k] = t + v;
-                    else
-                        d[k] = v;
+                        if (d.TryGetValue(k, out int t))
+                            d[k] = t + v;
+                        else
+                            d[k] = v;
+                    }
                 }
 
                 if (rand.Next(3) == 0 && d.Count > 0)
@@ -443,7 +450,7 @@ namespace Spreads.Core.Tests.Collections
         {
             int index = 0;
             var rand = new Random(42);
-            foreach(var entry in d)
+            foreach (var entry in d)
             {
                 if (rand.Next(d.Count) == 0 || index == d.Count - 1)
                 {

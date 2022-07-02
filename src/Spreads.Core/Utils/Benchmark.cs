@@ -15,7 +15,7 @@ namespace Spreads.Utils
     // TODO median for Dump() MOPS
 
     /// <summary>
-    /// A utility to benchmark code snippets inside a using block.
+    /// A utility to benchmark code snippets inside an <see cref="Action"/>.
     /// </summary>
     public static class Benchmark
     {
@@ -23,8 +23,8 @@ namespace Spreads.Utils
         {
             Average,
             Median,
-            Min,
-            Max
+            MinTime,
+            MaxTime
         }
 
         /// <summary>
@@ -128,6 +128,7 @@ namespace Spreads.Utils
         /// </summary>
         /// <param name="summary"></param>
         /// <param name="caller">A description of the benchmark that is printed above the table.</param>
+        /// <param name="opsAggregate"></param>
         /// <param name="unit">Overwrite default MOPS unit of measure</param>
         public static void Dump(string summary = "", [CallerMemberName] string caller = "", OpsAggregate opsAggregate = OpsAggregate.Median, string? unit = null)
         {
@@ -161,8 +162,8 @@ namespace Spreads.Utils
                         OpsAggregate.Median => NaiveMedian(
                             new ArraySegment<double>(values.Select(l => (double)l._statSnapshot.ElapsedTicks).ToArray())),
                         OpsAggregate.Average => values.Select(l => (double)l._statSnapshot.ElapsedTicks).Average(),
-                        OpsAggregate.Max => values.Select(l => (double)l._statSnapshot.ElapsedTicks).Min(),
-                        OpsAggregate.Min => values.Select(l => (double)l._statSnapshot.ElapsedTicks).Max(),
+                        OpsAggregate.MaxTime => values.Select(l => (double)l._statSnapshot.ElapsedTicks).Max(),
+                        OpsAggregate.MinTime => values.Select(l => (double)l._statSnapshot.ElapsedTicks).Min(),
                         _ => throw new ArgumentOutOfRangeException(nameof(opsAggregate), opsAggregate, null)
                     };
 
@@ -214,9 +215,9 @@ namespace Spreads.Utils
                 Interlocked.Exchange(ref _sw, Stopwatch);
 
                 _statSnapshot.ElapsedTicks = statEntry.ElapsedTicks;
-                _statSnapshot.Gc0 = statEntry.Gc0 - _statSnapshot.Gc0;
-                _statSnapshot.Gc1 = statEntry.Gc1 - _statSnapshot.Gc1;
-                _statSnapshot.Gc2 = statEntry.Gc2 - _statSnapshot.Gc2;
+                _statSnapshot.Gc0 = statEntry.Gc0 - _statSnapshot.Gc0 - 2;
+                _statSnapshot.Gc1 = statEntry.Gc1 - _statSnapshot.Gc1 - 2;
+                _statSnapshot.Gc2 = statEntry.Gc2 - _statSnapshot.Gc2 - 2;
                 _statSnapshot.Memory = statEntry.Memory - _statSnapshot.Memory;
 
                 var list = Stats.GetOrAdd(CaseName, (s1) => new List<Stat>());
@@ -285,10 +286,10 @@ namespace Spreads.Utils
                     Memory = GC.GetTotalMemory(false);
                 }
 
-                //GC.Collect(2, GCCollectionMode.Forced, true);
-                //GC.WaitForPendingFinalizers();
-                //GC.Collect(2, GCCollectionMode.Forced, true);
-                //GC.WaitForPendingFinalizers();
+                GC.Collect(2, GCCollectionMode.Forced, true);
+                GC.WaitForPendingFinalizers();
+                GC.Collect(2, GCCollectionMode.Forced, true);
+                GC.WaitForPendingFinalizers();
 
                 Gc0 = GC.CollectionCount(0);
                 Gc1 = GC.CollectionCount(1);

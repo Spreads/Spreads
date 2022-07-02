@@ -43,18 +43,12 @@ namespace Spreads.Collections.Concurrent
             try
             {
 #endif
-            var h = GCHandle.Alloc(obj, GCHandleType.Weak);
-            ref var hr = ref _inner.GetOrAddValueRef(key);
+            ref GCHandle hr = ref _inner.GetOrAddValueRef(key);
 
             if (hr.IsAllocated)
-            {
-                h.Free();
                 added = false;
-            }
             else
-            {
-                hr = h;
-            }
+                hr = GCHandle.Alloc(obj, GCHandleType.Weak);
 
 #if DEBUG
             }

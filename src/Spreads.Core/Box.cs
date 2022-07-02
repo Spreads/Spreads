@@ -4,33 +4,33 @@
 
 namespace Spreads
 {
-    /// <summary>
-    /// Base class and convenient <see cref="New{T}"/> method for <see cref="Box{T}"/>.
-    /// </summary>
-    public class Box
+/// <summary>
+/// Base class and convenient <see cref="New{T}"/> method for <see cref="Box{T}"/>.
+/// </summary>
+public class Box
+{
+    protected Box()
     {
-        protected Box()
-        {
-        }
-
-        public static Box<T> New<T>(in T unboxed) => new(unboxed);
     }
 
-    /// <summary>
-    /// Explicit strongly-typed box for <typeparamref name="T"/> (as in .NET's boxing concept)
-    /// </summary>
-    public class Box<T> : Box
+    public static Box<T> New<T>(in T unboxed) => new(unboxed);
+}
+
+/// <summary>
+/// Explicit strongly-typed box for <typeparamref name="T"/> (as in .NET's boxing concept)
+/// </summary>
+public class Box<T> : Box
+{
+    public T Value = default!;
+
+    public Box()
     {
-        public T Value = default!;
-
-        public Box()
-        {
-        }
-
-        public Box(T value) => Value = value;
-
-        public static explicit operator T(Box<T> boxed) => boxed.Value;
-
-        public static explicit operator Box<T>(in T unboxed) => New(in unboxed);
     }
+
+    public Box(T value) => Value = value;
+
+    public static explicit operator T(Box<T> boxed) => boxed.Value;
+
+    public static explicit operator Box<T>(in T unboxed) => New(in unboxed);
+}
 }

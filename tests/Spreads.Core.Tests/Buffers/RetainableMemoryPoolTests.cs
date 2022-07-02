@@ -33,7 +33,7 @@ namespace Spreads.Core.Tests.Buffers
             Console.WriteLine($"NativeAllocated: {BuffersStatistics.AllocatedNativeMemory.Value}");
         }
 
-        [MethodImpl(MethodImplOptions.NoInlining | MethodImplOptions.AggressiveOptimization)]
+        [MethodImpl(MethodImplOptions.NoInlining | Constants.MethodImplAggressiveOptimization)]
         internal void RmpBenchmark<T>(RetainableMemoryPool<T> pool, string testCase)
         {
             var prevRent = BuffersStatistics.RentReturnedBeforeYield.Value;
@@ -50,7 +50,7 @@ namespace Spreads.Core.Tests.Buffers
                 Task.WaitAll(Enumerable.Range(0, threadCount).Select(_ => Task.Factory.StartNew(() =>
                 {
                     var size = 8 * 1024;
-                    
+
                     var x0 = pool.RentMemory(size);
                     try
                     {
@@ -79,7 +79,7 @@ namespace Spreads.Core.Tests.Buffers
             // Console.WriteLine(pool.InspectObjects().Count());
         }
 
-        [MethodImpl(MethodImplOptions.NoInlining | MethodImplOptions.AggressiveOptimization)]
+        [MethodImpl(MethodImplOptions.NoInlining | Constants.MethodImplAggressiveOptimization)]
         internal void ArrayPoolBenchmark<T>()
         {
             var pool = ArrayPool<T>.Shared;

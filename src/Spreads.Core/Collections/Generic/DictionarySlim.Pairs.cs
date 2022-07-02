@@ -33,7 +33,7 @@ namespace Spreads.Collections.Generic
                 return -2;
             }
 
-            for (int i = index + 1; i < _count; i++)
+            for (int i = index + 1; i < _entries.Length; i++)
             {
                 ref Entry e = ref _entries[i];
                 if (e.Next >= -1)

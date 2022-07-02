@@ -175,6 +175,14 @@ namespace Spreads.Utils
         /// </summary>
         /// <param name="value">The value.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int LeadingZeroCount(uint value) => LeadingZeroCount(Unsafe.As<uint, int>(ref value));
+
+        /// <summary>
+        /// Count the number of leading zero bits in a mask.
+        /// Similar in behavior to the x86 instruction LZCNT.
+        /// </summary>
+        /// <param name="value">The value.</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int LeadingZeroCount(int value)
         {
             unchecked
@@ -227,6 +235,14 @@ namespace Spreads.Utils
 #endif
             }
         }
+
+        /// <summary>
+        /// Count the number of leading zero bits in a mask.
+        /// Similar in behavior to the x86 instruction LZCNT.
+        /// </summary>
+        /// <param name="value">The value.</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int LeadingZeroCount(ulong value) => LeadingZeroCount(Unsafe.As<ulong, long>(ref value));
 
         /// <summary>
         /// Count the number of leading zero bits in a mask.

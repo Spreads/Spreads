@@ -1,6 +1,6 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFrameworks>netstandard2.0;net5.0</TargetFrameworks>
+    <TargetFrameworks>netstandard2.0;net6.0</TargetFrameworks>
     <Description>Spreads</Description>
     <AssemblyName>Spreads</AssemblyName>
     <RootNamespace>Spreads</RootNamespace>
@@ -8,14 +8,14 @@
     <OutputType>Library</OutputType>
     <!--<WarningsAsErrors>CS8600;CS8602;CS8603;CS8625;CS8618</WarningsAsErrors>-->
   </PropertyGroup>
-  
+
   <ItemGroup>
     <PackageReference Include="NodaTime" Version="2.4.7" />
     <PackageReference Include="MathNet.Numerics.Signed" Version="4.9.1" />
     <PackageReference Include="System.Threading.ThreadPool" Version="4.3.0" />
     <PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="5.0.0" />
   </ItemGroup>
-  
+
   <ItemGroup>
     <ProjectReference Include="..\Spreads.Core\Spreads.Core.csproj" />
   </ItemGroup>

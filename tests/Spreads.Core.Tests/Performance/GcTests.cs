@@ -10,6 +10,7 @@ namespace Spreads.Core.Tests.Performance
     [TestFixture]
     public class GCTests
     {
+#if NETCOREAPP
         [Test, Explicit]
         public unsafe void GetGcMemoryInfo()
         {
@@ -27,61 +28,59 @@ namespace Spreads.Core.Tests.Performance
             Console.WriteLine($"FragmentedBytes: {stat.FragmentedBytes:N0}");
             Console.WriteLine($"HighMemoryLoadThresholdBytes: {stat.HighMemoryLoadThresholdBytes:N0}");
         }
-
+#endif
         private const int alloc_free_iterations = 100_000;
-        
-        [Test, Explicit]
-        public unsafe void MimallocAllocFreePerf()
-        {
-            var count = TestUtils.GetBenchCount(alloc_free_iterations);
-            var size = 128 * 1024;
-            IntPtr[] ptrs = new IntPtr[count];
 
-            for (int r = 0; r < 3; r++)
-            {
-
-
-
-                using (Benchmark.Run("Alloc" + r, count * size))
-                {
-                    for (int i = 0; i < count; i++)
-                    {
-                        ptrs[i] = (IntPtr) Spreads.Native.Mem.Malloc((UIntPtr) size);
-                        // if (!BitUtil.IsAligned((long) (ptrs[i]), 4096))
-                        // {
-                        //     Console.WriteLine((long) (ptrs[i]) % 4096);
-                        //     
-                        // }
-
-                        for (int j = 0; j < size; j += 4096) ((byte*) ptrs[i])[j] = 0;
-                        ((byte*) ptrs[i])[size - 1] = 0;
-                    }
-                }
-
-                using (Benchmark.Run("Free" + r, count * size))
-                {
-                    for (int i = 0; i < count; i++)
-                    {
-                        Spreads.Native.Mem.Free((byte*) ptrs[i]);
-                    }
-                }
-            }
-
-            // long x = 0;
-            // while (true)
-            // {
-            //     x++;
-            //     
-            //     ptrs[0] = (IntPtr) Spreads.Native.Mem.Malloc((uint) size);
-            //     Spreads.Native.Mem.Free((byte*) ptrs[0]);
-            //     if(x == long.MaxValue)
-            //         break;
-            //     
-            //     
-            // }
-            // Spreads.Native.Mem.Collect(false);
-            // Thread.Sleep(10000000);
-        }
+        // [Test, Explicit]
+        // public unsafe void MimallocAllocFreePerf()
+        // {
+        //     var count = TestUtils.GetBenchCount(alloc_free_iterations);
+        //     var size = 128 * 1024;
+        //     IntPtr[] ptrs = new IntPtr[count];
+        //
+        //     for (int r = 0; r < 3; r++)
+        //     {
+        //
+        //         using (Benchmark.Run("Alloc" + r, count * size))
+        //         {
+        //             for (int i = 0; i < count; i++)
+        //             {
+        //                 ptrs[i] = (IntPtr)Spreads.Native.Mem.Malloc((UIntPtr)size);
+        //                 // if (!BitUtil.IsAligned((long) (ptrs[i]), 4096))
+        //                 // {
+        //                 //     Console.WriteLine((long) (ptrs[i]) % 4096);
+        //                 //
+        //                 // }
+        //
+        //                 for (int j = 0; j < size; j += 4096) ((byte*)ptrs[i])[j] = 0;
+        //                 ((byte*)ptrs[i])[size - 1] = 0;
+        //             }
+        //         }
+        //
+        //         using (Benchmark.Run("Free" + r, count * size))
+        //         {
+        //             for (int i = 0; i < count; i++)
+        //             {
+        //                 Spreads.Native.Mem.Free((byte*)ptrs[i]);
+        //             }
+        //         }
+        //     }
+        //
+        //     // long x = 0;
+        //     // while (true)
+        //     // {
+        //     //     x++;
+        //     //
+        //     //     ptrs[0] = (IntPtr) Spreads.Native.Mem.Malloc((uint) size);
+        //     //     Spreads.Native.Mem.Free((byte*) ptrs[0]);
+        //     //     if(x == long.MaxValue)
+        //     //         break;
+        //     //
+        //     //
+        //     // }
+        //     // Spreads.Native.Mem.Collect(false);
+        //     // Thread.Sleep(10000000);
+        // }
 
         [Test, Explicit]
         public unsafe void MarshalAllocFreePerf()
@@ -97,14 +96,14 @@ namespace Spreads.Core.Tests.Performance
                     // if (!BitUtil.IsAligned((long) (ptrs[i]), 4096))
                     // {
                     //     Console.WriteLine((long) (ptrs[i]) % 4096);
-                    //     
+                    //
                     // }
 
-                    for (int j = 0; j < size; j += 4096) ((byte*) ptrs[i])[j] = 0;
-                    ((byte*) ptrs[i])[size - 1] = 0;
+                    for (int j = 0; j < size; j += 4096) ((byte*)ptrs[i])[j] = 0;
+                    ((byte*)ptrs[i])[size - 1] = 0;
                 }
             }
-          
+
             using (Benchmark.Run("Free", count * size))
             {
                 for (int i = 0; i < count; i++)
@@ -147,7 +146,7 @@ namespace Spreads.Core.Tests.Performance
         [Test, Explicit]
         public unsafe void GcAllocFreePerf()
         {
-            var count = (int) TestUtils.GetBenchCount(alloc_free_iterations);
+            var count = (int)TestUtils.GetBenchCount(alloc_free_iterations);
             var size = 128 * 1024;
 
             List<byte[]> arrays = new List<byte[]>(count);
@@ -168,8 +167,6 @@ namespace Spreads.Core.Tests.Performance
                 GC.Collect(2, GCCollectionMode.Forced, true);
             }
         }
-        
-        
     }
 
     public static class Kernel32

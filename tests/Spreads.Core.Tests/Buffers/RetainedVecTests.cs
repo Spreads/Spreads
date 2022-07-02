@@ -14,6 +14,7 @@ namespace Spreads.Core.Tests.Buffers
     [TestFixture]
     public unsafe class RetainedVecTests
     {
+#if NETCOREAPP
         class Test
         {
             public object this[Range index]
@@ -35,6 +36,7 @@ namespace Spreads.Core.Tests.Buffers
 
             ObjectLayoutInspector.TypeLayout.PrintLayout<RetainedVec>();
         }
+#endif
 
         [Test]
         public void Equality()
@@ -84,8 +86,6 @@ namespace Spreads.Core.Tests.Buffers
             vs.Dispose();
         }
 
-
-
         //[Test]
         //public void CouldDisposeEmpty()
         //{
@@ -102,7 +102,7 @@ namespace Spreads.Core.Tests.Buffers
         ]
         public void VectorStorageReadBench()
         {
-            var count = (int) TestUtils.GetBenchCount(1_000_000, 100);
+            var count = (int)TestUtils.GetBenchCount(1_000_000, 100);
             var rounds = 10;
             var mult = 500;
             var rm = BuffersTestHelper.CreateFilledRM(count);
@@ -147,7 +147,7 @@ namespace Spreads.Core.Tests.Buffers
         public void SliceDisposeBenchmark()
         {
             // 6.3 MOPS
-            var count = (int) TestUtils.GetBenchCount(1_000_000, 100);
+            var count = (int)TestUtils.GetBenchCount(1_000_000, 100);
             var rounds = 10;
             var bufferSize = 1000;
             var rm = BuffersTestHelper.CreateFilledRM(bufferSize);
