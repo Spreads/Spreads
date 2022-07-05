@@ -10,7 +10,7 @@
     <Product>Spreads</Product>
     <Authors>Victor Baybekov</Authors>
     <Company>DataSpreads!io</Company>
-    <Copyright>Victor Baybekov 2017-2021</Copyright>
+    <Copyright>Victor Baybekov 2017-2022</Copyright>
     <NeutralLanguage>en-US</NeutralLanguage>
     <RepositoryType>git</RepositoryType>
     <RepositoryUrl>https://github.com/Spreads/Spreads.git</RepositoryUrl>
@@ -55,7 +55,7 @@
     <QVersion>0</QVersion>
 
     <!-- Overrides -->
-    <MMDDVersion></MMDDVersion>
+    <MMDDVersion>702</MMDDVersion>
     <PackageHHMMSSSuffix Condition="$(AutoSuffix) != '' AND $(AutoSuffix)">$(VersionSuffix)</PackageHHMMSSSuffix>
 
   </PropertyGroup>

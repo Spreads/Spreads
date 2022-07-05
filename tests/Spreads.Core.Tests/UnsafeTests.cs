@@ -4,6 +4,7 @@
 
 using System;
 using NUnit.Framework;
+using Shouldly;
 
 namespace Spreads.Core.Tests
 {
@@ -89,8 +90,8 @@ namespace Spreads.Core.Tests
 
             var delta = new IntDelta { Value = 456 - 123 };
 
-            Assert.AreEqual(delta, UnsafeEx.GetDeltaConstrained(ref first, ref second));
-            Assert.AreEqual(second, UnsafeEx.AddDeltaConstrained(ref first, ref delta));
+            UnsafeEx.GetDeltaConstrained(ref first, ref second).ShouldBe(delta);
+            UnsafeEx.AddDeltaConstrained(ref first, ref delta).ShouldBe(second);
         }
 
         [Test]
@@ -101,8 +102,8 @@ namespace Spreads.Core.Tests
 
             var diff = 456 - 123;
 
-            Assert.AreEqual(diff, UnsafeEx.DiffLongConstrained(ref first, ref second));
-            Assert.AreEqual(second, UnsafeEx.AddLongConstrained(ref first, diff));
+            UnsafeEx.DiffLongConstrained(ref first, ref second).ShouldBe(diff);
+            UnsafeEx.AddLongConstrained(ref first, diff).ShouldBe(second);
         }
 
         [Test]
@@ -120,11 +121,11 @@ namespace Spreads.Core.Tests
             var v = 1;
             var vh = UnsafeEx.GetHashCodeConstrained(ref v);
 
-            Assert.AreEqual(v, vh);
+            vh.ShouldBe(v);
 
             var d = new TestDisposable();
             var dh = UnsafeEx.GetHashCodeConstrained(ref d);
-            Assert.AreEqual(42, dh);
+            dh.ShouldBe(42);
         }
 
         [Test]
@@ -134,10 +135,10 @@ namespace Spreads.Core.Tests
             var v2 = new CompEq(2);
             var v3 = new CompEq(2);
 
-            Assert.AreEqual(-1, UnsafeEx.CompareToConstrained(ref v1, ref v2));
-            Assert.AreEqual(1, UnsafeEx.CompareToConstrained(ref v2, ref v1));
-            Assert.AreEqual(0, UnsafeEx.CompareToConstrained(ref v2, ref v3));
-            Assert.AreEqual(1, UnsafeEx.CompareToConstrained(ref v3, ref v1));
+            UnsafeEx.CompareToConstrained(ref v1, ref v2).ShouldBe(-1);
+            UnsafeEx.CompareToConstrained(ref v2, ref v1).ShouldBe(1);
+            UnsafeEx.CompareToConstrained(ref v2, ref v3).ShouldBe(0);
+            UnsafeEx.CompareToConstrained(ref v3, ref v1).ShouldBe(1);
 
             Assert.True(UnsafeEx.EqualsConstrained(ref v2, ref v3));
             Assert.False(UnsafeEx.EqualsConstrained(ref v1, ref v3));
@@ -177,5 +178,86 @@ namespace Spreads.Core.Tests
         {
             return first.Equals(second);
         }
+
+        [Test]
+        public void CeqCgtCltWork()
+        {
+            // int32
+            UnsafeEx.Ceq(1, 1).ShouldBe(1);
+            UnsafeEx.Ceq(1, 2).ShouldBe(0);
+
+            UnsafeEx.Cgt(2, 1).ShouldBe(1);
+            UnsafeEx.Cgt(1, 1).ShouldBe(0);
+            UnsafeEx.Cgt(0, 1).ShouldBe(0);
+
+            UnsafeEx.Clt(1, 2).ShouldBe(1);
+            UnsafeEx.Clt(1, 1).ShouldBe(0);
+            UnsafeEx.Clt(1, 0).ShouldBe(0);
+
+            // int64
+            UnsafeEx.Ceq(1L, 1L).ShouldBe(1);
+            UnsafeEx.Ceq(1L, 2L).ShouldBe(0);
+
+            UnsafeEx.Cgt(2L, 1L).ShouldBe(1);
+            UnsafeEx.Cgt(1L, 1L).ShouldBe(0);
+            UnsafeEx.Cgt(0L, 1L).ShouldBe(0);
+
+            UnsafeEx.Clt(1L, 2L).ShouldBe(1);
+            UnsafeEx.Clt(1L, 1L).ShouldBe(0);
+            UnsafeEx.Clt(1L, 0L).ShouldBe(0);
+
+            // explicit int32 -> int64
+            UnsafeEx.Ceq(1, 1L).ShouldBe(1);
+            UnsafeEx.Ceq(1, 2L).ShouldBe(0);
+
+            UnsafeEx.Cgt(2, 1L).ShouldBe(1);
+            UnsafeEx.Cgt(1, 1L).ShouldBe(0);
+            UnsafeEx.Cgt(0, 1L).ShouldBe(0);
+
+            UnsafeEx.Clt(1, 2L).ShouldBe(1);
+            UnsafeEx.Clt(1, 1L).ShouldBe(0);
+            UnsafeEx.Clt(1, 0L).ShouldBe(0);
+
+            // IntPtr
+            UnsafeEx.Ceq((IntPtr) 1, (IntPtr) 1).ShouldBe(1);
+            UnsafeEx.Ceq((IntPtr) 1, (IntPtr) 2).ShouldBe(0);
+
+            UnsafeEx.Cgt((IntPtr) 2, (IntPtr) 1).ShouldBe(1);
+            UnsafeEx.Cgt((IntPtr) 1, (IntPtr) 1).ShouldBe(0);
+            UnsafeEx.Cgt((IntPtr) 0, (IntPtr) 1).ShouldBe(0);
+
+            UnsafeEx.Clt((IntPtr) 1, (IntPtr) 2).ShouldBe(1);
+            UnsafeEx.Clt((IntPtr) 1, (IntPtr) 1).ShouldBe(0);
+            UnsafeEx.Clt((IntPtr) 1, (IntPtr) 0).ShouldBe(0);
+
+            // Float32
+            UnsafeEx.Ceq(1.23, 1.23).ShouldBe(1);
+            UnsafeEx.Ceq(1.23, 1.24).ShouldBe(0);
+
+            UnsafeEx.Cgt(1.24, 1.23).ShouldBe(1);
+            UnsafeEx.Cgt(1.23, 1.23).ShouldBe(0);
+            UnsafeEx.Cgt(1.22, 1.23).ShouldBe(0);
+
+            UnsafeEx.Clt(1.24, 1.23).ShouldBe(0);
+            UnsafeEx.Clt(1.23, 1.23).ShouldBe(0);
+            UnsafeEx.Clt(1.22, 1.23).ShouldBe(1);
+
+            // Float64
+            UnsafeEx.Ceq(1.23f, 1.23f).ShouldBe(1);
+            UnsafeEx.Ceq(1.23f, 1.24f).ShouldBe(0);
+
+            UnsafeEx.Cgt(1.24f, 1.23f).ShouldBe(1);
+            UnsafeEx.Cgt(1.23f, 1.23f).ShouldBe(0);
+            UnsafeEx.Cgt(1.22f, 1.23f).ShouldBe(0);
+
+            UnsafeEx.Clt(1.24f, 1.23f).ShouldBe(0);
+            UnsafeEx.Clt(1.23f, 1.23f).ShouldBe(0);
+            UnsafeEx.Clt(1.22f, 1.23f).ShouldBe(1);
+
+            UnsafeEx.BoolAsInt(true).ShouldBe(1);
+            UnsafeEx.BoolAsInt(false).ShouldBe(0);
+        }
+
+
     }
 }

@@ -893,10 +893,10 @@ namespace Spreads.Core.Tests.Algorithms
         {
             var value = valueIn;
             var idxI = arr.InterpolationSearch(value);
-            Assert.AreEqual(-3, idxI);
+            idxI.ShouldBe(-3);
 
             var idxB = arr.BinarySearch(value);
-            Assert.AreEqual(-3, idxB);
+            idxB.ShouldBe(-3);
 
             value = valueIn;
             var idxILt = arr.InterpolationLookup(ref value, Lookup.LT);
