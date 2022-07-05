@@ -5,6 +5,7 @@
 using NUnit.Framework;
 using Spreads.Utils;
 using System;
+using Shouldly;
 
 namespace Spreads.Core.Tests.Utils
 {
@@ -14,7 +15,7 @@ namespace Spreads.Core.Tests.Utils
         [Test]
         public void LzcntNegative()
         {
-            Assert.AreEqual(0, BitUtils.LeadingZeroCount(-1));
+            BitUtils.LeadingZeroCount(-1).ShouldBe(0);
             Console.WriteLine(BitUtils.LeadingZeroCount(-1));
         }
     }

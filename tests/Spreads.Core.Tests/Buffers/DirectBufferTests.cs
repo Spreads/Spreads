@@ -27,8 +27,8 @@ namespace Spreads.Core.Tests.Buffers
                 db0.Clear(0, db0.Length);
                 db1.Clear(0, db1.Length);
 
-                Assert.IsTrue(db0.Equals(db0));
-                Assert.IsTrue(db0.Equals(db1));
+                db0.Equals(db0).ShouldBe(true);
+                db0.Equals(db1).ShouldBe(true);
 
                 rm0.Dispose();
                 rm1.Dispose();
@@ -54,19 +54,19 @@ namespace Spreads.Core.Tests.Buffers
                 db0.Clear(0, db0.Length);
                 db1.Clear(0, db1.Length);
 
-                Assert.IsTrue(db0.IsFilledWithValue(0));
-                Assert.IsTrue(db1.IsFilledWithValue(0));
+                db0.IsFilledWithValue(0).ShouldBe(true);
+                db1.IsFilledWithValue(0).ShouldBe(true);
 
-                Assert.IsTrue(db0.Equals(db0));
-                Assert.IsTrue(db0.Equals(db1));
+                db0.Equals(db0).ShouldBe(true);
+                db0.Equals(db1).ShouldBe(true);
 
                 db0.Fill(0, db1.Length, 1);
 
-                Assert.IsFalse(db0.Equals(db1));
-                Assert.IsTrue(db0.IsFilledWithValue(1));
+                db0.Equals(db1).ShouldBe(false);
+                db0.IsFilledWithValue(1).ShouldBe(true);
 
                 db1.Fill(0, db1.Length, 1);
-                Assert.IsTrue(db0.Equals(db0));
+                db0.Equals(db0).ShouldBe(true);
 
                 rm0.Dispose();
                 rm1.Dispose();

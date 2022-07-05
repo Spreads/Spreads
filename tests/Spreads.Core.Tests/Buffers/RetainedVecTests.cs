@@ -4,6 +4,7 @@
 
 using System;
 using NUnit.Framework;
+using Shouldly;
 using Spreads.Buffers;
 using Spreads.Core.Tests.Collections;
 using Spreads.Utils;
@@ -43,20 +44,20 @@ namespace Spreads.Core.Tests.Buffers
         {
             RetainedVec vs1 = default;
             RetainedVec vs2 = default;
-            Assert.AreEqual(vs1, vs2);
-            Assert.AreEqual(vs1.Length, 0);
+            vs2.ShouldBe(vs1);
+            vs1.Length.ShouldBe(0);
 
             var count = 1000;
             var rm = BuffersTestHelper.CreateFilledRM(count);
             var vs = RetainedVec.Create(rm, 0, rm.Length);
 
-            Assert.AreNotEqual(vs1, vs);
+            vs.ShouldNotBe(vs1);
 
             var vsCopy = vs.Clone(0, vs.Length, true);
             var vsSlice = vs.Clone(0, vs.Length - 1, true);
 
-            Assert.AreEqual(vs, vsCopy);
-            Assert.AreNotEqual(vs, vsSlice);
+            vsCopy.ShouldBe(vs);
+            vsSlice.ShouldNotBe(vs);
 
             vs.Dispose();
         }
@@ -68,7 +69,7 @@ namespace Spreads.Core.Tests.Buffers
             var rm = BuffersTestHelper.CreateFilledRM(count);
             var vs = RetainedVec.Create(rm, 0, rm.Length);
 
-            Assert.AreEqual(rm.Length, vs.Length);
+            vs.Length.ShouldBe(rm.Length);
             long sum = 0L;
             for (int i = 0; i < rm.Length; i++)
             {
@@ -109,7 +110,7 @@ namespace Spreads.Core.Tests.Buffers
 
             var vs = RetainedVec.Create(rm, 0, rm.Length);
 
-            Assert.AreEqual(rm.Length, vs.Length);
+            vs.Length.ShouldBe(rm.Length);
 
             int sum = 0;
             for (int r = 0; r < rounds; r++)
@@ -153,7 +154,7 @@ namespace Spreads.Core.Tests.Buffers
             var rm = BuffersTestHelper.CreateFilledRM(bufferSize);
             var vs = RetainedVec.Create(rm, 0, rm.Length);
 
-            Assert.AreEqual(rm.Length, vs.Length);
+            vs.Length.ShouldBe(rm.Length);
             for (int r = 0; r < rounds; r++)
             {
                 using (Benchmark.Run("Slice/Dispose", count))

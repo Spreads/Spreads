@@ -49,7 +49,7 @@ namespace Spreads.Core.Tests.Threading
 
             AtomicCounter.TryDispose(ref counter).ShouldBe(0);
 
-            Assert.IsTrue(AtomicCounter.GetIsDisposed(ref counter));
+            AtomicCounter.GetIsDisposed(ref counter).ShouldBe(true);
 
             AtomicCounter.TryDispose(ref counter).ShouldBe(-1);
 

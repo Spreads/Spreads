@@ -8,6 +8,7 @@ using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using NUnit.Framework;
 using ObjectLayoutInspector;
+using Shouldly;
 using Spreads.Collections;
 using Spreads.Utils;
 
@@ -70,8 +71,8 @@ namespace Spreads.Core.Tests.Collections
             TypeLayout.PrintLayout<Vec>();
             // Console.WriteLine(Unsafe.SizeOf<Vec<int>>());
             // >= for x86
-            Assert.IsTrue(32 >= Unsafe.SizeOf<Vec<int>>());
-            Assert.IsTrue(32 >= Unsafe.SizeOf<Vec>());
+            (32 >= Unsafe.SizeOf<Vec<int>>()).ShouldBe(true);
+            (32 >= Unsafe.SizeOf<Vec>()).ShouldBe(true);
             // Console.WriteLine(Unsafe.SizeOf<RuntimeVecInfo>());
             // Assert.AreEqual(24, Unsafe.SizeOf<RuntimeVecInfo>());
         }
@@ -83,20 +84,20 @@ namespace Spreads.Core.Tests.Collections
             var vecT = new Vec<int>(arr);
             var vec = new Vec(arr);
 
-            Assert.AreEqual(2, vecT[1]);
-            Assert.AreEqual(2, vec.DangerousGetObject(1));
+            vecT[1].ShouldBe(2);
+            vec.DangerousGetObject(1).ShouldBe(2);
 
             vecT[1] = 42;
 
             // vec[2] = (byte)123; // dynamic cast inside
 
-            Assert.AreEqual(3, vecT.Length);
-            Assert.AreEqual(3, vec.Length);
+            vecT.Length.ShouldBe(3);
+            vec.Length.ShouldBe(3);
 
-            Assert.AreEqual(42, vecT[1]);
+            vecT[1].ShouldBe(42);
             // Assert.AreEqual(123, vecT[2]);
 
-            Assert.AreEqual(42, vec.DangerousGetObject(1));
+            vec.DangerousGetObject(1).ShouldBe(42);
             // Assert.AreEqual(123, vec[2]);
 
             Assert.Throws<IndexOutOfRangeException>(() => { vecT[3] = 42; });
@@ -116,18 +117,18 @@ namespace Spreads.Core.Tests.Collections
             var vecT = new Vec<int>(arr).Slice(1);
             var vec = new Vec(arr).Slice(1);
 
-            Assert.AreEqual(2, vecT.Length);
-            Assert.AreEqual(2, vec.Length);
+            vecT.Length.ShouldBe(2);
+            vec.Length.ShouldBe(2);
 
-            Assert.AreEqual(2, vecT[0]);
-            Assert.AreEqual(3, vecT[1]);
+            vecT[0].ShouldBe(2);
+            vecT[1].ShouldBe(3);
 
-            Assert.AreEqual(2, vec.DangerousGetObject(0));
-            Assert.AreEqual(3, vec.DangerousGetObject(1));
+            vec.DangerousGetObject(0).ShouldBe(2);
+            vec.DangerousGetObject(1).ShouldBe(3);
 
-            Assert.IsTrue(vec.As<int>().ReferenceEquals(vecT));
+            vec.As<int>().ReferenceEquals(vecT).ShouldBe(true);
 
-            Assert.IsTrue(vecT.Span.SequenceEqual(vec.AsSpan<int>()));
+            vecT.Span.SequenceEqual(vec.AsSpan<int>()).ShouldBe(true);
         }
 
         [Test]
@@ -139,7 +140,7 @@ namespace Spreads.Core.Tests.Collections
             var vArr = new Vec(arr, 500, 500);
             var vPtr = new Vec((byte*)pin.Pointer + 500 * 4, 500, typeof(int));
 
-            Assert.AreEqual(vArr.Length, vPtr.Length);
+            vPtr.Length.ShouldBe(vArr.Length);
 
             for (int i = 0; i < 1000; i++)
             {
@@ -148,7 +149,7 @@ namespace Spreads.Core.Tests.Collections
 
             for (int i = 0; i < 500; i++)
             {
-                Assert.AreEqual(vArr.Get<int>(i), vPtr.Get<int>(i));
+                vPtr.Get<int>(i).ShouldBe(vArr.Get<int>(i));
             }
 
             pin.Dispose();

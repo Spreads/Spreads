@@ -10,6 +10,7 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Threading;
 using NUnit.Framework;
+using Shouldly;
 using Spreads.Buffers;
 using Spreads.Utils;
 
@@ -784,8 +785,9 @@ namespace Spreads.Core.Tests.Performance
             {
                 var handle = buffer.Pin();
             });
-            Assert.False(TypeHelper<string>.IsPinnable);
-            Assert.True(TypeHelper<string>.FixedSize <= 0);
+            TypeHelper<string>.IsPinnable.ShouldBe(false);
+
+            (TypeHelper<string>.FixedSize <= 0).ShouldBe(true);
         }
 
         //[Test, Explicit("long running")]
@@ -1225,7 +1227,7 @@ namespace Spreads.Core.Tests.Performance
                     }
                 }
 
-                Assert.AreEqual(sumIf, sumUnsafe);
+                sumUnsafe.ShouldBe(sumIf);
             }
 
             Benchmark.Dump();
@@ -1244,7 +1246,7 @@ namespace Spreads.Core.Tests.Performance
 #if DEBUG
             Assert.True(Settings.DoAdditionalCorrectnessChecks);
 #else
-            Assert.False(Settings.DoAdditionalCorrectnessChecks);
+            Settings.DoAdditionalCorrectnessChecks.ShouldBe(false);
 #endif
         }
 

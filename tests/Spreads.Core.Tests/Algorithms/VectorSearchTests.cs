@@ -183,80 +183,80 @@ namespace Spreads.Core.Tests.Algorithms
         private static void WorksOnEmpty<T>(T[] arr, T value)
         {
             var idxI = arr.InterpolationSearch(value);
-            Assert.AreEqual(-1, idxI);
+            idxI.ShouldBe(-1);
 
             var idxB = arr.BinarySearch(value);
-            Assert.AreEqual(-1, idxB);
+            idxB.ShouldBe(-1);
 
             var idxILt = arr.InterpolationLookup(ref value, Lookup.LT);
-            Assert.AreEqual(-1, idxILt);
+            idxILt.ShouldBe(-1);
 
             var idxILe = arr.InterpolationLookup(ref value, Lookup.LE);
-            Assert.AreEqual(-1, idxILe);
+            idxILe.ShouldBe(-1);
 
             var idxILq = arr.InterpolationLookup(ref value, Lookup.EQ);
-            Assert.AreEqual(-1, idxILq);
+            idxILq.ShouldBe(-1);
 
             var idxIGe = arr.InterpolationLookup(ref value, Lookup.GE);
-            Assert.AreEqual(-1, idxIGe);
+            idxIGe.ShouldBe(-1);
 
             var idxIGt = arr.InterpolationLookup(ref value, Lookup.GT);
-            Assert.AreEqual(-1, idxIGt);
+            idxIGt.ShouldBe(-1);
 
             var idxBLt = arr.BinaryLookup(ref value, Lookup.LT);
-            Assert.AreEqual(-1, idxBLt);
+            idxBLt.ShouldBe(-1);
 
             var idxBLe = arr.BinaryLookup(ref value, Lookup.LE);
-            Assert.AreEqual(-1, idxBLe);
+            idxBLe.ShouldBe(-1);
 
             var idxBEq = arr.BinaryLookup(ref value, Lookup.EQ);
-            Assert.AreEqual(-1, idxBEq);
+            idxBEq.ShouldBe(-1);
 
             var idxBGe = arr.BinaryLookup(ref value, Lookup.GE);
-            Assert.AreEqual(-1, idxBGe);
+            idxBGe.ShouldBe(-1);
 
             var idxBGt = arr.BinaryLookup(ref value, Lookup.GT);
-            Assert.AreEqual(-1, idxBGt);
+            idxBGt.ShouldBe(-1);
         }
 
         // TODO Use Vec<T> actually
         private static void WorksOnEmptyVec<T>(Vec<T> vec, T value)
         {
             var idxI = vec.InterpolationSearch(value);
-            Assert.AreEqual(-1, idxI);
+            idxI.ShouldBe(-1);
 
             var idxB = vec.BinarySearch(value);
-            Assert.AreEqual(-1, idxB);
+            idxB.ShouldBe(-1);
 
             var idxILt = vec.InterpolationLookup(ref value, Lookup.LT);
-            Assert.AreEqual(-1, idxILt);
+            idxILt.ShouldBe(-1);
 
             var idxILe = vec.InterpolationLookup(ref value, Lookup.LE);
-            Assert.AreEqual(-1, idxILe);
+            idxILe.ShouldBe(-1);
 
             var idxILq = vec.InterpolationLookup(ref value, Lookup.EQ);
-            Assert.AreEqual(-1, idxILq);
+            idxILq.ShouldBe(-1);
 
             var idxIGe = vec.InterpolationLookup(ref value, Lookup.GE);
-            Assert.AreEqual(-1, idxIGe);
+            idxIGe.ShouldBe(-1);
 
             var idxIGt = vec.InterpolationLookup(ref value, Lookup.GT);
-            Assert.AreEqual(-1, idxIGt);
+            idxIGt.ShouldBe(-1);
 
             var idxBLt = vec.BinaryLookup(ref value, Lookup.LT);
-            Assert.AreEqual(-1, idxBLt);
+            idxBLt.ShouldBe(-1);
 
             var idxBLe = vec.BinaryLookup(ref value, Lookup.LE);
-            Assert.AreEqual(-1, idxBLe);
+            idxBLe.ShouldBe(-1);
 
             var idxBEq = vec.BinaryLookup(ref value, Lookup.EQ);
-            Assert.AreEqual(-1, idxBEq);
+            idxBEq.ShouldBe(-1);
 
             var idxBGe = vec.BinaryLookup(ref value, Lookup.GE);
-            Assert.AreEqual(-1, idxBGe);
+            idxBGe.ShouldBe(-1);
 
             var idxBGt = vec.BinaryLookup(ref value, Lookup.GT);
-            Assert.AreEqual(-1, idxBGt);
+            idxBGt.ShouldBe(-1);
         }
 
         [Test]
@@ -286,79 +286,79 @@ namespace Spreads.Core.Tests.Algorithms
         private static void WorksOnSingle<T>(T[] arr, T value)
         {
             var idxI = arr.InterpolationSearch(value);
-            Assert.AreEqual(0, idxI);
+            idxI.ShouldBe(0);
 
             var idxB = arr.BinarySearch(value);
-            Assert.AreEqual(0, idxB);
+            idxB.ShouldBe(0);
 
             var idxILt = arr.InterpolationLookup(ref value, Lookup.LT);
-            Assert.AreEqual(-1, idxILt);
+            idxILt.ShouldBe(-1);
 
             var idxILe = arr.InterpolationLookup(ref value, Lookup.LE);
-            Assert.AreEqual(0, idxILe);
+            idxILe.ShouldBe(0);
 
             var idxILq = arr.InterpolationLookup(ref value, Lookup.EQ);
-            Assert.AreEqual(0, idxILq);
+            idxILq.ShouldBe(0);
 
             var idxIGe = arr.InterpolationLookup(ref value, Lookup.GE);
-            Assert.AreEqual(0, idxIGe);
+            idxIGe.ShouldBe(0);
 
             var idxIGt = arr.InterpolationLookup(ref value, Lookup.GT);
-            Assert.AreEqual(-2, idxIGt);
+            idxIGt.ShouldBe(-2);
 
             var idxBLt = arr.BinaryLookup(ref value, Lookup.LT);
-            Assert.AreEqual(-1, idxBLt);
+            idxBLt.ShouldBe(-1);
 
             var idxBLe = arr.BinaryLookup(ref value, Lookup.LE);
-            Assert.AreEqual(0, idxBLe);
+            idxBLe.ShouldBe(0);
 
             var idxBEq = arr.BinaryLookup(ref value, Lookup.EQ);
-            Assert.AreEqual(0, idxBEq);
+            idxBEq.ShouldBe(0);
 
             var idxBGe = arr.BinaryLookup(ref value, Lookup.GE);
-            Assert.AreEqual(0, idxBGe);
+            idxBGe.ShouldBe(0);
 
             var idxBGt = arr.BinaryLookup(ref value, Lookup.GT);
-            Assert.AreEqual(-2, idxBGt);
+            idxBGt.ShouldBe(-2);
         }
 
         private static void WorksOnSingleVec<T>(Vec<T> vec, T value)
         {
             var idxI = vec.InterpolationSearch(value);
-            Assert.AreEqual(0, idxI);
+            idxI.ShouldBe(0);
 
             var idxB = vec.BinarySearch(value);
-            Assert.AreEqual(0, idxB);
+            idxB.ShouldBe(0);
 
             var idxILt = vec.InterpolationLookup(ref value, Lookup.LT);
-            Assert.AreEqual(-1, idxILt);
+            idxILt.ShouldBe(-1);
 
             var idxILe = vec.InterpolationLookup(ref value, Lookup.LE);
-            Assert.AreEqual(0, idxILe);
+            idxILe.ShouldBe(0);
 
             var idxILq = vec.InterpolationLookup(ref value, Lookup.EQ);
-            Assert.AreEqual(0, idxILq);
+            idxILq.ShouldBe(0);
 
             var idxIGe = vec.InterpolationLookup(ref value, Lookup.GE);
-            Assert.AreEqual(0, idxIGe);
+            idxIGe.ShouldBe(0);
 
             var idxIGt = vec.InterpolationLookup(ref value, Lookup.GT);
-            Assert.AreEqual(-2, idxIGt);
+            idxIGt.ShouldBe(-2);
 
             var idxBLt = vec.BinaryLookup(ref value, Lookup.LT);
-            Assert.AreEqual(-1, idxBLt);
+            idxBLt.ShouldBe(-1);
 
             var idxBLe = vec.BinaryLookup(ref value, Lookup.LE);
-            Assert.AreEqual(0, idxBLe);
+            idxBLe.ShouldBe(0);
 
             var idxBEq = vec.BinaryLookup(ref value, Lookup.EQ);
-            Assert.AreEqual(0, idxBEq);
+            idxBEq.ShouldBe(0);
 
             var idxBGe = vec.BinaryLookup(ref value, Lookup.GE);
-            Assert.AreEqual(0, idxBGe);
+            idxBGe.ShouldBe(0);
 
             var idxBGt = vec.BinaryLookup(ref value, Lookup.GT);
-            Assert.AreEqual(-2, idxBGt);
+            idxBGt.ShouldBe(-2);
         }
 
         [Test]
@@ -389,102 +389,102 @@ namespace Spreads.Core.Tests.Algorithms
         {
             var value = valueIn;
             var idxI = arr.InterpolationSearch(value);
-            Assert.AreEqual(0, idxI);
+            idxI.ShouldBe(0);
 
             value = valueIn;
             var idxB = arr.BinarySearch(value);
-            Assert.AreEqual(0, idxB);
+            idxB.ShouldBe(0);
 
             value = valueIn;
             var idxILt = arr.InterpolationLookup(ref value, Lookup.LT);
-            Assert.AreEqual(-1, idxILt);
+            idxILt.ShouldBe(-1);
 
             value = valueIn;
             var idxILe = arr.InterpolationLookup(ref value, Lookup.LE);
-            Assert.AreEqual(0, idxILe);
+            idxILe.ShouldBe(0);
 
             value = valueIn;
             var idxILq = arr.InterpolationLookup(ref value, Lookup.EQ);
-            Assert.AreEqual(0, idxILq);
+            idxILq.ShouldBe(0);
 
             value = valueIn;
             var idxIGe = arr.InterpolationLookup(ref value, Lookup.GE);
-            Assert.AreEqual(0, idxIGe);
+            idxIGe.ShouldBe(0);
 
             value = valueIn;
             var idxIGt = arr.InterpolationLookup(ref value, Lookup.GT);
-            Assert.AreEqual(1, idxIGt);
+            idxIGt.ShouldBe(1);
 
             value = valueIn;
             var idxBLt = arr.BinaryLookup(ref value, Lookup.LT);
-            Assert.AreEqual(-1, idxBLt);
+            idxBLt.ShouldBe(-1);
 
             value = valueIn;
             var idxBLe = arr.BinaryLookup(ref value, Lookup.LE);
-            Assert.AreEqual(0, idxBLe);
+            idxBLe.ShouldBe(0);
 
             value = valueIn;
             var idxBEq = arr.BinaryLookup(ref value, Lookup.EQ);
-            Assert.AreEqual(0, idxBEq);
+            idxBEq.ShouldBe(0);
 
             value = valueIn;
             var idxBGe = arr.BinaryLookup(ref value, Lookup.GE);
-            Assert.AreEqual(0, idxBGe);
+            idxBGe.ShouldBe(0);
 
             value = valueIn;
             var idxBGt = arr.BinaryLookup(ref value, Lookup.GT);
-            Assert.AreEqual(1, idxBGt);
+            idxBGt.ShouldBe(1);
         }
 
         private static void WorksOnFirstVec<T>(Vec<T> vec, T valueIn)
         {
             var value = valueIn;
             var idxI = vec.InterpolationSearch(value);
-            Assert.AreEqual(0, idxI);
+            idxI.ShouldBe(0);
 
             value = valueIn;
             var idxB = vec.BinarySearch(value);
-            Assert.AreEqual(0, idxB);
+            idxB.ShouldBe(0);
 
             value = valueIn;
             var idxILt = vec.InterpolationLookup(ref value, Lookup.LT);
-            Assert.AreEqual(-1, idxILt);
+            idxILt.ShouldBe(-1);
 
             value = valueIn;
             var idxILe = vec.InterpolationLookup(ref value, Lookup.LE);
-            Assert.AreEqual(0, idxILe);
+            idxILe.ShouldBe(0);
 
             value = valueIn;
             var idxILq = vec.InterpolationLookup(ref value, Lookup.EQ);
-            Assert.AreEqual(0, idxILq);
+            idxILq.ShouldBe(0);
 
             value = valueIn;
             var idxIGe = vec.InterpolationLookup(ref value, Lookup.GE);
-            Assert.AreEqual(0, idxIGe);
+            idxIGe.ShouldBe(0);
 
             value = valueIn;
             var idxIGt = vec.InterpolationLookup(ref value, Lookup.GT);
-            Assert.AreEqual(1, idxIGt);
+            idxIGt.ShouldBe(1);
 
             value = valueIn;
             var idxBLt = vec.BinaryLookup(ref value, Lookup.LT);
-            Assert.AreEqual(-1, idxBLt);
+            idxBLt.ShouldBe(-1);
 
             value = valueIn;
             var idxBLe = vec.BinaryLookup(ref value, Lookup.LE);
-            Assert.AreEqual(0, idxBLe);
+            idxBLe.ShouldBe(0);
 
             value = valueIn;
             var idxBEq = vec.BinaryLookup(ref value, Lookup.EQ);
-            Assert.AreEqual(0, idxBEq);
+            idxBEq.ShouldBe(0);
 
             value = valueIn;
             var idxBGe = vec.BinaryLookup(ref value, Lookup.GE);
-            Assert.AreEqual(0, idxBGe);
+            idxBGe.ShouldBe(0);
 
             value = valueIn;
             var idxBGt = vec.BinaryLookup(ref value, Lookup.GT);
-            Assert.AreEqual(1, idxBGt);
+            idxBGt.ShouldBe(1);
         }
 
         [Test]
@@ -515,102 +515,102 @@ namespace Spreads.Core.Tests.Algorithms
         {
             var value = valueIn;
             var idxI = arr.InterpolationSearch(value);
-            Assert.AreEqual(1, idxI);
+            idxI.ShouldBe(1);
 
             value = valueIn;
             var idxB = arr.BinarySearch(value);
-            Assert.AreEqual(1, idxB);
+            idxB.ShouldBe(1);
 
             value = valueIn;
             var idxILt = arr.InterpolationLookup(ref value, Lookup.LT);
-            Assert.AreEqual(0, idxILt);
+            idxILt.ShouldBe(0);
 
             value = valueIn;
             var idxILe = arr.InterpolationLookup(ref value, Lookup.LE);
-            Assert.AreEqual(1, idxILe);
+            idxILe.ShouldBe(1);
 
             value = valueIn;
             var idxILq = arr.InterpolationLookup(ref value, Lookup.EQ);
-            Assert.AreEqual(1, idxILq);
+            idxILq.ShouldBe(1);
 
             value = valueIn;
             var idxIGe = arr.InterpolationLookup(ref value, Lookup.GE);
-            Assert.AreEqual(1, idxIGe);
+            idxIGe.ShouldBe(1);
 
             value = valueIn;
             var idxIGt = arr.InterpolationLookup(ref value, Lookup.GT);
-            Assert.AreEqual(-3, idxIGt);
+            idxIGt.ShouldBe(-3);
 
             value = valueIn;
             var idxBLt = arr.BinaryLookup(ref value, Lookup.LT);
-            Assert.AreEqual(0, idxBLt);
+            idxBLt.ShouldBe(0);
 
             value = valueIn;
             var idxBLe = arr.BinaryLookup(ref value, Lookup.LE);
-            Assert.AreEqual(1, idxBLe);
+            idxBLe.ShouldBe(1);
 
             value = valueIn;
             var idxBEq = arr.BinaryLookup(ref value, Lookup.EQ);
-            Assert.AreEqual(1, idxBEq);
+            idxBEq.ShouldBe(1);
 
             value = valueIn;
             var idxBGe = arr.BinaryLookup(ref value, Lookup.GE);
-            Assert.AreEqual(1, idxBGe);
+            idxBGe.ShouldBe(1);
 
             value = valueIn;
             var idxBGt = arr.BinaryLookup(ref value, Lookup.GT);
-            Assert.AreEqual(-3, idxBGt);
+            idxBGt.ShouldBe(-3);
         }
 
         private static void WorksOnLastVec<T>(Vec<T> vec, T valueIn)
         {
             var value = valueIn;
             var idxI = vec.InterpolationSearch(value);
-            Assert.AreEqual(1, idxI);
+            idxI.ShouldBe(1);
 
             value = valueIn;
             var idxB = vec.BinarySearch(value);
-            Assert.AreEqual(1, idxB);
+            idxB.ShouldBe(1);
 
             value = valueIn;
             var idxILt = vec.InterpolationLookup(ref value, Lookup.LT);
-            Assert.AreEqual(0, idxILt);
+            idxILt.ShouldBe(0);
 
             value = valueIn;
             var idxILe = vec.InterpolationLookup(ref value, Lookup.LE);
-            Assert.AreEqual(1, idxILe);
+            idxILe.ShouldBe(1);
 
             value = valueIn;
             var idxILq = vec.InterpolationLookup(ref value, Lookup.EQ);
-            Assert.AreEqual(1, idxILq);
+            idxILq.ShouldBe(1);
 
             value = valueIn;
             var idxIGe = vec.InterpolationLookup(ref value, Lookup.GE);
-            Assert.AreEqual(1, idxIGe);
+            idxIGe.ShouldBe(1);
 
             value = valueIn;
             var idxIGt = vec.InterpolationLookup(ref value, Lookup.GT);
-            Assert.AreEqual(-3, idxIGt);
+            idxIGt.ShouldBe(-3);
 
             value = valueIn;
             var idxBLt = vec.BinaryLookup(ref value, Lookup.LT);
-            Assert.AreEqual(0, idxBLt);
+            idxBLt.ShouldBe(0);
 
             value = valueIn;
             var idxBLe = vec.BinaryLookup(ref value, Lookup.LE);
-            Assert.AreEqual(1, idxBLe);
+            idxBLe.ShouldBe(1);
 
             value = valueIn;
             var idxBEq = vec.BinaryLookup(ref value, Lookup.EQ);
-            Assert.AreEqual(1, idxBEq);
+            idxBEq.ShouldBe(1);
 
             value = valueIn;
             var idxBGe = vec.BinaryLookup(ref value, Lookup.GE);
-            Assert.AreEqual(1, idxBGe);
+            idxBGe.ShouldBe(1);
 
             value = valueIn;
             var idxBGt = vec.BinaryLookup(ref value, Lookup.GT);
-            Assert.AreEqual(-3, idxBGt);
+            idxBGt.ShouldBe(-3);
         }
 
         [Test]
@@ -641,102 +641,102 @@ namespace Spreads.Core.Tests.Algorithms
         {
             var value = valueIn;
             var idxI = arr.InterpolationSearch(value);
-            Assert.AreEqual(1, idxI);
+            idxI.ShouldBe(1);
 
             value = valueIn;
             var idxB = arr.BinarySearch(value);
-            Assert.AreEqual(1, idxB);
+            idxB.ShouldBe(1);
 
             value = valueIn;
             var idxILt = arr.InterpolationLookup(ref value, Lookup.LT);
-            Assert.AreEqual(0, idxILt);
+            idxILt.ShouldBe(0);
 
             value = valueIn;
             var idxILe = arr.InterpolationLookup(ref value, Lookup.LE);
-            Assert.AreEqual(1, idxILe);
+            idxILe.ShouldBe(1);
 
             value = valueIn;
             var idxILq = arr.InterpolationLookup(ref value, Lookup.EQ);
-            Assert.AreEqual(1, idxILq);
+            idxILq.ShouldBe(1);
 
             value = valueIn;
             var idxIGe = arr.InterpolationLookup(ref value, Lookup.GE);
-            Assert.AreEqual(1, idxIGe);
+            idxIGe.ShouldBe(1);
 
             value = valueIn;
             var idxIGt = arr.InterpolationLookup(ref value, Lookup.GT);
-            Assert.AreEqual(2, idxIGt);
+            idxIGt.ShouldBe(2);
 
             value = valueIn;
             var idxBLt = arr.BinaryLookup(ref value, Lookup.LT);
-            Assert.AreEqual(0, idxBLt);
+            idxBLt.ShouldBe(0);
 
             value = valueIn;
             var idxBLe = arr.BinaryLookup(ref value, Lookup.LE);
-            Assert.AreEqual(1, idxBLe);
+            idxBLe.ShouldBe(1);
 
             value = valueIn;
             var idxBEq = arr.BinaryLookup(ref value, Lookup.EQ);
-            Assert.AreEqual(1, idxBEq);
+            idxBEq.ShouldBe(1);
 
             value = valueIn;
             var idxBGe = arr.BinaryLookup(ref value, Lookup.GE);
-            Assert.AreEqual(1, idxBGe);
+            idxBGe.ShouldBe(1);
 
             value = valueIn;
             var idxBGt = arr.BinaryLookup(ref value, Lookup.GT);
-            Assert.AreEqual(2, idxBGt);
+            idxBGt.ShouldBe(2);
         }
 
         private static void WorksOnExistingMiddleVec<T>(Vec<T> vec, T valueIn)
         {
             var value = valueIn;
             var idxI = vec.InterpolationSearch(value);
-            Assert.AreEqual(1, idxI);
+            idxI.ShouldBe(1);
 
             value = valueIn;
             var idxB = vec.BinarySearch(value);
-            Assert.AreEqual(1, idxB);
+            idxB.ShouldBe(1);
 
             value = valueIn;
             var idxILt = vec.InterpolationLookup(ref value, Lookup.LT);
-            Assert.AreEqual(0, idxILt);
+            idxILt.ShouldBe(0);
 
             value = valueIn;
             var idxILe = vec.InterpolationLookup(ref value, Lookup.LE);
-            Assert.AreEqual(1, idxILe);
+            idxILe.ShouldBe(1);
 
             value = valueIn;
             var idxILq = vec.InterpolationLookup(ref value, Lookup.EQ);
-            Assert.AreEqual(1, idxILq);
+            idxILq.ShouldBe(1);
 
             value = valueIn;
             var idxIGe = vec.InterpolationLookup(ref value, Lookup.GE);
-            Assert.AreEqual(1, idxIGe);
+            idxIGe.ShouldBe(1);
 
             value = valueIn;
             var idxIGt = vec.InterpolationLookup(ref value, Lookup.GT);
-            Assert.AreEqual(2, idxIGt);
+            idxIGt.ShouldBe(2);
 
             value = valueIn;
             var idxBLt = vec.BinaryLookup(ref value, Lookup.LT);
-            Assert.AreEqual(0, idxBLt);
+            idxBLt.ShouldBe(0);
 
             value = valueIn;
             var idxBLe = vec.BinaryLookup(ref value, Lookup.LE);
-            Assert.AreEqual(1, idxBLe);
+            idxBLe.ShouldBe(1);
 
             value = valueIn;
             var idxBEq = vec.BinaryLookup(ref value, Lookup.EQ);
-            Assert.AreEqual(1, idxBEq);
+            idxBEq.ShouldBe(1);
 
             value = valueIn;
             var idxBGe = vec.BinaryLookup(ref value, Lookup.GE);
-            Assert.AreEqual(1, idxBGe);
+            idxBGe.ShouldBe(1);
 
             value = valueIn;
             var idxBGt = vec.BinaryLookup(ref value, Lookup.GT);
-            Assert.AreEqual(2, idxBGt);
+            idxBGt.ShouldBe(2);
         }
 
         [Test]
@@ -767,102 +767,102 @@ namespace Spreads.Core.Tests.Algorithms
         {
             var value = valueIn;
             var idxI = arr.InterpolationSearch(value);
-            Assert.AreEqual(-2, idxI);
+            idxI.ShouldBe(-2);
 
             value = valueIn;
             var idxB = arr.BinarySearch(value);
-            Assert.AreEqual(-2, idxB);
+            idxB.ShouldBe(-2);
 
             value = valueIn;
             var idxILt = arr.InterpolationLookup(ref value, Lookup.LT);
-            Assert.AreEqual(0, idxILt);
+            idxILt.ShouldBe(0);
 
             value = valueIn;
             var idxILe = arr.InterpolationLookup(ref value, Lookup.LE);
-            Assert.AreEqual(0, idxILe);
+            idxILe.ShouldBe(0);
 
             value = valueIn;
             var idxILq = arr.InterpolationLookup(ref value, Lookup.EQ);
-            Assert.AreEqual(-2, idxILq);
+            idxILq.ShouldBe(-2);
 
             value = valueIn;
             var idxIGe = arr.InterpolationLookup(ref value, Lookup.GE);
-            Assert.AreEqual(1, idxIGe);
+            idxIGe.ShouldBe(1);
 
             value = valueIn;
             var idxIGt = arr.InterpolationLookup(ref value, Lookup.GT);
-            Assert.AreEqual(1, idxIGt);
+            idxIGt.ShouldBe(1);
 
             value = valueIn;
             var idxBLt = arr.BinaryLookup(ref value, Lookup.LT);
-            Assert.AreEqual(0, idxBLt);
+            idxBLt.ShouldBe(0);
 
             value = valueIn;
             var idxBLe = arr.BinaryLookup(ref value, Lookup.LE);
-            Assert.AreEqual(0, idxBLe);
+            idxBLe.ShouldBe(0);
 
             value = valueIn;
             var idxBEq = arr.BinaryLookup(ref value, Lookup.EQ);
-            Assert.AreEqual(-2, idxBEq);
+            idxBEq.ShouldBe(-2);
 
             value = valueIn;
             var idxBGe = arr.BinaryLookup(ref value, Lookup.GE);
-            Assert.AreEqual(1, idxBGe);
+            idxBGe.ShouldBe(1);
 
             value = valueIn;
             var idxBGt = arr.BinaryLookup(ref value, Lookup.GT);
-            Assert.AreEqual(1, idxBGt);
+            idxBGt.ShouldBe(1);
         }
 
         private static void WorksOnNonExistingMiddleVec<T>(Vec<T> vec, T valueIn)
         {
             var value = valueIn;
             var idxI = vec.InterpolationSearch(value);
-            Assert.AreEqual(-2, idxI);
+            idxI.ShouldBe(-2);
 
             value = valueIn;
             var idxB = vec.BinarySearch(value);
-            Assert.AreEqual(-2, idxB);
+            idxB.ShouldBe(-2);
 
             value = valueIn;
             var idxILt = vec.InterpolationLookup(ref value, Lookup.LT);
-            Assert.AreEqual(0, idxILt);
+            idxILt.ShouldBe(0);
 
             value = valueIn;
             var idxILe = vec.InterpolationLookup(ref value, Lookup.LE);
-            Assert.AreEqual(0, idxILe);
+            idxILe.ShouldBe(0);
 
             value = valueIn;
             var idxILq = vec.InterpolationLookup(ref value, Lookup.EQ);
-            Assert.AreEqual(-2, idxILq);
+            idxILq.ShouldBe(-2);
 
             value = valueIn;
             var idxIGe = vec.InterpolationLookup(ref value, Lookup.GE);
-            Assert.AreEqual(1, idxIGe);
+            idxIGe.ShouldBe(1);
 
             value = valueIn;
             var idxIGt = vec.InterpolationLookup(ref value, Lookup.GT);
-            Assert.AreEqual(1, idxIGt);
+            idxIGt.ShouldBe(1);
 
             value = valueIn;
             var idxBLt = vec.BinaryLookup(ref value, Lookup.LT);
-            Assert.AreEqual(0, idxBLt);
+            idxBLt.ShouldBe(0);
 
             value = valueIn;
             var idxBLe = vec.BinaryLookup(ref value, Lookup.LE);
-            Assert.AreEqual(0, idxBLe);
+            idxBLe.ShouldBe(0);
 
             value = valueIn;
             var idxBEq = vec.BinaryLookup(ref value, Lookup.EQ);
-            Assert.AreEqual(-2, idxBEq);
+            idxBEq.ShouldBe(-2);
 
             value = valueIn;
             var idxBGe = vec.BinaryLookup(ref value, Lookup.GE);
-            Assert.AreEqual(1, idxBGe);
+            idxBGe.ShouldBe(1);
 
             value = valueIn;
             var idxBGt = vec.BinaryLookup(ref value, Lookup.GT);
-            Assert.AreEqual(1, idxBGt);
+            idxBGt.ShouldBe(1);
         }
 
         [Test]
@@ -900,94 +900,94 @@ namespace Spreads.Core.Tests.Algorithms
 
             value = valueIn;
             var idxILt = arr.InterpolationLookup(ref value, Lookup.LT);
-            Assert.AreEqual(1, idxILt);
+            idxILt.ShouldBe(1);
 
             value = valueIn;
             var idxILe = arr.InterpolationLookup(ref value, Lookup.LE);
-            Assert.AreEqual(1, idxILe);
+            idxILe.ShouldBe(1);
 
             value = valueIn;
             var idxILq = arr.InterpolationLookup(ref value, Lookup.EQ);
-            Assert.AreEqual(-3, idxILq);
+            idxILq.ShouldBe(-3);
 
             value = valueIn;
             var idxIGe = arr.InterpolationLookup(ref value, Lookup.GE);
-            Assert.AreEqual(-3, idxIGe);
+            idxIGe.ShouldBe(-3);
 
             value = valueIn;
             var idxIGt = arr.InterpolationLookup(ref value, Lookup.GT);
-            Assert.AreEqual(-3, idxIGt);
+            idxIGt.ShouldBe(-3);
 
             value = valueIn;
             var idxBLt = arr.BinaryLookup(ref value, Lookup.LT);
-            Assert.AreEqual(1, idxBLt);
+            idxBLt.ShouldBe(1);
 
             value = valueIn;
             var idxBLe = arr.BinaryLookup(ref value, Lookup.LE);
-            Assert.AreEqual(1, idxBLe);
+            idxBLe.ShouldBe(1);
 
             value = valueIn;
             var idxBEq = arr.BinaryLookup(ref value, Lookup.EQ);
-            Assert.AreEqual(-3, idxBEq);
+            idxBEq.ShouldBe(-3);
 
             value = valueIn;
             var idxBGe = arr.BinaryLookup(ref value, Lookup.GE);
-            Assert.AreEqual(-3, idxBGe);
+            idxBGe.ShouldBe(-3);
 
             value = valueIn;
             var idxBGt = arr.BinaryLookup(ref value, Lookup.GT);
-            Assert.AreEqual(-3, idxBGt);
+            idxBGt.ShouldBe(-3);
         }
 
         private static void WorksAfterEndVec<T>(Vec<T> vec, T valueIn)
         {
             var value = valueIn;
             var idxI = vec.InterpolationSearch(value);
-            Assert.AreEqual(-3, idxI);
+            idxI.ShouldBe(-3);
 
             value = valueIn;
             var idxB = vec.BinarySearch(value);
-            Assert.AreEqual(-3, idxB);
+            idxB.ShouldBe(-3);
 
             value = valueIn;
             var idxILt = vec.InterpolationLookup(ref value, Lookup.LT);
-            Assert.AreEqual(1, idxILt);
+            idxILt.ShouldBe(1);
 
             value = valueIn;
             var idxILe = vec.InterpolationLookup(ref value, Lookup.LE);
-            Assert.AreEqual(1, idxILe);
+            idxILe.ShouldBe(1);
 
             value = valueIn;
             var idxILq = vec.InterpolationLookup(ref value, Lookup.EQ);
-            Assert.AreEqual(-3, idxILq);
+            idxILq.ShouldBe(-3);
 
             value = valueIn;
             var idxIGe = vec.InterpolationLookup(ref value, Lookup.GE);
-            Assert.AreEqual(-3, idxIGe);
+            idxIGe.ShouldBe(-3);
 
             value = valueIn;
             var idxIGt = vec.InterpolationLookup(ref value, Lookup.GT);
-            Assert.AreEqual(-3, idxIGt);
+            idxIGt.ShouldBe(-3);
 
             value = valueIn;
             var idxBLt = vec.BinaryLookup(ref value, Lookup.LT);
-            Assert.AreEqual(1, idxBLt);
+            idxBLt.ShouldBe(1);
 
             value = valueIn;
             var idxBLe = vec.BinaryLookup(ref value, Lookup.LE);
-            Assert.AreEqual(1, idxBLe);
+            idxBLe.ShouldBe(1);
 
             value = valueIn;
             var idxBEq = vec.BinaryLookup(ref value, Lookup.EQ);
-            Assert.AreEqual(-3, idxBEq);
+            idxBEq.ShouldBe(-3);
 
             value = valueIn;
             var idxBGe = vec.BinaryLookup(ref value, Lookup.GE);
-            Assert.AreEqual(-3, idxBGe);
+            idxBGe.ShouldBe(-3);
 
             value = valueIn;
             var idxBGt = vec.BinaryLookup(ref value, Lookup.GT);
-            Assert.AreEqual(-3, idxBGt);
+            idxBGt.ShouldBe(-3);
         }
 
         [Test]
@@ -1018,102 +1018,102 @@ namespace Spreads.Core.Tests.Algorithms
         {
             var value = valueIn;
             var idxI = arr.InterpolationSearch(value);
-            Assert.AreEqual(-1, idxI);
+            idxI.ShouldBe(-1);
 
             value = valueIn;
             var idxB = arr.BinarySearch(value);
-            Assert.AreEqual(-1, idxB);
+            idxB.ShouldBe(-1);
 
             value = valueIn;
             var idxILt = arr.InterpolationLookup(ref value, Lookup.LT);
-            Assert.AreEqual(-1, idxILt);
+            idxILt.ShouldBe(-1);
 
             value = valueIn;
             var idxILe = arr.InterpolationLookup(ref value, Lookup.LE);
-            Assert.AreEqual(-1, idxILe);
+            idxILe.ShouldBe(-1);
 
             value = valueIn;
             var idxILq = arr.InterpolationLookup(ref value, Lookup.EQ);
-            Assert.AreEqual(-1, idxILq);
+            idxILq.ShouldBe(-1);
 
             value = valueIn;
             var idxIGe = arr.InterpolationLookup(ref value, Lookup.GE);
-            Assert.AreEqual(0, idxIGe);
+            idxIGe.ShouldBe(0);
 
             value = valueIn;
             var idxIGt = arr.InterpolationLookup(ref value, Lookup.GT);
-            Assert.AreEqual(0, idxIGt);
+            idxIGt.ShouldBe(0);
 
             value = valueIn;
             var idxBLt = arr.BinaryLookup(ref value, Lookup.LT);
-            Assert.AreEqual(-1, idxBLt);
+            idxBLt.ShouldBe(-1);
 
             value = valueIn;
             var idxBLe = arr.BinaryLookup(ref value, Lookup.LE);
-            Assert.AreEqual(-1, idxBLe);
+            idxBLe.ShouldBe(-1);
 
             value = valueIn;
             var idxBEq = arr.BinaryLookup(ref value, Lookup.EQ);
-            Assert.AreEqual(-1, idxBEq);
+            idxBEq.ShouldBe(-1);
 
             value = valueIn;
             var idxBGe = arr.BinaryLookup(ref value, Lookup.GE);
-            Assert.AreEqual(-0, idxBGe);
+            idxBGe.ShouldBe(-0);
 
             value = valueIn;
             var idxBGt = arr.BinaryLookup(ref value, Lookup.GT);
-            Assert.AreEqual(-0, idxBGt);
+            idxBGt.ShouldBe(-0);
         }
 
         private static void WorksBeforeStartVec<T>(Vec<T> vec, T valueIn)
         {
             var value = valueIn;
             var idxI = vec.InterpolationSearch(value);
-            Assert.AreEqual(-1, idxI);
+            idxI.ShouldBe(-1);
 
             value = valueIn;
             var idxB = vec.BinarySearch(value);
-            Assert.AreEqual(-1, idxB);
+            idxB.ShouldBe(-1);
 
             value = valueIn;
             var idxILt = vec.InterpolationLookup(ref value, Lookup.LT);
-            Assert.AreEqual(-1, idxILt);
+            idxILt.ShouldBe(-1);
 
             value = valueIn;
             var idxILe = vec.InterpolationLookup(ref value, Lookup.LE);
-            Assert.AreEqual(-1, idxILe);
+            idxILe.ShouldBe(-1);
 
             value = valueIn;
             var idxILq = vec.InterpolationLookup(ref value, Lookup.EQ);
-            Assert.AreEqual(-1, idxILq);
+            idxILq.ShouldBe(-1);
 
             value = valueIn;
             var idxIGe = vec.InterpolationLookup(ref value, Lookup.GE);
-            Assert.AreEqual(0, idxIGe);
+            idxIGe.ShouldBe(0);
 
             value = valueIn;
             var idxIGt = vec.InterpolationLookup(ref value, Lookup.GT);
-            Assert.AreEqual(0, idxIGt);
+            idxIGt.ShouldBe(0);
 
             value = valueIn;
             var idxBLt = vec.BinaryLookup(ref value, Lookup.LT);
-            Assert.AreEqual(-1, idxBLt);
+            idxBLt.ShouldBe(-1);
 
             value = valueIn;
             var idxBLe = vec.BinaryLookup(ref value, Lookup.LE);
-            Assert.AreEqual(-1, idxBLe);
+            idxBLe.ShouldBe(-1);
 
             value = valueIn;
             var idxBEq = vec.BinaryLookup(ref value, Lookup.EQ);
-            Assert.AreEqual(-1, idxBEq);
+            idxBEq.ShouldBe(-1);
 
             value = valueIn;
             var idxBGe = vec.BinaryLookup(ref value, Lookup.GE);
-            Assert.AreEqual(-0, idxBGe);
+            idxBGe.ShouldBe(-0);
 
             value = valueIn;
             var idxBGt = vec.BinaryLookup(ref value, Lookup.GT);
-            Assert.AreEqual(-0, idxBGt);
+            idxBGt.ShouldBe(-0);
         }
 
         [Test]
@@ -1138,8 +1138,8 @@ namespace Spreads.Core.Tests.Algorithms
             {
                 var idxI = arr.InterpolationSearch(i, arr.Length - i, arr[i]);
                 var idxB = arr.BinarySearch(i, arr.Length - i, arr[i]);
-                Assert.AreEqual(i, idxI);
-                Assert.AreEqual(i, idxB);
+                idxI.ShouldBe(i);
+                idxB.ShouldBe(i);
 
                 var lookups = new[] { Lookup.LT, Lookup.LE, Lookup.EQ, Lookup.GE, Lookup.GT };
 
@@ -1150,7 +1150,7 @@ namespace Spreads.Core.Tests.Algorithms
                     var idxILt = arr.InterpolationLookup(i, arr.Length - i, ref val, lookup);
                     val = arr[i];
                     var idxBLt = arr.BinaryLookup(i, arr.Length - i, ref val, lookup);
-                    Assert.AreEqual(idxILt, idxBLt);
+                    idxBLt.ShouldBe(idxILt);
 
                     if (i > 0 && i < arr.Length - 1)
                     {
@@ -1158,15 +1158,15 @@ namespace Spreads.Core.Tests.Algorithms
                         {
                             // ~i == ~start, gotcha
                             // we must check for this as if values outside the range do not exist and vec is start-based
-                            Assert.AreEqual(~(i), idxBLt);
+                            idxBLt.ShouldBe(~(i));
                         }
                         else if (lookup == Lookup.GT)
                         {
-                            Assert.AreEqual(i + 1, idxBLt);
+                            idxBLt.ShouldBe(i + 1);
                         }
                         else
                         {
-                            Assert.AreEqual(i, idxBLt);
+                            idxBLt.ShouldBe(i);
                         }
                     }
                 }
@@ -1178,23 +1178,23 @@ namespace Spreads.Core.Tests.Algorithms
                     var idxILt = arr.InterpolationLookup(0, i + 1, ref val, lookup);
                     val = arr[i];
                     var idxBLt = arr.BinaryLookup(0, i + 1, ref val, lookup);
-                    Assert.AreEqual(idxILt, idxBLt);
+                    idxBLt.ShouldBe(idxILt);
 
                     if (i > 0 && i < arr.Length - 1)
                     {
                         if (lookup == Lookup.LT)
                         {
-                            Assert.AreEqual(i - 1, idxBLt);
+                            idxBLt.ShouldBe(i - 1);
                         }
                         else if (lookup == Lookup.GT)
                         {
                             // ~(i+1) == ~(start + length), gotcha
                             // we must check for this as if values outside the range do not exist and vec is start-based
-                            Assert.AreEqual(~(i + 1), idxBLt);
+                            idxBLt.ShouldBe(~(i + 1));
                         }
                         else
                         {
-                            Assert.AreEqual(i, idxBLt);
+                            idxBLt.ShouldBe(i);
                         }
                     }
                 }
@@ -1849,7 +1849,7 @@ namespace Spreads.Core.Tests.Algorithms
                 int index = Array.BinarySearch(array, value);
                 int index2 = VectorSearch.BinarySearch(ref array[0], array.Length, value);
 
-                Assert.True(index > -1);
+                (index > -1).ShouldBe(true);
                 if (index != index2)
                 {
                     Console.WriteLine($"{value} {index} {index2}");

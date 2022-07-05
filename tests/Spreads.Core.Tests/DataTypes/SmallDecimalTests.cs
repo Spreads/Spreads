@@ -69,18 +69,18 @@ namespace Spreads.Core.Tests.DataTypes
             var first = new SmallDecimal(f);
             var fd = (decimal)first;
 
-            Assert.AreEqual(f, fd);
+            fd.ShouldBe(f);
 
             var second = new SmallDecimal(s);
             var sd = (decimal)second;
 
-            Assert.AreEqual(s, sd);
+            sd.ShouldBe(s);
 
             var delta = first - second;
             var dd = (decimal)delta;
 
             var expectedDelta = f - s;
-            Assert.AreEqual(expectedDelta, dd);
+            dd.ShouldBe(expectedDelta);
 
             Console.WriteLine(delta);
         }
@@ -91,18 +91,18 @@ namespace Spreads.Core.Tests.DataTypes
             var first = (SmallDecimal)(12345.6);
             var fd = (double)first;
 
-            Assert.AreEqual(12345.6, fd);
+            fd.ShouldBe(12345.6);
 
             var second = (SmallDecimal)(12340.6);
             var sd = (double)second;
 
-            Assert.AreEqual(12340.6, sd);
+            sd.ShouldBe(12340.6);
 
             var delta = second - first;
             var dd = (double)delta;
 
             var expectedDelta = 12340.6 - 12345.6;
-            Assert.AreEqual(expectedDelta, dd);
+            expectedDelta.ShouldBe(dd);
 
             Console.WriteLine(delta);
         }
@@ -112,7 +112,7 @@ namespace Spreads.Core.Tests.DataTypes
         {
             var first = (SmallDecimal)(12345.6);
             var second = -first;
-            Assert.AreEqual(-(decimal)first, (decimal)second);
+            ((decimal)second).ShouldBe(-(decimal)first);
         }
 
         [Test, Explicit("long running")]
@@ -188,7 +188,7 @@ namespace Spreads.Core.Tests.DataTypes
                     }
                 }
 
-                Assert.IsTrue(sum > 0);
+                sum.ShouldBePositive();
             }
 
             Benchmark.Dump();
@@ -198,13 +198,13 @@ namespace Spreads.Core.Tests.DataTypes
         public void WorksWithNegative()
         {
             var sd = new SmallDecimal(-1);
-            Assert.AreEqual(-1, (int)(decimal)sd);
+            ((int)(decimal)sd).ShouldBe(-1);
 
             sd = new SmallDecimal(-1m);
-            Assert.AreEqual(-1, (int)(decimal)sd);
+            ((int)(decimal)sd).ShouldBe(-1);
 
             sd = (SmallDecimal)(-1.0);
-            Assert.AreEqual(-1, (int)(decimal)sd);
+            ((int)(decimal)sd).ShouldBe(-1);
         }
 
         [Test]
@@ -246,15 +246,15 @@ namespace Spreads.Core.Tests.DataTypes
         {
             var sd = new SmallDecimal(2.5, 0);
 
-            Assert.AreEqual(2.0M, (decimal)sd);
+            ((decimal)sd).ShouldBe(2.0M);
 
             sd = new SmallDecimal(3.5, 0);
 
-            Assert.AreEqual(4.0M, (decimal)sd);
+            ((decimal)sd).ShouldBe(4.0M);
 
             sd = new SmallDecimal(3.5M, 0, MidpointRounding.AwayFromZero);
 
-            Assert.AreEqual(4.0M, (decimal)sd);
+            ((decimal)sd).ShouldBe(4.0M);
 #if NETCOREAPP3_0
             sd = new SmallDecimal(3.5M, 0, MidpointRounding.ToZero);
 
@@ -273,12 +273,12 @@ namespace Spreads.Core.Tests.DataTypes
         // ReSharper disable once InconsistentNaming
         public void IInt64DiffableWorks()
         {
-            var sd = (SmallDecimal)(123.456);
+            var sd = (SmallDecimal)123.456;
             var sd1 = KeyComparer<SmallDecimal>.Default.Add(sd, 1);
-            Assert.AreEqual(123.457, (decimal)sd1);
+            ((decimal)sd1).ShouldBe(123.457M);
 
             var diff = KeyComparer<SmallDecimal>.Default.Diff(sd1, sd);
-            Assert.AreEqual(1, diff);
+            diff.ShouldBe(1);
         }
 
         [Test]

@@ -112,7 +112,7 @@ namespace Spreads.Core.Tests
             var disposable = new TestDisposable();
             UnsafeEx.DisposeConstrained(ref disposable);
 
-            Assert.True(disposable.Disposed);
+            disposable.Disposed.ShouldBe(true);
         }
 
         [Test]
@@ -140,8 +140,8 @@ namespace Spreads.Core.Tests
             UnsafeEx.CompareToConstrained(ref v2, ref v3).ShouldBe(0);
             UnsafeEx.CompareToConstrained(ref v3, ref v1).ShouldBe(1);
 
-            Assert.True(UnsafeEx.EqualsConstrained(ref v2, ref v3));
-            Assert.False(UnsafeEx.EqualsConstrained(ref v1, ref v3));
+            UnsafeEx.EqualsConstrained(ref v2, ref v3).ShouldBe(true);
+            UnsafeEx.EqualsConstrained(ref v1, ref v3).ShouldBe(false);
         }
 
         public static void Dispose<T>(ref T disposable) where T : IDisposable

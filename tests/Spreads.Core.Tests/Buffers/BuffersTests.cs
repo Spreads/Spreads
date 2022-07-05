@@ -9,6 +9,7 @@ using System;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Threading;
+using Shouldly;
 
 namespace Spreads.Core.Tests.Buffers
 {
@@ -41,7 +42,7 @@ namespace Spreads.Core.Tests.Buffers
                     buffer[0] = 123;
                     sum += buffer[0] + buffer[1];
                 }
-                Assert.IsTrue(sum > 0);
+                sum.ShouldBePositive();
                 sw.Stop();
                 Console.WriteLine($"ThreadStatic {sw.ElapsedMilliseconds}");
 
@@ -53,7 +54,7 @@ namespace Spreads.Core.Tests.Buffers
                     buffer[0] = 123;
                     sum += buffer[0] + buffer[1];
                 }
-                Assert.IsTrue(sum > 0);
+                sum.ShouldBePositive();
                 sw.Stop();
                 Console.WriteLine($"ThreadLocal {sw.ElapsedMilliseconds}");
 
@@ -65,13 +66,13 @@ namespace Spreads.Core.Tests.Buffers
         public void CouldGetArrayFromRetainedBuffer()
         {
             var retained = BufferPool.Retain(3456, false);
-            Assert.AreEqual(4096, retained.Length);
+            retained.Length.ShouldBe(4096);
             var mem = (ReadOnlyMemory<byte>)retained.Memory;
             if (!MemoryMarshal.TryGetArray(mem, out ArraySegment<byte> valuesSegment))
             {
                 throw new NotSupportedException("Currently only arrays-backed OwnedMemory is supported");
             }
-            Assert.IsTrue(valuesSegment.Count > 0);
+            valuesSegment.Count.ShouldBePositive();
         }
 
         [Test, Explicit("long running")]
@@ -118,7 +119,8 @@ namespace Spreads.Core.Tests.Buffers
                             sum += s[0] + s[1];
                         }
                     }
-                    Assert.IsTrue(sum > 0);
+
+                    sum.ShouldBePositive();
                 }
 
                 using (Benchmark.Run("BP.RetainTemp", count))
@@ -133,7 +135,7 @@ namespace Spreads.Core.Tests.Buffers
                             sum += s[0] + s[1];
                         }
                     }
-                    Assert.IsTrue(sum > 0);
+                    sum.ShouldBePositive();
                 }
 
                 using (Benchmark.Run("RMP", count))
@@ -148,7 +150,7 @@ namespace Spreads.Core.Tests.Buffers
                             sum += s[0] + s[1];
                         }
                     }
-                    Assert.IsTrue(sum > 0);
+                    sum.ShouldBePositive();
                 }
 
                 using (Benchmark.Run("RM([])", count))
@@ -165,7 +167,7 @@ namespace Spreads.Core.Tests.Buffers
                         }
                         BufferPool<byte>.Return(arr);
                     }
-                    Assert.IsTrue(sum > 0);
+                    sum.ShouldBePositive();
                 }
 
                 using (Benchmark.Run("ArrayPool", count))
@@ -178,8 +180,7 @@ namespace Spreads.Core.Tests.Buffers
                         sum += buffer[0] + buffer[1];
                         BufferPool<byte>.Return(buffer, false);
                     }
-
-                    Assert.IsTrue(sum > 0);
+                    sum.ShouldBePositive();
                 }
 
                 using (Benchmark.Run("GC", count))
@@ -191,8 +192,7 @@ namespace Spreads.Core.Tests.Buffers
                         buffer[0] = 123;
                         sum += buffer[0] + buffer[1];
                     }
-
-                    Assert.IsTrue(sum > 0);
+                    sum.ShouldBePositive();
                 }
 
             }
@@ -209,7 +209,7 @@ namespace Spreads.Core.Tests.Buffers
 
             var firstByte = Marshal.ReadByte(ptr);
 
-            Assert.AreEqual(255, firstByte);
+            ((int)firstByte).ShouldBe(255);
         }
 
         [Test, Explicit("long running")]

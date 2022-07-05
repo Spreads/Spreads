@@ -4,6 +4,7 @@
 
 using System;
 using NUnit.Framework;
+using Shouldly;
 using Spreads.Algorithms.Hash;
 using Spreads.Utils;
 
@@ -15,7 +16,7 @@ namespace Spreads.Core.Tests.Algorithms.Hash
     [TestFixture]
     public unsafe class CRC32Tests
     {
-        
+
         [Test
 #if !DEBUG
          , Explicit("long running")
@@ -41,7 +42,7 @@ namespace Spreads.Core.Tests.Algorithms.Hash
 
                     using (Benchmark.Run("xxHash", count, true))
                     {
-                        
+
                         for (int i = 0; i < cnt; i++)
                         {
                             digest = XxHash.CalculateHash(ptr, len, digest);
@@ -90,12 +91,12 @@ namespace Spreads.Core.Tests.Algorithms.Hash
                     crc2 = digest;
                 }
 
-                Assert.AreEqual(crc0, crc1);
-                Assert.AreEqual(crc0, crc2);
+                crc1.ShouldBe(crc0);
+                crc2.ShouldBe(crc0);
 
                 Benchmark.Dump("LEN: " + len);
             }
-            
+
         }
 
 
@@ -188,7 +189,7 @@ namespace Spreads.Core.Tests.Algorithms.Hash
                 //    crc2 = digest;
                 //}
 
-                Assert.AreEqual(crc0, crc1);
+                crc1.ShouldBe(crc0);
                 //Assert.AreEqual(crc0, crc2);
                 // Assert.AreEqual(crc0, crc3);
 

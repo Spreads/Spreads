@@ -5,6 +5,7 @@
 using NUnit.Framework;
 using Spreads.Threading;
 using System.Runtime.CompilerServices;
+using Shouldly;
 
 namespace Spreads.Core.Tests.Threading
 {
@@ -14,13 +15,13 @@ namespace Spreads.Core.Tests.Threading
         [Test]
         public void SizesAreCorrect()
         {
-            Assert.AreEqual(16, Unsafe.SizeOf<Padding16>());
-            Assert.AreEqual(32, Unsafe.SizeOf<Padding32>());
-            Assert.AreEqual(40, Unsafe.SizeOf<Padding40>());
-            Assert.AreEqual(48, Unsafe.SizeOf<Padding48>());
-            Assert.AreEqual(56, Unsafe.SizeOf<Padding56>());
-            Assert.AreEqual(64, Unsafe.SizeOf<Padding64>());
-            Assert.AreEqual(112, Unsafe.SizeOf<Padding112>());
+            Unsafe.SizeOf<Padding16>().ShouldBe(16);
+            Unsafe.SizeOf<Padding32>().ShouldBe(32);
+            Unsafe.SizeOf<Padding40>().ShouldBe(40);
+            Unsafe.SizeOf<Padding48>().ShouldBe(48);
+            Unsafe.SizeOf<Padding56>().ShouldBe(56);
+            Unsafe.SizeOf<Padding64>().ShouldBe(64);
+            Unsafe.SizeOf<Padding112>().ShouldBe(112);
         }
     }
 }

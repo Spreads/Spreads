@@ -6,6 +6,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using NUnit.Framework;
+using Shouldly;
 using Spreads.Collections.Generic;
 
 namespace Spreads.Core.Tests.Collections
@@ -43,27 +44,27 @@ namespace Spreads.Core.Tests.Collections
             sd.Add(5);
             sd.Add(7);
 
-            Assert.AreEqual(sd.First, 1);
-            Assert.AreEqual(sd.Last, 7);
+            sd.First.ShouldBe(1);
+            sd.Last.ShouldBe(7);
 
             var fst = sd.RemoveFirst();
-            Assert.AreEqual(sd.First, 3);
+            sd.First.ShouldBe(3);
             sd.Add(4);
-            Assert.AreEqual(1, sd.ToList().IndexOf(4));
-            Assert.AreEqual(2, sd.ToList().IndexOf(5));
-            Assert.AreEqual(3, sd.ToList().IndexOf(7));
+            sd.ToList().IndexOf(4).ShouldBe(1);
+            sd.ToList().IndexOf(5).ShouldBe(2);
+            sd.ToList().IndexOf(7).ShouldBe(3);
 
             var last = sd.RemoveLast();
             sd.Add(8);
-            Assert.AreEqual(1, sd.ToList().IndexOf(4));
-            Assert.AreEqual(2, sd.ToList().IndexOf(5));
-            Assert.AreEqual(3, sd.ToList().IndexOf(8));
+            sd.ToList().IndexOf(4).ShouldBe(1);
+            sd.ToList().IndexOf(5).ShouldBe(2);
+            sd.ToList().IndexOf(8).ShouldBe(3);
 
             sd.Add(6);
-            Assert.AreEqual(1, sd.ToList().IndexOf(4));
-            Assert.AreEqual(2, sd.ToList().IndexOf(5));
-            Assert.AreEqual(3, sd.ToList().IndexOf(6));
-            Assert.AreEqual(4, sd.ToList().IndexOf(8));
+            sd.ToList().IndexOf(4).ShouldBe(1);
+            sd.ToList().IndexOf(5).ShouldBe(2);
+            sd.ToList().IndexOf(6).ShouldBe(3);
+            sd.ToList().IndexOf(8).ShouldBe(4);
         }
 
         [Test]
@@ -77,7 +78,7 @@ namespace Spreads.Core.Tests.Collections
 
             for (int i = 0; i < 4; i++)
             {
-                Assert.AreEqual(i, sd.ToList().IndexOf(i));
+                sd.ToList().IndexOf(i).ShouldBe(i);
             }
         }
 
@@ -94,8 +95,8 @@ namespace Spreads.Core.Tests.Collections
             {
                 sd.RemoveFirst();
                 sd.Add(i);
-                Assert.AreEqual(i - 3, sd.First);
-                Assert.AreEqual(i, sd.Last);
+                sd.First.ShouldBe(i - 3);
+                sd.Last.ShouldBe(i);
             }
         }
 
@@ -113,7 +114,7 @@ namespace Spreads.Core.Tests.Collections
                 if (i % 2 == 0) sd.RemoveFirst();
                 sd.Add(i);
                 //Assert.AreEqual(i - 3, sd.First);
-                Assert.AreEqual(i, sd.Last);
+                sd.Last.ShouldBe(i);
             }
         }
 
@@ -142,14 +143,14 @@ namespace Spreads.Core.Tests.Collections
                         sd.TryAdd(next);
                     }
 
-                    Assert.AreEqual(set.Count, sd.Count);
-                    Assert.AreEqual(set.Sum(), sd.Sum());
+                    sd.Count.ShouldBe(set.Count);
+                    sd.Sum().ShouldBe(set.Sum());
 
                     var first = sd.RemoveFirst();
                     set.Remove(first);
-                    Assert.AreEqual(set.Count, sd.Count);
-                    Assert.AreEqual(set.Sum(), sd.Sum());
-                    Assert.IsTrue(DequeIsSorted(sd));
+                    sd.Count.ShouldBe(set.Count);
+                    sd.Sum().ShouldBe(set.Sum());
+                    DequeIsSorted(sd).ShouldBe(true);
                     var c = 0;
                     var prev = 0;
                     foreach (var e in sd)
@@ -161,7 +162,7 @@ namespace Spreads.Core.Tests.Collections
                         }
                         else
                         {
-                            Assert.IsTrue(e > prev);
+                            (e > prev).ShouldBe(true);
                             prev = e;
                         }
                     }
@@ -194,15 +195,15 @@ namespace Spreads.Core.Tests.Collections
                         sd.TryAdd(next);
                     }
 
-                    Assert.AreEqual(set.Count, sd.Count);
-                    Assert.AreEqual(set.Sum(), sd.Sum());
+                    sd.Count.ShouldBe(set.Count);
+                    sd.Sum().ShouldBe(set.Sum());
 
                     var first = sd.First;
                     sd.Remove(first);
                     set.Remove(first);
-                    Assert.AreEqual(set.Count, sd.Count);
-                    Assert.AreEqual(set.Sum(), sd.Sum());
-                    Assert.IsTrue(DequeIsSorted(sd));
+                    sd.Count.ShouldBe(set.Count);
+                    sd.Sum().ShouldBe(set.Sum());
+                    DequeIsSorted(sd).ShouldBe(true);
                 }
             }
         }
@@ -228,9 +229,11 @@ namespace Spreads.Core.Tests.Collections
                 {
                     var first = sd.RemoveFirst();
                     set.Remove(first);
-                    Assert.AreEqual(set.Count, sd.Count);
-                    Assert.AreEqual(set.Sum(), sd.Sum());
-                    Assert.IsTrue(DequeIsSorted(sd));
+                    sd.Count.ShouldBe(set.Count);
+                    sd.Sum().ShouldBe(set.Sum());
+
+                    DequeIsSorted(sd).ShouldBe(true);
+
                     var c = 0;
                     var prev = 0;
                     foreach (var e in sd)
@@ -242,7 +245,7 @@ namespace Spreads.Core.Tests.Collections
                         }
                         else
                         {
-                            Assert.IsTrue(e > prev);
+                            (e > prev).ShouldBe(true);
                             prev = e;
                         }
                     }
@@ -272,9 +275,9 @@ namespace Spreads.Core.Tests.Collections
                     var midElement = sd._buffer[((sd._firstOffset + sd._count / 2) % sd._buffer.Length)];
                     sd.Remove(midElement);
                     set.Remove(midElement);
-                    Assert.AreEqual(set.Count, sd.Count);
-                    Assert.AreEqual(set.Sum(), sd.Sum());
-                    Assert.IsTrue(DequeIsSorted(sd));
+                    sd.Count.ShouldBe(set.Count);
+                    sd.Sum().ShouldBe(set.Sum());
+                    DequeIsSorted(sd).ShouldBe(true);
                     var c = 0;
                     var prev = 0;
                     foreach (var e in sd)
@@ -286,7 +289,7 @@ namespace Spreads.Core.Tests.Collections
                         }
                         else
                         {
-                            Assert.IsTrue(e > prev);
+                            (e > prev).ShouldBe(true);
                             prev = e;
                         }
                     }
@@ -318,9 +321,9 @@ namespace Spreads.Core.Tests.Collections
                 var midElement = sd._buffer[0]; //[.___    ____]
                 sd.Remove(midElement);
                 set.Remove(midElement);
-                Assert.AreEqual(set.Count, sd.Count);
-                Assert.AreEqual(set.Sum(), sd.Sum());
-                Assert.IsTrue(DequeIsSorted(sd));
+                sd.Count.ShouldBe(set.Count);
+                sd.Sum().ShouldBe(set.Sum());
+                DequeIsSorted(sd).ShouldBe(true);
                 var c = 0;
                 var prev = 0;
                 foreach (var e in sd)
@@ -332,7 +335,7 @@ namespace Spreads.Core.Tests.Collections
                     }
                     else
                     {
-                        Assert.IsTrue(e > prev);
+                        (e > prev).ShouldBe(true);
                         prev = e;
                     }
                 }
@@ -341,9 +344,9 @@ namespace Spreads.Core.Tests.Collections
                 var midElement = sd._buffer[sd._buffer.Length - 1]; //[___    ____.]
                 sd.Remove(midElement);
                 set.Remove(midElement);
-                Assert.AreEqual(set.Count, sd.Count);
-                Assert.AreEqual(set.Sum(), sd.Sum());
-                Assert.IsTrue(DequeIsSorted(sd));
+                sd.Count.ShouldBe(set.Count);
+                sd.Sum().ShouldBe(set.Sum());
+                DequeIsSorted(sd).ShouldBe(true);
                 var c = 0;
                 var prev = 0;
                 foreach (var e in sd)
@@ -355,7 +358,7 @@ namespace Spreads.Core.Tests.Collections
                     }
                     else
                     {
-                        Assert.IsTrue(e > prev);
+                        (e > prev).ShouldBe(true);
                         prev = e;
                     }
                 }
@@ -378,9 +381,9 @@ namespace Spreads.Core.Tests.Collections
                         set.Add(next);
                         sd.TryAdd(next);
                     }
-                    Assert.AreEqual(set.Count, sd.Count);
-                    Assert.AreEqual(set.Sum(), sd.Sum());
-                    Assert.IsTrue(DequeIsSorted(sd));
+                    sd.Count.ShouldBe(set.Count);
+                    sd.Sum().ShouldBe(set.Sum());
+                    DequeIsSorted(sd).ShouldBe(true);
                     var c = 0;
                     var prev = 0;
                     foreach (var e in sd)
@@ -392,7 +395,7 @@ namespace Spreads.Core.Tests.Collections
                         }
                         else
                         {
-                            Assert.IsTrue(e > prev);
+                            (e > prev).ShouldBe(true);
                             prev = e;
                         }
                     }
@@ -438,7 +441,7 @@ namespace Spreads.Core.Tests.Collections
             sd.Add(dt);
             dt = DateTime.Parse("10 / 2 / 2015 2:07:00 PM");
             sd.Add(dt);
-            Assert.AreEqual(6, sd.Count);
+            sd.Count.ShouldBe(6);
         }
 
         [Test, Explicit("long running")]
@@ -477,7 +480,7 @@ namespace Spreads.Core.Tests.Collections
             }
             var actual = values.Sum();
             Console.WriteLine(actual);
-            Assert.AreEqual(expected, actual);
+            actual.ShouldBe(expected);
         }
     }
 }

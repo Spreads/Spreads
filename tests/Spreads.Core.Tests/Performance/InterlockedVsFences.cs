@@ -7,6 +7,7 @@ using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Shouldly;
 using Spreads.Utils;
 
 namespace Spreads.Core.Tests.Performance
@@ -56,7 +57,7 @@ namespace Spreads.Core.Tests.Performance
                     sum2 = IncrementFences(iterations + r);
                 }
 
-                Assert.AreEqual(sum1, sum2);
+                sum2.ShouldBe(sum1);
             }
 
             _concurrent = false;

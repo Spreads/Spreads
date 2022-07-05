@@ -3,6 +3,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 using NUnit.Framework;
+using Shouldly;
 
 namespace Spreads.Core.Tests
 {
@@ -16,14 +17,14 @@ namespace Spreads.Core.Tests
             #if DEBUG
             Assert.IsTrue(Settings.DoAdditionalCorrectnessChecks);
             #else
-            Assert.IsFalse(Settings.DoAdditionalCorrectnessChecks);
+            Settings.DoAdditionalCorrectnessChecks.ShouldBe(false);
             #endif
         }
 
         [Test, Explicit("Affects and is affected by other tests")]
         public void CouldSetStaticReadonlyFields()
         {
-            Assert.IsTrue(Settings.DoAdditionalCorrectnessChecks);
+            Settings.DoAdditionalCorrectnessChecks.ShouldBe(true);
         }
     }
 }

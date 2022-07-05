@@ -4,6 +4,7 @@
 
 using System.Collections.Generic;
 using NUnit.Framework;
+using Shouldly;
 using Spreads.Utils;
 
 namespace Spreads.Core.Tests.Collections
@@ -32,7 +33,7 @@ namespace Spreads.Core.Tests.Collections
                     }
                 }
 
-                Assert.True(sum > 0);
+                sum.ShouldBePositive();
 
                 sum = 0L;
                 using (Benchmark.Run("Interface", count))
@@ -42,7 +43,7 @@ namespace Spreads.Core.Tests.Collections
                         sum += ic.Compare(i, i - 1);
                     }
                 }
-                Assert.True(sum > 0);
+                sum.ShouldBePositive();
 
                 sum = 0L;
                 using (Benchmark.Run("KeyComparer", count))
@@ -52,7 +53,7 @@ namespace Spreads.Core.Tests.Collections
                         sum += cc.Compare(i, i - 1);
                     }
                 }
-                Assert.True(sum > 0);
+                sum.ShouldBePositive();
 
                 sum = 0L;
                 using (Benchmark.Run("Unsafe", count))

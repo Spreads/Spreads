@@ -5,6 +5,7 @@
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using NUnit.Framework;
+using Shouldly;
 using Spreads.Collections.Generic;
 using Spreads.DataTypes;
 using Spreads.Utils;
@@ -50,7 +51,7 @@ namespace Spreads.Core.Tests.Collections
                     }
                 }, count * length);
 
-                Assert.True(sum > 0);
+                sum.ShouldBePositive();
 
                 var sum1 = 0L;
                 Benchmark.Run("FastDictionary", () =>
@@ -64,7 +65,7 @@ namespace Spreads.Core.Tests.Collections
                         }
                     }
                 }, count * length);
-                Assert.True(sum1 > 0);
+                sum1.ShouldBePositive();
                 // Assert.AreEqual(sum, sum1);
 
                 var sum2 = 0L;
@@ -79,7 +80,7 @@ namespace Spreads.Core.Tests.Collections
                         }
                     }
                 }, count * length);
-                Assert.True(sum2 > 0);
+                sum2.ShouldBePositive();
 
                 var sum3 = 0L;
                 Benchmark.Run("DictionarySlim", () =>
@@ -92,7 +93,7 @@ namespace Spreads.Core.Tests.Collections
                         }
                     }
                 }, count * length);
-                Assert.True(sum3 > 0);
+                sum3.ShouldBePositive();
 
             }
 

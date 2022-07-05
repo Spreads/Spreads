@@ -7,6 +7,7 @@ using ObjectLayoutInspector;
 using Spreads.Buffers;
 using Spreads.Utils;
 using System;
+using Shouldly;
 
 namespace Spreads.Core.Tests.Buffers
 {
@@ -72,34 +73,34 @@ namespace Spreads.Core.Tests.Buffers
             {
                 var memory = factory(len);
 
-                Assert.IsFalse(memory.IsPoolable);
-                Assert.IsFalse(memory.IsPooled);
-                Assert.IsFalse(memory.IsRetained);
-                Assert.IsFalse(memory.IsDisposed);
-                Assert.AreEqual(null, memory.Pool);
-                Assert.AreEqual(memory.GetVec().Length, memory.Length);
+                memory.IsPoolable.ShouldBe(false);
+                memory.IsPooled.ShouldBe(false);
+                memory.IsRetained.ShouldBe(false);
+                memory.IsDisposed.ShouldBe(false);
+                memory.Pool.ShouldBe(null);
+                memory.Length.ShouldBe(memory.GetVec().Length);
 
-                Assert.AreEqual(1, memory.PoolIndex, "0, memory._poolIdx");
+                ((int)memory.PoolIndex).ShouldBe(1, "0, memory._poolIdx");
 
                 Assert.GreaterOrEqual(memory.Length, len, "memory.Length, len");
                 var pow2Len = BitUtils.IsPow2(memory.Length) ? memory.Length : (BitUtils.NextPow2(memory.Length) / 2);
-                Assert.AreEqual(pow2Len, memory.LengthPow2, "BitUtil.FindNextPositivePowerOfTwo(len) / 2, memory.LengthPow2");
+                memory.LengthPow2.ShouldBe(pow2Len, "BitUtil.FindNextPositivePowerOfTwo(len) / 2, memory.LengthPow2");
 
                 var rm = memory.Retain(0, len);
-                Assert.AreEqual(1, memory.ReferenceCount, "1, memory.ReferenceCount");
-                Assert.IsTrue(memory.IsRetained);
+                memory.ReferenceCount.ShouldBe(1, "1, memory.ReferenceCount");
+                memory.IsRetained.ShouldBe(true);
 
-                Assert.AreEqual(len, rm.Length, "len, rm.Length");
+                rm.Length.ShouldBe(len, "len, rm.Length");
 
                 var rm1 = memory.Retain(len / 2, len / 4);
-                Assert.AreEqual(2, memory.ReferenceCount);
-                Assert.AreEqual(len / 4, rm1.Length);
+                memory.ReferenceCount.ShouldBe(2);
+                rm1.Length.ShouldBe(len / 4);
 
                 rm.Dispose();
-                Assert.AreEqual(1, memory.ReferenceCount);
+                memory.ReferenceCount.ShouldBe(1);
 
                 rm1.Dispose();
-                Assert.IsTrue(memory.IsDisposed);
+                memory.IsDisposed.ShouldBe(true);
             }
         }
 

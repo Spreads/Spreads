@@ -5,6 +5,7 @@
 using System;
 using System.Linq;
 using NUnit.Framework;
+using Shouldly;
 using Spreads.Buffers;
 using Spreads.Utils;
 
@@ -114,7 +115,7 @@ namespace Spreads.Core.Tests.Buffers
                         }
                         if (doChecks)
                         {
-                            Assert.True(bytes.SequenceEqual(bytes2));
+                            bytes.SequenceEqual(bytes2).ShouldBe(true);
                         }
                         stream.Dispose();
                     }

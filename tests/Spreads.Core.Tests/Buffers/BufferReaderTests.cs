@@ -7,6 +7,7 @@ using Spreads.Buffers;
 using Spreads.Utils;
 using System;
 using System.Runtime.CompilerServices;
+using Shouldly;
 
 namespace Spreads.Core.Tests.Buffers
 {
@@ -59,7 +60,7 @@ namespace Spreads.Core.Tests.Buffers
                 }
             }
 
-            Assert.IsTrue(sum != 1);
+            sum.ShouldNotBe(1);
         }
 
 #if NETCOREAPP3_0
@@ -82,7 +83,8 @@ namespace Spreads.Core.Tests.Buffers
                     br._offset = 0;
                 }
             }
-            Assert.IsTrue(sum != 1);
+
+            sum.ShouldNotBe(1);
         }
     }
 }

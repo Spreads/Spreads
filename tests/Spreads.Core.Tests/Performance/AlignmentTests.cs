@@ -6,6 +6,7 @@ using NUnit.Framework;
 using System;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using Shouldly;
 
 namespace Spreads.Core.Tests.Performance
 {
@@ -33,14 +34,14 @@ namespace Spreads.Core.Tests.Performance
             arr[1] = value;
 
             var span = arr.AsSpan();
-            Assert.AreEqual(1, span.IndexOf(value));
-            Assert.AreEqual(17, Unsafe.SizeOf<Struct17>());
-            Assert.AreEqual(17, (long)Unsafe.AsPointer(ref arr[1]) - (long)Unsafe.AsPointer(ref arr[0]));
+            span.IndexOf(value).ShouldBe(1);
+            Unsafe.SizeOf<Struct17>().ShouldBe(17);
+            ((long)Unsafe.AsPointer(ref arr[1]) - (long)Unsafe.AsPointer(ref arr[0])).ShouldBe(17);
 
             var v0 = arr[0];
             var v1 = arr[1];
-            Assert.AreEqual(24, (long)Unsafe.AsPointer(ref v0) - (long)Unsafe.AsPointer(ref v1));
-            Assert.AreEqual(15, (long)Unsafe.AsPointer(ref v0) - (long)Unsafe.AsPointer(ref v1.Field2));
+            ((long)Unsafe.AsPointer(ref v0) - (long)Unsafe.AsPointer(ref v1)).ShouldBe(24);
+            ((long)Unsafe.AsPointer(ref v0) - (long)Unsafe.AsPointer(ref v1.Field2)).ShouldBe(15);
         }
 
         [Test]
@@ -53,14 +54,14 @@ namespace Spreads.Core.Tests.Performance
             var span = MemoryMarshal.Cast<byte, double>(arr.AsSpan(1));
 
             // this should fail on ARM
-            Assert.AreEqual(1, span.IndexOf(value));
+            span.IndexOf(value).ShouldBe(1);
         }
 
 
         [Test]
         public unsafe void ArrayWriteAlignment()
         {
-            Assert.AreEqual(17, Unsafe.SizeOf<Struct17>());
+            Unsafe.SizeOf<Struct17>().ShouldBe(17);
 
             var arr = new Struct17[2];
 
@@ -73,7 +74,7 @@ namespace Spreads.Core.Tests.Performance
 
                 for (int i = 0; i < 34; i++)
                 {
-                    Assert.AreEqual(0, bptr[i]);
+                    ((int)bptr[i]).ShouldBe(0);
                 }
             }
 

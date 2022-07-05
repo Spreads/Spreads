@@ -8,6 +8,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
 using NUnit.Framework;
+using Shouldly;
 using Spreads.Collections.Generic;
 
 namespace Spreads.Core.Tests.Collections
@@ -26,8 +27,8 @@ namespace Spreads.Core.Tests.Collections
         public void ConstructCapacity(int capacity, int expected)
         {
             var d = new DictionarySlim<ulong, int>(capacity);
-            Assert.AreEqual(0, d.Count);
-            Assert.AreEqual(expected, d.GetCapacity());
+            d.Count.ShouldBe(0);
+            d.GetCapacity().ShouldBe(expected);
         }
 
         [Test]
@@ -36,7 +37,7 @@ namespace Spreads.Core.Tests.Collections
             var d = new DictionarySlim<ulong, int>();
             d.GetOrAddValueRef(7)++;
             d.GetOrAddValueRef(7) += 3;
-            Assert.AreEqual(4, d.GetOrAddValueRef(7));
+            d.GetOrAddValueRef(7).ShouldBe(4);
         }
 
         [Test]
@@ -45,9 +46,9 @@ namespace Spreads.Core.Tests.Collections
             var d = new DictionarySlim<ulong, int>();
             d.GetOrAddValueRef(7) = 9;
             d.GetOrAddValueRef(10) = 10;
-            Assert.True(d.ContainsKey(7));
-            Assert.True(d.ContainsKey(10));
-            Assert.False(d.ContainsKey(1));
+            d.ContainsKey(7).ShouldBe(true);
+            d.ContainsKey(10).ShouldBe(true);
+            d.ContainsKey(1).ShouldBe(false);
         }
 
         [Test]
@@ -56,15 +57,15 @@ namespace Spreads.Core.Tests.Collections
             var d = new DictionarySlim<char, int>();
             d.GetOrAddValueRef('a') = 9;
             d.GetOrAddValueRef('b') = 11;
-            Assert.AreEqual(true, d.TryGetValue('a', out int value));
-            Assert.AreEqual(9, value);
-            Assert.AreEqual(true, d.DangerousTryGetValue('a', out value));
-            Assert.AreEqual(9, value);
+            d.TryGetValue('a', out int value).ShouldBe(true);
+            value.ShouldBe(9);
+            d.DangerousTryGetValue('a', out value).ShouldBe(true);
+            value.ShouldBe(9);
 
-            Assert.AreEqual(true, d.TryGetValue('b', out value));
-            Assert.AreEqual(11, value);
-            Assert.AreEqual(true, d.DangerousTryGetValue('b', out value));
-            Assert.AreEqual(11, value);
+            d.TryGetValue('b', out value).ShouldBe(true);
+            value.ShouldBe(11);
+            d.DangerousTryGetValue('b', out value).ShouldBe(true);
+            value.ShouldBe(11);
         }
 
         [Test]
@@ -73,15 +74,15 @@ namespace Spreads.Core.Tests.Collections
             var d = new DictionarySlim<char, int>();
             d.GetOrAddValueRef('a') = 9;
             d.GetOrAddValueRef('b') = 11;
-            Assert.AreEqual(9, d.TryGetValueRef('a', out var found));
-            Assert.AreEqual(true, found);
-            Assert.AreEqual(9, d.DangerousTryGetValueRef('a', out found));
-            Assert.AreEqual(true, found);
+            d.TryGetValueRef('a', out var found).ShouldBe(9);
+            found.ShouldBe(true);
+            d.DangerousTryGetValueRef('a', out found).ShouldBe(9);
+            found.ShouldBe(true);
 
-            Assert.AreEqual(11, d.TryGetValueRef('b', out found));
-            Assert.AreEqual(true, found);
-            Assert.AreEqual(11, d.DangerousTryGetValueRef('b', out found));
-            Assert.AreEqual(true, found);
+            d.TryGetValueRef('b', out found).ShouldBe(11);
+            found.ShouldBe(true);
+            d.DangerousTryGetValueRef('b', out found).ShouldBe(11);
+            found.ShouldBe(true);
         }
 
         [Test]
@@ -93,15 +94,17 @@ namespace Spreads.Core.Tests.Collections
             d.GetOrAddValueRef('a') = 9;
             d.GetOrAddValueRef('b') = 11;
             d.Remove('b');
-            Assert.AreEqual(false, d.TryGetValue('z', out int value));
-            Assert.AreEqual(defaultValue, value);
-            Assert.AreEqual(false, d.TryGetValue('b', out value));
-            Assert.AreEqual(defaultValue, value);
 
-            Assert.AreEqual(false, d.DangerousTryGetValue('z', out value));
-            Assert.AreEqual(defaultValue, value);
-            Assert.AreEqual(false, d.DangerousTryGetValue('b', out value));
-            Assert.AreEqual(defaultValue, value);
+            d.TryGetValue('z', out int value).ShouldBe(false);
+            value.ShouldBe(defaultValue);
+
+            d.TryGetValue('b', out value).ShouldBe(false);
+            value.ShouldBe(defaultValue);
+
+            d.DangerousTryGetValue('z', out value).ShouldBe(false);
+            value.ShouldBe(defaultValue);
+            d.DangerousTryGetValue('b', out value).ShouldBe(false);
+            value.ShouldBe(defaultValue);
         }
 
         [Test]
@@ -113,15 +116,16 @@ namespace Spreads.Core.Tests.Collections
             d.GetOrAddValueRef('a') = 9;
             d.GetOrAddValueRef('b') = 11;
             d.Remove('b');
-            Assert.AreEqual(defaultValue, d.TryGetValueRef('z', out var found));
-            Assert.AreEqual(false, found);
-            Assert.AreEqual(defaultValue, d.TryGetValueRef('b', out found));
-            Assert.AreEqual(false, found);
 
-            Assert.AreEqual(defaultValue, d.DangerousTryGetValueRef('z', out found));
-            Assert.AreEqual(false, found);
-            Assert.AreEqual(defaultValue, d.DangerousTryGetValueRef('b', out found));
-            Assert.AreEqual(false, found);
+            d.TryGetValueRef('z', out var found).ShouldBe(defaultValue);
+            found.ShouldBe(false);
+            d.TryGetValueRef('b', out found).ShouldBe(defaultValue);
+            found.ShouldBe(false);
+
+            d.DangerousTryGetValueRef('z', out found).ShouldBe(defaultValue);
+            found.ShouldBe(false);
+            d.DangerousTryGetValueRef('b', out found).ShouldBe(defaultValue);
+            found.ShouldBe(false);
         }
 
         [Test]
@@ -132,22 +136,22 @@ namespace Spreads.Core.Tests.Collections
             var d = new DictionarySlim<int, string>(0, defaultValue);
             d.GetOrAddValueRef(1) = "a";
             d.GetOrAddValueRef(2) = "b";
-            Assert.AreEqual(true, d.TryGetValue(1, out string value));
-            Assert.AreEqual("a", value);
-            Assert.AreEqual(true, d.DangerousTryGetValue(1, out value));
-            Assert.AreEqual("a", value);
+            d.TryGetValue(1, out string value).ShouldBe(true);
+            value.ShouldBe("a");
+            d.DangerousTryGetValue(1, out value).ShouldBe(true);
+            value.ShouldBe("a");
 
-            Assert.AreEqual(false, d.TryGetValue(99, out value));
-            Assert.AreEqual(defaultValue, value);
-            Assert.AreEqual(false, d.DangerousTryGetValue(99, out value));
-            Assert.AreEqual(defaultValue, value);
+            d.TryGetValue(99, out value).ShouldBe(false);
+            value.ShouldBe(defaultValue);
+            d.DangerousTryGetValue(99, out value).ShouldBe(false);
+            value.ShouldBe(defaultValue);
         }
 
         [Test]
         public void RemoveNonExistent()
         {
             var d = new DictionarySlim<int, int>();
-            Assert.False(d.Remove(0));
+            d.Remove(0).ShouldBe(false);
         }
 
         [Test]
@@ -155,8 +159,8 @@ namespace Spreads.Core.Tests.Collections
         {
             var d = new DictionarySlim<int, int>();
             d.GetOrAddValueRef(0) = 0;
-            Assert.True(d.Remove(0));
-            Assert.AreEqual(0, d.Count);
+            d.Remove(0).ShouldBe(true);
+            d.Count.ShouldBe(0);
         }
 
         [Test]
@@ -165,9 +169,9 @@ namespace Spreads.Core.Tests.Collections
             var d = new DictionarySlim<char, int>();
             d.GetOrAddValueRef('a') = 0;
             d.GetOrAddValueRef('b') = 1;
-            Assert.True(d.Remove('a'));
-            Assert.AreEqual(1, d.GetOrAddValueRef('b'));
-            Assert.AreEqual(1, d.Count);
+            d.Remove('a').ShouldBe(true);
+            d.GetOrAddValueRef('b').ShouldBe(1);
+            d.Count.ShouldBe(1);
         }
 
         [Test]
@@ -177,11 +181,11 @@ namespace Spreads.Core.Tests.Collections
             d.GetOrAddValueRef('a') = 0;
             d.GetOrAddValueRef('b') = 1;
             d.GetOrAddValueRef('c') = 2;
-            Assert.True(d.Remove('b'));
+            d.Remove('b').ShouldBe(true);
             d.GetOrAddValueRef('d') = 3;
-            Assert.AreEqual(3, d.Count);
-            Assert.AreEqual(new[] { 'a', 'c', 'd' }, d.OrderBy(i => i.Key).Select(i => i.Key));
-            Assert.AreEqual(new[] { 0, 2, 3 }, d.OrderBy(i => i.Key).Select(i => i.Value));
+            d.Count.ShouldBe(3);
+            d.OrderBy(i => i.Key).Select(i => i.Key).ShouldBe(new[] { 'a', 'c', 'd' });
+            d.OrderBy(i => i.Key).Select(i => i.Value).ShouldBe(new[] { 0, 2, 3 });
         }
 
         [Test]
@@ -191,12 +195,12 @@ namespace Spreads.Core.Tests.Collections
             d.GetOrAddValueRef('a') = 0;
             d.GetOrAddValueRef('b') = 1;
             d.GetOrAddValueRef('c') = 2;
-            Assert.True(d.Remove('b'));
+            d.Remove('b').ShouldBe(true);
             d.GetOrAddValueRef('d') = 3;
             d.GetOrAddValueRef('b') = 7;
-            Assert.AreEqual(4, d.Count);
-            Assert.AreEqual(new[] { 'a', 'b', 'c', 'd' }, d.OrderBy(i => i.Key).Select(i => i.Key));
-            Assert.AreEqual(new[] { 0, 7, 2, 3 }, d.OrderBy(i => i.Key).Select(i => i.Value));
+            d.Count.ShouldBe(4);
+            d.OrderBy(i => i.Key).Select(i => i.Key).ShouldBe(new[] { 'a', 'b', 'c', 'd' });
+            d.OrderBy(i => i.Key).Select(i => i.Value).ShouldBe(new[] { 0, 7, 2, 3 });
         }
 
         [Test]
@@ -206,10 +210,10 @@ namespace Spreads.Core.Tests.Collections
             d.GetOrAddValueRef('a') = 0;
             d.GetOrAddValueRef('b') = 1;
             d.GetOrAddValueRef('c') = 2;
-            Assert.True(d.Remove('c'));
-            Assert.AreEqual(2, d.Count);
-            Assert.AreEqual(new[] { 'a', 'b' }, d.OrderBy(i => i.Key).Select(i => i.Key));
-            Assert.AreEqual(new[] { 0, 1 }, d.OrderBy(i => i.Key).Select(i => i.Value));
+            d.Remove('c').ShouldBe(true);
+            d.Count.ShouldBe(2);
+            d.OrderBy(i => i.Key).Select(i => i.Key).ShouldBe(new[] { 'a', 'b' });
+            d.OrderBy(i => i.Key).Select(i => i.Value).ShouldBe(new[] { 0, 1 });
         }
 
         [Test]
@@ -219,11 +223,11 @@ namespace Spreads.Core.Tests.Collections
             d.GetOrAddValueRef('a') = 0;
             d.GetOrAddValueRef('b') = 1;
             d.GetOrAddValueRef('c') = 2;
-            Assert.True(d.Remove('c'));
-            Assert.True(d.Remove('b'));
-            Assert.AreEqual(1, d.Count);
-            Assert.AreEqual(new[] { 'a' }, d.OrderBy(i => i.Key).Select(i => i.Key));
-            Assert.AreEqual(new[] { 0 }, d.OrderBy(i => i.Key).Select(i => i.Value));
+            d.Remove('c').ShouldBe(true);
+            d.Remove('b').ShouldBe(true);
+            d.Count.ShouldBe(1);
+            d.OrderBy(i => i.Key).Select(i => i.Key).ShouldBe(new[] { 'a' });
+            d.OrderBy(i => i.Key).Select(i => i.Value).ShouldBe(new[] { 0 });
         }
 
         [Test]
@@ -233,12 +237,12 @@ namespace Spreads.Core.Tests.Collections
             d.GetOrAddValueRef('a') = 0;
             d.GetOrAddValueRef('b') = 1;
             d.GetOrAddValueRef('c') = 2;
-            Assert.True(d.Remove('c'));
-            Assert.True(d.Remove('b'));
+            d.Remove('c').ShouldBe(true);
+            d.Remove('b').ShouldBe(true);
             d.GetOrAddValueRef('c') = 7;
-            Assert.AreEqual(2, d.Count);
-            Assert.AreEqual(new[] { 'a', 'c' }, d.OrderBy(i => i.Key).Select(i => i.Key));
-            Assert.AreEqual(new[] { 0, 7 }, d.OrderBy(i => i.Key).Select(i => i.Value));
+            d.Count.ShouldBe(2);
+            d.OrderBy(i => i.Key).Select(i => i.Key).ShouldBe(new[] { 'a', 'c' });
+            d.OrderBy(i => i.Key).Select(i => i.Value).ShouldBe(new[] { 0, 7 });
         }
 
         [Test]
@@ -247,9 +251,9 @@ namespace Spreads.Core.Tests.Collections
             var d = new DictionarySlim<char, int>();
             d.GetOrAddValueRef('a') = 0;
             d.GetOrAddValueRef('b') = 1;
-            Assert.True(d.Remove('b'));
-            Assert.AreEqual(0, d.GetOrAddValueRef('a'));
-            Assert.AreEqual(1, d.Count);
+            d.Remove('b').ShouldBe(true);
+            d.GetOrAddValueRef('a').ShouldBe(0);
+            d.Count.ShouldBe(1);
         }
 
         [Test]
@@ -259,15 +263,15 @@ namespace Spreads.Core.Tests.Collections
             d.GetOrAddValueRef(C(0)) = 0;
             d.GetOrAddValueRef(C(1)) = 1;
             d.GetOrAddValueRef(C(2)) = 2;
-            Assert.True(d.Remove(C(0)));
+            d.Remove(C(0)).ShouldBe(true);
             Console.WriteLine("{0} {1}", d.GetCapacity(), d.Count);
             var capacity = d.GetCapacity();
 
             d.GetOrAddValueRef(C(0)) = 3;
             Console.WriteLine("{0} {1}", d.GetCapacity(), d.Count);
-            Assert.AreEqual(d.GetOrAddValueRef(C(0)), 3);
-            Assert.AreEqual(3, d.Count);
-            Assert.AreEqual(capacity, d.GetCapacity());
+            d.GetOrAddValueRef(C(0)).ShouldBe(3);
+            d.Count.ShouldBe(3);
+            d.GetCapacity().ShouldBe(capacity);
 
         }
 
@@ -289,7 +293,7 @@ namespace Spreads.Core.Tests.Collections
             var ret = a();
             GC.Collect();
             GC.WaitForPendingFinalizers();
-            Assert.False(ret.TryGetTarget(out _));
+            ret.TryGetTarget(out _).ShouldBe(false);
         }
 
         [Test]
@@ -297,7 +301,7 @@ namespace Spreads.Core.Tests.Collections
         {
             var d = new DictionarySlim<int, int>();
             d.GetOrAddValueRef(0) = 0;
-            Assert.True(d.Remove(0));
+            d.Remove(0).ShouldBe(true);
             Assert.IsEmpty(d);
         }
 
@@ -307,8 +311,8 @@ namespace Spreads.Core.Tests.Collections
             var d = new DictionarySlim<char, int>();
             d.GetOrAddValueRef('a') = 0;
             d.GetOrAddValueRef('b') = 1;
-            Assert.True(d.Remove('a'));
-            Assert.AreEqual(new KeyValuePair<char, int>('b', 1), d.Single());
+            d.Remove('a').ShouldBe(true);
+            d.Single().ShouldBe(new KeyValuePair<char, int>('b', 1));
         }
 
         [Test]
@@ -322,7 +326,7 @@ namespace Spreads.Core.Tests.Collections
             d.GetOrAddValueRef(++i) = -i;
             while (d.Count < d.GetCapacity())
                 d.GetOrAddValueRef(++i) = -i;
-            Assert.AreEqual(d.Count, d.Count());
+            d.Count().ShouldBe(d.Count);
         }
 
         [Test]
@@ -336,8 +340,8 @@ namespace Spreads.Core.Tests.Collections
             d.GetOrAddValueRef(++i) = -i;
             while (d.Count < d.GetCapacity())
                 d.GetOrAddValueRef(++i) = -i;
-            Assert.True(d.Remove(i));
-            Assert.AreEqual(d.Count, d.Count());
+            d.Remove(i).ShouldBe(true);
+            d.Count().ShouldBe(d.Count);
         }
 
         private KeyValuePair<TKey, TValue> P<TKey, TValue>(TKey key, TValue value) => new KeyValuePair<TKey, TValue>(key, value);
@@ -349,33 +353,33 @@ namespace Spreads.Core.Tests.Collections
             d.GetOrAddValueRef(1) = 10;
             d.GetOrAddValueRef(2) = 20;
             IEnumerator<KeyValuePair<int, int>> e = d.GetEnumerator();
-            Assert.AreEqual(P(0, 0), e.Current);
-            Assert.AreEqual(true, e.MoveNext());
-            Assert.AreEqual(P(1, 10), e.Current);
+            e.Current.ShouldBe(P(0, 0));
+            e.MoveNext().ShouldBe(true);
+            e.Current.ShouldBe(P(1, 10));
             e.Reset();
-            Assert.AreEqual(P(0, 0), e.Current);
-            Assert.AreEqual(true, e.MoveNext());
-            Assert.AreEqual(true, e.MoveNext());
-            Assert.AreEqual(P(2, 20), e.Current);
-            Assert.AreEqual(false, e.MoveNext());
+            e.Current.ShouldBe(P(0, 0));
+            e.MoveNext().ShouldBe(true);
+            e.MoveNext().ShouldBe(true);
+            e.Current.ShouldBe(P(2, 20));
+            e.MoveNext().ShouldBe(false);
             e.Reset();
-            Assert.AreEqual(P(0, 0), e.Current);
+            e.Current.ShouldBe(P(0, 0));
         }
 
         [Test]
         public void Clear()
         {
             var d = new DictionarySlim<int, int>();
-            Assert.AreEqual(1, d.GetCapacity());
+            d.GetCapacity().ShouldBe(1);
             d.GetOrAddValueRef(1) = 10;
             d.GetOrAddValueRef(2) = 20;
-            Assert.AreEqual(2, d.Count);
-            Assert.AreEqual(2, d.GetCapacity());
+            d.Count.ShouldBe(2);
+            d.GetCapacity().ShouldBe(2);
             d.Clear();
-            Assert.AreEqual(0, d.Count);
-            Assert.AreEqual(false, d.ContainsKey(1));
-            Assert.AreEqual(false, d.ContainsKey(2));
-            Assert.AreEqual(1, d.GetCapacity());
+            d.Count.ShouldBe(0);
+            d.ContainsKey(1).ShouldBe(false);
+            d.ContainsKey(2).ShouldBe(false);
+            d.GetCapacity().ShouldBe(1);
         }
 
         [Test]
@@ -402,9 +406,9 @@ namespace Spreads.Core.Tests.Collections
                 }
             }
 
-            Assert.AreEqual(d.Count, rd.Count);
-            Assert.AreEqual(d.OrderBy(i => i.Key), (rd.OrderBy(i => i.Key)));
-            Assert.AreEqual(d.OrderBy(i => i.Value), (rd.OrderBy(i => i.Value)));
+            rd.Count.ShouldBe(d.Count);
+            rd.OrderBy(i => i.Key).ShouldBe(d.OrderBy(i => i.Key));
+            rd.OrderBy(i => i.Value).ShouldBe(d.OrderBy(i => i.Value));
         }
 
         [Test]
@@ -436,14 +440,14 @@ namespace Spreads.Core.Tests.Collections
                 if (rand.Next(3) == 0 && d.Count > 0)
                 {
                     var el = GetRandomElement(d);
-                    Assert.True(rd.Remove(el));
-                    Assert.True(d.Remove(el));
+                    rd.Remove(el).ShouldBe(true);
+                    d.Remove(el).ShouldBe(true);
                 }
             }
 
-            Assert.AreEqual(d.Count, rd.Count);
-            Assert.AreEqual(d.OrderBy(i => i.Key), (rd.OrderBy(i => i.Key)));
-            Assert.AreEqual(d.OrderBy(i => i.Value), (rd.OrderBy(i => i.Value)));
+            rd.Count.ShouldBe(d.Count);
+            rd.OrderBy(i => i.Key).ShouldBe(d.OrderBy(i => i.Key));
+            rd.OrderBy(i => i.Value).ShouldBe(d.OrderBy(i => i.Value));
         }
 
         private TKey GetRandomElement<TKey, TValue>(IDictionary<TKey, TValue> d)
@@ -473,12 +477,14 @@ namespace Spreads.Core.Tests.Collections
             d.GetOrAddValueRef(C(5)) = 3;
             d.GetOrAddValueRef(C(7)) = 9;
             d.GetOrAddValueRef(C(10)) = 11;
-            Assert.AreEqual(3, d.GetOrAddValueRef(C(5)));
-            Assert.AreEqual(9, d.GetOrAddValueRef(C(7)));
-            Assert.AreEqual(11, d.GetOrAddValueRef(C(10)));
+
+            d.GetOrAddValueRef(C(5)).ShouldBe(3);
+            d.GetOrAddValueRef(C(7)).ShouldBe(9);
+            d.GetOrAddValueRef(C(10)).ShouldBe(11);
+
             d.GetOrAddValueRef(C(23))++;
             d.GetOrAddValueRef(C(23)) += 3;
-            Assert.AreEqual(4, d.GetOrAddValueRef(C(23)));
+            d.GetOrAddValueRef(C(23)).ShouldBe(4);
         }
 
         [Test]
@@ -487,8 +493,8 @@ namespace Spreads.Core.Tests.Collections
             var d = new DictionarySlim<KeyUseTracking, int>();
             var key = new KeyUseTracking(5);
             d.GetOrAddValueRef(key)++;
-            Assert.AreEqual(2, key.GetHashCodeCount);
-            Assert.AreEqual(0, key.EqualsCount);
+            key.GetHashCodeCount.ShouldBe(2);
+            key.EqualsCount.ShouldBe(0);
         }
 
         [Test]
@@ -498,8 +504,8 @@ namespace Spreads.Core.Tests.Collections
             var key = new KeyUseTracking(5);
             d.GetOrAddValueRef(key)++;
             d.GetOrAddValueRef(key)++;
-            Assert.AreEqual(3, key.GetHashCodeCount);
-            Assert.AreEqual(1, key.EqualsCount);
+            key.GetHashCodeCount.ShouldBe(3);
+            key.EqualsCount.ShouldBe(1);
         }
     }
 

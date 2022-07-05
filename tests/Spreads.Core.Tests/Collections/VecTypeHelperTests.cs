@@ -5,6 +5,7 @@
 using System;
 using System.Runtime.InteropServices;
 using NUnit.Framework;
+using Shouldly;
 
 // ReSharper disable PossibleNullReferenceException
 
@@ -32,17 +33,17 @@ namespace Spreads.Core.Tests.Collections
         [Test]
         public void IsRef()
         {
-            Assert.AreEqual(false, TypeHelper<MyStruct>.IsReferenceOrContainsReferences);
-            Assert.AreEqual(false, TypeHelper<MyStruct>.IsReferenceOrContainsReferencesManual(typeof(MyStruct)));
+            TypeHelper<MyStruct>.IsReferenceOrContainsReferences.ShouldBe(false);
+            TypeHelper<MyStruct>.IsReferenceOrContainsReferencesManual(typeof(MyStruct)).ShouldBe(false);
 
-            Assert.AreEqual(true, TypeHelper<MyStructWithRef>.IsReferenceOrContainsReferences);
-            Assert.AreEqual(true, TypeHelper<MyStructWithRef>.IsReferenceOrContainsReferencesManual(typeof(MyStructWithRef)));
+            TypeHelper<MyStructWithRef>.IsReferenceOrContainsReferences.ShouldBe(true);
+            TypeHelper<MyStructWithRef>.IsReferenceOrContainsReferencesManual(typeof(MyStructWithRef)).ShouldBe(true);
         }
 
         [Test]
         public void ArrayAdjustment()
         {
-            Assert.IsTrue((byte) TypeHelper<int>.ArrayOffset > 0);
+            ((byte) TypeHelper<int>.ArrayOffset > 0).ShouldBe(true);
         }
 
         [Test]
@@ -55,10 +56,10 @@ namespace Spreads.Core.Tests.Collections
                 var vti = TypeHelper.GetRuntimeTypeInfo(type);
                 var vti2 = TypeHelper.GetRuntimeTypeInfo(vti.RuntimeTypeId);
 
-                Assert.IsTrue(ReferenceEquals(vti.Type, vti2.Type));
-                Assert.AreEqual(vti.ElemSize, vti2.ElemSize);
-                Assert.AreEqual(vti.RuntimeTypeId, vti2.RuntimeTypeId);
-                Assert.AreEqual(vti.IsReferenceOrContainsReferences, vti2.IsReferenceOrContainsReferences);
+                ReferenceEquals(vti.Type, vti2.Type).ShouldBe(true);
+                vti2.ElemSize.ShouldBe(vti.ElemSize);
+                vti2.RuntimeTypeId.ShouldBe(vti.RuntimeTypeId);
+                vti2.IsReferenceOrContainsReferences.ShouldBe(vti.IsReferenceOrContainsReferences);
                 Console.WriteLine("TYPE: " + type.Name);
                 Console.WriteLine("vti.RuntimeTypeId: " + vti.RuntimeTypeId);
                 Console.WriteLine("vti.ElemSize: " + vti.ElemSize);

@@ -10,6 +10,7 @@ using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
+using Shouldly;
 
 namespace Spreads.Core.Tests.Buffers
 {
@@ -21,24 +22,24 @@ namespace Spreads.Core.Tests.Buffers
         public void CannotDisposeRetained()
         {
             var memory = ArrayMemory<byte>.Create(32 * 1024);
-            Assert.IsFalse(memory.IsPoolable);
-            Assert.IsFalse(memory.IsPooled);
-            Assert.IsFalse(memory.IsDisposed);
+            memory.IsPoolable.ShouldBe(false);
+            memory.IsPooled.ShouldBe(false);
+            memory.IsDisposed.ShouldBe(false);
             var rm = memory.Retain();
             Assert.Throws<InvalidOperationException>(() => { memory.Dispose(); });
             rm.Dispose();
-            Assert.IsTrue(memory.IsDisposed);
+            memory.IsDisposed.ShouldBe(true);
         }
 
         [Test]
         public void CannotDoubleDispose()
         {
             var memory = ArrayMemory<byte>.Create(32 * 1024);
-            Assert.IsFalse(memory.IsPoolable);
-            Assert.IsFalse(memory.IsPooled);
-            Assert.IsFalse(memory.IsDisposed);
+            memory.IsPoolable.ShouldBe(false);
+            memory.IsPooled.ShouldBe(false);
+            memory.IsDisposed.ShouldBe(false);
             memory.Dispose();
-            Assert.IsTrue(memory.IsDisposed);
+            memory.IsDisposed.ShouldBe(true);
             Assert.Throws<ObjectDisposedException>(() => { memory.Dispose(); });
         }
 
@@ -48,9 +49,9 @@ namespace Spreads.Core.Tests.Buffers
             var memory = BufferPool<byte>.MemoryPool.RentMemory(1024);
             var rm = memory.Retain();
             Assert.Throws<InvalidOperationException>(() => { memory.Dispose(); });
-            Assert.IsFalse(memory.IsPooled, "Memory should not be pooled after failed Dispose()");
+            memory.IsPooled.ShouldBe(false, "Memory should not be pooled after failed Dispose()");
             rm.Dispose();
-            Assert.IsTrue(memory.IsPooled);
+            memory.IsPooled.ShouldBe(true);
         }
 
         [Test
@@ -128,14 +129,14 @@ namespace Spreads.Core.Tests.Buffers
 
             var buf = (PrivateMemory<byte>)pool.Rent(100);
 
-            Assert.IsTrue(buf.IsPoolable);
+            buf.IsPoolable.ShouldBe(true);
 
             Console.WriteLine($"rented: {buf.ReferenceCount}");
 
             buf.Dispose();
-            
-            Assert.IsTrue(buf.IsDisposed);
-            Assert.IsTrue(buf.IsPooled);
+
+            buf.IsDisposed.ShouldBe(true);
+            buf.IsPooled.ShouldBe(true);
 
             Console.WriteLine($"returned: {buf.ReferenceCount}");
             Console.WriteLine($"pooled: {buf.IsPooled}");
@@ -264,7 +265,7 @@ namespace Spreads.Core.Tests.Buffers
 
                     // ReSharper disable once AccessToDisposedClosure
                     memory.Dispose();
-                    
+
                     //if (i % 1000000 == 0)
                     //{
                     //    Console.WriteLine(i);

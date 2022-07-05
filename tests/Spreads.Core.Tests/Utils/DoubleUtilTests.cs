@@ -5,6 +5,7 @@
 using System;
 using System.Diagnostics;
 using NUnit.Framework;
+using Shouldly;
 using Spreads.Utils;
 
 namespace Spreads.Core.Tests.Utils
@@ -83,7 +84,7 @@ namespace Spreads.Core.Tests.Utils
             }
             Console.WriteLine(count1);
             Console.WriteLine(count2);
-            Assert.AreEqual(count1, count2);
+            count2.ShouldBe(count1);
         }
     }
 }

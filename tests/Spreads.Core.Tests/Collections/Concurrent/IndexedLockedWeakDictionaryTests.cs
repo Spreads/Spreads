@@ -10,6 +10,7 @@ using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
+using Shouldly;
 
 namespace Spreads.Core.Tests.Collections.Concurrent
 {
@@ -70,7 +71,7 @@ namespace Spreads.Core.Tests.Collections.Concurrent
                 Console.WriteLine("Waiting...");
                 Thread.Sleep(15);
             }
-            Assert.AreEqual(count, IndexedStorageValue.CleanUpCount);
+            IndexedStorageValue.CleanUpCount.ShouldBe(count);
         }
 
         [Test, Explicit("long running")]
@@ -144,7 +145,7 @@ namespace Spreads.Core.Tests.Collections.Concurrent
             }
 
             Console.WriteLine($"Cleaned total: {IndexedStorageValue.CleanUpCount}");
-            Assert.AreEqual(count, IndexedStorageValue.CleanUpCount);
+            IndexedStorageValue.CleanUpCount.ShouldBe(count);
         }
 
         [Test]

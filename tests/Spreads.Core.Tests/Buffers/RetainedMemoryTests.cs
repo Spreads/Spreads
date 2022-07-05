@@ -9,6 +9,7 @@ using System.Buffers;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using Shouldly;
 
 namespace Spreads.Core.Tests.Buffers
 {
@@ -76,7 +77,7 @@ namespace Spreads.Core.Tests.Buffers
 
             rmc.GetSpan()[1] = 1;
 
-            Assert.AreEqual(1, array[11]);
+            ((int)array[11]).ShouldBe(1);
         }
 
         [Test]
@@ -95,7 +96,7 @@ namespace Spreads.Core.Tests.Buffers
 
             rmc.GetSpan()[5] = 1;
 
-            Assert.AreEqual(1, array[90]);
+            ((int)array[90]).ShouldBe(1);
         }
 
         [Test]
@@ -107,7 +108,7 @@ namespace Spreads.Core.Tests.Buffers
 
             var rm1 = rm.Clone(1, 100);
 
-            Assert.AreEqual(initialPtr.ToInt64() + 1, ((IntPtr)rm1.Pointer).ToInt64());
+            ((IntPtr)rm1.Pointer).ToInt64().ShouldBe(initialPtr.ToInt64() + 1);
 
             rm1.Dispose();
             rm.Dispose();
@@ -118,7 +119,7 @@ namespace Spreads.Core.Tests.Buffers
 
             rm1 = rm.Clone(1, 100);
 
-            Assert.AreEqual(initialPtr.ToInt64() + 1, ((IntPtr)rm1.Pointer).ToInt64());
+            ((IntPtr)rm1.Pointer).ToInt64().ShouldBe(initialPtr.ToInt64() + 1);
             rm1.Dispose();
             rm.Dispose();
         }
@@ -131,24 +132,24 @@ namespace Spreads.Core.Tests.Buffers
 
             var rm0 = r.Retain();
 
-            Assert.IsFalse(r.IsPinned);
+            r.IsPinned.ShouldBe(false);
 
             var rm1 = r.Retain();
 
             rm1.Dispose();
 
-            Assert.AreEqual(1, r.ReferenceCount);
+            r.ReferenceCount.ShouldBe(1);
 
             var vec = r.GetVec();
-            Assert.AreEqual(1, vec.Length);
-            Assert.AreEqual("a", vec[0]);
+            vec.Length.ShouldBe(1);
+            vec[0].ShouldBe("a");
             var rm = r.Retain();
 
-            Assert.AreEqual(2, r.ReferenceCount);
+            r.ReferenceCount.ShouldBe(2);
 
-            Assert.AreEqual("a", rm.GetSpan()[0]);
+            rm.GetSpan()[0].ShouldBe("a");
             rm.Dispose();
-            Assert.AreEqual(1, r.ReferenceCount);
+            r.ReferenceCount.ShouldBe(1);
 
             rm0.Dispose();
         }
