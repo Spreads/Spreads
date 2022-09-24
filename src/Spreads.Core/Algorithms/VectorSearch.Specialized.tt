@@ -7,7 +7,9 @@
         "sbyte",
         "short",
         "int",
-        "long"
+        "long",
+        "double",
+        "float"
     };
 
     var sseTypes = new[]
@@ -235,25 +237,27 @@ namespace Spreads.Algorithms {
             // and switch to binary search.
             unchecked
             {
-                int i;
-
-                if (hi - lo > Settings.SAFE_CACHE_LINE / Unsafe.SizeOf<<#=type#>>())
+                var range = hi - lo;
+                if (range > Settings.SAFE_CACHE_LINE / Unsafe.SizeOf<<#=type#>>())
                 {
                     var vLo = UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref searchSpace, lo));
-                    var vhi = UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref searchSpace, hi));
-                    int range = hi - lo;
-                    double vRange = vhi - vLo;
+                    var vRange = UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref searchSpace, hi)) - vLo;
+
+                    var middle = (double) UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref searchSpace, (int)(((uint)hi + (uint)lo) >> 1))) / vRange;
+                    if(0.3 > middle || middle > 0.7)
+                        goto BS;
 
                     // (hi - lo) <= int32.MaxValue
                     // vlo could be zero while value could easily be close to int64.MaxValue (nanos in unix time, we are now between 60 and 61 bit at 60.4)
                     // convert to double here to avoid overflow and for much faster calculations
                     // (only 4 cycles vs 25 cycles https://lemire.me/blog/2017/11/16/fast-exact-integer-divisions-using-floating-point-operations/)
-                    var nominator = range * (double) (value - vLo);
+                    // var iD = (range * (double) (value - vLo)) / vRange;
 
-                    i = (int) (nominator / vRange);
+                    int i = (int) ((range * (double) (value - vLo)) / vRange);
 
                     if ((uint) i > range)
                         i = i < 0 ? 0 : range;
+
                     // make i relative to searchSpace
                     i += lo;
 
@@ -285,8 +289,8 @@ namespace Spreads.Algorithms {
 
                             step <<= 1;
                         }
-
                         lo = i - step + 1;
+                        goto BS;
                     }
                     else
                     {
@@ -310,15 +314,17 @@ namespace Spreads.Algorithms {
 
                             step <<= 1;
                         }
-
                         hi = i + step - 1;
+                        goto BS;
                     }
+
+                    FOUND:
+                    return i;
                 }
 
+                BS:
                 return BinarySearchLoHi(ref searchSpace, lo, hi, value);
 
-                FOUND:
-                return i;
             }
         }
 

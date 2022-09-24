@@ -326,6 +326,158 @@ namespace Spreads.Algorithms {
             }
         }
 
+	        [MethodImpl(MethodImplAggressiveAll)]
+        internal static int BinarySearchAvx2LoHi(ref double searchSpace, int lo, int hi, double value)
+        {
+            unchecked
+            {
+                int mask;
+
+                double vLo;
+
+                if (lo > hi)
+                    return ~lo;
+
+                if (hi - lo < Vector256<double>.Count)
+                    goto LINEAR;
+
+                Vector256<double> vecI;
+                Vector256<double> gt;
+                var valVec = Vector256.Create(value);
+
+                // x3 is needed to safely fall into linear vectorized search:
+                // after this loop all possible lo/hi are valid for linear vectorized search
+                while (hi - lo >= Vector256<double>.Count * 3)
+                {
+                    var i = (int) (((uint) hi + (uint) lo - Vector256<double>.Count) >> 1);
+
+                    vecI = Unsafe.ReadUnaligned<Vector256<double>>(ref Unsafe.As<double, byte>(ref Unsafe.Add(ref searchSpace, i)));
+                    gt = Avx2.CompareGreaterThan(valVec, vecI);
+                    mask = Avx2.MoveMask(gt.AsByte());
+
+                    if (mask != -1)
+                    {
+                        if (mask != 0)
+                        {
+                            int clz = (int) BitUtils.LeadingZeroCount(mask);
+                            int index = (32 - clz) / Unsafe.SizeOf<double>();
+                            lo = i + index;
+                            vLo = UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref searchSpace, lo));
+                            goto RETURN;
+                        }
+
+                        // val is not greater than all in vec
+                        // not i-1, i could equal;
+                        hi = i;
+                    }
+                    else
+                    {
+                        // val is larger than all in vec
+                        lo = i + Vector256<double>.Count;
+                    }
+                }
+
+                do
+                {
+                    vecI = Unsafe.ReadUnaligned<Vector256<double>>(ref Unsafe.As<double, byte>(ref Unsafe.Add(ref searchSpace, lo)));
+                    gt = Avx2.CompareGreaterThan(valVec, vecI);
+                    mask = Avx2.MoveMask(gt.AsByte());
+
+                    var clz = BitUtils.LeadingZeroCount(mask);
+                    var index = (32 - clz) / Unsafe.SizeOf<double>();
+                    lo += index;
+                } while (mask == -1 & hi - lo >= Vector256<double>.Count);
+
+                LINEAR:
+
+                while (value > (vLo = UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref searchSpace, lo)))
+                       && ++lo <= hi
+                )
+                {
+                }
+
+                RETURN:
+                var ceq1 = -UnsafeEx.Ceq(value, vLo);
+                return (ceq1 & lo) | (~ceq1 & ~lo);
+            }
+        }
+
+	        [MethodImpl(MethodImplAggressiveAll)]
+        internal static int BinarySearchAvx2LoHi(ref float searchSpace, int lo, int hi, float value)
+        {
+            unchecked
+            {
+                int mask;
+
+                float vLo;
+
+                if (lo > hi)
+                    return ~lo;
+
+                if (hi - lo < Vector256<float>.Count)
+                    goto LINEAR;
+
+                Vector256<float> vecI;
+                Vector256<float> gt;
+                var valVec = Vector256.Create(value);
+
+                // x3 is needed to safely fall into linear vectorized search:
+                // after this loop all possible lo/hi are valid for linear vectorized search
+                while (hi - lo >= Vector256<float>.Count * 3)
+                {
+                    var i = (int) (((uint) hi + (uint) lo - Vector256<float>.Count) >> 1);
+
+                    vecI = Unsafe.ReadUnaligned<Vector256<float>>(ref Unsafe.As<float, byte>(ref Unsafe.Add(ref searchSpace, i)));
+                    gt = Avx2.CompareGreaterThan(valVec, vecI);
+                    mask = Avx2.MoveMask(gt.AsByte());
+
+                    if (mask != -1)
+                    {
+                        if (mask != 0)
+                        {
+                            int clz = (int) BitUtils.LeadingZeroCount(mask);
+                            int index = (32 - clz) / Unsafe.SizeOf<float>();
+                            lo = i + index;
+                            vLo = UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref searchSpace, lo));
+                            goto RETURN;
+                        }
+
+                        // val is not greater than all in vec
+                        // not i-1, i could equal;
+                        hi = i;
+                    }
+                    else
+                    {
+                        // val is larger than all in vec
+                        lo = i + Vector256<float>.Count;
+                    }
+                }
+
+                do
+                {
+                    vecI = Unsafe.ReadUnaligned<Vector256<float>>(ref Unsafe.As<float, byte>(ref Unsafe.Add(ref searchSpace, lo)));
+                    gt = Avx2.CompareGreaterThan(valVec, vecI);
+                    mask = Avx2.MoveMask(gt.AsByte());
+
+                    var clz = BitUtils.LeadingZeroCount(mask);
+                    var index = (32 - clz) / Unsafe.SizeOf<float>();
+                    lo += index;
+                } while (mask == -1 & hi - lo >= Vector256<float>.Count);
+
+                LINEAR:
+
+                while (value > (vLo = UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref searchSpace, lo)))
+                       && ++lo <= hi
+                )
+                {
+                }
+
+                RETURN:
+                var ceq1 = -UnsafeEx.Ceq(value, vLo);
+                return (ceq1 & lo) | (~ceq1 & ~lo);
+            }
+        }
+
 	
         [MethodImpl(MethodImplAggressiveAll)]
         internal static int BinarySearchSse42LoHi(ref sbyte searchSpace, int lo, int hi, sbyte value)
@@ -758,25 +910,27 @@ namespace Spreads.Algorithms {
             // and switch to binary search.
             unchecked
             {
-                int i;
-
-                if (hi - lo > Settings.SAFE_CACHE_LINE / Unsafe.SizeOf<sbyte>())
+                var range = hi - lo;
+                if (range > Settings.SAFE_CACHE_LINE / Unsafe.SizeOf<sbyte>())
                 {
                     var vLo = UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref searchSpace, lo));
-                    var vhi = UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref searchSpace, hi));
-                    int range = hi - lo;
-                    double vRange = vhi - vLo;
+                    var vRange = UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref searchSpace, hi)) - vLo;
+
+                    var middle = (double) UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref searchSpace, (int)(((uint)hi + (uint)lo) >> 1))) / vRange;
+                    if(0.3 > middle || middle > 0.7)
+                        goto BS;
 
                     // (hi - lo) <= int32.MaxValue
                     // vlo could be zero while value could easily be close to int64.MaxValue (nanos in unix time, we are now between 60 and 61 bit at 60.4)
                     // convert to double here to avoid overflow and for much faster calculations
                     // (only 4 cycles vs 25 cycles https://lemire.me/blog/2017/11/16/fast-exact-integer-divisions-using-floating-point-operations/)
-                    var nominator = range * (double) (value - vLo);
+                    // var iD = (range * (double) (value - vLo)) / vRange;
 
-                    i = (int) (nominator / vRange);
+                    int i = (int) ((range * (double) (value - vLo)) / vRange);
 
                     if ((uint) i > range)
                         i = i < 0 ? 0 : range;
+
                     // make i relative to searchSpace
                     i += lo;
 
@@ -808,8 +962,8 @@ namespace Spreads.Algorithms {
 
                             step <<= 1;
                         }
-
                         lo = i - step + 1;
+                        goto BS;
                     }
                     else
                     {
@@ -833,15 +987,17 @@ namespace Spreads.Algorithms {
 
                             step <<= 1;
                         }
-
                         hi = i + step - 1;
+                        goto BS;
                     }
+
+                    FOUND:
+                    return i;
                 }
 
+                BS:
                 return BinarySearchLoHi(ref searchSpace, lo, hi, value);
 
-                FOUND:
-                return i;
             }
         }
 
@@ -853,25 +1009,27 @@ namespace Spreads.Algorithms {
             // and switch to binary search.
             unchecked
             {
-                int i;
-
-                if (hi - lo > Settings.SAFE_CACHE_LINE / Unsafe.SizeOf<byte>())
+                var range = hi - lo;
+                if (range > Settings.SAFE_CACHE_LINE / Unsafe.SizeOf<byte>())
                 {
                     var vLo = UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref searchSpace, lo));
-                    var vhi = UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref searchSpace, hi));
-                    int range = hi - lo;
-                    double vRange = vhi - vLo;
+                    var vRange = UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref searchSpace, hi)) - vLo;
+
+                    var middle = (double) UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref searchSpace, (int)(((uint)hi + (uint)lo) >> 1))) / vRange;
+                    if(0.3 > middle || middle > 0.7)
+                        goto BS;
 
                     // (hi - lo) <= int32.MaxValue
                     // vlo could be zero while value could easily be close to int64.MaxValue (nanos in unix time, we are now between 60 and 61 bit at 60.4)
                     // convert to double here to avoid overflow and for much faster calculations
                     // (only 4 cycles vs 25 cycles https://lemire.me/blog/2017/11/16/fast-exact-integer-divisions-using-floating-point-operations/)
-                    var nominator = range * (double) (value - vLo);
+                    // var iD = (range * (double) (value - vLo)) / vRange;
 
-                    i = (int) (nominator / vRange);
+                    int i = (int) ((range * (double) (value - vLo)) / vRange);
 
                     if ((uint) i > range)
                         i = i < 0 ? 0 : range;
+
                     // make i relative to searchSpace
                     i += lo;
 
@@ -903,8 +1061,8 @@ namespace Spreads.Algorithms {
 
                             step <<= 1;
                         }
-
                         lo = i - step + 1;
+                        goto BS;
                     }
                     else
                     {
@@ -928,15 +1086,17 @@ namespace Spreads.Algorithms {
 
                             step <<= 1;
                         }
-
                         hi = i + step - 1;
+                        goto BS;
                     }
+
+                    FOUND:
+                    return i;
                 }
 
+                BS:
                 return BinarySearchLoHi(ref searchSpace, lo, hi, value);
 
-                FOUND:
-                return i;
             }
         }
 
@@ -948,25 +1108,27 @@ namespace Spreads.Algorithms {
             // and switch to binary search.
             unchecked
             {
-                int i;
-
-                if (hi - lo > Settings.SAFE_CACHE_LINE / Unsafe.SizeOf<short>())
+                var range = hi - lo;
+                if (range > Settings.SAFE_CACHE_LINE / Unsafe.SizeOf<short>())
                 {
                     var vLo = UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref searchSpace, lo));
-                    var vhi = UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref searchSpace, hi));
-                    int range = hi - lo;
-                    double vRange = vhi - vLo;
+                    var vRange = UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref searchSpace, hi)) - vLo;
+
+                    var middle = (double) UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref searchSpace, (int)(((uint)hi + (uint)lo) >> 1))) / vRange;
+                    if(0.3 > middle || middle > 0.7)
+                        goto BS;
 
                     // (hi - lo) <= int32.MaxValue
                     // vlo could be zero while value could easily be close to int64.MaxValue (nanos in unix time, we are now between 60 and 61 bit at 60.4)
                     // convert to double here to avoid overflow and for much faster calculations
                     // (only 4 cycles vs 25 cycles https://lemire.me/blog/2017/11/16/fast-exact-integer-divisions-using-floating-point-operations/)
-                    var nominator = range * (double) (value - vLo);
+                    // var iD = (range * (double) (value - vLo)) / vRange;
 
-                    i = (int) (nominator / vRange);
+                    int i = (int) ((range * (double) (value - vLo)) / vRange);
 
                     if ((uint) i > range)
                         i = i < 0 ? 0 : range;
+
                     // make i relative to searchSpace
                     i += lo;
 
@@ -998,8 +1160,8 @@ namespace Spreads.Algorithms {
 
                             step <<= 1;
                         }
-
                         lo = i - step + 1;
+                        goto BS;
                     }
                     else
                     {
@@ -1023,15 +1185,17 @@ namespace Spreads.Algorithms {
 
                             step <<= 1;
                         }
-
                         hi = i + step - 1;
+                        goto BS;
                     }
+
+                    FOUND:
+                    return i;
                 }
 
+                BS:
                 return BinarySearchLoHi(ref searchSpace, lo, hi, value);
 
-                FOUND:
-                return i;
             }
         }
 
@@ -1043,25 +1207,27 @@ namespace Spreads.Algorithms {
             // and switch to binary search.
             unchecked
             {
-                int i;
-
-                if (hi - lo > Settings.SAFE_CACHE_LINE / Unsafe.SizeOf<ushort>())
+                var range = hi - lo;
+                if (range > Settings.SAFE_CACHE_LINE / Unsafe.SizeOf<ushort>())
                 {
                     var vLo = UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref searchSpace, lo));
-                    var vhi = UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref searchSpace, hi));
-                    int range = hi - lo;
-                    double vRange = vhi - vLo;
+                    var vRange = UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref searchSpace, hi)) - vLo;
+
+                    var middle = (double) UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref searchSpace, (int)(((uint)hi + (uint)lo) >> 1))) / vRange;
+                    if(0.3 > middle || middle > 0.7)
+                        goto BS;
 
                     // (hi - lo) <= int32.MaxValue
                     // vlo could be zero while value could easily be close to int64.MaxValue (nanos in unix time, we are now between 60 and 61 bit at 60.4)
                     // convert to double here to avoid overflow and for much faster calculations
                     // (only 4 cycles vs 25 cycles https://lemire.me/blog/2017/11/16/fast-exact-integer-divisions-using-floating-point-operations/)
-                    var nominator = range * (double) (value - vLo);
+                    // var iD = (range * (double) (value - vLo)) / vRange;
 
-                    i = (int) (nominator / vRange);
+                    int i = (int) ((range * (double) (value - vLo)) / vRange);
 
                     if ((uint) i > range)
                         i = i < 0 ? 0 : range;
+
                     // make i relative to searchSpace
                     i += lo;
 
@@ -1093,8 +1259,8 @@ namespace Spreads.Algorithms {
 
                             step <<= 1;
                         }
-
                         lo = i - step + 1;
+                        goto BS;
                     }
                     else
                     {
@@ -1118,15 +1284,17 @@ namespace Spreads.Algorithms {
 
                             step <<= 1;
                         }
-
                         hi = i + step - 1;
+                        goto BS;
                     }
+
+                    FOUND:
+                    return i;
                 }
 
+                BS:
                 return BinarySearchLoHi(ref searchSpace, lo, hi, value);
 
-                FOUND:
-                return i;
             }
         }
 
@@ -1138,25 +1306,27 @@ namespace Spreads.Algorithms {
             // and switch to binary search.
             unchecked
             {
-                int i;
-
-                if (hi - lo > Settings.SAFE_CACHE_LINE / Unsafe.SizeOf<char>())
+                var range = hi - lo;
+                if (range > Settings.SAFE_CACHE_LINE / Unsafe.SizeOf<char>())
                 {
                     var vLo = UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref searchSpace, lo));
-                    var vhi = UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref searchSpace, hi));
-                    int range = hi - lo;
-                    double vRange = vhi - vLo;
+                    var vRange = UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref searchSpace, hi)) - vLo;
+
+                    var middle = (double) UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref searchSpace, (int)(((uint)hi + (uint)lo) >> 1))) / vRange;
+                    if(0.3 > middle || middle > 0.7)
+                        goto BS;
 
                     // (hi - lo) <= int32.MaxValue
                     // vlo could be zero while value could easily be close to int64.MaxValue (nanos in unix time, we are now between 60 and 61 bit at 60.4)
                     // convert to double here to avoid overflow and for much faster calculations
                     // (only 4 cycles vs 25 cycles https://lemire.me/blog/2017/11/16/fast-exact-integer-divisions-using-floating-point-operations/)
-                    var nominator = range * (double) (value - vLo);
+                    // var iD = (range * (double) (value - vLo)) / vRange;
 
-                    i = (int) (nominator / vRange);
+                    int i = (int) ((range * (double) (value - vLo)) / vRange);
 
                     if ((uint) i > range)
                         i = i < 0 ? 0 : range;
+
                     // make i relative to searchSpace
                     i += lo;
 
@@ -1188,8 +1358,8 @@ namespace Spreads.Algorithms {
 
                             step <<= 1;
                         }
-
                         lo = i - step + 1;
+                        goto BS;
                     }
                     else
                     {
@@ -1213,15 +1383,17 @@ namespace Spreads.Algorithms {
 
                             step <<= 1;
                         }
-
                         hi = i + step - 1;
+                        goto BS;
                     }
+
+                    FOUND:
+                    return i;
                 }
 
+                BS:
                 return BinarySearchLoHi(ref searchSpace, lo, hi, value);
 
-                FOUND:
-                return i;
             }
         }
 
@@ -1233,25 +1405,27 @@ namespace Spreads.Algorithms {
             // and switch to binary search.
             unchecked
             {
-                int i;
-
-                if (hi - lo > Settings.SAFE_CACHE_LINE / Unsafe.SizeOf<int>())
+                var range = hi - lo;
+                if (range > Settings.SAFE_CACHE_LINE / Unsafe.SizeOf<int>())
                 {
                     var vLo = UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref searchSpace, lo));
-                    var vhi = UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref searchSpace, hi));
-                    int range = hi - lo;
-                    double vRange = vhi - vLo;
+                    var vRange = UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref searchSpace, hi)) - vLo;
+
+                    var middle = (double) UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref searchSpace, (int)(((uint)hi + (uint)lo) >> 1))) / vRange;
+                    if(0.3 > middle || middle > 0.7)
+                        goto BS;
 
                     // (hi - lo) <= int32.MaxValue
                     // vlo could be zero while value could easily be close to int64.MaxValue (nanos in unix time, we are now between 60 and 61 bit at 60.4)
                     // convert to double here to avoid overflow and for much faster calculations
                     // (only 4 cycles vs 25 cycles https://lemire.me/blog/2017/11/16/fast-exact-integer-divisions-using-floating-point-operations/)
-                    var nominator = range * (double) (value - vLo);
+                    // var iD = (range * (double) (value - vLo)) / vRange;
 
-                    i = (int) (nominator / vRange);
+                    int i = (int) ((range * (double) (value - vLo)) / vRange);
 
                     if ((uint) i > range)
                         i = i < 0 ? 0 : range;
+
                     // make i relative to searchSpace
                     i += lo;
 
@@ -1283,8 +1457,8 @@ namespace Spreads.Algorithms {
 
                             step <<= 1;
                         }
-
                         lo = i - step + 1;
+                        goto BS;
                     }
                     else
                     {
@@ -1308,15 +1482,17 @@ namespace Spreads.Algorithms {
 
                             step <<= 1;
                         }
-
                         hi = i + step - 1;
+                        goto BS;
                     }
+
+                    FOUND:
+                    return i;
                 }
 
+                BS:
                 return BinarySearchLoHi(ref searchSpace, lo, hi, value);
 
-                FOUND:
-                return i;
             }
         }
 
@@ -1328,25 +1504,27 @@ namespace Spreads.Algorithms {
             // and switch to binary search.
             unchecked
             {
-                int i;
-
-                if (hi - lo > Settings.SAFE_CACHE_LINE / Unsafe.SizeOf<uint>())
+                var range = hi - lo;
+                if (range > Settings.SAFE_CACHE_LINE / Unsafe.SizeOf<uint>())
                 {
                     var vLo = UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref searchSpace, lo));
-                    var vhi = UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref searchSpace, hi));
-                    int range = hi - lo;
-                    double vRange = vhi - vLo;
+                    var vRange = UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref searchSpace, hi)) - vLo;
+
+                    var middle = (double) UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref searchSpace, (int)(((uint)hi + (uint)lo) >> 1))) / vRange;
+                    if(0.3 > middle || middle > 0.7)
+                        goto BS;
 
                     // (hi - lo) <= int32.MaxValue
                     // vlo could be zero while value could easily be close to int64.MaxValue (nanos in unix time, we are now between 60 and 61 bit at 60.4)
                     // convert to double here to avoid overflow and for much faster calculations
                     // (only 4 cycles vs 25 cycles https://lemire.me/blog/2017/11/16/fast-exact-integer-divisions-using-floating-point-operations/)
-                    var nominator = range * (double) (value - vLo);
+                    // var iD = (range * (double) (value - vLo)) / vRange;
 
-                    i = (int) (nominator / vRange);
+                    int i = (int) ((range * (double) (value - vLo)) / vRange);
 
                     if ((uint) i > range)
                         i = i < 0 ? 0 : range;
+
                     // make i relative to searchSpace
                     i += lo;
 
@@ -1378,8 +1556,8 @@ namespace Spreads.Algorithms {
 
                             step <<= 1;
                         }
-
                         lo = i - step + 1;
+                        goto BS;
                     }
                     else
                     {
@@ -1403,15 +1581,17 @@ namespace Spreads.Algorithms {
 
                             step <<= 1;
                         }
-
                         hi = i + step - 1;
+                        goto BS;
                     }
+
+                    FOUND:
+                    return i;
                 }
 
+                BS:
                 return BinarySearchLoHi(ref searchSpace, lo, hi, value);
 
-                FOUND:
-                return i;
             }
         }
 
@@ -1423,25 +1603,27 @@ namespace Spreads.Algorithms {
             // and switch to binary search.
             unchecked
             {
-                int i;
-
-                if (hi - lo > Settings.SAFE_CACHE_LINE / Unsafe.SizeOf<long>())
+                var range = hi - lo;
+                if (range > Settings.SAFE_CACHE_LINE / Unsafe.SizeOf<long>())
                 {
                     var vLo = UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref searchSpace, lo));
-                    var vhi = UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref searchSpace, hi));
-                    int range = hi - lo;
-                    double vRange = vhi - vLo;
+                    var vRange = UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref searchSpace, hi)) - vLo;
+
+                    var middle = (double) UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref searchSpace, (int)(((uint)hi + (uint)lo) >> 1))) / vRange;
+                    if(0.3 > middle || middle > 0.7)
+                        goto BS;
 
                     // (hi - lo) <= int32.MaxValue
                     // vlo could be zero while value could easily be close to int64.MaxValue (nanos in unix time, we are now between 60 and 61 bit at 60.4)
                     // convert to double here to avoid overflow and for much faster calculations
                     // (only 4 cycles vs 25 cycles https://lemire.me/blog/2017/11/16/fast-exact-integer-divisions-using-floating-point-operations/)
-                    var nominator = range * (double) (value - vLo);
+                    // var iD = (range * (double) (value - vLo)) / vRange;
 
-                    i = (int) (nominator / vRange);
+                    int i = (int) ((range * (double) (value - vLo)) / vRange);
 
                     if ((uint) i > range)
                         i = i < 0 ? 0 : range;
+
                     // make i relative to searchSpace
                     i += lo;
 
@@ -1473,8 +1655,8 @@ namespace Spreads.Algorithms {
 
                             step <<= 1;
                         }
-
                         lo = i - step + 1;
+                        goto BS;
                     }
                     else
                     {
@@ -1498,15 +1680,17 @@ namespace Spreads.Algorithms {
 
                             step <<= 1;
                         }
-
                         hi = i + step - 1;
+                        goto BS;
                     }
+
+                    FOUND:
+                    return i;
                 }
 
+                BS:
                 return BinarySearchLoHi(ref searchSpace, lo, hi, value);
 
-                FOUND:
-                return i;
             }
         }
 
@@ -1518,25 +1702,27 @@ namespace Spreads.Algorithms {
             // and switch to binary search.
             unchecked
             {
-                int i;
-
-                if (hi - lo > Settings.SAFE_CACHE_LINE / Unsafe.SizeOf<ulong>())
+                var range = hi - lo;
+                if (range > Settings.SAFE_CACHE_LINE / Unsafe.SizeOf<ulong>())
                 {
                     var vLo = UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref searchSpace, lo));
-                    var vhi = UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref searchSpace, hi));
-                    int range = hi - lo;
-                    double vRange = vhi - vLo;
+                    var vRange = UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref searchSpace, hi)) - vLo;
+
+                    var middle = (double) UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref searchSpace, (int)(((uint)hi + (uint)lo) >> 1))) / vRange;
+                    if(0.3 > middle || middle > 0.7)
+                        goto BS;
 
                     // (hi - lo) <= int32.MaxValue
                     // vlo could be zero while value could easily be close to int64.MaxValue (nanos in unix time, we are now between 60 and 61 bit at 60.4)
                     // convert to double here to avoid overflow and for much faster calculations
                     // (only 4 cycles vs 25 cycles https://lemire.me/blog/2017/11/16/fast-exact-integer-divisions-using-floating-point-operations/)
-                    var nominator = range * (double) (value - vLo);
+                    // var iD = (range * (double) (value - vLo)) / vRange;
 
-                    i = (int) (nominator / vRange);
+                    int i = (int) ((range * (double) (value - vLo)) / vRange);
 
                     if ((uint) i > range)
                         i = i < 0 ? 0 : range;
+
                     // make i relative to searchSpace
                     i += lo;
 
@@ -1568,8 +1754,8 @@ namespace Spreads.Algorithms {
 
                             step <<= 1;
                         }
-
                         lo = i - step + 1;
+                        goto BS;
                     }
                     else
                     {
@@ -1593,15 +1779,17 @@ namespace Spreads.Algorithms {
 
                             step <<= 1;
                         }
-
                         hi = i + step - 1;
+                        goto BS;
                     }
+
+                    FOUND:
+                    return i;
                 }
 
+                BS:
                 return BinarySearchLoHi(ref searchSpace, lo, hi, value);
 
-                FOUND:
-                return i;
             }
         }
 
@@ -1613,25 +1801,27 @@ namespace Spreads.Algorithms {
             // and switch to binary search.
             unchecked
             {
-                int i;
-
-                if (hi - lo > Settings.SAFE_CACHE_LINE / Unsafe.SizeOf<double>())
+                var range = hi - lo;
+                if (range > Settings.SAFE_CACHE_LINE / Unsafe.SizeOf<double>())
                 {
                     var vLo = UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref searchSpace, lo));
-                    var vhi = UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref searchSpace, hi));
-                    int range = hi - lo;
-                    double vRange = vhi - vLo;
+                    var vRange = UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref searchSpace, hi)) - vLo;
+
+                    var middle = (double) UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref searchSpace, (int)(((uint)hi + (uint)lo) >> 1))) / vRange;
+                    if(0.3 > middle || middle > 0.7)
+                        goto BS;
 
                     // (hi - lo) <= int32.MaxValue
                     // vlo could be zero while value could easily be close to int64.MaxValue (nanos in unix time, we are now between 60 and 61 bit at 60.4)
                     // convert to double here to avoid overflow and for much faster calculations
                     // (only 4 cycles vs 25 cycles https://lemire.me/blog/2017/11/16/fast-exact-integer-divisions-using-floating-point-operations/)
-                    var nominator = range * (double) (value - vLo);
+                    // var iD = (range * (double) (value - vLo)) / vRange;
 
-                    i = (int) (nominator / vRange);
+                    int i = (int) ((range * (double) (value - vLo)) / vRange);
 
                     if ((uint) i > range)
                         i = i < 0 ? 0 : range;
+
                     // make i relative to searchSpace
                     i += lo;
 
@@ -1663,8 +1853,8 @@ namespace Spreads.Algorithms {
 
                             step <<= 1;
                         }
-
                         lo = i - step + 1;
+                        goto BS;
                     }
                     else
                     {
@@ -1688,15 +1878,17 @@ namespace Spreads.Algorithms {
 
                             step <<= 1;
                         }
-
                         hi = i + step - 1;
+                        goto BS;
                     }
+
+                    FOUND:
+                    return i;
                 }
 
+                BS:
                 return BinarySearchLoHi(ref searchSpace, lo, hi, value);
 
-                FOUND:
-                return i;
             }
         }
 
@@ -1708,25 +1900,27 @@ namespace Spreads.Algorithms {
             // and switch to binary search.
             unchecked
             {
-                int i;
-
-                if (hi - lo > Settings.SAFE_CACHE_LINE / Unsafe.SizeOf<float>())
+                var range = hi - lo;
+                if (range > Settings.SAFE_CACHE_LINE / Unsafe.SizeOf<float>())
                 {
                     var vLo = UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref searchSpace, lo));
-                    var vhi = UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref searchSpace, hi));
-                    int range = hi - lo;
-                    double vRange = vhi - vLo;
+                    var vRange = UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref searchSpace, hi)) - vLo;
+
+                    var middle = (double) UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref searchSpace, (int)(((uint)hi + (uint)lo) >> 1))) / vRange;
+                    if(0.3 > middle || middle > 0.7)
+                        goto BS;
 
                     // (hi - lo) <= int32.MaxValue
                     // vlo could be zero while value could easily be close to int64.MaxValue (nanos in unix time, we are now between 60 and 61 bit at 60.4)
                     // convert to double here to avoid overflow and for much faster calculations
                     // (only 4 cycles vs 25 cycles https://lemire.me/blog/2017/11/16/fast-exact-integer-divisions-using-floating-point-operations/)
-                    var nominator = range * (double) (value - vLo);
+                    // var iD = (range * (double) (value - vLo)) / vRange;
 
-                    i = (int) (nominator / vRange);
+                    int i = (int) ((range * (double) (value - vLo)) / vRange);
 
                     if ((uint) i > range)
                         i = i < 0 ? 0 : range;
+
                     // make i relative to searchSpace
                     i += lo;
 
@@ -1758,8 +1952,8 @@ namespace Spreads.Algorithms {
 
                             step <<= 1;
                         }
-
                         lo = i - step + 1;
+                        goto BS;
                     }
                     else
                     {
@@ -1783,15 +1977,17 @@ namespace Spreads.Algorithms {
 
                             step <<= 1;
                         }
-
                         hi = i + step - 1;
+                        goto BS;
                     }
+
+                    FOUND:
+                    return i;
                 }
 
+                BS:
                 return BinarySearchLoHi(ref searchSpace, lo, hi, value);
 
-                FOUND:
-                return i;
             }
         }
 

@@ -183,8 +183,8 @@ namespace Spreads
                     || typeof(T) == typeof(uint)
                     || typeof(T) == typeof(long)
                     || typeof(T) == typeof(ulong)
-                    // || typeof(T) == typeof(float) // could lose precision for floats and decimals
-                    // || typeof(T) == typeof(double)
+                    || typeof(T) == typeof(float) // could lose precision for floats and decimals
+                    || typeof(T) == typeof(double)
                     // || typeof(T) == typeof(decimal)
                     || typeof(T) == typeof(DateTime)
                     || typeof(T) == typeof(Timestamp)

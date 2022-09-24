@@ -23,9 +23,9 @@ namespace Spreads.Collections
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static ref T UnsafeGetAt<T>(this object[] array, int index)
+        public static ref T UnsafeGetAt<T>(this object array, int index)
         {
-            Debug.Assert((uint)index < array.Length, "GetAt: (uint)index < array.Length");
+            Debug.Assert((uint)index < ((Array)array).Length, "GetAt: (uint)index < array.Length");
             return ref Unsafe.Add(ref Unsafe.AddByteOffset(ref Unsafe.As<Box<T>>(array)!.Value, TypeHelper.ArrayOffset), index);
         }
 

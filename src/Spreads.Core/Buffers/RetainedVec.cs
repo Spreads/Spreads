@@ -134,7 +134,7 @@ namespace Spreads.Buffers
         internal unsafe ref T UnsafeGetRef<T>()
         {
             if (TypeHelper<T>.IsReferenceOrContainsReferences)
-                return ref Unsafe.As<T[]>(_array)!.UnsafeGetAt((int)_pointerOrOffset);
+                return ref _array!.UnsafeGetAt<T>((int)_pointerOrOffset);
             return ref Unsafe.AsRef<T>((void*)_pointerOrOffset);
         }
 
@@ -142,15 +142,15 @@ namespace Spreads.Buffers
         internal unsafe ref T UnsafeGetRef<T>(int index)
         {
             if (TypeHelper<T>.IsReferenceOrContainsReferences)
-                return ref Unsafe.As<T[]>(_array)!.UnsafeGetAt((int)(_pointerOrOffset + index));
-            return ref Unsafe.Add<T>(ref Unsafe.AsRef<T>((void*)_pointerOrOffset), index);
+                return ref _array!.UnsafeGetAt<T>((int)(_pointerOrOffset + index));
+            return ref Unsafe.Add(ref Unsafe.AsRef<T>((void*)_pointerOrOffset), index);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal unsafe T UnsafeReadUnaligned<T>(int index)
         {
             if (TypeHelper<T>.IsReferenceOrContainsReferences)
-                return Unsafe.As<T[]>(_array)!.UnsafeGetAt((int)(_pointerOrOffset + index));
+                return _array!.UnsafeGetAt<T>((int)(_pointerOrOffset + index));
             return Unsafe.ReadUnaligned<T>(ref Unsafe.As<T, byte>(ref Unsafe.AsRef<T>((void*)(_pointerOrOffset + index * Unsafe.SizeOf<T>()))));
         }
 
@@ -158,7 +158,7 @@ namespace Spreads.Buffers
         internal unsafe void UnsafeWriteUnaligned<T>(int index, T value)
         {
             if (TypeHelper<T>.IsReferenceOrContainsReferences)
-                Unsafe.As<T[]>(_array)!.UnsafeGetAt((int)(_pointerOrOffset + index)) = value;
+                _array!.UnsafeGetAt<T>((int)(_pointerOrOffset + index)) = value;
             else
                 Unsafe.WriteUnaligned(ref Unsafe.As<T, byte>(ref Unsafe.AsRef<T>((void*)(_pointerOrOffset + index * Unsafe.SizeOf<T>()))), value);
         }

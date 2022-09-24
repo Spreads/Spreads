@@ -2,9 +2,16 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+using System;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
+#if HAS_INTRINSICS
+using Spreads.Utils;
+using System.Runtime.Intrinsics;
+using System.Runtime.Intrinsics.X86;
+#endif
 using Spreads.DataTypes;
+using Spreads.Utils;
 using static Spreads.Utils.Constants;
 
 namespace Spreads.Algorithms
@@ -60,6 +67,13 @@ namespace Spreads.Algorithms
                     || typeof(T) == typeof(Timestamp)
                    )
                     return BinarySearchAvx2LoHi(ref Unsafe.As<T, long>(ref searchSpace), lo, hi, Unsafe.As<T, long>(ref value));
+
+                if (typeof(T) == typeof(float))
+                    return BinarySearchAvx2LoHi(ref Unsafe.As<T, float>(ref searchSpace), lo, hi, Unsafe.As<T, float>(ref value));
+
+                if (typeof(T) == typeof(double))
+                    return BinarySearchAvx2LoHi(ref Unsafe.As<T, double>(ref searchSpace), lo, hi, Unsafe.As<T, double>(ref value));
+
             }
 
             if (System.Runtime.Intrinsics.X86.Sse42.IsSupported)
@@ -333,7 +347,12 @@ namespace Spreads.Algorithms
                 return InterpolationSearchSpecializedLoHi(ref Unsafe.As<T, float>(ref searchSpace), lo, hi, Unsafe.As<T, float>(ref value));
 
             if (typeof(T) == typeof(double))
+            {
+#if HAS_INTRINSICSXX
+                return InterpolationSearchSpecializedLoHi2(ref Unsafe.As<T, double>(ref searchSpace), lo, hi, Unsafe.As<T, double>(ref value));
+#endif
                 return InterpolationSearchSpecializedLoHi(ref Unsafe.As<T, double>(ref searchSpace), lo, hi, Unsafe.As<T, double>(ref value));
+            }
 
             if (!KeyComparer<T>.Default.IsDiffable)
                 return BinarySearchLoHi(ref searchSpace, lo, hi, value, comparer);
@@ -533,5 +552,187 @@ namespace Spreads.Algorithms
 
             return BinaryLookupLoHi(ref searchSpace, lo, hi, ref value, lookup, comparer);
         }
+
+#if HAS_INTRINSICS
+
+        [MethodImpl(MethodImplAggressiveAll)]
+        private static Vector256<T> ReadVector256<T>(ref T searchSpace, int i) where T : struct =>
+            Unsafe.ReadUnaligned<Vector256<T>>(ref Unsafe.As<T, byte>(ref Unsafe.Add(ref searchSpace, i)));
+
+        [MethodImpl(MethodImplAggressiveAll)]
+        internal static int BinarySearchAvx2LoHi2(ref double searchSpace, int lo, int hi, double value)
+        {
+            unchecked
+            {
+
+                if (lo > hi)
+                    return ~lo;
+
+                if (hi - lo < Vector256<double>.Count)
+                    goto LINEAR;
+
+                int mask;
+                double vLo;
+
+                // x3 is needed to safely fall into linear vectorized search:
+                // after this loop all possible lo/hi are valid for linear vectorized search
+                while (hi - lo >= Vector256<double>.Count * 3)
+                {
+                    var i = (int)(((uint)hi + (uint)lo - Vector256<double>.Count) >> 1);
+
+                    mask = Avx2.MoveMask(Avx2.CompareGreaterThan(Vector256.Create(value), ReadVector256(ref searchSpace, i)).AsByte());
+
+                    if (mask != -1)
+                    {
+                        if (mask != 0)
+                        {
+                            int index = (32 - BitUtils.LeadingZeroCount(mask)) / Unsafe.SizeOf<double>();
+                            lo = i + index;
+                            vLo = UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref searchSpace, lo));
+                            goto RETURN;
+                        }
+
+                        // val is not greater than all in vec
+                        // not i-1, i could equal;
+                        hi = i;
+                    }
+                    else
+                    {
+                        // val is larger than all in vec
+                        lo = i + Vector256<double>.Count;
+                    }
+                }
+
+                do
+                {
+                    mask = Avx2.MoveMask(Avx2.CompareGreaterThan(Vector256.Create(value), ReadVector256(ref searchSpace, lo)).AsByte());
+                    var index = (32 - BitUtils.LeadingZeroCount(mask)) / Unsafe.SizeOf<double>();
+                    lo += index;
+                } while (mask == -1 & hi - lo >= Vector256<double>.Count);
+
+                LINEAR:
+
+                while (value > (vLo = UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref searchSpace, lo)))
+                       && ++lo <= hi
+                      )
+                {
+                }
+
+                RETURN:
+                var ceq1 = -UnsafeEx.Ceq(value, vLo);
+                return (ceq1 & lo) | (~ceq1 & ~lo);
+            }
+        }
+
+        [MethodImpl(MethodImplAggressiveAll)]
+        internal static int InterpolationSearchSpecializedLoHi2(ref double searchSpace, int lo, int hi, double value)
+        {
+            // Try interpolation starting point only for big-enough lengths,
+            // find the range with exponential search
+            // and switch to binary search.
+            unchecked
+            {
+                if (hi - lo > Settings.SAFE_CACHE_LINE / Unsafe.SizeOf<double>())
+                {
+                    var vLo = UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref searchSpace, lo));
+
+                    var vRange = UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref searchSpace, hi)) - vLo;
+
+                    var middle = UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref searchSpace, (int)(((uint)hi + (uint)lo) >> 1))) / vRange;
+                    if (0.3 > middle || middle > 0.7)
+                        goto BS;
+
+                    // (hi - lo) <= int32.MaxValue
+                    // vlo could be zero while value could easily be close to int64.MaxValue (nanos in unix time, we are now between 60 and 61 bit at 60.4)
+                    // convert to double here to avoid overflow and for much faster calculations
+                    // (only 4 cycles vs 25 cycles https://lemire.me/blog/2017/11/16/fast-exact-integer-divisions-using-floating-point-operations/)
+                    // var iD = (range * (double) (value - vLo)) / vRange;
+
+                    int i = lo + (int)(((hi - lo) * (value - vLo)) / vRange) - (Vector256<double>.Count / 2 - 1);
+
+                    if (i < lo)
+                        i = lo;
+
+                    if (i + Vector256<double>.Count > hi)
+                        i = hi - Vector256<double>.Count; // this is always true since cache line >> AVX vector size
+
+                    var valueVec = Vector256.Create(value);
+                    var mask = Avx2.MoveMask(Avx2.CompareGreaterThan(valueVec, ReadVector256(ref searchSpace, i)).AsByte());
+
+                    // var vi = UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref searchSpace, i));
+
+                    var step = 1;
+
+                    if (mask == -1) // val is larger than all in vec
+                    {
+                        while (true)
+                        {
+                            i += step * Vector256<double>.Count;
+
+                            if (i + Vector256<double>.Count > hi)
+                                break;
+
+                            var mask1 = Avx2.MoveMask(Avx2.CompareGreaterThan(valueVec, ReadVector256(ref searchSpace, i)).AsByte());
+
+                            if (mask1 != -1)
+                            {
+                                if (mask1 != 0)
+                                    goto FOUND;
+
+                                // mask == 0, val is smaller than all in vec
+                                hi = i - 1; // [. . . hi] [i . . .], no need to adjust for vec count
+                                break;
+                            }
+
+                            // mask == -1, val is larger than all in vec
+                            step <<= 1;
+                        }
+
+                        lo = i - (step - 1) * Vector256<double>.Count;
+                        goto BS;
+                    }
+
+                    if (mask == 0) // val is smaller than all in vec
+                    {
+                        while (true)
+                        {
+                            i -= step * Vector256<double>.Count;
+
+                            if (i < lo) // no need to adjust for vec count
+                                break;
+
+                            var mask1 = Avx2.MoveMask(Avx2.CompareGreaterThan(valueVec, ReadVector256(ref searchSpace, i)).AsByte());
+
+                            if (mask1 != 0)
+                            {
+                                if (mask1 != -1)
+                                    goto FOUND;
+
+                                lo = i + Vector256<double>.Count;
+                                break;
+                            }
+
+                            step <<= 1;
+                        }
+
+                        hi = i + step * Vector256<double>.Count - 1;
+                        goto BS;
+                    }
+
+                    FOUND:
+                    int index = (32 - BitUtils.LeadingZeroCount(mask)) / Unsafe.SizeOf<double>();
+                    lo = i + index;
+                    vLo = UnsafeEx.ReadUnaligned(ref Unsafe.Add(ref searchSpace, lo));
+                    var ceq1 = -UnsafeEx.Ceq(value, vLo);
+                    return (ceq1 & lo) | (~ceq1 & ~lo);
+                }
+
+                BS:
+
+                return BinarySearchAvx2LoHi(ref searchSpace, lo, hi, value);
+            }
+        }
+
+#endif
     }
 }
