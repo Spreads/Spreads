@@ -12,55 +12,26 @@ namespace Spreads.Threading
 {
     public static partial class Cpu
     {
-        /// <summary>
-        /// Platform abstraction layer
-        /// </summary>
-        public static class Pal
+        private interface ICpuNumberGetter
+        {
+            int GetCpuNumber();
+        }
+
+        private sealed class WindowsCpuNumberGetter : ICpuNumberGetter
         {
             private static readonly int _coreCount = Environment.ProcessorCount;
 
-            private static readonly bool _isWindows = RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
-
-            private static readonly bool _schedGetCpuWorks = TestSchedGetCpu();
-
-            private static bool TestSchedGetCpu()
-            {
-                if (_isWindows) return false;
-
-                try
-                {
-                    if (sched_getcpu() >= 0)
-                        return true;
-                }
-                catch
-                {
-                    // ignored
-                }
-
-                return false;
-            }
-
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            internal static int GetCurrentCpuNumber()
+            public int GetCpuNumber()
             {
-                // Static readonly fields are JIT constants,
-                // GetCurrentProcessorNumber is faster than it's Ex variant
-                if (_isWindows)
+                if (_coreCount > 64)
                 {
-                    if (_coreCount > 64)
-                    {
-                        ProcessorNumber procNum = default;
-                        GetCurrentProcessorNumberEx(ref procNum);
-                        return (procNum.Group << 6) | procNum.Number;
-                    }
-
-                    return (int)GetCurrentProcessorNumber();
+                    ProcessorNumber procNum = default;
+                    GetCurrentProcessorNumberEx(ref procNum);
+                    return (procNum.Group << 6) | procNum.Number;
                 }
 
-                if (_schedGetCpuWorks)
-                    return sched_getcpu();
-
-                return -1;
+                return (int)GetCurrentProcessorNumber();
             }
 
 #if HAS_SUPPRESS_GC_TRANSITION
@@ -101,13 +72,53 @@ namespace Spreads.Threading
             [SuppressUnmanagedCodeSecurity]
             [DllImport("kernel32.dll")]
             private static extern void GetCurrentProcessorNumberEx(ref ProcessorNumber processorNumber);
+        }
+
+        private sealed class LinuxCpuNumberGetter : ICpuNumberGetter
+        {
+            public int GetCpuNumber() => sched_getcpu();
 
 #if HAS_SUPPRESS_GC_TRANSITION
             [SuppressGCTransition]
 #endif
             [SuppressUnmanagedCodeSecurity]
             [DllImport("libc.so.6", SetLastError = true)]
-            public static extern int sched_getcpu();
+            private static extern int sched_getcpu();
+        }
+
+        private sealed class FallbackCpuNumberGetter : ICpuNumberGetter
+        {
+            public int GetCpuNumber() => -1;
+        }
+
+        /// <summary>
+        /// Platform abstraction layer
+        /// </summary>
+        public static class Pal
+        {
+            // Hope that it's devirtualized
+            private static readonly ICpuNumberGetter _cpuNumberGetterGetter = InitIGetCpuNumber();
+
+            private static ICpuNumberGetter InitIGetCpuNumber()
+            {
+                try
+                {
+                    ICpuNumberGetter cpuGetter = RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
+                        ? new WindowsCpuNumberGetter()
+                        : new LinuxCpuNumberGetter();
+
+                    if (cpuGetter.GetCpuNumber() < 0)
+                        throw new Exception("Native CPU number getter is not working");
+                    return cpuGetter;
+                }
+                catch
+                {
+                    return new FallbackCpuNumberGetter();
+                }
+            }
+
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            internal static int GetCurrentCpuNumber() => _cpuNumberGetterGetter.GetCpuNumber();
         }
     }
 }
