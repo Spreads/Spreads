@@ -199,16 +199,18 @@ namespace Spreads.Text
 #if BUILTIN_SPAN
                 return MemoryMarshal.CreateReadOnlySpan(ref Unsafe.AsRef(in First), _charLength);
 #else
+                int start;
                 if (_object is string s)
                 {
-                    int start = (_byteStart - TypeHelper.StringOffsetInt) / Unsafe.SizeOf<char>(); // TODO (low) just in case, ensure this is optimized to `>> 1`
+                    start = (_byteStart - TypeHelper.StringOffsetInt) / Unsafe.SizeOf<char>();
                     return s.AsSpan(start, Length);
                 }
-                else
-                {
-                    int start = (_byteStart - TypeHelper.ArrayOffsetInt) / Unsafe.SizeOf<char>();
-                    return Unsafe.As<object, char[]>(ref Unsafe.AsRef(in _object)).AsSpan(start, Length);
-                }
+
+                if (_object == null)
+                    return default;
+
+                start = (_byteStart - TypeHelper.ArrayOffsetInt) / Unsafe.SizeOf<char>();
+                return Unsafe.As<object, char[]>(ref Unsafe.AsRef(in _object)).AsSpan(start, Length);
 #endif
             }
         }
@@ -230,8 +232,29 @@ namespace Spreads.Text
             return new StringSegment(_object, start, length);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public StringSegment Slice(Segment segment) => Slice(segment.Start, segment.Length);
+
         /// <summary>
-        /// True if the segment is backed by a string of the exact length.
+        /// Returns true if both string segments are backed by the same instance of a string or a char array
+        /// and this string segment is within the <paramref name="other"/> string segment.
+        /// The out parameter <paramref name="segment"/> is set to the location of this string segment in the other string segment.
+        /// </summary>
+        public bool IsSegmentOf(StringSegment other, out Segment segment)
+        {
+            segment = default;
+            if (other._object != _object)
+                return false;
+            var start = _byteStart - other._byteStart;
+            if (start < 0 || _byteStart + _charLength * Unsafe.SizeOf<char>() > other._byteStart + other._charLength * Unsafe.SizeOf<char>())
+                return false;
+
+            segment = new Segment((_byteStart - (_object is string ? TypeHelper.StringOffsetInt : TypeHelper.ArrayOffsetInt)) / Unsafe.SizeOf<char>(), _charLength);
+            return true;
+        }
+
+        /// <summary>
+        /// True if the segment is backed by a string or a char array of the exact length.
         /// </summary>
         public bool IsTrimmed
         {
@@ -239,7 +262,7 @@ namespace Spreads.Text
             {
                 if (_object is string s)
                     return s.Length == Length;
-                return false;
+                return Unsafe.As<char[]>(_object).Length == Length;
             }
         }
 

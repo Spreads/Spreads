@@ -242,7 +242,9 @@ namespace Spreads.Buffers
         {
             ThrowHelper.Assert(IsDisposed);
 
-            var array = Interlocked.Exchange(ref _array, null);
+            object? array = Volatile.Read(ref _array);
+            if(array != null)
+                array = Interlocked.Exchange(ref _array, null);
             if (array != null)
             {
                 ThrowHelper.DebugAssert(TypeHelper<T>.IsReferenceOrContainsReferences);
@@ -253,23 +255,17 @@ namespace Spreads.Buffers
                     BufferPool<T>.Return(Unsafe.As<T[]>(array), clearArray: true);
             }
 
-            var pointer = Interlocked.Exchange(ref _pointer, IntPtr.Zero);
+            nint pointer = Volatile.Read(ref _pointer);
+            if (pointer != IntPtr.Zero)
+                pointer = Interlocked.Exchange(ref _pointer, IntPtr.Zero);
             if (pointer != IntPtr.Zero)
             {
                 NativeAllocator.Free((byte*)pointer);
                 BuffersStatistics.ReleasedNativeMemory.InterlockedAdd(_length);
             }
 
-            // In PM either pointer or array, never both
             if (array == null && pointer == IntPtr.Zero)
-            {
-                string msg = "Tried to free already freed PrivateMemory";
-#if DEBUG
-                ThrowHelper.ThrowInvalidOperationException(msg);
-#endif
-                Trace.TraceWarning(msg);
                 return;
-            }
 
             ClearFields();
 

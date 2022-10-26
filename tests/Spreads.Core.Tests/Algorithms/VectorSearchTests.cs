@@ -1904,6 +1904,7 @@ namespace Spreads.Core.Tests.Algorithms
                 searchArray[i] = i + (1 - (i % 3));
             }
 
+            searchArray = new[] { 22 };
             foreach (var value in searchArray)
             {
                 int idxCoreClrArray = Array.BinarySearch(array, value);
@@ -1920,8 +1921,6 @@ namespace Spreads.Core.Tests.Algorithms
 
                 idxBinaryDefault.ShouldBe(idxCoreClrArray);
                 idxBinaryClassic.ShouldBe(idxCoreClrArray);
-                idxBinaryClassic.ShouldBe(idxCoreClrArray);
-
                 idxInterpolated.ShouldBe(idxCoreClrArray);
             }
         }
@@ -1988,8 +1987,6 @@ namespace Spreads.Core.Tests.Algorithms
 
                 idxBinaryDefault.ShouldBe(idxCoreClrArray);
                 idxBinaryClassic.ShouldBe(idxCoreClrArray);
-                idxBinaryClassic.ShouldBe(idxCoreClrArray);
-
                 idxInterpolated.ShouldBe(idxCoreClrArray);
             }
         }

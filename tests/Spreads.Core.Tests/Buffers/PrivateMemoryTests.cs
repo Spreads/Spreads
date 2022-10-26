@@ -14,7 +14,7 @@ using Spreads.Threading;
 namespace Spreads.Core.Tests.Buffers
 {
     [Category("CI")]
-    [TestFixture]
+    [TestFixture, Explicit]
     public class PrivateMemoryTests
     {
         [Test]

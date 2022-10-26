@@ -1,7 +1,7 @@
 ﻿// This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
-#if NETCOREAPP3_0
+#if NETCOREAPP3_0_OR_GREATER
 using System;
 using NUnit.Framework;
 using Spreads.Algorithms.Hash;
@@ -124,33 +124,6 @@ namespace Spreads.Core.Tests.Algorithms.Hash
                 for (int i = 0; i < count; i++)
                 {
                     digest = Crc32C.CalculateCrc32CManaged(ptr, len, digest);
-                }
-            }
-            Benchmark.Dump();
-            Console.WriteLine(digest);
-        }
-
-        [Test, Explicit("long running")]
-        public unsafe void Crc32CRalphHashIncrementalBenchmark2()
-        {
-            var rng = new Random(42);
-            var len = 8;
-            var arr = new byte[len];
-            var memory = (Memory<byte>)arr;
-            var handle = memory.Pin();
-            var ptr = handle.Pointer;
-            rng.NextBytes(memory.Span);
-            var count = 100_000_000;
-            var sum = 0UL;
-
-            var crc32C = new Ralph.Crc32C.Crc32C();
-            uint digest = 0;
-            using (Benchmark.Run("CRC32 Ralph", count))
-            {
-                for (int i = 0; i < count; i++)
-                {
-                    crc32C.Update(arr, 0, arr.Length);
-                    digest = crc32C.GetIntValue();
                 }
             }
             Benchmark.Dump();

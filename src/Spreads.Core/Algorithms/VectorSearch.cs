@@ -184,7 +184,7 @@ namespace Spreads.Algorithms
                     else
                     {
                         if (c == 0)
-                            goto RETURN;
+                            return i;
 
                         hi = i - 1;
                     }
@@ -196,7 +196,6 @@ namespace Spreads.Algorithms
                 {
                 }
 
-                RETURN:
                 int ceq1 = -UnsafeEx.Ceq(c, 0);
                 return (ceq1 & lo) | (~ceq1 & ~lo);
             }

@@ -408,7 +408,7 @@ namespace Spreads
             }
 
             // NB all primitive types are IComparable, all custom types could be easily made such
-            // This optimization using Spreads.Unsafe package works for any type that implements
+            // This optimization using UnsafeEx works for any type that implements
             // the interface and is as fast as `typeof(T) == typeof(...)` approach.
             // The special cases above are left for scenarios when the "static readonly" optimization
             // doesn't work, e.g. AOT. See discussion #100.

@@ -19,6 +19,7 @@ namespace Spreads.Core.Tests.Text
         {
             var str = "abcdefg";
             var seg = new StringSegment(str, 2, 3);
+            seg.Length.ShouldBe(3);
             seg.ToString().ShouldBe("cde");
             seg.ToString().ShouldNotBeSameAs(str);
             seg.Span.SequenceEqual("cde".AsSpan()).ShouldBeTrue();
@@ -209,6 +210,36 @@ namespace Spreads.Core.Tests.Text
             var ss = new StringSegment("abcd", 0, 2);
             Should.Throw<IndexOutOfRangeException>(() => ss[2]);
             ss.UnsafeGetAt(2).ShouldBe('c');
+        }
+
+        [Test]
+        public void ShouldFindSubsegment()
+        {
+            var ss = new StringSegment("abcd" + new string('e', 1), 0, 2);
+            var ss1 = new StringSegment("abcd" + new string('e', 1), 0, 2);
+            ss.IsSegmentOf(ss1, out _).ShouldBeFalse();
+        }
+
+        [Test]
+        public void ShouldFindSubsegment1()
+        {
+            var ss = new StringSegment("abcdef", 0, 6);
+            var ss1 = ss.Slice(1, 3);
+            var ss2 = ss.Slice(1, 3);
+            ss2.IsSegmentOf(ss1, out var segment).ShouldBeTrue();
+            segment.Start.ShouldBe(1);
+            segment.Length.ShouldBe(3);
+
+            ss2 = ss.Slice(0, 3);
+            ss2.IsSegmentOf(ss1, out segment).ShouldBeFalse();
+
+            ss2 = ss.Slice(1, 4);
+            ss2.IsSegmentOf(ss1, out segment).ShouldBeFalse();
+
+            ss2 = ss.Slice(2, 2);
+            ss2.IsSegmentOf(ss1, out segment).ShouldBeTrue();
+            segment.Start.ShouldBe(2);
+            segment.Length.ShouldBe(2);
         }
     }
 }

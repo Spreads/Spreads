@@ -18,8 +18,8 @@ namespace Spreads.Collections.Generic
     {
         private readonly T _defaultValue;
 
-        private static readonly T[] InitialEntries = new T[1];
-        private static readonly int[] InitialNexts = new int[1];
+        private static readonly T[] _initialEntries = new T[1];
+        private static readonly int[] _initialNexts = new int[1];
 
         private int _count;
 
@@ -39,8 +39,8 @@ namespace Spreads.Collections.Generic
         public HashSetSlim()
         {
             _buckets = HashHelpers.SizeOneIntArray;
-            _entries = InitialEntries;
-            _nexts = InitialNexts;
+            _entries = _initialEntries;
+            _nexts = _initialNexts;
             _defaultValue = default!;
         }
 
@@ -77,8 +77,8 @@ namespace Spreads.Collections.Generic
             _count = 0;
             _freeList = -1;
             _buckets = HashHelpers.SizeOneIntArray;
-            _entries = InitialEntries;
-            _nexts = InitialNexts;
+            _entries = _initialEntries;
+            _nexts = _initialNexts;
         }
 
         /// <summary>
@@ -240,10 +240,9 @@ namespace Spreads.Collections.Generic
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public ref readonly T UnsafeGetAt(int index)
-        {
-            return ref _entries.UnsafeGetAt(index);
-        }
+        public ref readonly T UnsafeGetAt(int index) => ref _entries.UnsafeGetAt(index);
+
+        public T[] UnsafeGetEntries() => _entries;
 
         /// <summary>
         /// Removes the entry if present with the specified key.

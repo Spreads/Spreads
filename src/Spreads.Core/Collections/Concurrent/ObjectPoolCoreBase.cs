@@ -22,7 +22,7 @@ namespace Spreads.Collections.Concurrent
         protected volatile bool _disposed;
 
         public int Capacity => _items.Length;
-        
+
         public virtual void Dispose()
         {
             lock (_items)
@@ -34,9 +34,7 @@ namespace Spreads.Collections.Concurrent
                 foreach (var o in _items)
                 {
                     if (o.Value != null && o.Value is IDisposable idisp)
-                    {
                         idisp.Dispose();
-                    }
                 }
             }
         }

@@ -20,7 +20,7 @@ namespace Spreads.Collections.Concurrent
 
         protected readonly TWrapper[] _perCorePools;
 
-        private readonly ConcurrentQueue<T> _unboundedPool;
+        private readonly ConcurrentQueue<T>? _unboundedPool;
 
         private volatile bool _disposed;
 

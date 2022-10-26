@@ -222,12 +222,10 @@ namespace Spreads.Buffers
         {
             ThrowHelper.DebugAssert(AtomicCounter.GetIsDisposed(ref CounterRef));
 
-            PoolIndex = 0;
-            _pointer = IntPtr.Zero;
             _offset = -1; // make it unusable if not re-initialized
             _length = default; // not -1, we have uint cast. Also len = 0 should not corrupt existing data
-            PoolIndex = default;
             _memory = default;
+            PoolIndex = default;
         }
 
         protected sealed override void Dispose(bool disposing)

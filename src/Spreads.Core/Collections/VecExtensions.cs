@@ -13,20 +13,46 @@ namespace Spreads.Collections
     {
         /// <summary>
         /// Get an <paramref name="array"/> element at <paramref name="index"/> in a very unsafe way.
-        /// There are no checks for null or bounds, they validity of the call must be ensured before using this method.
+        /// There are no checks for null or bounds, the validity of the call must be ensured before using this method.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static ref T UnsafeGetAt<T>(this T[] array, int index)
         {
-            Debug.Assert((uint)index < array.Length, "GetAt: (uint)index < array.Length");
-            return ref Unsafe.Add(ref Unsafe.AddByteOffset(ref Unsafe.As<Box<T>>(array)!.Value, TypeHelper.ArrayOffset), index);
+            Debug.Assert((uint)index < array.Length, "UnsafeGetAt: (uint)index < array.Length");
+            return ref Unsafe.Add(ref Unsafe.AddByteOffset(ref Unsafe.As<Box<T>>(array)!.Value, TypeHelper<T>.ArrayOffset), (uint)index);
         }
 
+        /// <summary>
+        /// Get an <paramref name="array"/> element at <paramref name="index"/> in a very unsafe way.
+        /// There are no checks for null or bounds, the validity of the call must be ensured before using this method.
+        /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static ref T UnsafeGetAt<T>(this object array, int index)
         {
-            Debug.Assert((uint)index < ((Array)array).Length, "GetAt: (uint)index < array.Length");
-            return ref Unsafe.Add(ref Unsafe.AddByteOffset(ref Unsafe.As<Box<T>>(array)!.Value, TypeHelper.ArrayOffset), index);
+            Debug.Assert((uint)index < ((Array)array).Length, "UnsafeGetAt: (uint)index < array.Length");
+            return ref Unsafe.Add(ref Unsafe.AddByteOffset(ref Unsafe.As<Box<T>>(array)!.Value, TypeHelper<T>.ArrayOffset), (uint)index);
+        }
+
+        /// <summary>
+        /// Get an <paramref name="array"/> element at <paramref name="index"/> in a very unsafe way.
+        /// There are no checks for null or bounds, the validity of the call must be ensured before using this method.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static ref T UnsafeGetFirst<T>(this T[] array)
+        {
+            Debug.Assert(array.Length > 0, "UnsafeGetFirst: array.Length > 0");
+            return ref Unsafe.AddByteOffset(ref Unsafe.As<Box<T>>(array)!.Value, TypeHelper<T>.ArrayOffset);
+        }
+
+        /// <summary>
+        /// Get an <paramref name="array"/> element at <paramref name="index"/> in a very unsafe way.
+        /// There are no checks for null or bounds, the validity of the call must be ensured before using this method.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static ref T UnsafeGetFirst<T>(this object array)
+        {
+            Debug.Assert(((Array)array).Length > 0, "UnsafeGetFirst: array.Length > 0");
+            return ref Unsafe.AddByteOffset(ref Unsafe.As<Box<T>>(array)!.Value, TypeHelper<T>.ArrayOffset);
         }
 
         /// <summary>

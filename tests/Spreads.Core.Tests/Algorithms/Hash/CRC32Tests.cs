@@ -50,7 +50,7 @@ namespace Spreads.Core.Tests.Algorithms.Hash
                     }
                 }
 
-                uint crc0, crc1, crc2;
+                uint crc0, crc1;
 
                 {
                     uint digest = 0;
@@ -76,23 +76,7 @@ namespace Spreads.Core.Tests.Algorithms.Hash
                     crc1 = digest;
                 }
 
-                {
-                    var crc32C = new Ralph.Crc32C.Crc32C();
-                    uint digest = 0;
-                    using (Benchmark.Run("CRC32 Ralph", count, true))
-                    {
-                        for (int i = 0; i < cnt; i++)
-                        {
-                            crc32C.Update(arr, 0, arr.Length);
-                            digest = crc32C.GetIntValue();
-                        }
-                    }
-
-                    crc2 = digest;
-                }
-
                 crc1.ShouldBe(crc0);
-                crc2.ShouldBe(crc0);
 
                 Benchmark.Dump("LEN: " + len);
             }

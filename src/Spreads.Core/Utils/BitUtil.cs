@@ -3,6 +3,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 using System;
+using System.Numerics;
 using System.Runtime.CompilerServices;
 #if HAS_INTRINSICS
 using System.Runtime.Intrinsics;
@@ -101,7 +102,7 @@ namespace Spreads.Utils
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool IsAligned(long address, int alignment)
         {
-            if (AdditionalCorrectnessChecks.Enabled && !IsPow2((uint) alignment))
+            if (AdditionalCorrectnessChecks.Enabled && !IsPow2((uint)alignment))
                 ThrowHelper.ThrowArgumentException($"Alignment must be a power of 2: alignment={alignment}");
 
             return (address & (alignment - 1)) == 0;
@@ -120,7 +121,7 @@ namespace Spreads.Utils
 #if HAS_INTRINSICS
                 if (X86.Bmi1.IsSupported)
                     // TZCNT contract is 0->32
-                    return (int) X86.Bmi1.TrailingZeroCount((uint) value);
+                    return (int)X86.Bmi1.TrailingZeroCount((uint)value);
 
                 if (Arm.ArmBase.IsSupported)
                     return Arm.ArmBase.LeadingZeroCount(Arm.ArmBase.ReverseElementBits(value));
@@ -190,13 +191,13 @@ namespace Spreads.Utils
 #if HAS_INTRINSICS
                 if (X86.Lzcnt.IsSupported)
                     // LZCNT contract is 0->32
-                    return (int) X86.Lzcnt.LeadingZeroCount((uint) value);
+                    return (int)X86.Lzcnt.LeadingZeroCount((uint)value);
 
                 if (Arm.ArmBase.IsSupported)
                     return Arm.ArmBase.LeadingZeroCount(value);
 #endif
 #if HAS_BITOPERATIONS
-                return System.Numerics.BitOperations.LeadingZeroCount((uint) value);
+                return System.Numerics.BitOperations.LeadingZeroCount((uint)value);
 #else
                 // HD, Figure 5-6
                 if (value == 0)
@@ -254,13 +255,13 @@ namespace Spreads.Utils
         {
 #if HAS_INTRINSICS
             if (X86.Lzcnt.X64.IsSupported)
-                return (int) X86.Lzcnt.X64.LeadingZeroCount((ulong) value);
+                return (int)X86.Lzcnt.X64.LeadingZeroCount((ulong)value);
 
             if (Arm.ArmBase.Arm64.IsSupported)
-                return Arm.ArmBase.Arm64.LeadingZeroCount((ulong) value);
+                return Arm.ArmBase.Arm64.LeadingZeroCount((ulong)value);
 #endif
 #if HAS_BITOPERATIONS
-            return System.Numerics.BitOperations.LeadingZeroCount((ulong) value);
+            return System.Numerics.BitOperations.LeadingZeroCount((ulong)value);
 #else
             unchecked
             {
@@ -317,7 +318,7 @@ namespace Spreads.Utils
         {
 #if HAS_INTRINSICS
             if (X86.Popcnt.IsSupported)
-                return (int) X86.Popcnt.PopCount(value);
+                return (int)X86.Popcnt.PopCount(value);
 
             if (Arm.AdvSimd.Arm64.IsSupported)
             {
@@ -341,7 +342,7 @@ namespace Spreads.Utils
                 value = (value & c2) + ((value >> 2) & c2);
                 value = (((value + (value >> 4)) & c3) * c4) >> 24;
 
-                return (int) value;
+                return (int)value;
             }
         }
 
@@ -355,7 +356,7 @@ namespace Spreads.Utils
         {
 #if HAS_INTRINSICS
             if (X86.Popcnt.X64.IsSupported)
-                return (int) X86.Popcnt.X64.PopCount(value);
+                return (int)X86.Popcnt.X64.PopCount(value);
 
             if (Arm.AdvSimd.Arm64.IsSupported)
             {
@@ -367,8 +368,8 @@ namespace Spreads.Utils
 
             if (X86.Popcnt.IsSupported || Arm.AdvSimd.Arm64.IsSupported)
             {
-                return PopCount((uint) value) // lo
-                       + PopCount((uint) (value >> 32)); // hi
+                return PopCount((uint)value) // lo
+                       + PopCount((uint)(value >> 32)); // hi
             }
 
 #endif
@@ -385,64 +386,52 @@ namespace Spreads.Utils
                 value = (value & c2) + ((value >> 2) & c2);
                 value = (((value + (value >> 4)) & c3) * c4) >> 56;
 
-                return (int) value;
+                return (int)value;
             }
         }
 
         /// <summary>
-        /// Is a value a positive power of two.
+        /// Evaluate whether a given integral value is a power of 2.
         /// </summary>
-        /// <param name="value"> to be checked. </param>
-        /// <returns> true if the number is a positive power of two otherwise false. </returns>
+        /// <param name="value">The value.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool IsPow2(uint value)
-        {
-            unchecked
-            {
-#if HAS_INTRINSICS
-                if (X86.Popcnt.IsSupported)
-                    return 1 == X86.Popcnt.PopCount(value);
-
-                if (Arm.AdvSimd.Arm64.IsSupported)
-                {
-                    // PopCount works on vector so convert input value to vector first.
-                    Vector64<uint> input = Vector64.CreateScalar(value);
-                    Vector64<byte> aggregated = Arm.AdvSimd.Arm64.AddAcross(Arm.AdvSimd.PopCount(input.AsByte()));
-                    return 1 == aggregated.ToScalar();
-                }
-#endif
-                return ((value & (value - 1)) == value) && value != 0;
-            }
-        }
+        public static bool IsPow2(int value) => (value & (value - 1)) == 0 && value > 0;
 
         /// <summary>
-        /// Is a value a positive power of two.
+        /// Evaluate whether a given integral value is a power of 2.
         /// </summary>
-        /// <param name="value"> to be checked. </param>
-        /// <returns> true if the number is a positive power of two otherwise false. </returns>
+        /// <param name="value">The value.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool IsPow2(int value)
-        {
-            // TODO update with BitOperations final implementation dotnet/runtime/pull/36163
-            if (value <= 0)
-                return false;
+        [CLSCompliant(false)]
+        public static bool IsPow2(uint value) => (value & (value - 1)) == 0 && value != 0;
 
-            unchecked
-            {
-#if HAS_INTRINSICS
-                if (X86.Popcnt.IsSupported)
-                    return 1 == X86.Popcnt.PopCount((uint) value);
+        /// <summary>
+        /// Evaluate whether a given integral value is a power of 2.
+        /// </summary>
+        /// <param name="value">The value.</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static bool IsPow2(long value) => (value & (value - 1)) == 0 && value > 0;
 
-                if (Arm.AdvSimd.Arm64.IsSupported)
-                {
-                    // PopCount works on vector so convert input value to vector first.
-                    Vector64<uint> input = Vector64.CreateScalar((uint) value);
-                    Vector64<byte> aggregated = Arm.AdvSimd.Arm64.AddAcross(Arm.AdvSimd.PopCount(input.AsByte()));
-                    return 1 == aggregated.ToScalar();
-                }
-#endif
-                return ((value & (value - 1)) == value);
-            }
-        }
+        /// <summary>
+        /// Evaluate whether a given integral value is a power of 2.
+        /// </summary>
+        /// <param name="value">The value.</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [CLSCompliant(false)]
+        public static bool IsPow2(ulong value) => (value & (value - 1)) == 0 && value != 0;
+
+        /// <summary>
+        /// Evaluate whether a given integral value is a power of 2.
+        /// </summary>
+        /// <param name="value">The value.</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static bool IsPow2(nint value) => (value & (value - 1)) == 0 && value > 0;
+
+        /// <summary>
+        /// Evaluate whether a given integral value is a power of 2.
+        /// </summary>
+        /// <param name="value">The value.</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static bool IsPow2(nuint value) => (value & (value - 1)) == 0 && value != 0;
     }
 }

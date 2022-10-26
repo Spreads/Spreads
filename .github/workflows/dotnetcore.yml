@@ -1,0 +1,31 @@
+name: Build & Test Spreads.Core
+
+on:
+  push:
+    branches: [ main ]
+  release:
+    types:
+      - published
+
+env:
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+
+  test:
+    name: Test on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
+    steps:
+    - uses: actions/checkout@v3
+    - name: Setup .NET Core
+      uses: actions/setup-dotnet@v2
+      with:
+        dotnet-version: 6.0.x
+    - name: Test 6.0 Debug
+      run: dotnet test tests/Spreads.Core.Tests/Spreads.Core.Tests.csproj -f net6.0 -c Debug --filter TestCategory=CI -v m
+    - name: Test 6.0 Release
+      run: dotnet test tests/Spreads.Core.Tests/Spreads.Core.Tests.csproj -f net6.0 -c Release --filter TestCategory=CI -v m
