@@ -13,8 +13,8 @@ env:
 
 jobs:
 
-  test:
-    name: Test on ${{ matrix.os }}
+  test_net60:
+    name: Test .NET 6.0 on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -29,3 +29,24 @@ jobs:
       run: dotnet test tests/Spreads.Core.Tests/Spreads.Core.Tests.csproj -f net6.0 -c Debug --filter TestCategory=CI -v m
     - name: Test 6.0 Release
       run: dotnet test tests/Spreads.Core.Tests/Spreads.Core.Tests.csproj -f net6.0 -c Release --filter TestCategory=CI -v m
+
+
+  test_net48:
+    name: Test .NET 4.8
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        os: [windows-latest]
+    steps:
+      - uses: actions/checkout@v3
+      - name: Setup .NET Core
+        uses: actions/setup-dotnet@v2
+        with:
+          dotnet-version: 6.0.x
+      - name: Setup msbuild
+        uses: microsoft/setup-msbuild@v1.1
+      - name: Test .NET 4.8
+        run: |
+          dotnet restore tests/Spreads.Core.Tests/Spreads.Core.Tests.csproj
+          msbuild tests/Spreads.Core.Tests/Spreads.Core.Tests.csproj /p:Configuration=Release
+          dotnet test tests/Spreads.Core.Tests/Spreads.Core.Tests.csproj -f net48 -c Release --no-build --no-restore --filter TestCategory=CI -v m

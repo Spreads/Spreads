@@ -1532,28 +1532,23 @@ namespace Spreads.Core.Tests.Algorithms
                     for (int i = -10; i < count + 10; i++)
                     {
                         var bs = VectorSearch.BinarySearchClassic(ref vec[0], r, count - r, (i * step));
-                        var bsavx = VectorSearch.BinarySearchAvx2LoHi(ref vec[0], r, count - 1, (i * step));
-                        var ints = VectorSearch.InterpolationSearch(ref vec[0], r, count - r, (i * step));
-                        // var intsAvx = VectorSearch.InterpolationSearchAvx3(ref vec[0], r, count - r, (i * step));
-                        if (bs != ints)
+                        if (Avx2.IsSupported)
                         {
-                            Console.WriteLine($"IS_AVX: [{count}] binRes {bs} != interRes {ints} at {i}");
-                            ints = VectorSearch.InterpolationSearch(ref vec[0], r, count - r, (i * step));
-                            Assert.Fail();
-                        }
+                            var ints = VectorSearch.InterpolationSearch(ref vec[0], r, count - r, (i * step));
+                            if (bs != ints)
+                            {
+                                Console.WriteLine($"IS_AVX: [{count}] binRes {bs} != interRes {ints} at {i}");
+                                ints = VectorSearch.InterpolationSearch(ref vec[0], r, count - r, (i * step));
+                                Assert.Fail();
+                            }
 
-                        // if (bs != intsAvx)
-                        // {
-                        //     Console.WriteLine($"IS_AVX: [{count}] binRes {bs} != intsAvx {intsAvx} at {i}");
-                        //     ints = VectorSearch.InterpolationSearchAvx3(ref vec[0], r, count- r, (i * step));
-                        //     Assert.Fail();
-                        // }
-
-                        if (bs != bsavx)
-                        {
-                            Console.WriteLine($"BS_AVX: [{count}] binRes {bs} != bsavx {bsavx} at {i}");
-                            bsavx = VectorSearch.BinarySearchAvx2LoHi(ref vec[0], r, count - 1, (i * step));
-                            Assert.Fail();
+                            var bsavx = VectorSearch.BinarySearchAvx2LoHi(ref vec[0], r, count - 1, (i * step));
+                            if (bs != bsavx)
+                            {
+                                Console.WriteLine($"BS_AVX: [{count}] binRes {bs} != bsavx {bsavx} at {i}");
+                                bsavx = VectorSearch.BinarySearchAvx2LoHi(ref vec[0], r, count - 1, (i * step));
+                                Assert.Fail();
+                            }
                         }
 
                         if (bs >= 0)
@@ -1878,10 +1873,17 @@ namespace Spreads.Core.Tests.Algorithms
                 int idxInterpolated = VectorSearch.InterpolationSearch(ref array[0], array.Length, value);
 
 #if HAS_INTRINSICS
-                int idxAvx = VectorSearch.BinarySearchAvx2LoHi(ref array[0], 0, array.Length - 1, value);
-                int idxSse = VectorSearch.BinarySearchSse42LoHi(ref array[0], 0, array.Length - 1, value);
-                idxAvx.ShouldBe(idxCoreClrArray);
-                idxSse.ShouldBe(idxCoreClrArray);
+                if (Avx2.IsSupported)
+                {
+                    int idxAvx = VectorSearch.BinarySearchAvx2LoHi(ref array[0], 0, array.Length - 1, value);
+                    idxAvx.ShouldBe(idxCoreClrArray);
+                }
+
+                if (Sse42.IsSupported)
+                {
+                    int idxSse = VectorSearch.BinarySearchSse42LoHi(ref array[0], 0, array.Length - 1, value);
+                    idxSse.ShouldBe(idxCoreClrArray);
+                }
 #endif
 
                 idxBinaryDefault.ShouldBe(idxCoreClrArray);
@@ -1913,10 +1915,17 @@ namespace Spreads.Core.Tests.Algorithms
                 int idxInterpolated = VectorSearch.InterpolationSearch(ref array[0], array.Length, value);
 
 #if HAS_INTRINSICS
-                int idxAvx = VectorSearch.BinarySearchAvx2LoHi(ref array[0], 0, array.Length - 1, value);
-                int idxSse = VectorSearch.BinarySearchSse42LoHi(ref array[0], 0, array.Length - 1, value);
-                idxAvx.ShouldBe(idxCoreClrArray);
-                idxSse.ShouldBe(idxCoreClrArray);
+                if (Avx2.IsSupported)
+                {
+                    int idxAvx = VectorSearch.BinarySearchAvx2LoHi(ref array[0], 0, array.Length - 1, value);
+                    idxAvx.ShouldBe(idxCoreClrArray);
+                }
+
+                if (Sse42.IsSupported)
+                {
+                    int idxSse = VectorSearch.BinarySearchSse42LoHi(ref array[0], 0, array.Length - 1, value);
+                    idxSse.ShouldBe(idxCoreClrArray);
+                }
 #endif
 
                 idxBinaryDefault.ShouldBe(idxCoreClrArray);
@@ -1945,10 +1954,17 @@ namespace Spreads.Core.Tests.Algorithms
                 int idxInterpolated = VectorSearch.InterpolationSearch(ref array[0], array.Length, value);
 
 #if HAS_INTRINSICS
-                int idxAvx = VectorSearch.BinarySearchAvx2LoHi(ref array[0], 0, array.Length - 1, value);
-                int idxSse = VectorSearch.BinarySearchSse42LoHi(ref array[0], 0, array.Length - 1, value);
-                idxAvx.ShouldBe(idxCoreClrArray);
-                idxSse.ShouldBe(idxCoreClrArray);
+                if (Avx2.IsSupported)
+                {
+                    int idxAvx = VectorSearch.BinarySearchAvx2LoHi(ref array[0], 0, array.Length - 1, value);
+                    idxAvx.ShouldBe(idxCoreClrArray);
+                }
+
+                if (Sse42.IsSupported)
+                {
+                    int idxSse = VectorSearch.BinarySearchSse42LoHi(ref array[0], 0, array.Length - 1, value);
+                    idxSse.ShouldBe(idxCoreClrArray);
+                }
 #endif
 
                 idxBinaryDefault.ShouldBe(idxCoreClrArray);
@@ -1979,10 +1995,17 @@ namespace Spreads.Core.Tests.Algorithms
                 int idxInterpolated = VectorSearch.InterpolationSearch(ref array[0], array.Length, value);
 
 #if HAS_INTRINSICS
-                int idxAvx = VectorSearch.BinarySearchAvx2LoHi(ref array[0], 0, array.Length - 1, value);
-                int idxSse = VectorSearch.BinarySearchSse42LoHi(ref array[0], 0, array.Length - 1, value);
-                idxAvx.ShouldBe(idxCoreClrArray);
-                idxSse.ShouldBe(idxCoreClrArray);
+                if (Avx2.IsSupported)
+                {
+                    int idxAvx = VectorSearch.BinarySearchAvx2LoHi(ref array[0], 0, array.Length - 1, value);
+                    idxAvx.ShouldBe(idxCoreClrArray);
+                }
+
+                if (Sse42.IsSupported)
+                {
+                    int idxSse = VectorSearch.BinarySearchSse42LoHi(ref array[0], 0, array.Length - 1, value);
+                    idxSse.ShouldBe(idxCoreClrArray);
+                }
 #endif
 
                 idxBinaryDefault.ShouldBe(idxCoreClrArray);
