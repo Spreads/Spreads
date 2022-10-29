@@ -13,7 +13,7 @@
     <Copyright>Victor Baybekov 2017-2022</Copyright>
     <NeutralLanguage>en-US</NeutralLanguage>
     <RepositoryType>git</RepositoryType>
-    <RepositoryUrl>https://github.com/Spreads/Spreads.git</RepositoryUrl>
+    <RepositoryUrl>https://github.com/Spreads/Spreads</RepositoryUrl>
 
     <!-- The SPDX name for the source license. See https://spdx.org/licenses/. -->
     <PackageLicenseExpression>MPL-2.0</PackageLicenseExpression>
@@ -51,11 +51,11 @@
 
   <PropertyGroup>
     <!-- Change YY and Q only for important releases. -->
-    <YYVersion>2022</YYVersion>
+    <YYVersion>$([System.DateTime]::Now.ToString(yyyy))</YYVersion>
     <QVersion>0</QVersion>
 
     <!-- Overrides -->
-    <MMDDVersion>702</MMDDVersion>
+    <MMDDVersion></MMDDVersion>
     <PackageHHMMSSSuffix Condition="$(AutoSuffix) != '' AND $(AutoSuffix)">$(VersionSuffix)</PackageHHMMSSSuffix>
 
   </PropertyGroup>
@@ -66,7 +66,7 @@
 
     <MMDDVersion Condition="'$(MMDDVersion)' == '' AND $(AutoSuffix)">$([System.DateTime]::Now.ToString(MMdd))</MMDDVersion>
     <PackageHHMMSSSuffix Condition="'$(PackageHHMMSSSuffix)' != ''">-$(PackageHHMMSSSuffix)</PackageHHMMSSSuffix>
-    <PackageHHMMSSSuffix Condition="'$(PackageHHMMSSSuffix)' == '' AND $(AutoSuffix)">-build$([System.DateTime]::Now.ToString("HHmm"))</PackageHHMMSSSuffix>
+    <PackageHHMMSSSuffix Condition="'$(PackageHHMMSSSuffix)' == '' AND $(AutoSuffix)">-build$([System.DateTime]::Now.ToString("HHmmss"))</PackageHHMMSSSuffix>
     <Version>$(YYVersion).$(QVersion).$(MMDDVersion)$(PackageHHMMSSSuffix)</Version>
 
     <!-- Do not change the assembly version. Keeping it fixed eliminates most problems, NuGet will choose the right version. -->

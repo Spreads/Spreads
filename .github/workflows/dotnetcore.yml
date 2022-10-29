@@ -3,9 +3,6 @@ name: Build & Test Spreads.Core
 on:
   push:
     branches: [ main ]
-  release:
-    types:
-      - published
 
 env:
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
@@ -20,15 +17,15 @@ jobs:
       matrix:
         os: [windows-latest, macos-latest, ubuntu-latest]
     steps:
-    - uses: actions/checkout@v3
-    - name: Setup .NET Core
-      uses: actions/setup-dotnet@v2
-      with:
-        dotnet-version: 6.0.x
-    - name: Test 6.0 Debug
-      run: dotnet test tests/Spreads.Core.Tests/Spreads.Core.Tests.csproj -f net6.0 -c Debug --filter TestCategory=CI -v m
-    - name: Test 6.0 Release
-      run: dotnet test tests/Spreads.Core.Tests/Spreads.Core.Tests.csproj -f net6.0 -c Release --filter TestCategory=CI -v m
+      - uses: actions/checkout@v3
+      - name: Setup .NET Core
+        uses: actions/setup-dotnet@v2
+        with:
+          dotnet-version: 6.0.x
+      - name: Test 6.0 Debug
+        run: dotnet test tests/Spreads.Core.Tests/Spreads.Core.Tests.csproj -f net6.0 -c Debug --filter TestCategory=CI -v m
+      - name: Test 6.0 Release
+        run: dotnet test tests/Spreads.Core.Tests/Spreads.Core.Tests.csproj -f net6.0 -c Release --filter TestCategory=CI -v m
 
 
   test_net48:
@@ -50,3 +47,9 @@ jobs:
           dotnet restore tests/Spreads.Core.Tests/Spreads.Core.Tests.csproj
           msbuild tests/Spreads.Core.Tests/Spreads.Core.Tests.csproj /p:Configuration=Release
           dotnet test tests/Spreads.Core.Tests/Spreads.Core.Tests.csproj -f net48 -c Release --no-build --no-restore --filter TestCategory=CI -v m
+      - name: Pack
+        shell: cmd
+        run: dotnet pack src/Spreads.Core/Spreads.Core.csproj -c Release -o artifacts --version-suffix "%build%" -p:AutoSuffix=True
+      - name: Push
+        run: dotnet nuget push "artifacts\**\*.nupkg" -k ${{ secrets.GITHUB_TOKEN }} -s https://nuget.pkg.github.com/Spreads/index.json --skip-duplicate
+
