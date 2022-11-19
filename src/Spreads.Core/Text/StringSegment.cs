@@ -15,7 +15,10 @@ namespace Spreads.Text
     /// </summary>
     [DebuggerDisplay("{ToString()}")]
     [StructLayout(LayoutKind.Explicit, Size = 16)]
-    public readonly struct StringSegment : ISegment<StringSegment, char>
+    public readonly struct StringSegment : ISegment<StringSegment, char>, IFormattable
+#if NET6_0_OR_GREATER
+        , ISpanFormattable
+#endif
     {
         public static readonly StringSegment Empty;
 
@@ -288,6 +291,23 @@ namespace Spreads.Text
                 return s;
             return Span.ToString();
         }
+
+        public string ToString(string? format, IFormatProvider? formatProvider) => ToString();
+
+#if NET6_0_OR_GREATER
+        public bool TryFormat(Span<char> destination, out int charsWritten, ReadOnlySpan<char> format, IFormatProvider? provider)
+        {
+            if (destination.Length < Length)
+            {
+                charsWritten = 0;
+                return false;
+            }
+
+            Span.CopyTo(destination);
+            charsWritten = Length;
+            return true;
+        }
+#endif
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool Equals(StringSegment other)

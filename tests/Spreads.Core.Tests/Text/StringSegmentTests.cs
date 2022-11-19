@@ -241,5 +241,13 @@ namespace Spreads.Core.Tests.Text
             segment.Start.ShouldBe(2);
             segment.Length.ShouldBe(2);
         }
+
+        [Test]
+        public void ShouldInterpolate()
+        {
+            var a = new StringSegment("_abc", 1, 1);
+            var result = $"{a}{a}{a}{a}{a}{a}{a}{a}{a}{a}";
+            result.ShouldBe("aaaaaaaaaa");
+        }
     }
 }
