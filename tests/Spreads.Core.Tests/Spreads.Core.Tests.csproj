@@ -39,7 +39,7 @@
         <PackageReference Include="JetBrains.dotMemoryUnit" Version="3.2.20220510" />
         <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Scripting" Version="4.3.0" />
         <PackageReference Include="Microsoft.IO.RecyclableMemoryStream" Version="2.2.1" />
-        <PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
+        <PackageReference Include="Newtonsoft.Json" Version="13.0.2" />
         <PackageReference Include="NSec.Cryptography" Version="20.2.0" />
         <PackageReference Include="ObjectLayoutInspector" Version="0.1.4" />
         <PackageReference Include="Shouldly" Version="4.1.0" />
