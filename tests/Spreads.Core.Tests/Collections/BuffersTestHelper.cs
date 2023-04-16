@@ -16,5 +16,13 @@ namespace Spreads.Core.Tests.Collections
 
             return rm;
         }
+
+        public static void FinalizeAll()
+        {
+            GC.Collect(2, GCCollectionMode.Forced, true);
+            GC.WaitForPendingFinalizers();
+            GC.Collect(2, GCCollectionMode.Forced, true);
+            GC.WaitForPendingFinalizers();
+        }
     }
 }

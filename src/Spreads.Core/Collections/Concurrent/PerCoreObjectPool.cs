@@ -16,15 +16,16 @@ namespace Spreads.Collections.Concurrent
         where TPoolImpl : IObjectPool<T>
         where TWrapper : struct, IObjectPoolWrapper<T, TPoolImpl>
     {
-        private readonly Func<T>? _objFactory;
+        private readonly Func<T?>? _objFactory;
 
         protected readonly TWrapper[] _perCorePools;
 
+        // Not ConcurrentBag, we already do per-core stuff and do not want thread-local storage.
         private readonly ConcurrentQueue<T>? _unboundedPool;
 
         private volatile bool _disposed;
 
-        protected PerCoreObjectPool(Func<TPoolImpl> perCorePoolFactory, Func<T> objFactory, bool unbounded)
+        protected PerCoreObjectPool(Func<TPoolImpl> perCorePoolFactory, Func<T?> objFactory, bool unbounded)
         {
             _perCorePools = new TWrapper[Cpu.CoreCount];
             for (int i = 0; i < _perCorePools.Length; i++)

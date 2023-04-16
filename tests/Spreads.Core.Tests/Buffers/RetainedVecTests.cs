@@ -15,6 +15,13 @@ namespace Spreads.Core.Tests.Buffers
     [TestFixture]
     public unsafe class RetainedVecTests
     {
+        [TearDown]
+        public void TearDown()
+        {
+            BuffersTestHelper.FinalizeAll();
+        }
+
+
 #if NETCOREAPP
         class Test
         {
@@ -85,6 +92,8 @@ namespace Spreads.Core.Tests.Buffers
             Console.WriteLine(sum);
 
             vs.Dispose();
+
+            rm.IsRetained.ShouldBeFalse();
         }
 
         //[Test]
@@ -135,7 +144,7 @@ namespace Spreads.Core.Tests.Buffers
                     }
                 }
             }
-
+            vs.Dispose();
             Benchmark.Dump();
             Console.WriteLine(sum);
         }

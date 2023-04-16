@@ -9,16 +9,22 @@ using Spreads.Threading;
 
 namespace Spreads.Collections.Concurrent
 {
-    public class ObjectPoolCoreBase<T> : LeftPad112 where T : class
+    public abstract class ObjectPoolCoreBase<T> : LeftPad112 where T : class
     {
+        protected ObjectPoolCoreBase(int size, Func<T?>? factory = null)
+        {
+            _items = new Element[size];
+            Factory = factory;
+        }
+
         [DebuggerDisplay("{Value,nq}")]
         protected struct Element
         {
             internal T? Value;
         }
 
-        internal Func<T> Factory;
-        protected Element[] _items;
+        protected readonly Func<T?>? Factory;
+        protected readonly Element[] _items;
         protected volatile bool _disposed;
 
         public int Capacity => _items.Length;

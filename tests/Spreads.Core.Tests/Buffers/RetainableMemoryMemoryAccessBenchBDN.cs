@@ -55,11 +55,7 @@ namespace Spreads.Core.Tests.Buffers
 
         protected override IConfig GetStandaloneConfig() => DefaultConfig.Instance.With(Job.ShortRun.WithUnrollFactor(1));
 
-        [Test
-#if !DEBUG
-         , Explicit("bench")
-#endif
-        ]
+        [Test, Explicit("bench")]
 #if NETCOREAPP3_0
         [MethodImpl(Constants.MethodImplAggressiveOptimization)]
 #endif
@@ -183,11 +179,7 @@ namespace Spreads.Core.Tests.Buffers
                         _db.RetainedVec.UnsafeReadUnaligned<int>(_db.RetainedVec.UnsafeReadUnaligned<int>(_db.RetainedVec.UnsafeReadUnaligned<int>(_idx))))))))));
         }
 
-        [Test
-#if !DEBUG
-         , Explicit("bench")
-#endif
-        ]
+        [Test, Explicit("bench")]
 #if NETCOREAPP3_0
         [MethodImpl(Constants.MethodImplAggressiveOptimization)]
 #endif

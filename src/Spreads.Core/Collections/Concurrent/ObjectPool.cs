@@ -35,7 +35,7 @@ namespace Spreads.Collections.Concurrent
     public class ObjectPool<T> : PerCoreObjectPool<T, ObjectPoolCore<T>, ObjetPoolWrapper<T>> where T : class
     {
         public ObjectPool(Func<T> factory, int perCoreSize)
-            : base(() => new RightPaddedObjectPoolCore(factory, perCoreSize), factory, false)
+            : base(() => new RightPaddedObjectPoolCore(factory, perCoreSize), factory, unbounded: false)
         {
         }
 
@@ -148,23 +148,15 @@ namespace Spreads.Collections.Concurrent
         }
 #endif
 
-        public ObjectPoolCore(Func<T> factory)
-            : this(factory, Environment.ProcessorCount * 2)
+        public ObjectPoolCore(Func<T> factory) : this(factory, Environment.ProcessorCount * 2)
         {
         }
 
-        public ObjectPoolCore(Func<T> factory, int size)
+        public ObjectPoolCore(Func<T> factory, int size) : base(size, factory)
         {
-            Debug.Assert(size >= 1);
-            Factory = factory;
-            _items = new Element[size - 1];
         }
 
-        private T CreateInstance()
-        {
-            var inst = Factory();
-            return inst;
-        }
+        private T? CreateInstance() => Factory?.Invoke();
 
         /// <summary>
         /// Produces an instance.
@@ -175,7 +167,7 @@ namespace Spreads.Collections.Concurrent
         /// reducing how far we will typically search.
         /// </remarks>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public T Rent()
+        public T? Rent()
         {
             // PERF: Examine the first element. If that fails, AllocateSlow will look at the remaining elements.
             // Note that the initial read is optimistically not synchronized. That is intentional.
@@ -197,7 +189,7 @@ namespace Spreads.Collections.Concurrent
             return inst;
         }
 
-        private T RentSlow()
+        private T? RentSlow()
         {
             var items = _items;
 
@@ -206,7 +198,7 @@ namespace Spreads.Collections.Concurrent
                 // Note that the initial read is optimistically not synchronized. That is intentional.
                 // We will interlock only when we have a candidate. in a worst case we may miss some
                 // recently returned objects. Not a big deal.
-                T inst = items[i].Value;
+                T? inst = items[i].Value;
                 if (inst != null && inst == Interlocked.CompareExchange(ref items[i].Value, null, inst))
                     return inst;
             }

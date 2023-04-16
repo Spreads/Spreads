@@ -74,10 +74,9 @@ namespace Spreads.Collections.Concurrent
 #pragma warning restore 649
 
         public LockedObjectPoolCore(Func<T> factory, int size, bool allocateOnEmpty = true)
+            : base(size, factory ?? throw new ArgumentNullException(nameof(factory)))
         {
-            Factory = factory ?? throw new ArgumentNullException(nameof(factory));
             AllocateOnEmpty = allocateOnEmpty;
-            _items = new Element[size];
         }
 
         public int Index => _index;
@@ -129,10 +128,7 @@ namespace Spreads.Collections.Concurrent
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
-        private T CreateNewObject()
-        {
-            return Factory();
-        }
+        private T? CreateNewObject() => Factory?.Invoke();
 
         [MethodImpl(MethodImplOptions.NoInlining)]
         private static void DoTrace()

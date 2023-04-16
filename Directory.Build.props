@@ -1,16 +1,13 @@
 <Project>
-  <PropertyGroup Condition="'$(TargetFramework)'=='net7.0' OR '$(TargetFramework)'=='net6.0' OR '$(TargetFramework)'=='net5.0' OR '$(TargetFramework)'=='netcoreapp3.1'">
-    <DefineConstants>$(DefineConstants);NETSTANDARD;HAS_ISREF;HAS_AGGR_OPT;HAS_INTRINSICS;BUILTIN_SPAN;BUILTIN_NULLABLE;HAS_TPWORKITEM;HAS_RANGE;HAS_BITOPERATIONS</DefineConstants>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(TargetFramework)'=='net6.0' OR '$(TargetFramework)'=='net5.0'">
-    <DefineConstants>$(DefineConstants);HAS_SUPPRESS_GC_TRANSITION</DefineConstants>
+  <PropertyGroup Condition="'$(TargetFramework)'=='net8.0' OR '$(TargetFramework)'=='net7.0' OR '$(TargetFramework)'=='net6.0'">
+    <DefineConstants>$(DefineConstants);NETSTANDARD;HAS_ISREF;HAS_AGGR_OPT;HAS_INTRINSICS;BUILTIN_SPAN;BUILTIN_NULLABLE;HAS_TPWORKITEM;HAS_RANGE;HAS_BITOPERATIONS;HAS_SUPPRESS_GC_TRANSITION</DefineConstants>
   </PropertyGroup>
 
   <PropertyGroup>
     <Product>Spreads</Product>
     <Authors>Victor Baybekov</Authors>
-    <Company>DataSpreads!io</Company>
-    <Copyright>Victor Baybekov 2017-2022</Copyright>
+    <Company>DataSpreads.io</Company>
+    <Copyright>Victor Baybekov 2017-2023</Copyright>
     <NeutralLanguage>en-US</NeutralLanguage>
     <RepositoryType>git</RepositoryType>
     <RepositoryUrl>https://github.com/Spreads/Spreads</RepositoryUrl>

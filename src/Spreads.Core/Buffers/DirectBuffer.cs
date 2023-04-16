@@ -50,8 +50,8 @@ namespace Spreads.Buffers
             if (data == default)
                 ThrowHelper.ThrowArgumentNullException("data pointer must not be null");
 
-            _length = (nint) length;
-            _pointer = (byte*) data;
+            _length = (nint)length;
+            _pointer = (byte*)data;
         }
 
         /// <summary>
@@ -61,7 +61,7 @@ namespace Spreads.Buffers
         /// <param name="handle"></param>
         [DebuggerStepThrough]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public DirectBuffer(long length, MemoryHandle handle) : this(length, (nint) handle.Pointer)
+        public DirectBuffer(long length, MemoryHandle handle) : this(length, (nint)handle.Pointer)
         {
         }
 
@@ -82,7 +82,7 @@ namespace Spreads.Buffers
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal DirectBuffer(long length, byte* pointer)
         {
-            _length = (nint) length;
+            _length = (nint)length;
             _pointer = pointer;
         }
 
@@ -97,7 +97,7 @@ namespace Spreads.Buffers
             if (!retainedMemory.IsPinned) ThrowRetainedMemoryNotPinned();
 
             _length = retainedMemory.Length;
-            _pointer = (byte*) retainedMemory.Pointer;
+            _pointer = (byte*)retainedMemory.Pointer;
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
@@ -114,7 +114,7 @@ namespace Spreads.Buffers
         public DirectBuffer(Span<byte> span)
         {
             _length = span.Length;
-            _pointer = (byte*) AsPointer(ref span.GetPinnableReference());
+            _pointer = (byte*)AsPointer(ref span.GetPinnableReference());
         }
 
         public bool IsValid
@@ -128,14 +128,14 @@ namespace Spreads.Buffers
         {
             [DebuggerStepThrough]
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => _length ==default;
+            get => _length == default;
         }
 
         [DebuggerStepThrough]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool IsFilledWithValue(byte value)
         {
-            return IsFilledWithValue(ref *Data, (ulong) _length, value);
+            return IsFilledWithValue(ref *Data, (ulong)_length, value);
         }
 
         public Span<byte> Span
@@ -145,7 +145,7 @@ namespace Spreads.Buffers
             get
             {
 #if BUILTIN_SPAN
-                return MemoryMarshal.CreateSpan(ref *_pointer, (int) _length);
+                return MemoryMarshal.CreateSpan(ref *_pointer, (int)_length);
 #else
                 return new Span<byte>(_pointer, (int) _length);
 #endif
@@ -156,7 +156,7 @@ namespace Spreads.Buffers
         {
             [DebuggerStepThrough]
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => checked((int) (long) _length);
+            get => checked((int)(long)_length);
         }
 
         public long LongLength
@@ -180,7 +180,7 @@ namespace Spreads.Buffers
         {
             [DebuggerStepThrough]
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => (nint) _pointer;
+            get => (nint)_pointer;
         }
 
         [Pure]
@@ -214,7 +214,7 @@ namespace Spreads.Buffers
 
                 unchecked
                 {
-                    if ((ulong) index + (ulong) length > (ulong) _length)
+                    if ((ulong)index + (ulong)length > (ulong)_length)
                         ThrowHelper.ThrowArgumentException("Not enough space in DirectBuffer or bad index/length.");
                 }
             }
@@ -379,7 +379,7 @@ namespace Spreads.Buffers
         {
             if (AdditionalCorrectnessChecks.Enabled) Assert(index, 4);
 
-            return Volatile.Read(ref *(int*) (_pointer + index));
+            return Volatile.Read(ref *(int*)(_pointer + index));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -387,7 +387,7 @@ namespace Spreads.Buffers
         {
             if (AdditionalCorrectnessChecks.Enabled) Assert(index, 4);
 
-            Volatile.Write(ref *(int*) (_pointer + index), value);
+            Volatile.Write(ref *(int*)(_pointer + index), value);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -396,7 +396,7 @@ namespace Spreads.Buffers
         {
             if (AdditionalCorrectnessChecks.Enabled) Assert(index, 4);
 
-            return Volatile.Read(ref *(uint*) (_pointer + index));
+            return Volatile.Read(ref *(uint*)(_pointer + index));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -404,7 +404,7 @@ namespace Spreads.Buffers
         {
             if (AdditionalCorrectnessChecks.Enabled) Assert(index, 4);
 
-            Volatile.Write(ref *(uint*) (_pointer + index), value);
+            Volatile.Write(ref *(uint*)(_pointer + index), value);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -413,7 +413,7 @@ namespace Spreads.Buffers
         {
             if (AdditionalCorrectnessChecks.Enabled) Assert(index, 8);
 
-            return Volatile.Read(ref *(long*) (_pointer + index));
+            return Volatile.Read(ref *(long*)(_pointer + index));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -421,7 +421,7 @@ namespace Spreads.Buffers
         {
             if (AdditionalCorrectnessChecks.Enabled) Assert(index, 8);
 
-            Volatile.Write(ref *(ulong*) (_pointer + index), value);
+            Volatile.Write(ref *(ulong*)(_pointer + index), value);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -430,7 +430,7 @@ namespace Spreads.Buffers
         {
             if (AdditionalCorrectnessChecks.Enabled) Assert(index, 8);
 
-            return Volatile.Read(ref *(ulong*) (_pointer + index));
+            return Volatile.Read(ref *(ulong*)(_pointer + index));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -438,7 +438,7 @@ namespace Spreads.Buffers
         {
             if (AdditionalCorrectnessChecks.Enabled) Assert(index, 8);
 
-            Volatile.Write(ref *(long*) (_pointer + index), value);
+            Volatile.Write(ref *(long*)(_pointer + index), value);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -447,7 +447,7 @@ namespace Spreads.Buffers
         {
             if (AdditionalCorrectnessChecks.Enabled) Assert(index, 4);
 
-            return Interlocked.Increment(ref *(int*) (_pointer + index));
+            return Interlocked.Increment(ref *(int*)(_pointer + index));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -456,7 +456,7 @@ namespace Spreads.Buffers
         {
             if (AdditionalCorrectnessChecks.Enabled) Assert(index, 4);
 
-            return Interlocked.Decrement(ref *(int*) (_pointer + index));
+            return Interlocked.Decrement(ref *(int*)(_pointer + index));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -465,7 +465,7 @@ namespace Spreads.Buffers
         {
             if (AdditionalCorrectnessChecks.Enabled) Assert(index, 4);
 
-            return Interlocked.Add(ref *(int*) (_pointer + index), value);
+            return Interlocked.Add(ref *(int*)(_pointer + index), value);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -474,7 +474,7 @@ namespace Spreads.Buffers
         {
             if (AdditionalCorrectnessChecks.Enabled) Assert(index, 4);
 
-            return Interlocked.Add(ref *(int*) (_pointer + index), 0);
+            return Interlocked.Add(ref *(int*)(_pointer + index), 0);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -483,7 +483,7 @@ namespace Spreads.Buffers
         {
             if (AdditionalCorrectnessChecks.Enabled) Assert(index, 4);
 
-            return Interlocked.CompareExchange(ref *(int*) (_pointer + index), value, comparand);
+            return Interlocked.CompareExchange(ref *(int*)(_pointer + index), value, comparand);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -492,7 +492,7 @@ namespace Spreads.Buffers
         {
             if (AdditionalCorrectnessChecks.Enabled) Assert(index, 8);
 
-            return Interlocked.Increment(ref *(long*) (_pointer + index));
+            return Interlocked.Increment(ref *(long*)(_pointer + index));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -501,7 +501,7 @@ namespace Spreads.Buffers
         {
             if (AdditionalCorrectnessChecks.Enabled) Assert(index, 8);
 
-            return Interlocked.Decrement(ref *(long*) (_pointer + index));
+            return Interlocked.Decrement(ref *(long*)(_pointer + index));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -510,7 +510,7 @@ namespace Spreads.Buffers
         {
             if (AdditionalCorrectnessChecks.Enabled) Assert(index, 8);
 
-            return Interlocked.Add(ref *(long*) (_pointer + index), value);
+            return Interlocked.Add(ref *(long*)(_pointer + index), value);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -519,7 +519,7 @@ namespace Spreads.Buffers
         {
             if (AdditionalCorrectnessChecks.Enabled) Assert(index, 8);
 
-            return Interlocked.Add(ref *(long*) (_pointer + index), 0);
+            return Interlocked.Add(ref *(long*)(_pointer + index), 0);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -528,7 +528,7 @@ namespace Spreads.Buffers
         {
             if (AdditionalCorrectnessChecks.Enabled) Assert(index, 8);
 
-            return Interlocked.CompareExchange(ref *(long*) (_pointer + index), value, comparand);
+            return Interlocked.CompareExchange(ref *(long*)(_pointer + index), value, comparand);
         }
 
         /// <summary>
@@ -738,7 +738,7 @@ namespace Spreads.Buffers
             if (AdditionalCorrectnessChecks.Enabled) Assert(index, length);
 
             var destination = _pointer + index;
-            InitBlockUnaligned(destination, 0, (uint) length);
+            InitBlockUnaligned(destination, 0, (uint)length);
         }
 
         [DebuggerStepThrough]
@@ -748,7 +748,7 @@ namespace Spreads.Buffers
             if (AdditionalCorrectnessChecks.Enabled) Assert(index, length);
 
             var destination = _pointer + index;
-            InitBlockUnaligned(destination, value, (uint) length);
+            InitBlockUnaligned(destination, value, (uint)length);
         }
 
 #if SPREADS
@@ -786,16 +786,16 @@ namespace Spreads.Buffers
         {
             if (AdditionalCorrectnessChecks.Enabled) Assert(index, 1);
 
-            WriteUnaligned(_pointer + index, (byte) (value + '0'));
+            WriteUnaligned(_pointer + index, (byte)(value + '0'));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         [SuppressMessage("ReSharper", "HeapView.BoxingAllocation")]
         public void VerifyAlignment(int alignment)
         {
-            if (0 != ((long) _pointer & (alignment - 1)))
+            if (0 != ((long)_pointer & (alignment - 1)))
                 ThrowHelper.ThrowInvalidOperationException(
-                    $"DirectBuffer is not correctly aligned: addressOffset={(long) _pointer:D} in not divisible by {alignment:D}");
+                    $"DirectBuffer is not correctly aligned: addressOffset={(long)_pointer:D} in not divisible by {alignment:D}");
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -807,9 +807,9 @@ namespace Spreads.Buffers
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void CopyTo(in DirectBuffer destination)
         {
-            if (AdditionalCorrectnessChecks.Enabled) destination.Assert(0, (long) _length);
+            if (AdditionalCorrectnessChecks.Enabled) destination.Assert(0, (long)_length);
 
-            CopyTo(0, destination.Data, (int) _length);
+            CopyTo(0, destination.Data, (int)_length);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -817,7 +817,7 @@ namespace Spreads.Buffers
         {
             if (AdditionalCorrectnessChecks.Enabled) Assert(index, length);
 
-            CopyBlockUnaligned(destination, _pointer + index, checked((uint) length));
+            CopyBlockUnaligned(destination, _pointer + index, checked((uint)length));
         }
 
         #region Debugger proxy class
@@ -846,7 +846,7 @@ namespace Spreads.Buffers
         public override int GetHashCode()
         {
 #if SPREADS
-            return unchecked((int) Algorithms.Hash.Crc32C.CalculateCrc32C(_pointer, checked((int) (long) _length)));
+            return unchecked((int)Algorithms.Hash.Crc32C.CalculateCrc32C(_pointer, checked((int)(long)_length)));
 #else
             throw new NotSupportedException();
 #endif
@@ -858,7 +858,7 @@ namespace Spreads.Buffers
             if (_length != other._length)
                 return false;
 
-            return SequenceEqual(ref *_pointer, ref *other._pointer, checked((uint) (long) _length));
+            return SequenceEqual(ref *_pointer, ref *other._pointer, checked((uint)(long)_length));
         }
 
         // Methods from https://source.dot.net/#System.Private.CoreLib/shared/System/SpanHelpers.Byte.cs,ae8b63bad07668b3
@@ -882,12 +882,12 @@ namespace Spreads.Buffers
             }
 
             nint offset = default; // Use nint for arithmetic to avoid unnecessary 64->32->64 truncations
-            nint lengthToExamine = (nint) (void*) length;
+            nint lengthToExamine = (nint)(void*)length;
 
-            if (Vector.IsHardwareAccelerated && (byte*) lengthToExamine >= (byte*) Vector<byte>.Count)
+            if (Vector.IsHardwareAccelerated && (byte*)lengthToExamine >= (byte*)Vector<byte>.Count)
             {
                 lengthToExamine -= Vector<byte>.Count;
-                while ((byte*) lengthToExamine > (byte*) offset)
+                while ((byte*)lengthToExamine > (byte*)offset)
                 {
                     if (LoadVector(ref first, offset) != LoadVector(ref second, offset))
                     {
@@ -900,10 +900,10 @@ namespace Spreads.Buffers
                 return LoadVector(ref first, lengthToExamine) == LoadVector(ref second, lengthToExamine);
             }
 
-            if ((byte*) lengthToExamine >= (byte*) sizeof(nuint))
+            if ((byte*)lengthToExamine >= (byte*)sizeof(nuint))
             {
                 lengthToExamine -= sizeof(nuint);
-                while ((byte*) lengthToExamine > (byte*) offset)
+                while ((byte*)lengthToExamine > (byte*)offset)
                 {
                     if (LoadUIntPtr(ref first, offset) != LoadUIntPtr(ref second, offset))
                     {
@@ -916,7 +916,7 @@ namespace Spreads.Buffers
                 return LoadUIntPtr(ref first, lengthToExamine) == LoadUIntPtr(ref second, lengthToExamine);
             }
 
-            while ((byte*) lengthToExamine > (byte*) offset)
+            while ((byte*)lengthToExamine > (byte*)offset)
             {
                 if (AddByteOffset(ref first, offset) != AddByteOffset(ref second, offset))
                 {
@@ -939,12 +939,12 @@ namespace Spreads.Buffers
         {
             var valueVector = new Vector<byte>(value);
             nint offset = default; // Use IntPtr for arithmetic to avoid unnecessary 64->32->64 truncations
-            nint lengthToExamine = (nint) (void*) length;
+            nint lengthToExamine = (nint)(void*)length;
 
-            if (Vector.IsHardwareAccelerated && (byte*) lengthToExamine >= (byte*) Vector<byte>.Count)
+            if (Vector.IsHardwareAccelerated && (byte*)lengthToExamine >= (byte*)Vector<byte>.Count)
             {
                 lengthToExamine -= Vector<byte>.Count;
-                while ((byte*) lengthToExamine > (byte*) offset)
+                while ((byte*)lengthToExamine > (byte*)offset)
                 {
                     if (LoadVector(ref first, offset) != valueVector)
                     {
@@ -957,20 +957,20 @@ namespace Spreads.Buffers
                 return LoadVector(ref first, lengthToExamine) == valueVector;
             }
 
-            if ((byte*) lengthToExamine >= (byte*) sizeof(nuint))
+            if ((byte*)lengthToExamine >= (byte*)sizeof(nuint))
             {
                 lengthToExamine -= sizeof(nuint);
                 nuint uintPtrValue;
                 if (UIntPtr.Size == 8)
                 {
-                    uintPtrValue = (nuint) Vector.AsVectorUInt64(valueVector)[0];
+                    uintPtrValue = (nuint)Vector.AsVectorUInt64(valueVector)[0];
                 }
                 else
                 {
-                    uintPtrValue = (nuint) Vector.AsVectorUInt32(valueVector)[0];
+                    uintPtrValue = (nuint)Vector.AsVectorUInt32(valueVector)[0];
                 }
 
-                while ((byte*) lengthToExamine > (byte*) offset)
+                while ((byte*)lengthToExamine > (byte*)offset)
                 {
                     if (LoadUIntPtr(ref first, offset) != uintPtrValue)
                     {
@@ -983,7 +983,7 @@ namespace Spreads.Buffers
                 return LoadUIntPtr(ref first, lengthToExamine) == uintPtrValue;
             }
 
-            while ((byte*) lengthToExamine > (byte*) offset)
+            while ((byte*)lengthToExamine > (byte*)offset)
             {
                 if (AddByteOffset(ref first, offset) != value)
                 {

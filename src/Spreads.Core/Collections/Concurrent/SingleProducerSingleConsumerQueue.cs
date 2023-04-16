@@ -10,6 +10,7 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Collections;
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 
 namespace Spreads.Collections.Concurrent
@@ -61,10 +62,10 @@ namespace Spreads.Collections.Concurrent
         private const int MaxSegmentSize = 0x1000000; // this could be made as large as Int32.MaxValue / 2
 
         /// <summary>The head of the linked list of segments.</summary>
-        private Segment? _head;
+        private volatile Segment _head;
 
         /// <summary>The tail of the linked list of segments.</summary>
-        private Segment _tail;
+        private volatile Segment _tail;
 
         /// <summary>Initializes the queue.</summary>
         public SingleProducerSingleConsumerQueue()
@@ -84,8 +85,8 @@ namespace Spreads.Collections.Concurrent
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Enqueue(T item)
         {
-            Segment segment = Volatile.Read(ref _tail);
-            T[] array = segment._array;
+            Segment segment = _tail;
+            T?[] array = segment._array;
             int last = segment._state._last; // local copy to avoid multiple volatile reads
 
             // Fast path: there's obviously room in the current segment
@@ -114,7 +115,7 @@ namespace Spreads.Collections.Concurrent
                 return;
             }
 
-            int newSegmentSize = Volatile.Read(ref _tail)._array.Length << 1; // double size
+            int newSegmentSize = _tail._array.Length << 1; // double size
             Debug.Assert(newSegmentSize > 0, "The max size should always be small enough that we don't overflow.");
             if (newSegmentSize > MaxSegmentSize) newSegmentSize = MaxSegmentSize;
 
@@ -123,13 +124,15 @@ namespace Spreads.Collections.Concurrent
             newSegment._state._last = 1;
             newSegment._state._lastCopy = 1;
 
-            try { }
+            try
+            {
+            }
             finally
             {
                 // Finally block to protect against corruption due to a thread abort
                 // between setting _next and setting _tail.
-                Volatile.Write(ref Volatile.Read(ref _tail)._next, newSegment); // ensure segment not published until item is fully stored
-                Volatile.Write(ref _tail, newSegment);
+                Volatile.Write(ref _tail._next, newSegment); // ensure segment not published until item is fully stored
+                _tail = newSegment;
             }
         }
 
@@ -137,22 +140,23 @@ namespace Spreads.Collections.Concurrent
         /// <param name="result">The dequeued item.</param>
         /// <returns>true if an item could be dequeued; otherwise, false.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool TryDequeue(out T result)
+        public bool TryDequeue([NotNullWhen(true)] out T? result)
         {
-            Segment segment = Volatile.Read(ref _head);
-            T[] array = segment._array;
+            Segment segment = _head;
+            T?[] array = segment._array;
             int first = segment._state._first; // local copy to avoid multiple volatile reads
 
             // Fast path: there's obviously data available in the current segment
             if (first != segment._state._lastCopy)
             {
-                result = array[first];
-                array[first] = default(T); // Clear the slot to release the element
+                result = array[first]!;
+                array[first] = default; // Clear the slot to release the element
                 segment._state._first = (first + 1) & (array.Length - 1);
                 return true;
             }
+
             // Slow path: there may not be data available in the current segment
-            else return TryDequeueSlow(ref segment, ref array, out result);
+            return TryDequeueSlow(ref segment, ref array, out result);
         }
 
         /// <summary>Attempts to dequeue an item from the queue.</summary>
@@ -161,7 +165,7 @@ namespace Spreads.Collections.Concurrent
         /// <param name="result">The dequeued item.</param>
         /// <returns>true if an item could be dequeued; otherwise, false.</returns>
         [MethodImpl(MethodImplOptions.NoInlining)]
-        private bool TryDequeueSlow(ref Segment segment, ref T[] array, out T result)
+        private bool TryDequeueSlow(ref Segment segment, ref T?[] array, [NotNullWhen(true)] out T? result)
         {
             Debug.Assert(segment != null, "Expected a non-null segment.");
             Debug.Assert(array != null, "Expected a non-null item array.");
@@ -176,19 +180,19 @@ namespace Spreads.Collections.Concurrent
             {
                 segment = segment._next;
                 array = segment._array;
-                Volatile.Write(ref _head, segment);
+                _head = segment;
             }
 
             int first = segment._state._first; // local copy to avoid extraneous volatile reads
 
             if (first == segment._state._last)
             {
-                result = default(T);
+                result = default;
                 return false;
             }
 
-            result = array[first];
-            array[first] = default(T); // Clear the slot to release the element
+            result = array[first]!;
+            array[first] = default; // Clear the slot to release the element
             segment._state._first = (first + 1) & (segment._array.Length - 1);
             segment._state._lastCopy = segment._state._last; // Refresh _lastCopy to ensure that _first has not passed _lastCopy
 
@@ -202,7 +206,7 @@ namespace Spreads.Collections.Concurrent
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
-                Segment head = Volatile.Read(ref _head);
+                Segment head = _head;
                 if (head._state._first != head._state._lastCopy) return false; // _first is volatile, so the read of _lastCopy cannot get reordered
                 if (head._state._first != head._state._last) return false;
                 return head._next == null;
@@ -213,13 +217,13 @@ namespace Spreads.Collections.Concurrent
         /// <remarks>This method is not safe to use concurrently with any other members that may mutate the collection.</remarks>
         public IEnumerator<T> GetEnumerator()
         {
-            for (Segment segment = Volatile.Read(ref _head); segment != null; segment = segment._next)
+            for (Segment? segment = _head; segment != null; segment = segment._next)
             {
                 for (int pt = segment._state._first;
-                    pt != segment._state._last;
-                    pt = (pt + 1) & (segment._array.Length - 1))
+                     pt != segment._state._last;
+                     pt = (pt + 1) & (segment._array.Length - 1))
                 {
-                    yield return segment._array[pt];
+                    yield return segment._array[pt]!;
                 }
             }
         }
@@ -234,7 +238,7 @@ namespace Spreads.Collections.Concurrent
             get
             {
                 int count = 0;
-                for (Segment segment = Volatile.Read(ref _head); segment != null; segment = segment._next)
+                for (Segment? segment = _head; segment != null; segment = segment._next)
                 {
                     int arraySize = segment._array.Length;
                     int first, last;
@@ -244,8 +248,10 @@ namespace Spreads.Collections.Concurrent
                         last = segment._state._last;
                         if (first == segment._state._first) break;
                     }
+
                     count += (last - first) & (arraySize - 1);
                 }
+
                 return count;
             }
         }
@@ -258,7 +264,7 @@ namespace Spreads.Collections.Concurrent
             internal Segment? _next;
 
             /// <summary>The data stored in this segment.</summary>
-            internal readonly T[] _array;
+            internal readonly T?[] _array;
 
             /// <summary>Details about the segment.</summary>
             internal SegmentState _state; // separated out to enable StructLayout attribute to take effect
@@ -329,5 +335,7 @@ namespace Spreads.Collections.Concurrent
 
     /// <summary>Padding structure used to minimize false sharing in SingleProducerSingleConsumerQueue{T}.</summary>
     [StructLayout(LayoutKind.Explicit, Size = PaddingHelpers.CACHE_LINE_SIZE - sizeof(int))] // Based on common case of 64-byte cache lines
-    internal struct PaddingFor32 { }
+    internal struct PaddingFor32
+    {
+    }
 }

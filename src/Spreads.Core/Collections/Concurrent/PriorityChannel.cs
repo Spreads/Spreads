@@ -2,7 +2,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-using System.Diagnostics;
+using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using System.Threading;
 
@@ -12,18 +13,20 @@ namespace Spreads.Collections.Concurrent
     /// Single-producer single-consumer queue with a priority channel that allows priority items jump ahead of normal ones.
     /// All items with the same priority are FIFO.
     /// </summary>
-    public sealed class PriorityChannel<T>
+    public sealed class PriorityChannel<T> : IDisposable
     {
         private readonly CancellationToken _ct;
         private volatile bool _isWaiting;
-        private readonly SemaphoreSlim _semaphore = new SemaphoreSlim(0, int.MaxValue);
-        private readonly SingleProducerSingleConsumerQueue<T> _items = new SingleProducerSingleConsumerQueue<T>();
-        private readonly SingleProducerSingleConsumerQueue<T> _priorityItems = new SingleProducerSingleConsumerQueue<T>();
+        private readonly SemaphoreSlim _semaphore = new(0, int.MaxValue);
+        private readonly SingleProducerSingleConsumerQueue<T> _items = new();
+        private readonly SingleProducerSingleConsumerQueue<T> _priorityItems = new();
         private readonly SingleProducerSingleConsumerQueue<T>[] _queues = new SingleProducerSingleConsumerQueue<T>[2];
+        private readonly CancellationTokenSource _cts;
 
         public PriorityChannel(CancellationToken ct = default)
         {
-            _ct = ct;
+            _cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            _ct = _cts.Token;
             _queues[0] = _items;
             _queues[1] = _priorityItems;
         }
@@ -50,17 +53,14 @@ namespace Spreads.Collections.Concurrent
         public unsafe bool TryAdd(T item, bool isPriority = false)
         {
             if (IsCancelled)
-            {
                 return false;
-            }
+
             // branchless choice of queue
             var idx = *(int*)&isPriority & 1;
             _queues[idx].Enqueue(item);
 
             if (_isWaiting)
-            {
                 _semaphore.Release();
-            }
 
             return true;
         }
@@ -72,7 +72,7 @@ namespace Spreads.Collections.Concurrent
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool Take(out T item, out bool isPriority)
+        public bool Take([NotNullWhen(true)]out T? item, out bool isPriority)
         {
             var spinner = new SpinWait();
             while (true)
@@ -99,7 +99,7 @@ namespace Spreads.Collections.Concurrent
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool TryTake(out T item, out bool isPriority)
+        public bool TryTake([NotNullWhen(true)]out T? item, out bool isPriority)
         {
             if (_priorityItems.IsEmpty)
             {
@@ -111,16 +111,19 @@ namespace Spreads.Collections.Concurrent
             }
             else
             {
-                // ReSharper disable once RedundantAssignment
-                var taken = _priorityItems.TryDequeue(out item);
-                Debug.Assert(taken);
                 isPriority = true;
-                return true;
+                return _priorityItems.TryDequeue(out item);
             }
 
             item = default;
             isPriority = false;
             return false;
+        }
+
+        public void Dispose()
+        {
+            _semaphore.Dispose();
+            _cts.Dispose();
         }
     }
 }
